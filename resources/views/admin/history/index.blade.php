@@ -26,38 +26,16 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
-            <div class="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
-                <i class="fa fa-hand-holding-usd text-green-500 text-lg"></i>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
+                    <i class="fa fa-car text-purple-500 text-lg"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] uppercase font-semibold text-gray-400">Rental</p>
+                    <p class="text-sm font-bold text-purple-600 leading-tight">Rp {{ number_format($kendaraans->sum('rentals_sum_total_biaya'), 0, ',', '.') }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">Pendapatan Rental</p>
+                </div>
             </div>
-            <div>
-                <p class="text-[11px] uppercase font-semibold text-gray-400">Omset</p>
-                <p class="text-sm font-bold text-green-600 leading-tight">Rp {{ number_format($totalOmset, 0, ',', '.') }}</p>
-                <p class="text-xs text-gray-400 mt-0.5">Total Omset Rental</p>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
-            <div class="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-                <i class="fa fa-tools text-orange-500 text-lg"></i>
-            </div>
-            <div>
-                <p class="text-[11px] uppercase font-semibold text-gray-400">Service</p>
-                <p class="text-sm font-bold text-orange-600 leading-tight">Rp {{ number_format($kendaraans->sum('service_histories_sum_total_biaya'), 0, ',', '.') }}</p>
-                <p class="text-xs text-gray-400 mt-0.5">Total Biaya Service</p>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
-            <div class="w-11 h-11 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
-                <i class="fa fa-car text-purple-500 text-lg"></i>
-            </div>
-            <div>
-                <p class="text-[11px] uppercase font-semibold text-gray-400">Kotor</p>
-                <p class="text-sm font-bold text-purple-600 leading-tight">Rp {{ number_format($kendaraans->sum('rentals_sum_total_biaya'), 0, ',', '.') }}</p>
-                <p class="text-xs text-gray-400 mt-0.5">Pendapatan Kotor</p>
-            </div>
-        </div>
 
     </div>
 
@@ -92,9 +70,7 @@
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Mobil</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Plat</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Rental</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Biaya Rental</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Service</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Pendapatan</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Pendatapan Rental</th>
                         <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
                     </tr>
                 </thead>
@@ -147,18 +123,6 @@
                             {{-- BIAYA RENTAL --}}
                             <td class="px-4 py-3.5">
                                 <span class="text-sm font-semibold text-indigo-600">Rp {{ number_format($k->rentals_sum_total_biaya ?? 0) }}</span>
-                            </td>
-
-                            {{-- TOTAL SERVICE --}}
-                            <td class="px-4 py-3.5">
-                                <span class="text-sm font-semibold text-red-500">Rp {{ number_format($k->service_histories_sum_total_biaya ?? 0) }}</span>
-                            </td>
-
-                            {{-- TOTAL PENDAPATAN --}}
-                            <td class="px-4 py-3.5">
-                                <span class="text-sm font-bold text-blue-600">
-                                    Rp {{ number_format(($k->rentals_sum_total_biaya ?? 0) - ($k->service_histories_sum_total_biaya ?? 0)) }}
-                                </span>
                             </td>
 
                             {{-- AKSI --}}

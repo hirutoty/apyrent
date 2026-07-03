@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <title>Data Member</title>
@@ -164,7 +165,7 @@
 
                 <td width="15%">
                     @if ($setting?->logo)
-                       <img src="{{ public_path($setting->logo) }}" class="logo">
+                        <img src="{{ public_path($setting->logo) }}" class="logo">
                     @endif
                 </td>
 
@@ -199,92 +200,100 @@
     </div>
 
     blade
-{{-- INFO BOX --}}
-<div class="info-box">
+    {{-- INFO BOX --}}
+    <div class="info-box">
 
-    <p>
-        <strong>Tanggal Cetak :</strong>
-        {{ now()->format('d M Y H:i') }}
-    </p>
-
-    @if(request('search'))
         <p>
-            <strong>Filter :</strong>
-            {{ request('search') }}
+            <strong>Tanggal Cetak :</strong>
+            {{ now()->format('d M Y H:i') }}
         </p>
-    @endif
 
-    <p>
-        <strong>Total Member :</strong>
-        {{ $data->count() }}
-    </p>
+        @if (request('search'))
+            <p>
+                <strong>Filter :</strong>
+                {{ request('search') }}
+            </p>
+        @endif
 
-</div>
+        <p>
+            <strong>Total Member :</strong>
+            {{ $data->count() }}
+        </p>
 
-{{-- TABEL --}}
-<div class="table-wrap">
+    </div>
 
-    <table class="main-table">
+    {{-- TABEL --}}
+    <div class="table-wrap">
 
-        <thead>
-            <tr>
-                <th width="8%">No</th>
-                <th width="25%">Nama Member</th>
-                <th width="22%">Kontak</th>
-                <th width="45%">Alamat</th>
-            </tr>
-        </thead>
+        <table class="main-table">
 
-        <tbody>
-
-            @forelse($data as $i => $d)
+            <thead>
                 <tr>
+                    <th width="8%">No</th>
+                    <th width="25%">Nama Member</th>
+                    <th width="22%">Kontak</th>
+                    <th width="22%">Email</th>
+                    <th width="22%">Jenis Member</th>
+                    <th width="45%">Alamat</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                @forelse($data as $i => $d)
+                    <tr>
+
+                        <td class="text-center">
+                            {{ $i + 1 }}
+                        </td>
+
+                        <td>
+                            {{ $d->nama_member }}
+                        </td>
+
+                        <td>
+                            {{ $d->kontak_member ?? '-' }}
+                        </td>
+
+                        <td>
+                            {{ $d->email_member ?? '-' }}
+                        </td>
+                        <td>
+                            {{ $d->jenis_member ?? '-' }}
+                        </td>
+
+                        <td>
+                            {{ $d->alamat?? '-' }}
+                        </td>
+
+                    </tr>
+                @empty
+
+                    <tr>
+                        <td colspan="4" class="text-center">
+                            Tidak ada data member.
+                        </td>
+                    </tr>
+                @endforelse
+
+                <tr class="row-subtotal">
+                    <td colspan="3" class="text-right">
+                        TOTAL MEMBER
+                    </td>
 
                     <td class="text-center">
-                        {{ $i + 1 }}
-                    </td>
-
-                    <td>
-                        {{ $d->nama_member }}
-                    </td>
-
-                    <td>
-                        {{ $d->kontak_member }}
-                    </td>
-
-                    <td>
-                        {{ $d->alamat }}
-                    </td>
-
-                </tr>
-            @empty
-
-                <tr>
-                    <td colspan="4" class="text-center">
-                        Tidak ada data member.
+                        {{ $data->count() }} Member
                     </td>
                 </tr>
 
-            @endforelse
+            </tbody>
 
-            <tr class="row-subtotal">
-                <td colspan="3" class="text-right">
-                    TOTAL MEMBER
-                </td>
+        </table>
 
-                <td class="text-center">
-                    {{ $data->count() }} Member
-                </td>
-            </tr>
+    </div>
 
-        </tbody>
-
-    </table>
-
-</div>
-
-{{-- KETERANGAN --}}
-{{-- <div class="note-box">
+    {{-- KETERANGAN --}}
+    {{-- <div class="note-box">
 
     <div class="note-title">
         KETERANGAN DOKUMEN
@@ -299,7 +308,7 @@
 
 </div> --}}
 
-<div class="footer">
+    <div class="footer">
 
         <strong>{{ $setting?->nama_perusahaan }}</strong>
         <br>
@@ -320,4 +329,5 @@
 
 
 </body>
+
 </html>

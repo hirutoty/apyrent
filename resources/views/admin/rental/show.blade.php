@@ -38,6 +38,15 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
         }
 
+        .info-tile {
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+
+        .info-tile:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, .06);
+        }
+
         .timeline-step {
             position: relative;
             padding-left: 2rem;
@@ -59,7 +68,7 @@
 
         .section-card {
             background: #fff;
-            border-radius: 16px;
+            border-radius: 18px;
             border: 1px solid #F1F5F9;
             box-shadow: 0 1px 4px rgba(0, 0, 0, .04);
             overflow: hidden;
@@ -71,6 +80,7 @@
             justify-content: space-between;
             padding: 1.1rem 1.5rem;
             border-bottom: 1px solid #F1F5F9;
+            background: linear-gradient(180deg, #FAFBFC 0%, #FFFFFF 100%);
         }
 
         .section-icon {
@@ -82,6 +92,49 @@
             justify-content: center;
             font-size: 16px;
             flex-shrink: 0;
+        }
+
+        .upload-box {
+            border: 1.5px dashed #E5E7EB;
+            border-radius: 14px;
+            transition: border-color .15s ease, background .15s ease;
+        }
+
+        .upload-box:hover {
+            border-color: #93C5FD;
+            background: #F8FAFF;
+        }
+
+        .btn-modern {
+            border-radius: 14px;
+            font-weight: 600;
+            letter-spacing: .01em;
+            transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+        }
+
+        .btn-modern:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-modern:active {
+            transform: translateY(0);
+        }
+
+        .proof-link {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            font-size: .8rem;
+            font-weight: 600;
+            color: #2563EB;
+            background: #EFF6FF;
+            padding: .5rem .75rem;
+            border-radius: 10px;
+            transition: background .15s ease;
+        }
+
+        .proof-link:hover {
+            background: #DBEAFE;
         }
     </style>
 @endpush
@@ -98,7 +151,7 @@
                     </a>
                     <h1 class="text-2xl font-bold text-gray-800">Detail Rental</h1>
                     <span
-                        class="px-2.5 py-0.5 rounded-full text-xs font-bold
+                        class="px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm
                     @if ($rental->status == 'Pending') badge-Pending
                     @elseif($rental->status == 'booking') badge-booking
                     @elseif($rental->status == 'aktif') badge-aktif
@@ -113,18 +166,14 @@
                 </p>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('rental.invoice', $rental->id) }}" target="_blank"
-                    class="inline-flex items-center gap-2 text-sm font-medium text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl transition-colors">
-                    <i class="fa fa-file-pdf"></i> Invoice PDF
-                </a>
                 <a href="{{ route('rental.index') }}"
-                    class="inline-flex items-center gap-2 text-sm font-medium text-gray-600 border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+                    class="btn-modern inline-flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-4 py-2 hover:bg-gray-50">
                     <i class="fa fa-arrow-left"></i> Kembali
                 </a>
             </div>
         </div>
 
-        {{-- ── STAT MINI CARDS ─────────────────────────────────── --}}
+        {{-- ── STAT MINI CARDS / PERHITUNGAN BIAYA & WAKTU ─────── --}}
 
         @php
             $sudahBayar = ($rental->nominal_dp ?? 0) + ($rental->nominal_pelunasan ?? 0);
@@ -132,8 +181,59 @@
                 $sudahBayar = $rental->total_biaya;
             }
             $sisa = max(0, $rental->total_biaya - $sudahBayar);
+
+            // Hitung sisa waktu / keterlambatan rental berdasarkan tanggal_selesai
+            $now = \Carbon\Carbon::now();
+            $tglSelesai = \Carbon\Carbon::parse($rental->tanggal_selesai);
+            $isOverdue = $now->greaterThan($tglSelesai);
+            $totalDetik = $now->diffInSeconds($tglSelesai); // absolute
+            $sisaHari = intdiv($totalDetik, 86400);
+            $sisaJam = intdiv($totalDetik % 86400, 3600);
+            $hampirSeminggu = $isOverdue && $sisaHari >= 6;
         @endphp
 
+        {{-- ── PERINGATAN WAKTU RENTAL (khusus status aktif) ────── --}}
+        @if ($rental->status == 'aktif')
+            @if ($isOverdue)
+                <div
+                    class="flex items-start gap-3 border px-4 py-3.5 rounded-2xl
+                    {{ $hampirSeminggu ? 'bg-red-100 border-red-300 text-red-800' : 'bg-red-50 border-red-200 text-red-700' }}">
+                    <i class="fa fa-exclamation-triangle text-lg mt-0.5"></i>
+                    <div>
+                        <p class="text-sm font-bold">
+                            Rental Terlambat
+                            @if ($sisaHari >= 1)
+                                {{ $sisaHari }} Hari {{ $sisaJam > 0 ? $sisaJam . ' Jam' : '' }}
+                            @else
+                                {{ $sisaJam }} Jam
+                            @endif
+                        </p>
+                        <p class="text-xs mt-0.5 leading-relaxed">
+                            @if ($hampirSeminggu)
+                                ⚠️ Keterlambatan sudah hampir 1 minggu! Segera hubungi member untuk konfirmasi
+                                pengembalian kendaraan.
+                            @else
+                                Batas waktu pengembalian
+                                ({{ \Carbon\Carbon::parse($rental->tanggal_selesai)->translatedFormat('d M Y') }})
+                                telah terlewati. Segera hubungi member.
+                            @endif
+                        </p>
+                    </div>
+                </div>
+            @else
+                <div class="flex items-center gap-3 bg-blue-50 border border-blue-100 text-blue-700 px-4 py-3 rounded-2xl">
+                    <i class="fa fa-clock text-lg"></i>
+                    <p class="text-sm font-semibold">
+                        Sisa Waktu Rental:
+                        @if ($sisaHari >= 1)
+                            {{ $sisaHari }} Hari {{ $sisaJam > 0 ? $sisaJam . ' Jam' : '' }}
+                        @else
+                            {{ $sisaJam }} Jam
+                        @endif
+                    </p>
+                </div>
+            @endif
+        @endif
 
         {{-- ── MAIN GRID ──────────────────────────────────────── --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -159,16 +259,17 @@
 
                     <div class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
-                        <div class="bg-gray-50 rounded-xl p-3.5">
+                        <div class="info-tile bg-gray-50 rounded-xl p-3.5">
                             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
                                 <i class="fa fa-user mr-1 text-blue-400"></i> Member
                             </p>
                             <p class="text-sm font-bold text-gray-800">{{ $rental->member->nama_member ?? '-' }}</p>
-                            @if ($rental->member->kontak_member ?? false)
-                                <p class="text-xs text-gray-500 mt-0.5">
-                                    <i class="fa fa-phone mr-1"></i>{{ $rental->member->kontak_member }}
-                                </p>
-                            @endif
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                <i class="fa fa-phone mr-1"></i>{{ $rental->member->kontak_member ?? '-' }}
+                            </p>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                <i class="fa fa-envelope mr-1"></i>{{ $rental->member->email_member ?? '-' }}
+                            </p>
                             @if ($rental->member->alamat ?? false)
                                 <p class="text-xs text-gray-500 mt-0.5">
                                     <i class="fa fa-map-marker-alt mr-1"></i>{{ $rental->member->alamat }}
@@ -176,7 +277,7 @@
                             @endif
                         </div>
 
-                        <div class="bg-blue-50 rounded-xl p-3.5">
+                        <div class="info-tile bg-blue-50 rounded-xl p-3.5">
                             <p class="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-2">
                                 <i class="fa fa-car mr-1"></i> Kendaraan
                             </p>
@@ -187,7 +288,7 @@
 
                         </div>
 
-                        <div class="bg-gray-50 rounded-xl p-3.5">
+                        <div class="info-tile bg-gray-50 rounded-xl p-3.5">
                             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
                                 <i class="fa fa-user-shield mr-1 text-gray-500"></i> Dibuat Oleh
                             </p>
@@ -195,21 +296,21 @@
                             <p class="text-xs text-gray-400 mt-0.5">{{ $rental->user->email ?? '' }}</p>
                         </div>
 
-                        <div class="bg-green-50 rounded-xl p-3.5">
+                        <div class="info-tile bg-green-50 rounded-xl p-3.5">
                             <p class="text-xs font-semibold text-green-500 uppercase tracking-wide mb-2">
                                 <i class="fa fa-calendar-check mr-1"></i> Mulai
                             </p>
                             <p class="text-sm font-bold text-gray-800">{{ $rental->tanggal_mulai }}</p>
                         </div>
 
-                        <div class="bg-red-50 rounded-xl p-3.5">
+                        <div class="info-tile bg-red-50 rounded-xl p-3.5">
                             <p class="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">
                                 <i class="fa fa-calendar-times mr-1"></i> Selesai
                             </p>
                             <p class="text-sm font-bold text-gray-800">{{ $rental->tanggal_selesai }}</p>
                         </div>
 
-                        <div class="bg-purple-50 rounded-xl p-3.5">
+                        <div class="info-tile bg-purple-50 rounded-xl p-3.5">
                             <p class="text-xs font-semibold text-purple-400 uppercase tracking-wide mb-2">
                                 <i class="fa fa-clock mr-1"></i> Durasi
                             </p>
@@ -231,62 +332,63 @@
                 </div>
 
                 {{-- DATA DRIVER & TUJUAN --}}
-@if($rental->tujuan || $rental->nama_driver || $rental->kontak_driver || $rental->biaya_driver)
-<div class="section-card">
-    <div class="section-header">
-        <div class="flex items-center gap-3">
-            <div class="section-icon bg-amber-100 text-amber-600">
-                <i class="fa fa-car-side"></i>
-            </div>
-            <div>
-                <h2 class="font-bold text-gray-800 text-sm">Perjalanan & Driver</h2>
-                <p class="text-xs text-gray-400">Info tujuan dan driver harian</p>
-            </div>
-        </div>
-        <span class="text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700">Per Hari</span>
-    </div>
+                @if ($rental->tujuan || $rental->nama_driver || $rental->kontak_driver || $rental->biaya_driver)
+                    <div class="section-card">
+                        <div class="section-header">
+                            <div class="flex items-center gap-3">
+                                <div class="section-icon bg-amber-100 text-amber-600">
+                                    <i class="fa fa-car-side"></i>
+                                </div>
+                                <div>
+                                    <h2 class="font-bold text-gray-800 text-sm">Perjalanan & Driver</h2>
+                                    <p class="text-xs text-gray-400">Info tujuan dan driver harian</p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700">Per
+                                Hari</span>
+                        </div>
 
-    <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        {{-- Tujuan --}}
-        <div class="sm:col-span-2 bg-amber-50 rounded-xl p-3.5">
-            <p class="text-xs font-semibold text-amber-500 uppercase tracking-wide mb-1.5">
-                <i class="fa fa-map-marker-alt mr-1"></i> Tujuan Perjalanan
-            </p>
-            <p class="text-sm font-bold text-gray-800">{{ $rental->tujuan ?? '-' }}</p>
-        </div>
+                            {{-- Tujuan --}}
+                            <div class="sm:col-span-2 info-tile bg-amber-50 rounded-xl p-3.5">
+                                <p class="text-xs font-semibold text-amber-500 uppercase tracking-wide mb-1.5">
+                                    <i class="fa fa-map-marker-alt mr-1"></i> Tujuan Perjalanan
+                                </p>
+                                <p class="text-sm font-bold text-gray-800">{{ $rental->tujuan ?? '-' }}</p>
+                            </div>
 
-        {{-- Nama Driver --}}
-        <div class="bg-gray-50 rounded-xl p-3.5">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-                <i class="fa fa-user mr-1 text-gray-400"></i> Nama Driver
-            </p>
-            <p class="text-sm font-bold text-gray-800">{{ $rental->nama_driver ?? 'No Driver' }}</p>
-        </div>
+                            {{-- Nama Driver --}}
+                            <div class="info-tile bg-gray-50 rounded-xl p-3.5">
+                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                                    <i class="fa fa-user mr-1 text-gray-400"></i> Nama Driver
+                                </p>
+                                <p class="text-sm font-bold text-gray-800">{{ $rental->nama_driver ?? 'No Driver' }}</p>
+                            </div>
 
-        {{-- Kontak Driver --}}
-        <div class="bg-gray-50 rounded-xl p-3.5">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-                <i class="fa fa-phone mr-1 text-gray-400"></i> Kontak Driver
-            </p>
-            <p class="text-sm font-bold text-gray-800">{{ $rental->kontak_driver ?? 'No Driver' }}</p>
-        </div>
+                            {{-- Kontak Driver --}}
+                            <div class="info-tile bg-gray-50 rounded-xl p-3.5">
+                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                                    <i class="fa fa-phone mr-1 text-gray-400"></i> Kontak Driver
+                                </p>
+                                <p class="text-sm font-bold text-gray-800">{{ $rental->kontak_driver ?? 'No Driver' }}</p>
+                            </div>
 
-        {{-- Biaya Driver --}}
-        
-        <div class="sm:col-span-2 bg-blue-50 rounded-xl p-3.5">
-            <p class="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1.5">
-                <i class="fa fa-money-bill-wave mr-1"></i> Biaya Driver
-            </p>
-            <p class="text-sm font-bold text-blue-700">
-                Rp {{ number_format($rental->biaya_driver) }}
-            </p>
-        </div>
-        
+                            {{-- Biaya Driver --}}
 
-    </div>
-</div>
-@endif  
+                            <div class="sm:col-span-2 info-tile bg-blue-50 rounded-xl p-3.5">
+                                <p class="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1.5">
+                                    <i class="fa fa-money-bill-wave mr-1"></i> Biaya Driver
+                                </p>
+                                <p class="text-sm font-bold text-blue-700">
+                                    Rp {{ number_format($rental->biaya_driver) }}
+                                </p>
+                            </div>
+
+
+                        </div>
+                    </div>
+                @endif
 
                 {{-- TIMELINE STATUS --}}
                 <div class="section-card">
@@ -450,10 +552,10 @@
                                 {{ number_format($rental->biaya_dasar) }}</span>
                         </div>
                         <div class="flex justify-between items-center py-2 border-b border-dashed border-gray-100">
-                            <span class="text-sm text-gray-500">Biaya Tambahan</span>
+                            <span class="text-sm text-gray-500">Biaya Driver</span>
                             <span
-                                class="text-sm font-semibold {{ $rental->biaya_tambahan_total > 0 ? 'text-orange-600' : 'text-gray-800' }}">
-                                Rp {{ number_format($rental->biaya_tambahan_total) }}
+                                class="text-sm font-semibold {{ ($rental->biaya_driver ?? 0) > 0 ? 'text-orange-600' : 'text-gray-800' }}">
+                                Rp {{ number_format($rental->biaya_driver ?? 0) }}
                             </span>
                         </div>
                         @if ($rental->nominal_dp)
@@ -503,15 +605,10 @@
                                     <p class="text-xs font-bold text-green-600 mb-2 flex items-center gap-1">
                                         <i class="fa fa-check-circle"></i> Bukti Lunas
                                     </p>
-                                    @if ($rental->bukti_lunas)
-                                        <a href="{{ asset($rental->bukti_lunas) }}" target="_blank"
-                                            class="text-blue-600 hover:underline">
-                                            {{ basename($rental->bukti_lunas) }}
-                                        </a>
-                                    @else
-                                        <span class="text-gray-400">Belum ada bukti lunas</span>
-                                    @endif
-                                    <p class="text-xs text-gray-400 mt-1 text-center">Klik untuk perbesar</p>
+                                    <a href="{{ asset($rental->bukti_lunas) }}" target="_blank" class="proof-link">
+                                        <i class="fa fa-paperclip"></i> {{ basename($rental->bukti_lunas) }}
+                                    </a>
+                                    <p class="text-xs text-gray-400 mt-1">Klik untuk perbesar</p>
                                 </div>
                             @else
                                 <div
@@ -523,19 +620,20 @@
                                     enctype="multipart/form-data" class="space-y-3">
                                     @csrf
                                     <input type="hidden" name="jenis_pembayaran" value="lunas">
-                                    <div>
+                                    <div class="upload-box p-3">
                                         <label class="block text-xs font-semibold text-gray-600 mb-1">Upload Bukti
                                             Lunas</label>
                                         <input type="file" name="bukti_lunas" required
                                             accept="image/*,application/pdf"
-                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
                                     </div>
                                     <button type="submit"
-                                        class="w-full inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
+                                        class="btn-modern w-full inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 shadow-sm">
                                         <i class="fa fa-upload text-xs"></i> Upload Bukti Lunas
                                     </button>
                                 </form>
                             @endif
+
                         @elseif($rental->jenis_pembayaran == 'dp')
                             {{-- Bukti DP --}}
                             <div>
@@ -547,214 +645,205 @@
                                     @endif
                                 </p>
                                 @if ($rental->bukti_dp)
-                                    <a href="{{ asset($rental->bukti_dp) }}" target="_blank"
-                                        class="text-blue-600 hover:underline">
-                                        {{ basename($rental->bukti_dp) }}
+                                    <a href="{{ asset($rental->bukti_dp) }}" target="_blank" class="proof-link">
+                                        <i class="fa fa-paperclip"></i> {{ basename($rental->bukti_dp) }}
                                     </a>
                                 @else
-                                    <span class="text-gray-400">Belum ada bukti lunas</span>
+                                    <div
+                                        class="flex flex-col items-center gap-2 py-4 bg-yellow-50 rounded-xl border border-yellow-100 mb-3">
+                                        <i class="fa fa-exclamation-triangle text-yellow-400 text-xl"></i>
+                                        <p class="text-xs text-yellow-600 font-semibold">Belum upload bukti DP</p>
+                                    </div>
+                                    <form action="{{ route('rental.uploadBuktiTf', $rental->id) }}" method="POST"
+                                        enctype="multipart/form-data" class="space-y-3">
+                                        @csrf
+                                        <input type="hidden" name="jenis_pembayaran" value="dp">
+                                        <div class="upload-box p-3">
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">Nominal
+                                                DP</label>
+                                            <input type="number" name="nominal_dp" required placeholder="Nominal DP"
+                                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                                        </div>
+                                        <div class="upload-box p-3">
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">Upload Bukti
+                                                DP</label>
+                                            <input type="file" name="bukti_dp" required
+                                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                                        </div>
+                                        <button type="submit"
+                                            class="btn-modern w-full inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 shadow-sm">
+                                            <i class="fa fa-upload text-xs"></i> Upload Bukti DP
+                                        </button>
+                                    </form>
                                 @endif
-                            @else
-                                <div
-                                    class="flex flex-col items-center gap-2 py-4 bg-yellow-50 rounded-xl border border-yellow-100 mb-3">
-                                    <i class="fa fa-exclamation-triangle text-yellow-400 text-xl"></i>
-                                    <p class="text-xs text-yellow-600 font-semibold">Belum upload bukti DP</p>
-                                </div>
-                                <form action="{{ route('rental.uploadBuktiTf', $rental->id) }}" method="POST"
-                                    enctype="multipart/form-data" class="space-y-3">
-                                    @csrf
-                                    <input type="hidden" name="jenis_pembayaran" value="dp">
-                                    <div>
-                                        <label class="block text-xs font-semibold text-gray-600 mb-1">Nominal
-                                            DP</label>
-                                        <input type="number" name="nominal_dp" required placeholder="Nominal DP"
-                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-semibold text-gray-600 mb-1">Upload Bukti
-                                            DP</label>
-                                        <input type="file" name="bukti_dp" required
-                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                                    </div>
-                                    <button type="submit"
-                                        class="w-full inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
-                                        <i class="fa fa-upload text-xs"></i> Upload Bukti DP
-                                    </button>
-                                </form>
-                        @endif
-                    </div>
-
-                    {{-- Bukti Pelunasan --}}
-                    <div class="border-t border-gray-100 pt-4">
-                        <p class="text-xs font-bold text-green-600 mb-2 flex items-center gap-1">
-                            <i class="fa fa-check-circle"></i> Bukti Pelunasan
-                            @if ($rental->nominal_pelunasan)
-                                <span class="ml-auto text-green-500 font-normal">Rp
-                                    {{ number_format($rental->nominal_pelunasan) }}</span>
-                            @endif
-                        </p>
-                        @if ($rental->bukti_pelunasan)
-                            <a href="{{ asset($rental->bukti_pelunasan) }}" target="_blank"
-                                class="text-blue-600 hover:underline">
-                                {{ basename($rental->bukti_pelunasan) }}
-                            </a>
-                        @else
-                            <span class="text-gray-400">Belum ada bukti lunas</span>
-                        @endif
-
-                        @if ($rental->status == 'aktif')
-                            @php $sisaPelunasan = $rental->total_biaya - ($rental->nominal_dp ?? 0); @endphp
-                            <div class="bg-blue-50 rounded-xl px-3 py-2 mb-3 flex justify-between items-center">
-                                <span class="text-xs text-blue-500">Sisa Pelunasan</span>
-                                <span class="text-sm font-bold text-blue-700">Rp
-                                    {{ number_format($sisaPelunasan) }}</span>
-                            </div>
-                            @if (empty($rental->bukti_pelunasan))
-                                <form action="{{ route('rental.pelunasan', $rental->id) }}" method="POST"
-                                    enctype="multipart/form-data" class="space-y-3">
-                                    @csrf
-
-                                    <input type="hidden" name="nominal_pelunasan" value="{{ $sisaPelunasan }}">
-
-                                    <div>
-                                        <label class="block text-xs font-semibold text-gray-600 mb-1">
-                                            Upload Bukti Pelunasan
-                                        </label>
-
-                                        <input type="file" name="bukti_pelunasan" required
-                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                                    </div>
-
-                                    <button type="submit"
-                                        class="w-full inline-flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
-                                        <i class="fa fa-upload text-xs"></i>
-                                        Upload Pelunasan
-                                    </button>
-                                </form>
-                            @else
-                               
-                            @endif
-                        @else
-                            <div class="flex flex-col items-center gap-2 py-4 bg-gray-50 rounded-xl">
-                                <i class="fa fa-image text-gray-300 text-xl"></i>
-                                <p class="text-xs text-gray-400">Belum upload bukti pelunasan</p>
                             </div>
                         @endif
-
                     </div>
 
+                    {{-- Bukti Pelunasan — hanya untuk jenis pembayaran DP --}}
+                    @if ($rental->jenis_pembayaran == 'dp')
+                        <div class="border-t border-gray-100 pt-4 px-5 pb-5">
+                            <p class="text-xs font-bold text-green-600 mb-2 flex items-center gap-1">
+                                <i class="fa fa-check-circle"></i> Bukti Pelunasan
+                                @if ($rental->nominal_pelunasan)
+                                    <span class="ml-auto text-green-500 font-normal">Rp
+                                        {{ number_format($rental->nominal_pelunasan) }}</span>
+                                @endif
+                            </p>
+                            @if ($rental->bukti_pelunasan)
+                                <a href="{{ asset($rental->bukti_pelunasan) }}" target="_blank" class="proof-link mb-3">
+                                    <i class="fa fa-paperclip"></i> {{ basename($rental->bukti_pelunasan) }}
+                                </a>
+                            @endif
 
+                            @if ($rental->status == 'aktif')
+                                @php $sisaPelunasan = $rental->total_biaya - ($rental->nominal_dp ?? 0); @endphp
+                                @if (empty($rental->bukti_pelunasan))
+                                    <div class="bg-blue-50 rounded-xl px-3 py-2 mb-3 flex justify-between items-center">
+                                        <span class="text-xs text-blue-500">Sisa Pelunasan</span>
+                                        <span class="text-sm font-bold text-blue-700">Rp
+                                            {{ number_format($sisaPelunasan) }}</span>
+                                    </div>
+                                    <form action="{{ route('rental.pelunasan', $rental->id) }}" method="POST"
+                                        enctype="multipart/form-data" class="space-y-3">
+                                        @csrf
 
-                </div>
-            </div>
+                                        <input type="hidden" name="nominal_pelunasan" value="{{ $sisaPelunasan }}">
 
-            {{-- UPDATE STATUS --}}
-            <div class="section-card">
-                <div class="section-header">
-                    <div class="flex items-center gap-3">
-                        <div class="section-icon bg-gray-100 text-gray-600">
-                            <i class="fa fa-exchange-alt"></i>
-                        </div>
-                        <div>
-                            <h2 class="font-bold text-gray-800 text-sm">Update Status</h2>
-                            <p class="text-xs text-gray-400">Kelola tahapan rental</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="px-5 py-4 space-y-3">
+                                        <div class="upload-box p-3">
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">
+                                                Upload Bukti Pelunasan
+                                            </label>
 
-                    @if ($rental->status == 'selesai')
-                        <div
-                            class="flex items-center gap-3 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl">
-                            <i class="fa fa-check-circle text-green-500 text-lg"></i>
-                            <p class="text-sm font-semibold">Rental sudah selesai</p>
-                        </div>
-                    @elseif($rental->status == 'batal')
-                        <div
-                            class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl">
-                            <i class="fa fa-times-circle text-red-500 text-lg"></i>
-                            <p class="text-sm font-semibold">Rental telah dibatalkan</p>
-                        </div>
-                    @else
-                        {{-- Pending → BOOKING --}}
-                        @if ($rental->status == 'Pending')
-                            @php
-                                $sudahBayar =
-                                    ($rental->jenis_pembayaran == 'lunas' && $rental->bukti_lunas) ||
-                                    ($rental->jenis_pembayaran == 'dp' && $rental->bukti_dp);
-                            @endphp
-                            @if ($sudahBayar)
-                                <form action="{{ route('rental.updateStatus', $rental->id) }}" method="POST">
-                                    @csrf
-                                    <input type="hidden" name="status" value="booking">
-                                    <button type="submit"
-                                        class="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
-                                        <i class="bi bi-calendar-check"></i> Konfirmasi Booking
-                                    </button>
-                                </form>
-                            @else
-                                <div
-                                    class="flex items-start gap-3 bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-xl">
-                                    <i class="fa fa-exclamation-triangle mt-0.5 flex-shrink-0"></i>
-                                    <p class="text-xs">Upload bukti pembayaran terlebih dahulu sebelum konfirmasi
-                                        booking.</p>
+                                            <input type="file" name="bukti_pelunasan" required
+                                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                                        </div>
+
+                                        <button type="submit"
+                                            class="btn-modern w-full inline-flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 shadow-sm">
+                                            <i class="fa fa-upload text-xs"></i>
+                                            Upload Pelunasan
+                                        </button>
+                                    </form>
+                                @endif
+                            @elseif(empty($rental->bukti_pelunasan))
+                                <div class="flex flex-col items-center gap-2 py-4 bg-gray-50 rounded-xl">
+                                    <i class="fa fa-image text-gray-300 text-xl"></i>
+                                    <p class="text-xs text-gray-400">Belum upload bukti pelunasan</p>
                                 </div>
                             @endif
-                        @endif
-
-                        {{-- BOOKING → AKTIF --}}
-                        @if ($rental->status == 'booking')
-                            <form action="{{ route('rental.updateStatus', $rental->id) }}" method="POST">
-                                @csrf
-                                <input type="hidden" name="status" value="aktif">
-                                <button type="submit"
-                                    class="w-full inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
-                                    <i class="bi bi-check-circle"></i> Aktifkan Rental
-                                </button>
-                            </form>
-                        @endif
-
-                        {{-- AKTIF → SELESAI --}}
-                        @if ($rental->status == 'aktif')
-                            @if ($rental->jenis_pembayaran == 'dp' && !$rental->bukti_pelunasan)
-                                <div
-                                    class="flex items-start gap-3 bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-xl">
-                                    <i class="fa fa-exclamation-triangle mt-0.5 flex-shrink-0"></i>
-                                    <p class="text-xs">Upload bukti pelunasan terlebih dahulu sebelum menyelesaikan
-                                        rental.</p>
-                                </div>
-                            @else
-                                <form action="{{ route('rental.updateStatus', $rental->id) }}" method="POST">
-                                    @csrf
-                                    <input type="hidden" name="status" value="selesai">
-                                    <button type="submit"
-                                        class="w-full inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
-                                        <i class="bi bi-flag"></i> Selesaikan Rental
-                                    </button>
-                                </form>
-                            @endif
-                        @endif
-
-                        {{-- BATALKAN --}}
-                        @if (in_array($rental->status, ['Pending', 'booking', 'aktif']))
-                            <form action="{{ route('rental.updateStatus', $rental->id) }}" method="POST"
-                                onsubmit="return confirm('Yakin ingin membatalkan rental ini?')">
-                                @csrf
-                                <input type="hidden" name="status" value="batal">
-                                <button type="submit"
-                                    class="w-full inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-bold py-2.5 rounded-xl transition-colors border border-red-200">
-                                    <i class="bi bi-x-circle"></i> Batalkan Rental
-                                </button>
-                            </form>
-                        @endif
-
+                        </div>
                     @endif
+
                 </div>
+
+                {{-- UPDATE STATUS (dipindah ke bawah Bukti Pembayaran, kolom kanan) --}}
+                <div class="section-card">
+                    <div class="section-header">
+                        <div class="flex items-center gap-3">
+                            <div class="section-icon bg-gray-100 text-gray-600">
+                                <i class="fa fa-exchange-alt"></i>
+                            </div>
+                            <div>
+                                <h2 class="font-bold text-gray-800 text-sm">Update Status</h2>
+                                <p class="text-xs text-gray-400">Kelola tahapan rental</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-5 py-4 space-y-3">
+
+                        @if ($rental->status == 'selesai')
+                            <div
+                                class="flex items-center gap-3 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl">
+                                <i class="fa fa-check-circle text-green-500 text-lg"></i>
+                                <p class="text-sm font-semibold">Rental sudah selesai</p>
+                            </div>
+                        @elseif($rental->status == 'batal')
+                            <div
+                                class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl">
+                                <i class="fa fa-times-circle text-red-500 text-lg"></i>
+                                <p class="text-sm font-semibold">Rental telah dibatalkan</p>
+                            </div>
+                        @else
+                            {{-- Pending → BOOKING --}}
+                            @if ($rental->status == 'Pending')
+                                @php
+                                    $sudahBayarKonfirmasi =
+                                        ($rental->jenis_pembayaran == 'lunas' && $rental->bukti_lunas) ||
+                                        ($rental->jenis_pembayaran == 'dp' && $rental->bukti_dp);
+                                @endphp
+                                @if ($sudahBayarKonfirmasi)
+                                    <form action="{{ route('rental.updateStatus', $rental->id) }}" method="POST">
+                                        @csrf
+                                        <input type="hidden" name="status" value="booking">
+                                        <button type="submit"
+                                            class="btn-modern w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 shadow-sm">
+                                            <i class="bi bi-calendar-check"></i> Konfirmasi Booking
+                                        </button>
+                                    </form>
+                                @else
+                                    <div
+                                        class="flex items-start gap-3 bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-xl">
+                                        <i class="fa fa-exclamation-triangle mt-0.5 flex-shrink-0"></i>
+                                        <p class="text-xs">Upload bukti pembayaran terlebih dahulu sebelum konfirmasi
+                                            booking.</p>
+                                    </div>
+                                @endif
+                            @endif
+
+                            {{-- BOOKING → AKTIF --}}
+                            @if ($rental->status == 'booking')
+                                <form action="{{ route('rental.updateStatus', $rental->id) }}" method="POST">
+                                    @csrf
+                                    <input type="hidden" name="status" value="aktif">
+                                    <button type="submit"
+                                        class="btn-modern w-full inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 shadow-sm">
+                                        <i class="bi bi-check-circle"></i> Aktifkan Rental
+                                    </button>
+                                </form>
+                            @endif
+
+                            {{-- AKTIF → SELESAI --}}
+                            @if ($rental->status == 'aktif')
+                                @if ($rental->jenis_pembayaran == 'dp' && !$rental->bukti_pelunasan)
+                                    <div
+                                        class="flex items-start gap-3 bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-xl">
+                                        <i class="fa fa-exclamation-triangle mt-0.5 flex-shrink-0"></i>
+                                        <p class="text-xs">Upload bukti pelunasan terlebih dahulu sebelum menyelesaikan
+                                            rental.</p>
+                                    </div>
+                                @else
+                                    <form action="{{ route('rental.updateStatus', $rental->id) }}" method="POST">
+                                        @csrf
+                                        <input type="hidden" name="status" value="selesai">
+                                        <button type="submit"
+                                            class="btn-modern w-full inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-900 text-white text-sm py-2.5 shadow-sm">
+                                            <i class="bi bi-flag"></i> Selesaikan Rental
+                                        </button>
+                                    </form>
+                                @endif
+                            @endif
+
+                            {{-- BATALKAN --}}
+                            @if (in_array($rental->status, ['Pending', 'booking', 'aktif']))
+                                <form action="{{ route('rental.updateStatus', $rental->id) }}" method="POST"
+                                    onsubmit="return confirm('Yakin ingin membatalkan rental ini?')">
+                                    @csrf
+                                    <input type="hidden" name="status" value="batal">
+                                    <button type="submit"
+                                        class="btn-modern w-full inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm py-2.5 border border-red-200">
+                                        <i class="bi bi-x-circle"></i> Batalkan Rental
+                                    </button>
+                                </form>
+                            @endif
+
+                        @endif
+                    </div>
+                </div>
+
             </div>
 
         </div>
-    </div>
-
     </div>
 
     {{-- ── POPUP ALERT ──────────────────────────────────────── --}}

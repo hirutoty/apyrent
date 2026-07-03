@@ -71,6 +71,11 @@ class Kendaraan extends Model
         return $this->belongsTo(Jenis::class);
     }
 
+    public function member()
+    {
+        return $this->belongsTo(Member::class, 'member_id');
+    }
+
     public function biayaTambahan()
     {
         return $this->hasMany(BiayaTambahan::class);
@@ -112,9 +117,9 @@ class Kendaraan extends Model
     }
 
     public function serviceHistories()
-{
-    return $this->hasMany(ServiceHistory::class);
-}
+    {
+        return $this->hasMany(ServiceHistory::class);
+    }
     /*
     | CASTING
     */

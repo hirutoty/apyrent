@@ -39,6 +39,7 @@ return new class extends Migration
             $table->text('customer_address')->nullable();
             $table->text('contact_person')->nullable();
             $table->text('telephone')->nullable();
+            $table->text('email')->nullable();
 
             $table->text('satuan')->nullable();
             $table->date('invoice_date')->nullable();

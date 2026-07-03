@@ -39,4 +39,10 @@ class GpsKendaraan extends Model
     {
         return $this->belongsTo(Gps::class);
     }
+
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'relation_id')
+            ->where('relation_type', 'gps');
+    }
 }

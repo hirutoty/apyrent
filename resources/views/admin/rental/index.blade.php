@@ -297,18 +297,41 @@
                                 <td class="px-4 py-3.5 text-sm text-gray-700">{{ $r->tanggal_mulai }}</td>
                                 <td class="px-4 py-3.5 text-sm text-gray-400">{{ $r->tanggal_selesai }}</td>
 
-                                <td class="px-4 py-3.5 text-sm text-gray-700">
-                                    @if ($r->durasi_hari)
-                                        {{ $r->durasi_hari }} Hari
-                                    @elseif($r->durasi_bulan)
-                                        {{ $r->durasi_bulan }} Bulan
-                                    @elseif($r->durasi_jam)
-                                        {{ $r->durasi_jam }} Jam
-                                    @elseif($r->durasi_tahun)
-                                        {{ $r->durasi_tahun }} Tahun
+                                <td class="px-4 py-3.5">
+
+                                    @if ($r->tanggal_mulai && $r->tanggal_selesai)
+                                        @php
+                                            $start = \Carbon\Carbon::parse($r->tanggal_mulai);
+                                            $end = \Carbon\Carbon::parse($r->tanggal_selesai);
+
+                                            $days = $start->diffInDays($end);
+                                        @endphp
+
+                                        {{-- DURASI --}}
+                                        @if ($days >= 365)
+                                            {{ floor($days / 365) }} Tahun
+                                        @elseif ($days >= 30)
+                                            {{ floor($days / 30) }} Bulan
+                                        @else
+                                            {{ $days }} Hari
+                                        @endif
+
+                                        @if ($r->status === 'aktif')
+                                            {{-- STATUS --}}
+                                            @if ($r->terlambat)
+                                                <div class="text-xs text-red-600 font-semibold mt-1">
+                                                    ⚠️ Terlambat {{ $r->sisa }}
+                                                </div>
+                                            @elseif ($r->reminder)
+                                                <div class="text-xs text-orange-500 mt-1">
+                                                    ⏰ Reminder Sisa {{ $r->sisa }}
+                                                </div>
+                                            @endif
+                                        @endif
                                     @else
                                         -
                                     @endif
+
                                 </td>
 
                                 <td class="px-4 py-3.5">
@@ -495,6 +518,28 @@
                                 <label class="text-xs text-gray-500 mb-1 block">Alamat</label>
                                 <textarea name="alamat_member" id="alamat_member" rows="2" class="w-full border rounded-lg px-3 py-2"
                                     placeholder="Ketik alamat member..." required></textarea>
+                            </div>
+
+                            {{-- ── EMAIL MEMBER (opsional) ── --}}
+                            <div>
+                                <label class="text-xs text-gray-500 mb-1 block">
+                                    Email Member <span class="text-gray-400 font-normal">(opsional)</span>
+                                </label>
+                                <input type="email" name="email_member" id="email_member"
+                                    placeholder="contoh@email.com" class="w-full border rounded-lg px-3 py-2">
+                            </div>
+
+                            {{-- ── JENIS MEMBER (wajib) ── --}}
+                            <div>
+                                <label class="text-xs text-gray-500 mb-1 block">
+                                    Jenis Member <span class="text-red-500">*</span>
+                                </label>
+                                <select name="jenis_member" id="jenis_member"
+                                    class="w-full border rounded-lg px-3 py-2 text-sm" required>
+                                    <option value="">-- Pilih Jenis Member --</option>
+                                    <option value="perorangan">Perorangan</option>
+                                    <option value="perusahaan">Perusahaan</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -873,83 +918,91 @@
      ====================================================================== --}}
     <script>
         /* ─────────────────────────────────────────────────────────────────────────
-                                                               TIPE RENTAL: sekarang ada 3 pilihan → tahun | bulan | hari
-                                                               ───────────────────────────────────────────────────────────────────────── */
+                                                                                           TIPE RENTAL: sekarang ada 3 pilihan → tahun | bulan | hari
+                                                                                           ───────────────────────────────────────────────────────────────────────── */
         function setTipeRental(tipe) {
-    tipeRental = tipe;
-    document.getElementById('tipe_rental').value = tipe;
+            tipeRental = tipe;
+            document.getElementById('tipe_rental').value = tipe;
 
-    const fTahun = document.getElementById('formTahun');
-    const fBulan = document.getElementById('formBulan');
-    const fHari  = document.getElementById('formHari');
-    const dTahun = document.getElementById('durasiTahun');
-    const dBulan = document.getElementById('durasiBulan');
-    const dHari  = document.getElementById('durasiHari');
-    const btnTahun = document.getElementById('btnTahun');
-    const btnBulan = document.getElementById('btnBulan');
-    const btnHari  = document.getElementById('btnHari');
+            const fTahun = document.getElementById('formTahun');
+            const fBulan = document.getElementById('formBulan');
+            const fHari = document.getElementById('formHari');
+            const dTahun = document.getElementById('durasiTahun');
+            const dBulan = document.getElementById('durasiBulan');
+            const dHari = document.getElementById('durasiHari');
+            const btnTahun = document.getElementById('btnTahun');
+            const btnBulan = document.getElementById('btnBulan');
+            const btnHari = document.getElementById('btnHari');
 
-    // Reset semua
-    [fTahun, fBulan, fHari].forEach(el => el?.classList.add('hidden'));
-    [dTahun, dBulan, dHari].forEach(el => {
-        if (el) { el.value = ''; el.disabled = true; }
-    });
-    [btnTahun, btnBulan, btnHari].forEach(btn => {
-        btn?.classList.replace('bg-blue-600', 'bg-gray-100');
-        btn?.classList.replace('text-white', 'text-gray-600');
-    });
+            // Reset semua
+            [fTahun, fBulan, fHari].forEach(el => el?.classList.add('hidden'));
+            [dTahun, dBulan, dHari].forEach(el => {
+                if (el) {
+                    el.value = '';
+                    el.disabled = true;
+                }
+            });
+            [btnTahun, btnBulan, btnHari].forEach(btn => {
+                btn?.classList.replace('bg-blue-600', 'bg-gray-100');
+                btn?.classList.replace('text-white', 'text-gray-600');
+            });
 
-    // Aktifkan yang dipilih
-    if (tipe === 'tahun') {
-        fTahun?.classList.remove('hidden');
-        if (dTahun) dTahun.disabled = false;
-        btnTahun?.classList.replace('bg-gray-100', 'bg-blue-600');
-        btnTahun?.classList.replace('text-gray-600', 'text-white');
-    } else if (tipe === 'bulan') {
-        fBulan?.classList.remove('hidden');
-        if (dBulan) dBulan.disabled = false;
-        btnBulan?.classList.replace('bg-gray-100', 'bg-blue-600');
-        btnBulan?.classList.replace('text-gray-600', 'text-white');
-    } else { // hari
-        fHari?.classList.remove('hidden');
-        if (dHari) dHari.disabled = false;
-        btnHari?.classList.replace('bg-gray-100', 'bg-blue-600');
-        btnHari?.classList.replace('text-gray-600', 'text-white');
-    }
+            // Aktifkan yang dipilih
+            if (tipe === 'tahun') {
+                fTahun?.classList.remove('hidden');
+                if (dTahun) dTahun.disabled = false;
+                btnTahun?.classList.replace('bg-gray-100', 'bg-blue-600');
+                btnTahun?.classList.replace('text-gray-600', 'text-white');
+            } else if (tipe === 'bulan') {
+                fBulan?.classList.remove('hidden');
+                if (dBulan) dBulan.disabled = false;
+                btnBulan?.classList.replace('bg-gray-100', 'bg-blue-600');
+                btnBulan?.classList.replace('text-gray-600', 'text-white');
+            } else { // hari
+                fHari?.classList.remove('hidden');
+                if (dHari) dHari.disabled = false;
+                btnHari?.classList.replace('bg-gray-100', 'bg-blue-600');
+                btnHari?.classList.replace('text-gray-600', 'text-white');
+            }
 
-    // ── Tampilkan / sembunyikan section driver ──  ← DIPINDAH KE SINI
-    const sectionDriver = document.getElementById('section-driver');
-    const inputTujuan   = document.getElementById('input_tujuan');
-    const invoiceBadge  = document.getElementById('invoice-badge');
-    const fileInvoice   = document.getElementById('file_invoice');
+            // ── Tampilkan / sembunyikan section driver ──  ← DIPINDAH KE SINI
+            const sectionDriver = document.getElementById('section-driver');
+            const inputTujuan = document.getElementById('input_tujuan');
+            const invoiceBadge = document.getElementById('invoice-badge');
+            const fileInvoice = document.getElementById('file_invoice');
 
-    if (tipe === 'hari') {
-        sectionDriver?.classList.remove('hidden');
-        if (inputTujuan) inputTujuan.required = true;
-        if (invoiceBadge) {
-            invoiceBadge.textContent = 'Opsional';
-            invoiceBadge.className = 'text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700';
+            if (tipe === 'hari') {
+                sectionDriver?.classList.remove('hidden');
+                if (inputTujuan) inputTujuan.required = true;
+                if (invoiceBadge) {
+                    invoiceBadge.textContent = 'Opsional';
+                    invoiceBadge.className = 'text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700';
+                }
+                if (fileInvoice) fileInvoice.required = false;
+            } else {
+                sectionDriver?.classList.add('hidden');
+                if (inputTujuan) {
+                    inputTujuan.required = false;
+                    inputTujuan.value = '';
+                }
+                document.querySelector('[name="nama_driver"]') && (document.querySelector('[name="nama_driver"]').value =
+                    '');
+                document.querySelector('[name="kontak_driver"]') && (document.querySelector('[name="kontak_driver"]')
+                    .value = '');
+                const bd = document.getElementById('biaya_driver');
+                if (bd) bd.value = 0;
+                if (invoiceBadge) {
+                    invoiceBadge.textContent = 'Wajib';
+                    invoiceBadge.className = 'text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700';
+                }
+                if (fileInvoice) fileInvoice.required = true;
+            }
+
+            hitungBiayaDasar();
+            updateTanggalSelesai();
         }
-        if (fileInvoice) fileInvoice.required = false;
-    } else {
-        sectionDriver?.classList.add('hidden');
-        if (inputTujuan) { inputTujuan.required = false; inputTujuan.value = ''; }
-        document.querySelector('[name="nama_driver"]') && (document.querySelector('[name="nama_driver"]').value = '');
-        document.querySelector('[name="kontak_driver"]') && (document.querySelector('[name="kontak_driver"]').value = '');
-        const bd = document.getElementById('biaya_driver');
-        if (bd) bd.value = 0;
-        if (invoiceBadge) {
-            invoiceBadge.textContent = 'Wajib';
-            invoiceBadge.className = 'text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700';
-        }
-        if (fileInvoice) fileInvoice.required = true;
-    }
 
-    hitungBiayaDasar();
-    updateTanggalSelesai();
-}
 
-      
 
         /* ─────────────────────────────────────────────────────────────────────────
            HITUNG BIAYA DASAR — support tahun | bulan | hari
@@ -1276,8 +1329,8 @@
     {{-- SCRIPT --}}
     <script>
         /* ─────────────────────────────
-                                                                                                STATE
-                                                                                            ──────────────────────────── */
+                                                                                                                            STATE
+                                                                                                                        ──────────────────────────── */
         let activeTab = 'semua';
         let filterTipe = null;
         let tipeRental = 'bulan';
@@ -1702,6 +1755,8 @@
                         memberInput.value = member.nama_member;
                         document.getElementById('kontak_member').value = member.kontak_member ?? '';
                         document.getElementById('alamat_member').value = member.alamat ?? '';
+                        document.getElementById('email_member').value = member.email_member ?? '';
+                        document.getElementById('jenis_member').value = member.jenis_member ?? '';
                         memberResult.classList.add('hidden');
                     };
                     memberResult.appendChild(item);
@@ -1972,8 +2027,6 @@
             document.getElementById('statusModal').classList.add('hidden');
             document.getElementById('statusModal').classList.remove('flex');
         }
-
-        
     </script>
 
 

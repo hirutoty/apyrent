@@ -40,27 +40,80 @@ class RentalController extends Controller
             $query->where('status', $request->status);
         }
 
+        $rentals = $query->latest()->get();
+
+        $setting = Setting::first();
+
+        // 🔥 KONVERSI REMINDER DINAMIS
+        $reminderHari = match ($setting->satuan_reminder ?? 'hari') {
+            'hari'   => $setting->batas_reminder ?? 0,
+            'minggu' => ($setting->batas_reminder ?? 0) * 7,
+            'bulan'  => ($setting->batas_reminder ?? 0) * 30,
+            'tahun'  => ($setting->batas_reminder ?? 0) * 365,
+            default  => $setting->batas_reminder ?? 0,
+        };
+
+        foreach ($rentals as $r) {
+
+            $r->reminder = false;
+            $r->terlambat = false;
+            $r->sisa = null;
+
+            if ($r->tanggal_selesai && $r->tanggal_mulai) {
+
+                $now = \Carbon\Carbon::now();
+                $end = \Carbon\Carbon::parse($r->tanggal_selesai);
+
+                $diffSeconds = $end->timestamp - $now->timestamp;
+
+                if ($diffSeconds < 0) {
+                    $r->terlambat = true;
+                    $r->sisa = $this->formatSisa(abs($diffSeconds));
+                } else {
+
+                    if ($diffSeconds <= ($reminderHari * 86400)) {
+                        $r->reminder = true;
+                    }
+
+                    $r->sisa = $this->formatSisa($diffSeconds);
+                }
+            }
+        }
+
         $bookedDates = Rental::whereNotIn('status', ['batal'])
             ->select('kendaraan_id', 'tanggal_mulai', 'tanggal_selesai')
             ->get()
             ->groupBy('kendaraan_id')
             ->map(fn($rows) => $rows->map(fn($r) => [
-                'mulai'   => $r->tanggal_mulai
-                    ? Carbon::parse($r->tanggal_mulai)->format('Y-m-d')
-                    : null,
-                'selesai' => $r->tanggal_selesai
-                    ? Carbon::parse($r->tanggal_selesai)->format('Y-m-d')
-                    : null,
+                'mulai'   => $r->tanggal_mulai ? Carbon::parse($r->tanggal_mulai)->format('Y-m-d') : null,
+                'selesai' => $r->tanggal_selesai ? Carbon::parse($r->tanggal_selesai)->format('Y-m-d') : null,
             ])->filter(fn($r) => $r['mulai'] && $r['selesai'])->values())
             ->toArray();
 
         return view('admin.rental.index', [
-            'rentals'     => $query->latest()->get(),
+            'rentals'     => $rentals,
             'members'     => Member::all(),
-            'membersJson' => Member::select('id', 'nama_member', 'kontak_member', 'alamat')->get(),
+            'membersJson' => Member::select('id', 'nama_member', 'kontak_member', 'email_member', 'jenis_member', 'alamat')->get(),
             'kendaraans'  => Kendaraan::all(),
             'bookedDates' => $bookedDates,
         ]);
+    }
+
+    private function formatSisa($seconds)
+    {
+        if ($seconds >= 86400) {
+            return floor($seconds / 86400) . ' hari';
+        }
+
+        if ($seconds >= 3600) {
+            return floor($seconds / 3600) . ' jam';
+        }
+
+        if ($seconds >= 60) {
+            return floor($seconds / 60) . ' menit';
+        }
+
+        return $seconds . ' detik';
     }
 
     /*
@@ -111,8 +164,10 @@ class RentalController extends Controller
                 $member = Member::firstOrCreate(
                     ['nama_member' => $request->nama_member],
                     [
+                        'email_member'  => $request->email,
                         'kontak_member' => $request->kontak_member,
-                        'alamat'        => $request->alamat_member,
+                        'alamat'        => $request->alamat,
+                        'jenis_member'  => $request->jenis_member,
                     ]
                 );
             }

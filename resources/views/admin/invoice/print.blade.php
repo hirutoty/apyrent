@@ -213,14 +213,12 @@
         </tr>
 
         <tr>
-    <tr>
-    <td style="width: 120px;">Alamat</td>
-    <td style="width: 10px;">:</td> 
-    <td style="max-width: 200px; word-break: break-word; white-space: normal;">
-        {{ $invoice->address }}
-    </td>
-</tr>
-</tr>
+            <td style="width: 120px;">Alamat</td>
+            <td style="width: 10px;">:</td>
+            <td style="max-width: 200px; word-break: break-word; white-space: normal;">
+                {{ $invoice->customer_address }}
+            </td>
+        </tr>
 
         <tr>
             <td>Contact Person</td>
@@ -229,9 +227,9 @@
         </tr>
 
         <tr>
-            <td>Telepon</td>
+            <td>Email</td>
             <td>:</td>
-            <td>{{ $invoice->phone }}</td>
+            <td>{{ $invoice->email }}</td>
         </tr>
     </table>
 
@@ -242,12 +240,11 @@
 
         <thead>
             <tr>
-                <th width="18%">Periode</th>
-                <th width="25%">Keterangan</th>
-                <th width="10%">Qty</th>
-                <th width="12%">Durasi</th>
-                <th width="15%">Harga Satuan</th>
-                <th width="20%">Jumlah</th>
+                <th width="20%">Periode</th>
+                <th width="28%">Keterangan</th>
+                <th width="12%">Qty</th>
+                <th width="14%">Durasi</th>
+                <th width="26%">Jumlah</th>
             </tr>
         </thead>
 
@@ -265,27 +262,24 @@
                 </td>
 
                 <td class="center">
-                    {{ $invoice->qty }}
+                    {{ $invoice->satuan }}
                 </td>
 
+                $durasiBulan = (int) ceil($mulai->diffInMonths($selesai, true) + 1);
                 <td class="center">
                     {{ $durasiBulan }} Bulan
                 </td>
 
-                <td class="right">
-                    Rp {{ number_format($invoice->per_month, 0, ',', '.') }}
-                    <br>
-                    <small>/Bulan</small>
-                </td>
+
 
                 <td class="right">
-                    Rp {{ number_format($subTotal, 0, ',', '.') }}
+                    Rp {{ number_format($grandTotal, 0, ',', '.') }}
                 </td>
             </tr>
 
-            
+
             <tr class="summary-row">
-                <td colspan="5" class="right">
+                <td colspan="4" class="right">
                     <strong>PPN (11%)</strong>
                 </td>
                 <td class="right">
@@ -294,7 +288,7 @@
             </tr>
 
             <tr class="total-row">
-                <td colspan="5" class="right">
+                <td colspan="4" class="right">
                     SubTotal
                 </td>
                 <td class="right">
@@ -306,51 +300,60 @@
 
     </table>
 
+    {{--
+        FIX: fungsi dibungkus function_exists() supaya tidak terjadi
+        "Cannot redeclare penyebut()" saat view ini di-render lebih
+        dari sekali dalam satu request (misal dipanggil ulang untuk PDF).
+    --}}
     @php
-        function penyebut($nilai)
-        {
-            $nilai = abs($nilai);
-            $huruf = [
-                '',
-                'Satu',
-                'Dua',
-                'Tiga',
-                'Empat',
-                'Lima',
-                'Enam',
-                'Tujuh',
-                'Delapan',
-                'Sembilan',
-                'Sepuluh',
-                'Sebelas',
-            ];
+        if (!function_exists('penyebut')) {
+            function penyebut($nilai)
+            {
+                $nilai = abs($nilai);
+                $huruf = [
+                    '',
+                    'Satu',
+                    'Dua',
+                    'Tiga',
+                    'Empat',
+                    'Lima',
+                    'Enam',
+                    'Tujuh',
+                    'Delapan',
+                    'Sembilan',
+                    'Sepuluh',
+                    'Sebelas',
+                ];
 
-            if ($nilai < 12) {
-                return ' ' . $huruf[$nilai];
-            } elseif ($nilai < 20) {
-                return penyebut($nilai - 10) . ' Belas';
-            } elseif ($nilai < 100) {
-                return penyebut($nilai / 10) . ' Puluh' . penyebut($nilai % 10);
-            } elseif ($nilai < 200) {
-                return ' Seratus' . penyebut($nilai - 100);
-            } elseif ($nilai < 1000) {
-                return penyebut($nilai / 100) . ' Ratus' . penyebut($nilai % 100);
-            } elseif ($nilai < 2000) {
-                return ' Seribu' . penyebut($nilai - 1000);
-            } elseif ($nilai < 1000000) {
-                return penyebut($nilai / 1000) . ' Ribu' . penyebut($nilai % 1000);
-            } elseif ($nilai < 1000000000) {
-                return penyebut($nilai / 1000000) . ' Juta' . penyebut($nilai % 1000000);
-            } elseif ($nilai < 1000000000000) {
-                return penyebut($nilai / 1000000000) . ' Miliar' . penyebut($nilai % 1000000000);
+                if ($nilai < 12) {
+                    return ' ' . $huruf[$nilai];
+                } elseif ($nilai < 20) {
+                    return penyebut($nilai - 10) . ' Belas';
+                } elseif ($nilai < 100) {
+                    return penyebut($nilai / 10) . ' Puluh' . penyebut($nilai % 10);
+                } elseif ($nilai < 200) {
+                    return ' Seratus' . penyebut($nilai - 100);
+                } elseif ($nilai < 1000) {
+                    return penyebut($nilai / 100) . ' Ratus' . penyebut($nilai % 100);
+                } elseif ($nilai < 2000) {
+                    return ' Seribu' . penyebut($nilai - 1000);
+                } elseif ($nilai < 1000000) {
+                    return penyebut($nilai / 1000) . ' Ribu' . penyebut($nilai % 1000);
+                } elseif ($nilai < 1000000000) {
+                    return penyebut($nilai / 1000000) . ' Juta' . penyebut($nilai % 1000000);
+                } elseif ($nilai < 1000000000000) {
+                    return penyebut($nilai / 1000000000) . ' Miliar' . penyebut($nilai % 1000000000);
+                }
+
+                return '';
             }
-
-            return '';
         }
 
-        function terbilang($nilai)
-        {
-            return trim(penyebut($nilai)) . ' Rupiah';
+        if (!function_exists('terbilang')) {
+            function terbilang($nilai)
+            {
+                return trim(penyebut($nilai)) . ' Rupiah';
+            }
         }
     @endphp
 
@@ -360,30 +363,30 @@
     </div>
 
     {{-- SIGNATURE --}}
-@if ($invoice->signature)
-    <div class="signature" style="text-align:center; float:right; width:220px;">
+    @if ($invoice->signature)
+        <div class="signature" style="text-align:center; float:right; width:220px;">
 
-        <p style="margin-bottom:5px;">Hormat Kami</p>
+            <p style="margin-bottom:5px;">Hormat Kami</p>
 
-        @if (Str::startsWith($invoice->signature, 'data:image'))
-            <img src="{{ $invoice->signature }}" style="height:70px;">
-        @else
-            <img src="{{ public_path($invoice->signature) }}" style="height:70px;">
-        @endif
+            @if (Str::startsWith($invoice->signature, 'data:image'))
+                <img src="{{ $invoice->signature }}" style="height:70px;">
+            @else
+                <img src="{{ public_path($invoice->signature) }}" style="height:70px;">
+            @endif
 
-        {{-- NAMA & JABATAN --}}
-        <div style="margin-top:10px; font-size:11px;">
-            <strong>{{ $setting->ttd_nama ?? 'Hirutoty' }}</strong>
+            {{-- NAMA & JABATAN --}}
+            <div style="margin-top:10px; font-size:11px;">
+                <strong>{{ $setting->ttd_nama ?? 'Hirutoty' }}</strong>
+            </div>
+
+            <div style="font-size:10px; color:#555;">
+                {{ $setting->ttd_jabatan ?? 'Admin' }}
+            </div>
+
         </div>
 
-        <div style="font-size:10px; color:#555;">
-            {{ $setting->ttd_jabatan ?? 'Admin' }}
-        </div>
-
-    </div>
-
-    <div style="clear:both;"></div>
-@endif
+        <div style="clear:both;"></div>
+    @endif
 
     <div class="bank-box">
         <strong>INFORMASI PEMBAYARAN</strong>

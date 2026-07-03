@@ -23,7 +23,7 @@ class AsuransiKendaraan extends Model
         'bukti_bayar',
     ];
 
-     protected $casts = [
+    protected $casts = [
         'tgl_mulai' => 'date',
         'tgl_berakhir' => 'date',
         'biaya' => 'decimal:2',
@@ -46,7 +46,13 @@ class AsuransiKendaraan extends Model
     }
 
     public function jenisAsuransi()
-{
-    return $this->belongsTo(JenisAsuransi::class, 'jenis_asuransi_id');
-}
+    {
+        return $this->belongsTo(JenisAsuransi::class, 'jenis_asuransi_id');
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'relation_id')
+            ->where('relation_type', 'asuransi');
+    }
 }
