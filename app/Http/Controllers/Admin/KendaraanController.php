@@ -10,41 +10,101 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class KendaraanController extends Controller
 {
     public function index()
-{
-    $data = Kendaraan::selectRaw("
+    {
+        $data = Kendaraan::selectRaw("
         merk,
         jenis_id,
         COUNT(*) as total_unit,
         SUM(CASE WHEN status_kendaraan = 'tersedia' THEN 1 ELSE 0 END) as tersedia_unit
     ")
-    ->with('jenis')
-    ->groupBy('merk', 'jenis_id')
-    ->get();
+            ->with('jenis')
+            ->groupBy('merk', 'jenis_id')
+            ->get();
 
-    $jenis = Jenis::all();
-    $kendaraanDetail = Kendaraan::with(['user', 'jenis'])->latest()->get();
+        $jenis = Jenis::all();
+        $kendaraanDetail = Kendaraan::with(['user', 'jenis', 'member'])->latest()->get();
 
-    return view('admin.kendaraan.index', compact('data', 'jenis', 'kendaraanDetail'));
-}
+        return view('admin.kendaraan.index', compact('data', 'jenis', 'kendaraanDetail'));
+    }
+
+
 
     public function show($merk)
     {
-        $data = Kendaraan::with(['user', 'jenis'])
+        $data = Kendaraan::with(['user', 'jenis', 'member', 'rentals'])
             ->where('merk', $merk)
             ->latest()
             ->get();
 
+        $setting = Setting::first();
         $jenis = Jenis::all();
 
-        return view('admin.kendaraan.show', compact(
-            'data',
-            'merk',
-            'jenis'
-        ));
+        $reminderHari = match ($setting->satuan_reminder) {
+            'hari'   => $setting->batas_reminder,
+            'minggu' => $setting->batas_reminder * 7,
+            'bulan'  => $setting->batas_reminder * 30,
+            'tahun'  => $setting->batas_reminder * 365,
+            default  => $setting->batas_reminder,
+        };
+
+        foreach ($data as $d) {
+
+            $rental = $d->rentals->first();
+
+            $d->reminder = false;
+            $d->terlambat = false;
+            $d->sisa = null;
+
+            if ($rental && $rental->tanggal_selesai && $rental->tanggal_mulai) {
+
+                $now = Carbon::now();
+                $end = Carbon::parse($rental->tanggal_selesai);
+
+                // 🔥 SELISIH DARI SEKARANG KE TANGGAL_SELESAI (real-time)
+                $diffSeconds = $end->timestamp - $now->timestamp;
+
+                if ($diffSeconds < 0) {
+                    $d->terlambat = true;
+                    $d->sisa = $this->formatSisa(abs($diffSeconds));
+                } else {
+
+                    if ($diffSeconds <= ($reminderHari * 86400)) {
+                        $d->reminder = true;
+                    }
+
+                    $d->sisa = $this->formatSisa($diffSeconds);
+                }
+            }
+        }
+
+        return view('admin.kendaraan.show', compact('data', 'merk', 'jenis', 'setting'));
+    }
+
+
+
+    /**
+     * 🔥 FORMAT SISA WAKTU: HARI KALAU >= 1 HARI, JAM KALAU < 1 HARI
+     */
+    private function formatSisa($seconds)
+    {
+        if ($seconds >= 86400) {
+            return floor($seconds / 86400) . ' hari';
+        }
+
+        if ($seconds >= 3600) {
+            return floor($seconds / 3600) . ' jam';
+        }
+
+        if ($seconds >= 60) {
+            return floor($seconds / 60) . ' menit';
+        }
+
+        return $seconds . ' detik';
     }
 
     public function store(Request $request)

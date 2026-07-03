@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attachment;
 use Illuminate\Http\Request;
 use App\Models\PajakKendaraan;
 use App\Models\Kendaraan;
@@ -16,7 +17,7 @@ class PajakController extends Controller
 {
     public function index()
     {
-        $data = PajakKendaraan::with('kendaraan')->latest()->get();
+        $data = PajakKendaraan::with(['kendaraan', 'attachments'])->latest()->get();
         $kendaraan = Kendaraan::all();
         $setting = Setting::first();
 
@@ -28,9 +29,37 @@ class PajakController extends Controller
             default   => $setting->batas_reminder,
         };
 
-
         return view('admin.pajak_kendaraan.index', compact('data', 'kendaraan', 'reminder'));
     }
+
+    /**
+     * Helper: simpan banyak attachment sekaligus untuk 1 pajak
+     */
+    private function simpanAttachments($files, $pajakId)
+{
+    $pathDir = public_path('pajak/attachments');
+    if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
+
+    foreach ($files as $file) {
+        $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+
+        // ambil data SEBELUM file dipindah
+        $originalName = $file->getClientOriginalName();
+        $extension    = $file->getClientOriginalExtension();
+        $size         = $file->getSize();
+
+        $file->move($pathDir, $filename);
+
+        Attachment::create([
+            'relation_type' => 'pajak',
+            'relation_id'   => $pajakId,
+            'file_name'     => $originalName,
+            'file_path'     => 'pajak/attachments/' . $filename,
+            'file_type'     => $extension,
+            'file_size'     => $size,
+        ]);
+    }
+}
 
     public function store(Request $request)
     {
@@ -43,42 +72,36 @@ class PajakController extends Controller
             'status' => 'required',
             'keterangan' => 'nullable',
             'bukti' => 'nullable|file|max:5120',
+            'bukti_attachment' => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
-        // 🔥 CEK DUPLIKAT BERDASARKAN NOPOL (PALING BENAR)
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 
         $exists = PajakKendaraan::whereHas('kendaraan', function ($q) use ($kendaraan) {
             $q->where('nopol', $kendaraan->nopol);
-        })
-            ->exists();
+        })->exists();
 
         if ($exists) {
             return back()->with('error', 'Nopol ini sudah memiliki data pajak');
         }
 
+        // upload bukti utama
         $bukti = null;
 
-
-
         if ($request->hasFile('bukti')) {
-
             $file = $request->file('bukti');
-
             $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
 
             $path = public_path('pajak/bukti');
-
-            if (!file_exists($path)) {
-                mkdir($path, 0777, true);
-            }
+            if (!file_exists($path)) mkdir($path, 0777, true);
 
             $file->move($path, $filename);
-
             $bukti = 'pajak/bukti/' . $filename;
         }
 
-        PajakKendaraan::create([
+        // simpan pajak dulu
+        $pajak = PajakKendaraan::create([
             'kendaraan_id' => $request->kendaraan_id,
             'jenis_pajak' => $request->jenis_pajak,
             'nominal' => $request->nominal,
@@ -89,10 +112,13 @@ class PajakController extends Controller
             'bukti' => $bukti,
         ]);
 
+        // upload attachment tambahan (bisa lebih dari satu, SETELAH ADA ID)
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id);
+        }
+
         return back()->with('success', 'Data pajak berhasil ditambahkan');
     }
-
-
 
     public function perpanjang(Request $request, $id)
     {
@@ -103,22 +129,19 @@ class PajakController extends Controller
             'status' => 'required',
             'keterangan' => 'nullable',
             'bukti' => 'nullable|file|max:5120',
+            'bukti_attachment' => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
+
         $pajak = PajakKendaraan::findOrFail($id);
         $bukti = $pajak->bukti;
 
         $path = public_path('pajak/bukti');
-
-        if (!file_exists($path)) {
-            mkdir($path, 0777, true);
-        }
+        if (!file_exists($path)) mkdir($path, 0777, true);
 
         if ($request->hasFile('bukti')) {
-
             $file = $request->file('bukti');
-
             $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
             $file->move($path, $filename);
 
             if ($bukti && file_exists(public_path($bukti))) {
@@ -140,23 +163,20 @@ class PajakController extends Controller
             'tanggal_bayar'      => now(),
             'status'             => 'sudah_bayar',
             'keterangan'         => $pajak->keterangan,
-            'bukti'              => $finalBukti, // 👈 PENTING
+            'bukti'              => $finalBukti,
             'diperpanjang_pada'  => now(),
         ]);
 
-
-
-        // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
+        // MASUK KE KEUANGAN (PENGELUARAN)
         $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
-
         $pengeluaran = $request->nominal;
-        // 🔥 TAMBAH KE KEUANGAN (PENGELUARAN)
+
         Keuangan::create([
             'tanggal'      => now(),
             'reference'    => 'PAJAK-' . $pajak->id,
             'user_id'      => auth()->id(),
             'kategori'     => 'pajak_kendaraan',
-            'metode'       => 'cash', // bisa kamu ganti kalau ada field metode
+            'metode'       => 'cash',
             'keterangan'   => 'Pembayaran pajak kendaraan: ' . $pajak->jenis_pajak . ' - ' . $request->keterangan,
             'pemasukan'    => 0,
             'pengeluaran'  => $request->nominal,
@@ -170,13 +190,16 @@ class PajakController extends Controller
             'tanggal_bayar'  => now()->toDateString(),
             'status'         => 'sudah_bayar',
             'keterangan'     => $request->keterangan,
-            'bukti'          => $finalBukti, // 👈 PENTING
+            'bukti'          => $finalBukti,
         ]);
+
+        // upload attachment tambahan (bukti pendukung perpanjangan)
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id);
+        }
 
         return back()->with('success', 'Pajak berhasil diperpanjang');
     }
-
-
 
     public function update(Request $request, $id)
     {
@@ -189,13 +212,13 @@ class PajakController extends Controller
             'status' => 'required',
             'keterangan' => 'nullable',
             'bukti' => 'nullable|file|max:5120',
+            'bukti_attachment' => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $pajak = PajakKendaraan::findOrFail($id);
-
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 
-        // 🔥 CEK DUPLIKAT NOPOL (EXCLUDE DATA SENDIRI)
         $exists = PajakKendaraan::whereHas('kendaraan', function ($q) use ($kendaraan) {
             $q->where('nopol', $kendaraan->nopol);
         })
@@ -206,21 +229,16 @@ class PajakController extends Controller
             return back()->with('error', 'Nopol ini sudah memiliki data pajak');
         }
 
-        // upload file
         $bukti = $pajak->bukti;
 
         if ($request->hasFile('bukti')) {
-
             if ($bukti && file_exists(public_path($bukti))) {
                 unlink(public_path($bukti));
             }
 
             $file = $request->file('bukti');
-
             $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
             $file->move(public_path('pajak/bukti'), $filename);
-
             $bukti = 'pajak/bukti/' . $filename;
         }
 
@@ -235,6 +253,10 @@ class PajakController extends Controller
             'bukti' => $bukti,
         ]);
 
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id);
+        }
+
         return back()->with('success', 'Data pajak berhasil diupdate');
     }
 
@@ -246,16 +268,40 @@ class PajakController extends Controller
             unlink(public_path($pajak->bukti));
         }
 
+        // hapus semua file attachment terkait
+        foreach ($pajak->attachments as $att) {
+            if (file_exists(public_path($att->file_path))) {
+                unlink(public_path($att->file_path));
+            }
+            $att->delete();
+        }
+
         $pajak->delete();
 
         return back()->with('success', 'Data pajak berhasil dihapus');
+    }
+
+    /**
+     * Hapus 1 attachment tertentu (dipanggil dari tombol hapus di list attachment)
+     */
+    public function destroyAttachment($id)
+    {
+        $attachment = Attachment::where('relation_type', 'pajak')->findOrFail($id);
+
+        if (file_exists(public_path($attachment->file_path))) {
+            unlink(public_path($attachment->file_path));
+        }
+
+        $attachment->delete();
+
+        return back()->with('success', 'Lampiran berhasil dihapus');
     }
 
     public function exportPdf(Request $request)
     {
         $search = $request->search;
 
-        $query = PajakKendaraan::with('kendaraan');
+        $query = PajakKendaraan::with(['kendaraan', 'attachments']);
 
         if ($search) {
             $query->where(function ($q) use ($search) {

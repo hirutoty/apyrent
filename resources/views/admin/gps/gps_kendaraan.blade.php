@@ -170,55 +170,49 @@
 
                                 {{-- Tgl Habis --}}
                                 <td class="px-5 py-4">
-    @php
-        $tglHabis = \Carbon\Carbon::parse($d->tanggal_habis)->startOfDay();
-        $hariIni = now()->startOfDay();
+                                    @php
+                                        $tglHabis = \Carbon\Carbon::parse($d->tanggal_habis)->startOfDay();
+                                        $hariIni = now()->startOfDay();
 
-        $sisaHari = (int) $hariIni->diffInDays($tglHabis, false);
-    @endphp
+                                        $sisaHari = (int) $hariIni->diffInDays($tglHabis, false);
+                                    @endphp
 
-    <div class="flex flex-col gap-1">
+                                    <div class="flex flex-col gap-1">
 
-        <span class="text-slate-600 text-sm">
-            {{ $tglHabis->format('d M Y') }}
-        </span>
+                                        <span class="text-slate-600 text-sm">
+                                            {{ $tglHabis->format('d M Y') }}
+                                        </span>
 
-        @if ($sisaHari < 0)
+                                        @if ($sisaHari < 0)
+                                            <span
+                                                class="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-full w-fit">
+                                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                                Terlambat {{ abs($sisaHari) }} hari
+                                            </span>
+                                        @elseif ($sisaHari <= $reminder)
+                                            <span
+                                                class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full w-fit">
+                                                <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
 
-            <span
-                class="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-full w-fit">
-                <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
-                Terlambat {{ abs($sisaHari) }} hari
-            </span>
+                                                @if ($sisaHari == 0)
+                                                    Berakhir Hari Ini
+                                                @elseif ($sisaHari == 1)
+                                                    Berakhir Besok
+                                                @else
+                                                    Berakhir dalam {{ $sisaHari }} hari
+                                                @endif
 
-        @elseif ($sisaHari <= $reminder)
+                                            </span>
+                                        @else
+                                            <span
+                                                class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full w-fit">
+                                                <i class="fa-solid fa-circle-check text-[10px]"></i>
+                                                Aktif
+                                            </span>
+                                        @endif
 
-            <span
-                class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full w-fit">
-                <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
-
-                @if ($sisaHari == 0)
-                    Berakhir Hari Ini
-                @elseif ($sisaHari == 1)
-                    Berakhir Besok
-                @else
-                    Berakhir dalam {{ $sisaHari }} hari
-                @endif
-
-            </span>
-
-        @else
-
-            <span
-                class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full w-fit">
-                <i class="fa-solid fa-circle-check text-[10px]"></i>
-                Aktif
-            </span>
-
-        @endif
-
-    </div>
-</td>
+                                    </div>
+                                </td>
 
                                 {{-- Biaya --}}
                                 <td class="px-5 py-4 font-semibold text-slate-800">Rp
@@ -242,18 +236,32 @@
 
                                 <td>
                                     @if ($d->bukti_bayar)
-                                        @php
-                                            $filename = basename($d->bukti_bayar);
-                                        @endphp
-
+                                        @php $filename = basename($d->bukti_bayar); @endphp
                                         <a href="{{ asset($d->bukti_bayar) }}" target="_blank"
-                                            class="text-blue-600 underline text-xs hover:text-blue-800">
-
+                                            class="text-blue-600 underline text-xs hover:text-blue-800 block">
                                             {{ $filename }}
                                         </a>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
+
+                                    @foreach ($d->attachments as $att)
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                class="text-blue-500 underline text-[11px] hover:text-blue-700">
+                                                {{ $att->file_name }}
+                                            </a>
+                                            <form action="{{ route('gps.attachment.destroy', $att->id) }}" method="POST"
+                                                onsubmit="return confirm('Hapus lampiran ini?')" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="text-red-400 hover:text-red-600 text-[10px]">
+                                                    <i class="fa fa-times"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    @endforeach
                                 </td>
 
                                 {{-- Aksi --}}
@@ -445,10 +453,29 @@
                             <span class="text-xs text-slate-500">Klik untuk upload file</span>
                             <span class="text-xs text-slate-400"> (Maks 5MB)</span>
                         </label>
-                        <input type="file" name="bukti_bayar" id="bukti_bayar"
-                           class="hidden" onchange="previewBukti(this)" required>
+                        <input type="file" name="bukti_bayar" id="bukti_bayar" class="hidden"
+                            onchange="previewBukti(this)" required>
                     </div>
 
+                </div>
+
+                {{-- Lampiran Tambahan --}}
+                <div class="md:col-span-2">
+                    <label class="text-sm font-medium text-slate-700 mb-1 block">
+                        Lampiran Tambahan (opsional, bisa lebih dari 1)
+                    </label>
+
+                    <label for="bukti_attachment"
+                        class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition">
+                        <i class="fa-solid fa-paperclip text-xl text-slate-400 mb-1"></i>
+                        <span class="text-xs text-slate-500">Klik untuk upload lampiran tambahan</span>
+                        <span class="text-xs text-slate-400">(Maks 5MB per file)</span>
+                    </label>
+
+                    <input type="file" name="bukti_attachment[]" id="bukti_attachment" class="hidden" multiple
+                        onchange="renderListAttachment(this, 'listAttachmentGps')">
+
+                    <ul id="listAttachmentGps" class="mt-2 space-y-1 text-xs text-slate-600"></ul>
                 </div>
 
                 <button type="submit"
@@ -550,6 +577,15 @@
                         <input type="file" name="bukti_bayar"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm" required>
                     </div>
+                    <div class="md:col-span-2">
+                        <label class="text-sm font-medium text-slate-700 mb-1 block">
+                            Lampiran Tambahan (opsional, bisa lebih dari 1)
+                        </label>
+                        <input type="file" name="bukti_attachment[]" multiple
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm"
+                            onchange="renderListAttachment(this, 'listAttachmentPerpanjangGps')">
+                        <ul id="listAttachmentPerpanjangGps" class="mt-2 space-y-1 text-xs text-slate-600"></ul>
+                    </div>
 
                 </div>
 
@@ -646,6 +682,8 @@
                 document.getElementById('previewWrap').classList.add('hidden');
                 document.getElementById('previewImg').classList.add('hidden');
                 document.getElementById('previewFile').classList.add('hidden');
+                document.getElementById('listAttachmentGps').innerHTML = ''; // ✅ ditambahkan
+                document.getElementById('bukti_attachment').value = ''; // ✅ ditambahkan
             }
 
             // ✅ Expose ke global supaya onclick="openModal()" di HTML bisa jalan
@@ -690,6 +728,7 @@
                 document.getElementById('perpanjang_status_gps').value = btn.dataset.status;
                 document.getElementById('perpanjang_durasi').value = btn.dataset.durasi;
                 document.getElementById('perpanjang_biaya').value = btn.dataset.biaya;
+                document.getElementById('listAttachmentPerpanjangGps').innerHTML = ''; // ✅ ditambahkan
 
                 hitungTanggalHabisPerpanjang();
                 show(modalPerpanjang);
@@ -771,7 +810,7 @@
                 if (file.type.startsWith('image/')) {
                     img.src = url;
                     img.classList.remove('hidden');
-                    link.classList.add('hidden');
+                    link.classList.add('hidden'); // ✅ diperbaiki dari 'adda' menjadi 'add'
                 } else {
                     link.href = url;
                     link.classList.remove('hidden');
@@ -789,6 +828,18 @@
         document.querySelectorAll('.btn-perpanjang').forEach(btn => {
             console.log('btn-perpanjang found:', btn.dataset);
         });
+
+        window.renderListAttachment = function(input, listId) {
+            const list = document.getElementById(listId);
+            list.innerHTML = '';
+
+            Array.from(input.files).forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-1.5';
+                li.innerHTML = `<i class="fa-solid fa-paperclip text-slate-400"></i> ${file.name}`;
+                list.appendChild(li);
+            });
+        };
     </script>
 
 

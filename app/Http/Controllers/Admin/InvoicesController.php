@@ -11,6 +11,8 @@ use App\Models\InvKontrak;
 use App\Models\Kendaraan;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\InvoiceMail;
+
 
 class InvoicesController extends Controller
 {
@@ -106,6 +108,7 @@ class InvoicesController extends Controller
             'customer_address' => 'nullable|string',
             'contact_person'   => 'nullable|string|max:255',
             'telephone'        => 'nullable|string|max:50',
+            'email'        => 'nullable|string|max:50',
 
             'satuan' => 'nullable|string|max:100',
 
@@ -194,6 +197,7 @@ class InvoicesController extends Controller
             'customer_address' => 'nullable|string',
             'contact_person'   => 'nullable|string|max:255',
             'telephone'        => 'nullable|string|max:50',
+            'email'        => 'nullable|string|max:50',
 
             'satuan' => 'nullable|string|max:100',
 
@@ -236,45 +240,32 @@ class InvoicesController extends Controller
     }
 
 
-    public function sendEmail(Request $request)
-    {
-        $request->validate([
-            'invoice_id' => 'required|exists:invoices,id',
+    public function sendEmail($id)
+{
+    $invoice = Invoice::findOrFail($id);
+    $setting = Setting::first();
+
+    $toEmails = array_unique(array_filter([
+        $invoice->email,
+        $setting?->email
+    ]));
+
+    if (empty($toEmails)) {
+        return back()->with('error', 'Email tujuan kosong.');
+    }
+
+    try {
+        foreach ($toEmails as $email) {
+            Mail::to($email)->send(new InvoiceMail($invoice, $setting));
+        }
+
+        $invoice->update([
+            'last_email_sent_at' => now(),
         ]);
 
-        // ambil data invoice
-        $invoice = Invoice::findOrFail($request->invoice_id);
-
-        // ambil setting email perusahaan
-        $setting = Setting::first();
-
-        $toEmails = [];
-
-        // email dari invoice (customer)
-        if (!empty($invoice->email)) {
-            $toEmails[] = $invoice->email;
-        }
-
-        // email dari setting (admin/company)
-        if (!empty($setting?->email)) {
-            $toEmails[] = $setting->email;
-        }
-
-        // hilangkan duplicate email
-        $toEmails = array_unique($toEmails);
-
-        // isi email sederhana (tanpa Mailable dulu biar cepat jalan)
-        $data = [
-            'title' => 'Invoice Notification',
-            'invoice' => $invoice,
-            'setting' => $setting,
-        ];
-
-        Mail::send('emails.invoice', $data, function ($message) use ($toEmails, $invoice) {
-            $message->to($toEmails)
-                ->subject('Invoice #' . $invoice->id);
-        });
-
-        return back()->with('success', 'Email invoice berhasil dikirim.');
+        return back()->with('success', 'Email + PDF berhasil dikirim ke ' . $invoice->customer_name . '.');
+    } catch (\Exception $e) {
+        return back()->with('error', $e->getMessage());
     }
+}
 }

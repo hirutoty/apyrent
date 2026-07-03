@@ -161,12 +161,12 @@
                                             </button>
                                         </form>
 
-                                        {{-- Download PDF --}}
+                                        {{-- Download PDF
                                         <a href="{{ route('invoices.print', $inv->id) }}"
                                             class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
                                             target="_blank">
                                             <i class="fa fa-download"></i>
-                                        </a>
+                                        </a> --}}
 
                                         {{-- Tombol Show --}}
                                         <button type="button"

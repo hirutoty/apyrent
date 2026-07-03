@@ -37,7 +37,13 @@ class PajakKendaraan extends Model
     }
 
     public function histories()
-{
-    return $this->hasMany(PajakHistory::class,'pajak_kendaraan_id');
-}
+    {
+        return $this->hasMany(PajakHistory::class, 'pajak_kendaraan_id');
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'relation_id')
+            ->where('relation_type', 'pajak');
+    }
 }

@@ -26,4 +26,11 @@ class Kir extends Model
     {
         return $this->belongsTo(Kendaraan::class);
     }
+
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'relation_id')
+            ->where('relation_type', 'kir');
+    }
+
 }

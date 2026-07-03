@@ -8,6 +8,7 @@ use App\Models\Kir;
 use App\Models\Kendaraan;
 use App\Models\Setting;
 use App\Models\KirHistory;
+use App\Models\Attachment;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 
@@ -25,10 +26,40 @@ class KirController extends Controller
         };
 
         return view('admin.kir.index', [
-            'data' => Kir::with('kendaraan')->latest()->get(),
+            'data' => Kir::with(['kendaraan', 'attachments'])->latest()->get(),
             'kendaraan' => Kendaraan::all(),
             'reminder' => $reminder,
         ]);
+    }
+
+    /**
+     * Helper: simpan banyak attachment sekaligus untuk 1 KIR
+     * (konsisten dengan Pajak, Asuransi, GPS)
+     */
+    private function simpanAttachments($files, $kirId)
+    {
+        $pathDir = public_path('kir/attachments');
+        if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
+
+        foreach ($files as $file) {
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+
+            // ambil data SEBELUM file dipindah
+            $originalName = $file->getClientOriginalName();
+            $extension    = $file->getClientOriginalExtension();
+            $size         = $file->getSize();
+
+            $file->move($pathDir, $filename);
+
+            Attachment::create([
+                'relation_type' => 'kir',
+                'relation_id'   => $kirId,
+                'file_name'     => $originalName,
+                'file_path'     => 'kir/attachments/' . $filename,
+                'file_type'     => $extension,
+                'file_size'     => $size,
+            ]);
+        }
     }
 
     public function store(Request $request)
@@ -39,6 +70,8 @@ class KirController extends Controller
             'masa_berlaku' => 'required|date',
             'biaya' => 'required|numeric|min:0',
             'image' => 'nullable|file|max:5120',
+            'bukti_attachment'   => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
 
         ], [
             'kendaraan_id.required' => 'Kendaraan wajib dipilih',
@@ -58,7 +91,7 @@ class KirController extends Controller
             return back()->with('error', 'Kendaraan dengan nopol ini sudah memiliki data KIR');
         }
 
-        $data = $request->all();
+        $data = $request->except(['bukti_attachment', '_token']); // ✅ jangan ikut masuk mass-assign
 
         if ($request->hasFile('image')) {
             $file = $request->file('image');
@@ -66,7 +99,6 @@ class KirController extends Controller
             $filename = time() . '_' . $file->getClientOriginalName();
             $destination = public_path('kir/dokumen');
 
-            // pastikan folder ada
             if (!file_exists($destination)) {
                 mkdir($destination, 0777, true);
             }
@@ -76,8 +108,12 @@ class KirController extends Controller
             $data['image'] = 'kir/dokumen/' . $filename;
         }
 
+        $kir = Kir::create($data);
 
-        Kir::create($data);
+        // upload attachment tambahan (SETELAH ADA ID)
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
+        }
 
         return back()->with('success', 'Data KIR berhasil ditambahkan');
     }
@@ -92,6 +128,8 @@ class KirController extends Controller
             'masa_berlaku' => 'required|date',
             'biaya' => 'required|numeric|min:0',
             'image' => 'nullable|file|max:5120',
+            'bukti_attachment'   => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $kendaraan = \App\Models\Kendaraan::findOrFail($request->kendaraan_id);
@@ -107,7 +145,7 @@ class KirController extends Controller
             return back()->with('error', 'Kendaraan dengan nopol ini sudah memiliki data KIR');
         }
 
-        $data = $request->all();
+        $data = $request->except(['bukti_attachment', '_token', '_method']); // ✅ jangan ikut masuk mass-assign
 
         if ($request->hasFile('image')) {
 
@@ -131,6 +169,10 @@ class KirController extends Controller
 
         $kir->update($data);
 
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
+        }
+
         return back()->with('success', 'Data KIR berhasil diupdate');
     }
 
@@ -142,12 +184,36 @@ class KirController extends Controller
             unlink(public_path($kir->image));
         }
 
+        // hapus semua file attachment terkait
+        foreach ($kir->attachments as $att) {
+            if (file_exists(public_path($att->file_path))) {
+                unlink(public_path($att->file_path));
+            }
+            $att->delete();
+        }
+
         $kir->delete();
 
         return back()->with(
             'success',
             'Data KIR berhasil dihapus'
         );
+    }
+
+    /**
+     * Hapus 1 attachment tertentu
+     */
+    public function destroyAttachment($id)
+    {
+        $attachment = Attachment::where('relation_type', 'kir')->findOrFail($id);
+
+        if (file_exists(public_path($attachment->file_path))) {
+            unlink(public_path($attachment->file_path));
+        }
+
+        $attachment->delete();
+
+        return back()->with('success', 'Lampiran berhasil dihapus');
     }
 
 
@@ -157,7 +223,7 @@ class KirController extends Controller
     {
         $search = $request->search;
 
-        $data = Kir::with('kendaraan')
+        $data = Kir::with(['kendaraan', 'attachments'])
             ->when($search, function ($query) use ($search) {
                 $query->whereHas('kendaraan', function ($q) use ($search) {
                     $q->where('nopol', 'like', "%$search%")
@@ -181,6 +247,8 @@ class KirController extends Controller
             'masa_berlaku' => 'required|date',
             'biaya'        => 'required|numeric|min:0',
             'image'        => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'bukti_attachment'   => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $kir = Kir::findOrFail($id);
@@ -210,7 +278,7 @@ class KirController extends Controller
             'no_uji'            => $kir->no_uji,
             'masa_berlaku'      => $kir->masa_berlaku,
             'biaya'             => $kir->biaya,
-            'image'             => $image, // 🔥 FIX DI SINI
+            'image'             => $image,
             'diperpanjang_pada' => now(),
         ]);
 
@@ -221,6 +289,11 @@ class KirController extends Controller
             'biaya'        => $request->biaya,
             'image'        => $image,
         ]);
+
+        // upload attachment tambahan (bukti pendukung perpanjangan)
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
+        }
 
         return back()->with('success', 'KIR berhasil diperpanjang!');
     }

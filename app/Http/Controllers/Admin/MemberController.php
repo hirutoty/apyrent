@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Member;
 use App\Models\Setting;
-use Barryvdh\DomPDF\Facade\Pdf; 
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class MemberController extends Controller
 {
@@ -21,18 +21,23 @@ class MemberController extends Controller
     {
         $request->validate([
             'nama_member' => 'required|string|max:255|unique:member,nama_member',
-            'kontak_member' => 'required|string|max:50',
+            'kontak_member' => 'nullable|string|max:50',
+            'email_member' => 'nullable|string|max:50',
             'alamat' => 'nullable|string',
+            'jenis_member' => 'required|in:perorangan,perusahaan',
         ], [
             'nama_member.required' => 'Nama member wajib diisi',
             'nama_member.unique' => 'Nama member sudah digunakan, tidak boleh sama',
-            'kontak_member.required' => 'Kontak member wajib diisi',
+            'jenis_member.required' => 'Jenis member Wajib diisi',
+
         ]);
 
         Member::create([
             'nama_member' => $request->nama_member,
             'kontak_member' => $request->kontak_member,
+            'email_member' => $request->email_member,
             'alamat' => $request->alamat,
+            'jenis_member' => $request->jenis_member,
         ]);
 
         return back()->with('success', 'Member berhasil ditambahkan');
@@ -44,18 +49,22 @@ class MemberController extends Controller
 
         $request->validate([
             'nama_member' => 'required|string|max:255|unique:member,nama_member,' . $id,
-            'kontak_member' => 'required|string|max:50',
+            'kontak_member' => 'string|max:50',
+            'email_member' => 'nullable|max:50',
             'alamat' => 'nullable|string',
+            'jenis_member' => 'required|in:perorangan,perusahaan',
         ], [
             'nama_member.required' => 'Nama member wajib diisi',
+            'jenis_member.required' => 'Jenis member wajib diisi',
             'nama_member.unique' => 'Nama member sudah dipakai member lain',
-            'kontak_member.required' => 'Kontak member wajib diisi',
         ]);
 
         $member->update([
             'nama_member' => $request->nama_member,
             'kontak_member' => $request->kontak_member,
+            'email_member' => $request->email_member,
             'alamat' => $request->alamat,
+            'jenis_member' => $request->jenis_member,
         ]);
 
         return back()->with('success', 'Member berhasil diupdate');
@@ -69,23 +78,25 @@ class MemberController extends Controller
     }
 
     public function pdf(Request $request)
-{
-    $query = Member::query();
+    {
+        $query = Member::query();
 
-    // ── FILTER SEARCH ──
-    if ($request->search) {
-        $query->where(function ($q) use ($request) {
-            $q->where('nama_member', 'like', '%' . $request->search . '%')
-              ->orWhere('kontak_member', 'like', '%' . $request->search . '%')
-              ->orWhere('alamat', 'like', '%' . $request->search . '%');
-        });
+        // ── FILTER SEARCH ──
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('nama_member', 'like', '%' . $request->search . '%')
+                    ->orWhere('kontak_member', 'like', '%' . $request->search . '%')
+                    ->orWhere('email_member', 'like', '%' . $request->search . '%')
+                    ->orWhere('alamat', 'like', '%' . $request->search . '%')
+                    ->orWhere('jenis_member', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        $setting = Setting::first();
+        $data = $query->latest()->get();
+
+        $pdf = PDF::loadView('admin.member.pdf', compact('data', 'request', 'setting'));
+
+        return $pdf->stream('data-member.pdf');
     }
-
-    $setting = Setting::first();
-    $data = $query->latest()->get();
-
-    $pdf = PDF::loadView('admin.member.pdf', compact('data', 'request', 'setting'));
-
-    return $pdf->stream('data-member.pdf');
-}
 }

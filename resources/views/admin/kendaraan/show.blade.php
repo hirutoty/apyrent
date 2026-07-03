@@ -90,11 +90,6 @@
                             <input type="text" placeholder="Cari kendaraan..." oninput="filterKendaraanTable(this.value)"
                                 class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                         </div>
-                        <a href="{{ route('kendaraan.export.pdf', $merk) }}" target="_blank"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                            <i class="fa fa-download text-xs"></i>
-                            Export PDF
-                        </a>
                         <button onclick="window.location.reload()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                             <i class="fa fa-sync text-xs"></i> Refresh
@@ -119,11 +114,17 @@
                                     Nopol</th>
                                 <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                     Nama
-                                    Pemilik</th>
+                                    Customer</th>
                                 <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                    Dokumen</th>
+                                    Jenis Customer</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Durasi</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    CheckIn/Out</th>
                                 <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                     Status hari ini</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Status Bayar</th>
                                 <th
                                     class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                     Aksi</th>
@@ -167,23 +168,86 @@
                                             class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->nopol }}</span>
                                     </td>
 
-                                    <td class="px-4 py-3.5 text-sm text-gray-700">{{ $d->nama_pemilik }}</td>
+                                    @php
+                                        // ambil rental yang sedang berjalan, atau yang terbaru
+                                        $rental = $d->rentals->firstWhere('status', 'berjalan') ?? $d->rentals->first();
+                                    @endphp
 
-                                    <td>
-                                        @if ($d->dokumen)
-                                            @php
-                                                $filename = basename($d->dokumen);
-                                            @endphp
+                                    <td class="px-4 py-3.5 text-sm text-gray-700">
+                                        {{ $rental->member->nama_member ?? '-' }}
+                                    </td>
 
-                                            <a href="{{ asset($d->dokumen) }}" target="_blank"
-                                                class="text-blue-600 underline text-xs hover:text-blue-800">
+                                    <td class="px-4 py-3.5">
+                                        {{ $rental->member->jenis_member ?? '-' }}
+                                    </td>
 
-                                                {{ $filename }}
-                                            </a>
+                                    <td class="px-4 py-3.5">
+
+                                        @php
+                                            $rental = $d->rentals->first();
+                                        @endphp
+
+                                        @if ($rental)
+                                            {{-- DURASI --}}
+                                            @if ($rental->durasi_jam)
+                                                {{ $rental->durasi_jam }} Jam
+                                            @elseif($rental->durasi_hari)
+                                                {{ $rental->durasi_hari }} Hari
+                                            @elseif($rental->durasi_bulan)
+                                                {{ $rental->durasi_bulan }} Bulan
+                                            @elseif($rental->durasi_tahun)
+                                                {{ $rental->durasi_tahun }} Tahun
+                                            @else
+                                                -
+                                            @endif
+
+                                            {{-- TERLAMBAT --}}
+                                            @if ($d->terlambat)
+                                                <div class="text-xs text-red-600 font-semibold mt-1">
+                                                    ⚠️ Terlambat {{ $d->sisa }}
+                                                </div>
+                                                {{-- REMINDER --}}
+                                            @elseif ($d->reminder)
+                                                <div class="text-xs text-orange-500 mt-1">
+                                                    ⏰ Reminder Sisa {{ $d->sisa }}
+                                                </div>
+                                            @endif
                                         @else
-                                            <span class="text-gray-400 text-xs">-</span>
+                                            -
+                                        @endif
+
+                                    </td>
+
+                                    <td class="px-4 py-3.5 text-sm text-gray-700">
+                                        @php
+                                            $rental = $d->rentals->first();
+                                        @endphp
+
+                                        @if ($rental)
+                                            {{ \Carbon\Carbon::parse($rental->tanggal_mulai)->format('d-m-Y') }}
+                                            /
+                                            <span class="text-xs text-gray-400">
+                                                {{ \Carbon\Carbon::parse($rental->tanggal_selesai)->format('d-m-Y H:i') }}
+                                            </span>
+                                        @else
+                                            -
                                         @endif
                                     </td>
+
+                                    <td class="px-4 py-3.5">
+                                        @if (!empty($rental->bukti_lunas) || !empty($rental->bukti_pelunasan))
+                                            <span
+                                                class="px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-700">
+                                                Lunas
+                                            </span>
+                                        @else
+                                            <span class="px-2 py-1 text-xs font-semibold rounded bg-red-100 text-red-600">
+                                                Belum lunas
+                                            </span>
+                                        @endif
+                                    </td>
+
+
 
                                     <td class="px-4 py-3.5">
                                         @if ($d->status_kendaraan === 'tersedia')
@@ -329,270 +393,309 @@
         MODAL DETAIL
     ====================================== --}}
         {{-- Modal Detail Kendaraan --}}
-<div id="modalDetail" class="fixed inset-0 z-50 hidden items-center justify-center p-4"
-    style="background: rgba(15,15,20,0.55); backdrop-filter: blur(6px);">
+        <div id="modalDetail" class="fixed inset-0 z-50 hidden items-center justify-center p-4"
+            style="background: rgba(15,15,20,0.55); backdrop-filter: blur(6px);">
 
-    <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden"
-        style="box-shadow: 0 24px 64px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08); animation: modalSlideUp .25s cubic-bezier(.22,.68,0,1.2) both;">
+            <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden"
+                style="box-shadow: 0 24px 64px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08); animation: modalSlideUp .25s cubic-bezier(.22,.68,0,1.2) both;">
 
-        {{-- Header --}}
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
-                    <i class="fa fa-car text-indigo-500 text-base"></i>
+                {{-- Header --}}
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                            <i class="fa fa-car text-indigo-500 text-base"></i>
+                        </div>
+                        <div>
+                            <h2 id="d_title" class="text-sm font-semibold text-gray-900 leading-tight">Detail Kendaraan
+                            </h2>
+                            <p class="text-xs text-gray-400 mt-0.5">Informasi lengkap kendaraan</p>
+                        </div>
+                    </div>
+                    <button onclick="closeAllModals()"
+                        class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all">
+                        <i class="fa fa-times text-sm"></i>
+                    </button>
                 </div>
-                <div>
-                    <h2 id="d_title" class="text-sm font-semibold text-gray-900 leading-tight">Detail Kendaraan</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">Informasi lengkap kendaraan</p>
+
+                {{-- Scrollable body --}}
+                <div class="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+
+                    {{-- Foto --}}
+                    <div id="d_foto_wrap">
+                        <img id="d_foto_img" src="" alt="Foto Kendaraan"
+                            class="w-full h-52 object-cover rounded-xl border border-gray-100">
+                    </div>
+
+                    {{-- Hero: Nomor Polisi + Status --}}
+                    <div class="flex items-center gap-4 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs text-gray-400 mb-1">
+                                <i class="fa fa-id-card mr-1"></i> Nomor Polisi
+                            </p>
+                            <p id="d_nopol"
+                                class="font-mono text-lg font-bold text-gray-900 tracking-widest bg-white border border-gray-200 inline-block px-3 py-1 rounded-lg">
+                                —
+                            </p>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="text-xs text-gray-400 mb-1">Status Kendaraan</p>
+                            <span id="d_status_kendaraan"></span>
+                        </div>
+                    </div>
+
+                    {{-- Seksi: Informasi Dasar --}}
+                    <div>
+                        <p
+                            class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
+                            <i class="fa fa-user text-[10px]"></i> Informasi Dasar
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">User</span>
+                                <span id="d_user" class="text-sm text-gray-700 font-medium">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span
+                                    class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Jenis</span>
+                                <span id="d_jenis" class="text-sm text-gray-700 font-medium">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Merk</span>
+                                <span id="d_merk" class="text-sm text-gray-800 font-semibold">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span
+                                    class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Warna</span>
+                                <span id="d_warna" class="text-sm text-gray-700 font-medium">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Nama
+                                    Pemilik</span>
+                                <span id="d_nama_pemilik" class="text-sm text-gray-700 font-medium">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Harga /
+                                    Jam</span>
+                                <span id="d_harga_jam" class="text-sm text-gray-800 font-semibold">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Harga /
+                                    Hari</span>
+                                <span id="d_harga_hari" class="text-sm text-gray-800 font-semibold">—</span>
+                            </div>
+
+                            <div class="col-span-2 flex flex-col gap-0.5">
+                                <span
+                                    class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Alamat</span>
+                                <span id="d_alamat"
+                                    class="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">—</span>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    {{-- Seksi: Data Registrasi --}}
+                    <div>
+                        <p
+                            class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
+                            <i class="fa fa-id-card text-[10px]"></i> Data Registrasi
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Tahun
+                                    Pembuatan</span>
+                                <span id="d_tahun_pembuatan" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Tahun
+                                    Perakitan</span>
+                                <span id="d_tahun_perakitan" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Isi
+                                    Silinder</span>
+                                <span id="d_isi_silinder" class="text-sm text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Bahan
+                                    Bakar</span>
+                                <span id="d_bahan_bakar" class="text-sm text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Warna
+                                    TNKB</span>
+                                <span id="d_warna_tnkb" class="text-sm text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Kode
+                                    Lokasi</span>
+                                <span id="d_kode_lokasi" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No
+                                    Urut</span>
+                                <span id="d_no_urut" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No
+                                    Rangka</span>
+                                <span id="d_no_rangka" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No
+                                    Mesin</span>
+                                <span id="d_no_mesin" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No
+                                    BPKB</span>
+                                <span id="d_no_bpkb" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    {{-- Seksi: Dokumen & Biaya --}}
+                    <div>
+                        <p
+                            class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
+                            <i class="fa fa-file-alt text-[10px]"></i> Dokumen & Biaya
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Batas
+                                    Biaya</span>
+                                <span id="d_batas_biaya" class="text-sm text-gray-800 font-semibold">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Masa
+                                    Berlaku</span>
+                                <span id="d_masa_berlaku" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                        </div>
+                        <div class="mt-3 flex flex-col gap-0.5">
+                            <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Dokumen</span>
+                            <div id="d_dokumen_wrap" class="text-sm text-gray-600">—</div>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    {{-- Seksi: Servis & Kilometer --}}
+                    <div>
+                        <p
+                            class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
+                            <i class="fa fa-tachometer-alt text-[10px]"></i> Servis & Kilometer
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">KM
+                                    Sekarang</span>
+                                <span id="d_km_sekarang" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Limit KM
+                                    Service</span>
+                                <span id="d_limit_km" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Limit Bulan
+                                    Service</span>
+                                <span id="d_limit_bln" class="text-sm text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">KM Terakhir
+                                    Service</span>
+                                <span id="d_km_svc" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Tanggal
+                                    Terakhir Service</span>
+                                <span id="d_tgl_svc" class="text-sm font-mono text-gray-500">—</span>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    {{-- Seksi: Status --}}
+                    <div>
+                        <p
+                            class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
+                            <i class="fa fa-toggle-on text-[10px]"></i> Status
+                        </p>
+                        <div class="flex items-center gap-6">
+                            <div class="flex flex-col gap-1">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Status
+                                    Service</span>
+                                <span id="d_status_service"></span>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Status
+                                    Kendaraan</span>
+                                <span id="d_status_kendaraan_2"></span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
+
+                {{-- Footer --}}
+                <div class="flex items-center justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/60">
+                    <button onclick="closeAllModals()"
+                        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all">
+                        <i class="fa fa-times text-xs"></i>
+                        Tutup
+                    </button>
+                </div>
+
             </div>
-            <button onclick="closeAllModals()"
-                class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all">
-                <i class="fa fa-times text-sm"></i>
-            </button>
         </div>
 
-        {{-- Scrollable body --}}
-        <div class="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+        <style>
+            @keyframes modalSlideUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(16px) scale(.98);
+                }
 
-            {{-- Foto --}}
-            <div id="d_foto_wrap">
-                <img id="d_foto_img" src="" alt="Foto Kendaraan"
-                    class="w-full h-52 object-cover rounded-xl border border-gray-100">
-            </div>
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+        </style>
 
-            {{-- Hero: Nomor Polisi + Status --}}
-            <div class="flex items-center gap-4 p-4 rounded-xl bg-gray-50 border border-gray-100">
-                <div class="flex-1 min-w-0">
-                    <p class="text-xs text-gray-400 mb-1">
-                        <i class="fa fa-id-card mr-1"></i> Nomor Polisi
-                    </p>
-                    <p id="d_nopol"
-                        class="font-mono text-lg font-bold text-gray-900 tracking-widest bg-white border border-gray-200 inline-block px-3 py-1 rounded-lg">
-                        —
-                    </p>
-                </div>
-                <div class="text-right shrink-0">
-                    <p class="text-xs text-gray-400 mb-1">Status Kendaraan</p>
-                    <span id="d_status_kendaraan"></span>
-                </div>
-            </div>
-
-            {{-- Seksi: Informasi Dasar --}}
-            <div>
-                <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
-                    <i class="fa fa-user text-[10px]"></i> Informasi Dasar
-                </p>
-                <div class="grid grid-cols-2 gap-3">
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">User</span>
-                        <span id="d_user" class="text-sm text-gray-700 font-medium">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Jenis</span>
-                        <span id="d_jenis" class="text-sm text-gray-700 font-medium">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Merk</span>
-                        <span id="d_merk" class="text-sm text-gray-800 font-semibold">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Warna</span>
-                        <span id="d_warna" class="text-sm text-gray-700 font-medium">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Nama Pemilik</span>
-                        <span id="d_nama_pemilik" class="text-sm text-gray-700 font-medium">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Harga / Jam</span>
-                        <span id="d_harga_jam" class="text-sm text-gray-800 font-semibold">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Harga / Hari</span>
-                        <span id="d_harga_hari" class="text-sm text-gray-800 font-semibold">—</span>
-                    </div>
-
-                    <div class="col-span-2 flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Alamat</span>
-                        <span id="d_alamat" class="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">—</span>
-                    </div>
-
-                </div>
-            </div>
-
-            <hr class="border-gray-100">
-
-            {{-- Seksi: Data Registrasi --}}
-            <div>
-                <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
-                    <i class="fa fa-id-card text-[10px]"></i> Data Registrasi
-                </p>
-                <div class="grid grid-cols-2 gap-3">
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Tahun Pembuatan</span>
-                        <span id="d_tahun_pembuatan" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Tahun Perakitan</span>
-                        <span id="d_tahun_perakitan" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Isi Silinder</span>
-                        <span id="d_isi_silinder" class="text-sm text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Bahan Bakar</span>
-                        <span id="d_bahan_bakar" class="text-sm text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Warna TNKB</span>
-                        <span id="d_warna_tnkb" class="text-sm text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Kode Lokasi</span>
-                        <span id="d_kode_lokasi" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No Urut</span>
-                        <span id="d_no_urut" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No Rangka</span>
-                        <span id="d_no_rangka" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No Mesin</span>
-                        <span id="d_no_mesin" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No BPKB</span>
-                        <span id="d_no_bpkb" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                </div>
-            </div>
-
-            <hr class="border-gray-100">
-
-            {{-- Seksi: Dokumen & Biaya --}}
-            <div>
-                <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
-                    <i class="fa fa-file-alt text-[10px]"></i> Dokumen & Biaya
-                </p>
-                <div class="grid grid-cols-2 gap-3">
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Batas Biaya</span>
-                        <span id="d_batas_biaya" class="text-sm text-gray-800 font-semibold">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Masa Berlaku</span>
-                        <span id="d_masa_berlaku" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                </div>
-                <div class="mt-3 flex flex-col gap-0.5">
-                    <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Dokumen</span>
-                    <div id="d_dokumen_wrap" class="text-sm text-gray-600">—</div>
-                </div>
-            </div>
-
-            <hr class="border-gray-100">
-
-            {{-- Seksi: Servis & Kilometer --}}
-            <div>
-                <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
-                    <i class="fa fa-tachometer-alt text-[10px]"></i> Servis & Kilometer
-                </p>
-                <div class="grid grid-cols-2 gap-3">
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">KM Sekarang</span>
-                        <span id="d_km_sekarang" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Limit KM Service</span>
-                        <span id="d_limit_km" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Limit Bulan Service</span>
-                        <span id="d_limit_bln" class="text-sm text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">KM Terakhir Service</span>
-                        <span id="d_km_svc" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Tanggal Terakhir Service</span>
-                        <span id="d_tgl_svc" class="text-sm font-mono text-gray-500">—</span>
-                    </div>
-
-                </div>
-            </div>
-
-            <hr class="border-gray-100">
-
-            {{-- Seksi: Status --}}
-            <div>
-                <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
-                    <i class="fa fa-toggle-on text-[10px]"></i> Status
-                </p>
-                <div class="flex items-center gap-6">
-                    <div class="flex flex-col gap-1">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Status Service</span>
-                        <span id="d_status_service"></span>
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Status Kendaraan</span>
-                        <span id="d_status_kendaraan_2"></span>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        {{-- Footer --}}
-        <div class="flex items-center justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/60">
-            <button onclick="closeAllModals()"
-                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all">
-                <i class="fa fa-times text-xs"></i>
-                Tutup
-            </button>
-        </div>
-
-    </div>
-</div>
-
-<style>
-@keyframes modalSlideUp {
-    from { opacity: 0; transform: translateY(16px) scale(.98); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-</style>
-        
 
 
         {{-- ======================================

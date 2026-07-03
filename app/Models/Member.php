@@ -14,7 +14,9 @@ class Member extends Model
       protected $fillable = [
         'nama_member',
         'kontak_member',
+        'email_member',
         'alamat',
+        'jenis_member',
     ];
 
     public function memberKendaraan()

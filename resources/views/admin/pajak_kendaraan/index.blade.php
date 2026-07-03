@@ -245,18 +245,33 @@
                                 </td>
                                 <td>
                                     @if ($item->bukti)
-                                        @php
-                                            $filename = basename($item->bukti);
-                                        @endphp
-
+                                        @php $filename = basename($item->bukti); @endphp
                                         <a href="{{ asset($item->bukti) }}" target="_blank"
-                                            class="text-blue-600 underline text-xs hover:text-blue-800">
-
+                                            class="text-blue-600 underline text-xs hover:text-blue-800 block">
                                             {{ $filename }}
                                         </a>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
+
+                                    @foreach ($item->attachments as $att)
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                class="text-blue-500 underline text-[11px] hover:text-blue-700">
+                                                {{ $att->file_name }}
+                                            </a>
+                                            <form action="{{ route('pajak.attachment.destroy', $att->id) }}"
+                                                method="POST" onsubmit="return confirm('Hapus lampiran ini?')"
+                                                class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="text-red-400 hover:text-red-600 text-[10px]">
+                                                    <i class="fa fa-times"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    @endforeach
                                 </td>
 
                                 <td class="px-4 py-3.5 text-sm text-gray-500 max-w-[140px] truncate">
@@ -471,6 +486,24 @@
 
                         <input type="file" name="bukti" id="bukti" required class="hidden"
                             onchange="previewBuktiPajak(this)">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                            Lampiran Tambahan (opsional, bisa lebih dari 1)
+                        </label>
+
+                        <label for="bukti_attachment"
+                            class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                            <i class="fa-solid fa-paperclip text-xl text-gray-400 mb-1"></i>
+                            <span class="text-xs text-gray-500">Klik untuk upload lampiran tambahan</span>
+                            <span class="text-xs text-gray-400">(Maks 5MB per file)</span>
+                        </label>
+
+                        <input type="file" name="bukti_attachment[]" id="bukti_attachment" class="hidden" multiple
+                            onchange="renderListAttachment(this, 'listAttachmentTambah')">
+
+                        <ul id="listAttachmentTambah" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
                     </div>
 
                     <div class="sm:col-span-2">
@@ -743,6 +776,18 @@ MODAL PERPANJANG
                     </div>
 
                     <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">
+                            Lampiran Tambahan (opsional, bisa lebih dari 1)
+                        </label>
+
+                        <input id="perpanjang_bukti_attachment" type="file" name="bukti_attachment[]" multiple
+                            class="w-full border rounded-lg px-3 py-2"
+                            onchange="renderListAttachment(this, 'listAttachmentPerpanjang')">
+
+                        <ul id="listAttachmentPerpanjang" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
+                    </div>
+
+                    <div class="sm:col-span-2">
 
                         <label class="block text-xs font-semibold text-gray-600 mb-1">
                             Keterangan
@@ -852,6 +897,8 @@ MODAL PERPANJANG
         function closeModalTambah() {
             modalTambah.classList.add('hidden');
             modalTambah.classList.remove('flex');
+            document.getElementById('listAttachmentTambah').innerHTML = '';
+            document.getElementById('bukti_attachment').value = '';
         }
 
         modalTambah.addEventListener('click', function(e) {
@@ -1125,11 +1172,24 @@ MODAL PERPANJANG
         function closeModalPerpanjang() {
             modalPerpanjang.classList.add('hidden');
             modalPerpanjang.classList.remove('flex');
+            document.getElementById('listAttachmentPerpanjang').innerHTML = '';
         }
 
         modalPerpanjang.addEventListener('click', function(e) {
             if (e.target === modalPerpanjang) closeModalPerpanjang();
         });
+
+        function renderListAttachment(input, listId) {
+            const list = document.getElementById(listId);
+            list.innerHTML = '';
+
+            Array.from(input.files).forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-1.5';
+                li.innerHTML = `<i class="fa-solid fa-paperclip text-gray-400"></i> ${file.name}`;
+                list.appendChild(li);
+            });
+        }
     </script>
 
 @endsection

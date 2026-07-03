@@ -243,18 +243,32 @@
                                 {{-- Bukti --}}
                                 <td>
                                     @if ($d->image)
-                                        @php
-                                            $filename = basename($d->image);
-                                        @endphp
-
+                                        @php $filename = basename($d->image); @endphp
                                         <a href="{{ asset($d->image) }}" target="_blank"
-                                            class="text-blue-600 underline text-xs hover:text-blue-800">
-
+                                            class="text-blue-600 underline text-xs hover:text-blue-800 block">
                                             {{ $filename }}
                                         </a>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
+
+                                    @foreach ($d->attachments as $att)
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                class="text-blue-500 underline text-[11px] hover:text-blue-700">
+                                                {{ $att->file_name }}
+                                            </a>
+                                            <form action="{{ route('kir.attachment.destroy', $att->id) }}" method="POST"
+                                                onsubmit="return confirm('Hapus lampiran ini?')" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="text-red-400 hover:text-red-600 text-[10px]">
+                                                    <i class="fa fa-times"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    @endforeach
                                 </td>
 
                                 {{-- Aksi --}}
@@ -401,8 +415,18 @@
                         </span>
                     </label>
 
-                    <input type="file" name="image" id="image" class="hidden"
-                        onchange="previewFile(this)" required>
+                    <input type="file" name="image" id="image" class="hidden" onchange="previewFile(this)"
+                        required>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">
+                        Lampiran Tambahan (opsional, bisa lebih dari 1)
+                    </label>
+                    <input type="file" name="bukti_attachment[]" multiple
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                        onchange="renderListAttachment(this, 'listAttachmentPerpanjang')">
+                    <ul id="listAttachmentPerpanjang" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
                 </div>
 
                 <div class="flex gap-3 pt-1">
@@ -500,7 +524,7 @@
                     <input type="file" name="image" id="edit_image" class="hidden"
                         onchange="previewFileEdit(this)">
 
-                    
+
                 </div>
 
                 <div class="flex gap-3 pt-1">
@@ -576,6 +600,26 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Upload Bukti Baru</label>
                     <input type="file" name="image"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" required>
+                </div>
+
+
+
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Lampiran Tambahan (opsional, bisa lebih dari 1)
+                    </label>
+
+                    <label for="bukti_attachment"
+                        class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                        <i class="fa-solid fa-paperclip text-xl text-gray-400 mb-1"></i>
+                        <span class="text-xs text-gray-500">Klik untuk upload lampiran tambahan</span>
+                        <span class="text-xs text-gray-400">(Maks 5MB per file)</span>
+                    </label>
+
+                    <input type="file" name="bukti_attachment[]" id="bukti_attachment" class="hidden" multiple
+                        onchange="renderListAttachment(this, 'listAttachmentTambah')">
+
+                    <ul id="listAttachmentTambah" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
                 </div>
 
                 <div class="flex gap-3 pt-1">

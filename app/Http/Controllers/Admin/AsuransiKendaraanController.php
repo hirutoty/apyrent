@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Asuransi;
+use App\Models\Attachment;
 use Illuminate\Http\Request;
 use App\Models\AsuransiKendaraan;
 use App\Models\Kendaraan;
@@ -27,7 +28,8 @@ class AsuransiKendaraanController extends Controller
         $data = AsuransiKendaraan::with([
             'kendaraan',
             'asuransi',
-            'jenisAsuransi'
+            'jenisAsuransi',
+            'attachments'
         ])->latest()->get();
 
         $setting = Setting::first();
@@ -65,6 +67,36 @@ class AsuransiKendaraanController extends Controller
         ));
     }
 
+    /**
+     * Helper: simpan banyak attachment sekaligus untuk 1 asuransi
+     * (konsisten dengan PajakController)
+     */
+    private function simpanAttachments($files, $asuransiId)
+    {
+        $pathDir = public_path('asuransi/attachments');
+        if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
+
+        foreach ($files as $file) {
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+
+            // ambil data SEBELUM file dipindah (biar getSize() tidak error)
+            $originalName = $file->getClientOriginalName();
+            $extension    = $file->getClientOriginalExtension();
+            $size         = $file->getSize();
+
+            $file->move($pathDir, $filename);
+
+            Attachment::create([
+                'relation_type' => 'asuransi',
+                'relation_id'   => $asuransiId,
+                'file_name'     => $originalName,
+                'file_path'     => 'asuransi/attachments/' . $filename,
+                'file_type'     => $extension,
+                'file_size'     => $size,
+            ]);
+        }
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -76,7 +108,9 @@ class AsuransiKendaraanController extends Controller
 
             'durasi_bulan'       => 'required|integer|min:1',
             'biaya'              => 'required|numeric|min:0',
-             'bukti_bayar'        => 'required|file|max:5120',
+            'bukti_bayar'        => 'required|file|max:5120',
+            'bukti_attachment'   => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $kendaraan = \App\Models\Kendaraan::findOrFail($request->kendaraan_id);
@@ -104,7 +138,7 @@ class AsuransiKendaraanController extends Controller
             $buktiBayar = 'asuransi/bukti_bayar/' . $filename;
         }
 
-        AsuransiKendaraan::create([
+        $asuransiKendaraan = AsuransiKendaraan::create([
             'kendaraan_id'      => $request->kendaraan_id,
             'asuransi_id'       => $request->asuransi_id,
             'jenis_asuransi_id' => $request->jenis_asuransi_id,
@@ -117,6 +151,11 @@ class AsuransiKendaraanController extends Controller
 
             'status_kendaraan'  => 'aktif',
         ]);
+
+        // upload attachment tambahan (bisa lebih dari satu, SETELAH ADA ID)
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $asuransiKendaraan->id);
+        }
 
         return back()->with('success', 'Data berhasil ditambahkan');
     }
@@ -133,6 +172,8 @@ class AsuransiKendaraanController extends Controller
             'durasi_bulan' => 'required|integer|min:1',
             'biaya'        => 'required|numeric|min:0',
             'bukti_bayar'        => 'required|file|max:5120',
+            'bukti_attachment'   => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $data = AsuransiKendaraan::findOrFail($id);
@@ -180,6 +221,10 @@ class AsuransiKendaraanController extends Controller
             'bukti_bayar'       => $buktiBayar,
         ]);
 
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $data->id);
+        }
+
         return back()->with('success', 'Data berhasil diupdate');
     }
 
@@ -191,9 +236,33 @@ class AsuransiKendaraanController extends Controller
             unlink(public_path($data->bukti_bayar));
         }
 
+        // hapus semua file attachment terkait
+        foreach ($data->attachments as $att) {
+            if (file_exists(public_path($att->file_path))) {
+                unlink(public_path($att->file_path));
+            }
+            $att->delete();
+        }
+
         $data->delete();
 
         return back()->with('success', 'Data berhasil dihapus');
+    }
+
+    /**
+     * Hapus 1 attachment tertentu
+     */
+    public function destroyAttachment($id)
+    {
+        $attachment = Attachment::where('relation_type', 'asuransi')->findOrFail($id);
+
+        if (file_exists(public_path($attachment->file_path))) {
+            unlink(public_path($attachment->file_path));
+        }
+
+        $attachment->delete();
+
+        return back()->with('success', 'Lampiran berhasil dihapus');
     }
 
     public function exportPdf(Request $request)
@@ -203,7 +272,8 @@ class AsuransiKendaraanController extends Controller
         $data = AsuransiKendaraan::with([
             'kendaraan',
             'asuransi',
-            'jenisAsuransi'
+            'jenisAsuransi',
+            'attachments'
         ])
             ->when($search, function ($q) use ($search) {
                 $q->whereHas('kendaraan', function ($k) use ($search) {
@@ -243,7 +313,9 @@ class AsuransiKendaraanController extends Controller
             'tgl_berakhir'      => 'required|date',
             'durasi_bulan'      => 'required|integer|min:1',
             'biaya'             => 'required|numeric|min:0',
-            'bukti_bayar'       => 'require|file|max:5120',
+            'bukti_bayar'       => 'required|file|max:5120', // ✅ typo 'require' diperbaiki
+            'bukti_attachment'   => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $asuransi = AsuransiKendaraan::findOrFail($id);
@@ -276,7 +348,7 @@ class AsuransiKendaraanController extends Controller
             'tgl_berakhir'          => $asuransi->tgl_berakhir,
             'durasi_bulan'          => $asuransi->durasi_bulan,
             'biaya'                 => $asuransi->biaya,
-            'bukti_bayar'           => $bukti, // <-- pakai file BARU
+            'bukti_bayar'           => $bukti,
             'status_kendaraan'      => 'aktif',
             'diperpanjang_pada'     => now(),
         ]);
@@ -286,14 +358,15 @@ class AsuransiKendaraanController extends Controller
         $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
 
         $pengeluaran = $request->biaya;
-        // 🔥 TAMBAH KE KEUANGAN (PENGELUARAN)
+
         Keuangan::create([
             'tanggal'      => now(),
             'reference'    => 'Asuransi-' . $asuransi->id,
             'user_id'      => auth()->id(),
             'kategori'     => 'asuransi_kendaraan',
-            'metode'       => '-', // bisa kamu ganti kalau ada field metode
-            'keterangan'   => 'Pembayaran asuransi kendaraan: ' . $asuransi->jenis_pajak . ' - ' . $request->keterangan,
+            'metode'       => '-',
+            // ✅ jenis_pajak diganti ke jenisAsuransi->nama_jenis (field aslinya tidak ada di model Asuransi)
+            'keterangan'   => 'Pembayaran asuransi kendaraan: ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-') . ' - ' . $request->keterangan,
             'pemasukan'    => 0,
             'pengeluaran'  => $request->biaya,
             'saldo' => $lastSaldo - $pengeluaran,
@@ -308,9 +381,14 @@ class AsuransiKendaraanController extends Controller
             'tgl_berakhir'      => $request->tgl_berakhir,
             'durasi_bulan'      => $request->durasi_bulan,
             'biaya'             => $request->biaya,
-            'bukti_bayar'       => $bukti, // <-- pakai file BARU
+            'bukti_bayar'       => $bukti,
             'status_kendaraan'  => 'aktif',
         ]);
+
+        // upload attachment tambahan (bukti pendukung perpanjangan)
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $asuransi->id);
+        }
 
         return back()->with('success', 'Asuransi berhasil diperpanjang!');
     }

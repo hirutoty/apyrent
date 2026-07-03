@@ -14,8 +14,10 @@ return new class extends Migration
         Schema::create('member', function (Blueprint $table) {
     $table->id();
 
-    $table->string('nama_member');
-    $table->string('kontak_member');
+    $table->string('nama_member')->nullable();
+    $table->string('kontak_member')->nullable();
+    $table->string('email_member')->nullable();
+    $table->enum('jenis_member', ['perorangan', 'perusahaan'])->nullable();
     $table->text('alamat')->nullable();
 
     $table->timestamps();

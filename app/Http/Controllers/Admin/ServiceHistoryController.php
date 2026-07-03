@@ -8,6 +8,7 @@ use App\Models\ServiceHistory;
 use App\Models\Kendaraan;
 use App\Models\Keuangan;
 use App\Models\Setting;
+use App\Models\Attachment;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class ServiceHistoryController extends Controller
@@ -17,7 +18,7 @@ class ServiceHistoryController extends Controller
         $bulan  = $request->bulan ?? now()->format('Y-m');
         $search = $request->search;
 
-        $data = ServiceHistory::with('kendaraan')
+        $data = ServiceHistory::with(['kendaraan', 'attachments'])
             ->when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(tanggal_service,'%Y-%m') = ?", [$bulan]))
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
@@ -42,6 +43,36 @@ class ServiceHistoryController extends Controller
         ]);
     }
 
+    /**
+     * Helper: simpan banyak attachment sekaligus untuk 1 service history
+     * (konsisten dengan Pajak, Asuransi, GPS, KIR)
+     */
+    private function simpanAttachments($files, $serviceId)
+    {
+        $pathDir = public_path('service/attachments');
+        if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
+
+        foreach ($files as $file) {
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+
+            // ambil data SEBELUM file dipindah
+            $originalName = $file->getClientOriginalName();
+            $extension    = $file->getClientOriginalExtension();
+            $size         = $file->getSize();
+
+            $file->move($pathDir, $filename);
+
+            Attachment::create([
+                'relation_type' => 'service',
+                'relation_id'   => $serviceId,
+                'file_name'     => $originalName,
+                'file_path'     => 'service/attachments/' . $filename,
+                'file_type'     => $extension,
+                'file_size'     => $size,
+            ]);
+        }
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -49,6 +80,8 @@ class ServiceHistoryController extends Controller
             'tanggal_service' => 'required|date',
             'total_biaya'     => 'required|numeric|min:0',
             'bukti_pembayaran' => 'nullable|file|max:5120',
+            'bukti_attachment'   => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $kendaraan    = Kendaraan::findOrFail($request->kendaraan_id);
@@ -61,8 +94,6 @@ class ServiceHistoryController extends Controller
             ->sum('total_biaya');
 
         $sisaLimit = $limitService - ($totalBulanIni + $request->total_biaya);
-
-
 
         // Hitung biaya tahunan otomatis
         $biayaTahunan = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
@@ -77,9 +108,7 @@ class ServiceHistoryController extends Controller
         $statusPengeluaran = ($limitService > 0 && ($totalBulanIni + $request->total_biaya) > $limitService)
             ? 'overservice' : 'stabil';
 
-
         // Upload bukti pembayaran
-        $buktiBayar = null;
         $buktiBayar = null;
 
         if ($request->hasFile('bukti_pembayaran')) {
@@ -112,6 +141,11 @@ class ServiceHistoryController extends Controller
             'bukti_pembayaran'  => $buktiBayar,
         ]);
 
+        // upload attachment tambahan (SETELAH ADA ID)
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $service->id);
+        }
+
         // Update status kendaraan
         $kendaraan->update([
             'status_kendaraan' => $request->status === 'proses' ? 'service' : 'tersedia',
@@ -143,6 +177,8 @@ class ServiceHistoryController extends Controller
             'tanggal_service' => 'required|date',
             'total_biaya'     => 'required|numeric|min:0',
             'bukti_pembayaran' => 'nullable|file|max:5120',
+            'bukti_attachment'   => 'nullable|array',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $data         = ServiceHistory::findOrFail($id);
@@ -157,7 +193,6 @@ class ServiceHistoryController extends Controller
 
         $sisaLimit = $limitService - ($totalBulanIni + $request->total_biaya);
 
-       
         // Hitung biaya tahunan (exclude record ini)
         $biayaTahunan = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
             ->where('id', '!=', $id)
@@ -167,7 +202,7 @@ class ServiceHistoryController extends Controller
         $maksBulanan       = $limitService;
         $limitTahunan      = $kendaraan->limit_tahun_service ?? 0;
         $statusPengeluaran = ($limitService > 0 && ($totalBulanIni + $request->total_biaya) > $limitService)
-    ? 'overservice' : 'stabil';
+            ? 'overservice' : 'stabil';
 
         // Upload bukti pembayaran jika ada file baru
         $buktiBayar = $data->bukti_pembayaran;
@@ -206,6 +241,11 @@ class ServiceHistoryController extends Controller
             'bukti_pembayaran'   => $buktiBayar,
         ]);
 
+        // upload attachment tambahan
+        if ($request->hasFile('bukti_attachment')) {
+            $this->simpanAttachments($request->file('bukti_attachment'), $data->id);
+        }
+
         // Update status kendaraan
         $kendaraan->update([
             'status_kendaraan' => $request->status === 'proses' ? 'service' : 'tersedia',
@@ -241,6 +281,14 @@ class ServiceHistoryController extends Controller
         $service   = ServiceHistory::findOrFail($id);
         $kendaraan = $service->kendaraan;
 
+        // hapus semua file attachment terkait
+        foreach ($service->attachments as $att) {
+            if (file_exists(public_path($att->file_path))) {
+                unlink(public_path($att->file_path));
+            }
+            $att->delete();
+        }
+
         $service->delete();
 
         // Jika tidak ada service aktif lain yang masih proses, kembalikan status tersedia
@@ -257,12 +305,28 @@ class ServiceHistoryController extends Controller
         return back()->with('success', 'Data berhasil dihapus.');
     }
 
+    /**
+     * Hapus 1 attachment tertentu
+     */
+    public function destroyAttachment($id)
+    {
+        $attachment = Attachment::where('relation_type', 'service')->findOrFail($id);
+
+        if (file_exists(public_path($attachment->file_path))) {
+            unlink(public_path($attachment->file_path));
+        }
+
+        $attachment->delete();
+
+        return back()->with('success', 'Lampiran berhasil dihapus');
+    }
+
     public function pdf(Request $request)
     {
         $search = $request->search;
         $bulan  = $request->bulan;
 
-        $data = ServiceHistory::with('kendaraan')
+        $data = ServiceHistory::with(['kendaraan', 'attachments'])
             ->when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [$bulan]))
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {

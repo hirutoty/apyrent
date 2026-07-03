@@ -51,6 +51,7 @@ use App\Http\Controllers\User\ProfileController;
 // schedule
 use Illuminate\Support\Facades\Schedule;
 
+
 Route::redirect('/', '/index');
 
 Route::view('/index', 'index');
@@ -355,8 +356,8 @@ Route::middleware('auth')->prefix('admin')->group(function () {
   Route::get('/admin/penawaran/pdf', [InvPenawaranController::class, 'exportPdf'])
     ->name('penawaran.pdf');
 
-    Route::get('/kontrak/pdf', [InvKontrakController::class, 'pdf'])
-      ->name('kontrak.pdf');
+  Route::get('/kontrak/pdf', [InvKontrakController::class, 'pdf'])
+    ->name('kontrak.pdf');
   Route::resource('kontrak', InvKontrakController::class);
 
   Route::get('/setting', [SettingController::class, 'index'])
@@ -365,37 +366,41 @@ Route::middleware('auth')->prefix('admin')->group(function () {
   Route::post('/setting', [SettingController::class, 'update'])
     ->name('setting.update');
 
-    //Schedule
-    Schedule::command('app:reminder-pajak-command')
+  //Schedule
+  Schedule::command('app:reminder-pajak-command')
     // ->dailyAt('15:14');
     ->everyMinute();
-    Schedule::command('app:reminder-asuransi-command')
+  Schedule::command('app:reminder-asuransi-command')
     // ->dailyAt('16:25');
     ->everyMinute();
-    Schedule::command('app:reminder-gps-command')
+  Schedule::command('app:reminder-gps-command')
     //  ->dailyAt('16:45');
     ->everyMinute();
-    Schedule::command('app:reminder-kir-command')
+  Schedule::command('app:reminder-kir-command')
     // ->dailyAt('19:11');
     ->everyMinute();
-    Schedule::command('app:reminder-rental-command')
+  Schedule::command('app:reminder-rental-command')
     // ->dailyAt('19:22');
     ->everyMinute();
-    Schedule::command('service:reminder-overservice')
+  Schedule::command('service:reminder-overservice')
     // ->dailyAt('19:22');
     ->everyMinute();
-     Schedule::command('hutang:reminder')
+  Schedule::command('hutang:reminder')
     //  ->dailyAt('19:22');
     ->everyMinute();
-     Schedule::command('hutang:app:reminder-invoice-command')
+  Schedule::command('app:reminder-penawaran-command')
     // ->dailyAt('19:22');
     ->everyMinute();
-    Schedule::command('app:reminder-penawaran-command')
-    // ->dailyAt('19:22');
-    ->everyMinute();
-    
 
-    // BUG
-    // Schedule::command('app:reminder-pajak-command')
-    // ->everyMinute();
+  // BUG
+  // Schedule::command('app:reminder-pajak-command')
+  // ->everyMinute();
+
+
+  // attachment
+  Route::delete('/pajak/attachment/{id}', [PajakController::class, 'destroyAttachment'])->name('pajak.attachment.destroy');
+  Route::delete('/gps-kendaraan/attachment/{id}', [GpsKendaraanController::class, 'destroyAttachment'])->name('gps.attachment.destroy');
+  Route::delete('/asuransi-kendaraan/attachment/{id}', [AsuransiKendaraanController::class, 'destroyAttachment'])->name('asuransi.attachment.destroy');
+  Route::delete('/kir/attachment/{id}', [KirController::class, 'destroyAttachment'])->name('kir.attachment.destroy');
+Route::delete('/service-history/attachment/{id}', [ServiceHistoryController::class, 'destroyAttachment'])->name('service-history.attachment.destroy');
 });

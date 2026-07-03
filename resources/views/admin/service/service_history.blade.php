@@ -384,18 +384,33 @@
                                 {{-- gambar --}}
                                 <td>
                                     @if ($d->bukti_pembayaran)
-                                        @php
-                                            $filename = basename($d->bukti_pembayaran);
-                                        @endphp
-
+                                        @php $filename = basename($d->bukti_pembayaran); @endphp
                                         <a href="{{ asset($d->bukti_pembayaran) }}" target="_blank"
-                                            class="text-blue-600 underline text-xs hover:text-blue-800">
-
+                                            class="text-blue-600 underline text-xs hover:text-blue-800 block">
                                             {{ $filename }}
                                         </a>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
+
+                                    @foreach ($d->attachments as $att)
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                class="text-blue-500 underline text-[11px] hover:text-blue-700">
+                                                {{ $att->file_name }}
+                                            </a>
+                                            <form action="{{ route('service-history.attachment.destroy', $att->id) }}"
+                                                method="POST" onsubmit="return confirm('Hapus lampiran ini?')"
+                                                class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="text-red-400 hover:text-red-600 text-[10px]">
+                                                    <i class="fa fa-times"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    @endforeach
                                 </td>
 
                                 {{-- Aksi --}}
@@ -582,7 +597,8 @@
                             class="hidden items-center gap-3 p-4 border rounded-xl bg-gray-50 hover:bg-gray-100">
                             <i id="previewFileIcon" class="fa-solid fa-file text-2xl text-gray-500"></i>
                             <div>
-                                <div id="previewFileName" class="font-medium text-sm text-gray-700">File Bukti Pembayaran</div>
+                                <div id="previewFileName" class="font-medium text-sm text-gray-700">File Bukti Pembayaran
+                                </div>
                             </div>
                         </a>
 
@@ -606,6 +622,25 @@
 
                     <input type="file" name="bukti_pembayaran" id="bukti_pembayaran" class="hidden"
                         onchange="previewFileGPS(this)" required>
+                </div>
+
+                {{-- Lampiran Tambahan --}}
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Lampiran Tambahan (opsional, bisa lebih dari 1)
+                    </label>
+
+                    <label for="bukti_attachment"
+                        class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition">
+                        <i class="fa-solid fa-paperclip text-xl text-gray-400 mb-1"></i>
+                        <span class="text-xs text-gray-500">Klik untuk upload lampiran tambahan</span>
+                        <span class="text-xs text-gray-400">(Maks 5MB per file)</span>
+                    </label>
+
+                    <input type="file" name="bukti_attachment[]" id="bukti_attachment" class="hidden" multiple
+                        onchange="renderListAttachment(this, 'listAttachmentTambah')">
+
+                    <ul id="listAttachmentTambah" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
                 </div>
 
                 {{-- Tombol --}}
@@ -767,6 +802,20 @@
                     <!--</div>-->
                 </div>
 
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Lampiran Tambahan (opsional, bisa lebih dari 1)
+                    </label>
+
+                    <input id="edit_bukti_attachment" type="file" name="bukti_attachment[]" multiple
+                        class="w-full border rounded-lg px-3 py-2"
+                        onchange="renderListAttachment(this, 'listAttachmentEdit')">
+
+                    <ul id="listAttachmentEdit" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
+                </div>
+
+
+
                 {{-- Tombol --}}
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalEdit()"
@@ -862,18 +911,37 @@
             m.classList.add('flex');
         }
 
+        function renderListAttachment(input, listId) {
+            const list = document.getElementById(listId);
+            list.innerHTML = '';
+
+            Array.from(input.files).forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-1.5';
+                li.innerHTML = `<i class="fa-solid fa-paperclip text-gray-400"></i> ${file.name}`;
+                list.appendChild(li);
+            });
+        }
+
         function closeModalTambah() {
             var m = document.getElementById('modalTambah');
             m.classList.add('hidden');
             m.classList.remove('flex');
+            document.getElementById('listAttachmentTambah').innerHTML = '';
+            document.getElementById('bukti_attachment').value = '';
         }
         document.getElementById('modalTambah').addEventListener('click', function(e) {
             if (e.target === this) closeModalTambah();
         });
 
         // ── MODAL EDIT ─────────────────────────────────────
+        // ── MODAL EDIT ─────────────────────────────────────
         function openEditModal(id, kendaraan_id, keluhan, kilometer, total_biaya,
             status, tanggal_service, maks_bulanan, biaya_tahunan, status_pengeluaran, bukti_pembayaran) {
+
+            document.getElementById('edit_bukti_attachment').value = '';
+            document.getElementById('listAttachmentEdit').innerHTML = '';
+
             var m = document.getElementById('modalEdit');
             m.classList.remove('hidden');
             m.classList.add('flex');
@@ -891,16 +959,6 @@
 
             // Hitung sisa dari option yang terpilih
             updateEditSisa(kendaraan_id);
-
-            // Bukti pembayaran lama
-            var wrapper = document.getElementById('previewLamaWrapper');
-            var imgLama = document.getElementById('previewLama');
-            if (bukti_pembayaran) {
-                wrapper.classList.remove('hidden');
-                imgLama.src = bukti_pembayaran;
-            } else {
-                wrapper.classList.add('hidden');
-            }
         }
 
         function fmt(n) {
