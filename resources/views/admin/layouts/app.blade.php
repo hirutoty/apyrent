@@ -281,6 +281,63 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+
+        /* ── Nav group (dropdown) ── */
+        .nav-group {
+            margin-bottom: 2px;
+        }
+
+        .nav-group-toggle {
+            cursor: pointer;
+            background: transparent;
+            border: none;
+        }
+
+        .nav-group-toggle .nav-group-chevron {
+            transition: transform 220ms ease;
+        }
+
+        .nav-group.open .nav-group-toggle .nav-group-chevron {
+            transform: rotate(180deg);
+        }
+
+        .nav-group.open .nav-group-toggle {
+            color: #fff;
+        }
+
+        .nav-group-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 280ms ease;
+        }
+
+        .nav-subgroup-label {
+            padding: 6px 12px 4px 30px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #4a5175;
+        }
+
+        .nav-group-content .nav-link {
+            font-size: 12.5px;
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .nav-group-content .nav-link.active {
+            padding-left: calc(1rem - 3px);
+        }
+
+        .nav-group-warning-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: #f87171;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
     </style>
 
     @stack('styles')
@@ -319,225 +376,302 @@
         </div>
 
         {{-- Navigation --}}
-        @php $role = auth()->user()->role; @endphp
+        @php
+            $role = auth()->user()->role;
+
+            // Warning flags dipakai di dalam grup "Operasi" (bagian Service)
+            $hasWarning   = isset($serviceWarning) && count($serviceWarning) > 0;
+            $isKirWarning = isset($kirWarning) && $kirWarning;
+            $operasiHasWarning = $hasWarning || $isKirWarning;
+        @endphp
 
         <nav id="sidebar-nav" class="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
+
+            {{-- ════════════════════════════════════
+                 DASHBOARD (link langsung, tanpa dropdown)
+            ════════════════════════════════════ --}}
             @if ($role == 'superadmin' || $role == 'keuangan')
-                {{-- DASHBOARD --}}
-                <p class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-label">Dashboard
-                </p>
                 <a href="/admin/dashboard"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium mb-1">
+                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
                     <i class="bi bi-grid-1x2-fill w-4 text-center shrink-0"></i>
-                    Dashboard
+                    <span class="flex-1 text-left">Dashboard</span>
                 </a>
             @endif
 
+            {{-- ════════════════════════════════════
+                 GRUP: KONFIGURASI
+            ════════════════════════════════════ --}}
             @if ($role == 'superadmin')
-                {{-- KONFIGURASI --}}
-                <p class="px-3 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-label">
-                    Konfigurasi</p>
-                <a href="/admin/setting"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-sliders w-4 text-center shrink-0"></i> Setting
-                </a>
-                <a href="/profil"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="fa-solid fa-user-circle w-4 text-center shrink-0"></i> Profile
-                </a>
-                <a href="/admin/user"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="fa-solid fa-user-gear w-4 text-center shrink-0"></i> User
-                </a>
-
-                {{-- MASTER DATA --}}
-                <p class="px-3 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-label">Master
-                    Data</p>
-                <a href="/admin/jenis-asuransi"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-ui-checks-grid w-4 text-center shrink-0"></i> Jenis Asuransi
-                </a>
-                <a href="/admin/asuransi"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-shield-check w-4 text-center shrink-0"></i> Asuransi
-                </a>
-                <a href="/admin/gps"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-geo-alt-fill w-4 text-center shrink-0"></i> GPS
-                </a>
-                <a href="/admin/supplier"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-building-fill w-4 text-center shrink-0"></i> Supplier
-                </a>
-                <a href="/admin/jenis"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-tags-fill w-4 text-center shrink-0"></i> Jenis Kendaraan
-                </a>
-
-                {{-- KENDARAAN --}}
-                <p class="px-3 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-label">
-                    Kendaraan</p>
-                <a href="/admin/kendaraan"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-truck-front-fill w-4 text-center shrink-0"></i> Data & Stok Kendaraan
-                </a>
-                <a href="/admin/pajak"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-cash-stack w-4 text-center shrink-0"></i> Pajak Kendaraan
-                </a>
-
-
-
-                <a href="/admin/asuransi-kendaraan"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-car-front-fill w-4 text-center shrink-0"></i> Asuransi Kendaraan
-                </a>
-                <a href="/admin/gps-kendaraan"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-broadcast-pin w-4 text-center shrink-0"></i> GPS Kendaraan
-                </a>
-            @endif
-
-            {{-- FINANCE --}}
-            @if ($role == 'superadmin' || $role == 'keuangan')
-                <p class="px-3 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-label">Rental
-                </p>
-                <a href="/admin/member"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-people-fill w-4 text-center shrink-0"></i> Member
-                </a>
-                <a href="/admin/rental"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-calendar2-check-fill w-4 text-center shrink-0"></i> Booking Kendaraan
-                </a>
-
-                <a href="/admin/history"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-graph-up-arrow w-4 text-center shrink-0"></i> Kendaraan aktif & History
-                </a>
-
-                <p class="px-3 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-label">
-                    Keuangan</p>
-                <a href="/admin/keuangan"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-cash-stack w-4 text-center shrink-0"></i> Cash Flow
-                </a>
-
-                <a href="/admin/summary"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-receipt-cutoff"></i>
-                    Invoice
-                </a>
-
-                <a href="/admin/hutang-vendor"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-bank2 w-4 text-center shrink-0"></i> Hutang Vendor
-                </a>
-                <a href="/admin/budgeting"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-wallet2 w-4 text-center shrink-0"></i> Budgeting
-                </a>
-                <a href="/admin/konsolidasi"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-diagram-3-fill w-4 text-center shrink-0"></i> Konsolidasi
-                </a>
-                <a href="/admin/efaktur"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-receipt w-4 text-center shrink-0"></i> E-Faktur
-                </a>
-                <a href="/admin/bupot"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-file-earmark-text-fill w-4 text-center shrink-0"></i> Bupot
-                </a>
-                <a href="/admin/rekonsiliasi"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-arrow-left-right w-4 text-center shrink-0"></i> Rekonsiliasi Bank
-                </a>
-                <a href="/admin/virtual"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-credit-card-2-front-fill w-4 text-center shrink-0"></i> Virtual Account
-                </a>
-                <a href="/admin/bukubesar"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-journal-bookmark-fill w-4 text-center shrink-0"></i> Buku Besar
-                </a>
-            @endif
-
-            {{-- SERVICE --}}
-            @if ($role == 'superadmin' || $role == 'produksi')
-                <p class="px-3 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-label">
-                    Service</p>
-
-                @php
-                    $hasWarning = isset($serviceWarning) && count($serviceWarning) > 0;
-                    $isActive = request()->is('admin/service-history*');
-                @endphp
-
-                <a href="/admin/service-history"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-[13px] font-medium
-            {{ $hasWarning ? 'bg-red-500/20 text-red-200 hover:bg-red-500/30' : ($isActive ? 'bg-sidebar-hover text-white' : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white') }}">
-                    <i class="bi bi-clock-history w-4 text-center shrink-0"></i>
-                    Service Kendaraan
-                    @if ($hasWarning)
-                        <i class="fas fa-triangle-exclamation text-red-400 animate-pulse ml-auto"></i>
-                    @endif
-                </a>
-
-                <a href="/admin/service-detail"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                    <i class="bi bi-file-text-fill w-4 text-center shrink-0"></i> Mobil Bermasalah
-                </a>
-
-                @php $isKirWarning = isset($kirWarning) && $kirWarning; @endphp
-
-                <a href="/admin/kir"
-                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-[13px] font-medium
-            {{ $isKirWarning ? 'bg-red-500/20 text-red-200 hover:bg-red-500/30' : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white' }}">
-                    <i class="bi bi-clipboard2-check-fill w-4 text-center shrink-0"></i>
-                    KIR
-                    @if ($isKirWarning)
-                        <i class="fas fa-triangle-exclamation text-red-400 animate-pulse ml-auto"></i>
-                    @endif
-                </a>
-
-
-                <!-- HISTORY SECTION -->
-                <div class="mt-4">
-                    <p class="px-3 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-label">
-                        History Perpanjangan</p>
-
-                    <!-- GPS History -->
-                    <a href="gps-kendaraan-history"
-                        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                        <i class="fa-solid fa-location-crosshairs w-4 text-center"></i>
-                        History GPS
-                    </a>
-
-                    {{-- STNK --}}
-
-
-                    <!-- Asuransi History -->
-                    <a href="asuransi-history"
-                        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                        <i class="fa-solid fa-shield-halved w-4 text-center"></i>
-                        History Asuransi
-                    </a>
-
-                    <!-- Pajak History -->
-                    <a href="pajak-history"
-                        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                        <i class="fa-solid fa-receipt w-4 text-center"></i>
-                        History Pajak
-                    </a>
-
-                    <!-- KIR History -->
-                    <a href="kir-history"
-                        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-medium">
-                        <i class="fa-solid fa-file-lines w-4 text-center"></i>
-                        History KIR
-                    </a>
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-sliders w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Konfigurasi</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+                            <a href="/admin/setting"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-sliders w-4 text-center shrink-0"></i> Setting
+                            </a>
+                            <a href="/profil"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="fa-solid fa-user-circle w-4 text-center shrink-0"></i> Profile
+                            </a>
+                            <a href="/admin/user"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="fa-solid fa-user-gear w-4 text-center shrink-0"></i> User
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
+                {{-- ════════════════════════════════════
+                     GRUP: MASTER DATA
+                ════════════════════════════════════ --}}
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-boxes w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Master Data</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+                            <a href="/admin/jenis-asuransi"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-ui-checks-grid w-4 text-center shrink-0"></i> Jenis Asuransi
+                            </a>
+                            <a href="/admin/asuransi"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-shield-check w-4 text-center shrink-0"></i> Asuransi
+                            </a>
+                            <a href="/admin/gps"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-geo-alt-fill w-4 text-center shrink-0"></i> GPS
+                            </a>
+                            <a href="/admin/supplier"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-building-fill w-4 text-center shrink-0"></i> Supplier
+                            </a>
+                            <a href="/admin/jenis"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-tags-fill w-4 text-center shrink-0"></i> Jenis Kendaraan
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ════════════════════════════════════
+                 GRUP: OPERASI
+                 (gabungan Kendaraan + Rental + Service)
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin' || $role == 'keuangan' || $role == 'produksi')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-gear-wide-connected w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Operasi</span>
+                        @if ($operasiHasWarning)
+                            <span class="nav-group-warning-dot notif-dot"></span>
+                        @endif
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+
+                            {{-- Sub: Kendaraan --}}
+                            @if ($role == 'superadmin')
+                                <p class="nav-subgroup-label">Kendaraan</p>
+                                <a href="/admin/kendaraan"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-truck-front-fill w-4 text-center shrink-0"></i> Data & Stok Kendaraan
+                                </a>
+                                <a href="/admin/pajak"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-cash-stack w-4 text-center shrink-0"></i> Pajak Kendaraan
+                                </a>
+                                <a href="/admin/asuransi-kendaraan"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-car-front-fill w-4 text-center shrink-0"></i> Asuransi Kendaraan
+                                </a>
+                                <a href="/admin/gps-kendaraan"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-broadcast-pin w-4 text-center shrink-0"></i> GPS Kendaraan
+                                </a>
+                                <a href="/admin/procuremento"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-box-seam w-4 text-center shrink-0"></i> Pengadaan
+                                </a>
+                                <a href="/admin/purchasero"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-cart-check w-4 text-center shrink-0"></i> Pembelian
+                                </a>
+                                <a href="/admin/vendoreo"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-building w-4 text-center shrink-0"></i> Vendor
+                                </a>
+                            @endif
+
+                            {{-- Sub: Rental --}}
+                            @if ($role == 'superadmin' || $role == 'keuangan')
+                                <p class="nav-subgroup-label">Rental</p>
+                                <a href="/admin/member"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-people-fill w-4 text-center shrink-0"></i> Member
+                                </a>
+                                <a href="/admin/rental"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-calendar2-check-fill w-4 text-center shrink-0"></i> Booking Kendaraan
+                                </a>
+                                <a href="/admin/history"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-graph-up-arrow w-4 text-center shrink-0"></i> Kendaraan aktif & History
+                                </a>
+                            @endif
+
+                            {{-- Sub: Service --}}
+                            @if ($role == 'superadmin' || $role == 'produksi')
+                                <p class="nav-subgroup-label">Service</p>
+
+                                @php
+                                    $isActive = request()->is('admin/service-history*');
+                                @endphp
+
+                                <a href="/admin/service-history"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all font-medium
+                            {{ $hasWarning ? 'bg-red-500/20 text-red-200 hover:bg-red-500/30' : ($isActive ? 'bg-sidebar-hover text-white' : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white') }}">
+                                    <i class="bi bi-clock-history w-4 text-center shrink-0"></i>
+                                    Service Kendaraan
+                                    @if ($hasWarning)
+                                        <i class="fas fa-triangle-exclamation text-red-400 animate-pulse ml-auto"></i>
+                                    @endif
+                                </a>
+
+                                <a href="/admin/service-detail"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-file-text-fill w-4 text-center shrink-0"></i> Mobil Bermasalah
+                                </a>
+
+                                <a href="/admin/kir"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all font-medium
+                            {{ $isKirWarning ? 'bg-red-500/20 text-red-200 hover:bg-red-500/30' : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white' }}">
+                                    <i class="bi bi-clipboard2-check-fill w-4 text-center shrink-0"></i>
+                                    KIR
+                                    @if ($isKirWarning)
+                                        <i class="fas fa-triangle-exclamation text-red-400 animate-pulse ml-auto"></i>
+                                    @endif
+                                </a>
+                            @endif
+
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ════════════════════════════════════
+                 GRUP: HISTORY PERPANJANGAN
+                 (dipisah dari Operasi, dropdown sendiri)
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin' || $role == 'produksi')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="fa-solid fa-clock-rotate-left w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">History Perpanjangan</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+                            <a href="gps-kendaraan-history"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="fa-solid fa-location-crosshairs w-4 text-center"></i>
+                                History GPS
+                            </a>
+
+                            <a href="asuransi-history"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="fa-solid fa-shield-halved w-4 text-center"></i>
+                                History Asuransi
+                            </a>
+
+                            <a href="pajak-history"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="fa-solid fa-receipt w-4 text-center"></i>
+                                History Pajak
+                            </a>
+
+                            <a href="kir-history"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="fa-solid fa-file-lines w-4 text-center"></i>
+                                History KIR
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ════════════════════════════════════
+                 GRUP: KEUANGAN
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin' || $role == 'keuangan')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-cash-coin w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Keuangan</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+                            <a href="/admin/keuangan"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-cash-stack w-4 text-center shrink-0"></i> Cash Flow
+                            </a>
+
+                            <a href="/admin/summary"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-receipt-cutoff"></i>
+                                Invoice
+                            </a>
+
+                            <a href="/admin/hutang-vendor"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-bank2 w-4 text-center shrink-0"></i> Hutang Vendor
+                            </a>
+                            <a href="/admin/budgeting"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-wallet2 w-4 text-center shrink-0"></i> Budgeting
+                            </a>
+                            <a href="/admin/konsolidasi"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-diagram-3-fill w-4 text-center shrink-0"></i> Konsolidasi
+                            </a>
+                            <a href="/admin/efaktur"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-receipt w-4 text-center shrink-0"></i> E-Faktur
+                            </a>
+                            <a href="/admin/bupot"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-file-earmark-text-fill w-4 text-center shrink-0"></i> Bupot
+                            </a>
+                            <a href="/admin/rekonsiliasi"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-arrow-left-right w-4 text-center shrink-0"></i> Rekonsiliasi Bank
+                            </a>
+                            <a href="/admin/virtual"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-credit-card-2-front-fill w-4 text-center shrink-0"></i> Virtual Account
+                            </a>
+                            <a href="/admin/bukubesar"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-journal-bookmark-fill w-4 text-center shrink-0"></i> Buku Besar
+                            </a>
+                        </div>
+                    </div>
+                </div>
             @endif
 
         </nav>
@@ -728,11 +862,36 @@
             if (el) el.textContent = d.getDate() + ' ' + m[d.getMonth()] + ' ' + d.getFullYear();
         })();
 
-        // ── Active nav link ──
+        // ── Nav group (dropdown) toggle ──
+        function toggleGroup(toggleBtn) {
+            const group = toggleBtn.closest('.nav-group');
+            const content = group.querySelector('.nav-group-content');
+            const isOpen = group.classList.contains('open');
+
+            if (isOpen) {
+                content.style.maxHeight = '0px';
+                group.classList.remove('open');
+            } else {
+                group.classList.add('open');
+                content.style.maxHeight = content.scrollHeight + 'px';
+            }
+        }
+
+        function openGroup(group) {
+            const content = group.querySelector('.nav-group-content');
+            group.classList.add('open');
+            content.style.maxHeight = content.scrollHeight + 'px';
+        }
+
+        // ── Active nav link + auto-open parent group ──
         (function() {
             const path = window.location.pathname;
             document.querySelectorAll('#sidebar-nav .nav-link').forEach(link => {
-                if (link.getAttribute('href') === path) link.classList.add('active');
+                if (link.getAttribute('href') === path) {
+                    link.classList.add('active');
+                    const parentGroup = link.closest('.nav-group');
+                    if (parentGroup) openGroup(parentGroup);
+                }
             });
             // Set page title
             const active = document.querySelector('#sidebar-nav .nav-link.active');
@@ -807,6 +966,11 @@
                 // Restore sidebar visibility for desktop
                 document.getElementById('sidebar').classList.remove('-translate-x-full');
             }
+
+            // Recalculate open group heights on resize (mis. rotasi layar)
+            document.querySelectorAll('.nav-group.open .nav-group-content').forEach(content => {
+                content.style.maxHeight = content.scrollHeight + 'px';
+            });
         });
     </script>
     @stack('scripts')

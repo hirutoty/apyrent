@@ -56,6 +56,9 @@ class DatabaseSeeder extends Seeder
             EfakturSeeder::class,
             LaporanKeuanganSeeder::class,
             SettingSeeder::class,
+            ProcurementoSeeder::class,
+            PurchaseroSeeder::class,
+            VendoreoSeeder::class,
         ]);
     }
 }
