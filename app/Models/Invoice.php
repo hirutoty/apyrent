@@ -1,0 +1,82 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Invoice extends Model
+{
+    use HasFactory;
+
+    protected $table = 'invoices';
+
+    protected $fillable = [
+        'penawaran_id',
+        'kontrak_id',
+        'kendaraan_id',
+
+        'type',
+        'invoice_no',
+        'order_no',
+
+        'customer_name',
+        'customer_address',
+        'contact_person',
+        'telephone',
+        'email',
+
+        'satuan',
+        'invoice_date',
+
+        'pengirim',
+        'staff',
+        'name_staff',
+        'direktur',
+        'name_direktur',
+        'ttd_staff',
+        'ttd_direktur',
+
+        'status',
+        'payment_status',
+
+        'ppn',
+        'pph',
+        'total',
+
+        
+    'last_email_sent_at',
+    ];
+
+    protected $casts = [
+        'invoice_date'   => 'date',
+        'ppn'            => 'decimal:2',
+        'pph'            => 'decimal:2',
+        'total'          => 'decimal:2',
+         'last_email_sent_at' => 'datetime',
+    ];
+
+    /**
+     * Relasi ke Penawaran
+     */
+    public function penawaran()
+    {
+        return $this->belongsTo(InvPenawaran::class, 'penawaran_id');
+    }
+
+    /**
+     * Relasi ke Kontrak
+     */
+    public function kontrak()
+    {
+        return $this->belongsTo(InvKontrak::class, 'kontrak_id');
+    }
+
+    /**
+     * Relasi ke Kendaraan
+     */
+    public function kendaraan()
+    {
+        return $this->belongsTo(Kendaraan::class, 'kendaraan_id');
+    }
+}

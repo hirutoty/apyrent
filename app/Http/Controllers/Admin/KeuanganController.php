@@ -1,0 +1,201 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\Keuangan;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Exports\KeuanganExport;
+use App\Models\Setting;
+use Maatwebsite\Excel\Facades\Excel;
+
+class KeuanganController extends Controller
+{
+    /**
+     * LIST PENGELUARAN
+     */
+    public function index(Request $request)
+    {
+        $query = Keuangan::with('user')->latest();
+
+        // Filter Jenis
+        if ($request->filled('jenis')) {
+            if ($request->jenis == 'Pemasukan') {
+                $query->where('pemasukan', '>', 0);
+            } elseif ($request->jenis == 'Pengeluaran') {
+                $query->where('pengeluaran', '>', 0);
+            }
+        }
+
+        // Filter Hari
+        if ($request->filled('hari')) {
+            $query->whereDay('tanggal', $request->hari);
+        }
+
+        // Filter Bulan
+        if ($request->filled('bulan')) {
+            $query->whereMonth('tanggal', $request->bulan);
+        }
+
+        // Filter Tahun
+        if ($request->filled('tahun')) {
+            $query->whereYear('tanggal', $request->tahun);
+        }
+
+        // Search
+        if ($request->filled('search')) {
+            $keyword = $request->search;
+
+            $query->where(function ($q) use ($keyword) {
+                $q->where('kategori', 'like', "%$keyword%")
+                    ->orWhere('keterangan', 'like', "%$keyword%")
+                    ->orWhere('reference', 'like', "%$keyword%")
+                    ->orWhereHas('user', function ($u) use ($keyword) {
+                        $u->where('name', 'like', "%$keyword%");
+                    });
+            });
+        }
+
+        $keuangans = $query
+            ->paginate(20)
+            ->withQueryString();
+
+        $totalPemasukan = Keuangan::sum('pemasukan');
+        $totalPengeluaran = Keuangan::sum('pengeluaran');
+        $saldo = $totalPemasukan - $totalPengeluaran;
+
+        return view('admin.keuangan.index', compact(
+            'keuangans',
+            'totalPemasukan',
+            'totalPengeluaran',
+            'saldo'
+        ));
+    }
+
+    /**
+     * TAMBAH PENGELUARAN
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'jenis' => 'required|in:Pemasukan,Pengeluaran',
+            'kategori' => 'required|string|max:255',
+            'metode' => 'required|string|max:255',
+            'nominal' => 'required|numeric|min:1',
+            'keterangan' => 'required|string|max:255',
+        ]);
+
+        $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
+
+        $pemasukan = 0;
+        $pengeluaran = 0;
+
+        if ($request->jenis == 'Pemasukan') {
+            $pemasukan = $request->nominal;
+            $saldoBaru = $lastSaldo + $pemasukan;
+            $reference = 'INC-' . time();
+        } else {
+            $pengeluaran = $request->nominal;
+            $saldoBaru = $lastSaldo - $pengeluaran;
+            $reference = 'EXP-' . time();
+        }
+
+        Keuangan::create([
+            'tanggal'      => now(),
+            'reference'    => $reference,
+            'user_id'      => auth()->id(),
+            'kategori'     => $request->kategori,
+            'metode'       => $request->metode,
+            'keterangan'   => $request->keterangan,
+            'pemasukan'    => $pemasukan,
+            'pengeluaran'  => $pengeluaran,
+            'saldo'        => $saldoBaru,
+        ]);
+
+        return back()->with('success', 'Pengeluaran berhasil ditambahkan.');
+    }
+
+    /**
+     * HAPUS
+     */
+    public function destroy($id)
+    {
+        Keuangan::findOrFail($id)->delete();
+
+        return back()->with('success', 'Data berhasil dihapus');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $query = Keuangan::with('user')->orderBy('tanggal');
+
+        // Filter Jenis
+if ($request->filled('jenis')) {
+    if ($request->jenis == 'Pemasukan') {
+        $query->where('pemasukan', '>', 0);
+    } elseif ($request->jenis == 'Pengeluaran') {
+        $query->where('pengeluaran', '>', 0);
+    }
+}
+
+        // Filter hari
+        if ($request->filled('hari')) {
+            $query->whereDay('tanggal', $request->hari);
+        }
+
+        // Filter bulan
+        if ($request->filled('bulan')) {
+            $query->whereMonth('tanggal', $request->bulan);
+        }
+
+        // Filter tahun
+        if ($request->filled('tahun')) {
+            $query->whereYear('tanggal', $request->tahun);
+        }
+
+        // Filter search (kategori / keterangan / reference / nama user)
+        if ($request->filled('search')) {
+            $keyword = $request->search;
+            $query->where(function ($q) use ($keyword) {
+                $q->where('kategori',   'like', "%{$keyword}%")
+                    ->orWhere('keterangan', 'like', "%{$keyword}%")
+                    ->orWhere('reference', 'like', "%{$keyword}%")
+                    ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$keyword}%"));
+            });
+        }
+
+        $keuangans = $query->get();
+
+        // Kirim info filter aktif ke view PDF (opsional, untuk ditampilkan di header PDF)
+        $filterInfo = [
+            'hari'   => $request->hari,
+            'bulan'  => $request->bulan,
+            'tahun'  => $request->tahun,
+            'jenis'  => $request->jenis,
+            'search' => $request->search,
+        ];
+        $setting = Setting::first();
+
+        $pdf = Pdf::loadView('admin.keuangan.pdf', compact('keuangans', 'filterInfo', 'setting'));
+        return $pdf->stream('laporan-keuangan.pdf');
+    }
+
+
+
+    public function exportExcel(Request $request)
+    {
+        $filename = 'keuangan_' . now()->format('Ymd_His') . '.xlsx';
+
+        return Excel::download(
+            new KeuanganExport(
+                $request->hari,
+                $request->bulan,
+                $request->tahun,
+                $request->jenis,
+                $request->search
+            ),
+            $filename
+        );
+    }
+}

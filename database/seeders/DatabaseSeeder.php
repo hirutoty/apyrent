@@ -1,0 +1,61 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+
+class DatabaseSeeder extends Seeder
+{
+    /**
+     * Seed the application's database.
+     */
+    public function run(): void
+    {
+        User::updateOrCreate(
+            [
+                'username' => 'testuser'
+            ],
+            [
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+                'password' => Hash::make('admin123'),
+
+                'no_telp' => '08123456789',
+                'foto' => null,
+
+                'role' => 'superadmin',
+                'status' => 'aktif',
+            ]
+        );
+
+        $this->call([
+            JenisSeeder::class,
+            KendaraanSeeder::class,
+            AnggaranProyekSeeder::class,
+            JenisAsuransiSeeder::class,
+            AsuransiSeeder::class,
+            AsuransiKendaraanSeeder::class,
+            PajakKendaraanSeeder::class,
+            GpsSeeder::class,
+            GpsKendaraanSeeder::class,
+            SupplierSeeder::class,
+            ServiceSeeder::class,
+            ServiceHistorySeeder::class,
+            ServiceDetailSeeder::class,
+            KirSeeder::class,
+            MemberSeeder::class,
+            RentalSeeder::class,
+            KeuanganSeeder::class,
+            HutangVendorSeeder::class,
+            BupotSeeder::class,
+            RekonsiliasiBankSeeder::class,
+            VirtualAccountSeeder::class,
+            BukubesarSeeder::class,
+            EfakturSeeder::class,
+            LaporanKeuanganSeeder::class,
+            SettingSeeder::class,
+        ]);
+    }
+}

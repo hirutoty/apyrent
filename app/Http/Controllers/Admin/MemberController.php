@@ -1,0 +1,91 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\Member;
+use App\Models\Setting;
+use Barryvdh\DomPDF\Facade\Pdf; 
+
+class MemberController extends Controller
+{
+    public function index()
+    {
+        return view('admin.member.index', [
+            'data' => Member::latest()->get()
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'nama_member' => 'required|string|max:255|unique:member,nama_member',
+            'kontak_member' => 'required|string|max:50',
+            'alamat' => 'nullable|string',
+        ], [
+            'nama_member.required' => 'Nama member wajib diisi',
+            'nama_member.unique' => 'Nama member sudah digunakan, tidak boleh sama',
+            'kontak_member.required' => 'Kontak member wajib diisi',
+        ]);
+
+        Member::create([
+            'nama_member' => $request->nama_member,
+            'kontak_member' => $request->kontak_member,
+            'alamat' => $request->alamat,
+        ]);
+
+        return back()->with('success', 'Member berhasil ditambahkan');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $member = Member::findOrFail($id);
+
+        $request->validate([
+            'nama_member' => 'required|string|max:255|unique:member,nama_member,' . $id,
+            'kontak_member' => 'required|string|max:50',
+            'alamat' => 'nullable|string',
+        ], [
+            'nama_member.required' => 'Nama member wajib diisi',
+            'nama_member.unique' => 'Nama member sudah dipakai member lain',
+            'kontak_member.required' => 'Kontak member wajib diisi',
+        ]);
+
+        $member->update([
+            'nama_member' => $request->nama_member,
+            'kontak_member' => $request->kontak_member,
+            'alamat' => $request->alamat,
+        ]);
+
+        return back()->with('success', 'Member berhasil diupdate');
+    }
+
+    public function destroy($id)
+    {
+        Member::findOrFail($id)->delete();
+
+        return back()->with('success', 'Member berhasil dihapus');
+    }
+
+    public function pdf(Request $request)
+{
+    $query = Member::query();
+
+    // ── FILTER SEARCH ──
+    if ($request->search) {
+        $query->where(function ($q) use ($request) {
+            $q->where('nama_member', 'like', '%' . $request->search . '%')
+              ->orWhere('kontak_member', 'like', '%' . $request->search . '%')
+              ->orWhere('alamat', 'like', '%' . $request->search . '%');
+        });
+    }
+
+    $setting = Setting::first();
+    $data = $query->latest()->get();
+
+    $pdf = PDF::loadView('admin.member.pdf', compact('data', 'request', 'setting'));
+
+    return $pdf->stream('data-member.pdf');
+}
+}
