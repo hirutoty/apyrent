@@ -46,6 +46,9 @@ use App\Http\Controllers\Admin\InvoicesController;
 use App\Http\Controllers\Admin\PaymentsController;
 use App\Http\Controllers\Admin\SummaryController;
 use App\Http\Controllers\Admin\ReminderController;
+use App\Http\Controllers\Admin\ProcurementoController;
+use App\Http\Controllers\Admin\PurchaseroController;
+use App\Http\Controllers\Admin\VendoreoController;
 // User
 use App\Http\Controllers\User\ProfileController;
 // schedule
@@ -232,7 +235,14 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     ->name('stnk-history.export.pdf');
 
 
+Route::resource('procuremento', ProcurementoController::class) // Pengadaan - Procurements
+    ->except(['create', 'edit', 'show']); // Form CRUD With Modal
 
+    Route::resource('purchasero', PurchaseroController::class) // Purchase Request
+    ->except(['create', 'edit', 'show']); // Form CRUD With Modal
+
+    Route::resource('vendoreo', VendoreoController::class) // Manajemen Vendor
+    ->except(['create', 'edit', 'show']); // Form CRUD With Modal
 
   Route::post('/rental/{id}/update-status', [RentalController::class, 'updateStatus'])
     ->name('rental.update-status');
