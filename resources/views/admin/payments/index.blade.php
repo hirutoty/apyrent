@@ -95,6 +95,46 @@
                 </div>
                 <button class="bg-gray-800 text-white text-xs px-4 py-1.5 rounded-lg">Cari</button>
             </form>
+
+            {{-- TOGGLE KOLOM --}}
+            <div class="relative" id="colToggleWrap">
+                <button onclick="toggleColDropdown()"
+                    class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-600 bg-white hover:bg-gray-50 whitespace-nowrap">
+                    <i class="bi bi-layout-three-columns"></i> Kolom
+                    <i class="bi bi-chevron-down text-[10px]"></i>
+                </button>
+                <div id="colDropdown"
+                    class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
+                    <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleColumn('col-trxid', this.checked)" class="rounded"> Transaction ID
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleColumn('col-invoice', this.checked)" class="rounded"> Invoice
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleColumn('col-customer', this.checked)" class="rounded"> Customer
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleColumn('col-tanggal', this.checked)" class="rounded"> Tanggal
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleColumn('col-metode', this.checked)" class="rounded"> Metode
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleColumn('col-jumlah', this.checked)" class="rounded"> Jumlah
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleColumn('col-bukti', this.checked)" class="rounded"> Bukti
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleColumn('col-status', this.checked)" class="rounded"> Status
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleColumn('col-aksi', this.checked)" class="rounded"> Aksi
+                    </label>
+                </div>
+            </div>
         </div>
 
         {{-- TABLE --}}
@@ -103,15 +143,15 @@
                 <thead>
                     <tr class="bg-gray-50 border-b border-gray-100">
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Transaction ID</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Invoice</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Customer</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Metode</th>
-                        <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jumlah</th>
-                        <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Bukti</th>
-                        <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
-                        <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
+                        <th data-col="col-trxid" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Transaction ID</th>
+                        <th data-col="col-invoice" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Invoice</th>
+                        <th data-col="col-customer" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Customer</th>
+                        <th data-col="col-tanggal" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
+                        <th data-col="col-metode" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Metode</th>
+                        <th data-col="col-jumlah" class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jumlah</th>
+                        <th data-col="col-bukti" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Bukti</th>
+                        <th data-col="col-status" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
+                        <th data-col="col-aksi" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -126,32 +166,32 @@
                         @endphp
                         <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
                             <td class="px-4 py-3.5 text-xs text-gray-400">{{ $payments->firstItem() + $i }}</td>
-                            <td class="px-4 py-3.5">
+                            <td data-col="col-trxid" class="px-4 py-3.5">
                                 <span class="font-mono text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
                                     {{ $pay->transaction_id }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3.5 text-sm font-semibold text-gray-800">
+                            <td data-col="col-invoice" class="px-4 py-3.5 text-sm font-semibold text-gray-800">
                                 {{ optional($pay->invoice)->invoice_no ?? '-' }}
                             </td>
-                            <td class="px-4 py-3.5 text-sm text-gray-700">
+                            <td data-col="col-customer" class="px-4 py-3.5 text-sm text-gray-700">
                                 {{ optional($pay->invoice)->customer_name ?? '-' }}
                             </td>
-                            <td class="px-4 py-3.5 text-sm text-gray-600">
+                            <td data-col="col-tanggal" class="px-4 py-3.5 text-sm text-gray-600">
                                 {{ $pay->payment_date ? \Carbon\Carbon::parse($pay->payment_date)->format('d M Y') : '-' }}
                             </td>
-                            <td class="px-4 py-3.5">
+                            <td data-col="col-metode" class="px-4 py-3.5">
                                 <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-700">
                                     <i class="fa fa-credit-card text-gray-400 text-[10px]"></i>
                                     {{ $pay->method }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3.5 text-right">
+                            <td data-col="col-jumlah" class="px-4 py-3.5 text-right">
                                 <span class="text-sm font-bold text-green-700">
                                     Rp {{ number_format($pay->amount, 0, ',', '.') }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3.5 text-center">
+                            <td data-col="col-bukti" class="px-4 py-3.5 text-center">
                                 @if ($pay->file_pembayaran)
                                     <a href="{{ asset($pay->file_pembayaran) }}" target="_blank"
                                         class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors">
@@ -161,12 +201,12 @@
                                     <span class="text-xs text-gray-400">—</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3.5 text-center">
+                            <td data-col="col-status" class="px-4 py-3.5 text-center">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $statusColor }}">
                                     {{ $pay->status }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3.5">
+                            <td data-col="col-aksi" class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1.5">
                                     <button onclick="openModalEdit({{ $pay->id }})"
                                         class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-colors">
@@ -506,6 +546,22 @@
 
 @push('scripts')
 <script>
+    /* ── Toggle Kolom ── */
+    function toggleColDropdown() {
+        document.getElementById('colDropdown').classList.toggle('hidden');
+    }
+    document.addEventListener('click', function(e) {
+        const wrap = document.getElementById('colToggleWrap');
+        if (wrap && !wrap.contains(e.target)) {
+            document.getElementById('colDropdown').classList.add('hidden');
+        }
+    });
+    function toggleColumn(colId, show) {
+        document.querySelectorAll(`[data-col="${colId}"]`).forEach(el => {
+            el.style.display = show ? '' : 'none';
+        });
+    }
+
     /* ── MODAL TAMBAH ── */
     const modalTambah = document.getElementById('modalTambah');
 

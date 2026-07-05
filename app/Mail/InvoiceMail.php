@@ -11,33 +11,29 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Address;
 
-
 class InvoiceMail extends Mailable
 {
     public Invoice $invoice;
-    public Setting $setting;
+    public ?Setting $setting;
+    public array $images;
 
-    public function __construct(Invoice $invoice, Setting $setting)
+    public function __construct(Invoice $invoice, ?Setting $setting, array $images = [])
     {
-
         $this->invoice = $invoice;
         $this->setting = $setting;
+        $this->images  = $images;
     }
 
     public function envelope(): Envelope
     {
-        $setting = Setting::first();
-
         return new Envelope(
             from: new Address(
-                $setting?->email ?? config('mail.from.address'),
-                $setting?->nama_perusahaan ?? config('app.name')
+                $this->setting?->email ?? config('mail.from.address'),
+                $this->setting?->nama_perusahaan ?? config('app.name')
             ),
             subject: 'Invoice ' . $this->invoice->invoice_no,
         );
     }
-
-
 
     public function content(): Content
     {
@@ -52,10 +48,10 @@ class InvoiceMail extends Mailable
 
     public function attachments(): array
     {
-        $pdf = Pdf::loadView('admin.invoice.print', [
+        $pdf = Pdf::loadView('admin.invoice.print', array_merge([
             'invoice' => $this->invoice,
             'setting' => $this->setting,
-        ]);
+        ], $this->images))->setPaper('a4', 'portrait');
 
         return [
             Attachment::fromData(

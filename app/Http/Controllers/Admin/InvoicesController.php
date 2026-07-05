@@ -12,6 +12,7 @@ use App\Models\Kendaraan;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\InvoiceMail;
+use App\Services\RemoveBgService;
 
 
 class InvoicesController extends Controller
@@ -108,15 +109,18 @@ class InvoicesController extends Controller
             'customer_address' => 'nullable|string',
             'contact_person'   => 'nullable|string|max:255',
             'telephone'        => 'nullable|string|max:50',
-            'email'        => 'nullable|string|max:50',
+            'email'            => 'nullable|string|max:50',
 
-            'satuan' => 'nullable|string|max:100',
+            'satuan'   => 'nullable|string|max:100',
+            'pengirim' => 'nullable|string|max:255',
 
-            'pengirim'      => 'nullable|string|max:255',
             'staff'         => 'nullable|string|max:255',
             'name_staff'    => 'nullable|string|max:255',
             'direktur'      => 'nullable|string|max:255',
             'name_direktur' => 'nullable|string|max:255',
+
+            'ttd_staff'    => 'nullable|image|max:2048',
+            'ttd_direktur' => 'nullable|image|max:2048',
 
             'status'         => 'required|in:draft,partial,overdue,lunas',
             'payment_status' => 'required|in:unpaid,paid',
@@ -127,6 +131,22 @@ class InvoicesController extends Controller
         ]);
 
         $validated['invoice_no'] = $this->generateInvoiceNo();
+
+        $removeBg = new RemoveBgService();
+
+        if ($request->hasFile('ttd_staff')) {
+            // Upload baru → remove bg → simpan
+            $validated['ttd_staff'] = $removeBg->uploadAndRemoveBg($request->file('ttd_staff'));
+        } elseif ($request->filled('ttd_staff_path')) {
+            // Pilih dari library
+            $validated['ttd_staff'] = $request->input('ttd_staff_path');
+        }
+
+        if ($request->hasFile('ttd_direktur')) {
+            $validated['ttd_direktur'] = $removeBg->uploadAndRemoveBg($request->file('ttd_direktur'));
+        } elseif ($request->filled('ttd_direktur_path')) {
+            $validated['ttd_direktur'] = $request->input('ttd_direktur_path');
+        }
 
         Invoice::create($validated);
 
@@ -145,10 +165,11 @@ class InvoicesController extends Controller
         $invoice = Invoice::with([
             'penawaran',
             'kontrak',
-            'kendaraan'
+            'kendaraan',
+            'periodes.remaks',
         ])->findOrFail($id);
 
-        return view('admin.invoices.show', compact('invoice'));
+        return view('admin.invoice.show', compact('invoice'));
     }
 
     /**
@@ -184,7 +205,7 @@ class InvoicesController extends Controller
         $invoice = Invoice::findOrFail($id);
 
         $validated = $request->validate([
-            'invoice_no'     => 'nullable|string|max:255',
+            'invoice_no'   => 'nullable|string|max:255',
             'penawaran_id' => 'nullable|exists:inv_penawarans,id',
             'kontrak_id'   => 'nullable|exists:inv_kontraks,id',
             'kendaraan_id' => 'nullable|exists:kendaraan,id',
@@ -197,15 +218,18 @@ class InvoicesController extends Controller
             'customer_address' => 'nullable|string',
             'contact_person'   => 'nullable|string|max:255',
             'telephone'        => 'nullable|string|max:50',
-            'email'        => 'nullable|string|max:50',
+            'email'            => 'nullable|string|max:50',
 
-            'satuan' => 'nullable|string|max:100',
+            'satuan'   => 'nullable|string|max:100',
+            'pengirim' => 'nullable|string|max:255',
 
-            'pengirim'      => 'nullable|string|max:255',
             'staff'         => 'nullable|string|max:255',
             'name_staff'    => 'nullable|string|max:255',
             'direktur'      => 'nullable|string|max:255',
             'name_direktur' => 'nullable|string|max:255',
+
+            'ttd_staff'    => 'nullable|image|max:2048',
+            'ttd_direktur' => 'nullable|image|max:2048',
 
             'status'         => 'required|in:draft,partial,overdue,lunas',
             'payment_status' => 'required|in:unpaid,paid',
@@ -217,6 +241,33 @@ class InvoicesController extends Controller
 
         // invoice_no tidak boleh diubah
         unset($validated['invoice_no']);
+
+        $removeBg = new RemoveBgService();
+
+        // Upload TTD Staff — hapus file lama jika ada
+        if ($request->hasFile('ttd_staff')) {
+            if ($invoice->ttd_staff && \Storage::disk('public')->exists($invoice->ttd_staff)) {
+                \Storage::disk('public')->delete($invoice->ttd_staff);
+            }
+            $validated['ttd_staff'] = $removeBg->uploadAndRemoveBg($request->file('ttd_staff'));
+        } elseif ($request->filled('ttd_staff_path')) {
+            // Pilih dari library — tidak perlu hapus file lama karena file library tidak dihapus
+            $validated['ttd_staff'] = $request->input('ttd_staff_path');
+        } else {
+            unset($validated['ttd_staff']);
+        }
+
+        // Upload TTD Direktur — hapus file lama jika ada
+        if ($request->hasFile('ttd_direktur')) {
+            if ($invoice->ttd_direktur && \Storage::disk('public')->exists($invoice->ttd_direktur)) {
+                \Storage::disk('public')->delete($invoice->ttd_direktur);
+            }
+            $validated['ttd_direktur'] = $removeBg->uploadAndRemoveBg($request->file('ttd_direktur'));
+        } elseif ($request->filled('ttd_direktur_path')) {
+            $validated['ttd_direktur'] = $request->input('ttd_direktur_path');
+        } else {
+            unset($validated['ttd_direktur']);
+        }
 
         $invoice->update($validated);
 
@@ -240,32 +291,116 @@ class InvoicesController extends Controller
     }
 
 
-    public function sendEmail($id)
-{
-    $invoice = Invoice::findOrFail($id);
-    $setting = Setting::first();
+    /**
+     * List file TTD yang sudah ada di storage sebagai library.
+     * Dipakai oleh modal invoice via AJAX.
+     */
+    public function ttdLibrary()
+    {
+        $files = \Storage::disk('public')->files('uploads/ttd');
 
-    $toEmails = array_unique(array_filter([
-        $invoice->email,
-        $setting?->email
-    ]));
+        $result = collect($files)->map(function ($path) {
+            return [
+                'path' => $path,
+                'url'  => asset('storage/' . $path),
+                'name' => basename($path),
+            ];
+        })->values();
 
-    if (empty($toEmails)) {
-        return back()->with('error', 'Email tujuan kosong.');
+        return response()->json($result);
     }
 
-    try {
-        foreach ($toEmails as $email) {
-            Mail::to($email)->send(new InvoiceMail($invoice, $setting));
+    /**
+     * Konversi path gambar ke data URI base64 untuk DomPDF.
+     * DomPDF tidak bisa akses file via path biasa, harus embed base64.
+     */
+    private function imgToBase64(string $path): string
+    {
+        if (!file_exists($path) || !is_readable($path)) {
+            return '';
+        }
+        $mime = mime_content_type($path) ?: 'image/png';
+        return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+    }
+
+    /**
+     * Siapkan variabel base64 untuk logo dan TTD agar bisa dipakai di Blade DomPDF.
+     */
+    private function resolveImageBase64(Invoice $invoice, ?Setting $setting): array
+    {
+        // Logo: pakai logo dari setting, fallback ke images/icon.png
+        $logoPath = '';
+        if ($setting?->logo) {
+            // Logo setting disimpan relatif ke public/ (misal: uploads/setting/xxx.png)
+            $logoPath = public_path($setting->logo);
+        }
+        if (!$logoPath || !file_exists($logoPath)) {
+            $logoPath = public_path('images/icon.png');
         }
 
-        $invoice->update([
-            'last_email_sent_at' => now(),
-        ]);
+        // TTD disimpan via Storage::disk('public') → storage/app/public/uploads/ttd/xxx
+        // Harus pakai storage_path bukan public_path
+        $ttdStaffPath    = $invoice->ttd_staff
+            ? storage_path('app/public/' . $invoice->ttd_staff)
+            : '';
+        $ttdDirekturPath = $invoice->ttd_direktur
+            ? storage_path('app/public/' . $invoice->ttd_direktur)
+            : '';
 
-        return back()->with('success', 'Email + PDF berhasil dikirim ke ' . $invoice->customer_name . '.');
-    } catch (\Exception $e) {
-        return back()->with('error', $e->getMessage());
+        return [
+            'logoSrc'        => $this->imgToBase64($logoPath),
+            'ttdStaffSrc'    => $ttdStaffPath    ? $this->imgToBase64($ttdStaffPath)    : '',
+            'ttdDirekturSrc' => $ttdDirekturPath ? $this->imgToBase64($ttdDirekturPath) : '',
+        ];
     }
-}
+
+    public function print($id)
+    {
+        $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'penawaran', 'kontrak'])->findOrFail($id);
+        $setting = Setting::first();
+
+        $images = $this->resolveImageBase64($invoice, $setting);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.invoice.print', array_merge([
+            'invoice' => $invoice,
+            'setting' => $setting,
+        ], $images))->setPaper('a4', 'portrait');
+
+        $filename = 'Invoice-' . $invoice->invoice_no . '.pdf';
+
+        return response($pdf->output(), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Cache-Control'       => 'no-cache, no-store, must-revalidate',
+        ]);
+    }
+
+    public function sendEmail($id)
+    {
+        $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'penawaran', 'kontrak'])->findOrFail($id);
+        $setting = Setting::first();
+
+        $toEmails = array_unique(array_filter([
+            $invoice->email,
+            $setting?->email,
+        ]));
+
+        if (empty($toEmails)) {
+            return back()->with('error', 'Email tujuan kosong.');
+        }
+
+        $images = $this->resolveImageBase64($invoice, $setting);
+
+        try {
+            foreach ($toEmails as $email) {
+                Mail::to($email)->send(new InvoiceMail($invoice, $setting, $images));
+            }
+
+            $invoice->update(['last_email_sent_at' => now()]);
+
+            return back()->with('success', 'Email + PDF berhasil dikirim ke ' . $invoice->customer_name . '.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
 }

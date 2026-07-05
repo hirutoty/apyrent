@@ -115,9 +115,16 @@ public function pdf(Request $request)
     }
 
     $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
     $data = $query->get();
 
-    $pdf = PDF::loadView('admin.supplier.pdf', compact('data', 'setting'))
+    $pdf = PDF::loadView('admin.supplier.pdf', compact('data', 'setting', 'logoSrc'))
         ->setPaper('a4', 'landscape');
 
     return $pdf->stream('data-supplier.pdf');

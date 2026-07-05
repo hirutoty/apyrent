@@ -100,9 +100,16 @@ public function pdf(Request $request)
     }
 
       $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
     $data = $query->orderBy('tanggal', 'desc')->get();
 
-    $pdf = Pdf::loadView('admin.bukubesar.pdf', compact('data', 'search', 'setting'));
+    $pdf = Pdf::loadView('admin.bukubesar.pdf', compact('data', 'search', 'setting', 'logoSrc'));
 
     return $pdf->stream('buku-besar.pdf');
 }
@@ -225,9 +232,16 @@ public function pdfLabaRugi(Request $request)
     $labaKotor  = $pendapatan - $bebanPokok;
     $labaBersih = $pendapatan - $totalBeban;
     $setting    = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
     $pdf = Pdf::loadView('admin.bukubesar.laba_rugi_pdf', compact(
-        'totalBeban', 'pendapatan', 'labaKotor', 'labaBersih', 'setting'
+        'totalBeban', 'pendapatan', 'labaKotor', 'labaBersih', 'setting', 'logoSrc'
     ));
 
     return $pdf->stream('laba-rugi.pdf');

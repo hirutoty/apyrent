@@ -31,6 +31,13 @@ class HutangVendorController extends Controller
         }
 
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
         $reminder = match ($setting->satuan_reminder) {
             'hari'    => $setting->batas_reminder,
@@ -248,9 +255,16 @@ class HutangVendorController extends Controller
         }
 
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
         $data = $query->get();
 
-        $pdf = PDF::loadView('admin.hutang_vendor.pdf', compact('data', 'setting'))
+        $pdf = PDF::loadView('admin.hutang_vendor.pdf', compact('data', 'setting', 'logoSrc'))
             ->setPaper('A4', 'landscape');
 
         return $pdf->stream('hutang-vendor.pdf');

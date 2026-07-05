@@ -49,10 +49,58 @@
             </nav>
         </div>
 
-        {{-- SEARCH --}}
-        <form method="GET" class="mb-3">
+        {{-- SEARCH + EXPORT --}}
+        <form method="GET" class="mb-3 flex items-center gap-2 flex-wrap">
             <input type="text" name="search" class="border rounded-lg px-3 py-2 text-sm w-64"
                 placeholder="Cari no kontrak / pihak..." value="{{ request('search') }}">
+            <a href="{{ route('kontrak.pdf', request()->query()) }}"
+                target="_blank"
+                class="flex items-center gap-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">
+                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+            </a>
+
+            {{-- TOGGLE KOLOM --}}
+            <div class="relative" id="colToggleWrap">
+                <button type="button" onclick="toggleColDropdown()"
+                    class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-600 bg-white hover:bg-gray-50 whitespace-nowrap">
+                    <i class="bi bi-layout-three-columns"></i> Kolom
+                    <i class="bi bi-chevron-down text-[10px]"></i>
+                </button>
+                <div id="colDropdown"
+                    class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
+                    <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleCol('col-nokontrak', this.checked)" class="rounded"> No Kontrak
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleCol('col-penawaran', this.checked)" class="rounded"> Penawaran
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleCol('col-tanggal', this.checked)" class="rounded"> Tanggal
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleCol('col-perjanjian', this.checked)" class="rounded"> Perjanjian
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleCol('col-pihak1', this.checked)" class="rounded"> Pihak 1
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleCol('col-pihak2', this.checked)" class="rounded"> Pihak 2
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleCol('col-filekontrak', this.checked)" class="rounded"> File Kontrak
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleCol('col-filepersyaratan', this.checked)" class="rounded"> File Persyaratan
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleCol('col-status', this.checked)" class="rounded"> Status
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleCol('col-aksi', this.checked)" class="rounded"> Aksi
+                    </label>
+                </div>
+            </div>
         </form>
 
         {{-- TABLE --}}
@@ -63,16 +111,16 @@
                 <thead class="bg-gray-100 text-left">
                     <tr>
                         <th class="p-3">No</th>
-                        <th class="p-3">No Kontrak</th>
-                        <th class="p-3">Penawaran</th>
-                        <th class="p-3">Tanggal</th>
-                        <th class="p-3">Perjanjan</th>
-                        <th class="p-3">Pihak 1</th>
-                        <th class="p-3">Pihak 2</th>
-                        <th class="p-3">File Kontrak</th>
-                        <th class="p-3">FIle Persyaratan 2</th>
-                        <th class="p-3">Status</th>
-                        <th class="p-3 text-center">Aksi</th>
+                        <th class="p-3" data-col="col-nokontrak">No Kontrak</th>
+                        <th class="p-3" data-col="col-penawaran">Penawaran</th>
+                        <th class="p-3" data-col="col-tanggal">Tanggal</th>
+                        <th class="p-3" data-col="col-perjanjian">Perjanjian</th>
+                        <th class="p-3" data-col="col-pihak1">Pihak 1</th>
+                        <th class="p-3" data-col="col-pihak2">Pihak 2</th>
+                        <th class="p-3" data-col="col-filekontrak">File Kontrak</th>
+                        <th class="p-3" data-col="col-filepersyaratan">File Persyaratan</th>
+                        <th class="p-3" data-col="col-status">Status</th>
+                        <th class="p-3 text-center" data-col="col-aksi">Aksi</th>
                     </tr>
                 </thead>
 
@@ -85,19 +133,19 @@
 
                             <td class="p-3">{{ $no + 1 }}</td>
 
-                            <td class="p-3 font-semibold">
+                            <td class="p-3 font-semibold" data-col="col-nokontrak">
                                 {{ $k->no_kontrak }}
                             </td>
 
-                            <td class="p-3">
+                            <td class="p-3" data-col="col-penawaran">
                                 {{ $k->penawaran->no_penawaran ?? '-' }}
                             </td>
 
-                            <td class="p-3">
+                            <td class="p-3" data-col="col-tanggal">
                                 {{ $k->tanggal_kontrak?->format('d-m-Y') }}
                             </td>
 
-                            <td class="px-4 py-3.5">
+                            <td class="px-4 py-3.5" data-col="col-perjanjian">
                                 <div class="flex flex-col gap-1">
 
                                     <span {{ $k->perjanjian_pembayaran?->format('d-m-Y') }} </span>
@@ -127,15 +175,15 @@
                                 </div>
                             </td>
 
-                            <td class="p-3">
+                            <td class="p-3" data-col="col-pihak1">
                                 {{ $k->pihak_pertama }}
                             </td>
 
-                            <td class="p-3">
+                            <td class="p-3" data-col="col-pihak2">
                                 {{ $k->pihak_kedua }}
                             </td>
 
-                            <td class="p-3">
+                            <td class="p-3" data-col="col-filekontrak">
                                 @if ($k->file_kontrak)
                                     <a href="{{ asset($k->file_kontrak) }}" target="_blank"
                                         class="text-blue-600 hover:text-blue-800 hover:underline font-medium">
@@ -146,7 +194,7 @@
                                 @endif
                             </td>
 
-                            <td class="p-3">
+                            <td class="p-3" data-col="col-filepersyaratan">
                                 @if ($k->file_persyaratan)
                                     <a href="{{ asset($k->file_persyaratan) }}" target="_blank"
                                         class="text-blue-600 hover:text-blue-800 hover:underline font-medium">
@@ -157,7 +205,7 @@
                                 @endif
                             </td>
 
-                            <td>
+                            <td data-col="col-status">
 
                                 @if ($k->status == 'active')
                                     <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
@@ -541,6 +589,22 @@
     </div>
 
     <script>
+        // ── Toggle Kolom ──
+        function toggleColDropdown() {
+            document.getElementById('colDropdown').classList.toggle('hidden');
+        }
+        document.addEventListener('click', function(e) {
+            const wrap = document.getElementById('colToggleWrap');
+            if (wrap && !wrap.contains(e.target)) {
+                document.getElementById('colDropdown').classList.add('hidden');
+            }
+        });
+        function toggleCol(colId, show) {
+            document.querySelectorAll(`[data-col="${colId}"]`).forEach(el => {
+                el.style.display = show ? '' : 'none';
+            });
+        }
+
         function openModal(id) {
             document.getElementById(id).classList.remove('hidden');
             document.getElementById(id).classList.add('flex');

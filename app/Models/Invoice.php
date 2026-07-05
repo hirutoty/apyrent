@@ -45,14 +45,23 @@ class Invoice extends Model
         'total',
 
 
+
+
         'last_email_sent_at',
     ];
 
     protected $casts = [
+
+        'invoice_date'       => 'date',
+        'ppn'                => 'decimal:2',
+        'pph'                => 'decimal:2',
+        'total'              => 'decimal:2',
+
         'invoice_date'   => 'date',
         'ppn'            => 'decimal:2',
         'pph'            => 'decimal:2',
         'total'          => 'decimal:2',
+
         'last_email_sent_at' => 'datetime',
     ];
 
@@ -79,6 +88,22 @@ class Invoice extends Model
     {
         return $this->belongsTo(Kendaraan::class, 'kendaraan_id');
     }
+
+
+    /**
+     * Relasi ke Periode sewa (hasMany InvoicePeriode)
+     */
+    public function periodes()
+    {
+        return $this->hasMany(InvoicePeriode::class, 'invoice_id');
+    }
+
+    /**
+     * Relasi ke semua Remaks invoice
+     */
+    public function remaks()
+    {
+        return $this->hasMany(InvoiceRemak::class, 'invoice_id');
 
     public function agingAr()
     {

@@ -51,7 +51,14 @@ class PajakHistoryController extends Controller
         $namaBulan = $bulan !== 'semua' ? ($namaBulanList[(int) $bulan] ?? $bulan) : 'Semua Bulan';
         $namaTahun = $tahun !== 'semua' ? $tahun : 'Semua Tahun';
         $setting = Setting::first();
-        $pdf = Pdf::loadView('admin.pajak_kendaraan.history-pdf', compact('data', 'namaBulan', 'namaTahun', 'setting'))
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+        $pdf = Pdf::loadView('admin.pajak_kendaraan.history-pdf', compact('data', 'namaBulan', 'namaTahun', 'setting', 'logoSrc'))
             ->setPaper('a4', 'landscape');
             
 

@@ -93,42 +93,81 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Total Data</p>
-                <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $summaries->total() }}</h2>
+                <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $stats['total'] }}</h2>
             </div>
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Paid</p>
-                <h2 class="text-3xl font-bold text-green-600 mt-2">
-                    {{ $summaries->getCollection()->where('payment_status', 'Paid')->count() }}
-                </h2>
+                <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $stats['paid'] }}</h2>
             </div>
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Partial</p>
-                <h2 class="text-3xl font-bold text-yellow-500 mt-2">
-                    {{ $summaries->getCollection()->where('payment_status', 'Partial')->count() }}
-                </h2>
+                <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $stats['partial'] }}</h2>
             </div>
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Unpaid</p>
-                <h2 class="text-3xl font-bold text-red-500 mt-2">
-                    {{ $summaries->getCollection()->where('payment_status', 'Unpaid')->count() }}
-                </h2>
+                <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $stats['unpaid'] }}</h2>
             </div>
         </div>
 
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
 
-            {{-- SEARCH --}}
+            {{-- SEARCH + TOGGLE KOLOM --}}
             <div class="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/50">
-                <form method="GET" class="flex gap-2 flex-1 max-w-sm">
-                    <div class="relative flex-1">
+                <form method="GET" class="flex gap-2 flex-1 flex-wrap">
+                    <div class="relative flex-1 min-w-[180px]">
                         <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
                         <input type="text" name="search" value="{{ request('search') }}"
                             placeholder="Cari invoice, customer, tipe..."
                             class="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
+                    {{-- Filter Status --}}
+                    <select name="status"
+                        class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
+                        <option value="">Semua Status</option>
+                        <option value="Paid"    {{ request('status') === 'Paid'    ? 'selected' : '' }}>Paid</option>
+                        <option value="Partial" {{ request('status') === 'Partial' ? 'selected' : '' }}>Partial</option>
+                        <option value="Unpaid"  {{ request('status') === 'Unpaid'  ? 'selected' : '' }}>Unpaid</option>
+                    </select>
                     <button class="bg-gray-800 text-white text-xs px-4 py-1.5 rounded-lg">Cari</button>
+                    @if(request('search') || request('status'))
+                        <a href="{{ route('summary.index') }}"
+                            class="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">
+                            Reset
+                        </a>
+                    @endif
                 </form>
+
+                {{-- TOGGLE KOLOM --}}
+                <div class="relative" id="colToggleWrap">
+                    <button onclick="toggleColDropdown()"
+                        class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-600 bg-white hover:bg-gray-50 whitespace-nowrap">
+                        <i class="bi bi-layout-three-columns"></i> Kolom
+                        <i class="bi bi-chevron-down text-[10px]"></i>
+                    </button>
+                    <div id="colDropdown"
+                        class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
+                        <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
+                        @foreach ([
+                            'col-invoice'   => 'Invoice',
+                            'col-penawaran' => 'Penawaran',
+                            'col-kontrak'   => 'Kontrak',
+                            'col-tipe'      => 'Tipe',
+                            'col-total'     => 'Total',
+                            'col-dibayar'   => 'Dibayar',
+                            'col-sisa'      => 'Sisa',
+                            'col-status'    => 'Status',
+                            'col-aksi'      => 'Aksi',
+                        ] as $colId => $colLabel)
+                        <label class="flex items-center gap-2 py-1 cursor-pointer hover:text-blue-600 text-xs text-gray-700">
+                            <input type="checkbox" class="col-toggle" data-col="{{ $colId }}" checked
+                                onchange="toggleColumn('{{ $colId }}', this.checked)">
+                            {{ $colLabel }}
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+
             </div>
 
             {{-- TABLE --}}
@@ -138,23 +177,23 @@
                         <tr class="bg-gray-50 border-b border-gray-100">
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No
                             </th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                            <th data-col="col-invoice" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Invoice</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                            <th data-col="col-penawaran" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Penawaran</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                            <th data-col="col-kontrak" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Kontrak</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tipe
+                            <th data-col="col-tipe" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tipe
                             </th>
-                            <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                            <th data-col="col-total" class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Total</th>
-                            <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                            <th data-col="col-dibayar" class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Dibayar</th>
-                            <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                            <th data-col="col-sisa" class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Sisa</th>
-                            <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                            <th data-col="col-status" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Status</th>
-                            <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                            <th data-col="col-aksi" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>
                         </tr>
                     </thead>
@@ -172,7 +211,7 @@
                             @endphp
                             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
                                 <td class="px-4 py-3.5 text-xs text-gray-400">{{ $summaries->firstItem() + $i }}</td>
-                                <td class="px-4 py-3.5">
+                                <td data-col="col-invoice" class="px-4 py-3.5">
                                     @if ($s->invoice)
                                         <p class="text-sm font-semibold text-blue-700">{{ $s->invoice->invoice_no }}</p>
                                         <p class="text-xs text-gray-500">{{ $s->invoice->customer_name }}</p>
@@ -180,34 +219,34 @@
                                         <span class="text-xs text-gray-400">—</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3.5 text-sm text-gray-600">
+                                <td data-col="col-penawaran" class="px-4 py-3.5 text-sm text-gray-600">
                                     {{ optional($s->penawaran)->no_penawaran ?? '—' }}
                                 </td>
-                                <td class="px-4 py-3.5 text-sm text-gray-600">
+                                <td data-col="col-kontrak" class="px-4 py-3.5 text-sm text-gray-600">
                                     {{ optional($s->kontrak)->no_kontrak ?? '—' }}
                                 </td>
-                                <td class="px-4 py-3.5">
+                                <td data-col="col-tipe" class="px-4 py-3.5">
                                     <span
                                         class="inline-flex items-center text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-700">
                                         {{ $s->type }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3.5 text-right text-sm font-semibold text-gray-800">
+                                <td data-col="col-total" class="px-4 py-3.5 text-right text-sm font-semibold text-gray-800">
                                     Rp {{ number_format($s->total_amount, 0, ',', '.') }}
                                 </td>
-                                <td class="px-4 py-3.5 text-right text-sm font-semibold text-green-700">
+                                <td data-col="col-dibayar" class="px-4 py-3.5 text-right text-sm font-semibold text-green-700">
                                     Rp {{ number_format($s->paid_amount, 0, ',', '.') }}
                                 </td>
-                                <td class="px-4 py-3.5 text-right text-sm {{ $sisaColor }}">
+                                <td data-col="col-sisa" class="px-4 py-3.5 text-right text-sm {{ $sisaColor }}">
                                     Rp {{ number_format($s->remaining_amount, 0, ',', '.') }}
                                 </td>
-                                <td class="px-4 py-3.5 text-center">
+                                <td data-col="col-status" class="px-4 py-3.5 text-center">
                                     <span
                                         class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $statusColor }}">
                                         {{ $s->payment_status }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3.5">
+                                <td data-col="col-aksi" class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
                                         <button onclick="openModalEdit({{ $s->id }})"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-colors">
@@ -325,8 +364,14 @@
                         <div class="mb-4">
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe <span
                                     class="text-red-500">*</span></label>
-                            <input type="text" name="type" required placeholder="Contoh: Rental, Service, Leasing"
+                            <select name="type" required
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <option value="">-- Pilih Tipe --</option>
+                                <option value="Rental">Rental</option>
+                                <option value="Service">Service</option>
+                                <option value="Leasing">Leasing</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -473,9 +518,14 @@
                         <div class="mb-4">
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe <span
                                     class="text-red-500">*</span></label>
-                            <input type="text" id="edit_type" name="type" required
-                                placeholder="Contoh: Rental, Service, Leasing"
+                            <select id="edit_type" name="type" required
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <option value="">-- Pilih Tipe --</option>
+                                <option value="Rental">Rental</option>
+                                <option value="Service">Service</option>
+                                <option value="Leasing">Leasing</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -667,6 +717,30 @@
             modalEdit.addEventListener('click', e => {
                 if (e.target === modalEdit) closeModalEdit();
             });
+        </script>
+
+        {{-- TOGGLE KOLOM SCRIPT --}}
+        <script>
+            // Toggle dropdown
+            function toggleColDropdown() {
+                document.getElementById('colDropdown').classList.toggle('hidden');
+            }
+
+            // Tutup dropdown kalau klik di luar
+            document.addEventListener('click', function(e) {
+                const wrap = document.getElementById('colToggleWrap');
+                if (wrap && !wrap.contains(e.target)) {
+                    document.getElementById('colDropdown').classList.add('hidden');
+                }
+            });
+
+            // Toggle kolom berdasarkan data-col attribute
+            function toggleColumn(colId, show) {
+                // Sembunyikan/tampilkan semua th dan td dengan data-col matching
+                document.querySelectorAll(`[data-col="${colId}"]`).forEach(el => {
+                    el.style.display = show ? '' : 'none';
+                });
+            }
         </script>
     @endpush
 

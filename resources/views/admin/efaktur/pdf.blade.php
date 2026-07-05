@@ -143,7 +143,10 @@
         <table class="header-table">
             <tr>
 
-                <td width="15%">
+                <td width="15%"> feature/navtab
+                    @if($logoSrc)
+                       <img src="{{ $logoSrc }}" class="logo">
+
                     @if ($setting?->logo)
                         <img src="{{ public_path($setting->logo) }}" class="logo">
                     @endif

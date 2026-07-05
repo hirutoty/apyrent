@@ -66,14 +66,57 @@
             {{-- SEARCH --}}
             <div class="p-5 border-b">
                 <form method="GET">
-                    <div class="flex gap-3">
+                    <div class="flex gap-3 items-center">
                         <div class="relative flex-1">
                             <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
                             <input type="text" name="search" value="{{ request('search') }}"
                                 placeholder="Cari no invoice, customer, atau order..."
                                 class="w-full border rounded-lg pl-10 pr-4 py-2">
                         </div>
-                        <button class="bg-gray-800 text-white px-5 rounded-lg">Cari</button>
+                        <button class="bg-gray-800 text-white px-5 rounded-lg py-2">Cari</button>
+
+                        {{-- TOGGLE KOLOM --}}
+                        <div class="relative" id="colToggleWrap">
+                            <button type="button" onclick="toggleColDropdown()"
+                                class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 bg-white hover:bg-gray-50 whitespace-nowrap">
+                                <i class="bi bi-layout-three-columns"></i> Kolom
+                                <i class="bi bi-chevron-down text-[10px]"></i>
+                            </button>
+                            <div id="colDropdown"
+                                class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
+                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
+                                    <input type="checkbox" class="col-toggle" data-col="col-noinvoice" checked> No Invoice
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
+                                    <input type="checkbox" class="col-toggle" data-col="col-tanggal" checked> Tanggal
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
+                                    <input type="checkbox" class="col-toggle" data-col="col-customer" checked> Customer
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
+                                    <input type="checkbox" class="col-toggle" data-col="col-penawaran" checked> Penawaran
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
+                                    <input type="checkbox" class="col-toggle" data-col="col-kontrak" checked> Kontrak
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
+                                    <input type="checkbox" class="col-toggle" data-col="col-kendaraan" checked> Kendaraan
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
+                                    <input type="checkbox" class="col-toggle" data-col="col-status" checked> Status
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
+                                    <input type="checkbox" class="col-toggle" data-col="col-pembayaran" checked> Pembayaran
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
+                                    <input type="checkbox" class="col-toggle" data-col="col-reminder" checked> Terakhir Reminder
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
+                                    <input type="checkbox" class="col-toggle" data-col="col-aksi" checked> Aksi
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -84,30 +127,30 @@
                     <thead class="bg-gray-100">
                         <tr>
                             <th class="px-4 py-3 text-left">No</th>
-                            <th class="px-4 py-3 text-left">No Invoice</th>
-                            <th class="px-4 py-3 text-left">Tanggal</th>
-                            <th class="px-4 py-3 text-left">Customer</th>
-                            <th class="px-4 py-3 text-left">Penawaran</th>
-                            <th class="px-4 py-3 text-left">Kontrak</th>
-                            <th class="px-4 py-3 text-left">Kendaraan</th>
-                            <th class="px-4 py-3 text-center">Status</th>
-                            <th class="px-4 py-3 text-center">Pembayaran</th>
-                            <th class="px-4 py-3 text-center">Terakhir Reminder</th>
-                            <th class="px-4 py-3 text-center">Aksi</th>
+                            <th class="px-4 py-3 text-left" data-col="col-noinvoice">No Invoice</th>
+                            <th class="px-4 py-3 text-left" data-col="col-tanggal">Tanggal</th>
+                            <th class="px-4 py-3 text-left" data-col="col-customer">Customer</th>
+                            <th class="px-4 py-3 text-left" data-col="col-penawaran">Penawaran</th>
+                            <th class="px-4 py-3 text-left" data-col="col-kontrak">Kontrak</th>
+                            <th class="px-4 py-3 text-left" data-col="col-kendaraan">Kendaraan</th>
+                            <th class="px-4 py-3 text-center" data-col="col-status">Status</th>
+                            <th class="px-4 py-3 text-center" data-col="col-pembayaran">Pembayaran</th>
+                            <th class="px-4 py-3 text-center" data-col="col-reminder">Terakhir Reminder</th>
+                            <th class="px-4 py-3 text-center" data-col="col-aksi">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($invoices as $inv)
                             <tr class="border-b hover:bg-gray-50">
                                 <td class="px-4 py-3">{{ $loop->iteration + ($invoices->firstItem() - 1) }}</td>
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-noinvoice">
                                     <span class="font-semibold">{{ $inv->invoice_no }}</span>
                                 </td>
-                                <td class="px-4 py-3">{{ optional($inv->invoice_date)->format('d-m-Y') }}</td>
-                                <td class="px-4 py-3">{{ $inv->customer_name }}</td>
-                                <td class="px-4 py-3">{{ optional($inv->penawaran)->no_penawaran ?? '-' }}</td>
-                                <td class="px-4 py-3">{{ optional($inv->kontrak)->no_kontrak ?? '-' }}</td>
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-tanggal">{{ optional($inv->invoice_date)->format('d-m-Y') }}</td>
+                                <td class="px-4 py-3" data-col="col-customer">{{ $inv->customer_name }}</td>
+                                <td class="px-4 py-3" data-col="col-penawaran">{{ optional($inv->penawaran)->no_penawaran ?? '-' }}</td>
+                                <td class="px-4 py-3" data-col="col-kontrak">{{ optional($inv->kontrak)->no_kontrak ?? '-' }}</td>
+                                <td class="px-4 py-3" data-col="col-kendaraan">
                                     @if ($inv->kendaraan)
                                         {{ $inv->kendaraan->merk }} - {{ $inv->kendaraan->nopol }}
                                     @else
@@ -115,7 +158,7 @@
                                     @endif
                                 </td>
 
-                                <td class="px-4 py-3 text-center">
+                                <td class="px-4 py-3 text-center" data-col="col-status">
                                     @php
                                         $warna = match ($inv->status) {
                                             'lunas' => 'green',
@@ -130,7 +173,7 @@
                                     </span>
                                 </td>
 
-                                <td class="px-4 py-3 text-center">
+                                <td class="px-4 py-3 text-center" data-col="col-pembayaran">
                                     @php
                                         $warnaBayar = match ($inv->payment_status) {
                                             'paid' => 'green',
@@ -144,11 +187,11 @@
                                     </span>
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-reminder">
                                     {{ $inv->last_email_sent_at?->format('d-F-Y') }}
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-aksi">
                                     <div class="flex justify-center gap-2 flex-wrap">
 
 
@@ -161,36 +204,18 @@
                                             </button>
                                         </form>
 
-                                        {{-- Download PDF
+                                        {{-- Download PDF --}}
                                         <a href="{{ route('invoices.print', $inv->id) }}"
                                             class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
                                             target="_blank">
                                             <i class="fa fa-download"></i>
-                                        </a> --}}
+                                        </a>
 
                                         {{-- Tombol Show --}}
-                                        <button type="button"
-                                            class="showBtn bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded"
-                                            data-id="{{ $inv->id }}" data-invoice_no="{{ $inv->invoice_no }}"
-                                            data-invoice_date="{{ optional($inv->invoice_date)->format('d-m-Y') }}"
-                                            data-customer_name="{{ $inv->customer_name }}" data-type="{{ $inv->type }}"
-                                            data-customer_address="{{ $inv->customer_address }}"
-                                            data-telephone="{{ $inv->telephone }}" data-email="{{ $inv->email }}"
-                                            data-contact_person="{{ $inv->contact_person }}"
-                                            data-penawaran="{{ optional($inv->penawaran)->no_penawaran ?? '-' }}"
-                                            data-kontrak="{{ optional($inv->kontrak)->no_kontrak ?? '-' }}"
-                                            data-kendaraan="{{ $inv->kendaraan ? $inv->kendaraan->merk . ' - ' . $inv->kendaraan->nopol : '-' }}"
-                                            data-satuan="{{ $inv->satuan }}" data-pengirim="{{ $inv->pengirim }}"
-                                            data-ppn="{{ $inv->ppn }}" data-pph="{{ $inv->pph }}"
-                                            data-total="{{ $inv->total }}" data-status="{{ $inv->status }}"
-                                            data-payment_status="{{ $inv->payment_status }}"
-                                            data-staff="{{ $inv->staff }}" data-name_staff="{{ $inv->name_staff }}"
-                                            data-direktur="{{ $inv->direktur }}"
-                                            data-name_direktur="{{ $inv->name_direktur }}"
-                                            data-ttd_staff="{{ $inv->ttd_staff }}"
-                                            data-ttd_direktur="{{ $inv->ttd_direktur }}">
+                                        <a href="{{ route('invoices.show', $inv->id) }}"
+                                            class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded">
                                             <i class="fa fa-eye"></i>
-                                        </button>
+                                        </a>
 
                                         {{-- Tombol Edit — semua data disimpan di data-* --}}
                                         <button type="button"
@@ -445,47 +470,82 @@
                             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Penandatangan</h3>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                            {{-- STAFF --}}
                             <div class="bg-gray-50 rounded-xl p-4 space-y-3">
-                                <p class="text-xs font-semibold text-gray-500"><i
-                                        class="fa fa-user text-gray-400 mr-1"></i> Staff</p>
+                                <p class="text-xs font-semibold text-gray-500"><i class="fa fa-user text-gray-400 mr-1"></i> Staff</p>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan staff</label>
-                                    <input type="text" name="staff" placeholder="Contoh: Manajer Keuangan"
+                                    <select name="staff"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">-- Pilih Jabatan Staf --</option>
+                                        <option>Direktur Utama (CEO)</option>
+                                        <option>Wakil Direktur (Vice President)</option>
+                                        <option>Manajer Umum (General Manager)</option>
+                                        <option>Manajer Operasional</option>
+                                        <option>Manajer Keuangan</option>
+                                        <option>Manajer Pemasaran</option>
+                                        <option>Manajer SDM (HR Manager)</option>
+                                        <option>Supervisor / Koordinator</option>
+                                        <option>Staf Administrasi</option>
+                                        <option>Staf Keuangan</option>
+                                        <option>Staf Pemasaran</option>
+                                        <option>Staf IT</option>
+                                        <option>Customer Service</option>
+                                        <option>Office Boy / Office Girl</option>
+                                        <option>Security</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama staff</label>
                                     <input type="text" name="name_staff" placeholder="Nama lengkap"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
+                                {{-- TTD Staff: hidden input path + UI tab --}}
+                                <input type="hidden" name="ttd_staff_path" id="tambah_ttd_staff_path">
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan
-                                        Staff</label>
-                                    <input type="file" name="ttd_staff" accept="image/*"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan Staff</label>
+                                    @include('admin.invoice._ttd_picker', ['uid' => 'tambah_staff', 'field' => 'ttd_staff'])
                                 </div>
                             </div>
+
+                            {{-- DIREKTUR --}}
                             <div class="bg-gray-50 rounded-xl p-4 space-y-3">
-                                <p class="text-xs font-semibold text-gray-500"><i
-                                        class="fa fa-user-tie text-gray-400 mr-1"></i> Direktur</p>
+                                <p class="text-xs font-semibold text-gray-500"><i class="fa fa-user-tie text-gray-400 mr-1"></i> Direktur</p>
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan
-                                        direktur</label>
-                                    <input type="text" name="direktur" placeholder="Contoh: Direktur Utama"
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan direktur</label>
+                                    <select name="direktur"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">-- Pilih Jabatan Direktur --</option>
+                                        <option>Direktur Utama (CEO)</option>
+                                        <option>Wakil Direktur (Vice President)</option>
+                                        <option>Manajer Umum (General Manager)</option>
+                                        <option>Manajer Operasional</option>
+                                        <option>Manajer Keuangan</option>
+                                        <option>Manajer Pemasaran</option>
+                                        <option>Manajer SDM (HR Manager)</option>
+                                        <option>Supervisor / Koordinator</option>
+                                        <option>Staf Administrasi</option>
+                                        <option>Staf Keuangan</option>
+                                        <option>Staf Pemasaran</option>
+                                        <option>Staf IT</option>
+                                        <option>Customer Service</option>
+                                        <option>Office Boy / Office Girl</option>
+                                        <option>Security</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama direktur</label>
                                     <input type="text" name="name_direktur" placeholder="Nama lengkap"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
+                                <input type="hidden" name="ttd_direktur_path" id="tambah_ttd_direktur_path">
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan
-                                        Direktur</label>
-                                    <input type="file" name="ttd_direktur" accept="image/*"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan Direktur</label>
+                                    @include('admin.invoice._ttd_picker', ['uid' => 'tambah_direktur', 'field' => 'ttd_direktur'])
                                 </div>
                             </div>
+
                         </div>
                     </div>
 
@@ -923,42 +983,71 @@
                                         class="fa fa-user text-gray-400 mr-1"></i> Staff</p>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan staff</label>
-                                    <input id="edit_staff" type="text" name="staff"
+                                    <select id="edit_staff" name="staff"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">-- Pilih Jabatan Staf --</option>
+                                        <option>Direktur Utama (CEO)</option>
+                                        <option>Wakil Direktur (Vice President)</option>
+                                        <option>Manajer Umum (General Manager)</option>
+                                        <option>Manajer Operasional</option>
+                                        <option>Manajer Keuangan</option>
+                                        <option>Manajer Pemasaran</option>
+                                        <option>Manajer SDM (HR Manager)</option>
+                                        <option>Supervisor / Koordinator</option>
+                                        <option>Staf Administrasi</option>
+                                        <option>Staf Keuangan</option>
+                                        <option>Staf Pemasaran</option>
+                                        <option>Staf IT</option>
+                                        <option>Customer Service</option>
+                                        <option>Office Boy / Office Girl</option>
+                                        <option>Security</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama staff</label>
                                     <input id="edit_name_staff" type="text" name="name_staff"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
+                                <input type="hidden" name="ttd_staff_path" id="edit_ttd_staff_path">
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan
-                                        Staff</label>
-                                    <input id="edit_ttd_staff" type="file" name="ttd_staff" accept="image/*"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
-                                    <div id="preview_ttd_staff" class="mt-2"></div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan Staff</label>
+                                    @include('admin.invoice._ttd_picker', ['uid' => 'edit_staff', 'field' => 'ttd_staff'])
                                 </div>
                             </div>
                             <div class="bg-gray-50 rounded-xl p-4 space-y-3">
                                 <p class="text-xs font-semibold text-gray-500"><i
                                         class="fa fa-user-tie text-gray-400 mr-1"></i> Direktur</p>
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan
-                                        direktur</label>
-                                    <input id="edit_direktur" type="text" name="direktur"
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan direktur</label>
+                                    <select id="edit_direktur" name="direktur"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">-- Pilih Jabatan Direktur --</option>
+                                        <option>Direktur Utama (CEO)</option>
+                                        <option>Wakil Direktur (Vice President)</option>
+                                        <option>Manajer Umum (General Manager)</option>
+                                        <option>Manajer Operasional</option>
+                                        <option>Manajer Keuangan</option>
+                                        <option>Manajer Pemasaran</option>
+                                        <option>Manajer SDM (HR Manager)</option>
+                                        <option>Supervisor / Koordinator</option>
+                                        <option>Staf Administrasi</option>
+                                        <option>Staf Keuangan</option>
+                                        <option>Staf Pemasaran</option>
+                                        <option>Staf IT</option>
+                                        <option>Customer Service</option>
+                                        <option>Office Boy / Office Girl</option>
+                                        <option>Security</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama direktur</label>
                                     <input id="edit_name_direktur" type="text" name="name_direktur"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
+                                <input type="hidden" name="ttd_direktur_path" id="edit_ttd_direktur_path">
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan
-                                        Direktur</label>
-                                    <input id="edit_ttd_direktur" type="file" name="ttd_direktur" accept="image/*"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
-                                    <div id="preview_ttd_direktur" class="mt-2"></div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan Direktur</label>
+                                    @include('admin.invoice._ttd_picker', ['uid' => 'edit_direktur', 'field' => 'ttd_direktur'])
                                 </div>
                             </div>
                         </div>
@@ -981,6 +1070,190 @@
     </div>
 
     @push('scripts')
+        <script>
+        // ── Toggle Kolom ──
+        function toggleColDropdown() {
+            document.getElementById('colDropdown').classList.toggle('hidden');
+        }
+        document.addEventListener('click', function(e) {
+            const wrap = document.getElementById('colToggleWrap');
+            if (wrap && !wrap.contains(e.target)) {
+                document.getElementById('colDropdown').classList.add('hidden');
+            }
+        });
+        function toggleColumn(colId, show) {
+            document.querySelectorAll(`[data-col="${colId}"]`).forEach(el => {
+                el.style.display = show ? '' : 'none';
+            });
+        }
+        // Bind semua checkbox col-toggle via JS (untuk yang tidak pakai onchange inline)
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.col-toggle').forEach(function(cb) {
+                cb.addEventListener('change', function() {
+                    toggleColumn(this.dataset.col, this.checked);
+                });
+            });
+        });
+
+        // ===================== TTD PICKER =====================
+        const TTD_LIBRARY_URL = '{{ route("invoices.ttd-library") }}';
+        let ttdLibraryCache = null; // cache supaya tidak fetch berulang
+
+        async function loadTtdLibrary() {
+            if (ttdLibraryCache) return ttdLibraryCache;
+            try {
+                const res = await fetch(TTD_LIBRARY_URL, {
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                });
+                ttdLibraryCache = await res.json();
+            } catch (e) {
+                ttdLibraryCache = [];
+            }
+            return ttdLibraryCache;
+        }
+
+        function initTtdPicker(picker) {
+            const uid        = picker.dataset.uid;
+            const field      = picker.dataset.field;
+            const tabLib     = picker.querySelector('.ttd-tab-lib');
+            const tabUpload  = picker.querySelector('.ttd-tab-upload');
+            const panelLib   = picker.querySelector('.ttd-panel-lib');
+            const panelUpload = picker.querySelector('.ttd-panel-upload');
+            const grid       = picker.querySelector('.ttd-library-grid');
+            const preview    = picker.querySelector('.ttd-preview');
+            const previewImg = picker.querySelector('.ttd-preview-img');
+            const clearBtn   = picker.querySelector('.ttd-clear');
+            const fileInput  = picker.querySelector('.ttd-file-input');
+
+            // Hidden input path (untuk pilih dari library)
+            const hiddenPath = document.getElementById(uid + '_path');
+
+            let libLoaded = false;
+
+            // ── Tab switch ──────────────────────────────
+            tabLib.addEventListener('click', () => {
+                tabLib.classList.replace('bg-white', 'bg-blue-600');
+                tabLib.classList.replace('text-gray-500', 'text-white');
+                tabUpload.classList.replace('bg-blue-600', 'bg-white');
+                tabUpload.classList.replace('text-white', 'text-gray-500');
+                panelLib.classList.remove('hidden');
+                panelUpload.classList.add('hidden');
+                // Nonaktifkan file input agar tidak ikut submit
+                fileInput.disabled = true;
+                if (!libLoaded) renderLibrary();
+            });
+
+            tabUpload.addEventListener('click', () => {
+                tabUpload.classList.replace('bg-white', 'bg-blue-600');
+                tabUpload.classList.replace('text-gray-500', 'text-white');
+                tabLib.classList.replace('bg-blue-600', 'bg-white');
+                tabLib.classList.replace('text-white', 'text-gray-500');
+                panelUpload.classList.remove('hidden');
+                panelLib.classList.add('hidden');
+                fileInput.disabled = false;
+                // Reset path jika beralih ke upload
+                if (hiddenPath) hiddenPath.value = '';
+                clearPreview();
+            });
+
+            // ── Render library ──────────────────────────
+            async function renderLibrary() {
+                libLoaded = true;
+                const files = await loadTtdLibrary();
+                if (files.length === 0) {
+                    grid.innerHTML = `<div class="col-span-3 text-center text-gray-400 text-xs py-4">
+                        Belum ada TTD tersimpan.<br>Gunakan tab "Upload Baru" untuk menambah.
+                    </div>`;
+                    return;
+                }
+                grid.innerHTML = files.map(f => `
+                    <div class="ttd-lib-item cursor-pointer rounded-lg border-2 border-transparent hover:border-blue-400 p-1 bg-white transition-all"
+                        data-path="${f.path}" data-url="${f.url}">
+                        <img src="${f.url}" class="w-full h-12 object-contain rounded" alt="TTD">
+                    </div>
+                `).join('');
+
+                grid.querySelectorAll('.ttd-lib-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        // Highlight pilihan
+                        grid.querySelectorAll('.ttd-lib-item').forEach(i => {
+                            i.classList.remove('border-blue-500', 'bg-blue-50');
+                            i.classList.add('border-transparent');
+                        });
+                        item.classList.add('border-blue-500', 'bg-blue-50');
+                        item.classList.remove('border-transparent');
+
+                        // Set hidden path & preview
+                        if (hiddenPath) hiddenPath.value = item.dataset.path;
+                        showPreview(item.dataset.url);
+                        fileInput.disabled = true;
+                    });
+                });
+            }
+
+            // ── Preview file upload baru ──────────────
+            fileInput.addEventListener('change', function () {
+                if (this.files[0]) {
+                    const url = URL.createObjectURL(this.files[0]);
+                    showPreview(url);
+                    if (hiddenPath) hiddenPath.value = '';
+                } else {
+                    clearPreview();
+                }
+            });
+
+            // ── Preview helpers ───────────────────────
+            function showPreview(url) {
+                previewImg.src = url;
+                preview.classList.remove('hidden');
+            }
+            function clearPreview() {
+                previewImg.src = '';
+                preview.classList.add('hidden');
+            }
+
+            clearBtn.addEventListener('click', () => {
+                clearPreview();
+                if (hiddenPath) hiddenPath.value = '';
+                fileInput.value = '';
+                grid.querySelectorAll('.ttd-lib-item').forEach(i => {
+                    i.classList.remove('border-blue-500', 'bg-blue-50');
+                    i.classList.add('border-transparent');
+                });
+            });
+
+            // ── Set preview dari luar (saat edit) ──────
+            picker.setCurrentTtd = function (path, url) {
+                if (!path) return;
+                if (hiddenPath) hiddenPath.value = path;
+                showPreview(url);
+                // Pastikan di tab library
+                tabLib.click();
+                // Highlight item yang cocok setelah library render
+                loadTtdLibrary().then(() => {
+                    const item = grid.querySelector(`[data-path="${path}"]`);
+                    if (item) {
+                        grid.querySelectorAll('.ttd-lib-item').forEach(i => i.classList.remove('border-blue-500','bg-blue-50'));
+                        item.classList.add('border-blue-500', 'bg-blue-50');
+                    }
+                });
+            };
+
+            // Default: mulai di tab library, file input disabled
+            fileInput.disabled = true;
+            renderLibrary();
+        }
+
+        // Init semua picker saat DOM ready
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.ttd-picker').forEach(initTtdPicker);
+            // Invalidate cache setelah upload baru (supaya library fresh)
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', () => { ttdLibraryCache = null; });
+            });
+        });
+        </script>
+
         <script>
             // ===================== HELPER =====================
             function openModal(el) {
@@ -1147,10 +1420,15 @@
                     setVal('edit_direktur', d.direktur);
                     setVal('edit_name_direktur', d.name_direktur);
 
-                    document.getElementById('preview_ttd_staff').innerHTML =
-                        d.ttd_staff ? `<img src="/${d.ttd_staff}" class="w-24 rounded border mt-1">` : '';
-                    document.getElementById('preview_ttd_direktur').innerHTML =
-                        d.ttd_direktur ? `<img src="/${d.ttd_direktur}" class="w-24 rounded border mt-1">` : '';
+                    // Set TTD picker — tampilkan TTD yang sudah tersimpan
+                    const pickerStaff = document.querySelector('.ttd-picker[data-uid="edit_staff"]');
+                    const pickerDir   = document.querySelector('.ttd-picker[data-uid="edit_direktur"]');
+                    if (pickerStaff && d.ttd_staff) {
+                        pickerStaff.setCurrentTtd(d.ttd_staff, '/storage/' + d.ttd_staff);
+                    }
+                    if (pickerDir && d.ttd_direktur) {
+                        pickerDir.setCurrentTtd(d.ttd_direktur, '/storage/' + d.ttd_direktur);
+                    }
 
                     // Buka modal LANGSUNG — tanpa fetch
                     openModal(modalEdit);

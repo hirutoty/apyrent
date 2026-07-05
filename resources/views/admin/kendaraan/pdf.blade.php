@@ -215,8 +215,8 @@
         <table class="header-table">
             <tr>
                 <td width="12%">
-                    @if($setting?->logo)
-                       <img src="{{ public_path($setting->logo) }}" class="logo">
+                    @if($logoSrc)
+                       <img src="{{ $logoSrc }}" class="logo">
                     @endif
                 </td>
                 <td width="58%">

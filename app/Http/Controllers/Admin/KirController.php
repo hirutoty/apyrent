@@ -17,6 +17,13 @@ class KirController extends Controller
     public function index()
     {
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
         $reminder = match ($setting->satuan_reminder) {
             'hari'    => $setting->batas_reminder,
             'minggu'  => $setting->batas_reminder * 7,
@@ -234,8 +241,15 @@ class KirController extends Controller
             ->get();
 
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
-        $pdf = Pdf::loadView('admin.kir.pdf', compact('data', 'search', 'setting'));
+        $pdf = Pdf::loadView('admin.kir.pdf', compact('data', 'search', 'setting', 'logoSrc'));
 
         return $pdf->stream('data-kir.pdf');
     }

@@ -8,6 +8,7 @@ use App\Models\InvPenawaran;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 
 class InvKontrakController extends Controller
@@ -216,5 +217,42 @@ class InvKontrakController extends Controller
         $kontrak->delete();
 
         return back()->with('success', 'Kontrak berhasil dihapus.');
+    }
+
+    public function pdf(Request $request)
+    {
+        $query = InvKontrak::with('penawaran')->latest();
+
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('no_kontrak', 'like', '%' . $request->search . '%')
+                    ->orWhere('pihak_pertama', 'like', '%' . $request->search . '%')
+                    ->orWhere('pihak_kedua', 'like', '%' . $request->search . '%')
+                    ->orWhere('status', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+
+        $kontraks = $query->get();
+        $setting  = Setting::first();
+
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
+        $pdf = Pdf::loadView('admin.kontrak.pdf', compact(
+            'kontraks',
+            'setting',
+            'logoSrc'
+        ))->setPaper('a4', 'landscape');
+
+        return $pdf->download('Laporan-Kontrak-' . now()->format('Y-m-d') . '.pdf');
     }
 }
