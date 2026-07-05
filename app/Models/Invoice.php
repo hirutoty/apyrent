@@ -44,8 +44,8 @@ class Invoice extends Model
         'pph',
         'total',
 
-        
-    'last_email_sent_at',
+
+        'last_email_sent_at',
     ];
 
     protected $casts = [
@@ -53,7 +53,7 @@ class Invoice extends Model
         'ppn'            => 'decimal:2',
         'pph'            => 'decimal:2',
         'total'          => 'decimal:2',
-         'last_email_sent_at' => 'datetime',
+        'last_email_sent_at' => 'datetime',
     ];
 
     /**
@@ -78,5 +78,10 @@ class Invoice extends Model
     public function kendaraan()
     {
         return $this->belongsTo(Kendaraan::class, 'kendaraan_id');
+    }
+
+    public function agingAr()
+    {
+        return $this->hasOne(AgingAr::class, 'invoice_id');
     }
 }

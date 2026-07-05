@@ -637,9 +637,9 @@
                                 Invoice
                             </a>
 
-                            <a href="/admin/hutang-vendor"
+                            <a href="/admin/aging_ap"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-bank2 w-4 text-center shrink-0"></i> Hutang Vendor
+                                <i class="bi bi-bank2 w-4 text-center shrink-0"></i> Aging Ap
                             </a>
                             <a href="/admin/budgeting"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
@@ -650,13 +650,10 @@
                                 <i class="bi bi-diagram-3-fill w-4 text-center shrink-0"></i> Konsolidasi
                             </a>
                             <a href="/admin/efaktur"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-receipt w-4 text-center shrink-0"></i> E-Faktur
-                            </a>
-                            <a href="/admin/bupot"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-file-earmark-text-fill w-4 text-center shrink-0"></i> Bupot
-                            </a>
+                            class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text
+                        hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                            <i class="bi bi-receipt w-4 text-center shrink-0"></i> E-Faktur & Bupot
+                        </a>
                             <a href="/admin/rekonsiliasi"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-arrow-left-right w-4 text-center shrink-0"></i> Rekonsiliasi Bank

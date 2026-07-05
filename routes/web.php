@@ -49,10 +49,10 @@ use App\Http\Controllers\Admin\ReminderController;
 use App\Http\Controllers\Admin\ProcurementoController;
 use App\Http\Controllers\Admin\PurchaseroController;
 use App\Http\Controllers\Admin\VendoreoController;
+use App\Http\Controllers\Admin\Aging_ApsController;
+use App\Http\Controllers\Admin\AgingARController;
 // User
 use App\Http\Controllers\User\ProfileController;
-// schedule
-use Illuminate\Support\Facades\Schedule;
 
 
 Route::redirect('/', '/index');
@@ -235,13 +235,13 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     ->name('stnk-history.export.pdf');
 
 
-Route::resource('procuremento', ProcurementoController::class) // Pengadaan - Procurements
+  Route::resource('procuremento', ProcurementoController::class) // Pengadaan - Procurements
     ->except(['create', 'edit', 'show']); // Form CRUD With Modal
 
-    Route::resource('purchasero', PurchaseroController::class) // Purchase Request
+  Route::resource('purchasero', PurchaseroController::class) // Purchase Request
     ->except(['create', 'edit', 'show']); // Form CRUD With Modal
 
-    Route::resource('vendoreo', VendoreoController::class) // Manajemen Vendor
+  Route::resource('vendoreo', VendoreoController::class) // Manajemen Vendor
     ->except(['create', 'edit', 'show']); // Form CRUD With Modal
 
   Route::post('/rental/{id}/update-status', [RentalController::class, 'updateStatus'])
@@ -337,6 +337,19 @@ Route::resource('procuremento', ProcurementoController::class) // Pengadaan - Pr
 
   Route::resource('pajak', PajakController::class);
 
+  Route::resource('aging_ap', Aging_ApsController::class);
+
+  Route::post('/aging-ar/{id}/bayar', [AgingArController::class, 'bayar'])->name('aging_ar.bayar');
+  Route::get('/aging_ar/lunas', [AgingArController::class, 'lunas'])->name('aging_ar.lunas.index');
+  Route::get('/aging_ar/reminder', [AgingArController::class, 'reminder'])
+    ->name('aging_ar.reminder');
+  Route::resource('aging_ar', AgingARController::class)
+    ->except(['show']);
+
+
+
+
+
   Route::get('invoice/{id}/print', [InvoicesController::class, 'print'])
     ->name('invoices.print');
   Route::post('invoice/{id}/send-email', [InvoicesController::class, 'sendEmail'])
@@ -376,31 +389,9 @@ Route::resource('procuremento', ProcurementoController::class) // Pengadaan - Pr
   Route::post('/setting', [SettingController::class, 'update'])
     ->name('setting.update');
 
-  //Schedule
-  Schedule::command('app:reminder-pajak-command')
-    // ->dailyAt('15:14');
-    ->everyMinute();
-  Schedule::command('app:reminder-asuransi-command')
-    // ->dailyAt('16:25');
-    ->everyMinute();
-  Schedule::command('app:reminder-gps-command')
-    //  ->dailyAt('16:45');
-    ->everyMinute();
-  Schedule::command('app:reminder-kir-command')
-    // ->dailyAt('19:11');
-    ->everyMinute();
-  Schedule::command('app:reminder-rental-command')
-    // ->dailyAt('19:22');
-    ->everyMinute();
-  Schedule::command('service:reminder-overservice')
-    // ->dailyAt('19:22');
-    ->everyMinute();
-  Schedule::command('hutang:reminder')
-    //  ->dailyAt('19:22');
-    ->everyMinute();
-  Schedule::command('app:reminder-penawaran-command')
-    // ->dailyAt('19:22');
-    ->everyMinute();
+  
+
+  
 
   // BUG
   // Schedule::command('app:reminder-pajak-command')
@@ -412,5 +403,9 @@ Route::resource('procuremento', ProcurementoController::class) // Pengadaan - Pr
   Route::delete('/gps-kendaraan/attachment/{id}', [GpsKendaraanController::class, 'destroyAttachment'])->name('gps.attachment.destroy');
   Route::delete('/asuransi-kendaraan/attachment/{id}', [AsuransiKendaraanController::class, 'destroyAttachment'])->name('asuransi.attachment.destroy');
   Route::delete('/kir/attachment/{id}', [KirController::class, 'destroyAttachment'])->name('kir.attachment.destroy');
-Route::delete('/service-history/attachment/{id}', [ServiceHistoryController::class, 'destroyAttachment'])->name('service-history.attachment.destroy');
+  Route::delete('/service-history/attachment/{id}', [ServiceHistoryController::class, 'destroyAttachment'])->name('service-history.attachment.destroy');
+
+  // AutoSuggest
+  Route::get('/ajax/members', [AgingArController::class, 'searchMember']);
+  Route::get('/ajax/invoices', [AgingArController::class, 'searchInvoice']);
 });

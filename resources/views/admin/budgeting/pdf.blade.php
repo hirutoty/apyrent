@@ -208,7 +208,7 @@
                     <th width="15%">Budget</th>
                     <th width="15%">Realisasi</th>
                     <th width="15%">Sisa</th>
-                    <th width="10%">%</th>
+                    <th width="10%">Terpakai</th>
                 </tr>
             </thead>
 

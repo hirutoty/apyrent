@@ -139,13 +139,13 @@
 
     <div class="header">
 
-        
+
         <table class="header-table">
             <tr>
 
                 <td width="15%">
                     @if ($setting?->logo)
-                       <img src="{{ public_path($setting->logo) }}" class="logo">
+                        <img src="{{ public_path($setting->logo) }}" class="logo">
                     @endif
                 </td>
 
@@ -177,7 +177,7 @@
 
             </tr>
         </table>
-        
+
 
     </div>
 
@@ -185,7 +185,7 @@
 
     <div class="info-box">
 
-        
+
         <p>
             <strong>Tanggal Cetak :</strong>
             {{ now()->format('d M Y H:i') }}
@@ -195,7 +195,7 @@
             <strong>Total Data :</strong>
             {{ $data->count() }}
         </p>
-        
+
 
     </div>
 
@@ -203,7 +203,7 @@
 
     <div class="table-wrap">
 
-        
+
         <table class="main-table">
 
             <thead>
@@ -215,8 +215,8 @@
                     <th width="18%">Nama Lawan Transaksi</th>
                     <th width="12%">DPP</th>
                     <th width="12%">PPN</th>
-                    <th width="10%">Status</th>
                     <th width="10%">Bukti</th>
+                    <th width="10%">Status</th>
                 </tr>
             </thead>
 
@@ -258,24 +258,26 @@
                             Rp {{ number_format($item->ppn, 0, ',', '.') }}
                         </td>
 
+
+                        <td>
+                            @if ($item->file_faktur)
+                                @php
+                                    $filename = basename($item->file_faktur);
+                                @endphp
+
+                                <a href="{{ asset($item->file_faktur) }}" target="_blank"
+                                    class="text-blue-600 underline text-xs hover:text-blue-800">
+
+                                    {{ $filename }}
+                                </a>
+                            @else
+                                <span class="text-gray-400 text-xs">-</span>
+                            @endif
+                        </td>
+
                         <td class="text-center">
                             {{ $item->status }}
                         </td>
-                        <td>
-                                    @if ($item->file_faktur)
-                                        @php
-                                            $filename = basename($item->file_faktur);
-                                        @endphp
-
-                                        <a href="{{ asset($item->file_faktur) }}" target="_blank"
-                                            class="text-blue-600 underline text-xs hover:text-blue-800">
-
-                                            {{ $filename }}
-                                        </a>
-                                    @else
-                                        <span class="text-gray-400 text-xs">-</span>
-                                    @endif
-                                </td>
 
                     </tr>
                 @endforeach
@@ -319,7 +321,7 @@
             </tbody>
 
         </table>
-        
+
 
     </div>
 
@@ -327,7 +329,7 @@
 
     <div class="footer">
 
-        
+
         <strong>{{ $setting?->nama_perusahaan }}</strong>
         <br>
 
@@ -345,7 +347,7 @@
             <br>
             {{ $setting->website }}
         @endif
-        
+
 
     </div>
 

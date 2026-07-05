@@ -94,6 +94,20 @@
                 </div>
             </div>
 
+            {{-- Status Submit DJP --}}
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-slate-500">Status Submit DJP</p>
+                        <h3 class="text-3xl font-bold text-emerald-600 mt-2">
+                            {{ $data->where('status', 'Submit DJP')->count() }}</h3>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                        <i class="fa-solid fa-circle-check text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
             {{-- Rata-rata Tarif --}}
             <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div class="flex items-center justify-between">
@@ -166,10 +180,10 @@
                                 Tarif</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jml
                                 Potong</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    File</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Status</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Bukti</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>
                         </tr>
@@ -213,16 +227,6 @@
                                 <td class="px-4 py-3.5 text-sm font-bold text-red-500">Rp
                                     {{ number_format($item->jumlah_potong, 0, ',', '.') }}</td>
 
-                                {{-- Status --}}
-                                <td class="px-4 py-3.5">
-                                    @if ($item->status == 'Approve')
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Approve</span>
-                                    @else
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Draft</span>
-                                    @endif
-                                </td>
 
                                 <td>
                                     @if ($item->file_bupot)
@@ -237,6 +241,21 @@
                                         </a>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
+                                    @endif
+                                </td>
+
+                                {{-- Status --}}
+                                <td class="px-4 py-3.5">
+                                    @if ($item->status == 'Approve')
+                                        <span
+                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Approve</span>
+                                    @elseif ($item->status == 'Submit DJP')
+                                        <span
+                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Submit
+                                            DJP</span>
+                                    @else
+                                        <span
+                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Draft</span>
                                     @endif
                                 </td>
 
@@ -344,6 +363,7 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="Draft">Draft</option>
                         <option value="Approve">Approve</option>
+                        <option value="Submit DJP">SUbmit DJP</option>
                     </select>
                 </div>
 
@@ -409,7 +429,7 @@
                         </span>
 
                         <span class="text-[11px] text-gray-400 mt-1">
-                           (max 2MB)
+                            (max 2MB)
                         </span>
                     </label>
 
@@ -489,6 +509,7 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="Draft">Draft</option>
                         <option value="Approve">Approve</option>
+                        <option value="Submit DJP">Submit DJP</option>
                     </select>
                 </div>
 
@@ -554,14 +575,14 @@
                         </span>
 
                         <span class="text-[11px] text-gray-400 mt-1">
-                           (max 2MB)
+                            (max 2MB)
                         </span>
                     </label>
 
                     <input type="file" id="edit_file_bupot" name="file_bupot" class="hidden"
                         onchange="previewBupotEdit(event)">
 
-                    
+
                 </div>
 
                 <div class="md:col-span-2 flex gap-3 pt-1">

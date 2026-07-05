@@ -182,7 +182,7 @@ class StnkController extends Controller
             'tanggal'      => now(),
             'reference'    => 'STNK-' . $stnk->id,
             'user_id'      => auth()->id(),
-            'kategori'     => 'stnk_kendaraan',
+            'kategori'     => 'Pengeluaran',
             'metode'       => 'cash',
             'keterangan'   => 'Perpanjangan STNK kendaraan: ' . $stnk->nopol . ' - ' . $stnk->merk,
             'pemasukan'    => 0,
