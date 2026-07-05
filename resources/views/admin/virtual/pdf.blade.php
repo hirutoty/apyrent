@@ -228,14 +228,16 @@
 
         <thead>
             <tr>
-                <th width="5%">No</th>
-                <th width="20%">VA Number</th>
-                <th width="25%">Member</th>
-                <th width="12%">Bank</th>
-                <th width="15%">Expected</th>
-                <th width="15%">Paid</th>
-                <th width="8%">Status</th>
-                <th width="8%">Bukti</th>
+                <th width="4%">No</th>
+                <th width="15%">VA Number</th>
+                <th width="18%">Member</th>
+                <th width="18%">Invoice</th>
+                <th width="10%">Bank</th>
+                <th width="12%">Expected</th>
+                <th width="12%">Paid</th>
+                <th width="7%">Status</th>
+                <th width="10%">Expired</th>
+                <th width="4%">Bukti</th>
             </tr>
         </thead>
 
@@ -257,6 +259,16 @@
                         {{ $item->member->nama_member ?? '-' }}
                     </td>
 
+                    <td>
+                        @if ($item->invoice)
+                            {{ $item->invoice->invoice_no }}
+                            <br>
+                            <span style="color:#666;font-size:9px;">{{ $item->invoice->customer_name }}</span>
+                        @else
+                            -
+                        @endif
+                    </td>
+
                     <td class="text-center">
                         {{ strtoupper($item->bank) }}
                     </td>
@@ -270,31 +282,23 @@
                     </td>
 
                     <td class="text-center">
-                        {{ strtoupper($item->status) }}
+                        {{ ucfirst($item->status) }}
                     </td>
 
-                    <td>
-                                    @if ($item->bukti_pembayaran)
-                                        @php
-                                            $filename = basename($item->bukti_pembayaran);
-                                        @endphp
+                    <td class="text-center">
+                        {{ $item->expired_at ? $item->expired_at->format('d/m/Y H:i') : '-' }}
+                    </td>
 
-                                        <a href="{{ asset($item->bukti_pembayaran) }}" target="_blank"
-                                            class="text-blue-600 underline text-xs hover:text-blue-800">
-
-                                            {{ $filename }}
-                                        </a>
-                                    @else
-                                        <span class="text-gray-400 text-xs">-</span>
-                                    @endif
-                                </td>
+                    <td class="text-center">
+                        {{ $item->bukti_pembayaran ? 'Ada' : '-' }}
+                    </td>
 
                 </tr>
 
             @empty
 
                 <tr>
-                    <td colspan="8" class="text-center">
+                    <td colspan="10" class="text-center">
                         Tidak ada data virtual account.
                     </td>
                 </tr>
@@ -315,7 +319,7 @@
                     Rp {{ number_format($data->sum('paid_amount'), 0, ',', '.') }}
                 </td>
 
-                <td></td>
+                <td colspan="3"></td>
 
             </tr>
 

@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\KonsolidasiController;
 use App\Http\Controllers\Admin\EfakturController;
 use App\Http\Controllers\Admin\BupotController;
 use App\Http\Controllers\Admin\RekonsiliasiController;
+use App\Http\Controllers\Admin\IntegrasiController;
 use App\Http\Controllers\Admin\VirtualController;
 use App\Http\Controllers\Admin\BukubesarController;
 use App\Http\Controllers\Admin\GpsKendaraanHistoryController;
@@ -196,10 +197,47 @@ Route::middleware('auth')->prefix('admin')->group(function () {
   Route::get('/virtual/excel', [VirtualController::class, 'exportExcel'])
     ->name('virtual.export.excel');
 
-  Route::get('/bukubesar/pdf', [BukuBesarController::class, 'pdf'])
+  // ── INTEGRASI BANK ─────────────────────────────────────
+  Route::get('/integrasi-bank', [IntegrasiController::class, 'index'])
+    ->name('integrasi-bank.index');
+
+  // Rekonsiliasi via integrasi
+  Route::post('/integrasi-bank/rekonsiliasi', [IntegrasiController::class, 'rekonsiliasiStore'])
+    ->name('integrasi-bank.rekonsiliasi.store');
+  Route::put('/integrasi-bank/rekonsiliasi/{id}', [IntegrasiController::class, 'rekonsiliasiUpdate'])
+    ->name('integrasi-bank.rekonsiliasi.update');
+  Route::delete('/integrasi-bank/rekonsiliasi/{id}', [IntegrasiController::class, 'rekonsiliasiDestroy'])
+    ->name('integrasi-bank.rekonsiliasi.destroy');
+  Route::get('/integrasi-bank/rekonsiliasi/pdf', [IntegrasiController::class, 'rekonsiliasiPdf'])
+    ->name('integrasi-bank.rekonsiliasi.pdf');
+  Route::get('/integrasi-bank/rekonsiliasi/excel', [IntegrasiController::class, 'rekonsiliasiExcel'])
+    ->name('integrasi-bank.rekonsiliasi.excel');
+
+  // Virtual Account via integrasi
+  Route::post('/integrasi-bank/virtual', [IntegrasiController::class, 'virtualStore'])
+    ->name('integrasi-bank.virtual.store');
+  Route::put('/integrasi-bank/virtual/{id}', [IntegrasiController::class, 'virtualUpdate'])
+    ->name('integrasi-bank.virtual.update');
+  Route::delete('/integrasi-bank/virtual/{id}', [IntegrasiController::class, 'virtualDestroy'])
+    ->name('integrasi-bank.virtual.destroy');
+  Route::get('/integrasi-bank/virtual/pdf', [IntegrasiController::class, 'virtualPdf'])
+    ->name('integrasi-bank.virtual.pdf');
+  Route::get('/integrasi-bank/virtual/excel', [IntegrasiController::class, 'virtualExcel'])
+    ->name('integrasi-bank.virtual.excel');
+
+  Route::get('/bukubesar/pdf', [BukubesarController::class, 'pdf'])
     ->name('bukubesar.pdf');
-  Route::get('/bukubesar/excel', [BukuBesarController::class, 'exportExcel'])
+  Route::get('/bukubesar/excel', [BukubesarController::class, 'exportExcel'])
     ->name('bukubesar.export.excel');
+  Route::get('/bukubesar/csv', [BukubesarController::class, 'exportCsv'])
+    ->name('bukubesar.export.csv');
+
+  Route::get('/bukubesar/laba-rugi/csv', [BukubesarController::class, 'exportCsvLabaRugi'])
+    ->name('bukubesar.laba-rugi.csv');
+  Route::get('/bukubesar/laba-rugi/excel', [BukubesarController::class, 'exportExcelLabaRugi'])
+    ->name('bukubesar.laba-rugi.excel');
+  Route::get('/bukubesar/laba-rugi/pdf', [BukubesarController::class, 'pdfLabaRugi'])
+    ->name('bukubesar.laba-rugi.pdf');
 
   Route::get('/service-detail/pdf', [ServiceDetailController::class, 'pdf'])
     ->name('service-detail.pdf');

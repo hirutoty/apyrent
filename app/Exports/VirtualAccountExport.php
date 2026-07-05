@@ -22,7 +22,7 @@ class VirtualAccountExport implements FromQuery, WithHeadings, WithMapping, With
 
     public function query()
     {
-        return VirtualAccount::with('member')
+        return VirtualAccount::with('member', 'invoice')
             ->when($this->search, fn($q) => $q->where(function ($q2) {
                 $q2->where('va_number', 'like', '%' . $this->search . '%')
                    ->orWhere('bank',    'like', '%' . $this->search . '%')
@@ -37,9 +37,9 @@ class VirtualAccountExport implements FromQuery, WithHeadings, WithMapping, With
     public function headings(): array
     {
         return [
-            'No', 'VA Number', 'Member', 'Bank',
-            'Expected Amount (Rp)', 'Paid Amount (Rp)',
-            'Invoice ID', 'Status',
+            'No', 'VA Number', 'Member', 'Invoice No', 'Customer Invoice',
+            'Bank', 'Expected Amount (Rp)', 'Paid Amount (Rp)',
+            'Status', 'Expired At',
         ];
     }
 
@@ -51,11 +51,13 @@ class VirtualAccountExport implements FromQuery, WithHeadings, WithMapping, With
             $no,
             $row->va_number,
             $row->member->nama_member ?? '-',
+            $row->invoice->invoice_no ?? '-',
+            $row->invoice->customer_name ?? '-',
             $row->bank,
             $row->expected_amount,
             $row->paid_amount,
-            $row->invoice_id,
             ucfirst($row->status),
+            $row->expired_at ? $row->expired_at->format('d/m/Y H:i') : '-',
         ];
     }
 

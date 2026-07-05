@@ -135,8 +135,12 @@
                             </th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">VA
                                 Number</th>
+                                   <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Customer</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Member</th>
+                                Invoice</th>
+                                  <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Bukti</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Bank
                             </th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -146,7 +150,7 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Status</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Bukti</th>
+                                Expired</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>
                         </tr>
@@ -162,7 +166,6 @@
                                     <span
                                         class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $item->va_number }}</span>
                                 </td>
-
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-2">
                                         <div
@@ -172,6 +175,34 @@
                                         <span class="text-sm text-gray-700">{{ $item->member->nama_member ?? '-' }}</span>
                                     </div>
                                 </td>
+                                <td class="px-4 py-3.5">
+                                    @if ($item->invoice)
+                                        <div class="text-xs">
+                                            <span class="font-medium text-gray-700">{{ $item->invoice->invoice_no }}</span>
+                                            <span class="text-gray-400 block">{{ $item->invoice->customer_name }}</span>
+                                        </div>
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
+                                </td>
+
+                                                    <td>
+                                    @if ($item->bukti_pembayaran)
+                                        @php
+                                            $filename = basename($item->bukti_pembayaran);
+                                        @endphp
+
+                                        <a href="{{ asset($item->bukti_pembayaran) }}" target="_blank"
+                                            class="text-blue-600 underline text-xs hover:text-blue-800">
+
+                                            {{ $filename }}
+                                        </a>
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
+                                </td>
+
+                              
 
                                 <td class="px-4 py-3.5">
                                     <span
@@ -198,21 +229,21 @@
                                     @endif
                                 </td>
 
-                                <td>
-                                    @if ($item->bukti_pembayaran)
-                                        @php
-                                            $filename = basename($item->bukti_pembayaran);
-                                        @endphp
-
-                                        <a href="{{ asset($item->bukti_pembayaran) }}" target="_blank"
-                                            class="text-blue-600 underline text-xs hover:text-blue-800">
-
-                                            {{ $filename }}
-                                        </a>
+                                <td class="px-4 py-3.5">
+                                    @if ($item->expired_at)
+                                        @php $isExpired = $item->expired_at->isPast(); @endphp
+                                        <span class="text-xs font-medium {{ $isExpired ? 'text-red-500' : 'text-gray-600' }}">
+                                            {{ $item->expired_at->format('d/m/Y H:i') }}
+                                            @if ($isExpired)
+                                                <span class="ml-1 px-1.5 py-0.5 rounded bg-red-100 text-red-600 text-[10px]">Expired</span>
+                                            @endif
+                                        </span>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
                                 </td>
+
+            
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
@@ -225,7 +256,8 @@
                                             '{{ $item->bank }}',
                                             '{{ $item->expected_amount }}',
                                             '{{ $item->paid_amount }}',
-                                            '{{ $item->status }}'
+                                            '{{ $item->status }}',
+                                            '{{ $item->expired_at ? $item->expired_at->format('Y-m-d\TH:i') : '' }}'
                                         )"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                             <i class="fa fa-edit text-xs"></i> Edit
@@ -245,7 +277,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-5 py-12 text-center">
+                                <td colspan="11" class="px-5 py-12 text-center">
                                     <div class="flex flex-col items-center gap-3">
                                         <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                             <i class="bi bi-credit-card-2-front-fill text-2xl text-gray-300"></i>
@@ -333,7 +365,18 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice ID <span
                             class="text-red-500">*</span></label>
-                    <input type="number" name="invoice_id" required placeholder="0"
+                    <select name="invoice_id" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Invoice --</option>
+                        @foreach ($invoices as $invoice)
+                            <option value="{{ $invoice->id }}">{{ $invoice->invoice_no }} — {{ $invoice->customer_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Expired At</label>
+                    <input type="datetime-local" name="expired_at"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -427,8 +470,13 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice ID <span
                             class="text-red-500">*</span></label>
-                    <input type="number" name="invoice_id" id="edit_invoice_id" required
+                    <select name="invoice_id" id="edit_invoice_id" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Invoice --</option>
+                        @foreach ($invoices as $invoice)
+                            <option value="{{ $invoice->id }}">{{ $invoice->invoice_no }} — {{ $invoice->customer_name }}</option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div>
@@ -460,6 +508,12 @@
                         <option value="Pending">Pending</option>
                         <option value="paid">Paid</option>
                     </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Expired At</label>
+                    <input type="datetime-local" name="expired_at" id="edit_expired_at"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
                 <div class="md:col-span-2">
@@ -595,7 +649,7 @@
         });
 
         // ── MODAL EDIT ─────────────────────────────────────
-        function openEditModal(id, va_number, member_id, invoice_id, bank, expected_amount, paid_amount, status) {
+        function openEditModal(id, va_number, member_id, invoice_id, bank, expected_amount, paid_amount, status, expired_at) {
             var m = document.getElementById('modalEdit');
             m.classList.remove('hidden');
             m.classList.add('flex');
@@ -608,6 +662,7 @@
             document.getElementById('edit_expected_amount').value = expected_amount;
             document.getElementById('edit_paid_amount').value = paid_amount;
             document.getElementById('edit_status').value = status;
+            document.getElementById('edit_expired_at').value = expired_at || '';
 
             // reset input & preview file setiap kali modal dibuka
             document.getElementById('edit_bukti_pembayaran').value = '';

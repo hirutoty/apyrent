@@ -135,6 +135,7 @@
                     <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Beban</th>
                     <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Laba</th>
                     <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Periode</th>
+                    <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal Pembuatan</th>
                     <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
                 </tr>
             </thead>
@@ -168,6 +169,10 @@
 
                         <td class="px-4 py-3.5">
                             <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $item->periode }}</span>
+                        </td>
+
+                        <td class="px-4 py-3.5 text-sm text-gray-500">
+                            {{ $item->created_at ? $item->created_at->format('d/m/Y H:i') : '-' }}
                         </td>
 
                         <td class="px-4 py-3.5">

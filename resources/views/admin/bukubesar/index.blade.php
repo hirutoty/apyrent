@@ -89,25 +89,51 @@
 
         </div>
 
-        {{-- TABLE CARD --}}
+        {{-- NAV TABS --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
-            <div
-                class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
-                <div>
-                    <h2 class="font-semibold text-gray-800 text-base">Daftar Jurnal</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $totalJurnal }} total data buku besar</p>
-                </div>
-                <div class="flex items-center gap-2">
+            {{-- TAB HEADER --}}
+            <div class="flex border-b border-gray-100 px-5 pt-4 gap-1">
+                <button onclick="switchTab('buku-besar')" id="tab-buku-besar"
+                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-blue-600 text-blue-600 transition-colors">
+                    <i class="fa fa-book mr-1.5"></i> Buku Besar
+                </button>
+                <button onclick="switchTab('laba-rugi')" id="tab-laba-rugi"
+                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-chart-line mr-1.5"></i> Laba Rugi
+                </button>
+                <button onclick="switchTab('neraca')" id="tab-neraca"
+                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-scale-balanced mr-1.5"></i> Neraca
+                </button>
+                <button onclick="switchTab('arus-kas')" id="tab-arus-kas"
+                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-water mr-1.5"></i> Arus Kas
+                </button>
+            </div>
+
+            {{-- TAB: BUKU BESAR --}}
+            <div id="pane-buku-besar">
+
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
+                    <div>
+                        <h2 class="font-semibold text-gray-800 text-base">Daftar Jurnal</h2>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ $totalJurnal }} total data buku besar</p>
+                    </div>
+                    <div class="flex items-center gap-2">
                     <a href="{{ route('bukubesar.pdf', ['search' => request('search')]) }}" target="_blank"
     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition">
     <i class="fa fa-file-pdf text-xs"></i> PDF
 </a>
 
-{{-- TAMBAHKAN INI --}}
 <a href="{{ route('bukubesar.export.excel', ['search' => request('search')]) }}"
     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
     <i class="fa fa-file-excel text-xs"></i> Excel
+</a>
+
+<a href="{{ route('bukubesar.export.csv', ['search' => request('search')]) }}"
+    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition">
+    <i class="fa fa-file-csv text-xs"></i> CSV
 </a>
                     <div class="relative">
                         <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -134,14 +160,14 @@
                         <tr class="bg-gray-50 border-b border-gray-100">
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No
                             </th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Tanggal</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Kode
                                 Jurnal</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Transaksi</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Kategori</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Tanggal</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Debit</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -160,6 +186,7 @@
                                 data-search="{{ strtolower($item->kode_jurnal . ' ' . $item->transaksi . ' ' . $item->kategori . ' ' . $item->aktivitas) }}">
 
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->tanggal }}</td>
 
                                 <td class="px-4 py-3.5">
                                     <span
@@ -171,7 +198,6 @@
 
                                 <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->kategori }}</td>
 
-                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->tanggal }}</td>
 
                                 <td class="px-4 py-3.5">
                                     <span class="text-sm font-medium text-green-600">Rp
@@ -238,6 +264,300 @@
                 </table>
             </div>
 
+            </div>{{-- end pane-buku-besar --}}
+
+            {{-- TAB: LABA RUGI --}}
+            <div id="pane-laba-rugi" class="hidden">
+
+                @php
+                    $pendapatan  = $data->where('kategori', 'Pendapatan')->sum('kredit');
+                    $bebanPokok  = $data->filter(fn($i) =>
+                        $i->kategori == 'Beban' &&
+                        str_contains(strtolower($i->transaksi . ' ' . $i->keterangan), 'pokok')
+                    )->sum('debit');
+                    $totalBeban  = $data->where('kategori', 'Beban')->sum('debit');
+                    $labaKotor   = $pendapatan - $bebanPokok;
+                    $labaBersih  = $pendapatan - $totalBeban;
+                @endphp
+
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
+                    <div>
+                        <h2 class="font-semibold text-gray-800 text-base">Laba Rugi</h2>
+                        <p class="text-xs text-gray-400 mt-0.5">Kalkulasi dari data buku besar</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="{{ route('bukubesar.laba-rugi.pdf') }}" target="_blank"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition">
+                            <i class="fa fa-file-pdf text-xs"></i> PDF
+                        </a>
+                        <a href="{{ route('bukubesar.laba-rugi.excel') }}"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
+                            <i class="fa fa-file-excel text-xs"></i> Excel
+                        </a>
+                        <a href="{{ route('bukubesar.laba-rugi.csv') }}"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition">
+                            <i class="fa fa-file-csv text-xs"></i> CSV
+                        </a>
+                    </div>
+                </div>
+
+                {{-- SUMMARY LABA RUGI --}}
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 px-5 py-4">
+
+                    <div class="bg-red-50 rounded-xl p-4 border border-red-100">
+                        <p class="text-xs text-red-500 font-semibold mb-1">Total Beban</p>
+                        <p class="text-base font-bold text-red-700">Rp {{ number_format($totalBeban, 0, ',', '.') }}</p>
+                    </div>
+
+                    <div class="bg-green-50 rounded-xl p-4 border border-green-100">
+                        <p class="text-xs text-green-500 font-semibold mb-1">Total Pendapatan</p>
+                        <p class="text-base font-bold text-green-700">Rp {{ number_format($pendapatan, 0, ',', '.') }}</p>
+                    </div>
+
+                    <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                        <p class="text-xs text-blue-500 font-semibold mb-1">Laba Kotor</p>
+                        <p class="text-base font-bold {{ $labaKotor < 0 ? 'text-red-700' : 'text-blue-700' }}">
+                            Rp {{ number_format($labaKotor, 0, ',', '.') }}
+                        </p>
+                    </div>
+
+                    <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
+                        <p class="text-xs text-indigo-500 font-semibold mb-1">Laba Bersih</p>
+                        <p class="text-base font-bold {{ $labaBersih < 0 ? 'text-red-700' : 'text-indigo-700' }}">
+                            Rp {{ number_format($labaBersih, 0, ',', '.') }}
+                        </p>
+                    </div>
+
+                </div>
+
+                {{-- TABEL LABA RUGI --}}
+                <div class="overflow-x-auto px-5 pb-5">
+                    <table class="w-full text-sm border border-gray-100 rounded-xl overflow-hidden">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-100">
+                                <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-12">No</th>
+                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Beban</th>
+                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Pendapatan</th>
+                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Laba Kotor</th>
+                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Laba Bersih</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-t border-gray-50 {{ $labaBersih < 0 ? 'bg-red-50' : 'bg-green-50' }}">
+                                <td class="px-4 py-3.5 text-center text-xs text-gray-400 font-medium">1</td>
+                                <td class="px-4 py-3.5 text-right text-sm font-semibold text-red-600">
+                                    Rp {{ number_format($totalBeban, 2, ',', '.') }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right text-sm font-semibold text-green-600">
+                                    Rp {{ number_format($pendapatan, 2, ',', '.') }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right text-sm font-semibold {{ $labaKotor < 0 ? 'text-red-600' : 'text-blue-600' }}">
+                                    Rp {{ number_format($labaKotor, 2, ',', '.') }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right text-sm font-bold {{ $labaBersih < 0 ? 'text-red-600' : 'text-indigo-600' }}">
+                                    Rp {{ number_format($labaBersih, 2, ',', '.') }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>{{-- end pane-laba-rugi --}}
+
+            {{-- TAB: NERACA --}}
+            <div id="pane-neraca" class="hidden">
+
+                @php
+                    $getSaldo = fn($kategori, $like = null) => $data->filter(
+                        fn($i) => $i->kategori == $kategori && ($like ? stripos($i->transaksi, $like) !== false : true)
+                    )->sum('saldo');
+
+                    $asetLancar      = $getSaldo('Aktiva','kas') + $getSaldo('Aktiva','piutang') + $getSaldo('Aktiva','persediaan') + $getSaldo('Aktiva','uang muka');
+                    $asetTetap       = $getSaldo('Aktiva','peralatan') - $getSaldo('Aktiva','penyusutan');
+                    $totalAset       = $asetLancar + $asetTetap;
+                    $kewajibanPendek = $getSaldo('Kewajiban','hutang usaha') + $getSaldo('Kewajiban','gaji');
+                    $kewajibanPanjang= $getSaldo('Kewajiban','hutang bank');
+                    $totalKewajiban  = $kewajibanPendek + $kewajibanPanjang;
+                    $modal           = $getSaldo('Modal');
+                    $totalEkuitas    = $modal + $labaBersih;
+                    $totalPasiva     = $totalKewajiban + $totalEkuitas;
+                @endphp
+
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                    <div>
+                        <h2 class="font-semibold text-gray-800 text-base">Neraca</h2>
+                        <p class="text-xs text-gray-400 mt-0.5">Posisi keuangan berdasarkan data buku besar</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto px-5 py-5">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-16">No</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Keterangan</th>
+                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-48">Jumlah (Rp)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+
+                            {{-- ASET --}}
+                            <tr class="bg-green-600">
+                                <td colspan="3" class="px-4 py-2.5 text-xs font-bold text-white tracking-widest">ASET</td>
+                            </tr>
+                            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                <td class="px-4 py-3 text-center text-xs text-gray-400">01</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">Kas & Bank</td>
+                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp {{ number_format($getSaldo('Aktiva','kas'), 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                <td class="px-4 py-3 text-center text-xs text-gray-400">02</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">Piutang Usaha</td>
+                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp {{ number_format($getSaldo('Aktiva','piutang'), 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="border-b border-gray-100 bg-gray-50">
+                                <td class="px-4 py-3"></td>
+                                <td class="px-4 py-3 text-sm font-semibold text-gray-700">Total Aset Lancar</td>
+                                <td class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Rp {{ number_format($asetLancar, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="border-b border-gray-100 bg-gray-50">
+                                <td class="px-4 py-3"></td>
+                                <td class="px-4 py-3 text-sm font-semibold text-gray-700">Total Aset Tetap</td>
+                                <td class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Rp {{ number_format($asetTetap, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="bg-green-50 border-b-2 border-green-200">
+                                <td class="px-4 py-3"></td>
+                                <td class="px-4 py-3 text-sm font-bold text-green-800">TOTAL ASET</td>
+                                <td class="px-4 py-3 text-right text-sm font-bold text-green-800">Rp {{ number_format($totalAset, 0, ',', '.') }}</td>
+                            </tr>
+
+                            {{-- KEWAJIBAN --}}
+                            <tr class="bg-red-600">
+                                <td colspan="3" class="px-4 py-2.5 text-xs font-bold text-white tracking-widest">KEWAJIBAN</td>
+                            </tr>
+                            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                <td class="px-4 py-3 text-center text-xs text-gray-400">03</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">Kewajiban Jangka Pendek</td>
+                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp {{ number_format($kewajibanPendek, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                <td class="px-4 py-3 text-center text-xs text-gray-400">04</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">Kewajiban Jangka Panjang</td>
+                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp {{ number_format($kewajibanPanjang, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="bg-red-50 border-b-2 border-red-200">
+                                <td class="px-4 py-3"></td>
+                                <td class="px-4 py-3 text-sm font-bold text-red-800">TOTAL KEWAJIBAN</td>
+                                <td class="px-4 py-3 text-right text-sm font-bold text-red-800">Rp {{ number_format($totalKewajiban, 0, ',', '.') }}</td>
+                            </tr>
+
+                            {{-- EKUITAS --}}
+                            <tr class="bg-blue-600">
+                                <td colspan="3" class="px-4 py-2.5 text-xs font-bold text-white tracking-widest">EKUITAS</td>
+                            </tr>
+                            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                <td class="px-4 py-3 text-center text-xs text-gray-400">05</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">Modal Disetor</td>
+                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp {{ number_format($modal, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                <td class="px-4 py-3 text-center text-xs text-gray-400">06</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">Laba Bersih / Ditahan</td>
+                                <td class="px-4 py-3 text-right text-sm {{ $labaBersih < 0 ? 'text-red-600' : 'text-gray-700' }}">Rp {{ number_format($labaBersih, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="bg-blue-50 border-b-2 border-blue-200">
+                                <td class="px-4 py-3"></td>
+                                <td class="px-4 py-3 text-sm font-bold text-blue-800">TOTAL EKUITAS</td>
+                                <td class="px-4 py-3 text-right text-sm font-bold text-blue-800">Rp {{ number_format($totalEkuitas, 0, ',', '.') }}</td>
+                            </tr>
+
+                            {{-- TOTAL KEWAJIBAN + EKUITAS --}}
+                            <tr class="bg-gray-800">
+                                <td class="px-4 py-3.5"></td>
+                                <td class="px-4 py-3.5 text-sm font-bold text-white">TOTAL KEWAJIBAN + EKUITAS</td>
+                                <td class="px-4 py-3.5 text-right text-sm font-bold text-white">Rp {{ number_format($totalPasiva, 0, ',', '.') }}</td>
+                            </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>{{-- end pane-neraca --}}
+
+            {{-- TAB: ARUS KAS --}}
+            <div id="pane-arus-kas" class="hidden">
+
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                    <div>
+                        <h2 class="font-semibold text-gray-800 text-base">Arus Kas</h2>
+                        <p class="text-xs text-gray-400 mt-0.5">Data transaksi berdasarkan aktivitas</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto px-5 py-5">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-12">No</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-32">Aktivitas</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Keterangan</th>
+                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-48">Jumlah (Rp)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php
+                                $no = 1;
+                                $totalArusKas = 0;
+                                $arusKasData = $data->whereNotNull('aktivitas');
+                            @endphp
+
+                            @forelse($arusKasData as $item)
+                                @php
+                                    $jumlah = $item->kategori == 'Pendapatan' ? $item->kredit : -$item->debit;
+                                    $totalArusKas += $jumlah;
+                                @endphp
+                                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-center text-xs text-gray-400">{{ $no++ }}</td>
+                                    <td class="px-4 py-3">
+                                        @php
+                                            $aktivitas = strtolower($item->aktivitas);
+                                            $badgeClass = match(true) {
+                                                str_contains($aktivitas, 'operasi')   => 'bg-blue-100 text-blue-700',
+                                                str_contains($aktivitas, 'investasi') => 'bg-purple-100 text-purple-700',
+                                                str_contains($aktivitas, 'pendanaan') => 'bg-orange-100 text-orange-700',
+                                                default => 'bg-gray-100 text-gray-600',
+                                            };
+                                        @endphp
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $badgeClass }}">
+                                            {{ ucfirst($item->aktivitas) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">{{ $item->transaksi }}</td>
+                                    <td class="px-4 py-3 text-right text-sm font-semibold {{ $jumlah < 0 ? 'text-red-600' : 'text-green-600' }}">
+                                        Rp {{ number_format($jumlah, 2, ',', '.') }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="px-4 py-10 text-center text-sm text-gray-400">
+                                        Belum ada data arus kas. Isi kolom <span class="font-medium">Aktivitas</span> pada entri buku besar.
+                                    </td>
+                                </tr>
+                            @endforelse
+
+                            <tr class="bg-gray-700">
+                                <td colspan="3" class="px-4 py-3.5 text-sm font-bold text-white">TOTAL ARUS KAS</td>
+                                <td class="px-4 py-3.5 text-right text-sm font-bold {{ $totalArusKas < 0 ? 'text-red-300' : 'text-green-300' }}">
+                                    Rp {{ number_format($totalArusKas, 2, ',', '.') }}
+                                </td>
+                            </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>{{-- end pane-arus-kas --}}
+
         </div>
 
     </div>
@@ -283,8 +603,15 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kategori <span
                             class="text-red-500">*</span></label>
-                    <input type="text" name="kategori" required placeholder="Kategori transaksi"
+                    <select name="kategori" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Kategori --</option>
+                        <option value="Pendapatan">Pendapatan</option>
+                        <option value="Beban">Beban</option>
+                        <option value="Aktiva">Aktiva</option>
+                        <option value="Modal">Modal</option>
+                        <option value="Kewajiban">Kewajiban</option>
+                    </select>
                 </div>
 
                 <div>
@@ -385,8 +712,15 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kategori <span
                             class="text-red-500">*</span></label>
-                    <input type="text" name="kategori" id="edit_kategori" required
+                    <select name="kategori" id="edit_kategori" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Kategori --</option>
+                        <option value="Pendapatan">Pendapatan</option>
+                        <option value="Beban">Beban</option>
+                        <option value="Aktiva">Aktiva</option>
+                        <option value="Modal">Modal</option>
+                        <option value="Kewajiban">Kewajiban</option>
+                    </select>
                 </div>
 
                 <div>
@@ -568,6 +902,22 @@
         });
 
         // ── SEARCH / FILTER ────────────────────────────────
+        // ── TAB SWITCHER ───────────────────────────────────
+        function switchTab(name) {
+            const panes = ['buku-besar', 'laba-rugi', 'neraca', 'arus-kas'];
+            panes.forEach(function(p) {
+                document.getElementById('pane-' + p).classList.toggle('hidden', p !== name);
+                const btn = document.getElementById('tab-' + p);
+                if (p === name) {
+                    btn.classList.add('border-blue-600', 'text-blue-600');
+                    btn.classList.remove('border-transparent', 'text-gray-500');
+                } else {
+                    btn.classList.remove('border-blue-600', 'text-blue-600');
+                    btn.classList.add('border-transparent', 'text-gray-500');
+                }
+            });
+        }
+
         function filterTable(q) {
             var num = 0;
             document.querySelectorAll('#tableBody tr[data-search]').forEach(function(row) {

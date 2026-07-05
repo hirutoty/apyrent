@@ -15,11 +15,21 @@ class VirtualAccount extends Model
         'expected_amount',
         'paid_amount',
         'status',
+        'expired_at',
+    ];
+
+    protected $casts = [
+        'expired_at' => 'datetime',
     ];
 
     public function member()
     {
         return $this->belongsTo(Member::class);
+    }
+
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class);
     }
 
     

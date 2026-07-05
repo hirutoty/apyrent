@@ -32,9 +32,9 @@ return new class extends Migration
                 'Pending'
             ])->default('Pending');
 
-            $table->unsignedBigInteger('invoice_id')
-                ->nullable();
-
+            $table->string('invoice_id')->nullable();
+            $table->string('va', 50)->nullable();
+            $table->string('bukti_pembayaran')->nullable();
             $table->timestamps();
 
         });
