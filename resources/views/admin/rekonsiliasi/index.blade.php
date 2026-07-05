@@ -143,11 +143,15 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Amount</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Bukti Pembayaran</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Currency</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Invoice</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Status</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                VA</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>
                         </tr>
@@ -174,6 +178,18 @@
                                         {{ number_format($item->amount, 0, ',', '.') }}</span>
                                 </td>
 
+                                <td class="px-4 py-2">
+                                    <span class="text-sm font-bold text-green-600"> 
+                                        @if ($item->bukti_pembayaran)
+                                            <a href="{{ asset($item->bukti_pembayaran) }}" target="_blank" class="text-blue-600 hover:underline">Lihat</a>
+                                        @else
+                                            Tidak ada
+                                        @endif
+
+                                    </span>
+
+                                </td>
+
                                 <td class="px-4 py-3.5">
                                     <span
                                         class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $item->currency }}</span>
@@ -193,6 +209,7 @@
                                             class="px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Pending</span>
                                     @endif
                                 </td>
+                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->va ?? '-' }}</td>
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
@@ -264,7 +281,7 @@
                 </button>
             </div>
 
-            <form action="{{ route('rekonsiliasi.store') }}" method="POST"
+            <form action="{{ route('rekonsiliasi.store') }}" method="POST" enctype="multipart/form-data"
                 class="px-6 py-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                 @csrf
 
@@ -317,10 +334,20 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice ID <span
                             class="text-red-500">*</span></label>
-                    <input type="number" name="invoice_id" required placeholder="0"
+                    <input type="text" name="invoice_id" required placeholder="0"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
-
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">VA</label>
+                    <input type="text" name="va" placeholder="Virtual Account"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bukti Pembayaran <span
+                            class="text-red-500">*</span></label>
+                    <input type="file" name="bukti_pembayaran" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalTambah()"
                         class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
@@ -581,7 +608,7 @@ document.getElementById('excelBtn').href = "{{ route('rekonsiliasi.export.excel'
                 box.style.transform = 'translateY(0)';
             }, 80);
 
-            var timer = setTimeout(closeAlert, 4500);
+            var timer = setTimeout(closeAlert, 45000);
 
             overlay.addEventListener('click', function(e) {
                 if (e.target === overlay) closeAlert();

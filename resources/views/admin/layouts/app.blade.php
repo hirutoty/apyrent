@@ -657,13 +657,9 @@
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-file-earmark-text-fill w-4 text-center shrink-0"></i> Bupot
                             </a>
-                            <a href="/admin/rekonsiliasi"
+                            <a href="/admin/integrasi-bank"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-arrow-left-right w-4 text-center shrink-0"></i> Rekonsiliasi Bank
-                            </a>
-                            <a href="/admin/virtual"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-credit-card-2-front-fill w-4 text-center shrink-0"></i> Virtual Account
+                                <i class="bi bi-bank2 w-4 text-center shrink-0"></i> Integrasi Bank
                             </a>
                             <a href="/admin/bukubesar"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">

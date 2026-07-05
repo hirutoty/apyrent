@@ -226,13 +226,16 @@
 
             <thead>
                 <tr>
-                    <th width="5%">No</th>
-                    <th width="12%">Tanggal</th>
-                    <th width="25%">Deskripsi</th>
-                    <th width="15%">Reference</th>
-                    <th width="15%">Nominal</th>
-                    <th width="10%">Currency</th>
-                    <th width="18%">Status</th>
+                    <th width="4%">No</th>
+                    <th width="10%">Tanggal</th>
+                    <th width="20%">Deskripsi</th>
+                    <th width="13%">Reference</th>
+                    <th width="13%">Nominal</th>
+                    <th width="8%">Currency</th>
+                    <th width="12%">Invoice No</th>
+                    <th width="10%">VA</th>
+                    <th width="10%">Status</th>
+                    <th width="8%">Bukti</th>
                 </tr>
             </thead>
 
@@ -266,7 +269,19 @@
                         </td>
 
                         <td class="text-center">
-                            {{ strtoupper($item->status_rekonsiliasi) }}
+                            {{ $item->invoice_id ?? '-' }}
+                        </td>
+
+                        <td class="text-center">
+                            {{ $item->va ?? '-' }}
+                        </td>
+
+                        <td class="text-center">
+                            {{ ucfirst($item->status_rekonsiliasi) }}
+                        </td>
+
+                        <td class="text-center">
+                            {{ $item->bukti_pembayaran ? 'Ada' : '-' }}
                         </td>
 
                     </tr>
@@ -274,7 +289,7 @@
                 @empty
 
                     <tr>
-                        <td colspan="7" class="text-center">
+                        <td colspan="10" class="text-center">
                             Tidak ada data rekonsiliasi bank.
                         </td>
                     </tr>
@@ -290,7 +305,7 @@
                         Rp {{ number_format($data->sum('amount'), 0, ',', '.') }}
                     </td>
 
-                    <td colspan="2"></td>
+                    <td colspan="5"></td>
 
                 </tr>
 

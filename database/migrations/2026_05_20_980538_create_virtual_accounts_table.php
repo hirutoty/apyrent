@@ -38,6 +38,8 @@ return new class extends Migration
                 'paid'
             ])->default('Pending');
 
+            $table->dateTime('expired_at')->nullable();  
+
             $table->timestamps();
 
         });

@@ -16,6 +16,8 @@ class RekonsiliasiBank extends Model
         'currency',
         'status_rekonsiliasi',
         'invoice_id',
+        'va',
+        'bukti_pembayaran' 
     ];
 
     protected $casts = [

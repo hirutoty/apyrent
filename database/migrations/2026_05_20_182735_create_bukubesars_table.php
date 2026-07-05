@@ -19,7 +19,13 @@ return new class extends Migration
 
             $table->string('transaksi')->nullable();
 
-            $table->string('kategori')->nullable();
+            $table->enum('kategori', [
+                'Pendapatan',
+                'Beban',
+                'Aktiva',
+                'Modal',
+                'Kewajiban',
+            ])->nullable();
 
             $table->date('tanggal')->nullable();
 

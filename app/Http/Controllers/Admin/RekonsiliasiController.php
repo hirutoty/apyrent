@@ -26,7 +26,22 @@ class RekonsiliasiController extends Controller
             'deskripsi' => 'required',
             'reference_no' => 'required',
             'amount' => 'required|numeric',
+            'bukti_pembayaran' => 'required|file|max:5120'
         ]);
+
+        $bukti_pembayaran = null;
+
+         if ($request->hasFile('bukti_pembayaran')) {
+            $file = $request->file('bukti_pembayaran');
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+
+            $path = public_path('rekonsiliasi/bukti_pembayaran');
+            if (!file_exists($path)) mkdir($path, 0777, true);
+
+            $file->move($path, $filename);
+            $bukti_pembayaran = 'rekonsiliasi/bukti_pembayaran/' . $filename;
+        }
+    
 
         RekonsiliasiBank::create([
             'tanggal' => $request->tanggal,
@@ -36,8 +51,11 @@ class RekonsiliasiController extends Controller
             'currency' => $request->currency,
             'status_rekonsiliasi' => $request->status_rekonsiliasi,
             'invoice_id' => $request->invoice_id,
+            'va' => $request->va,
+            'bukti_pembayaran' => $bukti_pembayaran
+            
         ]);
-
+        
         return back()->with('success', 'Data berhasil ditambahkan');
     }
 
@@ -45,7 +63,7 @@ class RekonsiliasiController extends Controller
     {
         $data = RekonsiliasiBank::findOrFail($id);
 
-        $data->update([
+        $updateData = [
             'tanggal' => $request->tanggal,
             'deskripsi' => $request->deskripsi,
             'reference_no' => $request->reference_no,
@@ -53,7 +71,20 @@ class RekonsiliasiController extends Controller
             'currency' => $request->currency,
             'status_rekonsiliasi' => $request->status_rekonsiliasi,
             'invoice_id' => $request->invoice_id,
-        ]);
+            'va' => $request->va,
+        ];
+
+        // Hanya update bukti_pembayaran jika ada file baru
+        if ($request->hasFile('bukti_pembayaran')) {
+            $file = $request->file('bukti_pembayaran');
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = public_path('rekonsiliasi/bukti_pembayaran');
+            if (!file_exists($path)) mkdir($path, 0777, true);
+            $file->move($path, $filename);
+            $updateData['bukti_pembayaran'] = 'rekonsiliasi/bukti_pembayaran/' . $filename;
+        }
+
+        $data->update($updateData);
 
         return back()->with('success', 'Data berhasil diupdate');
     }
