@@ -16,7 +16,7 @@ class BukubesarController extends Controller
 {
     $search = $request->search;
 
-    $query = BukuBesar::query();
+    $query = Bukubesar::query();
 
     if ($search) {
         $query->where(function ($q) use ($search) {
@@ -88,7 +88,7 @@ public function pdf(Request $request)
 {
     $search = $request->query('search');
 
-    $query = BukuBesar::query();
+    $query = Bukubesar::query();
 
     if (!empty($search)) {
         $query->where(function ($q) use ($search) {
@@ -117,5 +117,119 @@ public function exportExcel(Request $request)
         new BukuBesarExport($request->search),
         $filename
     );
+}
+
+public function exportCsv(Request $request)
+{
+    $search = $request->search;
+
+    $query = Bukubesar::query();
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('kode_jurnal', 'like', "%$search%")
+              ->orWhere('transaksi',  'like', "%$search%")
+              ->orWhere('kategori',   'like', "%$search%")
+              ->orWhere('aktivitas',  'like', "%$search%");
+        });
+    }
+    $data = $query->orderBy('tanggal')->get();
+
+    $filename = 'buku_besar_' . now()->format('Ymd_His') . '.csv';
+
+    $headers = [
+        'Content-Type'        => 'text/csv',
+        'Content-Disposition' => "attachment; filename=\"$filename\"",
+    ];
+
+    $callback = function () use ($data) {
+        $handle = fopen('php://output', 'w');
+        fputcsv($handle, ['No','Kode Jurnal','Transaksi','Kategori','Tanggal','Debit (Rp)','Kredit (Rp)','Saldo (Rp)','Aktivitas','Keterangan']);
+        foreach ($data as $i => $row) {
+            fputcsv($handle, [
+                $i + 1,
+                $row->kode_jurnal,
+                $row->transaksi,
+                $row->kategori,
+                $row->tanggal,
+                $row->debit,
+                $row->kredit,
+                $row->saldo,
+                $row->aktivitas,
+                $row->keterangan,
+            ]);
+        }
+        fclose($handle);
+    };
+
+    return response()->stream($callback, 200, $headers);
+}
+
+public function exportCsvLabaRugi(Request $request)
+{
+    $data = Bukubesar::all();
+
+    $pendapatan = $data->where('kategori', 'Pendapatan')->sum('kredit');
+    $bebanPokok = $data->filter(fn($i) =>
+        $i->kategori == 'Beban' &&
+        str_contains(strtolower($i->transaksi . ' ' . $i->keterangan), 'pokok')
+    )->sum('debit');
+    $totalBeban = $data->where('kategori', 'Beban')->sum('debit');
+    $labaKotor  = $pendapatan - $bebanPokok;
+    $labaBersih = $pendapatan - $totalBeban;
+
+    $filename = 'laba_rugi_' . now()->format('Ymd_His') . '.csv';
+
+    $headers = [
+        'Content-Type'        => 'text/csv',
+        'Content-Disposition' => "attachment; filename=\"$filename\"",
+    ];
+
+    $callback = function () use ($totalBeban, $pendapatan, $labaKotor, $labaBersih) {
+        $handle = fopen('php://output', 'w');
+        fputcsv($handle, ['No','Total Beban (Rp)','Total Pendapatan (Rp)','Laba Kotor (Rp)','Laba Bersih (Rp)']);
+        fputcsv($handle, [1, $totalBeban, $pendapatan, $labaKotor, $labaBersih]);
+        fclose($handle);
+    };
+
+    return response()->stream($callback, 200, $headers);
+}
+
+public function exportExcelLabaRugi(Request $request)
+{
+    $data = Bukubesar::all();
+
+    $pendapatan = $data->where('kategori', 'Pendapatan')->sum('kredit');
+    $bebanPokok = $data->filter(fn($i) =>
+        $i->kategori == 'Beban' &&
+        str_contains(strtolower($i->transaksi . ' ' . $i->keterangan), 'pokok')
+    )->sum('debit');
+    $totalBeban = $data->where('kategori', 'Beban')->sum('debit');
+    $labaKotor  = $pendapatan - $bebanPokok;
+    $labaBersih = $pendapatan - $totalBeban;
+
+    $filename = 'laba_rugi_' . now()->format('Ymd_His') . '.xlsx';
+
+    return Excel::download(new \App\Exports\LabaRugiExport($totalBeban, $pendapatan, $labaKotor, $labaBersih), $filename);
+}
+
+public function pdfLabaRugi(Request $request)
+{
+    $data = Bukubesar::all();
+
+    $pendapatan = $data->where('kategori', 'Pendapatan')->sum('kredit');
+    $bebanPokok = $data->filter(fn($i) =>
+        $i->kategori == 'Beban' &&
+        str_contains(strtolower($i->transaksi . ' ' . $i->keterangan), 'pokok')
+    )->sum('debit');
+    $totalBeban = $data->where('kategori', 'Beban')->sum('debit');
+    $labaKotor  = $pendapatan - $bebanPokok;
+    $labaBersih = $pendapatan - $totalBeban;
+    $setting    = Setting::first();
+
+    $pdf = Pdf::loadView('admin.bukubesar.laba_rugi_pdf', compact(
+        'totalBeban', 'pendapatan', 'labaKotor', 'labaBersih', 'setting'
+    ));
+
+    return $pdf->stream('laba-rugi.pdf');
 }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\VirtualAccount;
 use App\Models\Member;
+use App\Models\Invoice;
 use App\Exports\VirtualAccountExport;
 use App\Models\Setting;
 use Maatwebsite\Excel\Facades\Excel;
@@ -18,7 +19,7 @@ class VirtualController extends Controller
     {
         $search = $request->search;
 
-        $query = VirtualAccount::with('member');
+        $query = VirtualAccount::with('member', 'invoice');
 
         if ($search) {
             $query->where('va_number', 'like', "%$search%")
@@ -28,8 +29,9 @@ class VirtualController extends Controller
 
         $data = $query->latest()->get();
         $members = Member::all();
+        $invoices = Invoice::select('id', 'invoice_no', 'customer_name')->latest()->get();
 
-        return view('admin.virtual.index', compact('data', 'members', 'search'));
+        return view('admin.virtual.index', compact('data', 'members', 'search', 'invoices'));
     }
 
     public function store(Request $request)
@@ -71,6 +73,7 @@ class VirtualController extends Controller
             'expected_amount' => $request->expected_amount,
             'paid_amount' => $request->paid_amount ?? 0,
             'status' => $request->status,
+            'expired_at' => $request->expired_at ?: null,
         ]);
 
         return back()->with('success', 'Data berhasil ditambahkan');
@@ -111,6 +114,7 @@ class VirtualController extends Controller
             'paid_amount' => $request->paid_amount,
             'status' => $request->status,
             'bukti_pembayaran' => $bukti,
+            'expired_at' => $request->expired_at ?: null,
         ]);
 
         return back()->with('success', 'Data berhasil diupdate');
@@ -135,7 +139,7 @@ class VirtualController extends Controller
     {
         $search = $request->query('search'); // lebih aman dari input()
 
-        $query = VirtualAccount::with('member');
+        $query = VirtualAccount::with('member', 'invoice');
 
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {

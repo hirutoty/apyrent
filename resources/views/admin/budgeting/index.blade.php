@@ -158,19 +158,19 @@
 
                                 {{-- BUDGET --}}
                                 <td class="px-4 py-3.5">
-                                    <span class="font-mono text-sm text-gray-700">Rp
+                                    <span class="text-sm text-gray-700">Rp
                                         {{ number_format($item->budget, 0, ',', '.') }}</span>
                                 </td>
 
                                 {{-- REALISASI --}}
                                 <td class="px-4 py-3.5">
-                                    <span class="font-mono text-sm text-orange-600 font-semibold">Rp
+                                    <span class="text-sm text-orange-600 font-semibold">Rp
                                         {{ number_format($item->realisasi, 0, ',', '.') }}</span>
                                 </td>
 
                                 {{-- SISA --}}
                                 <td class="px-4 py-3.5">
-                                    <span class="font-mono text-sm text-red-500 font-semibold">Rp
+                                    <span class="text-sm text-red-500 font-semibold">Rp
                                         {{ number_format($item->sisa, 0, ',', '.') }}</span>
                                 </td>
 

@@ -37,7 +37,7 @@ class RekonsiliasiExport implements FromQuery, WithHeadings, WithMapping, WithSt
     {
         return [
             'No', 'Tanggal', 'Deskripsi', 'Reference No',
-            'Amount (Rp)', 'Currency', 'Invoice ID', 'Status',
+            'Amount (Rp)', 'Currency', 'Invoice ID', 'VA', 'Status', 'Bukti Pembayaran',
         ];
     }
 
@@ -52,8 +52,10 @@ class RekonsiliasiExport implements FromQuery, WithHeadings, WithMapping, WithSt
             $row->reference_no,
             $row->amount,
             $row->currency,
-            $row->invoice_id,
+            $row->invoice_id ?? '-',
+            $row->va ?? '-',
             ucfirst($row->status_rekonsiliasi),
+            $row->bukti_pembayaran ? url($row->bukti_pembayaran) : '-',
         ];
     }
 

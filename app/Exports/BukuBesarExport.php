@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\BukuBesar;
+use App\Models\Bukubesar;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -22,7 +22,7 @@ class BukuBesarExport implements FromQuery, WithHeadings, WithMapping, WithStyle
 
     public function query()
     {
-        return BukuBesar::query()
+        return Bukubesar::query()
             ->when($this->search, fn($q) => $q->where(function ($q2) {
                 $q2->where('kode_jurnal', 'like', '%' . $this->search . '%')
                    ->orWhere('transaksi',  'like', '%' . $this->search . '%')
