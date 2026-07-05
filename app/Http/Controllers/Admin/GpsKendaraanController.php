@@ -324,7 +324,7 @@ class GpsKendaraanController extends Controller
             'tanggal'      => now(),
             'reference'    => 'GPS-' . $gpsKendaraan->id,
             'user_id'      => auth()->id(),
-            'kategori'     => 'gps_kendaraan',
+            'kategori'     => 'Pengeluaran',
             'metode'       => '-',
             'keterangan'   => 'Perpanjangan GPS kendaraan: ' . $gpsKendaraan->type . ' - ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
             'pemasukan'    => 0,

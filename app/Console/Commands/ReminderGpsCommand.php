@@ -28,6 +28,7 @@ class ReminderGpsCommand extends Command
     /**
      * Execute the console command.
      */
+    
     public function handle()
     {
         $this->info('Command GPS dijalankan');

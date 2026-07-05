@@ -363,7 +363,7 @@ class AsuransiKendaraanController extends Controller
             'tanggal'      => now(),
             'reference'    => 'Asuransi-' . $asuransi->id,
             'user_id'      => auth()->id(),
-            'kategori'     => 'asuransi_kendaraan',
+            'kategori'     => 'Pengeluaran',
             'metode'       => '-',
             // ✅ jenis_pajak diganti ke jenisAsuransi->nama_jenis (field aslinya tidak ada di model Asuransi)
             'keterangan'   => 'Pembayaran asuransi kendaraan: ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-') . ' - ' . $request->keterangan,

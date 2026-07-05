@@ -175,7 +175,7 @@ class PajakController extends Controller
             'tanggal'      => now(),
             'reference'    => 'PAJAK-' . $pajak->id,
             'user_id'      => auth()->id(),
-            'kategori'     => 'pajak_kendaraan',
+            'kategori'     => 'Pengeluaran',
             'metode'       => 'cash',
             'keterangan'   => 'Pembayaran pajak kendaraan: ' . $pajak->jenis_pajak . ' - ' . $request->keterangan,
             'pemasukan'    => 0,

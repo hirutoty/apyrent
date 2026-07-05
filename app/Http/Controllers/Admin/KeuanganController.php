@@ -15,63 +15,75 @@ class KeuanganController extends Controller
     /**
      * LIST PENGELUARAN
      */
-    public function index(Request $request)
-    {
-        $query = Keuangan::with('user')->latest();
-
-        // Filter Jenis
-        if ($request->filled('jenis')) {
-            if ($request->jenis == 'Pemasukan') {
-                $query->where('pemasukan', '>', 0);
-            } elseif ($request->jenis == 'Pengeluaran') {
-                $query->where('pengeluaran', '>', 0);
-            }
-        }
-
-        // Filter Hari
-        if ($request->filled('hari')) {
-            $query->whereDay('tanggal', $request->hari);
-        }
-
-        // Filter Bulan
-        if ($request->filled('bulan')) {
-            $query->whereMonth('tanggal', $request->bulan);
-        }
-
-        // Filter Tahun
-        if ($request->filled('tahun')) {
-            $query->whereYear('tanggal', $request->tahun);
-        }
-
-        // Search
-        if ($request->filled('search')) {
-            $keyword = $request->search;
-
-            $query->where(function ($q) use ($keyword) {
-                $q->where('kategori', 'like', "%$keyword%")
-                    ->orWhere('keterangan', 'like', "%$keyword%")
-                    ->orWhere('reference', 'like', "%$keyword%")
-                    ->orWhereHas('user', function ($u) use ($keyword) {
-                        $u->where('name', 'like', "%$keyword%");
-                    });
-            });
-        }
-
-        $keuangans = $query
-            ->paginate(20)
-            ->withQueryString();
-
-        $totalPemasukan = Keuangan::sum('pemasukan');
-        $totalPengeluaran = Keuangan::sum('pengeluaran');
-        $saldo = $totalPemasukan - $totalPengeluaran;
-
-        return view('admin.keuangan.index', compact(
-            'keuangans',
-            'totalPemasukan',
-            'totalPengeluaran',
-            'saldo'
-        ));
-    }
+   public function index(Request $request)
+  {
+      $query = Keuangan::with('user')->latest();
+  
+      if ($request->filled('jenis')) {
+          if ($request->jenis == 'Pemasukan') {
+              $query->where('pemasukan', '>', 0);
+          } elseif ($request->jenis == 'Pengeluaran') {
+              $query->where('pengeluaran', '>', 0);
+          }
+      }
+  
+      if ($request->filled('hari')) $query->whereDay('tanggal', $request->hari);
+      if ($request->filled('bulan')) $query->whereMonth('tanggal', $request->bulan);
+      if ($request->filled('tahun')) $query->whereYear('tanggal', $request->tahun);
+  
+      if ($request->filled('search')) {
+          $keyword = $request->search;
+          $query->where(function ($q) use ($keyword) {
+              $q->where('kategori', 'like', "%$keyword%")
+                  ->orWhere('keterangan', 'like', "%$keyword%")
+                  ->orWhere('reference', 'like', "%$keyword%")
+                  ->orWhereHas('user', function ($u) use ($keyword) {
+                      $u->where('name', 'like', "%$keyword%");
+                  });
+          });
+      }
+  
+      $keuangans = $query->paginate(20)->withQueryString();
+  
+      $totalPemasukan  = Keuangan::sum('pemasukan');
+      $totalPengeluaran = Keuangan::sum('pengeluaran');
+      $saldo = $totalPemasukan - $totalPengeluaran;
+  
+      // ── AGING AP ──────────────────────────────────────
+      $dataAp   = \App\Models\Aging_aps::latest()->get();
+      $setting  = \App\Models\Setting::first();
+      $reminderAp = $setting->satuan_reminder ?? 30;
+  
+      // ── AGING AR ──────────────────────────────────────
+      $dataAr = \App\Models\AgingAr::with(['member', 'invoice'])->latest()->get();
+      $batasReminder = $setting?->batas_reminder ?? 7;
+      $reminderAr = match ($setting?->satuan_reminder) {
+          'hari'   => $batasReminder,
+          'minggu' => $batasReminder * 7,
+          'bulan'  => $batasReminder * 30,
+          'tahun'  => $batasReminder * 365,
+          default  => $batasReminder,
+      };
+   $dataReminder = \App\Models\AgingAr::with(['member', 'invoice'])
+          ->where('status', 'Belum Bayar')
+          ->latest()
+          ->get();
+  
+      $dataLunas = \App\Models\AgingAr::with(['member', 'invoice'])
+          ->where('status', 'Bayar')
+          ->latest()
+          ->get();
+      // ────────────────────────────────────────
+  
+      return view('admin.keuangan.index', compact(
+          'keuangans', 'totalPemasukan', 'totalPengeluaran', 'saldo',
+          'dataAp', 'reminderAp',
+          'dataAr', 'reminderAr',
+          'setting',
+          'dataReminder',  
+          'dataLunas'      
+      ));
+  }
 
     /**
      * TAMBAH PENGELUARAN

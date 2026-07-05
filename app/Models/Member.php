@@ -11,7 +11,7 @@ class Member extends Model
 
     protected $table = 'member';
 
-      protected $fillable = [
+    protected $fillable = [
         'nama_member',
         'kontak_member',
         'email_member',
@@ -25,7 +25,12 @@ class Member extends Model
     }
 
     public function rentals()
-{
-    return $this->hasMany(Rental::class);
-}
+    {
+        return $this->hasMany(Rental::class);
+    }
+
+    public function agingAr()
+    {
+        return $this->hasMany(AgingAr::class, 'customer_id');
+    }
 }
