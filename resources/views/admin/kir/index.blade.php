@@ -275,28 +275,20 @@
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
                                         <button
-                                            onclick="openModalPerpanjang(
-                                                '{{ $d->id }}',
-                                                '{{ $d->kendaraan->nopol ?? '-' }}',
-                                                '{{ $d->kendaraan->merk ?? '-' }}',
-                                                '{{ $d->no_uji }}',
-                                                '{{ $d->biaya }}'
-                                            )"
-                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
-                                            <i class="fa fa-rotate-right text-xs"></i> Perpanjang
-                                        </button>
-
-                                        <button
                                             onclick="openEditModal(
-                                            '{{ $d->id }}',
-                                            '{{ $d->kendaraan_id }}',
-                                            '{{ $d->no_uji }}',
-                                            '{{ $d->biaya }}',
-                                            '{{ $d->masa_berlaku }}'
-                                        )"
+        '{{ $d->id }}',
+        '{{ $d->kendaraan_id }}',
+        '{{ $d->no_uji }}',
+        '{{ $d->biaya }}',
+        '{{ $d->masa_berlaku }}',
+        '{{ $d->image ? asset($d->image) : '' }}',
+        '{{ $d->image ? basename($d->image) : '' }}'
+    )"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                             <i class="fa fa-edit text-xs"></i> Edit
                                         </button>
+
+
                                         <form action="/admin/kir/{{ $d->id }}" method="POST"
                                             onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
                                             @csrf
@@ -726,7 +718,7 @@
         });
 
         // ── MODAL EDIT ─────────────────────────────────────
-        function openEditModal(id, kendaraan_id, no_uji, biaya, masa_berlaku) {
+        function openEditModal(id, kendaraan_id, no_uji, biaya, masa_berlaku, image, imageName) {
             var m = document.getElementById('modalEdit');
             m.classList.remove('hidden');
             m.classList.add('flex');
@@ -737,11 +729,60 @@
             document.getElementById('edit_biaya').value = biaya;
             document.getElementById('edit_masa_berlaku').value = masa_berlaku;
 
-            // reset input & preview file setiap kali modal dibuka
             document.getElementById('edit_image').value = '';
-            document.getElementById('previewWrapEdit').innerHTML = '';
-            document.getElementById('previewWrapEdit').classList.add('hidden');
+
+            const wrap = document.getElementById('previewWrapEdit');
+            wrap.innerHTML = '';
+
+            if (image) {
+                wrap.classList.remove('hidden');
+
+                const ext = image.split('.').pop().toLowerCase();
+                let html = '';
+
+                if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+                    html = `
+                <div class="relative">
+                    <img src="${image}" class="h-36 w-full object-cover rounded-xl border">
+                    <span class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[11px] px-2 py-1 truncate">
+                        ${imageName}
+                    </span>
+                    <a href="${image}" target="_blank"
+                        class="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-white/90 text-gray-600 rounded-full text-xs">
+                        <i class="fa fa-eye"></i>
+                    </a>
+                </div>
+            `;
+                } else {
+                    let icon = 'fa-file';
+                    let color = 'text-gray-600 bg-gray-50';
+
+                    if (ext === 'pdf') {
+                        icon = 'fa-file-pdf';
+                        color = 'text-red-600 bg-red-50';
+                    }
+                    if (ext === 'doc' || ext === 'docx') {
+                        icon = 'fa-file-word';
+                        color = 'text-blue-600 bg-blue-50';
+                    }
+
+                    html = `
+                <div class="flex items-center justify-between p-3 border rounded-xl ${color}">
+                    <div class="flex items-center gap-2 text-sm font-semibold truncate">
+                        <i class="fa-solid ${icon}"></i>
+                        <span class="truncate">${imageName}</span>
+                    </div>
+                    <a href="${image}" target="_blank" class="text-xs underline flex-shrink-0 ml-2">Lihat</a>
+                </div>
+            `;
+                }
+
+                wrap.innerHTML = html;
+            } else {
+                wrap.classList.add('hidden');
+            }
         }
+        
 
         function closeModalEdit() {
             var m = document.getElementById('modalEdit');

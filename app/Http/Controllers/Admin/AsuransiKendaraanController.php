@@ -175,72 +175,72 @@ class AsuransiKendaraanController extends Controller
     }
 
     public function update(Request $request, $id)
-    {
-        $request->validate([
-            'kendaraan_id' => 'required|exists:kendaraan,id',
-            'asuransi_id' => 'required|exists:asuransi,id',
-            'jenis_asuransi_id' => 'required|exists:jenis_asuransi,id',
-            'tgl_mulai' => 'required|date',
-            'tgl_berakhir' => 'required|date',
-            'status_kendaraan' => 'required',
-            'durasi_bulan' => 'required|integer|min:1',
-            'biaya'        => 'required|numeric|min:0',
-            'bukti_bayar'        => 'required|file|max:5120',
-            'bukti_attachment'   => 'nullable|array',
-            'bukti_attachment.*' => 'file|max:5120',
-        ]);
+{
+    $request->validate([
+        'kendaraan_id' => 'required|exists:kendaraan,id',
+        'asuransi_id' => 'required|exists:asuransi,id',
+        'jenis_asuransi_id' => 'required|exists:jenis_asuransi,id',
+        'tgl_mulai' => 'required|date',
+        'tgl_berakhir' => 'required|date',
+        'status_kendaraan' => 'required',
+        'durasi_bulan' => 'required|integer|min:1',
+        'biaya'        => 'required|numeric|min:0',
+        'bukti_bayar'        => 'nullable|file|max:5120', // ✅ diubah dari 'required' jadi 'nullable'
+        'bukti_attachment'   => 'nullable|array',
+        'bukti_attachment.*' => 'file|max:5120',
+    ]);
 
-        $data = AsuransiKendaraan::findOrFail($id);
+    $data = AsuransiKendaraan::findOrFail($id);
 
-        // 🔥 CEK DUPLIKAT SEBELUM UPDATE
-        $exists = AsuransiKendaraan::where('kendaraan_id', $request->kendaraan_id)
-            ->where('id', '!=', $id)
-            ->exists();
+    // 🔥 CEK DUPLIKAT SEBELUM UPDATE
+    $exists = AsuransiKendaraan::where('kendaraan_id', $request->kendaraan_id)
+        ->where('id', '!=', $id)
+        ->exists();
 
-        if ($exists) {
-            return back()->with(
-                'error',
-                'Kendaraan / nopol ini sudah terdaftar pada data asuransi'
-            );
-        }
-
-        // upload file
-        $buktiBayar = $data->bukti_bayar;
-
-        if ($request->hasFile('bukti_bayar')) {
-
-            if ($buktiBayar && file_exists(public_path($buktiBayar))) {
-                unlink(public_path($buktiBayar));
-            }
-
-            $file = $request->file('bukti_bayar');
-
-            $filename = time() . '_' . $file->getClientOriginalName();
-
-            $file->move(public_path('asuransi/bukti_bayar'), $filename);
-
-            $buktiBayar = 'asuransi/bukti_bayar/' . $filename;
-        }
-
-        // baru update
-        $data->update([
-            'kendaraan_id'      => $request->kendaraan_id,
-            'asuransi_id'       => $request->asuransi_id,
-            'jenis_asuransi_id' => $request->jenis_asuransi_id,
-            'tgl_mulai'         => $request->tgl_mulai,
-            'tgl_berakhir'      => $request->tgl_berakhir,
-            'status_kendaraan'  => $request->status_kendaraan,
-            'durasi_bulan'      => $request->durasi_bulan,
-            'biaya'             => $request->biaya,
-            'bukti_bayar'       => $buktiBayar,
-        ]);
-
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $data->id);
-        }
-
-        return back()->with('success', 'Data berhasil diupdate');
+    if ($exists) {
+        return back()->with(
+            'error',
+            'Kendaraan / nopol ini sudah terdaftar pada data asuransi'
+        );
     }
+
+    // upload file (pakai bukti lama sebagai default)
+    $buktiBayar = $data->bukti_bayar;
+
+    if ($request->hasFile('bukti_bayar')) {
+
+        if ($buktiBayar && file_exists(public_path($buktiBayar))) {
+            unlink(public_path($buktiBayar));
+        }
+
+        $file = $request->file('bukti_bayar');
+
+        $filename = time() . '_' . $file->getClientOriginalName();
+
+        $file->move(public_path('asuransi/bukti_bayar'), $filename);
+
+        $buktiBayar = 'asuransi/bukti_bayar/' . $filename;
+    }
+    // kalau tidak upload file baru, $buktiBayar tetap = data lama
+
+    $data->update([
+        'kendaraan_id'      => $request->kendaraan_id,
+        'asuransi_id'       => $request->asuransi_id,
+        'jenis_asuransi_id' => $request->jenis_asuransi_id,
+        'tgl_mulai'         => $request->tgl_mulai,
+        'tgl_berakhir'      => $request->tgl_berakhir,
+        'status_kendaraan'  => $request->status_kendaraan,
+        'durasi_bulan'      => $request->durasi_bulan,
+        'biaya'             => $request->biaya,
+        'bukti_bayar'       => $buktiBayar,
+    ]);
+
+    if ($request->hasFile('bukti_attachment')) {
+        $this->simpanAttachments($request->file('bukti_attachment'), $data->id);
+    }
+
+    return back()->with('success', 'Data berhasil diupdate');
+}
 
     public function destroy($id)
     {
@@ -385,7 +385,7 @@ class AsuransiKendaraanController extends Controller
             'tanggal'      => now(),
             'reference'    => 'Asuransi-' . $asuransi->id,
             'user_id'      => auth()->id(),
-            'kategori'     => 'asuransi_kendaraan',
+            'kategori'     => 'Pengeluaran',
             'metode'       => '-',
             // ✅ jenis_pajak diganti ke jenisAsuransi->nama_jenis (field aslinya tidak ada di model Asuransi)
             'keterangan'   => 'Pembayaran asuransi kendaraan: ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-') . ' - ' . $request->keterangan,

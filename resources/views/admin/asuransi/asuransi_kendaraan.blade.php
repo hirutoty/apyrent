@@ -1378,6 +1378,24 @@
 
             document.getElementById('previewImgAsuransi').src = '';
         }
+
+        function renderListAttachment(input, listId) {
+            const ul = document.getElementById(listId);
+            ul.innerHTML = '';
+
+            if (!input.files || input.files.length === 0) return;
+
+            Array.from(input.files).forEach(function(file, index) {
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-2';
+                li.innerHTML = `
+            <i class="fa-solid fa-paperclip text-gray-400"></i>
+            <span class="truncate">${file.name}</span>
+            <span class="text-gray-400">(${(file.size / 1024).toFixed(1)} KB)</span>
+        `;
+                ul.appendChild(li);
+            });
+        }
     </script>
 
 @endsection

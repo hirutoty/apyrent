@@ -12,19 +12,19 @@ use App\Models\Setting;
 
 class EfakturController extends Controller
 {
-    public function index()
-    {
-        $statusMap = [
-        'draft' => 'Pending',
-    ];
-
-    $data = Efaktur::all()->map(function ($item) use ($statusMap) {
-        $item->status = $statusMap[$item->status] ?? $item->status;
-        return $item;
-    });
-
-    return view('admin.efaktur.index', compact('data'));
-}
+   public function index()
+  {
+      $statusMap = ['draft' => 'Pending'];
+  
+      $data = Efaktur::latest()->get()->map(function ($item) use ($statusMap) {
+          $item->status = $statusMap[$item->status] ?? $item->status;
+          return $item;
+      });
+  
+      $dataBupot = \App\Models\Bupot::latest()->get();
+  
+      return view('admin.efaktur.index', compact('data', 'dataBupot'));
+  }
 
     public function store(Request $request)
     {

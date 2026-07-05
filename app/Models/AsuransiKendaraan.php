@@ -55,4 +55,6 @@ class AsuransiKendaraan extends Model
         return $this->hasMany(Attachment::class, 'relation_id')
             ->where('relation_type', 'asuransi');
     }
+
+    
 }

@@ -34,7 +34,7 @@ return new class extends Migration
     $table->decimal('tarif_pajak', 5, 2)->nullable();
     $table->decimal('jumlah_potong', 20, 2)->nullable();
 
-    $table->enum('status', ['Draft', 'Approve'])
+    $table->enum('status', ['Draft', 'Approve', 'Submit DJP'])
           ->default('Draft');
 
     $table->string('file_bupot')->nullable();
