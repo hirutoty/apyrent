@@ -380,7 +380,7 @@
             $role = auth()->user()->role;
 
             // Warning flags dipakai di dalam grup "Operasi" (bagian Service)
-            $hasWarning   = isset($serviceWarning) && count($serviceWarning) > 0;
+            $hasWarning = isset($serviceWarning) && count($serviceWarning) > 0;
             $isKirWarning = isset($kirWarning) && $kirWarning;
             $operasiHasWarning = $hasWarning || $isKirWarning;
         @endphp
@@ -427,6 +427,8 @@
                     </div>
                 </div>
 
+                
+
                 {{-- ════════════════════════════════════
                      GRUP: MASTER DATA
                 ════════════════════════════════════ --}}
@@ -464,9 +466,65 @@
                 </div>
             @endif
 
+
+             {{-- ════════════════════════════════════
+                 GRUP: KEUANGAN
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin' || $role == 'keuangan')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-cash-coin w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Keuangan</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+                            <a href="/admin/bukubesar"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-journal-bookmark-fill w-4 text-center shrink-0"></i> General Ledger
+                                (GL)
+                            </a>
+
+                            <a href="/admin/summary"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-receipt-cutoff"></i>
+                                Invoice
+                            </a>
+
+                            <a href="/admin/konsolidasi"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-diagram-3-fill w-4 text-center shrink-0"></i> Konsolidasi
+                            </a>
+
+                            <a href="/admin/budgeting"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-wallet2 w-4 text-center shrink-0"></i> Budgeting & Anggaran
+                            </a>
+
+                            <a href="/admin/efaktur"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text
+                        hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-receipt w-4 text-center shrink-0"></i> E-Faktur & Bupot
+                            </a>
+
+                            <a href="/admin/integrasi-bank"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-bank2 w-4 text-center shrink-0"></i> Integrasi Bank
+                            </a>
+
+                            <a href="/admin/keuangan"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-cash-stack w-4 text-center shrink-0"></i> Cash Flow Forecast
+                            </a>
+
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             {{-- ════════════════════════════════════
                  GRUP: OPERASI
-                 (gabungan Kendaraan + Rental + Service)
             ════════════════════════════════════ --}}
             @if ($role == 'superadmin' || $role == 'keuangan' || $role == 'produksi')
                 <div class="nav-group">
@@ -487,7 +545,8 @@
                                 <p class="nav-subgroup-label">Kendaraan</p>
                                 <a href="/admin/kendaraan"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                    <i class="bi bi-truck-front-fill w-4 text-center shrink-0"></i> Data & Stok Kendaraan
+                                    <i class="bi bi-truck-front-fill w-4 text-center shrink-0"></i> Data & Stok
+                                    Kendaraan
                                 </a>
                                 <a href="/admin/pajak"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
@@ -524,11 +583,13 @@
                                 </a>
                                 <a href="/admin/rental"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                    <i class="bi bi-calendar2-check-fill w-4 text-center shrink-0"></i> Booking Kendaraan
+                                    <i class="bi bi-calendar2-check-fill w-4 text-center shrink-0"></i> Booking
+                                    Kendaraan
                                 </a>
                                 <a href="/admin/history"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                    <i class="bi bi-graph-up-arrow w-4 text-center shrink-0"></i> Kendaraan aktif & History
+                                    <i class="bi bi-graph-up-arrow w-4 text-center shrink-0"></i> Kendaraan aktif &
+                                    History
                                 </a>
                             @endif
 
@@ -612,72 +673,6 @@
                     </div>
                 </div>
             @endif
-
-            {{-- ════════════════════════════════════
-                 GRUP: KEUANGAN
-            ════════════════════════════════════ --}}
-            @if ($role == 'superadmin' || $role == 'keuangan')
-                <div class="nav-group">
-                    <button type="button" onclick="toggleGroup(this)"
-                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
-                        <i class="bi bi-cash-coin w-4 text-center shrink-0"></i>
-                        <span class="flex-1 text-left">Keuangan</span>
-                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
-                    </button>
-                    <div class="nav-group-content">
-                        <div class="pt-0.5 pb-1 space-y-0.5">
-                            <a href="/admin/keuangan"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-cash-stack w-4 text-center shrink-0"></i> Cash Flow
-                            </a>
-
-                            <a href="/admin/summary"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-receipt-cutoff"></i>
-                                Invoice
-                            </a>
-
-                            <a href="/admin/aging_ap"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-bank2 w-4 text-center shrink-0"></i> Aging Ap
-                            </a>
-                            <a href="/admin/budgeting"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-wallet2 w-4 text-center shrink-0"></i> Budgeting
-                            </a>
-                            <a href="/admin/konsolidasi"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-diagram-3-fill w-4 text-center shrink-0"></i> Konsolidasi
-                            </a>
-                            <a href="/admin/efaktur"
-
-                            class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text
-                        hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                            <i class="bi bi-receipt w-4 text-center shrink-0"></i> E-Faktur & Bupot
-                        </a>
-                            <a href="/admin/rekonsiliasi"
-
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-receipt w-4 text-center shrink-0"></i> E-Faktur
-                            </a>
-                            <a href="/admin/bupot"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-file-earmark-text-fill w-4 text-center shrink-0"></i> Bupot
-                            </a>
-                            <a href="/admin/integrasi-bank"
-
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-bank2 w-4 text-center shrink-0"></i> Integrasi Bank
-                            </a>
-                            <a href="/admin/bukubesar"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-journal-bookmark-fill w-4 text-center shrink-0"></i> Buku Besar
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            @endif
-
         </nav>
 
         {{-- User profile (bottom) --}}

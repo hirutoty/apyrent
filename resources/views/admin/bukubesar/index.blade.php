@@ -26,6 +26,26 @@
             </button>
         </div>
 
+        {{-- TAB HEADER --}}
+            <div class="flex border-b border-gray-100 px-5 pt-4 gap-1">
+                <button onclick="switchTab('buku-besar')" id="tab-buku-besar"
+                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-blue-600 text-blue-600 transition-colors">
+                    <i class="fa fa-book mr-1.5"></i> Buku Besar
+                </button>
+                <button onclick="switchTab('laba-rugi')" id="tab-laba-rugi"
+                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-chart-line mr-1.5"></i> Laba Rugi
+                </button>
+                <button onclick="switchTab('neraca')" id="tab-neraca"
+                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-scale-balanced mr-1.5"></i> Neraca
+                </button>
+                <button onclick="switchTab('arus-kas')" id="tab-arus-kas"
+                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-water mr-1.5"></i> Arus Kas
+                </button>
+            </div>
+
         {{-- SUMMARY CARDS --}}
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
 
@@ -92,134 +112,122 @@
         {{-- NAV TABS --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
-            {{-- TAB HEADER --}}
-            <div class="flex border-b border-gray-100 px-5 pt-4 gap-1">
-                <button onclick="switchTab('buku-besar')" id="tab-buku-besar"
-                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-blue-600 text-blue-600 transition-colors">
-                    <i class="fa fa-book mr-1.5"></i> Buku Besar
-                </button>
-                <button onclick="switchTab('laba-rugi')" id="tab-laba-rugi"
-                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
-                    <i class="fa fa-chart-line mr-1.5"></i> Laba Rugi
-                </button>
-                <button onclick="switchTab('neraca')" id="tab-neraca"
-                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
-                    <i class="fa fa-scale-balanced mr-1.5"></i> Neraca
-                </button>
-                <button onclick="switchTab('arus-kas')" id="tab-arus-kas"
-                    class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
-                    <i class="fa fa-water mr-1.5"></i> Arus Kas
-                </button>
-            </div>
+            
 
             {{-- TAB: BUKU BESAR --}}
             <div id="pane-buku-besar">
 
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
+                <div
+                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                     <div>
                         <h2 class="font-semibold text-gray-800 text-base">Daftar Jurnal</h2>
                         <p class="text-xs text-gray-400 mt-0.5">{{ $totalJurnal }} total data buku besar</p>
                     </div>
                     <div class="flex items-center gap-2">
-                    <a href="{{ route('bukubesar.pdf', ['search' => request('search')]) }}" target="_blank"
-    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition">
-    <i class="fa fa-file-pdf text-xs"></i> PDF
-</a>
+                        <a href="{{ route('bukubesar.pdf', ['search' => request('search')]) }}" target="_blank"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition">
+                            <i class="fa fa-file-pdf text-xs"></i> PDF
+                        </a>
 
-<a href="{{ route('bukubesar.export.excel', ['search' => request('search')]) }}"
-    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
-    <i class="fa fa-file-excel text-xs"></i> Excel
-</a>
+                        <a href="{{ route('bukubesar.export.excel', ['search' => request('search')]) }}"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
+                            <i class="fa fa-file-excel text-xs"></i> Excel
+                        </a>
 
-<a href="{{ route('bukubesar.export.csv', ['search' => request('search')]) }}"
-    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition">
-    <i class="fa fa-file-csv text-xs"></i> CSV
-</a>
-                    <div class="relative">
-                        <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <form method="GET" action="{{ route('bukubesar.index') }}" class="relative">
+                        <a href="{{ route('bukubesar.export.csv', ['search' => request('search')]) }}"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition">
+                            <i class="fa fa-file-csv text-xs"></i> CSV
+                        </a>
+                        <div class="relative">
                             <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <form method="GET" action="{{ route('bukubesar.index') }}" class="relative">
+                                <i
+                                    class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
 
-                            <input type="text" name="search" value="{{ request('search') }}"
-                                placeholder="Cari kode, transaksi, kategori..."
-                                class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg w-56">
+                                <input type="text" name="search" value="{{ request('search') }}"
+                                    placeholder="Cari kode, transaksi, kategori..."
+                                    class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg w-56">
 
-                            <button type="submit" class="hidden">Search</button>
-                        </form>
+                                <button type="submit" class="hidden">Search</button>
+                            </form>
+                        </div>
+                        <button onclick="window.location.reload()"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <i class="fa fa-sync text-xs"></i> Refresh
+                        </button>
                     </div>
-                    <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <i class="fa fa-sync text-xs"></i> Refresh
-                    </button>
                 </div>
-            </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-100">
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No
-                            </th>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-100">
                                 <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Tanggal</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Kode
-                                Jurnal</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Transaksi</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Kategori</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Debit</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Kredit</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Saldo</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Aktivitas</th>
-                            <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody">
-                        @forelse ($data as $item)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
-                                data-search="{{ strtolower($item->kode_jurnal . ' ' . $item->transaksi . ' ' . $item->kategori . ' ' . $item->aktivitas) }}">
+                                    No
+                                </th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Tanggal</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Kode
+                                    Jurnal</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Transaksi</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Kategori</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Debit</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Kredit</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Saldo</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Aktivitas</th>
+                                <th
+                                    class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            @forelse ($data as $item)
+                                <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                                    data-search="{{ strtolower($item->kode_jurnal . ' ' . $item->transaksi . ' ' . $item->kategori . ' ' . $item->aktivitas) }}">
 
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $loop->iteration }}</td>
-                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->tanggal }}</td>
+                                    <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $loop->iteration }}</td>
+                                    <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->tanggal }}</td>
 
-                                <td class="px-4 py-3.5">
-                                    <span
-                                        class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $item->kode_jurnal }}</span>
-                                </td>
+                                    <td class="px-4 py-3.5">
+                                        <span
+                                            class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $item->kode_jurnal }}</span>
+                                    </td>
 
-                                <td class="px-4 py-3.5 text-sm text-gray-700 max-w-[160px] truncate">{{ $item->transaksi }}
-                                </td>
+                                    <td class="px-4 py-3.5 text-sm text-gray-700 max-w-[160px] truncate">
+                                        {{ $item->transaksi }}
+                                    </td>
 
-                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->kategori }}</td>
+                                    <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->kategori }}</td>
 
 
-                                <td class="px-4 py-3.5">
-                                    <span class="text-sm font-medium text-green-600">Rp
-                                        {{ number_format($item->debit, 0, ',', '.') }}</span>
-                                </td>
+                                    <td class="px-4 py-3.5">
+                                        <span class="text-sm font-medium text-green-600">Rp
+                                            {{ number_format($item->debit, 0, ',', '.') }}</span>
+                                    </td>
 
-                                <td class="px-4 py-3.5">
-                                    <span class="text-sm font-medium text-red-600">Rp
-                                        {{ number_format($item->kredit, 0, ',', '.') }}</span>
-                                </td>
+                                    <td class="px-4 py-3.5">
+                                        <span class="text-sm font-medium text-red-600">Rp
+                                            {{ number_format($item->kredit, 0, ',', '.') }}</span>
+                                    </td>
 
-                                <td class="px-4 py-3.5">
-                                    <span class="text-sm font-bold text-yellow-600">Rp
-                                        {{ number_format($item->saldo, 0, ',', '.') }}</span>
-                                </td>
+                                    <td class="px-4 py-3.5">
+                                        <span class="text-sm font-bold text-yellow-600">Rp
+                                            {{ number_format($item->saldo, 0, ',', '.') }}</span>
+                                    </td>
 
-                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->aktivitas }}</td>
+                                    <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->aktivitas }}</td>
 
-                                <td class="px-4 py-3.5">
-                                    <div class="flex items-center justify-center gap-1.5">
-                                        <button
-                                            onclick="openEditModal(
+                                    <td class="px-4 py-3.5">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <button
+                                                onclick="openEditModal(
                                             '{{ $item->id }}',
                                             '{{ $item->kode_jurnal }}',
                                             '{{ addslashes($item->transaksi) }}',
@@ -231,38 +239,41 @@
                                             '{{ addslashes($item->aktivitas) }}',
                                             `{{ $item->keterangan }}`
                                         )"
-                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
-                                            <i class="fa fa-edit text-xs"></i> Edit
-                                        </button>
-                                        <form action="{{ route('bukubesar.destroy', $item->id) }}" method="POST"
-                                            onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
-                                                <i class="fa fa-trash text-xs"></i> Hapus
+                                                class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
+                                                <i class="fa fa-edit text-xs"></i> Edit
                                             </button>
-                                        </form>
-                                    </div>
-                                </td>
-
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="10" class="px-5 py-12 text-center">
-                                    <div class="flex flex-col items-center gap-3">
-                                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
-                                            <i class="fa-solid fa-book text-2xl text-gray-300"></i>
+                                            <form action="{{ route('bukubesar.destroy', $item->id) }}" method="POST"
+                                                onsubmit="return confirm('Yakin ingin menghapus data ini?')"
+                                                class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
+                                                    <i class="fa fa-trash text-xs"></i> Hapus
+                                                </button>
+                                            </form>
                                         </div>
-                                        <p class="text-sm font-medium text-gray-500">Belum ada data buku besar</p>
-                                        <p class="text-xs text-gray-400">Klik "Tambah Data" untuk menambahkan data baru</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                                    </td>
+
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="10" class="px-5 py-12 text-center">
+                                        <div class="flex flex-col items-center gap-3">
+                                            <div
+                                                class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
+                                                <i class="fa-solid fa-book text-2xl text-gray-300"></i>
+                                            </div>
+                                            <p class="text-sm font-medium text-gray-500">Belum ada data buku besar</p>
+                                            <p class="text-xs text-gray-400">Klik "Tambah Data" untuk menambahkan data baru
+                                            </p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
 
             </div>{{-- end pane-buku-besar --}}
 
@@ -270,17 +281,20 @@
             <div id="pane-laba-rugi" class="hidden">
 
                 @php
-                    $pendapatan  = $data->where('kategori', 'Pendapatan')->sum('kredit');
-                    $bebanPokok  = $data->filter(fn($i) =>
-                        $i->kategori == 'Beban' &&
-                        str_contains(strtolower($i->transaksi . ' ' . $i->keterangan), 'pokok')
-                    )->sum('debit');
-                    $totalBeban  = $data->where('kategori', 'Beban')->sum('debit');
-                    $labaKotor   = $pendapatan - $bebanPokok;
-                    $labaBersih  = $pendapatan - $totalBeban;
+                    $pendapatan = $data->where('kategori', 'Pendapatan')->sum('kredit');
+                    $bebanPokok = $data
+                        ->filter(
+                            fn($i) => $i->kategori == 'Beban' &&
+                                str_contains(strtolower($i->transaksi . ' ' . $i->keterangan), 'pokok'),
+                        )
+                        ->sum('debit');
+                    $totalBeban = $data->where('kategori', 'Beban')->sum('debit');
+                    $labaKotor = $pendapatan - $bebanPokok;
+                    $labaBersih = $pendapatan - $totalBeban;
                 @endphp
 
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
+                <div
+                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                     <div>
                         <h2 class="font-semibold text-gray-800 text-base">Laba Rugi</h2>
                         <p class="text-xs text-gray-400 mt-0.5">Kalkulasi dari data buku besar</p>
@@ -335,11 +349,21 @@
                     <table class="w-full text-sm border border-gray-100 rounded-xl overflow-hidden">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-100">
-                                <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-12">No</th>
-                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Beban</th>
-                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Pendapatan</th>
-                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Laba Kotor</th>
-                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Laba Bersih</th>
+                                <th
+                                    class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-12">
+                                    No</th>
+                                <th
+                                    class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Total Beban</th>
+                                <th
+                                    class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Total Pendapatan</th>
+                                <th
+                                    class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Laba Kotor</th>
+                                <th
+                                    class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Laba Bersih</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -351,10 +375,12 @@
                                 <td class="px-4 py-3.5 text-right text-sm font-semibold text-green-600">
                                     Rp {{ number_format($pendapatan, 2, ',', '.') }}
                                 </td>
-                                <td class="px-4 py-3.5 text-right text-sm font-semibold {{ $labaKotor < 0 ? 'text-red-600' : 'text-blue-600' }}">
+                                <td
+                                    class="px-4 py-3.5 text-right text-sm font-semibold {{ $labaKotor < 0 ? 'text-red-600' : 'text-blue-600' }}">
                                     Rp {{ number_format($labaKotor, 2, ',', '.') }}
                                 </td>
-                                <td class="px-4 py-3.5 text-right text-sm font-bold {{ $labaBersih < 0 ? 'text-red-600' : 'text-indigo-600' }}">
+                                <td
+                                    class="px-4 py-3.5 text-right text-sm font-bold {{ $labaBersih < 0 ? 'text-red-600' : 'text-indigo-600' }}">
                                     Rp {{ number_format($labaBersih, 2, ',', '.') }}
                                 </td>
                             </tr>
@@ -368,19 +394,26 @@
             <div id="pane-neraca" class="hidden">
 
                 @php
-                    $getSaldo = fn($kategori, $like = null) => $data->filter(
-                        fn($i) => $i->kategori == $kategori && ($like ? stripos($i->transaksi, $like) !== false : true)
-                    )->sum('saldo');
+                    $getSaldo = fn($kategori, $like = null) => $data
+                        ->filter(
+                            fn($i) => $i->kategori == $kategori &&
+                                ($like ? stripos($i->transaksi, $like) !== false : true),
+                        )
+                        ->sum('saldo');
 
-                    $asetLancar      = $getSaldo('Aktiva','kas') + $getSaldo('Aktiva','piutang') + $getSaldo('Aktiva','persediaan') + $getSaldo('Aktiva','uang muka');
-                    $asetTetap       = $getSaldo('Aktiva','peralatan') - $getSaldo('Aktiva','penyusutan');
-                    $totalAset       = $asetLancar + $asetTetap;
-                    $kewajibanPendek = $getSaldo('Kewajiban','hutang usaha') + $getSaldo('Kewajiban','gaji');
-                    $kewajibanPanjang= $getSaldo('Kewajiban','hutang bank');
-                    $totalKewajiban  = $kewajibanPendek + $kewajibanPanjang;
-                    $modal           = $getSaldo('Modal');
-                    $totalEkuitas    = $modal + $labaBersih;
-                    $totalPasiva     = $totalKewajiban + $totalEkuitas;
+                    $asetLancar =
+                        $getSaldo('Aktiva', 'kas') +
+                        $getSaldo('Aktiva', 'piutang') +
+                        $getSaldo('Aktiva', 'persediaan') +
+                        $getSaldo('Aktiva', 'uang muka');
+                    $asetTetap = $getSaldo('Aktiva', 'peralatan') - $getSaldo('Aktiva', 'penyusutan');
+                    $totalAset = $asetLancar + $asetTetap;
+                    $kewajibanPendek = $getSaldo('Kewajiban', 'hutang usaha') + $getSaldo('Kewajiban', 'gaji');
+                    $kewajibanPanjang = $getSaldo('Kewajiban', 'hutang bank');
+                    $totalKewajiban = $kewajibanPendek + $kewajibanPanjang;
+                    $modal = $getSaldo('Modal');
+                    $totalEkuitas = $modal + $labaBersih;
+                    $totalPasiva = $totalKewajiban + $totalEkuitas;
                 @endphp
 
                 <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -394,88 +427,110 @@
                     <table class="w-full text-sm border-collapse">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-16">No</th>
-                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Keterangan</th>
-                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-48">Jumlah (Rp)</th>
+                                <th
+                                    class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-16">
+                                    No</th>
+                                <th
+                                    class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Keterangan</th>
+                                <th
+                                    class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-48">
+                                    Jumlah (Rp)</th>
                             </tr>
                         </thead>
                         <tbody>
 
                             {{-- ASET --}}
                             <tr class="bg-green-600">
-                                <td colspan="3" class="px-4 py-2.5 text-xs font-bold text-white tracking-widest">ASET</td>
+                                <td colspan="3" class="px-4 py-2.5 text-xs font-bold text-white tracking-widest">ASET
+                                </td>
                             </tr>
                             <tr class="border-b border-gray-100 hover:bg-gray-50">
                                 <td class="px-4 py-3 text-center text-xs text-gray-400">01</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">Kas & Bank</td>
-                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp {{ number_format($getSaldo('Aktiva','kas'), 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp
+                                    {{ number_format($getSaldo('Aktiva', 'kas'), 0, ',', '.') }}</td>
                             </tr>
                             <tr class="border-b border-gray-100 hover:bg-gray-50">
                                 <td class="px-4 py-3 text-center text-xs text-gray-400">02</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">Piutang Usaha</td>
-                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp {{ number_format($getSaldo('Aktiva','piutang'), 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp
+                                    {{ number_format($getSaldo('Aktiva', 'piutang'), 0, ',', '.') }}</td>
                             </tr>
                             <tr class="border-b border-gray-100 bg-gray-50">
                                 <td class="px-4 py-3"></td>
                                 <td class="px-4 py-3 text-sm font-semibold text-gray-700">Total Aset Lancar</td>
-                                <td class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Rp {{ number_format($asetLancar, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Rp
+                                    {{ number_format($asetLancar, 0, ',', '.') }}</td>
                             </tr>
                             <tr class="border-b border-gray-100 bg-gray-50">
                                 <td class="px-4 py-3"></td>
                                 <td class="px-4 py-3 text-sm font-semibold text-gray-700">Total Aset Tetap</td>
-                                <td class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Rp {{ number_format($asetTetap, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Rp
+                                    {{ number_format($asetTetap, 0, ',', '.') }}</td>
                             </tr>
                             <tr class="bg-green-50 border-b-2 border-green-200">
                                 <td class="px-4 py-3"></td>
                                 <td class="px-4 py-3 text-sm font-bold text-green-800">TOTAL ASET</td>
-                                <td class="px-4 py-3 text-right text-sm font-bold text-green-800">Rp {{ number_format($totalAset, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-sm font-bold text-green-800">Rp
+                                    {{ number_format($totalAset, 0, ',', '.') }}</td>
                             </tr>
 
                             {{-- KEWAJIBAN --}}
                             <tr class="bg-red-600">
-                                <td colspan="3" class="px-4 py-2.5 text-xs font-bold text-white tracking-widest">KEWAJIBAN</td>
+                                <td colspan="3" class="px-4 py-2.5 text-xs font-bold text-white tracking-widest">
+                                    KEWAJIBAN</td>
                             </tr>
                             <tr class="border-b border-gray-100 hover:bg-gray-50">
                                 <td class="px-4 py-3 text-center text-xs text-gray-400">03</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">Kewajiban Jangka Pendek</td>
-                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp {{ number_format($kewajibanPendek, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp
+                                    {{ number_format($kewajibanPendek, 0, ',', '.') }}</td>
                             </tr>
                             <tr class="border-b border-gray-100 hover:bg-gray-50">
                                 <td class="px-4 py-3 text-center text-xs text-gray-400">04</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">Kewajiban Jangka Panjang</td>
-                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp {{ number_format($kewajibanPanjang, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp
+                                    {{ number_format($kewajibanPanjang, 0, ',', '.') }}</td>
                             </tr>
                             <tr class="bg-red-50 border-b-2 border-red-200">
                                 <td class="px-4 py-3"></td>
                                 <td class="px-4 py-3 text-sm font-bold text-red-800">TOTAL KEWAJIBAN</td>
-                                <td class="px-4 py-3 text-right text-sm font-bold text-red-800">Rp {{ number_format($totalKewajiban, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-sm font-bold text-red-800">Rp
+                                    {{ number_format($totalKewajiban, 0, ',', '.') }}</td>
                             </tr>
 
                             {{-- EKUITAS --}}
                             <tr class="bg-blue-600">
-                                <td colspan="3" class="px-4 py-2.5 text-xs font-bold text-white tracking-widest">EKUITAS</td>
+                                <td colspan="3" class="px-4 py-2.5 text-xs font-bold text-white tracking-widest">
+                                    EKUITAS</td>
                             </tr>
                             <tr class="border-b border-gray-100 hover:bg-gray-50">
                                 <td class="px-4 py-3 text-center text-xs text-gray-400">05</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">Modal Disetor</td>
-                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp {{ number_format($modal, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-sm text-gray-700">Rp
+                                    {{ number_format($modal, 0, ',', '.') }}</td>
                             </tr>
                             <tr class="border-b border-gray-100 hover:bg-gray-50">
                                 <td class="px-4 py-3 text-center text-xs text-gray-400">06</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">Laba Bersih / Ditahan</td>
-                                <td class="px-4 py-3 text-right text-sm {{ $labaBersih < 0 ? 'text-red-600' : 'text-gray-700' }}">Rp {{ number_format($labaBersih, 0, ',', '.') }}</td>
+                                <td
+                                    class="px-4 py-3 text-right text-sm {{ $labaBersih < 0 ? 'text-red-600' : 'text-gray-700' }}">
+                                    Rp {{ number_format($labaBersih, 0, ',', '.') }}</td>
                             </tr>
                             <tr class="bg-blue-50 border-b-2 border-blue-200">
                                 <td class="px-4 py-3"></td>
                                 <td class="px-4 py-3 text-sm font-bold text-blue-800">TOTAL EKUITAS</td>
-                                <td class="px-4 py-3 text-right text-sm font-bold text-blue-800">Rp {{ number_format($totalEkuitas, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-sm font-bold text-blue-800">Rp
+                                    {{ number_format($totalEkuitas, 0, ',', '.') }}</td>
                             </tr>
 
                             {{-- TOTAL KEWAJIBAN + EKUITAS --}}
                             <tr class="bg-gray-800">
                                 <td class="px-4 py-3.5"></td>
                                 <td class="px-4 py-3.5 text-sm font-bold text-white">TOTAL KEWAJIBAN + EKUITAS</td>
-                                <td class="px-4 py-3.5 text-right text-sm font-bold text-white">Rp {{ number_format($totalPasiva, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3.5 text-right text-sm font-bold text-white">Rp
+                                    {{ number_format($totalPasiva, 0, ',', '.') }}</td>
                             </tr>
 
                         </tbody>
@@ -498,10 +553,18 @@
                     <table class="w-full text-sm border-collapse">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-12">No</th>
-                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-32">Aktivitas</th>
-                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Keterangan</th>
-                                <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-48">Jumlah (Rp)</th>
+                                <th
+                                    class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-12">
+                                    No</th>
+                                <th
+                                    class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-32">
+                                    Aktivitas</th>
+                                <th
+                                    class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Keterangan</th>
+                                <th
+                                    class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-48">
+                                    Jumlah (Rp)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -521,10 +584,12 @@
                                     <td class="px-4 py-3">
                                         @php
                                             $aktivitas = strtolower($item->aktivitas);
-                                            $badgeClass = match(true) {
-                                                str_contains($aktivitas, 'operasi')   => 'bg-blue-100 text-blue-700',
-                                                str_contains($aktivitas, 'investasi') => 'bg-purple-100 text-purple-700',
-                                                str_contains($aktivitas, 'pendanaan') => 'bg-orange-100 text-orange-700',
+                                            $badgeClass = match (true) {
+                                                str_contains($aktivitas, 'operasi') => 'bg-blue-100 text-blue-700',
+                                                str_contains($aktivitas, 'investasi')
+                                                    => 'bg-purple-100 text-purple-700',
+                                                str_contains($aktivitas, 'pendanaan')
+                                                    => 'bg-orange-100 text-orange-700',
                                                 default => 'bg-gray-100 text-gray-600',
                                             };
                                         @endphp
@@ -533,21 +598,24 @@
                                         </span>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-700">{{ $item->transaksi }}</td>
-                                    <td class="px-4 py-3 text-right text-sm font-semibold {{ $jumlah < 0 ? 'text-red-600' : 'text-green-600' }}">
+                                    <td
+                                        class="px-4 py-3 text-right text-sm font-semibold {{ $jumlah < 0 ? 'text-red-600' : 'text-green-600' }}">
                                         Rp {{ number_format($jumlah, 2, ',', '.') }}
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
                                     <td colspan="4" class="px-4 py-10 text-center text-sm text-gray-400">
-                                        Belum ada data arus kas. Isi kolom <span class="font-medium">Aktivitas</span> pada entri buku besar.
+                                        Belum ada data arus kas. Isi kolom <span class="font-medium">Aktivitas</span> pada
+                                        entri buku besar.
                                     </td>
                                 </tr>
                             @endforelse
 
                             <tr class="bg-gray-700">
                                 <td colspan="3" class="px-4 py-3.5 text-sm font-bold text-white">TOTAL ARUS KAS</td>
-                                <td class="px-4 py-3.5 text-right text-sm font-bold {{ $totalArusKas < 0 ? 'text-red-300' : 'text-green-300' }}">
+                                <td
+                                    class="px-4 py-3.5 text-right text-sm font-bold {{ $totalArusKas < 0 ? 'text-red-300' : 'text-green-300' }}">
                                     Rp {{ number_format($totalArusKas, 2, ',', '.') }}
                                 </td>
                             </tr>

@@ -7,6 +7,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Data Keuangan</h1>
+            <p class="text-sm text-gray-500 mt-0.5">Kelola pemasukan dan pengeluaran</p>
+        </div>
+
+    </div>
+
     {{--  NAVIGATION --}}
     <div class="flex gap-1 border-b border-gray-200 mb-0">
         <button onclick="switchTab('cashflow')" id="tab-cashflow"
@@ -45,8 +53,7 @@
 
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800">Data Keuangan</h1>
-                    <p class="text-sm text-gray-500 mt-0.5">Kelola pemasukan dan pengeluaran</p>
+                  
                 </div>
                 <button onclick="openModalKeuangan()"
                     class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
@@ -527,7 +534,7 @@
                                             class="px-3 py-1 rounded-full text-xs font-semibold {{ $d->kategori == 'Current'
                                                 ? 'bg-blue-100 text-blue-700'
                                                 : 'bg-red-100
-                                                                                                                                      text-red-700' }}">
+                                                                                                                                                                                                                              text-red-700' }}">
                                             {{ $d->kategori }}
                                         </span>
                                     </td>
@@ -582,7 +589,7 @@
                 <button type="button" onclick="openModalAr()"
                     class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl
   shadow-sm transition-colors duration-150">
-                    <i class="fa fa-plus text-sm"></i> Tambah Aging AR
+                    <i class="fa fa-plus text-sm"></i> Tambah Data
                 </button>
             </div>
 
@@ -998,7 +1005,7 @@
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4" style="animation:slideUp .2s ease">
             <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
                 <div>
-                    <h2 class="text-base font-bold text-gray-800">Tambah Transaksi</h2>
+                    <h2 class="text-base font-bold text-gray-800">Tambah Data</h2>
                     <p class="text-xs text-gray-500 mt-0.5">Isi data transaksi keuangan</p>
                 </div>
                 <button onclick="closeModalKeuangan()"
@@ -1061,7 +1068,7 @@
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 my-6" style="animation:slideUp .2s ease">
             <div class="flex items-center justify-between mb-6">
                 <div>
-                    <h2 class="text-xl font-bold text-slate-800">Tambah Aging AP</h2>
+                    <h2 class="text-xl font-bold text-slate-800">Tambah</h2>
                     <p class="text-sm text-slate-500">Isi data tagihan vendor baru</p>
                 </div>
                 <button onclick="closeModalAp()"
@@ -1381,22 +1388,39 @@
         }
 
         // ── PERTAHANKAN  AKTIF ──────────────────────────────
+
         (function() {
-            // Prioritas: flash dari server (setelah redirect bayar)
+            let targetTab = null;
+
             @if (session('active_tab'))
-                sessionStorage.setItem('activeTab', '{{ session('active_tab') }}');
+                targetTab = '{{ session('active_tab') }}';
             @endif
 
-            const lastTab = sessionStorage.getItem('activeTab');
-            if (lastTab) switchTab(lastTab);
+            if (!targetTab && sessionStorage.getItem('justSubmitted')) {
+                targetTab = sessionStorage.getItem('activeTab');
+            }
+            sessionStorage.removeItem('justSubmitted');
+
+            if (targetTab) {
+                switchTab(targetTab);
+            }
 
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     sessionStorage.setItem('activeTab', this.id.replace('tab-', ''));
                 });
             });
-        })();
 
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', function() {
+                    const tabs = ['cashflow', 'aging-ap', 'aging-ar', 'reminder', 'lunas'];
+                    const active = tabs.find(t => !document.getElementById('content-' + t).classList
+                        .contains('hidden'));
+                    if (active) sessionStorage.setItem('activeTab', active);
+                    sessionStorage.setItem('justSubmitted', '1');
+                });
+            });
+        })();
         // ── MODAL KEUANGAN ─────────────────────────────────────
         function openModalKeuangan() {
             var m = document.getElementById('modalKeuangan');

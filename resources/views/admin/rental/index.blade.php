@@ -379,10 +379,6 @@
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
-                                        <a href="{{ route('rental.invoice', $r->id) }}" target="_blank"
-                                            class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200">
-                                            <i class="fa fa-file-pdf"></i>
-                                        </a>
                                         <a href="{{ route('rental.show', $r->id) }}"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                             <i class="fa fa-eye text-xs"></i> Detail
