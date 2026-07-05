@@ -33,10 +33,24 @@ class AsuransiKendaraanController extends Controller
         ])->latest()->get();
 
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
         $kendaraan = Kendaraan::all();
         $asuransi = Asuransi::all();
         $jenisAsuransi = JenisAsuransi::all();
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
         $reminder = match ($setting->satuan_reminder) {
             'hari'    => $setting->batas_reminder,
@@ -292,13 +306,21 @@ class AsuransiKendaraanController extends Controller
             ->get();
 
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
         $pdf = Pdf::loadView(
             'admin.asuransi.pdf_asuransi_kendaraan',
             [
-                'data'   => $data,
-                'search' => $search,
+                'data'    => $data,
+                'search'  => $search,
                 'setting' => $setting,
+                'logoSrc' => $logoSrc,
             ]
         )->setPaper('A4', 'landscape');
 

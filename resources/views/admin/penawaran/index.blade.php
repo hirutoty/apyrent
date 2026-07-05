@@ -88,14 +88,60 @@
             {{-- SEARCH --}}
             <div class="p-5 border-b">
                 <form method="GET">
-                    <div class="flex gap-3">
+                    <div class="flex gap-3 items-center">
                         <div class="relative flex-1">
                             <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
                             <input type="text" name="search" value="{{ request('search') }}"
                                 placeholder="Cari nomor penawaran atau customer..."
                                 class="w-full border rounded-lg pl-10 pr-4 py-2">
                         </div>
-                        <button class="bg-gray-800 text-white px-5 rounded-lg">Cari</button>
+                        <button class="bg-gray-800 text-white px-5 rounded-lg py-2">Cari</button>
+
+                        {{-- Tombol + Dropdown Toggle Kolom --}}
+                        <div id="colToggleWrap" class="relative">
+                            <button type="button" onclick="toggleColDropdown()"
+                                class="inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                                <i class="fa fa-columns"></i> Kolom
+                                <i class="fa fa-chevron-down text-xs"></i>
+                            </button>
+
+                            <div id="colDropdown"
+                                class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
+
+                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
+                                    <input type="checkbox" class="col-toggle" data-col="col-nopenawaran" checked onchange="toggleColumn('col-nopenawaran', this.checked)"> No Penawaran
+                                </label>
+                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
+                                    <input type="checkbox" class="col-toggle" data-col="col-tanggal" checked onchange="toggleColumn('col-tanggal', this.checked)"> Tanggal
+                                </label>
+                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
+                                    <input type="checkbox" class="col-toggle" data-col="col-periode" checked onchange="toggleColumn('col-periode', this.checked)"> Periode
+                                </label>
+                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
+                                    <input type="checkbox" class="col-toggle" data-col="col-customer" checked onchange="toggleColumn('col-customer', this.checked)"> Customer
+                                </label>
+                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
+                                    <input type="checkbox" class="col-toggle" data-col="col-jenis" checked onchange="toggleColumn('col-jenis', this.checked)"> Jenis Customer
+                                </label>
+                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
+                                    <input type="checkbox" class="col-toggle" data-col="col-kendaraan" checked onchange="toggleColumn('col-kendaraan', this.checked)"> Kendaraan
+                                </label>
+                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
+                                    <input type="checkbox" class="col-toggle" data-col="col-total" checked onchange="toggleColumn('col-total', this.checked)"> Total
+                                </label>
+                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
+                                    <input type="checkbox" class="col-toggle" data-col="col-status" checked onchange="toggleColumn('col-status', this.checked)"> Status
+                                </label>
+                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
+                                    <input type="checkbox" class="col-toggle" data-col="col-penawaran" checked onchange="toggleColumn('col-penawaran', this.checked)"> Penawaran
+                                </label>
+                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
+                                    <input type="checkbox" class="col-toggle" data-col="col-aksi" checked onchange="toggleColumn('col-aksi', this.checked)"> Aksi
+                                </label>
+                            </div>
+                        </div>
+
                     </div>
                 </form>
             </div>
@@ -106,16 +152,16 @@
                     <thead class="bg-gray-100">
                         <tr>
                             <th class="px-4 py-3 text-left">No</th>
-                            <th class="px-4 py-3 text-left">No Penawaran</th>
-                            <th class="px-4 py-3 text-left">Tanggal</th>
-                            <th class="px-4 py-3 text-left">Periode</th>
-                            <th class="px-4 py-3 text-left">Customer</th>
-                            <th class="px-4 py-3 text-left">Jenis Customer</th>
-                            <th class="px-4 py-3 text-left">Kendaraan</th>
-                            <th class="px-4 py-3 text-right">Total</th>
-                            <th class="px-4 py-3 text-center">Status</th>
-                            <th class="px-4 py-3 text-center">Penawaran</th>
-                            <th class="px-4 py-3 text-center">Aksi</th>
+                            <th class="px-4 py-3 text-left" data-col="col-nopenawaran">No Penawaran</th>
+                            <th class="px-4 py-3 text-left" data-col="col-tanggal">Tanggal</th>
+                            <th class="px-4 py-3 text-left" data-col="col-periode">Periode</th>
+                            <th class="px-4 py-3 text-left" data-col="col-customer">Customer</th>
+                            <th class="px-4 py-3 text-left" data-col="col-jenis">Jenis Customer</th>
+                            <th class="px-4 py-3 text-left" data-col="col-kendaraan">Kendaraan</th>
+                            <th class="px-4 py-3 text-right" data-col="col-total">Total</th>
+                            <th class="px-4 py-3 text-center" data-col="col-status">Status</th>
+                            <th class="px-4 py-3 text-center" data-col="col-penawaran">Penawaran</th>
+                            <th class="px-4 py-3 text-center" data-col="col-aksi">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -127,15 +173,15 @@
                                     {{ $loop->iteration + ($penawarans->firstItem() - 1) }}
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-nopenawaran">
                                     <span class="font-semibold">{{ $p->no_penawaran }}</span>
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-tanggal">
                                     {{ optional($p->tanggal_penawaran)->format('d-m-Y') }}
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-periode">
                                     {{ $p->periode }} Bulan
 
                                     @if (!in_array($p->status, ['approved', 'rejected', 'expired']))
@@ -167,15 +213,15 @@
                                     @endif
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-customer">
                                     {{ $p->customer_name }}
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-jenis">
                                     {{ $p->jenis_member }}
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-kendaraan">
                                     @foreach ($p->items as $item)
                                         <div>
                                             • {{ optional($item->kendaraan)->merk }} -
@@ -184,11 +230,11 @@
                                     @endforeach
                                 </td>
 
-                                <td class="px-4 py-3 text-right">
+                                <td class="px-4 py-3 text-right" data-col="col-total">
                                     Rp {{ number_format($p->total, 0, ',', '.') }}
                                 </td>
 
-                                <td class="px-4 py-3 text-center">
+                                <td class="px-4 py-3 text-center" data-col="col-status">
                                     @php
                                         $warna = match ($p->status) {
                                             'approved' => 'green',
@@ -206,7 +252,7 @@
                                     </span>
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-penawaran">
                                     @if (!in_array($p->status, ['approved', 'rejected']))
                                         @if (!in_array($p->status, ['approved', 'expired', 'rejected']))
                                             <form action="{{ route('penawaran.approve', $p->id) }}" method="POST"
@@ -233,7 +279,7 @@
                                     @endif
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3" data-col="col-aksi">
                                     <div class="flex justify-center gap-2 flex-wrap">
                                         <div class="flex justify-center gap-2 flex-wrap">
 
@@ -365,7 +411,24 @@
                         </div>
                         <div>
                             <label>Staff</label>
-                            <input type="text" name="staff" class="w-full border rounded-lg p-2 mt-1">
+                            <select name="staff" class="w-full border rounded-lg p-2 mt-1">
+                                <option value="">-- Pilih Jabatan Staf --</option>
+                                <option>Direktur Utama (CEO)</option>
+                                <option>Wakil Direktur (Vice President)</option>
+                                <option>Manajer Umum (General Manager)</option>
+                                <option>Manajer Operasional</option>
+                                <option>Manajer Keuangan</option>
+                                <option>Manajer Pemasaran</option>
+                                <option>Manajer SDM (HR Manager)</option>
+                                <option>Supervisor / Koordinator</option>
+                                <option>Staf Administrasi</option>
+                                <option>Staf Keuangan</option>
+                                <option>Staf Pemasaran</option>
+                                <option>Staf IT</option>
+                                <option>Customer Service</option>
+                                <option>Office Boy / Office Girl</option>
+                                <option>Security</option>
+                            </select>
                         </div>
                         <div>
                             <label>Nama Staff</label>
@@ -373,7 +436,24 @@
                         </div>
                         <div>
                             <label>Direktur</label>
-                            <input type="text" name="direktur" class="w-full border rounded-lg p-2 mt-1">
+                            <select name="direktur" class="w-full border rounded-lg p-2 mt-1">
+                                <option value="">-- Pilih Jabatan Direktur --</option>
+                                <option>Direktur Utama (CEO)</option>
+                                <option>Wakil Direktur (Vice President)</option>
+                                <option>Manajer Umum (General Manager)</option>
+                                <option>Manajer Operasional</option>
+                                <option>Manajer Keuangan</option>
+                                <option>Manajer Pemasaran</option>
+                                <option>Manajer SDM (HR Manager)</option>
+                                <option>Supervisor / Koordinator</option>
+                                <option>Staf Administrasi</option>
+                                <option>Staf Keuangan</option>
+                                <option>Staf Pemasaran</option>
+                                <option>Staf IT</option>
+                                <option>Customer Service</option>
+                                <option>Office Boy / Office Girl</option>
+                                <option>Security</option>
+                            </select>
                         </div>
                         <div>
                             <label>Nama Direktur</label>
@@ -531,8 +611,24 @@
                         </div>
                         <div>
                             <label>Staff</label>
-                            <input id="edit_staff" type="text" name="staff"
-                                class="w-full border rounded-lg p-2 mt-1">
+                            <select id="edit_staff" name="staff" class="w-full border rounded-lg p-2 mt-1">
+                                <option value="">-- Pilih Jabatan Staf --</option>
+                                <option>Direktur Utama (CEO)</option>
+                                <option>Wakil Direktur (Vice President)</option>
+                                <option>Manajer Umum (General Manager)</option>
+                                <option>Manajer Operasional</option>
+                                <option>Manajer Keuangan</option>
+                                <option>Manajer Pemasaran</option>
+                                <option>Manajer SDM (HR Manager)</option>
+                                <option>Supervisor / Koordinator</option>
+                                <option>Staf Administrasi</option>
+                                <option>Staf Keuangan</option>
+                                <option>Staf Pemasaran</option>
+                                <option>Staf IT</option>
+                                <option>Customer Service</option>
+                                <option>Office Boy / Office Girl</option>
+                                <option>Security</option>
+                            </select>
                         </div>
                         <div>
                             <label>Nama Staff</label>
@@ -541,8 +637,24 @@
                         </div>
                         <div>
                             <label>Direktur</label>
-                            <input id="edit_direktur" type="text" name="direktur"
-                                class="w-full border rounded-lg p-2 mt-1">
+                            <select id="edit_direktur" name="direktur" class="w-full border rounded-lg p-2 mt-1">
+                                <option value="">-- Pilih Jabatan Direktur --</option>
+                                <option>Direktur Utama (CEO)</option>
+                                <option>Wakil Direktur (Vice President)</option>
+                                <option>Manajer Umum (General Manager)</option>
+                                <option>Manajer Operasional</option>
+                                <option>Manajer Keuangan</option>
+                                <option>Manajer Pemasaran</option>
+                                <option>Manajer SDM (HR Manager)</option>
+                                <option>Supervisor / Koordinator</option>
+                                <option>Staf Administrasi</option>
+                                <option>Staf Keuangan</option>
+                                <option>Staf Pemasaran</option>
+                                <option>Staf IT</option>
+                                <option>Customer Service</option>
+                                <option>Office Boy / Office Girl</option>
+                                <option>Security</option>
+                            </select>
                         </div>
                         <div>
                             <label>Nama Direktur</label>
@@ -782,6 +894,25 @@
 
     @push('scripts')
         <script>
+
+            function toggleColDropdown() {
+        document.getElementById('colDropdown').classList.toggle('hidden');
+    }
+
+    // Tutup dropdown kalau klik di luar area
+    document.addEventListener('click', function(e) {
+        const wrap = document.getElementById('colToggleWrap');
+        if (wrap && !wrap.contains(e.target)) {
+            document.getElementById('colDropdown').classList.add('hidden');
+        }
+    });
+
+    // Toggle kolom (Hide/Show TH dan TD) berdasarkan data-col attribute
+    function toggleColumn(colId, show) {
+        document.querySelectorAll(`[data-col="${colId}"]`).forEach(el => {
+            el.style.display = show ? '' : 'none';
+        });
+    }
             const kendaraanOptions = @json(
                 $kendaraans->map(fn($k) => [
                         'id' => $k->id,

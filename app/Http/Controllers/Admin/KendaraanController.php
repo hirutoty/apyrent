@@ -42,6 +42,13 @@ class KendaraanController extends Controller
             ->get();
 
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
         $jenis = Jenis::all();
 
         $reminderHari = match ($setting->satuan_reminder) {
@@ -287,9 +294,16 @@ class KendaraanController extends Controller
             ->where('merk', $merk)
             ->get();
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
         $pdf = Pdf::loadView(
             'admin.kendaraan.pdf',
-            compact('data', 'merk', 'setting')
+            compact('data', 'merk', 'setting', 'logoSrc')
         )->setPaper('A4', 'landscape');
 
         return $pdf->stream(
@@ -310,9 +324,16 @@ class KendaraanController extends Controller
             ->get();
 
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
         $pdf = Pdf::loadView(
             'admin.kendaraan.pdf_merk',
-            compact('data', 'setting')
+            compact('data', 'setting', 'logoSrc')
         )->setPaper('A4', 'potrait');
 
         return $pdf->stream('laporan-merk-kendaraan.pdf');

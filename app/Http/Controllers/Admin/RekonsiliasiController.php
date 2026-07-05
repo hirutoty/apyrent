@@ -112,9 +112,18 @@ public function pdf(Request $request)
     }
 
     $setting = Setting::first();
+
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
     $data = $query->orderBy('tanggal', 'desc')->get();
 
-    $pdf = PDF::loadView('admin.rekonsiliasi.pdf', compact('data', 'setting'));
+    $pdf = PDF::loadView('admin.rekonsiliasi.pdf', compact('data', 'setting', 'logoSrc'));
 
     return $pdf->stream('rekonsiliasi-bank.pdf');
 }

@@ -147,6 +147,13 @@ class UserController extends Controller
 
         $data = $query->latest()->get();
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
         $filter = $request->search ?? 'Semua Data';
 
@@ -154,6 +161,7 @@ class UserController extends Controller
             'data' => $data,
             'filter' => $filter,
             'setting' => $setting,
+            'logoSrc' => $logoSrc,
         ])->setPaper('a4', 'landscape');
 
         return $pdf->stream('data-user.pdf');

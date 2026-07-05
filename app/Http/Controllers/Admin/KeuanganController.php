@@ -176,8 +176,15 @@ if ($request->filled('jenis')) {
             'search' => $request->search,
         ];
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
-        $pdf = Pdf::loadView('admin.keuangan.pdf', compact('keuangans', 'filterInfo', 'setting'));
+        $pdf = Pdf::loadView('admin.keuangan.pdf', compact('keuangans', 'filterInfo', 'setting', 'logoSrc'));
         return $pdf->stream('laporan-keuangan.pdf');
     }
 

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
+use App\Models\InvSummary;
 use App\Models\Keuangan;
 
 class PaymentsController extends Controller
@@ -75,6 +76,56 @@ class PaymentsController extends Controller
         }
 
         return $prefix . str_pad($number, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Sinkronisasi paid_amount di InvSummary dan payment_status di Invoice
+     * berdasarkan total semua payment Verified untuk invoice tertentu.
+     */
+    private function syncSummary(int $invoiceId): void
+    {
+        // Total semua payment Verified untuk invoice ini
+        $totalVerified = InvoicePayment::where('invoice_id', $invoiceId)
+            ->where('status', 'Verified')
+            ->sum('amount');
+
+        // Update InvSummary yang terkait invoice ini
+        $summary = InvSummary::where('invoice_id', $invoiceId)->first();
+
+        if ($summary) {
+            $remaining = max(0, $summary->total_amount - $totalVerified);
+
+            if ($totalVerified <= 0) {
+                $paymentStatus = 'Unpaid';
+            } elseif ($remaining <= 0) {
+                $paymentStatus = 'Paid';
+            } else {
+                $paymentStatus = 'Partial';
+            }
+
+            $summary->update([
+                'paid_amount'      => $totalVerified,
+                'remaining_amount' => $remaining,
+                'payment_status'   => $paymentStatus,
+            ]);
+        }
+
+        // Update payment_status di tabel invoices juga
+        $invoice = Invoice::find($invoiceId);
+        if ($invoice) {
+            $invoiceTotal = $invoice->total ?? 0;
+            $remaining    = max(0, $invoiceTotal - $totalVerified);
+
+            if ($totalVerified <= 0) {
+                $paymentStatus = 'Unpaid';
+            } elseif ($remaining <= 0) {
+                $paymentStatus = 'Paid';
+            } else {
+                $paymentStatus = 'Partial';
+            }
+
+            $invoice->update(['payment_status' => $paymentStatus]);
+        }
     }
 
     /**
@@ -169,6 +220,9 @@ class PaymentsController extends Controller
 
                 $this->createFinanceTransaction($payment);
             }
+
+            // Sync InvSummary & Invoice payment_status
+            $this->syncSummary($payment->invoice_id);
 
             DB::commit();
 
@@ -311,6 +365,9 @@ class PaymentsController extends Controller
                 }
             }
 
+            // Sync InvSummary & Invoice payment_status
+            $this->syncSummary($payment->invoice_id);
+
             DB::commit();
 
             return redirect()
@@ -353,7 +410,13 @@ class PaymentsController extends Controller
                 $payment->transaction_id
             )->delete();
 
+            // simpan invoice_id sebelum delete
+            $invoiceId = $payment->invoice_id;
+
             $payment->delete();
+
+            // Sync InvSummary & Invoice payment_status
+            $this->syncSummary($invoiceId);
 
             DB::commit();
 

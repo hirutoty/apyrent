@@ -24,19 +24,41 @@ class SummaryController extends Controller
         ])->latest();
 
         if ($request->search) {
-
-            $query->whereHas('invoice', function ($q) use ($request) {
-
-                $q->where('invoice_no', 'like', '%' . $request->search . '%')
-                    ->orWhere('customer_name', 'like', '%' . $request->search . '%');
-
-            })->orWhere('type', 'like', '%' . $request->search . '%');
+            $query->where(function ($q) use ($request) {
+                $q->whereHas('invoice', function ($q2) use ($request) {
+                    $q2->where('invoice_no', 'like', '%' . $request->search . '%')
+                       ->orWhere('customer_name', 'like', '%' . $request->search . '%');
+                })->orWhere('type', 'like', '%' . $request->search . '%');
+            });
         }
 
-        $summaries = $query
-            ->paginate(10)
-            ->withQueryString();
+        // Filter status
+        if ($request->status) {
+            $query->where('payment_status', $request->status);
+        }
 
+        // Statistik dari SEMUA data (bukan paginate)
+        $allQuery   = InvSummary::query();
+        if ($request->search) {
+            $allQuery->where(function ($q) use ($request) {
+                $q->whereHas('invoice', function ($q2) use ($request) {
+                    $q2->where('invoice_no', 'like', '%' . $request->search . '%')
+                       ->orWhere('customer_name', 'like', '%' . $request->search . '%');
+                })->orWhere('type', 'like', '%' . $request->search . '%');
+            });
+        }
+        if ($request->status) {
+            $allQuery->where('payment_status', $request->status);
+        }
+
+        $stats = [
+            'total'   => (clone $allQuery)->count(),
+            'paid'    => (clone $allQuery)->where('payment_status', 'Paid')->count(),
+            'partial' => (clone $allQuery)->where('payment_status', 'Partial')->count(),
+            'unpaid'  => (clone $allQuery)->where('payment_status', 'Unpaid')->count(),
+        ];
+
+        $summaries  = $query->paginate(10)->withQueryString();
         $penawarans = InvPenawaran::latest()->get();
         $kontraks   = InvKontrak::latest()->get();
         $invoices   = Invoice::latest()->get();
@@ -45,7 +67,8 @@ class SummaryController extends Controller
             'summaries',
             'penawarans',
             'kontraks',
-            'invoices'
+            'invoices',
+            'stats'
         ));
     }
 
@@ -179,5 +202,36 @@ class SummaryController extends Controller
         return redirect()
             ->route('summary.index')
             ->with('success', 'Summary berhasil dihapus.');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $summaries = InvSummary::with(['penawaran', 'kontrak', 'invoice'])
+            ->when($request->status, fn($q) => $q->where('payment_status', $request->status))
+            ->latest()
+            ->get();
+
+        $setting = \App\Models\Setting::first();
+
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
+        $stats = [
+            'total'   => $summaries->count(),
+            'paid'    => $summaries->where('payment_status', 'Paid')->count(),
+            'partial' => $summaries->where('payment_status', 'Partial')->count(),
+            'unpaid'  => $summaries->where('payment_status', 'Unpaid')->count(),
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.summary.pdf', compact(
+            'summaries', 'setting', 'logoSrc', 'stats'
+        ))->setPaper('a4', 'portrait');
+
+        return $pdf->download('Summary-' . now()->format('Y-m-d') . '.pdf');
     }
 }

@@ -32,8 +32,15 @@ class GpsKendaraanHistoryController extends Controller
             ->orderByDesc('tahun')
             ->pluck('tahun');
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
-        return view('admin.gps.gps_kendaraan_history', compact('data', 'totalBiaya', 'tahunList', 'setting'));
+        return view('admin.gps.gps_kendaraan_history', compact('data', 'totalBiaya', 'tahunList', 'setting', 'logoSrc'));
     }
 
     public function exportPdf(Request $request)
@@ -52,8 +59,15 @@ class GpsKendaraanHistoryController extends Controller
 
         $totalBiaya = $data->sum('biaya_sewa');
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
-        $pdf = Pdf::loadView('admin.gps.history_pdf', compact('data', 'totalBiaya', 'setting'))
+        $pdf = Pdf::loadView('admin.gps.history_pdf', compact('data', 'totalBiaya', 'setting', 'logoSrc'))
             ->setPaper('a4', 'landscape');
 
         $filename = 'history-gps-kendaraan-' . now()->format('Ymd-His') . '.pdf';

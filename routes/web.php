@@ -44,6 +44,7 @@ use App\Http\Controllers\Admin\PenawaranKendaraanController;
 use App\Http\Controllers\Admin\InvPenawaranController;
 use App\Http\Controllers\Admin\InvKontrakController;
 use App\Http\Controllers\Admin\InvoicesController;
+use App\Http\Controllers\Admin\InvoicePeriodeController;
 use App\Http\Controllers\Admin\PaymentsController;
 use App\Http\Controllers\Admin\SummaryController;
 use App\Http\Controllers\Admin\ReminderController;
@@ -379,7 +380,20 @@ Route::resource('procuremento', ProcurementoController::class) // Pengadaan - Pr
     ->name('invoices.print');
   Route::post('invoice/{id}/send-email', [InvoicesController::class, 'sendEmail'])
     ->name('invoices.email');
+  Route::get('invoices/ttd-library', [InvoicesController::class, 'ttdLibrary'])
+    ->name('invoices.ttd-library');
   Route::resource('invoices', InvoicesController::class);
+
+  // ── PERIODE & REMAKS (nested, AJAX) ────────────────────────
+  Route::prefix('invoices/{invoice}/periodes')->group(function () {
+    Route::get('/',                                      [InvoicePeriodeController::class, 'index'])        ->name('invoices.periodes.index');
+    Route::post('/',                                     [InvoicePeriodeController::class, 'store'])        ->name('invoices.periodes.store');
+    Route::put('/{periode}',                             [InvoicePeriodeController::class, 'update'])       ->name('invoices.periodes.update');
+    Route::delete('/{periode}',                          [InvoicePeriodeController::class, 'destroy'])      ->name('invoices.periodes.destroy');
+    Route::post('/{periode}/remaks',                     [InvoicePeriodeController::class, 'storeRemak'])   ->name('invoices.periodes.remaks.store');
+    Route::put('/{periode}/remaks/{remak}',              [InvoicePeriodeController::class, 'updateRemak'])  ->name('invoices.periodes.remaks.update');
+    Route::delete('/{periode}/remaks/{remak}',           [InvoicePeriodeController::class, 'destroyRemak']) ->name('invoices.periodes.remaks.destroy');
+  });
 
   Route::get('/payments/pdf', [PaymentsController::class, 'exportPdf'])
     ->name('payments.pdf');

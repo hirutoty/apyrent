@@ -43,6 +43,13 @@ class RentalController extends Controller
         $rentals = $query->latest()->get();
 
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
         // 🔥 KONVERSI REMINDER DINAMIS
         $reminderHari = match ($setting->satuan_reminder ?? 'hari') {
@@ -543,8 +550,15 @@ class RentalController extends Controller
 
         $rentals = $query->latest()->get();
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
-        $pdf = Pdf::loadView('admin.rental.pdf', compact('rentals', 'setting'));
+        $pdf = Pdf::loadView('admin.rental.pdf', compact('rentals', 'setting', 'logoSrc'));
 
         return $pdf->stream('data-rental.pdf');
     }
@@ -558,8 +572,15 @@ class RentalController extends Controller
     {
         $rental = Rental::with(['member', 'kendaraan'])->findOrFail($id);
         $setting = Setting::first();
+        // Base64 logo untuk DomPDF
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
-        $pdf = Pdf::loadView('admin.rental.invoice', compact('rental', 'setting'))
+        $pdf = Pdf::loadView('admin.rental.invoice', compact('rental', 'setting', 'logoSrc'))
             ->setPaper('A4', 'portrait');
 
         return $pdf->stream('invoice.pdf');

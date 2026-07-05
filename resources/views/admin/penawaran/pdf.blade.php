@@ -1,361 +1,229 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <meta charset="utf-8">
-    <title>Laporan Penawaran</title>
-
+    <title>Daftar Penawaran Kendaraan</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        @page {
+            margin: 20px 25px 20px 25px;
+            size: A4 landscape;
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: DejaVu Sans, sans-serif;
-            font-size: 11px;
-            color: #222;
+            font-size: 9px;
+            color: #000;
         }
 
-        /* ── HEADER ── */
-        .header {
-            padding: 18px 28px 14px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        .header-table {
-            width: 100%;
-        }
-
-        .logo {
-            height: 60px;
-            width: auto;
-        }
-
-        .company-name {
-            font-size: 18px;
+        /* ── JUDUL ── */
+        .title {
+            text-align: center;
+            font-size: 13px;
             font-weight: bold;
-            color: #1e56b0;
-            margin-bottom: 4px;
+            text-decoration: underline;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
         }
 
-        .company-info {
-            font-size: 10px;
-            line-height: 1.6;
-            color: #555;
-        }
-
-        .report-title {
-            text-align: right;
-        }
-
-        .report-title h1 {
-            font-size: 26px;
-            color: #1e56b0;
-            letter-spacing: 2px;
-        }
-
-        .report-title p {
-            font-size: 11px;
-            color: #666;
-        }
-
-        /* ── INFO BOX ── */
-        .info-box {
-            margin: 15px 28px;
-            padding: 12px;
-            border: 1px solid #d0d7e3;
-            background: #f8fafc;
-            border-radius: 4px;
-        }
-
-        .info-box p {
-            margin: 4px 0;
-        }
-
-        /* ── TABLE ── */
-        .table-wrap {
-            padding: 0 28px;
-        }
-
+        /* ── TABEL ── */
         .main-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 6px;
         }
 
-        .main-table thead tr {
-            background: #1e56b0;
-        }
-
-        .main-table th {
+        /* Header baris 1 - background biru gelap */
+        .main-table thead tr.row-head-1 th {
+            background: #1e3a6e;
             color: #fff;
-            padding: 9px;
-            border: 1px solid #d0d7e3;
+            border: 1px solid #000;
+            padding: 5px 4px;
             text-align: center;
-            font-size: 11px;
+            font-size: 9px;
+            font-weight: bold;
+            vertical-align: middle;
+        }
+
+        /* Sub-header rincian unit - background kuning */
+        .main-table thead tr.row-head-2 th {
+            background: #f5c518;
+            color: #000;
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: center;
+            font-size: 9px;
+            font-weight: bold;
         }
 
         .main-table td {
-            border: 1px solid #d0d7e3;
-            padding: 7px;
-            font-size: 10px;
-            vertical-align: top;
+            border: 1px solid #000;
+            padding: 4px 5px;
+            vertical-align: middle;
+            font-size: 9px;
         }
 
-        /* ── MONTH GROUP HEADER ── */
-        .row-month-header td {
+        /* Row data biasa */
+        .row-data td {
+            background: #fff;
+        }
+
+        /* Kolom STATUS italic bold */
+        .status-cell {
+            font-style: italic;
             font-weight: bold;
-            font-size: 10.5px;
-            padding: 6px 9px;
-            border: 1px solid #d0d7e3;
-            letter-spacing: 0.5px;
+            font-size: 8.5px;
+            text-align: center;
         }
 
-        /* Soft alternating month colors */
-        .month-0 td { background: #eef4ff; color: #1e3a6e; }  /* biru muda */
-        .month-1 td { background: #f0fdf4; color: #14532d; }  /* hijau muda */
-        .month-2 td { background: #fef9ec; color: #78350f; }  /* kuning muda */
-        .month-3 td { background: #fdf2f8; color: #701a75; }  /* ungu muda  */
-
-        /* Data rows inherit a lighter tint of the month color */
-        .bg-month-0 { background: #f7faff; }
-        .bg-month-1 { background: #f7fdf9; }
-        .bg-month-2 { background: #fffef5; }
-        .bg-month-3 { background: #fef9fc; }
-
-        /* ── SUBTOTAL per bulan ── */
-        .row-subtotal td {
-            background: #eff6ff;
-            font-weight: bold;
-        }
-
-        /* ── GRAND TOTAL ── */
-        .row-total td {
-            background: #1e56b0;
-            color: #fff;
-            font-weight: bold;
-        }
+        .status-delivered { color: #1a5276; }
+        .status-progress  { color: #145a32; }
+        .status-pending   { color: #784212; }
+        .status-rejected  { color: #922b21; }
+        .status-expired   { color: #7b7d7d; }
 
         .text-center { text-align: center; }
-        .text-right  { text-align: right;  }
-
-        /* ── FOOTER ── */
-        .footer {
-            margin-top: 25px;
-            padding: 14px 28px;
-            border-top: 1px solid #dbeafe;
-            text-align: center;
-            color: #1e56b0;
-            font-size: 10px;
-            line-height: 1.7;
-        }
+        .text-right  { text-align: right; }
+        .font-bold   { font-weight: bold; }
     </style>
 </head>
-
 <body>
 
-    {{-- ── HEADER ── --}}
-    <div class="header">
-        <table class="header-table">
-            <tr>
+@php
+    use Carbon\Carbon;
 
-                <td width="15%">
-                    @if ($setting?->logo)
-                        <img src="{{ public_path($setting->logo) }}" class="logo">
-                    @endif
-                </td>
+    // Kelompokkan per bulan dari tanggal_penawaran
+    $grouped = $penawarans->groupBy(function ($p) {
+        return Carbon::parse($p->tanggal_penawaran)->format('Y-m');
+    })->sortKeys();
 
-                <td width="55%">
-                    <div class="company-name">
-                        {{ $setting?->nama_perusahaan }}
-                    </div>
-                    <div class="company-info">
-                        {{ $setting?->alamat }}<br>
-                        Telp : {{ $setting?->telepon }}<br>
-                        Email : {{ $setting?->email }}
-                        @if ($setting?->website)
-                            <br>Website : {{ $setting->website }}
-                        @endif
-                    </div>
-                </td>
+    $no = 1;
+@endphp
 
-                <td width="30%">
-                    <div class="report-title">
-                        <h1>Penawaran</h1>
-                        <p>Laporan Penawaran Kendaraan</p>
-                    </div>
-                </td>
+{{-- JUDUL --}}
+<div class="title">
+    DAFTAR KENDARAAN BARU {{ $setting?->nama_perusahaan ? strtoupper($setting->nama_perusahaan) : 'APY' }}
+    {{ now()->format('Y') }}
+</div>
 
-            </tr>
-        </table>
-    </div>
+<table class="main-table">
+    <thead>
+        {{-- Baris header 1 --}}
+        <tr class="row-head-1">
+            <th rowspan="2" width="3%">No.</th>
+            <th rowspan="2" width="7%">PERIODE</th>
+            <th rowspan="2" width="16%">TUJUAN PENAWARAN</th>
+            {{-- Colspan untuk rincian unit --}}
+            <th colspan="6" width="38%">RINCIAN UNIT</th>
+            <th rowspan="2" width="12%">HARGA SEWA/<br>BULAN/UNIT</th>
+            <th rowspan="2" width="11%">PIC</th>
+            <th rowspan="2" width="13%">STATUS</th>
+        </tr>
+        {{-- Baris header 2: sub-header rincian unit --}}
+        <tr class="row-head-2">
+            <th width="16%">Tipe</th>
+            <th width="5%">Qty</th>
+            <th width="7%">Warna</th>
+            <th width="7%">Nopol</th>
+            <th width="6%">Periode</th>
+            <th width="6%">Tahun</th>
+        </tr>
+    </thead>
+    <tbody>
 
-    {{-- ── INFO BOX ── --}}
-    <div class="info-box">
-        <p>
-            <strong>Tanggal Cetak :</strong>
-            {{ now()->format('d M Y H:i') }}
-        </p>
-        <p>
-            <strong>Total Data Penawaran :</strong>
-            {{ $penawarans->count() }}
-        </p>
-        <p>
-            <strong>Grand Total Nominal :</strong>
-            Rp {{ number_format($penawarans->sum('total'), 0, ',', '.') }}
-        </p>
-    </div>
+        @forelse($grouped as $yearMonth => $items)
 
-    {{-- ── TABLE ── --}}
-    <div class="table-wrap">
+            @foreach($items as $penawaran)
+                @php
+                    $unitItems = $penawaran->items ?? collect();
+                    $totalItems = $unitItems->count();
+                    $labelBulan = Carbon::parse($penawaran->tanggal_penawaran)->locale('id')->isoFormat('MMMM');
+                    $statusClass = match($penawaran->status) {
+                        'approved'  => 'status-delivered',
+                        'active'    => 'status-progress',
+                        'completed' => 'status-delivered',
+                        'rejected'  => 'status-rejected',
+                        'expired'   => 'status-expired',
+                        default     => 'status-pending',
+                    };
+                    $statusLabel = match($penawaran->status) {
+                        'approved'  => 'Approved',
+                        'active'    => 'On Progress',
+                        'completed' => 'Completed',
+                        'rejected'  => 'Rejected',
+                        'expired'   => 'Expired',
+                        'pending'   => 'On Progress',
+                        default     => ucfirst($penawaran->status ?? '-'),
+                    };
+                @endphp
 
-        @php
-            // Kelompokkan berdasarkan bulan (format: "Y-m" untuk sorting, "F Y" untuk label)
-            $grouped = $penawarans->groupBy(fn($p) => \Carbon\Carbon::parse($p->tanggal_penawaran)->format('Y-m'));
-            $grandTotal = 0;
-            $grandCount = 0;
-            $monthIndex = 0;
-        @endphp
-
-        <table class="main-table">
-
-            <thead>
-                <tr>
-                    <th width="4%">No</th>
-                    <th width="11%">No Penawaran</th>
-                    <th width="9%">Tanggal</th>
-                    <th width="15%">Customer</th>
-                    <th width="15%">Jenis Customer</th>
-                    <th width="28%">Kendaraan</th>
-                    <th width="7%">Periode</th>
-                    <th width="10%">Total</th>
-                    <th width="18%">Status</th>
-                    
-                </tr>
-            </thead>
-
-            <tbody>
-
-                @forelse ($grouped as $yearMonth => $items)
-
-                    @php
-                        $label      = \Carbon\Carbon::parse($yearMonth . '-01')->translatedFormat('F Y');
-                        $subTotal   = $items->sum('total');
-                        $colorClass = 'month-' . ($monthIndex % 4);
-                        $bgClass    = 'bg-month-' . ($monthIndex % 4);
-                        $rowNum     = 0;
-                        $grandTotal += $subTotal;
-                        $grandCount += $items->count();
-                    @endphp
-
-                    {{-- Month group header --}}
-                    <tr class="row-month-header {{ $colorClass }}">
-                        <td colspan="8">
-                            &#128197; {{ strtoupper($label) }}
+                @if($totalItems === 0)
+                    <tr class="row-data">
+                        <td class="text-center">{{ $no++ }}</td>
+                        <td class="text-center font-bold">{{ strtoupper($labelBulan) }}</td>
+                        <td>
+                            <span class="font-bold">{{ strtoupper($penawaran->kepada ?? '') }}</span>
+                            @if($penawaran->up)
+                                <br><span style="font-size:8px;">{{ $penawaran->up }}</span>
+                            @endif
                         </td>
+                        <td colspan="6"></td>
+                        <td class="text-right"></td>
+                        <td style="font-size:8px; text-align:center;">{{ $penawaran->contact_person ?? '' }}</td>
+                        <td class="status-cell {{ $statusClass }}">{{ $statusLabel }}</td>
                     </tr>
+                @else
+                    @foreach($unitItems as $idx => $item)
+                        <tr class="row-data">
+                            @if($idx === 0)
+                                <td class="text-center" rowspan="{{ $totalItems }}">{{ $no++ }}</td>
+                                <td class="text-center font-bold" rowspan="{{ $totalItems }}">{{ strtoupper($labelBulan) }}</td>
+                                <td rowspan="{{ $totalItems }}">
+                                    <span class="font-bold">{{ strtoupper($penawaran->kepada ?? '') }}</span>
+                                    @if($penawaran->up)
+                                        <br><span style="font-size:8px;">{{ $penawaran->up }}</span>
+                                    @endif
+                                </td>
+                            @endif
 
-                    @foreach ($items as $p)
-                        @php $rowNum++; @endphp
-                        <tr class="{{ $bgClass }}">
-
+                            <td>{{ strtoupper(optional($item->kendaraan)->merk ?? '-') }}</td>
+                            <td class="text-center">{{ $item->qty ?? 1 }} Unit</td>
+                            <td class="text-center">{{ optional($item->kendaraan)->warna ?? '-' }}</td>
+                            <td class="text-center">{{ optional($item->kendaraan)->nopol ?? '-' }}</td>
                             <td class="text-center">
-                                {{ $rowNum }}
+                                {{ $item->durasi ?? $penawaran->periode ?? '-' }}
+                                {{ ucfirst($item->satuan_durasi ?? 'Bulan') }}
                             </td>
-
-                            <td>
-                                {{ $p->no_penawaran ?? '-' }}
-                            </td>
-
                             <td class="text-center">
-                                {{ optional($p->tanggal_penawaran)->format('d-m-Y') ?? '-' }}
+                                {{ $item->tahun_unit ?? optional($item->kendaraan)->tahun_pembuatan ?? '-' }}
                             </td>
 
-                            <td>
-                                {{ $p->customer_name ?? '-' }}
-                            </td>
-                            <td>
-                                {{ $p->jenis_member ?? '-' }}
-                            </td>
-
-                            <td>
-                                @foreach ($p->items as $item)
-                                    &bull; {{ optional($item->kendaraan)->merk ?? '-' }}
-                                    &ndash;
-                                    {{ optional($item->kendaraan)->nopol ?? '-' }}<br>
-                                @endforeach
-                            </td>
-
-                            <td class="text-center">
-                                {{ $p->periode }} Bulan
-                            </td>
-
-                            <td class="text-right">
-                                Rp {{ number_format($p->total, 0, ',', '.') }}
-                            </td>
-
-                            <td class="text-center">
-                                {{ strtoupper($p->status ?? '-') }}
-                            </td>
+                            @if($idx === 0)
+                                <td class="text-right" rowspan="{{ $totalItems }}">
+                                    Rp{{ number_format($item->price ?? 0, 0, ',', '.') }}
+                                </td>
+                                <td rowspan="{{ $totalItems }}" style="font-size:8px; text-align:center;">
+                                    {{ $penawaran->contact_person ?? '' }}
+                                </td>
+                                <td class="status-cell {{ $statusClass }}" rowspan="{{ $totalItems }}">
+                                    {{ $statusLabel }}
+                                </td>
+                            @endif
                         </tr>
                     @endforeach
+                @endif
+            @endforeach
 
-                    {{-- Subtotal per bulan --}}
-                    <tr class="row-subtotal">
-                        <td colspan="5" class="text-right">
-                            Subtotal {{ $label }} &mdash; {{ $items->count() }} penawaran
-                        </td>
-                        <td></td>
-                        <td class="text-right">
-                            Rp {{ number_format($subTotal, 0, ',', '.') }}
-                        </td>
-                        <td colspan="2"></td>
-                    </tr>
+        @empty
+            <tr>
+                <td colspan="12" class="text-center" style="padding:20px;">
+                    Tidak ada data penawaran.
+                </td>
+            </tr>
+        @endforelse
 
-                    @php $monthIndex++; @endphp
-
-                @empty
-
-                    <tr>
-                        <td colspan="9" class="text-center">
-                            Tidak ada data penawaran.
-                        </td>
-                    </tr>
-
-                @endforelse
-
-                {{-- Grand total --}}
-                <tr class="row-total">
-                    <td colspan="5" class="text-right">
-                        GRAND TOTAL &mdash; {{ $grandCount }} penawaran
-                    </td>
-                    <td></td>
-                    <td class="text-right">
-                        Rp {{ number_format($grandTotal, 0, ',', '.') }}
-                    </td>
-                    <td colspan="2"></td>
-                </tr>
-
-            </tbody>
-
-        </table>
-
-    </div>
-
-    {{-- ── FOOTER ── --}}
-    <div class="footer">
-        <strong>{{ $setting?->nama_perusahaan }}</strong><br>
-        {{ $setting?->alamat }}<br>
-        Telp : {{ $setting?->telepon }}
-        |
-        Email : {{ $setting?->email }}
-        @if ($setting?->website)
-            <br>{{ $setting->website }}
-        @endif
-    </div>
+    </tbody>
+</table>
 
 </body>
-
 </html>
