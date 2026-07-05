@@ -102,11 +102,14 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     ->name('keuangan.export.pdf');
   Route::get('/keuangan/export/excel', [KeuanganController::class, 'exportExcel'])
     ->name('keuangan.export.excel');
-
+    
   Route::get(
     'gps-kendaraan/export/pdf',
     [GpsKendaraanController::class, 'exportPdf']
   )->name('gps-kendaraan.export.pdf');
+
+  Route::get('/admin/history/{kendaraan}/export-pdf', [HistoryController::class, 'exportPdf'])
+    ->name('history.export.pdf');
 
   Route::post('gps-kendaraan/{id}/perpanjang', [GpsKendaraanController::class, 'perpanjang'])
     ->name('gps-kendaraan.perpanjang');

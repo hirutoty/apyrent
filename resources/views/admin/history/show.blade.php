@@ -45,6 +45,7 @@
                     <p class="text-xs text-gray-400 mt-0.5" id="totalCount">{{ $rentals->count() }} total transaksi</p>
                 </div>
                 <div class="flex items-center gap-2">
+    
                     {{-- Search --}}
                     <div class="relative">
                         <i
@@ -70,6 +71,11 @@
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
+                                    <a href="{{ route('history.export.pdf', $kendaraan->id) }}" target="_blank"
+    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg">
+    <i class="fa fa-file-pdf"></i>
+    Export PDF
+</a>
                 </div>
             </div>
 

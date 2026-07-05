@@ -280,6 +280,7 @@
                                         </button>
 
                                         {{-- Edit --}}
+                                        {{-- Edit --}}
                                         <button
                                             class="btn-edit bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-xs font-medium transition inline-flex items-center gap-1"
                                             data-id="{{ $d->id }}" data-kendaraan_id="{{ $d->kendaraan_id }}"
@@ -290,7 +291,19 @@
                                             data-biaya_sewa="{{ $d->biaya_sewa }}"
                                             data-durasi_bulan="{{ $d->durasi_bulan }}"
                                             data-status_sewa="{{ $d->status_sewa }}"
-                                            data-bukti_bayar="{{ $d->bukti_bayar }}">
+                                            data-bukti_bayar="{{ $d->bukti_bayar ? asset($d->bukti_bayar) : '' }}"
+                                            data-attachments="{{ htmlspecialchars(
+                                                json_encode(
+                                                    $d->attachments->map(
+                                                        fn($a) => [
+                                                            'id' => $a->id,
+                                                            'name' => $a->file_name,
+                                                            'url' => asset($a->file_path),
+                                                        ],
+                                                    ),
+                                                ),
+                                                ENT_QUOTES,
+                                            ) }}">
                                             <i class="fa-solid fa-pen-to-square text-xs"></i> Edit
                                         </button>
                                         <form action="/admin/gps-kendaraan/{{ $d->id }}" method="POST"
@@ -682,8 +695,9 @@
                 document.getElementById('previewWrap').classList.add('hidden');
                 document.getElementById('previewImg').classList.add('hidden');
                 document.getElementById('previewFile').classList.add('hidden');
-                document.getElementById('listAttachmentGps').innerHTML = ''; // ✅ ditambahkan
-                document.getElementById('bukti_attachment').value = ''; // ✅ ditambahkan
+                document.getElementById('listAttachmentGps').innerHTML = '';
+                document.getElementById('bukti_attachment').value = '';
+                document.getElementById('bukti_bayar').required = true; // ✅ tambahkan ini
             }
 
             // ✅ Expose ke global supaya onclick="openModal()" di HTML bisa jalan
@@ -713,6 +727,49 @@
                 document.getElementById('durasi_bulan').value = btn.dataset.durasi_bulan;
                 document.getElementById('biaya_sewa').value = btn.dataset.biaya_sewa;
                 document.getElementById('tanggal_habis').value = btn.dataset.tanggal_habis;
+
+                // === Bukti bayar lama ===
+                const buktiInput = document.getElementById('bukti_bayar');
+                buktiInput.required = false; // tidak wajib upload ulang saat edit
+
+                const buktiUrl = btn.dataset.bukti_bayar;
+                if (buktiUrl) {
+                    const wrap = document.getElementById('previewWrap');
+                    const img = document.getElementById('previewImg');
+                    const link = document.getElementById('previewFile');
+
+                    wrap.classList.remove('hidden');
+
+                    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(buktiUrl);
+                    if (isImage) {
+                        img.src = buktiUrl;
+                        img.classList.remove('hidden');
+                        link.classList.add('hidden');
+                    } else {
+                        link.href = buktiUrl;
+                        link.classList.remove('hidden');
+                        img.classList.add('hidden');
+                    }
+                }
+
+                // === Lampiran tambahan lama ===
+                const list = document.getElementById('listAttachmentGps');
+                list.innerHTML = '';
+                try {
+                    const attachments = JSON.parse(btn.dataset.attachments || '[]');
+                    attachments.forEach(att => {
+                        const li = document.createElement('li');
+                        li.className = 'flex items-center gap-1.5';
+                        li.innerHTML = `
+                <i class="fa-solid fa-paperclip text-slate-400"></i>
+                <a href="${att.url}" target="_blank" class="text-blue-600 underline">${att.name}</a>
+                <span class="text-slate-400">(lampiran lama)</span>
+            `;
+                        list.appendChild(li);
+                    });
+                } catch (e) {
+                    console.error('Gagal parse attachments lama:', e);
+                }
 
                 show(modal);
             }
