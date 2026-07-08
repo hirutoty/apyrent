@@ -171,6 +171,14 @@ class PaymentsController extends Controller
         ]);
     }
 
+    public function exportExcel(Request $request)
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\PaymentsExport($request->search),
+            'Payments-' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
+
     /**
      * Store
      */

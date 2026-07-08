@@ -12,6 +12,16 @@
             <h1 class="text-2xl font-bold text-gray-800">Reminders</h1>
             <p class="text-sm text-gray-500 mt-0.5">{{ $today->translatedFormat('l, d F Y') }}</p>
         </div>
+        <div class="flex gap-2">
+            <a href="{{ route('reminders.pdf', request()->query()) }}" target="_blank"
+                class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                <i class="fa fa-file-pdf"></i> Export PDF
+            </a>
+            <a href="{{ route('reminders.export.excel') }}"
+                class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                <i class="fa fa-file-excel"></i> Export Excel
+            </a>
+        </div>
     </div>
 
     {{-- SUMMARY CARDS --}}

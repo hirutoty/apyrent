@@ -63,6 +63,20 @@
 
                 <div class="flex flex-wrap items-center gap-2">
 
+                    {{-- SHOW ENTRIES --}}
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs text-gray-500">Tampilkan</span>
+                        <select id="showEntries" onchange="applyFilters()"
+                            class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="all">Semua</option>
+                        </select>
+                        <span class="text-xs text-gray-500">data</span>
+                    </div>
+
                     {{-- FILTER STATUS --}}
                     <div class="flex items-center gap-1 border border-gray-200 rounded-lg p-0.5 bg-gray-50">
                         <button type="button" onclick="setActiveStatus('semua')" id="btnSemua"
@@ -77,6 +91,35 @@
                             class="px-3 py-1 text-xs font-medium rounded-md transition-colors text-gray-500 hover:text-red-500">
                             <i class="fa fa-times text-[10px]"></i> Tidak Layak
                         </button>
+                    </div>
+
+                    {{-- FILTER TAHUN --}}
+                    <div class="flex items-center gap-1">
+                        <select id="filterTahun" onchange="setActiveTahun(this.value)"
+                            class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
+                            <option value="semua">Semua Tahun</option>
+                            @php
+                                $tahunList = $data->map(fn($d) => $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->year : null)
+                                    ->filter()
+                                    ->unique()
+                                    ->sortDesc()
+                                    ->values();
+                            @endphp
+                            @foreach ($tahunList as $tahun)
+                                <option value="{{ $tahun }}">{{ $tahun }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- FILTER HARI --}}
+                    <div class="flex items-center gap-1">
+                        <select id="filterHari" onchange="applyFilters()"
+                            class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
+                            <option value="">Semua Hari</option>
+                            @for ($d = 1; $d <= 31; $d++)
+                                <option value="{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}">{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}</option>
+                            @endfor
+                        </select>
                     </div>
 
                     {{-- FILTER BULAN (MANUAL DATE) --}}
@@ -153,7 +196,7 @@
                             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
                                 data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . $d->keterangan) }}"
                                 data-status="{{ $d->status }}"
-                                data-bulan="{{ $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->format('Y-m') : '' }}">
+                                data-bulan="{{ $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->format('Y-m-d') : '' }}">
 
                                 {{-- NO --}}
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-medium row-number">
@@ -284,6 +327,12 @@
                     </div>
                 </div>
 
+            </div>
+
+            {{-- FOOTER: SHOWING INFO + PAGINATION --}}
+            <div id="tableFooter" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50/50">
+                <p id="showingInfo" class="text-xs text-gray-500"></p>
+                <div id="paginationControls" class="flex items-center gap-1"></div>
             </div>
 
         </div>
@@ -629,9 +678,12 @@
         // ── FILTER STATUS + BULAN + SEARCH ──────────────────
         let activeStatus = 'semua';
         let activeBulan = 'semua';
+        let activeTahun = 'semua';
+        let currentPage = 1;
 
         function setActiveStatus(status) {
             activeStatus = status;
+            currentPage = 1;
 
             const buttons = {
                 semua: document.getElementById('btnSemua'),
@@ -660,55 +712,163 @@
 
         function setActiveBulan(bulan) {
             activeBulan = (bulan && bulan.trim() !== '') ? bulan : 'semua';
+            currentPage = 1;
             applyFilters();
         }
 
         function resetBulan() {
             document.getElementById('filterBulan').value = '';
             activeBulan = 'semua';
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function setActiveTahun(tahun) {
+            activeTahun = tahun;
+            // Reset filter bulan jika ganti tahun
+            document.getElementById('filterBulan').value = '';
+            activeBulan = 'semua';
+            currentPage = 1;
             applyFilters();
         }
 
         function applyFilters() {
-            const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
-            const rows = document.querySelectorAll('#serviceTableBody tr[data-search]');
-            let visible = 0;
+            const keyword   = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filterHari = document.getElementById('filterHari').value;
+            const showVal   = document.getElementById('showEntries').value;
+            const perPage   = showVal === 'all' ? Infinity : parseInt(showVal);
+            const rows      = document.querySelectorAll('#serviceTableBody tr[data-search]');
 
+            // Kumpulkan baris yang lolos filter
+            const matched = [];
             rows.forEach(row => {
                 const matchSearch = !keyword || row.dataset.search.includes(keyword);
                 const matchStatus = activeStatus === 'semua' || row.dataset.status === activeStatus;
-                const matchBulan = activeBulan === 'semua' || row.dataset.bulan === activeBulan;
-                const show = matchSearch && matchStatus && matchBulan;
 
-                row.style.display = show ? '' : 'none';
-                if (show) visible++;
+                // data-bulan sekarang format Y-m-d
+                const tgl       = row.dataset.bulan || '';  // "YYYY-MM-DD"
+                const [rowYear, rowMonth, rowDay] = tgl.split('-');
+                const rowYM     = rowYear && rowMonth ? `${rowYear}-${rowMonth}` : '';
+
+                const matchHari  = !filterHari   || rowDay   === filterHari;
+                const matchBulan = activeBulan === 'semua' || rowYM === activeBulan;
+                const matchTahun = activeTahun === 'semua' || rowYear === activeTahun;
+
+                if (matchSearch && matchStatus && matchHari && matchBulan && matchTahun) {
+                    matched.push(row);
+                }
             });
 
-            document.getElementById('totalCount').textContent = visible + ' total data';
+            const total = matched.length;
+            const totalPages = perPage === Infinity ? 1 : Math.ceil(total / perPage);
+            if (currentPage > totalPages) currentPage = 1;
 
-            const noResult = document.getElementById('noResultRow');
-            if (noResult) noResult.classList.toggle('hidden', visible > 0 || rows.length === 0);
+            const start = perPage === Infinity ? 0 : (currentPage - 1) * perPage;
+            const end   = perPage === Infinity ? total : Math.min(start + perPage, total);
 
-            let num = 1;
-            rows.forEach(row => {
-                if (row.style.display !== 'none') {
+            // Tampilkan / sembunyikan baris
+            rows.forEach(row => row.style.display = 'none');
+            matched.forEach((row, idx) => {
+                row.style.display = (idx >= start && idx < end) ? '' : 'none';
+            });
+
+            // Nomor urut
+            let num = start + 1;
+            matched.forEach((row, idx) => {
+                if (idx >= start && idx < end) {
                     const cell = row.querySelector('.row-number');
                     if (cell) cell.textContent = num++;
                 }
             });
 
+            // Info "Showing X to Y of Z entries"
+            const showingInfo = document.getElementById('showingInfo');
+            if (showingInfo) {
+                if (total === 0) {
+                    showingInfo.textContent = 'Tidak ada data yang ditampilkan';
+                } else {
+                    showingInfo.textContent = `Menampilkan ${start + 1} sampai ${end} dari ${total} data`;
+                }
+            }
+
+            // Pagination buttons
+            renderPagination(totalPages);
+
+            // totalCount di header
+            document.getElementById('totalCount').textContent = total + ' total data';
+
+            // No result row
+            const noResult = document.getElementById('noResultRow');
+            if (noResult) noResult.classList.toggle('hidden', total > 0 || rows.length === 0);
+
             updatePdfLink();
+        }
+
+        function renderPagination(totalPages) {
+            const container = document.getElementById('paginationControls');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            const btnClass = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
+            const activeClass = 'bg-blue-600 text-white border-blue-600';
+            const normalClass = 'border-gray-200 text-gray-600 hover:bg-gray-50';
+
+            // Prev
+            const prev = document.createElement('button');
+            prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
+            prev.className = `${btnClass} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
+            prev.disabled = currentPage === 1;
+            prev.onclick = () => { currentPage--; applyFilters(); };
+            container.appendChild(prev);
+
+            // Page numbers (max 5 pages shown)
+            const range = 2;
+            for (let i = 1; i <= totalPages; i++) {
+                if (
+                    i === 1 || i === totalPages ||
+                    (i >= currentPage - range && i <= currentPage + range)
+                ) {
+                    const btn = document.createElement('button');
+                    btn.textContent = i;
+                    btn.className = `${btnClass} ${i === currentPage ? activeClass : normalClass}`;
+                    btn.onclick = (function(page) {
+                        return function() { currentPage = page; applyFilters(); };
+                    })(i);
+                    container.appendChild(btn);
+                } else if (
+                    i === currentPage - range - 1 ||
+                    i === currentPage + range + 1
+                ) {
+                    const dots = document.createElement('span');
+                    dots.textContent = '...';
+                    dots.className = 'px-1 text-xs text-gray-400';
+                    container.appendChild(dots);
+                }
+            }
+
+            // Next
+            const next = document.createElement('button');
+            next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
+            next.className = `${btnClass} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
+            next.disabled = currentPage === totalPages;
+            next.onclick = () => { currentPage++; applyFilters(); };
+            container.appendChild(next);
         }
 
         // ── PDF LINK IKUT BAWA FILTER AKTIF ─────────────────
         function updatePdfLink() {
-            const keyword = document.getElementById('searchInput').value;
-            const pdfBtn = document.getElementById('pdfBtn');
+            const keyword  = document.getElementById('searchInput').value;
+            const filterHari = document.getElementById('filterHari').value;
+            const pdfBtn   = document.getElementById('pdfBtn');
 
             const params = new URLSearchParams();
-            if (keyword) params.set('search', keyword);
+            if (keyword)               params.set('search', keyword);
+            if (filterHari)            params.set('hari', filterHari);
             if (activeStatus !== 'semua') params.set('status', activeStatus);
-            if (activeBulan !== 'semua') params.set('bulan', activeBulan);
+            if (activeBulan  !== 'semua') params.set('bulan', activeBulan);
+            if (activeTahun  !== 'semua') params.set('tahun', activeTahun);
 
             const qs = params.toString();
             pdfBtn.href = "{{ route('service-detail.pdf') }}" + (qs ? '?' + qs : '');

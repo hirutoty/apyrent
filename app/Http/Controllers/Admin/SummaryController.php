@@ -204,6 +204,14 @@ class SummaryController extends Controller
             ->with('success', 'Summary berhasil dihapus.');
     }
 
+    public function exportExcel(Request $request)
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SummaryExport($request->status),
+            'Summary-' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
+
     public function exportPdf(Request $request)
     {
         $summaries = InvSummary::with(['penawaran', 'kontrak', 'invoice'])

@@ -9,6 +9,14 @@ use Carbon\Carbon;
 
 class ReminderController extends Controller
 {
+    public function exportExcel(Request $request)
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\RemindersExport(),
+            'Reminders-' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
+
     public function index(Request $request)
     {
         $today = Carbon::today();

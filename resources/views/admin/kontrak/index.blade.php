@@ -59,6 +59,11 @@
                 <i class="bi bi-file-earmark-pdf"></i> Export PDF
             </a>
 
+            <a href="{{ route('kontrak.export.excel', request()->query()) }}"
+                class="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+                <i class="fa fa-file-excel"></i> Export Excel
+            </a>
+
             {{-- TOGGLE KOLOM --}}
             <div class="relative" id="colToggleWrap">
                 <button type="button" onclick="toggleColDropdown()"

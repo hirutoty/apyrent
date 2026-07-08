@@ -37,6 +37,12 @@
                         Export PDF
                     </a>
 
+                    <a href="{{ route('penawaran.export.excel', request()->query()) }}"
+                        class="inline-flex items-center justify-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                        <i class="fa fa-file-excel mr-2"></i>
+                        Export Excel
+                    </a>
+
                     <button type="button" id="btnTambah"
                         class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
                         <i class="fa fa-plus mr-2"></i>

@@ -354,6 +354,14 @@ class InvoicesController extends Controller
         ];
     }
 
+    public function exportExcel(Request $request)
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\InvoiceExport($request->search),
+            'Invoice-' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
+
     public function print($id)
     {
         $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'penawaran', 'kontrak'])->findOrFail($id);

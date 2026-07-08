@@ -134,18 +134,88 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar KIR Kendaraan</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $jumlahKir }} total data KIR</p>
+                    <p class="text-xs text-gray-400 mt-0.5" id="totalCount">{{ $jumlahKir }} total data KIR</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+
+                    {{-- SHOW ENTRIES --}}
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs text-gray-500">Tampilkan</span>
+                        <select id="showEntries" onchange="applyFilters()"
+                            class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="all">Semua</option>
+                        </select>
+                        <span class="text-xs text-gray-500">data</span>
+                    </div>
+
+                    {{-- FILTER STATUS --}}
+                    <div class="flex items-center gap-1 border border-gray-200 rounded-lg p-0.5 bg-gray-50">
+                        <button type="button" onclick="setActiveStatus('semua')" id="btnSemua"
+                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors bg-white text-gray-700 shadow-sm border border-gray-200">
+                            Semua
+                        </button>
+                        <button type="button" onclick="setActiveStatus('aktif')" id="btnAktif"
+                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors text-gray-500 hover:text-green-600">
+                            <i class="fa fa-check text-[10px]"></i> Aktif
+                        </button>
+                        <button type="button" onclick="setActiveStatus('nonaktif')" id="btnNonaktif"
+                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors text-gray-500 hover:text-red-500">
+                            <i class="fa fa-times text-[10px]"></i> Nonaktif
+                        </button>
+                    </div>
+
+                    {{-- FILTER TAHUN --}}
+                    <div class="flex items-center gap-1">
+                        <select id="filterTahun" onchange="setActiveTahun(this.value)"
+                            class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
+                            <option value="semua">Semua Tahun</option>
+                            @php
+                                $tahunList = $data->map(fn($d) => $d->masa_berlaku ? \Carbon\Carbon::parse($d->masa_berlaku)->year : null)
+                                    ->filter()
+                                    ->unique()
+                                    ->sortDesc()
+                                    ->values();
+                            @endphp
+                            @foreach ($tahunList as $tahun)
+                                <option value="{{ $tahun }}">{{ $tahun }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- FILTER HARI --}}
+                    <div class="flex items-center gap-1">
+                        <select id="filterHari" onchange="applyFilters()"
+                            class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
+                            <option value="">Semua Hari</option>
+                            @for ($d = 1; $d <= 31; $d++)
+                                <option value="{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}">{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}</option>
+                            @endfor
+                        </select>
+                    </div>
+
+                    {{-- FILTER BULAN --}}
+                    <div class="flex items-center gap-1">
+                        <input type="month" id="filterBulan" onchange="setActiveBulan(this.value)"
+                            class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <button type="button" onclick="resetBulan()" title="Hapus filter bulan"
+                            class="px-2 py-1.5 text-xs text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg hover:bg-gray-50">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+
                     <a id="pdfBtn" href="{{ route('kir.pdf', ['search' => request('search')]) }}" target="_blank"
                         class="inline-flex items-center gap-2 px-3 py-1.5 text-xs border rounded-lg bg-red-600 text-white hover:bg-red-700">
                         <i class="fa fa-file-pdf"></i> PDF
                     </a>
                     <div class="relative">
                         <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input type="text" placeholder="Cari nopol, no uji..." value="{{ request('search') }}"
-                            oninput="updateSearch(this.value)"
-                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg">
+                        <input type="text" id="searchInput" placeholder="Cari nopol, no uji..." value="{{ request('search') }}"
+                            oninput="applyFilters()"
+                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                     </div>
                     <button onclick="window.location.reload()"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
@@ -180,12 +250,15 @@
                                 $today = now()->startOfDay();
                                 $masa = \Carbon\Carbon::parse($d->masa_berlaku)->startOfDay();
                                 $selisih = (int) $today->diffInDays($masa, false);
+                                $rowStatus = $selisih < 0 ? 'nonaktif' : 'aktif';
                             @endphp
                             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
-                                data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . $d->no_uji . ' ' . $d->masa_berlaku) }}">
+                                data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . $d->no_uji . ' ' . $d->masa_berlaku) }}"
+                                data-status="{{ $rowStatus }}"
+                                data-bulan="{{ $d->masa_berlaku ? \Carbon\Carbon::parse($d->masa_berlaku)->format('Y-m-d') : '' }}">
 
                                 {{-- No --}}
-                                <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-gray-400 row-number">{{ $loop->iteration }}</td>
 
                                 {{-- Kendaraan --}}
                                 <td class="px-4 py-3.5">
@@ -317,6 +390,12 @@
                         @endforelse
                     </tbody>
                 </table>
+            </div>
+
+            {{-- FOOTER: SHOWING INFO + PAGINATION --}}
+            <div id="tableFooter" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50/50">
+                <p id="showingInfo" class="text-xs text-gray-500"></p>
+                <div id="paginationControls" class="flex items-center gap-1"></div>
             </div>
 
         </div>
@@ -824,24 +903,188 @@
         });
 
         // ── SEARCH / FILTER ────────────────────────────────
-        function filterTable(q) {
-            q = q.toLowerCase().trim();
-            let num = 0;
+        let activeStatus = 'semua';
+        let activeBulan  = 'semua';
+        let activeTahun  = 'semua';
+        let currentPage  = 1;
 
-            document.querySelectorAll('#tableBody tr[data-search]').forEach(function(row) {
+        function setActiveStatus(status) {
+            activeStatus = status;
+            currentPage = 1;
 
-                let text = (row.dataset.search || '').toLowerCase();
+            const buttons = {
+                semua:    document.getElementById('btnSemua'),
+                aktif:    document.getElementById('btnAktif'),
+                nonaktif: document.getElementById('btnNonaktif'),
+            };
 
-                let show = text.includes(q);
-
-                row.style.display = show ? '' : 'none';
-
-                if (show) {
-                    num++;
-                    row.querySelector('td:first-child').textContent = num;
+            Object.entries(buttons).forEach(([key, btn]) => {
+                if (!btn) return;
+                if (key === status) {
+                    btn.classList.add('bg-white', 'shadow-sm', 'border', 'border-gray-200');
+                    if (key === 'aktif')    btn.classList.add('text-green-700');
+                    else if (key === 'nonaktif') btn.classList.add('text-red-600');
+                    else btn.classList.add('text-gray-700');
+                    btn.classList.remove('text-gray-500');
+                } else {
+                    btn.classList.remove('bg-white', 'shadow-sm', 'border', 'border-gray-200',
+                        'text-green-700', 'text-red-600', 'text-gray-700');
+                    btn.classList.add('text-gray-500');
                 }
             });
+
+            applyFilters();
         }
+
+        function setActiveTahun(tahun) {
+            activeTahun = tahun;
+            document.getElementById('filterBulan').value = '';
+            activeBulan = 'semua';
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function setActiveBulan(bulan) {
+            activeBulan = (bulan && bulan.trim() !== '') ? bulan : 'semua';
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function resetBulan() {
+            document.getElementById('filterBulan').value = '';
+            activeBulan = 'semua';
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const keyword    = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filterHari = document.getElementById('filterHari').value;
+            const showVal    = document.getElementById('showEntries').value;
+            const perPage    = showVal === 'all' ? Infinity : parseInt(showVal);
+            const rows       = document.querySelectorAll('#tableBody tr[data-search]');
+
+            // Kumpulkan baris yang lolos filter
+            const matched = [];
+            rows.forEach(row => {
+                const matchSearch  = !keyword || row.dataset.search.includes(keyword);
+                const matchStatus  = activeStatus === 'semua' || row.dataset.status === activeStatus;
+
+                // data-bulan sekarang format Y-m-d
+                const tgl      = row.dataset.bulan || '';  // "YYYY-MM-DD"
+                const [rowYear, rowMonth, rowDay] = tgl.split('-');
+                const rowYM    = rowYear && rowMonth ? `${rowYear}-${rowMonth}` : '';
+
+                const matchHari  = !filterHari   || rowDay  === filterHari;
+                const matchBulan = activeBulan === 'semua' || rowYM === activeBulan;
+                const matchTahun = activeTahun === 'semua' || rowYear === activeTahun;
+
+                if (matchSearch && matchStatus && matchHari && matchBulan && matchTahun) matched.push(row);
+            });
+
+            const total      = matched.length;
+            const totalPages = perPage === Infinity ? 1 : Math.ceil(total / perPage);
+            if (currentPage > totalPages) currentPage = 1;
+
+            const start = perPage === Infinity ? 0 : (currentPage - 1) * perPage;
+            const end   = perPage === Infinity ? total : Math.min(start + perPage, total);
+
+            // Tampilkan / sembunyikan baris
+            rows.forEach(row => row.style.display = 'none');
+            matched.forEach((row, idx) => {
+                row.style.display = (idx >= start && idx < end) ? '' : 'none';
+            });
+
+            // Nomor urut
+            let num = start + 1;
+            matched.forEach((row, idx) => {
+                if (idx >= start && idx < end) {
+                    const cell = row.querySelector('.row-number');
+                    if (cell) cell.textContent = num++;
+                }
+            });
+
+            // Info "Menampilkan X sampai Y dari Z data"
+            const showingInfo = document.getElementById('showingInfo');
+            if (showingInfo) {
+                showingInfo.textContent = total === 0
+                    ? 'Tidak ada data yang ditampilkan'
+                    : `Menampilkan ${start + 1} sampai ${end} dari ${total} data`;
+            }
+
+            // Pagination
+            renderPagination(totalPages);
+
+            // Update total count header
+            document.getElementById('totalCount').textContent = total + ' total data KIR';
+
+            // Update PDF link
+            updatePdfLink();
+        }
+
+        function renderPagination(totalPages) {
+            const container = document.getElementById('paginationControls');
+            if (!container) return;
+            container.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const btnClass    = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
+            const activeClass = 'bg-blue-600 text-white border-blue-600';
+            const normalClass = 'border-gray-200 text-gray-600 hover:bg-gray-50';
+
+            // Prev
+            const prev = document.createElement('button');
+            prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
+            prev.className = `${btnClass} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
+            prev.disabled = currentPage === 1;
+            prev.onclick = () => { currentPage--; applyFilters(); };
+            container.appendChild(prev);
+
+            const range = 2;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - range && i <= currentPage + range)) {
+                    const btn = document.createElement('button');
+                    btn.textContent = i;
+                    btn.className = `${btnClass} ${i === currentPage ? activeClass : normalClass}`;
+                    btn.onclick = (function(page) {
+                        return function() { currentPage = page; applyFilters(); };
+                    })(i);
+                    container.appendChild(btn);
+                } else if (i === currentPage - range - 1 || i === currentPage + range + 1) {
+                    const dots = document.createElement('span');
+                    dots.textContent = '...';
+                    dots.className = 'px-1 text-xs text-gray-400';
+                    container.appendChild(dots);
+                }
+            }
+
+            // Next
+            const next = document.createElement('button');
+            next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
+            next.className = `${btnClass} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
+            next.disabled = currentPage === totalPages;
+            next.onclick = () => { currentPage++; applyFilters(); };
+            container.appendChild(next);
+        }
+
+        function updatePdfLink() {
+            const keyword = document.getElementById('searchInput').value;
+            const filterHari = document.getElementById('filterHari').value;
+            const pdfBtn  = document.getElementById('pdfBtn');
+            const params  = new URLSearchParams();
+
+            if (keyword)               params.set('search', keyword);
+            if (filterHari)            params.set('hari', filterHari);
+            if (activeStatus !== 'semua') params.set('status', activeStatus);
+            if (activeBulan  !== 'semua') params.set('bulan', activeBulan);
+            if (activeTahun  !== 'semua') params.set('tahun', activeTahun);
+
+            const qs = params.toString();
+            pdfBtn.href = "{{ route('kir.pdf') }}" + (qs ? '?' + qs : '');
+        }
+
+        // Inisialisasi
+        applyFilters();
 
         // ── POPUP ALERT ────────────────────────────────────
         (function() {
@@ -869,25 +1112,6 @@
             }
             window.closeAlert = closeAlert;
         })();
-
-        function updateSearch(value) {
-            const url = new URL(window.location.href);
-
-            if (value) {
-                url.searchParams.set('search', value);
-            } else {
-                url.searchParams.delete('search');
-            }
-
-            window.history.replaceState({}, '', url);
-
-            // update tombol PDF juga
-            const pdfBtn = document.getElementById('pdfBtn');
-            pdfBtn.href = "{{ route('kir.pdf') }}" + (value ? "?search=" + encodeURIComponent(value) : "");
-
-            // tetap jalankan filter tabel lokal
-            filterTable(value);
-        }
 
         function previewFile(input) {
             const wrap = document.getElementById('previewWrap');

@@ -117,6 +117,84 @@
                 </div>
             </div>
 
+            {{-- FILTER BAR: Show entries + Hari, Bulan & Tahun --}}
+            <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
+                {{-- Show entries --}}
+                <div class="flex items-center gap-2">
+                    <span>Show</span>
+                    <select id="perPageSelect" onchange="applyFilter()"
+                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="all">All</option>
+                    </select>
+                    <span>entries</span>
+                </div>
+
+                <div class="w-px h-4 bg-gray-200"></div>
+
+                {{-- Filter Hari --}}
+                <div class="flex items-center gap-2">
+                    <i class="fa fa-calendar-day text-gray-400"></i>
+                    <select id="filterHari" onchange="applyFilter()"
+                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">Semua Hari</option>
+                        @for ($d = 1; $d <= 31; $d++)
+                            <option value="{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}">{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}</option>
+                        @endfor
+                    </select>
+                </div>
+
+                <div class="w-px h-4 bg-gray-200"></div>
+
+                {{-- Filter Bulan --}}
+                <div class="flex items-center gap-2">
+                    <i class="fa fa-calendar text-gray-400"></i>
+                    <select id="filterBulan" onchange="applyFilter()"
+                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">Semua Bulan</option>
+                        <option value="01">Januari</option>
+                        <option value="02">Februari</option>
+                        <option value="03">Maret</option>
+                        <option value="04">April</option>
+                        <option value="05">Mei</option>
+                        <option value="06">Juni</option>
+                        <option value="07">Juli</option>
+                        <option value="08">Agustus</option>
+                        <option value="09">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Desember</option>
+                    </select>
+                </div>
+
+                {{-- Filter Tahun --}}
+                <div class="flex items-center gap-2">
+                    <select id="filterTahun" onchange="applyFilter()"
+                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">Semua Tahun</option>
+                        @php
+                            $years = $data->map(fn($d) => $d->jatuh_tempo ? \Carbon\Carbon::parse($d->jatuh_tempo)->year : null)
+                                         ->filter()->unique()->sortDesc();
+                        @endphp
+                        @foreach ($years as $year)
+                            <option value="{{ $year }}">{{ $year }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- Reset filter --}}
+                <button onclick="resetFilter()"
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <i class="fa fa-rotate-left text-[10px]"></i> Reset
+                </button>
+
+                {{-- Entries info --}}
+                <div class="ml-auto text-xs text-gray-400" id="entriesInfo"></div>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
@@ -168,7 +246,8 @@
                                         ' ' .
                                         ($item->keterangan ?? ''),
                                 ) }}"
-                                data-status="{{ $item->status }}">
+                                data-status="{{ $item->status }}"
+                                data-jatuh-tempo="{{ $item->jatuh_tempo ? \Carbon\Carbon::parse($item->jatuh_tempo)->format('Y-m-d') : '' }}">
 
                                 <td class="px-4 py-3.5 text-sm text-gray-500">{{ $loop->iteration }}</td>
 
@@ -355,6 +434,9 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Entries info bottom --}}
+            <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfoBottom"></div>
 
         </div>
 
@@ -1013,20 +1095,81 @@ MODAL PERPANJANG
             }
             keyword = keyword.toLowerCase();
 
-            let nomor = 1;
+            const filterBulan  = document.getElementById('filterBulan').value;   // e.g. '07'
+            const filterTahun  = document.getElementById('filterTahun').value;   // e.g. '2026'
+            const filterHari   = document.getElementById('filterHari').value;    // e.g. '15'
+            const perPageEl    = document.getElementById('perPageSelect');
+            const perPage      = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
 
-            document.querySelectorAll('#pajakTableBody tr[data-search]').forEach(function(row) {
+            const allRows = Array.from(document.querySelectorAll('#pajakTableBody tr[data-search]'));
+            let matched   = [];
+            let nomor     = 1;
+
+            allRows.forEach(row => {
                 const matchSearch = row.dataset.search.includes(keyword);
                 const matchStatus = activeStatus === 'semua' || row.dataset.status === activeStatus;
-                const tampil = matchSearch && matchStatus;
 
-                row.style.display = tampil ? '' : 'none';
+                // data-jatuh-tempo format: "YYYY-MM-DD"
+                const jatuhTempo  = row.dataset.jatuhTempo || '';  // "2026-07-15"
+                const [rowYear, rowMonth, rowDay] = jatuhTempo.split('-');
+                const matchHari   = !filterHari   || rowDay   === filterHari;
+                const matchBulan  = !filterBulan  || rowMonth === filterBulan;
+                const matchTahun  = !filterTahun  || rowYear  === filterTahun;
 
-                if (tampil) {
+                const tampil = matchSearch && matchStatus && matchHari && matchBulan && matchTahun;
+                row.style.display = 'none';
+
+                if (tampil) matched.push(row);
+            });
+
+            let shown = 0;
+            matched.forEach(row => {
+                if (shown < perPage) {
+                    row.style.display = '';
                     row.querySelector('td:first-child').textContent = nomor++;
+                    shown++;
                 }
             });
+
+            const infoText = matched.length === 0
+                ? 'Tidak ada data yang cocok'
+                : 'Menampilkan ' + shown + ' dari ' + matched.length + ' entri' +
+                  (keyword || filterHari || filterBulan || filterTahun || activeStatus !== 'semua' ? ' (difilter)' : '');
+
+            const topInfo = document.getElementById('entriesInfo');
+            const botInfo = document.getElementById('entriesInfoBottom');
+            if (topInfo) topInfo.innerText = infoText;
+            if (botInfo) botInfo.innerText = infoText;
         }
+
+        function resetFilter() {
+            document.getElementById('searchPajak').value  = '';
+            document.getElementById('filterHari').value   = '';
+            document.getElementById('filterBulan').value  = '';
+            document.getElementById('filterTahun').value  = '';
+            document.getElementById('perPageSelect').value = '10';
+            activeStatus = 'semua';
+
+            // reset tombol status
+            const buttons = {
+                semua: document.getElementById('btnSemua'),
+                sudah_bayar: document.getElementById('btnLunas'),
+                belum_bayar: document.getElementById('btnBelum'),
+            };
+            Object.entries(buttons).forEach(([key, btn]) => {
+                if (key === 'semua') {
+                    btn.classList.add('bg-white', 'shadow-sm', 'border', 'border-gray-200', 'text-gray-700');
+                    btn.classList.remove('text-gray-500');
+                } else {
+                    btn.classList.remove('bg-white', 'shadow-sm', 'border', 'border-gray-200', 'text-green-700', 'text-red-600', 'text-gray-700');
+                    btn.classList.add('text-gray-500');
+                }
+            });
+
+            applyFilter('');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => applyFilter(''));
 
         // ── POPUP ALERT ────────────────────────────────────────
         (function() {

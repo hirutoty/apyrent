@@ -4,60 +4,32 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\GpsKendaraan;
+use Carbon\Carbon;
 
 class GpsKendaraanSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        GpsKendaraan::create([
-            'kendaraan_id' => 1,
-            'gps_id' => 1,
-            'type' => 'GT06N',
-            'status_gps' => 'aktif',
-            'tanggal_pasang' => now()->subMonths(5),
-            'tanggal_habis' => now()->addMonths(7),
-            'biaya_sewa' => 150000,
-            'durasi_bulan' => 12,
-            'status_sewa' => 'aktif',
-        ]);
+        $types = ['OBD', 'Hardwire', 'Magnetic', '4G LTE', 'Solar'];
 
-        GpsKendaraan::create([
-            'kendaraan_id' => 2,
-            'gps_id' => 2,
-            'type' => 'TK103',
-            'status_gps' => 'aktif',
-            'tanggal_pasang' => now()->subMonths(10),
-            'tanggal_habis' => now()->addDays(5),
-            'biaya_sewa' => 120000,
-            'durasi_bulan' => 12,
-            'status_sewa' => 'habis',
-        ]);
+        for ($i = 1; $i <= 50; $i++) {
+            $durasibulan   = rand(6, 24);
+            $tanggalPasang = Carbon::now()->subMonths(rand(1, 18));
+            $tanggalHabis  = (clone $tanggalPasang)->addMonths($durasibulan);
+            $statusSewa    = $tanggalHabis->isFuture() ? 'aktif' : 'habis';
 
-        GpsKendaraan::create([
-            'kendaraan_id' => 3,
-            'gps_id' => 3,
-            'type' => 'Concox JM01',
-            'status_gps' => 'nonaktif',
-            'tanggal_pasang' => now()->subYear(),
-            'tanggal_habis' => now()->subDays(2),
-            'biaya_sewa' => 100000,
-            'durasi_bulan' => 12,
-            'status_sewa' => 'habis',
-        ]);
-
-        GpsKendaraan::create([
-            'kendaraan_id' => 1,
-            'gps_id' => 4,
-            'type' => 'GT02A',
-            'status_gps' => 'nonaktif',
-            'tanggal_pasang' => now()->subMonths(2),
-            'tanggal_habis' => now()->addMonths(10),
-            'biaya_sewa' => 175000,
-            'durasi_bulan' => 12,
-            'status_sewa' => 'aktif',
-        ]);
+            GpsKendaraan::create([
+                'kendaraan_id'  => (($i - 1) % 50) + 1,
+                'gps_id'        => (($i - 1) % 10) + 1,
+                'type'          => $types[($i - 1) % count($types)],
+                'status_gps'    => $statusSewa === 'aktif' ? 'aktif' : 'nonaktif',
+                'tanggal_pasang' => $tanggalPasang,
+                'tanggal_habis'  => $tanggalHabis,
+                'biaya_sewa'    => rand(1, 5) * 100000,
+                'durasi_bulan'  => $durasibulan,
+                'status_sewa'   => $statusSewa,
+                'bukti_bayar'   => null,
+            ]);
+        }
     }
 }

@@ -4,67 +4,38 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\PajakKendaraan;
+use Carbon\Carbon;
 
 class PajakKendaraanSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        PajakKendaraan::create([
-            'kendaraan_id' => 1,
-            'jenis_pajak' => 'Pajak Tahunan',
-            'nominal' => 3500000,
-            'jatuh_tempo' => now()->addDays(5),
-            'tanggal_bayar' => null,
-            'status' => 'belum_bayar',
-            'keterangan' => 'Pajak hampir jatuh tempo',
-            'bukti' => null,
-        ]);
+        $jenisPajak = ['Pajak Tahunan', 'Pajak 5 Tahunan', 'STNK', 'BPKB', 'BBN-KB'];
+        $keterangan = [
+            'Pajak hampir jatuh tempo',
+            'Segera lakukan pembayaran',
+            'Sudah melewati jatuh tempo',
+            'Pembayaran berhasil',
+            'Perlu segera diperpanjang',
+            'Menunggu verifikasi',
+            'Dalam proses pembayaran',
+        ];
 
-        PajakKendaraan::create([
-            'kendaraan_id' => 2,
-            'jenis_pajak' => 'STNK',
-            'nominal' => 2200000,
-            'jatuh_tempo' => now()->addDays(12),
-            'tanggal_bayar' => null,
-            'status' => 'belum_bayar',
-            'keterangan' => 'Segera lakukan pembayaran',
-            'bukti' => null,
-        ]);
+        for ($i = 1; $i <= 50; $i++) {
+            $sudahBayar    = ($i % 3 === 0);
+            $jatuhTempo    = Carbon::now()->addDays(rand(-30, 365));
+            $tanggalBayar  = $sudahBayar ? Carbon::now()->subDays(rand(1, 30)) : null;
 
-        PajakKendaraan::create([
-            'kendaraan_id' => 3,
-            'jenis_pajak' => 'Pajak 5 Tahunan',
-            'nominal' => 5400000,
-            'jatuh_tempo' => now()->subDays(2),
-            'tanggal_bayar' => null,
-            'status' => 'belum_bayar',
-            'keterangan' => 'Sudah melewati jatuh tempo',
-            'bukti' => null,
-        ]);
-
-        PajakKendaraan::create([
-            'kendaraan_id' => 2,
-            'jenis_pajak' => 'Pajak Tahunan',
-            'nominal' => 3100000,
-            'jatuh_tempo' => now()->addMonths(2),
-            'tanggal_bayar' => now(),
-            'status' => 'sudah_bayar',
-            'keterangan' => 'Pembayaran berhasil',
-            'bukti' => 'bukti-pajak/bukti1.jpg',
-        ]);
-
-        PajakKendaraan::create([
-            'kendaraan_id' => 1,
-            'jenis_pajak' => 'STNK',
-            'nominal' => 1800000,
-            'jatuh_tempo' => now()->addDays(3),
-            'tanggal_bayar' => null,
-            'status' => 'belum_bayar',
-            'keterangan' => 'Perlu segera diperpanjang',
-            'bukti' => null,
-        ]);
+            PajakKendaraan::create([
+                'kendaraan_id' => (($i - 1) % 50) + 1,
+                'jenis_pajak'  => $jenisPajak[($i - 1) % count($jenisPajak)],
+                'nominal'      => rand(5, 60) * 100000,
+                'jatuh_tempo'  => $jatuhTempo,
+                'tanggal_bayar' => $tanggalBayar,
+                'status'       => $sudahBayar ? 'sudah_bayar' : 'belum_bayar',
+                'keterangan'   => $keterangan[($i - 1) % count($keterangan)],
+                'bukti'        => null,
+            ]);
+        }
     }
-}   
+}

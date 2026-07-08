@@ -120,6 +120,73 @@
                 </div>
             </div>
 
+            {{-- FILTER BAR: Show entries + Bulan & Tahun Berakhir --}}
+            <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
+                {{-- Show entries --}}
+                <div class="flex items-center gap-2">
+                    <span>Show</span>
+                    <select id="perPageSelect" onchange="applyFilter()"
+                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="all">All</option>
+                    </select>
+                    <span>entries</span>
+                </div>
+
+                <div class="w-px h-4 bg-gray-200"></div>
+
+                {{-- Label filter tanggal berakhir --}}
+                <span class="text-gray-400 font-medium">Tgl Berakhir:</span>
+
+                {{-- Filter Bulan --}}
+                <div class="flex items-center gap-2">
+                    <i class="fa fa-calendar text-gray-400"></i>
+                    <select id="filterBulan" onchange="applyFilter()"
+                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">Semua Bulan</option>
+                        <option value="01">Januari</option>
+                        <option value="02">Februari</option>
+                        <option value="03">Maret</option>
+                        <option value="04">April</option>
+                        <option value="05">Mei</option>
+                        <option value="06">Juni</option>
+                        <option value="07">Juli</option>
+                        <option value="08">Agustus</option>
+                        <option value="09">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Desember</option>
+                    </select>
+                </div>
+
+                {{-- Filter Tahun --}}
+                <div class="flex items-center gap-2">
+                    <select id="filterTahun" onchange="applyFilter()"
+                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">Semua Tahun</option>
+                        @php
+                            $years = $data->map(fn($d) => $d->tgl_berakhir ? \Carbon\Carbon::parse($d->tgl_berakhir)->year : null)
+                                         ->filter()->unique()->sortDesc();
+                        @endphp
+                        @foreach ($years as $year)
+                            <option value="{{ $year }}">{{ $year }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- Reset --}}
+                <button onclick="resetFilter()"
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <i class="fa fa-rotate-left text-[10px]"></i> Reset
+                </button>
+
+                {{-- Entries info --}}
+                <div class="ml-auto text-xs text-gray-400" id="entriesInfo"></div>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
@@ -160,7 +227,8 @@
                                 $isSoon = !$isExpired && $sisaHari <= $reminder;
                             @endphp
                             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100 {{ $isExpired ? 'bg-red-50' : '' }}"
-                                data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . ($d->asuransi->nama_asuransi ?? '') . ' ' . ($d->jenisAsuransi->nama_jenis ?? '') . ' ' . $d->status_kendaraan) }}">
+                                data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . ($d->asuransi->nama_asuransi ?? '') . ' ' . ($d->jenisAsuransi->nama_jenis ?? '') . ' ' . $d->status_kendaraan) }}"
+                                data-tgl-berakhir="{{ $d->tgl_berakhir ? \Carbon\Carbon::parse($d->tgl_berakhir)->format('Y-m') : '' }}">
 
                                 {{-- No --}}
                                 <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
@@ -337,6 +405,9 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Entries info bottom --}}
+            <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfoBottom"></div>
 
         </div>
 
@@ -1174,16 +1245,65 @@
 
         // ── SEARCH / FILTER ────────────────────────────────
         function filterTable(q) {
-            var num = 0;
-            document.querySelectorAll('#tableBody tr[data-search]').forEach(function(row) {
-                var show = row.dataset.search.includes(q.toLowerCase());
-                row.style.display = show ? '' : 'none';
-                if (show) {
-                    num++;
-                    row.querySelector('td:first-child').textContent = num;
+            applyFilter(q);
+        }
+
+        function applyFilter(keyword) {
+            if (keyword === undefined) {
+                keyword = document.getElementById('searchInput').value;
+            }
+            keyword = keyword.toLowerCase();
+
+            const filterBulan = document.getElementById('filterBulan').value;
+            const filterTahun = document.getElementById('filterTahun').value;
+            const perPageEl   = document.getElementById('perPageSelect');
+            const perPage     = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
+
+            const allRows = Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
+            let matched   = [];
+            let nomor     = 1;
+
+            allRows.forEach(row => {
+                const matchSearch = row.dataset.search.includes(keyword);
+
+                const tglBerakhir  = row.dataset.tglBerakhir || '';  // "YYYY-MM"
+                const [rowYear, rowMonth] = tglBerakhir.split('-');
+                const matchBulan  = !filterBulan || rowMonth === filterBulan;
+                const matchTahun  = !filterTahun || rowYear  === filterTahun;
+
+                row.style.display = 'none';
+                if (matchSearch && matchBulan && matchTahun) matched.push(row);
+            });
+
+            let shown = 0;
+            matched.forEach(row => {
+                if (shown < perPage) {
+                    row.style.display = '';
+                    row.querySelector('td:first-child').textContent = nomor++;
+                    shown++;
                 }
             });
+
+            const infoText = matched.length === 0
+                ? 'Tidak ada data yang cocok'
+                : 'Menampilkan ' + shown + ' dari ' + matched.length + ' entri' +
+                  (keyword || filterBulan || filterTahun ? ' (difilter)' : '');
+
+            const topInfo = document.getElementById('entriesInfo');
+            const botInfo = document.getElementById('entriesInfoBottom');
+            if (topInfo) topInfo.innerText = infoText;
+            if (botInfo) botInfo.innerText = infoText;
         }
+
+        function resetFilter() {
+            document.getElementById('searchInput').value   = '';
+            document.getElementById('filterBulan').value  = '';
+            document.getElementById('filterTahun').value  = '';
+            document.getElementById('perPageSelect').value = '10';
+            applyFilter('');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => applyFilter(''));
 
         // ── POPUP ALERT ────────────────────────────────────
         (function() {

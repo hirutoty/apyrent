@@ -7,47 +7,44 @@ use App\Models\Member;
 
 class MemberSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $data = [
-
-            [
-                'nama_member'   => 'Budi Santoso',
-                'kontak_member' => '081234567890',
-                'alamat'        => 'Wonosobo, Jawa Tengah',
-            ],
-
-            [
-                'nama_member'   => 'Rina Permata',
-                'kontak_member' => '082145678901',
-                'alamat'        => 'Magelang, Jawa Tengah',
-            ],
-
-            [
-                'nama_member'   => 'Agus Setiawan',
-                'kontak_member' => '083156789012',
-                'alamat'        => 'Temanggung, Jawa Tengah',
-            ],
-
-            [
-                'nama_member'   => 'Dewi Lestari',
-                'kontak_member' => '085267890123',
-                'alamat'        => 'Banjarnegara, Jawa Tengah',
-            ],
-
-            [
-                'nama_member'   => 'Fajar Hidayat',
-                'kontak_member' => '087878901234',
-                'alamat'        => 'Purwokerto, Jawa Tengah',
-            ],
-
+        $namaPerorangan = [
+            'Budi Santoso', 'Joko Widodo', 'Andi Saputra', 'Rizky Pratama', 'Dian Permata',
+            'Siti Rahayu', 'Ahmad Fauzi', 'Dewi Lestari', 'Hendra Gunawan', 'Rina Wati',
+            'Bambang Sutrisno', 'Nia Ramadhani', 'Ferdy Sambo', 'Lina Marlina', 'Tono Suprapto',
+            'Yuli Astuti', 'Fajar Nugroho', 'Sri Wahyuni', 'Rudi Hartono', 'Mega Putri',
+            'Wahyu Setiawan', 'Indah Kurniasih', 'Eko Prasetyo', 'Fitri Handayani', 'Galih Wicaksono',
         ];
 
-        foreach ($data as $item) {
-            Member::create($item);
+        $namaPerusahaan = [
+            'PT Maju Bersama', 'CV Sumber Rezeki', 'PT Cahaya Abadi', 'CV Jaya Mandiri', 'PT Sukses Selalu',
+            'PT Karya Utama', 'CV Harapan Baru', 'PT Gemilang Jaya', 'CV Delta Nusantara', 'PT Bintang Timur',
+            'PT Nusantara Trans', 'CV Permata Hijau', 'PT Sinar Mas Logistik', 'CV Berkah Sejati', 'PT Indo Mitra',
+            'PT Wahana Ekspres', 'CV Tirta Agung', 'PT Mandiri Karya', 'CV Perkasa Utama', 'PT Cipta Rasa',
+            'PT Lancar Jaya', 'CV Mitra Usaha', 'PT Sejahtera Abadi', 'CV Putra Bangsa', 'PT Global Trans',
+        ];
+
+        $kota = ['Wonosobo', 'Magelang', 'Purworejo', 'Kebumen', 'Purwokerto', 'Temanggung', 'Kendal', 'Semarang', 'Yogyakarta', 'Solo'];
+
+        for ($i = 0; $i < 25; $i++) {
+            Member::create([
+                'nama_member'   => $namaPerorangan[$i],
+                'kontak_member' => '08' . rand(100000000, 999999999),
+                'email_member'  => strtolower(str_replace(' ', '.', $namaPerorangan[$i])) . '@gmail.com',
+                'jenis_member'  => 'perorangan',
+                'alamat'        => 'Jl. ' . $kota[$i % count($kota)] . ' No. ' . rand(1, 100),
+            ]);
+        }
+
+        for ($i = 0; $i < 25; $i++) {
+            Member::create([
+                'nama_member'   => $namaPerusahaan[$i],
+                'kontak_member' => '02' . rand(10000000, 99999999),
+                'email_member'  => strtolower(str_replace([' ', '.'], ['', ''], $namaPerusahaan[$i])) . '@mail.co.id',
+                'jenis_member'  => 'perusahaan',
+                'alamat'        => 'Jl. Raya ' . $kota[$i % count($kota)] . ' No. ' . rand(1, 200),
+            ]);
         }
     }
 }

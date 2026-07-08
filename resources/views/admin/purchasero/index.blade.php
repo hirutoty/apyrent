@@ -96,18 +96,83 @@
             </div>
         </div>
 
-        {{-- SHOW ENTRIES FILTER --}}
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select id="perPageSelect" onchange="onPerPageChange(this.value)"
-                class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="all">All</option>
-            </select>
-            <span>entries</span>
+        {{-- FILTER BAR: Show entries + Bulan & Tahun --}}
+        <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
+            {{-- Show entries --}}
+            <div class="flex items-center gap-2">
+                <span>Show</span>
+                <select id="perPageSelect" onchange="renderTable()"
+                    class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="all">All</option>
+                </select>
+                <span>entries</span>
+            </div>
+
+            <div class="w-px h-4 bg-gray-200"></div>
+
+            {{-- Label --}}
+            <span class="text-gray-400 font-medium">Tanggal PR:</span>
+
+            {{-- Filter Hari --}}
+            <div class="flex items-center gap-2">
+                <i class="fa fa-calendar-day text-gray-400"></i>
+                <select id="filterHari" onchange="renderTable()"
+                    class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <option value="">Semua Hari</option>
+                    @for ($d = 1; $d <= 31; $d++)
+                        <option value="{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}">{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}</option>
+                    @endfor
+                </select>
+            </div>
+
+            {{-- Filter Bulan --}}
+            <div class="flex items-center gap-2">
+                <i class="fa fa-calendar text-gray-400"></i>
+                <select id="filterBulan" onchange="renderTable()"
+                    class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <option value="">Semua Bulan</option>
+                    <option value="01">Januari</option>
+                    <option value="02">Februari</option>
+                    <option value="03">Maret</option>
+                    <option value="04">April</option>
+                    <option value="05">Mei</option>
+                    <option value="06">Juni</option>
+                    <option value="07">Juli</option>
+                    <option value="08">Agustus</option>
+                    <option value="09">September</option>
+                    <option value="10">Oktober</option>
+                    <option value="11">November</option>
+                    <option value="12">Desember</option>
+                </select>
+            </div>
+
+            {{-- Filter Tahun --}}
+            <div class="flex items-center gap-2">
+                <select id="filterTahun" onchange="renderTable()"
+                    class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <option value="">Semua Tahun</option>
+                    @php
+                        $years = $data->map(fn($d) => $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->year : null)
+                                     ->filter()->unique()->sortDesc();
+                    @endphp
+                    @foreach ($years as $year)
+                        <option value="{{ $year }}">{{ $year }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Reset --}}
+            <button onclick="resetFilter()"
+                class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <i class="fa fa-rotate-left text-[10px]"></i> Reset
+            </button>
+
+            {{-- Entries info inline --}}
+            <div class="ml-auto text-xs text-gray-400" id="entriesInfoTop"></div>
         </div>
 
         <div class="overflow-x-auto">
@@ -134,7 +199,8 @@
                 <tbody id="purchaseroTableBody">
                     @forelse($data as $d)
                         <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
-                            data-search="{{ strtolower($d->no_pr . ' ' . $d->departemen . ' ' . $d->pemohon . ' ' . $d->barang_jasa) }}">
+                            data-search="{{ strtolower($d->no_pr . ' ' . $d->departemen . ' ' . $d->pemohon . ' ' . $d->barang_jasa) }}"
+                            data-tanggal="{{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('Y-m-d') : '' }}">
 
                             <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
 
@@ -587,11 +653,10 @@ deleteModal.addEventListener('click', function (e) {
     if (e.target === deleteModal) closeDeleteModal();
 });
 
-// ── SEARCH + SHOW ENTRIES (gabungan) ────────────────
+// ── SEARCH + SHOW ENTRIES + FILTER BULAN/TAHUN ────────────────
 const allRows      = Array.from(document.querySelectorAll('#purchaseroTableBody tr[data-search]'));
 const entriesInfo  = document.getElementById('entriesInfo');
 let currentSearch  = '';
-let currentPerPage = 10;
 
 function onSearchInput(value) {
     currentSearch = value.toLowerCase();
@@ -599,28 +664,56 @@ function onSearchInput(value) {
 }
 
 function onPerPageChange(value) {
-    currentPerPage = value === 'all' ? Infinity : parseInt(value, 10);
     renderTable();
 }
 
 function renderTable() {
     if (allRows.length === 0) return;
 
-    const matched = allRows.filter(row => row.dataset.search.includes(currentSearch));
-    let shownCount = 0;
+    const perPageEl   = document.getElementById('perPageSelect');
+    const perPage     = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
+    const filterBulan = document.getElementById('filterBulan').value;
+    const filterTahun = document.getElementById('filterTahun').value;
+    const filterHari  = document.getElementById('filterHari').value;
 
+    const matched = allRows.filter(row => {
+        const matchSearch = row.dataset.search.includes(currentSearch);
+        const tanggal     = row.dataset.tanggal || '';  // "YYYY-MM-DD"
+        const [rowYear, rowMonth, rowDay] = tanggal.split('-');
+        const matchHari   = !filterHari  || rowDay   === filterHari;
+        const matchBulan  = !filterBulan || rowMonth === filterBulan;
+        const matchTahun  = !filterTahun || rowYear  === filterTahun;
+        return matchSearch && matchHari && matchBulan && matchTahun;
+    });
+
+    let shownCount = 0;
     allRows.forEach(row => row.style.display = 'none');
 
     matched.forEach(row => {
-        if (shownCount < currentPerPage) {
+        if (shownCount < perPage) {
             row.style.display = '';
             shownCount++;
         }
     });
 
-    entriesInfo.innerText = matched.length === 0
+    const infoText = matched.length === 0
         ? 'Tidak ada data yang cocok'
-        : `Menampilkan ${shownCount} dari ${matched.length} entri` + (currentSearch ? ' (hasil pencarian)' : '');
+        : `Menampilkan ${shownCount} dari ${matched.length} entri` +
+          (currentSearch || filterHari || filterBulan || filterTahun ? ' (difilter)' : '');
+
+    if (entriesInfo) entriesInfo.innerText = infoText;
+    const topInfo = document.getElementById('entriesInfoTop');
+    if (topInfo) topInfo.innerText = infoText;
+}
+
+function resetFilter() {
+    currentSearch = '';
+    document.querySelector('input[oninput="onSearchInput(this.value)"]').value = '';
+    document.getElementById('filterHari').value   = '';
+    document.getElementById('filterBulan').value   = '';
+    document.getElementById('filterTahun').value   = '';
+    document.getElementById('perPageSelect').value = '10';
+    renderTable();
 }
 
 document.addEventListener('DOMContentLoaded', renderTable);

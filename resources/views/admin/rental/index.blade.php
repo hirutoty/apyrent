@@ -177,6 +177,22 @@
                 {{-- Date Filters --}}
                 <div class="flex flex-wrap items-center gap-2">
 
+                    {{-- Show entries --}}
+                    <div class="flex items-center gap-1.5 text-xs text-gray-500">
+                        <span>Show</span>
+                        <select id="perPageSelect" onchange="applyFilters()"
+                            class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
+                            <option value="10" selected>10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="all">All</option>
+                        </select>
+                        <span>entries</span>
+                    </div>
+
+                    <div class="w-px h-4 bg-gray-200"></div>
+
                     {{-- Filter Tipe --}}
                     <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg overflow-hidden">
                         <button onclick="setFilterTipe('harian')" id="ftBtn-harian"
@@ -1593,23 +1609,35 @@
             APPLY FILTERS
         ──────────────────────────── */
         function applyFilters() {
-            const search = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+            const search     = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
             const tanggalVal = document.getElementById('filterTanggal')?.value || '';
-            const bulanVal = document.getElementById('filterBulan')?.value || '';
-            const rows = document.querySelectorAll('#rentalTableBody .rental-row');
-            let visible = 0;
+            const bulanVal   = document.getElementById('filterBulan')?.value || '';
+            const perPageEl  = document.getElementById('perPageSelect');
+            const perPage    = perPageEl?.value === 'all' ? Infinity : parseInt(perPageEl?.value || '10', 10);
+            const rows       = document.querySelectorAll('#rentalTableBody .rental-row');
 
+            // Kumpulkan baris yang lolos filter
+            const matched = [];
             rows.forEach(function(row) {
-                const tabOk = (activeTab === 'semua') || (row.dataset.status === activeTab);
+                const tabOk    = (activeTab === 'semua') || (row.dataset.status === activeTab);
                 const searchOk = !search || (row.dataset.search || '').includes(search);
                 let dateOk = true;
                 if (filterTipe === 'harian' && tanggalVal) dateOk = row.dataset.tanggal === tanggalVal;
-                if (filterTipe === 'bulanan' && bulanVal) dateOk = row.dataset.bulan === bulanVal;
-                const show = tabOk && searchOk && dateOk;
-                row.style.display = show ? '' : 'none';
-                if (show) visible++;
+                if (filterTipe === 'bulanan' && bulanVal)  dateOk = row.dataset.bulan  === bulanVal;
+                if (tabOk && searchOk && dateOk) matched.push(row);
             });
 
+            // Tampilkan sesuai limit perPage
+            let visible = 0;
+            rows.forEach(row => row.style.display = 'none');
+            matched.forEach(function(row) {
+                if (visible < perPage) {
+                    row.style.display = '';
+                    visible++;
+                }
+            });
+
+            // Renumber
             let n = 1;
             rows.forEach(function(row) {
                 if (row.style.display !== 'none') {
@@ -1620,8 +1648,12 @@
 
             const empty = document.getElementById('emptyState');
             if (empty) empty.classList.toggle('hidden', visible > 0);
+
             const cnt = document.getElementById('visibleCount');
-            if (cnt) cnt.textContent = visible;
+            if (cnt) cnt.textContent =
+                matched.length === 0
+                    ? '0'
+                    : visible + (matched.length > visible ? ' dari ' + matched.length : '');
         }
 
         /* ─────────────────────────────

@@ -8,51 +8,16 @@ use Carbon\Carbon;
 
 class KirSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $data = [
-
-            [
-                'kendaraan_id' => 1,
-                'no_uji'       => 'KIR-2026-001',
-                'masa_berlaku' => Carbon::now()->addMonths(6),
-                'biaya' => 200000,
+        for ($i = 1; $i <= 50; $i++) {
+            Kir::create([
+                'kendaraan_id' => (($i - 1) % 50) + 1,
+                'no_uji'       => 'KIR-' . date('Y') . '-' . str_pad($i, 3, '0', STR_PAD_LEFT),
+                'masa_berlaku' => Carbon::now()->addDays(rand(-60, 730)),
+                'biaya'        => rand(1, 10) * 50000,
                 'image'        => null,
-            ],
-
-            [
-                'kendaraan_id' => 2,
-                'no_uji'       => 'KIR-2026-002',
-                'masa_berlaku' => Carbon::now()->addMonths(4),
-                'biaya' => 500000,
-                'image'        => null,
-            ],
-
-            [
-                'kendaraan_id' => 3,
-                'no_uji'       => 'KIR-2026-003',
-                'masa_berlaku' => Carbon::now()->subDays(10),
-                'biaya' => 130000,
-                'image'        => null,
-            ],
-
-            [
-                'kendaraan_id' => 1,
-                'no_uji'       => 'KIR-2026-004',
-                'masa_berlaku' => Carbon::now()->addYear(),
-                'biaya' => 4500000,
-                'image'        => null,
-            ],
-
-            
-
-        ];
-
-        foreach ($data as $item) {
-            Kir::create($item);
+            ]);
         }
     }
 }

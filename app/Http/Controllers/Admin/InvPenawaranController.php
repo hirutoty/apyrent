@@ -397,6 +397,14 @@ class InvPenawaranController
         }
     }
 
+    public function exportExcel(Request $request)
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\PenawaranExport($request->search),
+            'Penawaran-' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
+
     public function exportPdf(Request $request)
     {
         $query = InvPenawaran::with('items.kendaraan')->latest();

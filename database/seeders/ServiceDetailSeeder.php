@@ -4,59 +4,31 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\ServiceDetail;
+use Carbon\Carbon;
 
 class ServiceDetailSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $data = [
-
-            [
-                'kendaraan_id'    => 1,
-                'tanggal_service' => '2026-01-10',
-                'kilometer'       => 25000,
-                'status'          => 'Layak',
-                'biaya'           => 350000,
-                'keterangan'      => 'Ganti oli dan filter oli',
-                'bukti'           => null,
-            ],
-
-            [
-                'kendaraan_id'    => 1,
-                'tanggal_service' => '2026-02-15',
-                'kilometer'       => 28000,
-                'status'          => 'Layak',
-                'biaya'           => 500000,
-                'keterangan'      => 'Ganti kampas rem depan',
-                'bukti'           => null,
-            ],
-
-            [
-                'kendaraan_id'    => 2,
-                'tanggal_service' => '2026-03-05',
-                'kilometer'       => 42000,
-                'status'          => 'Layak',
-                'biaya'           => 600000,
-                'keterangan'      => 'Isi freon dan service AC',
-                'bukti'           => null,
-            ],
-
-            [
-                'kendaraan_id'    => 3,
-                'tanggal_service' => '2026-03-20',
-                'kilometer'       => 55000,
-                'status'          => 'Tidak Layak',
-                'biaya'           => 1800000,
-                'keterangan'      => 'Ganti 2 ban depan',
-                'bukti'           => null,
-            ],          
+        $keluhan = [
+            'Ganti oli mesin', 'Tune up', 'Ganti kampas rem', 'Servis AC', 'Ganti ban',
+            'Overhaul mesin', 'Ganti aki', 'Servis transmisi', 'Ganti filter udara', 'Perbaikan body',
+            'Ganti busi', 'Servis suspensi', 'Ganti timing belt', 'Kalibrasi lampu', 'Servis power steering',
+            'Ganti knalpot', 'Perbaikan sistem pendingin', 'Ganti kopling', 'Servis rem tangan', 'Ganti wiper',
         ];
 
-        foreach ($data as $item) {
-            ServiceDetail::create($item);
+        for ($i = 1; $i <= 50; $i++) {
+            $kmSekarang = rand(5000, 120000);
+
+            ServiceDetail::create([
+                'kendaraan_id'    => (($i - 1) % 50) + 1,
+                'tanggal_service' => Carbon::now()->subDays(rand(1, 365)),
+                'kilometer'       => $kmSekarang,
+                'status'          => ($i % 4 === 0) ? 'Tidak Layak' : 'Layak',
+                'biaya'           => rand(2, 30) * 50000,
+                'keterangan'      => $keluhan[($i - 1) % count($keluhan)],
+                'bukti'           => null,
+            ]);
         }
     }
 }
