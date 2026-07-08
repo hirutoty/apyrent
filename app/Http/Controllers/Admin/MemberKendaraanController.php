@@ -13,9 +13,9 @@ class MemberKendaraanController extends Controller
 {
     public function index()
     {
-        $data = MemberKendaraan::with(['member','kendaraan'])->latest()->get();
+        $data = MemberKendaraan::with(['member','kendaraan'])->latest()->paginate(15)->withQueryString();
 
-        foreach ($data as $d) {
+        foreach ($data->getCollection() as $d) {
     $d->total_biaya = Carbon::parse($d->tanggal_sewa)
         ->diffInDays($d->tanggal_kembali) * $d->biaya_sewa;
 }

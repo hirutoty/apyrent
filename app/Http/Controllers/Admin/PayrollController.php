@@ -10,12 +10,12 @@ class PayrollController extends Controller
 {
     public function index()
     {
-        $data = Payroll::latest()->get();
+        $data = Payroll::latest()->paginate(15)->withQueryString();
 
-        $totalPegawai = $data->count();
-        $totalGaji    = $data->sum('total_gaji');
-        $totalBpjs    = $data->sum('bpjs');
-        $totalPph21   = $data->sum('pph21');
+        $totalPegawai = Payroll::count();
+        $totalGaji    = Payroll::sum('total_gaji');
+        $totalBpjs    = Payroll::sum('bpjs');
+        $totalPph21   = Payroll::sum('pph21');
 
         return view('admin.hrd.payroll.index', compact(
             'data', 'totalPegawai', 'totalGaji', 'totalBpjs', 'totalPph21'

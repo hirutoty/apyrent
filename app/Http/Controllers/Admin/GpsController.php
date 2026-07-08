@@ -18,7 +18,7 @@ class GpsController extends Controller
 {
     public function index()
     {
-        $data = Gps::with('user')->latest()->get();
+        $data = Gps::with('user')->latest()->paginate(15)->withQueryString();
         $setting = Setting::first();
 
         $reminder = match ($setting->satuan_reminder) {

@@ -15,7 +15,7 @@ class Aging_ApsController extends Controller
     // =====================
     public function index()
     {
-        $data = Aging_aps::latest()->get();
+        $data = Aging_aps::latest()->paginate(15)->withQueryString();
 
         $setting = Setting::first();
         $reminder = $setting->satuan_reminder ?? 30;

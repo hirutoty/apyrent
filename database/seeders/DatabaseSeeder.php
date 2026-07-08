@@ -85,6 +85,15 @@ class DatabaseSeeder extends Seeder
             ProjectRiskSeeder::class,
             DokumenProyekSeeder::class,
             PembelianProyekSeeder::class,
+            // Purchase
+            RequestforQuotationSeeder::class,
+            PurchaseOrderSeeder::class,
+            VendorPricelistSeeder::class,
+            ApprovalWorkflowSeeder::class,
+            DropshippingSeeder::class,
+            VendorPerformanceSeeder::class,
+            // IT Technology
+            ItTechnologySeeder::class,
         ]);
     }
 }

@@ -231,7 +231,7 @@
                                 data-tgl-berakhir="{{ $d->tgl_berakhir ? \Carbon\Carbon::parse($d->tgl_berakhir)->format('Y-m') : '' }}">
 
                                 {{-- No --}}
-                                <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
 
                                 {{-- Kendaraan --}}
                                 <td class="px-4 py-3.5">
@@ -404,6 +404,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
             </div>
 
             {{-- Entries info bottom --}}

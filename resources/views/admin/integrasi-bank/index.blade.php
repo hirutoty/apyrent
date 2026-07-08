@@ -140,7 +140,7 @@
                         @forelse ($rekonsiliasi as $item)
                             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
                                 data-search="{{ strtolower($item->tanggal.' '.$item->deskripsi.' '.$item->reference_no.' '.$item->currency.' '.$item->status_rekonsiliasi) }}">
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $rekonsiliasi->firstItem() + $loop->index }}</td>
                                 <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->tanggal }}</td>
                                 <td class="px-4 py-3.5 text-sm text-gray-700 max-w-[160px] truncate">{{ $item->deskripsi }}</td>
                                 <td class="px-4 py-3.5">
@@ -201,6 +201,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                <div class="py-3 border-t border-gray-100">{{ $rekonsiliasi->links() }}</div>
             </div>
         </div>
     </div>{{-- end panel-rekonsiliasi --}}
@@ -322,7 +323,7 @@
                         @forelse ($virtualAccounts as $item)
                             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
                                 data-search="{{ strtolower($item->va_number.' '.($item->member->nama_member ?? '').' '.$item->bank.' '.$item->status) }}">
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $virtualAccounts->firstItem() + $loop->index }}</td>
                                 <td class="px-4 py-3.5">
                                     <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $item->va_number }}</span>
                                 </td>
@@ -412,6 +413,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                <div class="py-3 border-t border-gray-100">{{ $virtualAccounts->links() }}</div>
             </div>
         </div>
     </div>{{-- end panel-virtual --}}

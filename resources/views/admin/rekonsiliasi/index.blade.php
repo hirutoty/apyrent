@@ -161,7 +161,7 @@
                             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
                                 data-search="{{ strtolower($item->tanggal . ' ' . $item->deskripsi . ' ' . $item->reference_no . ' ' . $item->currency . ' ' . $item->status_rekonsiliasi) }}">
 
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $data->firstItem() + $loop->index }}</td>
 
                                 <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->tanggal }}</td>
 
@@ -255,6 +255,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
             </div>
 
         </div>

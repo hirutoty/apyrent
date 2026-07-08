@@ -23,8 +23,10 @@ class GpsKendaraanHistoryController extends Controller
             $query->whereYear('diperpanjang_pada', $request->tahun);
         }
 
-        $data        = $query->get();
-        $totalBiaya  = $data->sum('biaya_sewa');
+        $data        = $query->paginate(15)->withQueryString();
+        $totalBiaya  = GpsKendaraanHistory::when($request->filled('bulan'), fn($q) => $q->whereMonth('diperpanjang_pada', $request->bulan))
+                        ->when($request->filled('tahun'), fn($q) => $q->whereYear('diperpanjang_pada', $request->tahun))
+                        ->sum('biaya_sewa');
 
         // Build year options from existing data (± current year)
         $tahunList = GpsKendaraanHistory::selectRaw('YEAR(diperpanjang_pada) as tahun')

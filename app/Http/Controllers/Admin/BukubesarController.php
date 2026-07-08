@@ -27,7 +27,7 @@ class BukubesarController extends Controller
         });
     }
 
-    $data = $query->latest()->get();
+    $data = $query->latest()->paginate(15)->withQueryString();
 
     return view('admin.bukubesar.index', compact('data', 'search'));
 }

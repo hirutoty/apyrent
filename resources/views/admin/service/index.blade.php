@@ -164,6 +164,7 @@
                     @endforelse
                 </tbody>
             </table>
+            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
 
             <div id="noResultRow" class="hidden px-5 py-12 text-center">
                 <div class="flex flex-col items-center gap-3">

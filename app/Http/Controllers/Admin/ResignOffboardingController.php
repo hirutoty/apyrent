@@ -10,12 +10,12 @@ class ResignOffboardingController extends Controller
 {
     public function index()
     {
-        $data = ResignOffboarding::latest()->get();
+        $data = ResignOffboarding::latest()->paginate(15)->withQueryString();
 
-        $totalResign      = $data->count();
-        $totalSelesai     = $data->where('status_offboarding', 'Selesai')->count();
-        $totalProses      = $data->where('status_offboarding', 'Proses')->count();
-        $totalSerahTerima = $data->where('serah_terima', 'Sudah')->count();
+        $totalResign      = ResignOffboarding::count();
+        $totalSelesai     = ResignOffboarding::where('status_offboarding', 'Selesai')->count();
+        $totalProses      = ResignOffboarding::where('status_offboarding', 'Proses')->count();
+        $totalSerahTerima = ResignOffboarding::where('serah_terima', 'Sudah')->count();
 
         return view('admin.hrd.resign.index', compact(
             'data', 'totalResign', 'totalSelesai', 'totalProses', 'totalSerahTerima'

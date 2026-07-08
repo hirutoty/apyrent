@@ -202,7 +202,7 @@
                             data-search="{{ strtolower($d->no_pr . ' ' . $d->departemen . ' ' . $d->pemohon . ' ' . $d->barang_jasa) }}"
                             data-tanggal="{{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('Y-m-d') : '' }}">
 
-                            <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
 
                             <td class="px-4 py-3.5">
                                 <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->no_pr }}</span>
@@ -295,6 +295,7 @@
                     @endforelse
                 </tbody>
             </table>
+            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
         </div>
 
         {{-- ENTRIES INFO --}}

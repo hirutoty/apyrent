@@ -10,12 +10,12 @@ class SkillMatrixController extends Controller
 {
     public function index()
     {
-        $data = SkillMatrix::latest()->get();
+        $data = SkillMatrix::latest()->paginate(15)->withQueryString();
 
-        $totalSkill         = $data->count();
-        $totalBersertifikat = $data->where('sertifikasi', 'Y')->count();
-        $totalPegawai       = $data->pluck('nama_pegawai')->unique()->count();
-        $rataLevel          = $data->count() ? round($data->avg('level'), 1) : 0;
+        $totalSkill         = SkillMatrix::count();
+        $totalBersertifikat = SkillMatrix::where('sertifikasi', 'Y')->count();
+        $totalPegawai       = SkillMatrix::distinct('nama_pegawai')->count('nama_pegawai');
+        $rataLevel          = round(SkillMatrix::avg('level') ?? 0, 1);
 
         return view('admin.hrd.skills.index', compact(
             'data', 'totalSkill', 'totalBersertifikat', 'totalPegawai', 'rataLevel'

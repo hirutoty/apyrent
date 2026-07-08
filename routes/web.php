@@ -90,6 +90,26 @@ use App\Http\Controllers\Admin\ProjectRiskController;
 use App\Http\Controllers\Admin\DokumenProyekController;
 use App\Http\Controllers\Admin\PembelianProyekController;
 
+// Purchase
+use App\Http\Controllers\Admin\RequestforQuotationController;
+use App\Http\Controllers\Admin\PurchaseOrderController;
+use App\Http\Controllers\Admin\VendorPricelistController;
+use App\Http\Controllers\Admin\ApprovalWorkflowController;
+use App\Http\Controllers\Admin\DropshippingController;
+use App\Http\Controllers\Admin\VendorPerformanceController;
+// IT Technology
+use App\Http\Controllers\Admin\ItassetManagementController;
+use App\Http\Controllers\Admin\SoftwareLicenseController;
+use App\Http\Controllers\Admin\HelpdeskSupportController;
+use App\Http\Controllers\Admin\UserAccessController;
+use App\Http\Controllers\Admin\NetworkMonitoringController;
+use App\Http\Controllers\Admin\CybersecurityController;
+use App\Http\Controllers\Admin\EmailDomainController;
+use App\Http\Controllers\Admin\ServerCloudController;
+use App\Http\Controllers\Admin\SystemBackupController;
+use App\Http\Controllers\Admin\ProjectManagementController;
+use App\Http\Controllers\Admin\DevopsController;
+use App\Http\Controllers\Admin\PolicyComplianceController;
 // HRD
 use App\Http\Controllers\Admin\StrukturOrganisasiController;
 use App\Http\Controllers\Admin\DepartemenController;
@@ -101,6 +121,16 @@ use App\Http\Controllers\Admin\CutiIzinController;
 use App\Http\Controllers\Admin\KpiAppraisalController;
 use App\Http\Controllers\Admin\ResignOffboardingController;
 use App\Http\Controllers\Admin\HrdFileController;
+// Asset Management
+use App\Http\Controllers\Admin\Asset\IndukAssetController;
+use App\Http\Controllers\Admin\Asset\PergerakanAssetController;
+use App\Http\Controllers\Admin\Asset\PemeliharaanAssetController;
+use App\Http\Controllers\Admin\Asset\PenyusutanAssetController;
+use App\Http\Controllers\Admin\Asset\PerolehanAssetController;
+use App\Http\Controllers\Admin\Asset\AssetDihapuskanController;
+use App\Http\Controllers\Admin\Asset\DokumentasiAssetController;
+use App\Http\Controllers\Admin\Asset\PenanggungJawabController;
+use App\Http\Controllers\Admin\Asset\AuditAssetController;
 // User
 use App\Http\Controllers\User\ProfileController;
 
@@ -544,6 +574,28 @@ Route::middleware('auth')->prefix('admin')->group(function () {
   Route::get('/ajax/members', [AgingArController::class, 'searchMember']);
   Route::get('/ajax/invoices', [AgingArController::class, 'searchInvoice']);
 
+  // ── PURCHASE ───────────────────────────────────────────────
+  Route::resource('requestfor-quotation', RequestforQuotationController::class)->except(['create', 'edit', 'show']);
+  Route::resource('purchase-order', PurchaseOrderController::class)->except(['create', 'edit', 'show']);
+  Route::resource('vendor-pricelist', VendorPricelistController::class)->except(['create', 'edit', 'show']);
+  Route::resource('approval-workflow', ApprovalWorkflowController::class)->except(['create', 'edit', 'show']);
+  Route::resource('dropshipping', DropshippingController::class)->except(['create', 'edit', 'show']);
+  Route::resource('vendor-performance', VendorPerformanceController::class)->except(['create', 'edit', 'show']);
+
+  // ── IT TECHNOLOGY ──────────────────────────────────────────
+  Route::resource('assetm', ItassetManagementController::class)->except(['create', 'edit', 'show']);
+  Route::resource('softwarel', SoftwareLicenseController::class)->except(['create', 'edit', 'show']);
+  Route::resource('helpdesk', HelpdeskSupportController::class)->except(['create', 'edit', 'show']);
+  Route::resource('useraccess', UserAccessController::class)->except(['create', 'edit', 'show']);
+  Route::resource('networkm', NetworkMonitoringController::class)->except(['create', 'edit', 'show']);
+  Route::resource('cybers', CybersecurityController::class)->except(['create', 'edit', 'show']);
+  Route::resource('emaild', EmailDomainController::class)->except(['create', 'edit', 'show']);
+  Route::resource('serverc', ServerCloudController::class)->except(['create', 'edit', 'show']);
+  Route::resource('systemb', SystemBackupController::class)->except(['create', 'edit', 'show']);
+  Route::resource('projectm', ProjectManagementController::class)->except(['create', 'edit', 'show']);
+  Route::resource('devops', DevopsController::class)->except(['create', 'edit', 'show']);
+  Route::resource('policyc', PolicyComplianceController::class)->except(['create', 'edit', 'show']);
+
   // ── HRD ────────────────────────────────────────────────────
   Route::resource('struktur', StrukturOrganisasiController::class)->except(['create', 'edit', 'show']);
   Route::resource('departemen', DepartemenController::class)->except(['create', 'edit', 'show']);
@@ -629,4 +681,14 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::get('pembelian/pdf', [PembelianProyekController::class, 'pdf'])->name('pembelian.pdf');
     Route::resource('pembelian', PembelianProyekController::class)->except(['create', 'edit']);
   });
+  // ── ASSET MANAGEMENT ──────────────────────────────────────────────────────
+  Route::resource('asset/induk',        IndukAssetController::class,        ['as' => 'asset'])->except(['create', 'edit', 'show']);
+  Route::resource('asset/pergerakan',   PergerakanAssetController::class,   ['as' => 'asset'])->except(['create', 'edit', 'show']);
+  Route::resource('asset/pemeliharaan', PemeliharaanAssetController::class, ['as' => 'asset'])->except(['create', 'edit', 'show']);
+  Route::resource('asset/penyusutan',   PenyusutanAssetController::class,   ['as' => 'asset'])->except(['create', 'edit', 'show']);
+  Route::resource('asset/perolehan',    PerolehanAssetController::class,    ['as' => 'asset'])->except(['create', 'edit', 'show']);
+  Route::resource('asset/dihapuskan',   AssetDihapuskanController::class,   ['as' => 'asset'])->except(['create', 'edit', 'show']);
+  Route::resource('asset/dokumentasi',  DokumentasiAssetController::class,  ['as' => 'asset'])->except(['create', 'edit', 'show']);
+  Route::resource('asset/pj',           PenanggungJawabController::class,   ['as' => 'asset'])->except(['create', 'edit', 'show']);
+  Route::resource('asset/audit',        AuditAssetController::class,        ['as' => 'asset'])->except(['create', 'edit', 'show']);
 });

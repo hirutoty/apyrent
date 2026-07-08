@@ -23,7 +23,7 @@ class GpsKendaraanController extends Controller
             ->where('status_sewa', 'aktif')
             ->update(['status_sewa' => 'habis']);
 
-        $data = GpsKendaraan::with(['kendaraan', 'gps', 'attachments'])->latest()->get();
+        $data = GpsKendaraan::with(['kendaraan', 'gps', 'attachments'])->latest()->paginate(15)->withQueryString();
         $setting = Setting::first();
         // Base64 logo untuk DomPDF
         $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');

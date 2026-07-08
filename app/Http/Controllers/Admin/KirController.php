@@ -33,9 +33,9 @@ class KirController extends Controller
         };
 
         return view('admin.kir.index', [
-            'data' => Kir::with(['kendaraan', 'attachments'])->latest()->get(),
+            'data'      => Kir::with(['kendaraan', 'attachments'])->latest()->paginate(15)->withQueryString(),
             'kendaraan' => Kendaraan::all(),
-            'reminder' => $reminder,
+            'reminder'  => $reminder,
         ]);
     }
 

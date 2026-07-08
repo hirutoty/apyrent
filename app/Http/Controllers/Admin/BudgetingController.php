@@ -17,7 +17,7 @@ class BudgetingController extends Controller
      */
     public function index()
     {
-        $data = AnggaranProyek::latest()->get();
+        $data = AnggaranProyek::latest()->paginate(15)->withQueryString();
 
         return view('admin.budgeting.index', compact('data'));
     }

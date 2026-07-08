@@ -18,7 +18,7 @@ class InvKontrakController extends Controller
 
         $kontraks = InvKontrak::with('penawaran')
             ->latest()
-            ->get();
+            ->paginate(15)->withQueryString();
         $penawarans = InvPenawaran::latest()->get();
         $setting = Setting::first();
 
@@ -30,7 +30,7 @@ class InvKontrakController extends Controller
             default  => $setting->batas_reminder,
         };
 
-        foreach ($kontraks as $k) {
+        foreach ($kontraks->getCollection() as $k) {
 
             $perjanjian = Carbon::parse($k->perjanjian_pembayaran)->startOfDay();
 

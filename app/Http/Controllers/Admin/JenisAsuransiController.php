@@ -10,7 +10,7 @@ class JenisAsuransiController extends Controller
 {
     public function index()
     {
-        $data = JenisAsuransi::latest()->get();
+        $data = JenisAsuransi::latest()->paginate(15)->withQueryString();
         return view('admin.asuransi.jenis_asuransi', compact('data'));
     }
 

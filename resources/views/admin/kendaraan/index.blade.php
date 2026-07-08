@@ -208,6 +208,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                <div class="py-3 border-t border-gray-100">{{ $kendaraanDetail->links() }}</div>
             </div>
 
             {{-- ENTRIES INFO --}}

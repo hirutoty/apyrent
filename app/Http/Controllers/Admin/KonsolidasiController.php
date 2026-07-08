@@ -14,7 +14,7 @@ class KonsolidasiController extends Controller
 {
     public function index()
     {
-        $data = LaporanKeuangan::latest()->get();
+        $data = LaporanKeuangan::latest()->paginate(15)->withQueryString();
         return view('admin.konsolidasi.index', compact('data'));
     }
 

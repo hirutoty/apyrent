@@ -270,7 +270,7 @@
             </div>
 
             {{-- PAGINATION --}}
-            <div class="p-4 border-t">{{ $invoices->links() }}</div>
+            <div class="py-4 border-t">{{ $invoices->links() }}</div>
 
         </div>
     </div>

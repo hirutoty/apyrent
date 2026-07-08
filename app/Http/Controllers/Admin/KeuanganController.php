@@ -43,7 +43,7 @@ class KeuanganController extends Controller
           });
       }
   
-      $keuangans = $query->paginate(20)->withQueryString();
+      $keuangans = $query->paginate(15)->withQueryString();
   
       $totalPemasukan  = Keuangan::sum('pemasukan');
       $totalPengeluaran = Keuangan::sum('pengeluaran');

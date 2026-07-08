@@ -195,7 +195,7 @@
                             data-search="{{ strtolower($d->kode_vendor . ' ' . $d->nama_vendor . ' ' . $d->kategori . ' ' . $d->pic_vendor) }}"
                             data-tanggal="{{ $d->tanggal_terakhir_order ? \Carbon\Carbon::parse($d->tanggal_terakhir_order)->format('Y-m-d') : '' }}">
 
-                            <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
 
                             <td class="px-4 py-3.5">
                                 <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->kode_vendor }}</span>
@@ -285,6 +285,7 @@
                     @endforelse
                 </tbody>
             </table>
+            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
         </div>
 
         {{-- ENTRIES INFO --}}

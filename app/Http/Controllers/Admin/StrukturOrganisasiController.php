@@ -10,12 +10,12 @@ class StrukturOrganisasiController extends Controller
 {
     public function index()
     {
-        $data = StrukturOrganisasi::latest()->get();
+        $data = StrukturOrganisasi::latest()->paginate(15)->withQueryString();
 
-        $totalPegawai    = $data->count();
-        $totalTetap      = $data->where('status_jabatan', 'Tetap')->count();
-        $totalKontrak    = $data->where('status_jabatan', 'Kontrak')->count();
-        $totalDepartemen = $data->pluck('departemen')->unique()->count();
+        $totalPegawai    = StrukturOrganisasi::count();
+        $totalTetap      = StrukturOrganisasi::where('status_jabatan', 'Tetap')->count();
+        $totalKontrak    = StrukturOrganisasi::where('status_jabatan', 'Kontrak')->count();
+        $totalDepartemen = StrukturOrganisasi::distinct('departemen')->count('departemen');
 
         return view('admin.hrd.struktur.index', compact(
             'data', 'totalPegawai', 'totalTetap', 'totalKontrak', 'totalDepartemen'

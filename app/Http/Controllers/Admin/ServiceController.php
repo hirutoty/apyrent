@@ -11,7 +11,7 @@ class ServiceController extends Controller
 {
     public function index()
     {
-        $data = Service::with('user')->latest()->get();
+        $data = Service::with('user')->latest()->paginate(15)->withQueryString();
 
         return view('admin.service.index', compact('data'));
     }

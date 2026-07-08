@@ -18,8 +18,6 @@ class IntegrasiController extends Controller
 {
     public function index(Request $request)
     {
-        $rekonsiliasi = RekonsiliasiBank::latest()->get();
-
         $vaSearch = $request->va_search;
         $vaQuery  = VirtualAccount::with('member', 'invoice');
         if ($vaSearch) {
@@ -27,7 +25,9 @@ class IntegrasiController extends Controller
                 ->orWhere('bank', 'like', "%$vaSearch%")
                 ->orWhere('status', 'like', "%$vaSearch%");
         }
-        $virtualAccounts = $vaQuery->latest()->get();
+
+        $rekonsiliasi    = RekonsiliasiBank::latest()->paginate(10, ['*'], 'rekon_page')->withQueryString();
+        $virtualAccounts = $vaQuery->latest()->paginate(10, ['*'], 'va_page')->withQueryString();
 
         $members  = Member::all();
         $invoices = Invoice::select('id', 'invoice_no', 'customer_name')->latest()->get();
