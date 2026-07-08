@@ -10,13 +10,24 @@ use Illuminate\Http\Request;
 
 class IndukProyekController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data         = IndukProyek::latest()->get();
-        $total        = $data->count();
-        $totalBerjalan = $data->where('status', 'Berjalan')->count();
-        $totalSelesai  = $data->where('status', 'Selesai')->count();
-        $totalPlan     = $data->where('status', 'Plan')->count();
+        $query = IndukProyek::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('kode', 'like', "%$q%")
+                   ->orWhere('nama_proyek', 'like', "%$q%")
+                   ->orWhere('pic', 'like', "%$q%");
+            });
+        }
+
+        $data          = $query->paginate(15)->withQueryString();
+        $total         = IndukProyek::count();
+        $totalBerjalan = IndukProyek::where('status', 'Berjalan')->count();
+        $totalSelesai  = IndukProyek::where('status', 'Selesai')->count();
+        $totalPlan     = IndukProyek::where('status', 'Plan')->count();
 
         return view('admin.project.induk_proyek.index', compact(
             'data', 'total', 'totalBerjalan', 'totalSelesai', 'totalPlan'

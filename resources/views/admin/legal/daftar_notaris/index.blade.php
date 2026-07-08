@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Daftar Notaris')
 @section('content')
 <div class="space-y-6">
@@ -50,9 +50,12 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
             <h2 class="font-semibold text-gray-800 text-base">Daftar Kantor Notaris</h2>
-            <input type="text" placeholder="Cari notaris..."
-                   oninput="filterTable(this.value)"
+            <form method="GET" class="flex gap-1">
+                <input type="text" placeholder="Cari notaris..."
+                   name="search" value="{{ request('search') }}"
                    class="pl-3 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 w-44">
+                <button class="bg-gray-800 text-white text-xs px-3 py-1.5 rounded-lg">Cari</button>
+            </form>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm" id="mainTable">
@@ -112,6 +115,7 @@
                 </tbody>
             </table>
         </div>
+        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -221,6 +225,7 @@
 </div>
 @endsection
 
+<div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
 @push('scripts')
 <script>
 function openModal() {
@@ -245,10 +250,7 @@ function openEdit(id) {
             document.getElementById('modalEdit').classList.remove('hidden');
         });
 }
-function filterTable(val) {
-    document.querySelectorAll('#mainTable tbody tr').forEach(r => {
-        r.style.display = r.textContent.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
-    });
+);
 }
 // Close modal when clicking backdrop
 ['modalCreate', 'modalEdit'].forEach(id => {

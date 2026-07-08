@@ -10,13 +10,25 @@ use Illuminate\Http\Request;
 
 class SalesOrderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = SalesOrder::latest()->get();
-        $total       = $data->count();
-        $totalProses = $data->where('status_order', 'Diproses')->count();
-        $totalSelesai = $data->where('status_order', 'Selesai')->count();
-        $totalBatal  = $data->where('status_order', 'Dibatalkan')->count();
+        $query = SalesOrder::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('order_no', 'like', "%$q%")
+                   ->orWhere('pelanggan', 'like', "%$q%")
+                   ->orWhere('produk_jasa', 'like', "%$q%")
+                   ->orWhere('sales', 'like', "%$q%");
+            });
+        }
+
+        $data         = $query->paginate(15)->withQueryString();
+        $total        = SalesOrder::count();
+        $totalProses  = SalesOrder::where('status_order', 'Diproses')->count();
+        $totalSelesai = SalesOrder::where('status_order', 'Selesai')->count();
+        $totalBatal   = SalesOrder::where('status_order', 'Dibatalkan')->count();
 
         return view('admin.sales.sales_order.index', compact(
             'data', 'total', 'totalProses', 'totalSelesai', 'totalBatal'

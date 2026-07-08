@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Kampanye Marketing')
 @section('content')
 <div class="space-y-6">
@@ -74,16 +74,7 @@
                     class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
             </div>
         </div>
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select onchange="onPerPageChange(this.value)" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="25">25</option>
-                <option value="all">All</option>
-            </select>
-            <span>entries</span>
-        </div>
+
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
@@ -102,9 +93,8 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors"
-                        data-search="{{ strtolower($d->nama_kampanye.' '.$d->id_kampanye.' '.$d->channel.' '.$d->status.' '.$d->target_segment) }}">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->id_kampanye }}</td>
                         <td class="px-4 py-3.5">
                             <div class="flex items-center gap-2">
@@ -195,7 +185,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
+        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -472,12 +462,7 @@ const deleteModal=document.getElementById('deleteModal'),deleteForm=document.get
 function triggerDelete(btn){deleteForm.action=btn.dataset.action;document.getElementById('deleteName').innerText=btn.dataset.name;deleteModal.classList.remove('hidden');deleteModal.classList.add('flex');}
 function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.classList.remove('flex');}
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
-const allRows=Array.from(document.querySelectorAll('#tableBody tr[data-search]')),entriesInfo=document.getElementById('entriesInfo');
-let currentSearch='',currentPerPage=10;
-function onSearchInput(v){currentSearch=v.toLowerCase();renderTable();}
-function onPerPageChange(v){currentPerPage=v==='all'?Infinity:parseInt(v);renderTable();}
-function renderTable(){if(!allRows.length)return;const matched=allRows.filter(r=>r.dataset.search.includes(currentSearch));let shown=0;allRows.forEach(r=>r.style.display='none');matched.forEach(r=>{if(shown<currentPerPage){r.style.display='';shown++;}});entriesInfo.innerText=matched.length===0?'Tidak ada data yang cocok':`Menampilkan ${shown} dari ${matched.length} entri`+(currentSearch?' (hasil pencarian)':'');}
-document.addEventListener('DOMContentLoaded',renderTable);
+
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
 </script>
 @endpush

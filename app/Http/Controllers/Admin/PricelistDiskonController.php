@@ -10,11 +10,22 @@ use Illuminate\Http\Request;
 
 class PricelistDiskonController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data  = PricelistDiskon::latest()->get();
-        $total = $data->count();
-        $avgDiskon = $data->avg('diskon') ?? 0;
+        $query = PricelistDiskon::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('id_harga', 'like', "%$q%")
+                   ->orWhere('nama_produk', 'like', "%$q%")
+                   ->orWhere('level_pelanggan', 'like', "%$q%");
+            });
+        }
+
+        $data      = $query->paginate(15)->withQueryString();
+        $total     = PricelistDiskon::count();
+        $avgDiskon = PricelistDiskon::avg('diskon') ?? 0;
 
         return view('admin.sales.pricelist_diskon.index', compact('data', 'total', 'avgDiskon'));
     }

@@ -94,6 +94,24 @@ class DatabaseSeeder extends Seeder
             VendorPerformanceSeeder::class,
             // IT Technology
             ItTechnologySeeder::class,
+            // Invoice & Transaksi
+            PenawaranSeeder::class,
+            InvPenawaranSeeder::class,
+            InvKontrakSeeder::class,
+            InvoiceSeeder::class,
+            InvoicePaymentSeeder::class,
+            InvSummarySeeder::class,
+            // HRD
+            DepartemenSeeder::class,
+            StrukturOrganisasiSeeder::class,
+            SkillMatrixSeeder::class,
+            PresensiSeeder::class,
+            ShiftLemburSeeder::class,
+            PayrollSeeder::class,
+            CutiIzinSeeder::class,
+            KpiAppraisalSeeder::class,
+            ResignOffboardingSeeder::class,
+            HrdFileSeeder::class,
         ]);
     }
 }

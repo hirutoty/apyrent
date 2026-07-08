@@ -10,14 +10,25 @@ use Illuminate\Http\Request;
 
 class AdsIntegrationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = AdsIntegration::latest()->get();
-        $total = $data->count();
-        $totalKlik = $data->sum('klik');
-        $totalKonversi = $data->sum('konversi');
-        $totalBiaya = $data->sum('biaya_total');
-        $totalPenjualan = $data->sum('penjualan');
+        $query = AdsIntegration::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('id_iklan', 'like', "%$q%")
+                   ->orWhere('nama_iklan', 'like', "%$q%")
+                   ->orWhere('platform', 'like', "%$q%");
+            });
+        }
+
+        $data           = $query->paginate(15)->withQueryString();
+        $total          = AdsIntegration::count();
+        $totalKlik      = AdsIntegration::sum('klik');
+        $totalKonversi  = AdsIntegration::sum('konversi');
+        $totalBiaya     = AdsIntegration::sum('biaya_total');
+        $totalPenjualan = AdsIntegration::sum('penjualan');
 
         return view('admin.marketing.adsintegration.index', compact(
             'data', 'total', 'totalKlik', 'totalKonversi', 'totalBiaya', 'totalPenjualan'

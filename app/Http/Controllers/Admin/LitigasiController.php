@@ -10,13 +10,24 @@ use Illuminate\Http\Request;
 
 class LitigasiController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data         = Litigasi::latest()->get();
-        $total        = $data->count();
-        $totalProses  = $data->where('status', 'Proses')->count();
-        $totalSelesai = $data->where('status', 'Selesai')->count();
-        $totalMediasi = $data->where('status', 'Mediasi')->count();
+        $query = Litigasi::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('kasus', 'like', "%$q%")
+                   ->orWhere('lawan', 'like', "%$q%")
+                   ->orWhere('pengacara', 'like', "%$q%");
+            });
+        }
+
+        $data         = $query->paginate(15)->withQueryString();
+        $total        = Litigasi::count();
+        $totalProses  = Litigasi::where('status', 'Proses')->count();
+        $totalSelesai = Litigasi::where('status', 'Selesai')->count();
+        $totalMediasi = Litigasi::where('status', 'Mediasi')->count();
 
         return view('admin.legal.litigasi.index', compact('data', 'total', 'totalProses', 'totalSelesai', 'totalMediasi'));
     }

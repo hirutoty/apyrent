@@ -10,13 +10,24 @@ use Illuminate\Http\Request;
 
 class ReviewLegalController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data         = ReviewLegal::latest()->get();
-        $total        = $data->count();
-        $totalSelesai = $data->where('status_review', 'Selesai')->count();
-        $totalProses  = $data->where('status_review', 'Proses')->count();
-        $totalPending = $data->where('status_review', 'Pending')->count();
+        $query = ReviewLegal::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('pemohon', 'like', "%$q%")
+                   ->orWhere('dokumen', 'like', "%$q%")
+                   ->orWhere('pic_legal', 'like', "%$q%");
+            });
+        }
+
+        $data         = $query->paginate(15)->withQueryString();
+        $total        = ReviewLegal::count();
+        $totalSelesai = ReviewLegal::where('status_review', 'Selesai')->count();
+        $totalProses  = ReviewLegal::where('status_review', 'Proses')->count();
+        $totalPending = ReviewLegal::where('status_review', 'Pending')->count();
 
         return view('admin.legal.review_legal.index', compact('data', 'total', 'totalSelesai', 'totalProses', 'totalPending'));
     }

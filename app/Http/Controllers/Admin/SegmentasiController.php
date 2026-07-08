@@ -10,13 +10,23 @@ use Illuminate\Http\Request;
 
 class SegmentasiController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Segmentasi::latest()->get();
-        $total = $data->count();
-        $totalAktif = $data->where('status', 'Aktif')->count();
-        $totalNonaktif = $data->where('status', 'Tidak Aktif')->count();
-        $totalCustomer = $data->sum('customer_count');
+        $query = Segmentasi::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('segment_code', 'like', "%$q%")
+                   ->orWhere('segment_name', 'like', "%$q%");
+            });
+        }
+
+        $data          = $query->paginate(15)->withQueryString();
+        $total         = Segmentasi::count();
+        $totalAktif    = Segmentasi::where('status', 'Aktif')->count();
+        $totalNonaktif = Segmentasi::where('status', 'Tidak Aktif')->count();
+        $totalCustomer = Segmentasi::sum('customer_count');
 
         return view('admin.marketing.segmentasi.index', compact(
             'data', 'total', 'totalAktif', 'totalNonaktif', 'totalCustomer'

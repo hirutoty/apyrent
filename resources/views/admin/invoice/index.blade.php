@@ -3,295 +3,228 @@
 @section('title', 'Data Invoice')
 
 @section('content')
-    <div class="p-5">
+    <div class="space-y-6 p-5">
 
+        {{-- ALERT --}}
         @if (session('success'))
-            <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-700">
-                {{ session('success') }}
+            <div class="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                <i class="fa fa-check-circle text-green-500"></i> {{ session('success') }}
             </div>
         @endif
-
         @if (session('error'))
-            <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-                {{ session('error') }}
+            <div class="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <i class="fa fa-exclamation-circle text-red-500"></i> {{ session('error') }}
             </div>
         @endif
 
-        <div class="bg-white rounded-xl shadow">
-
-            {{-- HEADER --}}
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b p-5">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800">Data Invoice</h2>
-                    <p class="text-sm text-gray-500 mt-1">Kelola seluruh data invoice.</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <a href="{{ route('invoices.export.excel', request()->query()) }}"
-                        class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-                        <i class="fa fa-file-excel"></i> Export Excel
-                    </a>
-                    <button type="button" id="btnTambah" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-                        <i class="fa fa-plus mr-2"></i> Tambah Invoice
-                    </button>
-                </div>
+        {{-- PAGE HEADER --}}
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Data Invoice</h1>
+                <p class="text-sm text-gray-500 mt-0.5">Kelola seluruh data invoice</p>
             </div>
-
-            {{-- NAV TABS --}}
-            <div class="border-b border-gray-200">
-                <nav class="flex gap-0 -mb-px overflow-x-auto">
-                    @php
-                        $navItems = [
-                            ['label' => 'Summary', 'url' => '/admin/summary', 'icon' => 'bi bi-bar-chart-line'],
-                            [
-                                'label' => 'Penawaran',
-                                'url' => '/admin/penawaran',
-                                'icon' => 'bi bi-file-earmark-richtext',
-                            ],
-                            ['label' => 'Kontrak', 'url' => '/admin/kontrak', 'icon' => 'bi bi-file-earmark-lock'],
-                            ['label' => 'Invoice', 'url' => '/admin/invoices', 'icon' => 'bi bi-receipt-cutoff'],
-                            ['label' => 'Payments', 'url' => '/admin/payments', 'icon' => 'bi bi-credit-card-2-front'],
-                            ['label' => 'Reminders', 'url' => '/admin/reminders', 'icon' => 'bi bi-bell'],
-                        ];
-                    @endphp
-                    @foreach ($navItems as $item)
-                        @php
-                            $isActive =
-                                request()->is(ltrim($item['url'], '/')) ||
-                                request()->is(ltrim($item['url'], '/') . '/*');
-                        @endphp
-                        <a href="{{ $item['url'] }}"
-                            class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
-                            {{ $isActive ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
-                            <i class="{{ $item['icon'] }}"></i>
-                            {{ $item['label'] }}
-                        </a>
-                    @endforeach
-                </nav>
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ route('invoices.export.excel', request()->query()) }}"
+                    class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    <i class="fa fa-file-excel"></i> Export Excel
+                </a>
+                <button type="button" id="btnTambah"
+                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    <i class="fa fa-plus text-sm"></i> Tambah Invoice
+                </button>
             </div>
-
-            {{-- SEARCH --}}
-            <div class="p-5 border-b">
-                <form method="GET">
-                    <div class="flex gap-3 items-center">
-                        <div class="relative flex-1">
-                            <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
-                            <input type="text" name="search" value="{{ request('search') }}"
-                                placeholder="Cari no invoice, customer, atau order..."
-                                class="w-full border rounded-lg pl-10 pr-4 py-2">
-                        </div>
-                        <button class="bg-gray-800 text-white px-5 rounded-lg py-2">Cari</button>
-
-                        {{-- TOGGLE KOLOM --}}
-                        <div class="relative" id="colToggleWrap">
-                            <button type="button" onclick="toggleColDropdown()"
-                                class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 bg-white hover:bg-gray-50 whitespace-nowrap">
-                                <i class="bi bi-layout-three-columns"></i> Kolom
-                                <i class="bi bi-chevron-down text-[10px]"></i>
-                            </button>
-                            <div id="colDropdown"
-                                class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
-                                <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
-                                    <input type="checkbox" class="col-toggle" data-col="col-noinvoice" checked> No Invoice
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
-                                    <input type="checkbox" class="col-toggle" data-col="col-tanggal" checked> Tanggal
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
-                                    <input type="checkbox" class="col-toggle" data-col="col-customer" checked> Customer
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
-                                    <input type="checkbox" class="col-toggle" data-col="col-penawaran" checked> Penawaran
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
-                                    <input type="checkbox" class="col-toggle" data-col="col-kontrak" checked> Kontrak
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
-                                    <input type="checkbox" class="col-toggle" data-col="col-kendaraan" checked> Kendaraan
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
-                                    <input type="checkbox" class="col-toggle" data-col="col-status" checked> Status
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
-                                    <input type="checkbox" class="col-toggle" data-col="col-pembayaran" checked> Pembayaran
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
-                                    <input type="checkbox" class="col-toggle" data-col="col-reminder" checked> Terakhir Reminder
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer hover:text-blue-600">
-                                    <input type="checkbox" class="col-toggle" data-col="col-aksi" checked> Aksi
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-
-            {{-- TABLE --}}
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="px-4 py-3 text-left">No</th>
-                            <th class="px-4 py-3 text-left" data-col="col-noinvoice">No Invoice</th>
-                            <th class="px-4 py-3 text-left" data-col="col-tanggal">Tanggal</th>
-                            <th class="px-4 py-3 text-left" data-col="col-customer">Customer</th>
-                            <th class="px-4 py-3 text-left" data-col="col-penawaran">Penawaran</th>
-                            <th class="px-4 py-3 text-left" data-col="col-kontrak">Kontrak</th>
-                            <th class="px-4 py-3 text-left" data-col="col-kendaraan">Kendaraan</th>
-                            <th class="px-4 py-3 text-center" data-col="col-status">Status</th>
-                            <th class="px-4 py-3 text-center" data-col="col-pembayaran">Pembayaran</th>
-                            <th class="px-4 py-3 text-center" data-col="col-reminder">Terakhir Reminder</th>
-                            <th class="px-4 py-3 text-center" data-col="col-aksi">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($invoices as $inv)
-                            <tr class="border-b hover:bg-gray-50">
-                                <td class="px-4 py-3">{{ $loop->iteration + ($invoices->firstItem() - 1) }}</td>
-                                <td class="px-4 py-3" data-col="col-noinvoice">
-                                    <span class="font-semibold">{{ $inv->invoice_no }}</span>
-                                </td>
-                                <td class="px-4 py-3" data-col="col-tanggal">{{ optional($inv->invoice_date)->format('d-m-Y') }}</td>
-                                <td class="px-4 py-3" data-col="col-customer">{{ $inv->customer_name }}</td>
-                                <td class="px-4 py-3" data-col="col-penawaran">
-                                    @if($inv->penawarans->count())
-                                        {{ $inv->penawarans->pluck('no_penawaran')->implode(', ') }}
-                                    @elseif($inv->penawaran)
-                                        {{ $inv->penawaran->no_penawaran }}
-                                    @else
-                                        -
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3" data-col="col-kontrak">
-                                    @if($inv->kontraks->count())
-                                        {{ $inv->kontraks->map(fn($k) => $k->no_kontrak ?? '#'.$k->id)->implode(', ') }}
-                                    @elseif($inv->kontrak)
-                                        {{ $inv->kontrak->no_kontrak ?? '-' }}
-                                    @else
-                                        -
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3" data-col="col-kendaraan">
-                                    @if($inv->kendaraans->count())
-                                        {{ $inv->kendaraans->map(fn($k) => $k->merk . ' ' . $k->nopol)->implode(', ') }}
-                                    @elseif($inv->kendaraan)
-                                        {{ $inv->kendaraan->merk }} - {{ $inv->kendaraan->nopol }}
-                                    @else
-                                        -
-                                    @endif
-                                </td>
-
-                                <td class="px-4 py-3 text-center" data-col="col-status">
-                                    @php
-                                        $warna = match ($inv->status) {
-                                            'lunas' => 'green',
-                                            'partial' => 'yellow',
-                                            'overdue' => 'red',
-                                            default => 'gray',
-                                        };
-                                    @endphp
-                                    <span
-                                        class="px-3 py-1 rounded-full text-xs bg-{{ $warna }}-100 text-{{ $warna }}-700">
-                                        {{ $inv->status ? strtoupper($inv->status) : '-' }}
-                                    </span>
-                                </td>
-
-                                <td class="px-4 py-3 text-center" data-col="col-pembayaran">
-                                    @php
-                                        $warnaBayar = match ($inv->payment_status) {
-                                            'paid' => 'green',
-                                            'unpaid' => 'red',
-                                            default => 'gray',
-                                        };
-                                    @endphp
-                                    <span
-                                        class="px-3 py-1 rounded-full text-xs bg-{{ $warnaBayar }}-100 text-{{ $warnaBayar }}-700">
-                                        {{ $inv->payment_status ? strtoupper($inv->payment_status) : '-' }}
-                                    </span>
-                                </td>
-
-                                <td class="px-4 py-3" data-col="col-reminder">
-                                    {{ $inv->last_email_sent_at?->format('d-F-Y') }}
-                                </td>
-
-                                <td class="px-4 py-3" data-col="col-aksi">
-                                    <div class="flex justify-center gap-2 flex-wrap">
-
-
-
-                                        {{-- Kirim Email --}}
-                                        <form action="{{ route('invoices.email', $inv->id) }}" method="POST">
-                                            @csrf
-                                            <button class="bg-green-600 text-white px-3 py-1 rounded">
-                                                <i class="fa fa-envelope"></i> Kirim Email
-                                            </button>
-                                        </form>
-
-                                        {{-- Download PDF --}}
-                                        <a href="{{ route('invoices.print', $inv->id) }}"
-                                            class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
-                                            target="_blank">
-                                            <i class="fa fa-download"></i>
-                                        </a>
-
-                                        {{-- Tombol Show --}}
-                                        <a href="{{ route('invoices.show', $inv->id) }}"
-                                            class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded">
-                                            <i class="fa fa-eye"></i>
-                                        </a>
-
-                                        {{-- Tombol Edit — semua data disimpan di data-* --}}
-                                        <button type="button"
-                                            class="editBtn bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded"
-                                            data-id="{{ $inv->id }}" data-invoice_no="{{ $inv->invoice_no }}"
-                                            data-invoice_date="{{ optional($inv->invoice_date)->format('Y-m-d') }}"
-                                            data-customer_name="{{ $inv->customer_name }}" data-type="{{ $inv->type }}"
-                                            data-customer_address="{{ $inv->customer_address }}"
-                                            data-telephone="{{ $inv->telephone }}" data-email="{{ $inv->email }}"
-                                            data-contact_person="{{ $inv->contact_person }}"
-                                            data-penawaran_id="{{ $inv->penawaran_id }}"
-                                            data-kontrak_id="{{ $inv->kontrak_id }}"
-                                            data-kendaraan_id="{{ $inv->kendaraan_id }}"
-                                            data-satuan="{{ $inv->satuan }}" data-pengirim="{{ $inv->pengirim }}"
-                                            data-ppn="{{ $inv->ppn }}" data-pph="{{ $inv->pph }}"
-                                            data-total="{{ $inv->total }}" data-status="{{ $inv->status }}"
-                                            data-payment_status="{{ $inv->payment_status }}"
-                                            data-staff="{{ $inv->staff }}" data-name_staff="{{ $inv->name_staff }}"
-                                            data-direktur="{{ $inv->direktur }}"
-                                            data-name_direktur="{{ $inv->name_direktur }}"
-                                            data-ttd_staff="{{ $inv->ttd_staff }}"
-                                            data-ttd_direktur="{{ $inv->ttd_direktur }}">
-                                            <i class="fa fa-edit"></i>
-                                        </button>
-
-                                        {{-- Tombol Hapus --}}
-                                        <form action="{{ route('invoices.destroy', $inv->id) }}" method="POST"
-                                            onsubmit="return confirm('Hapus data invoice ini?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded">
-                                                <i class="fa fa-trash"></i>
-                                            </button>
-                                        </form>
-
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="10" class="text-center py-10 text-gray-500">Belum ada data.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            {{-- PAGINATION --}}
-            <div class="py-4 border-t">{{ $invoices->links() }}</div>
-
         </div>
-    </div>
+
+        {{-- NAV TABS --}}
+        <div class="border-b border-gray-200">
+            <nav class="flex gap-0 -mb-px overflow-x-auto">
+                @php
+                    $navItems = [
+                        ['label' => 'Summary',   'url' => '/admin/summary',   'icon' => 'bi bi-bar-chart-line'],
+                        ['label' => 'Penawaran', 'url' => '/admin/penawaran', 'icon' => 'bi bi-file-earmark-richtext'],
+                        ['label' => 'Kontrak',   'url' => '/admin/kontrak',   'icon' => 'bi bi-file-earmark-lock'],
+                        ['label' => 'Invoice',   'url' => '/admin/invoices',  'icon' => 'bi bi-receipt-cutoff'],
+                        ['label' => 'Payments',  'url' => '/admin/payments',  'icon' => 'bi bi-credit-card-2-front'],
+                        ['label' => 'Reminders', 'url' => '/admin/reminders', 'icon' => 'bi bi-bell'],
+                    ];
+                @endphp
+                @foreach ($navItems as $item)
+                    @php $isActive = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
+                    <a href="{{ $item['url'] }}"
+                        class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
+                            {{ $isActive ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
+                        <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
+                    </a>
+                @endforeach
+            </nav>
+        </div>
+
+        {{-- STAT CARDS --}}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+                <p class="text-sm text-gray-500">Total Invoice</p>
+                <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $invoices->total() }}</h2>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+                <p class="text-sm text-gray-500">Lunas</p>
+                <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $invoices->getCollection()->where('status','lunas')->count() }}</h2>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+                <p class="text-sm text-gray-500">Partial</p>
+                <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $invoices->getCollection()->where('status','partial')->count() }}</h2>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+                <p class="text-sm text-gray-500">Overdue</p>
+                <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $invoices->getCollection()->where('status','overdue')->count() }}</h2>
+            </div>
+        </div>
+
+        {{-- TABLE CARD --}}
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+
+        {{-- SEARCH + TOGGLE KOLOM --}}
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+            <form method="GET" class="flex gap-2 flex-1 flex-wrap">
+                <div class="relative flex-1 min-w-[180px]">
+                    <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input type="text" name="search" value="{{ request('search') }}"
+                        placeholder="Cari no invoice, customer, atau order..."
+                        class="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <button class="bg-gray-800 text-white text-xs px-4 py-1.5 rounded-lg">Cari</button>
+            </form>
+            <div class="relative" id="colToggleWrap">
+                <button type="button" onclick="toggleColDropdown()"
+                    class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-600 bg-white hover:bg-gray-50 whitespace-nowrap">
+                    <i class="bi bi-layout-three-columns"></i> Kolom <i class="bi bi-chevron-down text-[10px]"></i>
+                </button>
+                <div id="colDropdown"
+                    class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
+                    <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
+                    @foreach(['col-noinvoice'=>'No Invoice','col-tanggal'=>'Tanggal','col-customer'=>'Customer','col-penawaran'=>'Penawaran','col-kontrak'=>'Kontrak','col-kendaraan'=>'Kendaraan','col-status'=>'Status','col-pembayaran'=>'Pembayaran','col-reminder'=>'Terakhir Reminder','col-aksi'=>'Aksi'] as $cid=>$clabel)
+                    <label class="flex items-center gap-2 py-1 cursor-pointer hover:text-blue-600 text-xs text-gray-700">
+                        <input type="checkbox" class="col-toggle" data-col="{{ $cid }}" checked onchange="toggleColumn('{{ $cid }}', this.checked)"> {{ $clabel }}
+                    </label>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+        {{-- TABLE --}}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No</th>
+                        <th data-col="col-noinvoice"  class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No Invoice</th>
+                        <th data-col="col-tanggal"    class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
+                        <th data-col="col-customer"   class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Customer</th>
+                        <th data-col="col-penawaran"  class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Penawaran</th>
+                        <th data-col="col-kontrak"    class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Kontrak</th>
+                        <th data-col="col-kendaraan"  class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Kendaraan</th>
+                        <th data-col="col-status"     class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
+                        <th data-col="col-pembayaran" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Pembayaran</th>
+                        <th data-col="col-reminder"   class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Terakhir Reminder</th>
+                        <th data-col="col-aksi"       class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($invoices as $inv)
+                        @php
+                            $statusColor = match($inv->status) {
+                                'lunas'   => 'bg-green-100 text-green-700',
+                                'partial' => 'bg-yellow-100 text-yellow-700',
+                                'overdue' => 'bg-red-100 text-red-700',
+                                default   => 'bg-gray-100 text-gray-600',
+                            };
+                            $payColor = match($inv->payment_status) {
+                                'paid'   => 'bg-green-100 text-green-700',
+                                'unpaid' => 'bg-red-100 text-red-700',
+                                default  => 'bg-gray-100 text-gray-600',
+                            };
+                        @endphp
+                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                            <td class="px-4 py-3.5 text-xs text-gray-400">{{ $loop->iteration + ($invoices->firstItem() - 1) }}</td>
+                            <td data-col="col-noinvoice"  class="px-4 py-3.5"><span class="font-mono text-xs font-semibold text-blue-700">{{ $inv->invoice_no }}</span></td>
+                            <td data-col="col-tanggal"    class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->invoice_date)->format('d M Y') }}</td>
+                            <td data-col="col-customer"   class="px-4 py-3.5 text-sm font-semibold text-gray-800">{{ $inv->customer_name }}</td>
+                            <td data-col="col-penawaran"  class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->penawaran)->no_penawaran ?? '—' }}</td>
+                            <td data-col="col-kontrak"    class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->kontrak)->no_kontrak ?? '—' }}</td>
+                            <td data-col="col-kendaraan"  class="px-4 py-3.5 text-sm text-gray-600">
+                                {{ $inv->kendaraan ? $inv->kendaraan->merk . ' – ' . $inv->kendaraan->nopol : '—' }}
+                            </td>
+                            <td data-col="col-status" class="px-4 py-3.5 text-center">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $statusColor }}">
+                                    {{ $inv->status ? strtoupper($inv->status) : '—' }}
+                                </span>
+                            </td>
+                            <td data-col="col-pembayaran" class="px-4 py-3.5 text-center">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $payColor }}">
+                                    {{ $inv->payment_status ? strtoupper($inv->payment_status) : '—' }}
+                                </span>
+                            </td>
+                            <td data-col="col-reminder" class="px-4 py-3.5 text-center text-xs text-gray-500">
+                                {{ $inv->last_email_sent_at?->format('d M Y') ?? '—' }}
+                            </td>
+                            <td data-col="col-aksi" class="px-4 py-3.5">
+                                <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                                    <form action="{{ route('invoices.email', $inv->id) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
+                                            <i class="fa fa-envelope text-xs"></i>
+                                        </button>
+                                    </form>
+                                    <a href="{{ route('invoices.print', $inv->id) }}" target="_blank"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
+                                        <i class="fa fa-download text-xs"></i>
+                                    </a>
+                                    <a href="{{ route('invoices.show', $inv->id) }}"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors">
+                                        <i class="fa fa-eye text-xs"></i>
+                                    </a>
+                                    <button type="button" class="editBtn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-colors"
+                                        data-id="{{ $inv->id }}" data-invoice_no="{{ $inv->invoice_no }}"
+                                        data-invoice_date="{{ optional($inv->invoice_date)->format('Y-m-d') }}"
+                                        data-customer_name="{{ $inv->customer_name }}" data-type="{{ $inv->type }}"
+                                        data-customer_address="{{ $inv->customer_address }}" data-telephone="{{ $inv->telephone }}"
+                                        data-email="{{ $inv->email }}" data-contact_person="{{ $inv->contact_person }}"
+                                        data-penawaran_id="{{ $inv->penawaran_id }}" data-kontrak_id="{{ $inv->kontrak_id }}"
+                                        data-kendaraan_id="{{ $inv->kendaraan_id }}" data-satuan="{{ $inv->satuan }}"
+                                        data-pengirim="{{ $inv->pengirim }}" data-ppn="{{ $inv->ppn }}"
+                                        data-pph="{{ $inv->pph }}" data-total="{{ $inv->total }}"
+                                        data-status="{{ $inv->status }}" data-payment_status="{{ $inv->payment_status }}"
+                                        data-staff="{{ $inv->staff }}" data-name_staff="{{ $inv->name_staff }}"
+                                        data-direktur="{{ $inv->direktur }}" data-name_direktur="{{ $inv->name_direktur }}"
+                                        data-ttd_staff="{{ $inv->ttd_staff }}" data-ttd_direktur="{{ $inv->ttd_direktur }}">
+                                        <i class="fa fa-edit text-xs"></i>
+                                    </button>
+                                    <form action="{{ route('invoices.destroy', $inv->id) }}" method="POST"
+                                        onsubmit="return confirm('Hapus data invoice ini?')" class="inline">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
+                                            <i class="fa fa-trash text-xs"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="11" class="text-center py-12 text-gray-400 text-sm">
+                                <i class="fa fa-inbox text-3xl mb-3 block text-gray-300"></i>
+                                Belum ada data invoice
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        {{-- PAGINATION --}}
+        <div class="py-3 border-t border-gray-100">{{ $invoices->links() }}</div>
+
+        </div>{{-- end TABLE CARD --}}
+    </div>{{-- end space-y-6 --}}
 
     {{-- ========================= MODAL TAMBAH ========================= --}}
     <div id="modalTambah" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">

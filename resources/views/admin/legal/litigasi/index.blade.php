@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Litigasi')
 @section('content')
 <div class="space-y-6">
@@ -71,8 +71,9 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
             <h2 class="font-semibold text-gray-800 text-base">Daftar Perkara Litigasi</h2>
-            <input type="text" placeholder="Cari kasus..." oninput="filterTable(this.value)"
+            <form method="GET" class="flex gap-1"><input type="text" placeholder="Cari kasus..." name="search" value="{{ request('search') }}"
                 class="pl-3 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 w-44">
+                <button class="bg-gray-800 text-white text-xs px-3 py-1.5 rounded-lg ml-1">Cari</button></form>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm" id="mainTable">
@@ -134,6 +135,7 @@
                 </tbody>
             </table>
         </div>
+        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -251,6 +253,7 @@
 </div>
 
 @endsection
+<div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
 @push('scripts')
 <script>
 function openModal() { document.getElementById('modalCreate').classList.remove('hidden'); }
@@ -272,11 +275,7 @@ function openEdit(id) {
         });
 }
 
-function filterTable(val) {
-    const rows = document.querySelectorAll('#mainTable tbody tr');
-    rows.forEach(row => {
-        row.style.display = row.textContent.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
-    });
+);
 }
 </script>
 @endpush

@@ -11,13 +11,23 @@ use Illuminate\Http\Request;
 
 class ProjectRiskController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data           = ProjectRisk::latest()->get();
-        $total          = $data->count();
-        $totalTerkendali = $data->where('status', 'Terkendali')->count();
-        $totalDiajukan   = $data->where('status', 'Diajukan')->count();
-        $totalKritis     = $data->where('status', 'Kritis')->count();
+        $query = ProjectRisk::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('proyek', 'like', "%$q%")
+                   ->orWhere('risiko', 'like', "%$q%");
+            });
+        }
+
+        $data            = $query->paginate(15)->withQueryString();
+        $total           = ProjectRisk::count();
+        $totalTerkendali = ProjectRisk::where('status', 'Terkendali')->count();
+        $totalDiajukan   = ProjectRisk::where('status', 'Diajukan')->count();
+        $totalKritis     = ProjectRisk::where('status', 'Kritis')->count();
         $proyeks         = IndukProyek::orderBy('kode')->pluck('nama_proyek', 'kode');
 
         return view('admin.project.risk.index', compact(
