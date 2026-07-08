@@ -2,6 +2,15 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
+
+// ── Legal ────────────────────────────────────────────────────
+use App\Http\Controllers\Admin\LegalDocumentController;
+use App\Http\Controllers\Admin\KontrakAktifController;
+use App\Http\Controllers\Admin\ReviewLegalController;
+use App\Http\Controllers\Admin\HakHukumController;
+use App\Http\Controllers\Admin\LitigasiController;
+use App\Http\Controllers\Admin\SertifikasiPerizinanController;
+use App\Http\Controllers\Admin\DaftarNotarisController;
 use App\Http\Controllers\Admin\KendaraanController;
 use App\Http\Controllers\Admin\JenisController;
 use App\Http\Controllers\Admin\KirController;
@@ -53,6 +62,34 @@ use App\Http\Controllers\Admin\PurchaseroController;
 use App\Http\Controllers\Admin\VendoreoController;
 use App\Http\Controllers\Admin\Aging_ApsController;
 use App\Http\Controllers\Admin\AgingARController;
+// Marketing
+use App\Http\Controllers\Admin\KampanyeController;
+use App\Http\Controllers\Admin\OtomatisasiController;
+use App\Http\Controllers\Admin\SegmentasiController;
+use App\Http\Controllers\Admin\LoyaltyController;
+use App\Http\Controllers\Admin\AfiliasiController;
+use App\Http\Controllers\Admin\SosmedpController;
+use App\Http\Controllers\Admin\TrackingutmController;
+use App\Http\Controllers\Admin\AdsIntegrationController;
+// Sales
+use App\Http\Controllers\Admin\CrmProspekController;
+use App\Http\Controllers\Admin\PenawaranSalesController;
+use App\Http\Controllers\Admin\SalesOrderController;
+use App\Http\Controllers\Admin\PricelistDiskonController;
+use App\Http\Controllers\Admin\TargetPenjualanController;
+use App\Http\Controllers\Admin\KomisiSalesController;
+use App\Http\Controllers\Admin\ReturPenjualanController;
+use App\Http\Controllers\Admin\SignatureDokumenController;
+
+// Project
+use App\Http\Controllers\Admin\IndukProyekController;
+use App\Http\Controllers\Admin\ProjectPlanningController;
+use App\Http\Controllers\Admin\ProjectTimelineController;
+use App\Http\Controllers\Admin\ProjectCostController;
+use App\Http\Controllers\Admin\ProjectRiskController;
+use App\Http\Controllers\Admin\DokumenProyekController;
+use App\Http\Controllers\Admin\PembelianProyekController;
+
 // HRD
 use App\Http\Controllers\Admin\StrukturOrganisasiController;
 use App\Http\Controllers\Admin\DepartemenController;
@@ -467,7 +504,27 @@ Route::middleware('auth')->prefix('admin')->group(function () {
   Route::post('/setting', [SettingController::class, 'update'])
     ->name('setting.update');
 
-  
+  // ── LEGAL ────────────────────────────────────────────────────
+  Route::get('legal-document/pdf', [LegalDocumentController::class, 'pdf'])->name('legal-document.pdf');
+  Route::resource('legal-document', LegalDocumentController::class)->except(['create', 'edit']);
+
+  Route::get('kontrak-aktif/pdf', [KontrakAktifController::class, 'pdf'])->name('kontrak-aktif.pdf');
+  Route::resource('kontrak-aktif', KontrakAktifController::class)->except(['create', 'edit']);
+
+  Route::get('review-legal/pdf', [ReviewLegalController::class, 'pdf'])->name('review-legal.pdf');
+  Route::resource('review-legal', ReviewLegalController::class)->except(['create', 'edit']);
+
+  Route::get('hak-hukum/pdf', [HakHukumController::class, 'pdf'])->name('hak-hukum.pdf');
+  Route::resource('hak-hukum', HakHukumController::class)->except(['create', 'edit']);
+
+  Route::get('litigasi/pdf', [LitigasiController::class, 'pdf'])->name('litigasi.pdf');
+  Route::resource('litigasi', LitigasiController::class)->except(['create', 'edit']);
+
+  Route::get('sertifikasi-perizinan/pdf', [SertifikasiPerizinanController::class, 'pdf'])->name('sertifikasi-perizinan.pdf');
+  Route::resource('sertifikasi-perizinan', SertifikasiPerizinanController::class)->except(['create', 'edit']);
+
+  Route::get('daftar-notaris/pdf', [DaftarNotarisController::class, 'pdf'])->name('daftar-notaris.pdf');
+  Route::resource('daftar-notaris', DaftarNotarisController::class)->except(['create', 'edit']);
 
   
 
@@ -498,4 +555,78 @@ Route::middleware('auth')->prefix('admin')->group(function () {
   Route::resource('kpi', KpiAppraisalController::class)->except(['create', 'edit', 'show']);
   Route::resource('resign', ResignOffboardingController::class)->except(['create', 'edit', 'show']);
   Route::resource('hrd-file', HrdFileController::class)->except(['create', 'edit', 'show']);
+
+  // ── SALES ────────────────────────────────────────────────────────────────
+  Route::get('crm-prospek/pdf', [CrmProspekController::class, 'pdf'])->name('crm-prospek.pdf');
+  Route::resource('crm-prospek', CrmProspekController::class)->except(['create', 'edit']);
+
+  Route::get('penawaran-sales/pdf', [PenawaranSalesController::class, 'pdf'])->name('penawaran-sales.pdf');
+  Route::resource('penawaran-sales', PenawaranSalesController::class)->except(['create', 'edit']);
+
+  Route::get('sales-order/pdf', [SalesOrderController::class, 'pdf'])->name('sales-order.pdf');
+  Route::resource('sales-order', SalesOrderController::class)->except(['create', 'edit']);
+
+  Route::get('pricelist-diskon/pdf', [PricelistDiskonController::class, 'pdf'])->name('pricelist-diskon.pdf');
+  Route::resource('pricelist-diskon', PricelistDiskonController::class)->except(['create', 'edit']);
+
+  Route::get('target-penjualan/pdf', [TargetPenjualanController::class, 'pdf'])->name('target-penjualan.pdf');
+  Route::resource('target-penjualan', TargetPenjualanController::class)->except(['create', 'edit']);
+
+  Route::get('komisi-sales/pdf', [KomisiSalesController::class, 'pdf'])->name('komisi-sales.pdf');
+  Route::resource('komisi-sales', KomisiSalesController::class)->except(['create', 'edit']);
+
+  Route::get('retur-penjualan/pdf', [ReturPenjualanController::class, 'pdf'])->name('retur-penjualan.pdf');
+  Route::resource('retur-penjualan', ReturPenjualanController::class)->except(['create', 'edit']);
+
+  Route::get('signature-dokumen/pdf', [SignatureDokumenController::class, 'pdf'])->name('signature-dokumen.pdf');
+  Route::resource('signature-dokumen', SignatureDokumenController::class)->except(['create', 'edit']);
+
+  // ── MARKETING ───────────────────────────────────────────────────────────
+  Route::get('kampanye/pdf', [KampanyeController::class, 'pdf'])->name('kampanye.pdf');
+  Route::resource('kampanye', KampanyeController::class)->except(['create', 'edit']);
+
+  Route::get('otomatisasi/pdf', [OtomatisasiController::class, 'pdf'])->name('otomatisasi.pdf');
+  Route::resource('otomatisasi', OtomatisasiController::class)->except(['create', 'edit', 'show']);
+
+  Route::get('segmentasi/pdf', [SegmentasiController::class, 'pdf'])->name('segmentasi.pdf');
+  Route::resource('segmentasi', SegmentasiController::class)->except(['create', 'edit', 'show']);
+
+  Route::get('loyalty/pdf', [LoyaltyController::class, 'pdf'])->name('loyalty.pdf');
+  Route::resource('loyalty', LoyaltyController::class)->except(['create', 'edit', 'show']);
+
+  Route::get('afiliasi/pdf', [AfiliasiController::class, 'pdf'])->name('afiliasi.pdf');
+  Route::resource('afiliasi', AfiliasiController::class)->except(['create', 'edit', 'show']);
+
+  Route::get('sosmedp/pdf', [SosmedpController::class, 'pdf'])->name('sosmedp.pdf');
+  Route::resource('sosmedp', SosmedpController::class)->except(['create', 'edit', 'show']);
+
+  Route::get('trackingutm/pdf', [TrackingutmController::class, 'pdf'])->name('trackingutm.pdf');
+  Route::resource('trackingutm', TrackingutmController::class)->except(['create', 'edit', 'show']);
+
+  Route::get('adsintegration/pdf', [AdsIntegrationController::class, 'pdf'])->name('adsintegration.pdf');
+  Route::resource('adsintegration', AdsIntegrationController::class)->except(['create', 'edit', 'show']);
+
+  // ── PROJECT ─────────────────────────────────────────────────────────────
+  Route::prefix('project')->name('project.')->group(function () {
+    Route::get('induk-proyek/pdf', [IndukProyekController::class, 'pdf'])->name('induk-proyek.pdf');
+    Route::resource('induk-proyek', IndukProyekController::class)->except(['create', 'edit']);
+
+    Route::get('planning/pdf', [ProjectPlanningController::class, 'pdf'])->name('planning.pdf');
+    Route::resource('planning', ProjectPlanningController::class)->except(['create', 'edit']);
+
+    Route::get('timeline/pdf', [ProjectTimelineController::class, 'pdf'])->name('timeline.pdf');
+    Route::resource('timeline', ProjectTimelineController::class)->except(['create', 'edit']);
+
+    Route::get('cost/pdf', [ProjectCostController::class, 'pdf'])->name('cost.pdf');
+    Route::resource('cost', ProjectCostController::class)->except(['create', 'edit']);
+
+    Route::get('risk/pdf', [ProjectRiskController::class, 'pdf'])->name('risk.pdf');
+    Route::resource('risk', ProjectRiskController::class)->except(['create', 'edit']);
+
+    Route::get('dokumen/pdf', [DokumenProyekController::class, 'pdf'])->name('dokumen.pdf');
+    Route::resource('dokumen', DokumenProyekController::class)->except(['create', 'edit']);
+
+    Route::get('pembelian/pdf', [PembelianProyekController::class, 'pdf'])->name('pembelian.pdf');
+    Route::resource('pembelian', PembelianProyekController::class)->except(['create', 'edit']);
+  });
 });
