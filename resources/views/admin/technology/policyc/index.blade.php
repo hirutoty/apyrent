@@ -106,7 +106,8 @@
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggung Jawab <span class="text-red-500">*</span></label>
                     <input type="text" name="tanggung_jawab" id="f_tanggung_jawab" required placeholder="IT Manager / Direktur" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
-                    <input type="text" name="status" id="f_status" required placeholder="Aktif / Draft / Review" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <select name="status" id="f_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">- Pilih -</option><option>Aktif</option><option>Draft</option><option>Review</option><option>Archived</option></select></div>
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Sertifikasi Terkait</label>
                 <input type="text" name="sertifikasi_terkait" id="f_sertifikasi_terkait" placeholder="ISO 27001 / SOC 2 / PCI-DSS" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>

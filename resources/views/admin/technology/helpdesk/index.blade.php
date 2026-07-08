@@ -77,7 +77,7 @@
                     <button onclick="triggerEdit(this)" class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors"
                         data-action="{{ route('helpdesk.update', $d->id) }}"
                         data-no_tiket="{{ $d->no_tiket }}" data-tanggal="{{ $d->tanggal }}"
-                        data-departemen="{{ $d->departemen }}" data-masalah="{{ $d->masalah }}"
+                        data-departemen="{{ $d->departemen }}" data-masalah="{{ e($d->masalah) }}"
                         data-prioritas="{{ $d->prioritas }}" data-status="{{ $d->status }}"
                         data-teknisi="{{ $d->teknisi }}" data-waktu_respon="{{ $d->waktu_respon }}">
                         <i class="fa fa-edit text-xs"></i> Edit</button>
@@ -166,7 +166,9 @@ function openModal(){document.getElementById('modalTitle').innerText='Buat Tiket
 function closeModal(){mainModal.classList.add('hidden');mainModal.classList.remove('flex');}
 mainModal.addEventListener('click',e=>{if(e.target===mainModal)closeModal();});
 function triggerEdit(btn){document.getElementById('modalTitle').innerText='Edit Tiket';mainForm.action=btn.dataset.action;methodContainer.innerHTML='<input type="hidden" name="_method" value="PUT">';
-['no_tiket','tanggal','departemen','masalah','prioritas','status','teknisi','waktu_respon'].forEach(k=>{const el=document.getElementById('f_'+k);if(el)el.value=btn.dataset[k]??'';});mainModal.classList.remove('hidden');mainModal.classList.add('flex');}
+const ta=document.createElement('textarea');
+const dateFields=['tanggal'];
+['no_tiket','tanggal','departemen','masalah','prioritas','status','teknisi','waktu_respon'].forEach(k=>{const el=document.getElementById('f_'+k);if(!el)return;ta.innerHTML=btn.dataset[k]??'';let v=ta.value;if(dateFields.includes(k)&&v)v=v.split(' ')[0];el.value=v;});mainModal.classList.remove('hidden');mainModal.classList.add('flex');}
 const deleteModal=document.getElementById('deleteModal');
 function triggerDelete(btn){document.getElementById('deleteForm').action=btn.dataset.action;document.getElementById('deleteName').innerText=btn.dataset.name||'ini';deleteModal.classList.remove('hidden');deleteModal.classList.add('flex');}
 function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.classList.remove('flex');}

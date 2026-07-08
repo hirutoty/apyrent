@@ -91,6 +91,9 @@
     <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
 </div>
 <div id="mainModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30" style="backdrop-filter:blur(2px)">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto" style="animation:slideUp .2s ease">
+        <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white">
+            <h2 id="modalTitle" class="text-base font-bold text-gray-800">Tambah Pipeline</h2>
             <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 text-lg leading-none"><i class="fa fa-times"></i></button>
         </div>
         <form id="mainForm" action="{{ route('devops.store') }}" method="POST" class="px-6 py-5 space-y-4">
