@@ -1203,9 +1203,18 @@ MODAL PERPANJANG
 
         function exportPdf() {
             let search = document.getElementById('searchPajak').value;
+            let hari   = document.getElementById('filterHari').value;
+            let bulan  = document.getElementById('filterBulan').value;
+            let tahun  = document.getElementById('filterTahun').value;
+
+            let params = new URLSearchParams();
+            if (search) params.set('search', search);
+            if (hari)   params.set('hari', hari);
+            if (bulan)  params.set('bulan', bulan);
+            if (tahun)  params.set('tahun', tahun);
 
             window.open(
-                "{{ route('pajak.export.pdf') }}?search=" + encodeURIComponent(search),
+                "{{ route('pajak.export.pdf') }}?" + params.toString(),
                 '_blank'
             );
         }

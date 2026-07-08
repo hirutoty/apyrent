@@ -50,12 +50,16 @@ class KeuanganController extends Controller
       $saldo = $totalPemasukan - $totalPengeluaran;
   
       // ── AGING AP ──────────────────────────────────────
-      $dataAp   = \App\Models\Aging_aps::latest()->get();
       $setting  = \App\Models\Setting::first();
       $reminderAp = $setting->satuan_reminder ?? 30;
-  
+
+      $query_ap = \App\Models\Aging_aps::query();
+      if ($request->filled('hari_ap'))  $query_ap->whereDay('jatuh_tempo', $request->hari_ap);
+      if ($request->filled('bulan_ap')) $query_ap->whereMonth('jatuh_tempo', $request->bulan_ap);
+      if ($request->filled('tahun_ap')) $query_ap->whereYear('jatuh_tempo', $request->tahun_ap);
+      $dataAp = $query_ap->latest()->get();
+
       // ── AGING AR ──────────────────────────────────────
-      $dataAr = \App\Models\AgingAr::with(['member', 'invoice'])->latest()->get();
       $batasReminder = $setting?->batas_reminder ?? 7;
       $reminderAr = match ($setting?->satuan_reminder) {
           'hari'   => $batasReminder,
@@ -64,15 +68,24 @@ class KeuanganController extends Controller
           'tahun'  => $batasReminder * 365,
           default  => $batasReminder,
       };
-   $dataReminder = \App\Models\AgingAr::with(['member', 'invoice'])
-          ->where('status', 'Belum Bayar')
-          ->latest()
-          ->get();
-  
-      $dataLunas = \App\Models\AgingAr::with(['member', 'invoice'])
-          ->where('status', 'Bayar')
-          ->latest()
-          ->get();
+
+      $query_ar = \App\Models\AgingAr::with(['member', 'invoice']);
+      if ($request->filled('hari_ar'))  $query_ar->whereDay('jatuh_tempo', $request->hari_ar);
+      if ($request->filled('bulan_ar')) $query_ar->whereMonth('jatuh_tempo', $request->bulan_ar);
+      if ($request->filled('tahun_ar')) $query_ar->whereYear('jatuh_tempo', $request->tahun_ar);
+      $dataAr = $query_ar->latest()->get();
+
+      $q_reminder = \App\Models\AgingAr::with(['member', 'invoice'])->where('status', 'Belum Bayar');
+      if ($request->filled('hari_ar'))  $q_reminder->whereDay('jatuh_tempo', $request->hari_ar);
+      if ($request->filled('bulan_ar')) $q_reminder->whereMonth('jatuh_tempo', $request->bulan_ar);
+      if ($request->filled('tahun_ar')) $q_reminder->whereYear('jatuh_tempo', $request->tahun_ar);
+      $dataReminder = $q_reminder->latest()->get();
+
+      $q_lunas = \App\Models\AgingAr::with(['member', 'invoice'])->where('status', 'Bayar');
+      if ($request->filled('hari_ar'))  $q_lunas->whereDay('jatuh_tempo', $request->hari_ar);
+      if ($request->filled('bulan_ar')) $q_lunas->whereMonth('jatuh_tempo', $request->bulan_ar);
+      if ($request->filled('tahun_ar')) $q_lunas->whereYear('jatuh_tempo', $request->tahun_ar);
+      $dataLunas = $q_lunas->latest()->get();
       // ────────────────────────────────────────
   
       return view('admin.keuangan.index', compact(

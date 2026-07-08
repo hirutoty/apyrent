@@ -265,7 +265,7 @@
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-3">
                                         @if ($d->foto)
-                                           <img src="{{ asset(auth()->user()->foto) }}"
+                                           <img src="{{ asset('storage/' . $d->foto) }}"
                                                 class="w-9 h-9 rounded-full object-cover border-2 border-gray-100 flex-shrink-0">
                                         @else
                                             <div
@@ -428,7 +428,7 @@
                                 class="text-red-500">*</span></label>
                         <div class="relative">
                             <input type="password" name="password" id="f_password" required
-                                placeholder="Minimal 8 karakter"
+                                placeholder="Minimal 6 karakter"
                                 class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all pr-10">
                             <button type="button" onclick="togglePassword()"
                                 class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
@@ -444,7 +444,12 @@
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all">
                     </div>
 
-                
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Foto <span class="text-gray-400 font-normal">(opsional)</span></label>
+                        <input type="file" name="foto" id="f_foto" accept="image/jpg,image/jpeg,image/png,image/webp"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all">
+                        <img id="fotoPreview" src="" alt="Preview" class="hidden mt-2 w-16 h-16 rounded-xl object-cover border border-gray-200">
+                    </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Role <span
@@ -592,6 +597,7 @@
                 methodContainer.innerHTML = '';
                 userForm.reset();
                 document.getElementById('fotoPreview').classList.add('hidden');
+                document.getElementById('fotoPreview').src = '';
                 document.getElementById('f_password').setAttribute('required', '');
                 userModal.classList.remove('hidden');
                 userModal.classList.add('flex');
@@ -619,6 +625,17 @@
                     document.getElementById('f_role').value = this.dataset.role;
                     document.getElementById('f_status').value = this.dataset.status;
                     document.getElementById('f_password').removeAttribute('required');
+                    document.getElementById('f_password').value = '';
+
+                    // Tampilkan foto existing jika ada
+                    var preview = document.getElementById('fotoPreview');
+                    if (this.dataset.foto) {
+                        preview.src = '/storage/' + this.dataset.foto;
+                        preview.classList.remove('hidden');
+                    } else {
+                        preview.src = '';
+                        preview.classList.add('hidden');
+                    }
 
                     userModal.classList.remove('hidden');
                     userModal.classList.add('flex');
@@ -637,6 +654,22 @@
                     ico.classList.replace('fa-eye-slash', 'fa-eye');
                 }
             }
+
+            // ── Preview foto saat dipilih ──
+            document.getElementById('f_foto').addEventListener('change', function() {
+                var preview = document.getElementById('fotoPreview');
+                if (this.files && this.files[0]) {
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        preview.src = e.target.result;
+                        preview.classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(this.files[0]);
+                } else {
+                    preview.classList.add('hidden');
+                    preview.src = '';
+                }
+            });
 
             // ── Table search filter ──
             function filterUserTable(q) {

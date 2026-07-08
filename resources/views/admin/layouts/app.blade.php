@@ -774,7 +774,7 @@
                             </a>
                             <a href="/admin/hrd-file"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-folder2-open w-4 text-center shrink-0"></i> Dokumen HRD
+                                <i class="bi bi-folder2-open w-4 text-center shrink-0"></i> Files
                             </a>
                         </div>
                     </div>
@@ -782,18 +782,92 @@
             @endif
 
             {{-- ════════════════════════════════════
+                 GRUP: SALES
                  GRUP: IT TECHNOLOGY
             ════════════════════════════════════ --}}
             @if ($role == 'superadmin')
                 <div class="nav-group">
                     <button type="button" onclick="toggleGroup(this)"
                         class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-cart-check-fill w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Sales</span>
                         <i class="bi bi-cpu w-4 text-center shrink-0"></i>
                         <span class="flex-1 text-left">IT Technology</span>
                         <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
                     </button>
                     <div class="nav-group-content">
                         <div class="pt-0.5 pb-1 space-y-0.5">
+                            <p class="nav-subgroup-label">Pipeline & Penawaran</p>
+                            <a href="/admin/crm-prospek" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-person-lines-fill w-4 text-center shrink-0"></i> CRM Prospek
+                            </a>
+                            <a href="/admin/penawaran-sales" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-file-earmark-text-fill w-4 text-center shrink-0"></i> Penawaran Sales
+                            </a>
+                            <a href="/admin/sales-order" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-bag-check-fill w-4 text-center shrink-0"></i> Sales Order
+                            </a>
+                            <p class="nav-subgroup-label">Harga & Target</p>
+                            <a href="/admin/pricelist-diskon" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-tags-fill w-4 text-center shrink-0"></i> Pricelist & Diskon
+                            </a>
+                            <a href="/admin/target-penjualan" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-bullseye w-4 text-center shrink-0"></i> Target Penjualan
+                            </a>
+                            <a href="/admin/komisi-sales" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-cash-coin w-4 text-center shrink-0"></i> Komisi Sales
+                            </a>
+                            <p class="nav-subgroup-label">Dokumen & Retur</p>
+                            <a href="/admin/retur-penjualan" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-arrow-return-left w-4 text-center shrink-0"></i> Retur Penjualan
+                            </a>
+                            <a href="/admin/signature-dokumen" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-pen-fill w-4 text-center shrink-0"></i> Signature Dokumen
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ════════════════════════════════════
+                 GRUP: MARKETING
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-megaphone-fill w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Marketing</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+                            <p class="nav-subgroup-label">Kampanye & Otomatisasi</p>
+                            <a href="/admin/kampanye" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-bullseye w-4 text-center shrink-0"></i> Kampanye
+                            </a>
+                            <a href="/admin/otomatisasi" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-robot w-4 text-center shrink-0"></i> Otomatisasi
+                            </a>
+                            <a href="/admin/segmentasi" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-pie-chart-fill w-4 text-center shrink-0"></i> Segmentasi
+                            </a>
+                            <p class="nav-subgroup-label">Program & Afiliasi</p>
+                            <a href="/admin/loyalty" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-star-fill w-4 text-center shrink-0"></i> Loyalty
+                            </a>
+                            <a href="/admin/afiliasi" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-person-plus-fill w-4 text-center shrink-0"></i> Afiliasi
+                            </a>
+                            <p class="nav-subgroup-label">Analytics & Iklan</p>
+                            <a href="/admin/sosmedp" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-share-fill w-4 text-center shrink-0"></i> Sosial Media
+                            </a>
+                            {{-- <a href="/admin/trackingutm" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-link-45deg w-4 text-center shrink-0"></i> Tracking UTM
+                            </a> --}}
+                            <a href="/admin/adsintegration" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-display-fill w-4 text-center shrink-0"></i> Ads Integration
                             <p class="nav-subgroup-label">Asset & Lisensi</p>
                             <a href="/admin/assetm"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
@@ -852,18 +926,110 @@
             @endif
 
             {{-- ════════════════════════════════════
+                 GRUP: PROJECT
                  GRUP: ASSET MANAGEMENT
             ════════════════════════════════════ --}}
             @if ($role == 'superadmin')
                 <div class="nav-group">
                     <button type="button" onclick="toggleGroup(this)"
                         class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-kanban-fill w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Project</span>
                         <i class="bi bi-building-check w-4 text-center shrink-0"></i>
                         <span class="flex-1 text-left">Asset</span>
                         <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
                     </button>
                     <div class="nav-group-content">
                         <div class="pt-0.5 pb-1 space-y-0.5">
+                            <p class="nav-subgroup-label">Manajemen Proyek</p>
+                            <a href="/admin/project/induk-proyek"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-diagram-project w-4 text-center shrink-0"></i> Induk Proyek
+                            </a>
+                            <a href="/admin/project/planning"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-list-check w-4 text-center shrink-0"></i> Planning
+                            </a>
+                            <a href="/admin/project/timeline"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-calendar2-range-fill w-4 text-center shrink-0"></i> Timeline
+                            </a>
+
+                            <p class="nav-subgroup-label">Biaya & Risiko</p>
+                            <a href="/admin/project/cost"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-coin w-4 text-center shrink-0"></i> Cost
+                            </a>
+                            <a href="/admin/project/risk"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-exclamation-triangle-fill w-4 text-center shrink-0"></i> Risk
+                            </a>
+
+                            <p class="nav-subgroup-label">Administrasi</p>
+                            <a href="/admin/project/dokumen"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-folder2-open w-4 text-center shrink-0"></i> Dokumen
+                            </a>
+                            <a href="/admin/project/pembelian"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-cart-plus-fill w-4 text-center shrink-0"></i> Pembelian
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ════════════════════════════════════
+                 GRUP: LEGAL
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-shield-lock-fill w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Legal</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+
+                            {{-- Sub: Dokumen & Kontrak --}}
+                            <p class="nav-subgroup-label">Dokumen & Kontrak</p>
+                            <a href="/admin/legal-document"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/legal-document*') ? 'active' : '' }}">
+                                <i class="bi bi-file-earmark-text-fill w-4 text-center shrink-0"></i> Legal Document
+                            </a>
+                            <a href="/admin/kontrak-aktif"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/kontrak-aktif*') ? 'active' : '' }}">
+                                <i class="bi bi-file-earmark-check-fill w-4 text-center shrink-0"></i> Kontrak Aktif
+                            </a>
+                            <a href="/admin/review-legal"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/review-legal*') ? 'active' : '' }}">
+                                <i class="bi bi-clipboard2-check-fill w-4 text-center shrink-0"></i> Review Legal
+                            </a>
+
+                            {{-- Sub: Sengketa & Perizinan --}}
+                            <p class="nav-subgroup-label">Sengketa & Perizinan</p>
+                            <a href="/admin/litigasi"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/litigasi*') ? 'active' : '' }}">
+                                <i class="bi bi-hammer w-4 text-center shrink-0"></i> Litigasi
+                            </a>
+                            <a href="/admin/sertifikasi-perizinan"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/sertifikasi-perizinan*') ? 'active' : '' }}">
+                                <i class="bi bi-patch-check-fill w-4 text-center shrink-0"></i> Sertifikasi & Perizinan
+                            </a>
+
+                            {{-- Sub: Hak & Notaris --}}
+                            <p class="nav-subgroup-label">Hak & Notaris</p>
+                            <a href="/admin/hak-hukum"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/hak-hukum*') ? 'active' : '' }}">
+                                <i class="bi bi-person-badge-fill w-4 text-center shrink-0"></i> Hak & Akses Hukum
+                            </a>
+                            <a href="/admin/daftar-notaris"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/daftar-notaris*') ? 'active' : '' }}">
+                                <i class="bi bi-person-vcard-fill w-4 text-center shrink-0"></i> Daftar Notaris
+                            </a>
+
                             <p class="nav-subgroup-label">Data Pokok</p>
                             <a href="/admin/asset/induk"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
@@ -911,7 +1077,7 @@
             {{-- ════════════════════════════════════
                  GRUP: KEUANGAN
             ════════════════════════════════════ --}}
-            @if ($role == 'superadmin' || $role == 'keuangan')
+            {{-- @if ($role == 'superadmin' || $role == 'keuangan')
                 <div class="nav-group">
                     <button type="button" onclick="toggleGroup(this)"
                         class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
@@ -963,7 +1129,7 @@
                         </div>
                     </div>
                 </div>
-            @endif
+            @endif --}}
 
         </nav>
 

@@ -368,6 +368,49 @@
                 </button>
             </div>
 
+            {{-- FILTER AGING AP --}}
+            <form method="GET" action="{{ route('keuangan.index') }}">
+                <input type="hidden" name="tab" value="aging-ap">
+                @foreach(request()->except(['hari_ap','bulan_ap','tahun_ap','tab']) as $key => $val)
+                    <input type="hidden" name="{{ $key }}" value="{{ $val }}">
+                @endforeach
+                <div class="flex flex-wrap items-center gap-2 mb-2 bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm">
+                    <span class="text-xs font-semibold text-gray-500"><i class="fa fa-filter mr-1"></i>Filter Jatuh Tempo:</span>
+                    <div class="relative">
+                        <i class="fa fa-calendar-day absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                        <select name="hari_ap" onchange="this.form.submit()" class="pl-7 pr-6 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 appearance-none bg-white cursor-pointer">
+                            <option value="">Semua Hari</option>
+                            @for ($d = 1; $d <= 31; $d++)
+                                <option value="{{ str_pad($d,2,'0',STR_PAD_LEFT) }}" {{ request('hari_ap')==str_pad($d,2,'0',STR_PAD_LEFT)?'selected':'' }}>{{ str_pad($d,2,'0',STR_PAD_LEFT) }}</option>
+                            @endfor
+                        </select>
+                    </div>
+                    <div class="relative">
+                        <i class="fa fa-calendar-alt absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                        <select name="bulan_ap" onchange="this.form.submit()" class="pl-7 pr-6 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 appearance-none bg-white cursor-pointer">
+                            <option value="">Semua Bulan</option>
+                            @foreach(['01'=>'Januari','02'=>'Februari','03'=>'Maret','04'=>'April','05'=>'Mei','06'=>'Juni','07'=>'Juli','08'=>'Agustus','09'=>'September','10'=>'Oktober','11'=>'November','12'=>'Desember'] as $bv=>$bl)
+                                <option value="{{ $bv }}" {{ request('bulan_ap')==$bv?'selected':'' }}>{{ $bl }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="relative">
+                        <i class="fa fa-calendar absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                        <select name="tahun_ap" onchange="this.form.submit()" class="pl-7 pr-6 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 appearance-none bg-white cursor-pointer">
+                            <option value="">Semua Tahun</option>
+                            @for ($y = now()->year; $y >= now()->year - 5; $y--)
+                                <option value="{{ $y }}" {{ request('tahun_ap')==$y?'selected':'' }}>{{ $y }}</option>
+                            @endfor
+                        </select>
+                    </div>
+                    @if(request()->hasAny(['hari_ap','bulan_ap','tahun_ap']))
+                    <a href="{{ route('keuangan.index') }}?tab=aging-ap" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <i class="fa fa-times-circle"></i> Reset
+                    </a>
+                    @endif
+                </div>
+            </form>
+
             {{-- SUMMARY CARDS AP --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
@@ -592,6 +635,49 @@
                     <i class="fa fa-plus text-sm"></i> Tambah Data
                 </button>
             </div>
+
+            {{-- FILTER AGING AR --}}
+            <form method="GET" action="{{ route('keuangan.index') }}">
+                <input type="hidden" name="tab" value="aging-ar">
+                @foreach(request()->except(['hari_ar','bulan_ar','tahun_ar','tab']) as $key => $val)
+                    <input type="hidden" name="{{ $key }}" value="{{ $val }}">
+                @endforeach
+                <div class="flex flex-wrap items-center gap-2 mb-2 bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm">
+                    <span class="text-xs font-semibold text-gray-500"><i class="fa fa-filter mr-1"></i>Filter Jatuh Tempo:</span>
+                    <div class="relative">
+                        <i class="fa fa-calendar-day absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                        <select name="hari_ar" onchange="this.form.submit()" class="pl-7 pr-6 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 appearance-none bg-white cursor-pointer">
+                            <option value="">Semua Hari</option>
+                            @for ($d = 1; $d <= 31; $d++)
+                                <option value="{{ str_pad($d,2,'0',STR_PAD_LEFT) }}" {{ request('hari_ar')==str_pad($d,2,'0',STR_PAD_LEFT)?'selected':'' }}>{{ str_pad($d,2,'0',STR_PAD_LEFT) }}</option>
+                            @endfor
+                        </select>
+                    </div>
+                    <div class="relative">
+                        <i class="fa fa-calendar-alt absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                        <select name="bulan_ar" onchange="this.form.submit()" class="pl-7 pr-6 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 appearance-none bg-white cursor-pointer">
+                            <option value="">Semua Bulan</option>
+                            @foreach(['01'=>'Januari','02'=>'Februari','03'=>'Maret','04'=>'April','05'=>'Mei','06'=>'Juni','07'=>'Juli','08'=>'Agustus','09'=>'September','10'=>'Oktober','11'=>'November','12'=>'Desember'] as $bv=>$bl)
+                                <option value="{{ $bv }}" {{ request('bulan_ar')==$bv?'selected':'' }}>{{ $bl }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="relative">
+                        <i class="fa fa-calendar absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                        <select name="tahun_ar" onchange="this.form.submit()" class="pl-7 pr-6 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 appearance-none bg-white cursor-pointer">
+                            <option value="">Semua Tahun</option>
+                            @for ($y = now()->year; $y >= now()->year - 5; $y--)
+                                <option value="{{ $y }}" {{ request('tahun_ar')==$y?'selected':'' }}>{{ $y }}</option>
+                            @endfor
+                        </select>
+                    </div>
+                    @if(request()->hasAny(['hari_ar','bulan_ar','tahun_ar']))
+                    <a href="{{ route('keuangan.index') }}?tab=aging-ar" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <i class="fa fa-times-circle"></i> Reset
+                    </a>
+                    @endif
+                </div>
+            </form>
 
             {{-- SUMMARY CARDS AR --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -1392,8 +1478,14 @@
         (function() {
             let targetTab = null;
 
+            // 1) Cek URL param ?tab= (dari filter Aging AP/AR)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('tab')) {
+                targetTab = urlParams.get('tab');
+            }
+
             @if (session('active_tab'))
-                targetTab = '{{ session('active_tab') }}';
+                if (!targetTab) targetTab = '{{ session('active_tab') }}';
             @endif
 
             if (!targetTab && sessionStorage.getItem('justSubmitted')) {

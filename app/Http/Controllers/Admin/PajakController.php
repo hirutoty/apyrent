@@ -15,29 +15,67 @@ use App\Models\Keuangan;
 
 class PajakController extends Controller
 {
-    public function index()
-    {
-        $data = PajakKendaraan::with(['kendaraan', 'attachments'])->latest()->paginate(15)->withQueryString();
-        $kendaraan = Kendaraan::all();
-        $setting = Setting::first();
-        // Base64 logo untuk DomPDF
-        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
-        $logoSrc  = '';
-        if (file_exists($logoPath)) {
-            $mime    = mime_content_type($logoPath) ?: 'image/png';
-            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
-        }
+    public function index(Request $request)
+{
+    $query = PajakKendaraan::with(['kendaraan', 'attachments'])->latest();
 
-        $reminder = match ($setting->satuan_reminder) {
-            'hari'    => $setting->batas_reminder,
-            'minggu'  => $setting->batas_reminder * 7,
-            'bulan'   => $setting->batas_reminder * 30,
-            'tahun'   => $setting->batas_reminder * 365,
-            default   => $setting->batas_reminder,
-        };
-
-        return view('admin.pajak_kendaraan.index', compact('data', 'kendaraan', 'reminder'));
+    if ($request->filled('hari')) {
+        $query->whereDay('jatuh_tempo', $request->hari);
     }
+
+    if ($request->filled('bulan')) {
+        $query->whereMonth('jatuh_tempo', $request->bulan);
+    }
+
+    if ($request->filled('tahun')) {
+        $query->whereYear('jatuh_tempo', $request->tahun);
+    }
+
+    if ($request->filled('search')) {
+        $s = $request->search;
+
+        $query->where(function ($q) use ($s) {
+            $q->where('jenis_pajak', 'like', "%{$s}%")
+              ->orWhere('status', 'like', "%{$s}%")
+              ->orWhereHas('kendaraan', function ($k) use ($s) {
+                  $k->where('nopol', 'like', "%{$s}%")
+                    ->orWhere('merk', 'like', "%{$s}%");
+              });
+        });
+    }
+
+    // Gunakan pagination + pertahankan parameter filter
+    $data = $query->paginate(15)->withQueryString();
+
+    $kendaraan = Kendaraan::all();
+    $setting = Setting::first();
+
+    // Base64 logo untuk DomPDF
+    $logoPath = $setting?->logo
+        ? public_path($setting->logo)
+        : public_path('images/icon.png');
+
+    $logoSrc = '';
+
+    if (file_exists($logoPath)) {
+        $mime = mime_content_type($logoPath) ?: 'image/png';
+        $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+    }
+
+    $reminder = match ($setting->satuan_reminder) {
+        'hari'   => $setting->batas_reminder,
+        'minggu' => $setting->batas_reminder * 7,
+        'bulan'  => $setting->batas_reminder * 30,
+        'tahun'  => $setting->batas_reminder * 365,
+        default  => $setting->batas_reminder,
+    };
+
+    return view('admin.pajak_kendaraan.index', compact(
+        'data',
+        'kendaraan',
+        'reminder'
+    ));
+}
 
     /**
      * Helper: simpan banyak attachment sekaligus untuk 1 pajak
@@ -309,6 +347,10 @@ class PajakController extends Controller
         $search = $request->search;
 
         $query = PajakKendaraan::with(['kendaraan', 'attachments']);
+
+        if ($request->filled('hari'))  $query->whereDay('jatuh_tempo', $request->hari);
+        if ($request->filled('bulan')) $query->whereMonth('jatuh_tempo', $request->bulan);
+        if ($request->filled('tahun')) $query->whereYear('jatuh_tempo', $request->tahun);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
