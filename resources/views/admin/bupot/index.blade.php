@@ -194,7 +194,7 @@
                                 data-search="{{ strtolower($item->nomor_bukti . ' ' . $item->nama_pemotong . ' ' . $item->nama_dipotong . ' ' . $item->tipe . ' ' . $item->status) }}">
 
                                 {{-- No --}}
-                                <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
 
                                 {{-- Nomor Bukti --}}
                                 <td class="px-4 py-3.5">
@@ -307,6 +307,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
             </div>
 
         </div>

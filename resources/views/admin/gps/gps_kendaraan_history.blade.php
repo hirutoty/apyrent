@@ -136,7 +136,7 @@
                         <tr class="hover:bg-gray-50 transition">
 
                             <td class="px-4 py-3 text-gray-400 text-xs">
-                                {{ $loop->iteration }}
+                                {{ $data->firstItem() + $loop->index }}
                             </td>
 
                             <td class="px-4 py-3 font-medium text-gray-800">
@@ -224,6 +224,7 @@
                 </tbody>
 
             </table>
+            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
         </div>
 
         {{-- Table Footer --}}

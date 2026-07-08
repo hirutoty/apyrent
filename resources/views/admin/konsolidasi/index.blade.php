@@ -144,7 +144,7 @@
                     <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
                         data-search="{{ strtolower($item->nama_perusahaan . ' ' . $item->periode) }}">
 
-                        <td class="px-4 py-3.5 text-gray-400 text-sm">{{ $loop->iteration }}</td>
+                        <td class="px-4 py-3.5 text-gray-400 text-sm">{{ $data->firstItem() + $loop->index }}</td>
 
                         <td class="px-4 py-3.5">
                             <div class="flex items-center gap-2">
@@ -216,6 +216,7 @@
                 @endforelse
             </tbody>
         </table>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
 
         {{-- Empty state saat filter tidak cocok --}}
         <div id="noResultRow" class="hidden px-5 py-12 text-center">

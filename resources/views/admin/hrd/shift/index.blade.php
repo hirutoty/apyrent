@@ -60,7 +60,7 @@
                     @forelse($data as $d)
                         <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors"
                             data-search="{{ strtolower($d->nama_pegawai . ' ' . $d->shift) }}">
-                            <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3.5 font-semibold text-gray-800">{{ $d->nama_pegawai }}</td>
                             <td class="px-4 py-3.5">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-600">{{ $d->shift }}</span>
@@ -103,6 +103,7 @@
                     @endforelse
                 </tbody>
             </table>
+            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
         </div>
         <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>

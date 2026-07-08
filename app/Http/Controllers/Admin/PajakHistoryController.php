@@ -15,7 +15,7 @@ class PajakHistoryController extends Controller
         $bulan = $request->input('bulan', 'semua');
         $tahun = $request->input('tahun', 'semua');
 
-        $data = $this->filteredQuery($bulan, $tahun)->get();
+        $data = $this->filteredQuery($bulan, $tahun)->paginate(15)->withQueryString();
 
         // daftar tahun untuk dropdown, diambil dari data yang ada
         $tahunList = PajakHistory::selectRaw('YEAR(jatuh_tempo) as tahun')

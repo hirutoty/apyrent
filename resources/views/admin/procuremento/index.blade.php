@@ -129,7 +129,7 @@
                         <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
                             data-search="{{ strtolower($d->workflow_id . ' ' . $d->nama_workflow . ' ' . $d->trigger_event . ' ' . $d->pic) }}">
 
-                            <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
 
                             <td class="px-4 py-3.5">
                                 <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->workflow_id }}</span>
@@ -209,6 +209,7 @@
                     @endforelse
                 </tbody>
             </table>
+            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
         </div>
 
         {{-- ENTRIES INFO --}}

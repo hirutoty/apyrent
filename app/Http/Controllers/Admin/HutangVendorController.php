@@ -49,7 +49,7 @@ class HutangVendorController extends Controller
 
 
         return view('admin.hutang_vendor.index', [
-            'data' => $query->latest()->get(),
+            'data'     => $query->latest()->paginate(15)->withQueryString(),
             'reminder' => $reminder,
         ]);
     }

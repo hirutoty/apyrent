@@ -14,7 +14,7 @@ class RekonsiliasiController extends Controller
 {
     public function index()
     {
-        $data = RekonsiliasiBank::latest()->get();
+        $data = RekonsiliasiBank::latest()->paginate(15)->withQueryString();
 
         return view('admin.rekonsiliasi.index', compact('data'));
     }

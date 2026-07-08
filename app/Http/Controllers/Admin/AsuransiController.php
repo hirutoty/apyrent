@@ -11,7 +11,7 @@
     {
         public function index()
         {
-            $data = Asuransi::with('user')->latest()->get();
+            $data = Asuransi::with('user')->latest()->paginate(15)->withQueryString();
 
             return view('admin.asuransi.index', compact('data'));
         }

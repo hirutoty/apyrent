@@ -16,7 +16,7 @@ class ServiceDetailController extends Controller
     {
         $data = ServiceDetail::with('kendaraan')
             ->latest()
-            ->get();
+            ->paginate(15)->withQueryString();
 
         $kendaraan = Kendaraan::orderBy('merk')->get();
 

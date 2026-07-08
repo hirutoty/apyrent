@@ -17,7 +17,7 @@ class StnkHistoryController extends Controller
         $data = StnkHistory::with('kendaraan')
             ->when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(diperpanjang_pada, '%Y-%m') = ?", [$bulan]))
             ->latest('diperpanjang_pada')
-            ->get();
+            ->paginate(15)->withQueryString();
 
         return view('admin.stnk.history', [
             'data'  => $data,

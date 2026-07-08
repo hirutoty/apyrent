@@ -10,12 +10,12 @@ class DepartemenController extends Controller
 {
     public function index()
     {
-        $data = Departemen::latest()->get();
+        $data = Departemen::latest()->paginate(15)->withQueryString();
 
-        $totalDepartemen = $data->count();
-        $totalAktif      = $data->where('status_aktif', 'Aktif')->count();
-        $totalNonAktif   = $data->where('status_aktif', 'Non-Aktif')->count();
-        $totalPosisi     = $data->sum('jumlah_posisi');
+        $totalDepartemen = Departemen::count();
+        $totalAktif      = Departemen::where('status_aktif', 'Aktif')->count();
+        $totalNonAktif   = Departemen::where('status_aktif', 'Non-Aktif')->count();
+        $totalPosisi     = Departemen::sum('jumlah_posisi');
 
         return view('admin.hrd.departemen.index', compact(
             'data', 'totalDepartemen', 'totalAktif', 'totalNonAktif', 'totalPosisi'

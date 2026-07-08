@@ -31,7 +31,7 @@ class KendaraanController extends Controller
         $totalHabis      = Kendaraan::where('status_kendaraan', '!=', 'tersedia')->count();
 
         $jenis = Jenis::all();
-        $kendaraanDetail = Kendaraan::with(['user', 'jenis', 'member'])->latest()->get();
+        $kendaraanDetail = Kendaraan::with(['user', 'jenis', 'member'])->latest()->paginate(15)->withQueryString();
 
         return view('admin.kendaraan.index', compact('data', 'jenis', 'kendaraanDetail', 'totalKendaraan', 'totalTersedia', 'totalHabis'));
     }

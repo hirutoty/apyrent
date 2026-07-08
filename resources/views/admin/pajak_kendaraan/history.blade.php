@@ -79,7 +79,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $item)
                         <tr class="border-b hover:bg-gray-50">
-                            <td class="px-4 py-3">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3">{{ $item->kendaraan->merk ?? '-' }}</td>
                             <td class="px-4 py-3">{{ $item->kendaraan->nopol ?? '-' }}</td>
                             <td class="px-4 py-3">{{ $item->jenis_pajak }}</td>
@@ -124,6 +124,7 @@
                 </tbody>
 
             </table>
+            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
 
         </div>
 

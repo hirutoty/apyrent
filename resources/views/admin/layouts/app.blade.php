@@ -633,6 +633,48 @@
             @endif
 
             {{-- ════════════════════════════════════
+                 GRUP: PURCHASE
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-cart-fill w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Purchase</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+                            <a href="/admin/requestfor-quotation"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-file-earmark-text w-4 text-center shrink-0"></i> Request for Quotation
+                            </a>
+                            <a href="/admin/purchase-order"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-bag-check-fill w-4 text-center shrink-0"></i> Purchase Order
+                            </a>
+                            <a href="/admin/vendor-pricelist"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-tags-fill w-4 text-center shrink-0"></i> Vendor Pricelist
+                            </a>
+                            <a href="/admin/approval-workflow"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-check2-circle w-4 text-center shrink-0"></i> Approval Workflow
+                            </a>
+                            <a href="/admin/dropshipping"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-truck w-4 text-center shrink-0"></i> Dropshipping
+                            </a>
+                            <a href="/admin/vendor-performance"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-graph-up w-4 text-center shrink-0"></i> Vendor Performance
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ════════════════════════════════════
                  GRUP: HISTORY PERPANJANGAN
                  (dipisah dari Operasi, dropdown sendiri)
             ════════════════════════════════════ --}}
@@ -733,6 +775,133 @@
                             <a href="/admin/hrd-file"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-folder2-open w-4 text-center shrink-0"></i> Dokumen HRD
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ════════════════════════════════════
+                 GRUP: IT TECHNOLOGY
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-cpu w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">IT Technology</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+                            <p class="nav-subgroup-label">Asset & Lisensi</p>
+                            <a href="/admin/assetm"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-hdd-stack-fill w-4 text-center shrink-0"></i> IT Asset Management
+                            </a>
+                            <a href="/admin/softwarel"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-file-earmark-code-fill w-4 text-center shrink-0"></i> Software License
+                            </a>
+                            <p class="nav-subgroup-label">Support & Akses</p>
+                            <a href="/admin/helpdesk"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-headset w-4 text-center shrink-0"></i> Helpdesk Support
+                            </a>
+                            <a href="/admin/useraccess"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-person-badge-fill w-4 text-center shrink-0"></i> User Access
+                            </a>
+                            <p class="nav-subgroup-label">Infrastruktur</p>
+                            <a href="/admin/networkm"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-diagram-3-fill w-4 text-center shrink-0"></i> Network Monitoring
+                            </a>
+                            <a href="/admin/cybers"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-shield-lock-fill w-4 text-center shrink-0"></i> Cybersecurity
+                            </a>
+                            <a href="/admin/emaild"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-globe2 w-4 text-center shrink-0"></i> Email & Domain
+                            </a>
+                            <a href="/admin/serverc"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-server w-4 text-center shrink-0"></i> Server & Cloud
+                            </a>
+                            <a href="/admin/systemb"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-cloud-arrow-up-fill w-4 text-center shrink-0"></i> System Backup
+                            </a>
+                            <p class="nav-subgroup-label">Pengembangan & Kebijakan</p>
+                            <a href="/admin/projectm"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-kanban-fill w-4 text-center shrink-0"></i> Project Mgmt IT
+                            </a>
+                            <a href="/admin/devops"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-arrow-repeat w-4 text-center shrink-0"></i> DevOps
+                            </a>
+                            <a href="/admin/policyc"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-file-earmark-check-fill w-4 text-center shrink-0"></i> Policy & Compliance
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ════════════════════════════════════
+                 GRUP: ASSET MANAGEMENT
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-building-check w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Asset</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
+                            <p class="nav-subgroup-label">Data Pokok</p>
+                            <a href="/admin/asset/induk"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-building-check w-4 text-center shrink-0"></i> Induk Asset
+                            </a>
+                            <a href="/admin/asset/perolehan"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-bag-check-fill w-4 text-center shrink-0"></i> Perolehan Asset
+                            </a>
+                            <p class="nav-subgroup-label">Pengelolaan</p>
+                            <a href="/admin/asset/pergerakan"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-arrow-left-right w-4 text-center shrink-0"></i> Pergerakan Asset
+                            </a>
+                            <a href="/admin/asset/pemeliharaan"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-tools w-4 text-center shrink-0"></i> Pemeliharaan Asset
+                            </a>
+                            <a href="/admin/asset/penyusutan"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-graph-down-arrow w-4 text-center shrink-0"></i> Penyusutan Asset
+                            </a>
+                            <a href="/admin/asset/pj"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-person-badge-fill w-4 text-center shrink-0"></i> Penanggung Jawab
+                            </a>
+                            <p class="nav-subgroup-label">Dokumentasi & Audit</p>
+                            <a href="/admin/asset/dokumentasi"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-folder2-open w-4 text-center shrink-0"></i> Dokumentasi Asset
+                            </a>
+                            <a href="/admin/asset/audit"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-clipboard2-check-fill w-4 text-center shrink-0"></i> Audit Asset
+                            </a>
+                            <a href="/admin/asset/dihapuskan"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-trash3-fill w-4 text-center shrink-0"></i> Asset Dihapuskan
                             </a>
                         </div>
                     </div>

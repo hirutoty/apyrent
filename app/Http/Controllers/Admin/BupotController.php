@@ -15,7 +15,7 @@ class BupotController extends Controller
 {
     public function index()
     {
-        $data = Bupot::latest()->get();
+        $data = Bupot::latest()->paginate(15)->withQueryString();
 
         return view('admin.bupot.index', compact('data'));
     }

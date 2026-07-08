@@ -240,7 +240,7 @@
                                     data-search="{{ strtolower(
                                         $item->nomor_faktur . ' ' . $item->nama_lawan . ' ' . $item->npwp_lawan . ' ' . $item->tipe . ' ' . $item->status,
                                     ) }}">
-                                    <td class="px-4 py-3.5 text-gray-400 text-sm">{{ $loop->iteration }}</td>
+                                    <td class="px-4 py-3.5 text-gray-400 text-sm">{{ $data->firstItem() + $loop->index }}</td>
                                     <td class="px-4 py-3.5"><span
                                             class="font-semibold text-gray-800">{{ $item->nomor_faktur }}</span></td>
                                     <td class="px-4 py-3.5 text-gray-600">{{ $item->tanggal_faktur }}</td>
@@ -662,6 +662,7 @@
                             @endforelse
                         </tbody>
                     </table>
+                    <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
                 </div>
             </div>
 

@@ -152,7 +152,7 @@
                             <tr class="hover:bg-slate-50 transition">
 
                                 {{-- No --}}
-                                <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
 
                                 {{-- Kendaraan --}}
                                 <td class="px-5 py-4">
@@ -241,6 +241,7 @@
 
                     </tbody>
                 </table>
+                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
             </div>
 
         </div>

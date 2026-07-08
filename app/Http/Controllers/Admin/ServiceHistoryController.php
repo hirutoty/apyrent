@@ -34,7 +34,7 @@ class ServiceHistoryController extends Controller
                 });
             })
             ->latest()
-            ->get();
+            ->paginate(15)->withQueryString();
 
         return view('admin.service.service_history', [
             'data'      => $data,

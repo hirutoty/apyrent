@@ -329,7 +329,7 @@
             </div>
 
             {{-- PAGINATION --}}
-            <div class="p-4 border-t">{{ $penawarans->links() }}</div>
+            <div class="py-4 border-t">{{ $penawarans->links() }}</div>
 
         </div>
     </div>

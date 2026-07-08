@@ -10,14 +10,14 @@ class PurchaseroController extends Controller
 {
     public function index()
     {
-        $data = Purchasero::latest()->get();
+        $data = Purchasero::latest()->paginate(15)->withQueryString();
 
-        $statusStats = $data->groupBy('status')->map->count();
+        $statusStats = Purchasero::selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
 
-        $totalPR        = $data->count();
-        $totalDisetujui = $data->where('status', 'Disetujui')->count();
-        $totalPending   = $data->where('status', 'Pending')->count();
-        $totalDitolak   = $data->where('status', 'Ditolak')->count();
+        $totalPR        = Purchasero::count();
+        $totalDisetujui = Purchasero::where('status', 'Disetujui')->count();
+        $totalPending   = Purchasero::where('status', 'Pending')->count();
+        $totalDitolak   = Purchasero::where('status', 'Ditolak')->count();
 
         return view('admin.purchasero.index', compact(
             'data', 'statusStats',

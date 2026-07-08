@@ -101,7 +101,7 @@
                     @forelse($data as $d)
                         <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors"
                             data-search="{{ strtolower($d->nama_departemen . ' ' . $d->kepala_departemen) }}">
-                            <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center gap-2">
                                     <div class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
@@ -164,6 +164,7 @@
                     @endforelse
                 </tbody>
             </table>
+            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
         </div>
         <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>

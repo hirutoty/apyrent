@@ -22,11 +22,36 @@
         </div>
     </div>
 
-    {{-- Alert Success --}}
-    @if(session('success'))
-        <div class="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm">
-            <i class="fa-solid fa-circle-check mr-1"></i>
-            {{ session('success') }}
+    {{-- FLASH ALERT --}}
+    @if(session('success') || $errors->any())
+        <div id="alertOverlay" class="fixed inset-0 z-[9999] flex items-start justify-center pt-6"
+            style="background:rgba(0,0,0,0.18);opacity:0;transition:opacity 0.2s;pointer-events:none">
+            <div id="alertBox"
+                class="bg-white rounded-xl shadow-xl border border-gray-100 px-5 py-4 flex items-start gap-3 w-full max-w-md mx-4"
+                style="transform:translateY(-16px);transition:transform 0.25s">
+                @if(session('success'))
+                    <div class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0 text-green-600 text-xl">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-bold text-gray-800">Berhasil!</p>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ session('success') }}</p>
+                    </div>
+                @else
+                    <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-bold text-gray-800">Terjadi Kesalahan!</p>
+                        <ul class="text-xs text-gray-500 mt-0.5 list-disc ml-4">
+                            @foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach
+                        </ul>
+                    </div>
+                @endif
+                <button onclick="closeAlert()" class="text-gray-400 hover:text-gray-600 text-lg leading-none">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
         </div>
     @endif
 
@@ -61,7 +86,7 @@
                         <tr class="hover:bg-slate-50">
 
                             <td class="px-5 py-4">
-                                {{ $loop->iteration }}
+                                {{ $data->firstItem() + $loop->index }}
                             </td>
 
                             <td class="px-5 py-4 font-semibold text-slate-800">
@@ -122,5 +147,35 @@
     </div>
 
 </div>
+
+
+    <script>
+        (function(){
+            var overlay = document.getElementById('alertOverlay'),
+                box = document.getElementById('alertBox');
+            if (!overlay) return;
+            setTimeout(function() {
+                overlay.style.opacity = '1';
+                overlay.style.pointerEvents = 'auto';
+                box.style.transform = 'translateY(0)';
+            }, 80);
+            var t = setTimeout(closeAlert, 4500);
+            overlay.addEventListener('click', function(e) { if (e.target === overlay) closeAlert(); });
+            function closeAlert() {
+                clearTimeout(t);
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+                box.style.transform = 'translateY(-16px)';
+            }
+            window.closeAlert = closeAlert;
+        })();
+    </script>
+
+    <style>
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 
 @endsection

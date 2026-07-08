@@ -11,7 +11,7 @@ class JenisController extends Controller
 {
     public function index()
     {
-        $data = Jenis::with('user')->latest()->get();
+        $data = Jenis::with('user')->latest()->paginate(15)->withQueryString();
 
         return view('admin.jenis.index', compact('data'));
     }

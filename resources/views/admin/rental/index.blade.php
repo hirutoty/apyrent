@@ -416,6 +416,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                <div class="py-3 border-t border-gray-100">{{ $rentals->links() }}</div>
             </div>
 
             {{-- MODAL STATUS --}}

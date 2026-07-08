@@ -277,7 +277,7 @@
                                 data-search="{{ strtolower(($d->kendaraan->merk ?? '') . ' ' . ($d->kendaraan->nopol ?? '') . ' ' . $d->keluhan . ' ' . $d->status) }}">
 
                                 {{-- No --}}
-                                <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
 
                                 {{-- Kendaraan --}}
                                 <td class="px-4 py-3.5">
@@ -460,6 +460,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
             </div>
 
             <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfoBottom"></div>

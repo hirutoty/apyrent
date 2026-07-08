@@ -30,7 +30,7 @@ class AsuransiKendaraanController extends Controller
             'asuransi',
             'jenisAsuransi',
             'attachments'
-        ])->latest()->get();
+        ])->latest()->paginate(15)->withQueryString();
 
         $setting = Setting::first();
         // Base64 logo untuk DomPDF
@@ -60,7 +60,7 @@ class AsuransiKendaraanController extends Controller
             default   => $setting->batas_reminder,
         };
 
-        foreach ($data as $d) {
+        foreach ($data->getCollection() as $d) {
 
             $tglBerakhir = \Carbon\Carbon::parse($d->tgl_berakhir)->startOfDay();
             $hariIni = now()->startOfDay();

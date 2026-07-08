@@ -10,12 +10,15 @@ class KpiAppraisalController extends Controller
 {
     public function index()
     {
-        $data = KpiAppraisal::latest()->get();
+        $data = KpiAppraisal::latest()->paginate(15)->withQueryString();
 
-        $totalEvaluasi    = $data->count();
-        $totalPegawai     = $data->pluck('nama_pegawai')->unique()->count();
-        $rataNilai        = $data->count() ? round($data->avg('nilai_akhir'), 2) : 0;
-        $totalNilaiTinggi = $data->where('nilai_akhir', '>=', 80)->count();
+        $totalEvaluasi    = KpiAppraisal::count();
+        $totalTerlampaui  = KpiAppraisal::where('status', 'Terlampaui')->count();
+        $totalTercapai    = KpiAppraisal::where('status', 'Tercapai')->count();
+        $totalBelum       = KpiAppraisal::where('status', 'Belum Tercapai')->count();
+        $totalPegawai     = KpiAppraisal::distinct('nama_pegawai')->count('nama_pegawai');
+        $rataNilai        = round(KpiAppraisal::avg('nilai_akhir') ?? 0, 2);
+        $totalNilaiTinggi = KpiAppraisal::where('nilai_akhir', '>=', 80)->count();
 
         return view('admin.hrd.kpi.index', compact(
             'data', 'totalEvaluasi', 'totalPegawai', 'rataNilai', 'totalNilaiTinggi'
