@@ -6,8 +6,27 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
-    {{-- TAB NAVIGATION --}}
+     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">Data eFaktur</h1>
+                    <p class="text-sm text-gray-500 mt-0.5">Management data pajak eFaktur</p>
+                </div>
+            
+            </div>
+
+
     
+     {{-- TAB NAVIGATION --}}
+<div class="flex gap-1 border-b border-gray-200 mb-6">
+    <button onclick="switchTab('efaktur')" id="tab-efaktur"
+        class="tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition-all">
+        <i class="bi bi-receipt mr-1"></i> E-Faktur
+    </button>
+    <button onclick="switchTab('bupot')" id="tab-bupot"
+        class="tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition-all">
+        <i class="bi bi-file-earmark-text-fill mr-1"></i> E-Bupot
+    </button>
+</div>
 
 
     {{-- ======================================
@@ -18,8 +37,7 @@
 
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800">Data eFaktur</h1>
-                    <p class="text-sm text-gray-500 mt-0.5">Management data pajak eFaktur</p>
+                   
                 </div>
                 <button onclick="openModalTambah()"
                     class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm
@@ -28,18 +46,7 @@
                 </button>
             </div>
 
-            <div class="flex gap-1 border-b border-gray-200 mb-6">
-        <button onclick="switchTab('efaktur')" id="tab-efaktur"
-            class="tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600
-  transition-all">
-            <i class="bi bi-receipt mr-1"></i> E-Faktur
-        </button>
-        <button onclick="switchTab('bupot')" id="tab-bupot"
-            class="tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400
-  hover:text-gray-600 transition-all">
-            <i class="bi bi-file-earmark-text-fill mr-1"></i> E-Bupot
-        </button>
-    </div>
+          
 
             {{-- SUMMARY CARDS --}}
             <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -127,7 +134,7 @@
                                 {{ $data->where(
                                         'status',
                                         'Submit
-                                                                  DJP',
+                                                                                                  DJP',
                                     )->count() }}
                             </h3>
                         </div>
@@ -435,7 +442,7 @@
                                 {{ $dataBupot->where(
                                         'status',
                                         'Submit
-                                                                  DJP',
+                                                                                                  DJP',
                                     )->count() }}
                             </h3>
                         </div>

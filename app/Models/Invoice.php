@@ -104,6 +104,7 @@ class Invoice extends Model
     public function remaks()
     {
         return $this->hasMany(InvoiceRemak::class, 'invoice_id');
+    }
 
     public function agingAr()
     {
