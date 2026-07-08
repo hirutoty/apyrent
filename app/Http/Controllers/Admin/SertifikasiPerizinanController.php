@@ -10,12 +10,23 @@ use Illuminate\Http\Request;
 
 class SertifikasiPerizinanController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data         = SertifikasiPerizinan::latest()->get();
-        $total        = $data->count();
-        $totalAktif   = $data->where('status', 'Aktif')->count();
-        $totalExp     = $data->where('status', 'Kadaluarsa')->count();
+        $query = SertifikasiPerizinan::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('jenis', 'like', "%$q%")
+                   ->orWhere('nomor', 'like', "%$q%")
+                   ->orWhere('instansi', 'like', "%$q%");
+            });
+        }
+
+        $data       = $query->paginate(15)->withQueryString();
+        $total      = SertifikasiPerizinan::count();
+        $totalAktif = SertifikasiPerizinan::where('status', 'Aktif')->count();
+        $totalExp   = SertifikasiPerizinan::where('status', 'Kadaluarsa')->count();
 
         return view('admin.legal.sertifikasi_perizinan.index', compact('data', 'total', 'totalAktif', 'totalExp'));
     }

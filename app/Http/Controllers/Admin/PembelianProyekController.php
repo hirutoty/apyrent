@@ -11,13 +11,24 @@ use Illuminate\Http\Request;
 
 class PembelianProyekController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data          = PembelianProyek::latest()->get();
-        $total         = $data->count();
-        $totalDisetujui = $data->where('status', 'Disetujui')->count();
-        $totalPending   = $data->where('status', 'Pending')->count();
-        $totalDitolak   = $data->where('status', 'Ditolak')->count();
+        $query = PembelianProyek::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('pr_no', 'like', "%$q%")
+                   ->orWhere('proyek', 'like', "%$q%")
+                   ->orWhere('item_diminta', 'like', "%$q%");
+            });
+        }
+
+        $data           = $query->paginate(15)->withQueryString();
+        $total          = PembelianProyek::count();
+        $totalDisetujui = PembelianProyek::where('status', 'Disetujui')->count();
+        $totalPending   = PembelianProyek::where('status', 'Pending')->count();
+        $totalDitolak   = PembelianProyek::where('status', 'Ditolak')->count();
         $proyeks        = IndukProyek::orderBy('kode')->pluck('nama_proyek', 'kode');
 
         return view('admin.project.pembelian.index', compact(

@@ -10,12 +10,23 @@ use Illuminate\Http\Request;
 
 class LegalDocumentController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data       = LegalDocument::latest()->get();
-        $total      = $data->count();
-        $totalAktif = $data->where('status', 'Aktif')->count();
-        $totalExp   = $data->where('status', 'Kadaluarsa')->count();
+        $query = LegalDocument::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('kode', 'like', "%$q%")
+                   ->orWhere('nama_dokumen', 'like', "%$q%")
+                   ->orWhere('pihak_terkait', 'like', "%$q%");
+            });
+        }
+
+        $data       = $query->paginate(15)->withQueryString();
+        $total      = LegalDocument::count();
+        $totalAktif = LegalDocument::where('status', 'Aktif')->count();
+        $totalExp   = LegalDocument::where('status', 'Kadaluarsa')->count();
 
         return view('admin.legal.legal_document.index', compact('data', 'total', 'totalAktif', 'totalExp'));
     }

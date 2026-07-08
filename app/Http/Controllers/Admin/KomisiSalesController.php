@@ -10,12 +10,22 @@ use Illuminate\Http\Request;
 
 class KomisiSalesController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data  = KomisiSales::latest()->get();
-        $total = $data->count();
-        $totalKomisi    = $data->sum('total_komisi');
-        $totalPenjualan = $data->sum('total_penjualan');
+        $query = KomisiSales::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('nama_sales', 'like', "%$q%")
+                   ->orWhere('bulan', 'like', "%$q%");
+            });
+        }
+
+        $data           = $query->paginate(15)->withQueryString();
+        $total          = KomisiSales::count();
+        $totalKomisi    = KomisiSales::sum('total_komisi');
+        $totalPenjualan = KomisiSales::sum('total_penjualan');
 
         return view('admin.sales.komisi_sales.index', compact(
             'data', 'total', 'totalKomisi', 'totalPenjualan'

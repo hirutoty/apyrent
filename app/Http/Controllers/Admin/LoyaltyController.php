@@ -10,12 +10,23 @@ use Illuminate\Http\Request;
 
 class LoyaltyController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Loyalty::latest()->get();
-        $total = $data->count();
-        $totalAktif = $data->where('status', 'Aktif')->count();
-        $totalNonaktif = $data->where('status', 'Nonaktif')->count();
+        $query = Loyalty::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('id_program', 'like', "%$q%")
+                   ->orWhere('nama_program', 'like', "%$q%")
+                   ->orWhere('jenis_reward', 'like', "%$q%");
+            });
+        }
+
+        $data          = $query->paginate(15)->withQueryString();
+        $total         = Loyalty::count();
+        $totalAktif    = Loyalty::where('status', 'Aktif')->count();
+        $totalNonaktif = Loyalty::where('status', 'Nonaktif')->count();
 
         return view('admin.marketing.loyalty.index', compact(
             'data', 'total', 'totalAktif', 'totalNonaktif'

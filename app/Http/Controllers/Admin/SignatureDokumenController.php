@@ -10,13 +10,24 @@ use Illuminate\Http\Request;
 
 class SignatureDokumenController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data  = SignatureDokumen::latest()->get();
-        $total = $data->count();
-        $totalMenunggu  = $data->where('status_ttd', 'Menunggu')->count();
-        $totalDitandatangani = $data->where('status_ttd', 'Ditandatangani')->count();
-        $totalDitolak   = $data->where('status_ttd', 'Ditolak')->count();
+        $query = SignatureDokumen::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('document_id', 'like', "%$q%")
+                   ->orWhere('jenis_dokumen', 'like', "%$q%")
+                   ->orWhere('pihak_terlibat', 'like', "%$q%");
+            });
+        }
+
+        $data                = $query->paginate(15)->withQueryString();
+        $total               = SignatureDokumen::count();
+        $totalMenunggu       = SignatureDokumen::where('status_ttd', 'Menunggu')->count();
+        $totalDitandatangani = SignatureDokumen::where('status_ttd', 'Ditandatangani')->count();
+        $totalDitolak        = SignatureDokumen::where('status_ttd', 'Ditolak')->count();
 
         return view('admin.sales.signature_dokumen.index', compact(
             'data', 'total', 'totalMenunggu', 'totalDitandatangani', 'totalDitolak'

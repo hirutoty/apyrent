@@ -11,14 +11,24 @@ use Illuminate\Http\Request;
 
 class ProjectTimelineController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data      = ProjectTimeline::latest()->get();
-        $total     = $data->count();
-        $totalScheduled = $data->where('status', 'Scheduled')->count();
-        $totalBerjalan  = $data->where('status', 'Berjalan')->count();
-        $totalSelesai   = $data->where('status', 'Selesai')->count();
-        $proyeks   = IndukProyek::orderBy('kode')->pluck('nama_proyek', 'kode');
+        $query = ProjectTimeline::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('proyek', 'like', "%$q%")
+                   ->orWhere('kegiatan', 'like', "%$q%");
+            });
+        }
+
+        $data           = $query->paginate(15)->withQueryString();
+        $total          = ProjectTimeline::count();
+        $totalScheduled = ProjectTimeline::where('status', 'Scheduled')->count();
+        $totalBerjalan  = ProjectTimeline::where('status', 'Berjalan')->count();
+        $totalSelesai   = ProjectTimeline::where('status', 'Selesai')->count();
+        $proyeks        = IndukProyek::orderBy('kode')->pluck('nama_proyek', 'kode');
 
         return view('admin.project.timeline.index', compact(
             'data', 'total', 'totalScheduled', 'totalBerjalan', 'totalSelesai', 'proyeks'

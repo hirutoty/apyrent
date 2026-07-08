@@ -10,13 +10,25 @@ use Illuminate\Http\Request;
 
 class ReturPenjualanController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data  = ReturPenjualan::latest()->get();
-        $total = $data->count();
-        $totalMenunggu = $data->where('status', 'Menunggu')->count();
-        $totalDiproses = $data->where('status', 'Diproses')->count();
-        $totalSelesai  = $data->where('status', 'Selesai')->count();
+        $query = ReturPenjualan::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('no_retur', 'like', "%$q%")
+                   ->orWhere('pelanggan', 'like', "%$q%")
+                   ->orWhere('no_order', 'like', "%$q%")
+                   ->orWhere('produk', 'like', "%$q%");
+            });
+        }
+
+        $data          = $query->paginate(15)->withQueryString();
+        $total         = ReturPenjualan::count();
+        $totalMenunggu = ReturPenjualan::where('status', 'Menunggu')->count();
+        $totalDiproses = ReturPenjualan::where('status', 'Diproses')->count();
+        $totalSelesai  = ReturPenjualan::where('status', 'Selesai')->count();
 
         return view('admin.sales.retur_penjualan.index', compact(
             'data', 'total', 'totalMenunggu', 'totalDiproses', 'totalSelesai'

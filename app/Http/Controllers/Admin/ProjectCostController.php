@@ -11,14 +11,24 @@ use Illuminate\Http\Request;
 
 class ProjectCostController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data         = ProjectCost::latest()->get();
-        $total        = $data->count();
-        $totalEfisien  = $data->where('status', 'Efisien')->count();
-        $totalOverBudget = $data->where('status', 'Over Budget')->count();
-        $totalNormal   = $data->where('status', 'Normal')->count();
-        $proyeks       = IndukProyek::orderBy('kode')->pluck('nama_proyek', 'kode');
+        $query = ProjectCost::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('proyek', 'like', "%$q%")
+                   ->orWhere('kategori_biaya', 'like', "%$q%");
+            });
+        }
+
+        $data            = $query->paginate(15)->withQueryString();
+        $total           = ProjectCost::count();
+        $totalEfisien    = ProjectCost::where('status', 'Efisien')->count();
+        $totalOverBudget = ProjectCost::where('status', 'Over Budget')->count();
+        $totalNormal     = ProjectCost::where('status', 'Normal')->count();
+        $proyeks         = IndukProyek::orderBy('kode')->pluck('nama_proyek', 'kode');
 
         return view('admin.project.cost.index', compact(
             'data', 'total', 'totalEfisien', 'totalOverBudget', 'totalNormal', 'proyeks'

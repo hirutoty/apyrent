@@ -10,12 +10,23 @@ use Illuminate\Http\Request;
 
 class OtomatisasiController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Otomatisasi::latest()->get();
-        $total = $data->count();
-        $totalAktif = $data->where('status', 'Aktif')->count();
-        $totalNonaktif = $data->where('status', 'Nonaktif')->count();
+        $query = Otomatisasi::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('workflow_id', 'like', "%$q%")
+                   ->orWhere('nama_workflow', 'like', "%$q%")
+                   ->orWhere('trigger_event', 'like', "%$q%");
+            });
+        }
+
+        $data          = $query->paginate(15)->withQueryString();
+        $total         = Otomatisasi::count();
+        $totalAktif    = Otomatisasi::where('status', 'Aktif')->count();
+        $totalNonaktif = Otomatisasi::where('status', 'Nonaktif')->count();
 
         return view('admin.marketing.otomatisasi.index', compact(
             'data', 'total', 'totalAktif', 'totalNonaktif'
