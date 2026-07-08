@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Aging_aps extends Model
+class aging_aps extends Model
 {
     use HasFactory;
 
