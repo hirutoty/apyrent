@@ -11,14 +11,24 @@ use Illuminate\Http\Request;
 
 class DokumenProyekController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data       = DokumenProyek::latest()->get();
-        $total      = $data->count();
-        $totalValid  = $data->where('status', 'Valid')->count();
-        $totalDraft  = $data->where('status', 'Draft')->count();
-        $totalExpired= $data->where('status', 'Expired')->count();
-        $proyeks     = IndukProyek::orderBy('kode')->pluck('nama_proyek', 'kode');
+        $query = DokumenProyek::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('proyek', 'like', "%$q%")
+                   ->orWhere('nama_dokumen', 'like', "%$q%");
+            });
+        }
+
+        $data         = $query->paginate(15)->withQueryString();
+        $total        = DokumenProyek::count();
+        $totalValid   = DokumenProyek::where('status', 'Valid')->count();
+        $totalDraft   = DokumenProyek::where('status', 'Draft')->count();
+        $totalExpired = DokumenProyek::where('status', 'Expired')->count();
+        $proyeks      = IndukProyek::orderBy('kode')->pluck('nama_proyek', 'kode');
 
         return view('admin.project.dokumen.index', compact(
             'data', 'total', 'totalValid', 'totalDraft', 'totalExpired', 'proyeks'

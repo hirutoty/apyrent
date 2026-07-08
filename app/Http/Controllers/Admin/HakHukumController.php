@@ -10,12 +10,23 @@ use Illuminate\Http\Request;
 
 class HakHukumController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data        = HakHukum::latest()->get();
-        $total       = $data->count();
-        $totalAktif  = $data->where('status', 'Aktif')->count();
-        $totalNonAktif = $data->where('status', 'Non-Aktif')->count();
+        $query = HakHukum::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('jenis_akses', 'like', "%$q%")
+                   ->orWhere('kategori_dokumen', 'like', "%$q%")
+                   ->orWhere('penerima_akses', 'like', "%$q%");
+            });
+        }
+
+        $data          = $query->paginate(15)->withQueryString();
+        $total         = HakHukum::count();
+        $totalAktif    = HakHukum::where('status', 'Aktif')->count();
+        $totalNonAktif = HakHukum::where('status', 'Non-Aktif')->count();
 
         return view('admin.legal.hak_hukum.index', compact('data', 'total', 'totalAktif', 'totalNonAktif'));
     }

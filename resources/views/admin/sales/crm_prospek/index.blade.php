@@ -61,35 +61,19 @@
         </div>
     </div>
 
-    {{-- ALERT --}}
-    @if(session('success'))
-    <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-        <i class="fa fa-circle-check"></i> {{ session('success') }}
-    </div>
-    @endif
-
     {{-- TABLE --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
             <div>
                 <h2 class="font-semibold text-gray-800 text-base">Daftar CRM Prospek</h2>
-                <p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total data</p>
+                <p class="text-xs text-gray-400 mt-0.5">{{ $total }} total data</p>
             </div>
-            <div class="relative">
+            <form method="GET" class="relative flex gap-2">
                 <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                <input type="text" placeholder="Cari prospek..." oninput="onSearchInput(this.value)"
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari prospek..."
                     class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
-            </div>
-        </div>
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select onchange="onPerPageChange(this.value)" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="25">25</option>
-                <option value="all">All</option>
-            </select>
-            <span>entries</span>
+                <button class="bg-gray-800 text-white text-xs px-3 py-1.5 rounded-lg">Cari</button>
+            </form>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -108,9 +92,8 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors"
-                        data-search="{{ strtolower($d->kode_prospek.' '.$d->nama_kontak.' '.$d->perusahaan.' '.$d->tahapan.' '.$d->status.' '.$d->sales) }}">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->kode_prospek }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->nama_kontak }}</td>
                         <td class="px-4 py-3.5 text-gray-700 text-xs">{{ $d->perusahaan }}</td>
@@ -168,7 +151,7 @@
                 </tbody>
             </table>
         </div>
-        <div id="paginationInfo" class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400"></div>
+        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -304,51 +287,60 @@
 
 <script>
 function openModal() {
-    document.getElementById('modalAdd').classList.remove('hidden');
-    document.getElementById('modalAdd').classList.add('flex');
-}
-function closeModal() {
-    document.getElementById('modalAdd').classList.add('hidden');
-    document.getElementById('modalAdd').classList.remove('flex');
-}
-function openEditModal(id) {
-    fetch(`/admin/crm-prospek/${id}`)
-        .then(r => r.json())
-        .then(d => {
-            document.getElementById('editForm').action = `/admin/crm-prospek/${id}`;
-            document.getElementById('edit_kode_prospek').value = d.kode_prospek;
-            document.getElementById('edit_nama_kontak').value = d.nama_kontak;
-            document.getElementById('edit_perusahaan').value = d.perusahaan;
-            document.getElementById('edit_telepon').value = d.telepon ?? '';
-            document.getElementById('edit_tahapan').value = d.tahapan;
-            document.getElementById('edit_status').value = d.status;
-            document.getElementById('edit_sales').value = d.sales;
-            document.getElementById('edit_tanggal_masuk').value = d.tanggal_masuk;
-            document.getElementById('edit_catatan').value = d.catatan ?? '';
-            document.getElementById('modalEdit').classList.remove('hidden');
-            document.getElementById('modalEdit').classList.add('flex');
-        });
-}
-function closeEditModal() {
-    document.getElementById('modalEdit').classList.add('hidden');
-    document.getElementById('modalEdit').classList.remove('flex');
-}
-
-// Search & Pagination
-let perPage = 10;
-function onSearchInput(val) { filterTable(val); }
-function onPerPageChange(val) { perPage = val === 'all' ? 99999 : parseInt(val); filterTable(document.querySelector('input[placeholder]').value); }
-function filterTable(search) {
-    const rows = Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
-    const q = search.toLowerCase();
-    let visible = 0;
-    rows.forEach(r => {
-        const match = r.dataset.search.includes(q);
-        r.style.display = match && visible < perPage ? '' : 'none';
-        if (match) visible++;
-    });
-    document.getElementById('paginationInfo').textContent = `Menampilkan ${Math.min(visible, perPage)} dari ${rows.filter(r=>r.dataset.search.includes(q)).length} data`;
-}
-filterTable('');
 </script>
+
+{{-- POPUP ALERT --}}
+@if(session('success') || session('error') || $errors->any())
+<div id="alertOverlay" class="fixed inset-0 z-[9999] flex items-start justify-center pt-6"
+    style="background:rgba(0,0,0,0.18);opacity:0;transition:opacity 0.2s;pointer-events:none">
+    <div id="alertBox"
+        class="bg-white rounded-xl shadow-xl border border-gray-100 px-5 py-4 flex items-start gap-3 w-full max-w-md mx-4"
+        style="transform:translateY(-16px);transition:transform 0.25s">
+        @if(session('success'))
+            <div class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0 text-green-600 text-xl">
+                <i class="fa fa-check-circle"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-gray-800">Berhasil!</p>
+                <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ session('success') }}</p>
+            </div>
+        @elseif(session('error'))
+            <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl">
+                <i class="fa fa-exclamation-circle"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-gray-800">Terjadi Kesalahan!</p>
+                <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ session('error') }}</p>
+            </div>
+        @else
+            <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl">
+                <i class="fa fa-exclamation-circle"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-gray-800">Terjadi Kesalahan!</p>
+                <ul class="text-xs text-gray-500 mt-0.5 leading-relaxed list-disc ml-4 space-y-0.5">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+        <button onclick="closeAlert()" class="text-gray-400 hover:text-gray-600 transition-colors text-lg leading-none mt-0.5 flex-shrink-0">
+            <i class="fa fa-times"></i>
+        </button>
+    </div>
+</div>
+<script>
+(function(){
+    var overlay = document.getElementById('alertOverlay');
+    var box = document.getElementById('alertBox');
+    if (!overlay) return;
+    setTimeout(function(){ overlay.style.opacity='1'; overlay.style.pointerEvents='auto'; box.style.transform='translateY(0)'; }, 80);
+    var timer = setTimeout(closeAlert, 4500);
+    overlay.addEventListener('click', function(e){ if(e.target===overlay) closeAlert(); });
+    function closeAlert(){ clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
+    window.closeAlert = closeAlert;
+})();
+</script>
+@endif
 @endsection

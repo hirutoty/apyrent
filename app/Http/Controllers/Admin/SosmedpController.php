@@ -10,14 +10,25 @@ use Illuminate\Http\Request;
 
 class SosmedpController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Sosmedp::latest()->get();
-        $total = $data->count();
-        $totalKlik = $data->sum('klik');
-        $totalKonversi = $data->sum('konversi');
-        $totalBiaya = $data->sum('total_biaya');
-        $totalPenjualan = $data->sum('total_penjualan');
+        $query = Sosmedp::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('id_kampanye', 'like', "%$q%")
+                   ->orWhere('channel', 'like', "%$q%")
+                   ->orWhere('utm_campaign', 'like', "%$q%");
+            });
+        }
+
+        $data           = $query->paginate(15)->withQueryString();
+        $total          = Sosmedp::count();
+        $totalKlik      = Sosmedp::sum('klik');
+        $totalKonversi  = Sosmedp::sum('konversi');
+        $totalBiaya     = Sosmedp::sum('total_biaya');
+        $totalPenjualan = Sosmedp::sum('total_penjualan');
 
         return view('admin.marketing.sosmedp.index', compact(
             'data', 'total', 'totalKlik', 'totalKonversi', 'totalBiaya', 'totalPenjualan'

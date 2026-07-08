@@ -10,10 +10,21 @@ use Illuminate\Http\Request;
 
 class DaftarNotarisController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data  = DaftarNotaris::latest()->get();
-        $total = $data->count();
+        $query = DaftarNotaris::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('nama_kantor', 'like', "%$q%")
+                   ->orWhere('layanan', 'like', "%$q%")
+                   ->orWhere('email', 'like', "%$q%");
+            });
+        }
+
+        $data  = $query->paginate(15)->withQueryString();
+        $total = DaftarNotaris::count();
 
         return view('admin.legal.daftar_notaris.index', compact('data', 'total'));
     }

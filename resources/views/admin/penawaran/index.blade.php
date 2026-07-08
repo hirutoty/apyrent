@@ -3,188 +3,147 @@
 @section('title', 'Data Penawaran Kendaraan')
 
 @section('content')
-    <div class="p-5">
+    <div class="space-y-6 p-5">
 
+        {{-- ALERT --}}
         @if (session('success'))
-            <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-700">
-                {{ session('success') }}
+            <div class="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                <i class="fa fa-check-circle text-green-500"></i> {{ session('success') }}
             </div>
         @endif
-
         @if (session('error'))
-            <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-                {{ session('error') }}
+            <div class="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <i class="fa fa-exclamation-circle text-red-500"></i> {{ session('error') }}
             </div>
         @endif
 
-        <div class="bg-white rounded-xl shadow">
-
-            {{-- HEADER --}}
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b p-5">
-
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800">Data Penawaran Kendaraan</h2>
-                    <p class="text-sm text-gray-500 mt-1">
-                        Kelola seluruh penawaran kendaraan.
-                    </p>
-                </div>
-
-                <div class="flex flex-wrap items-center gap-2">
-
-                    <a href="{{ route('penawaran.pdf') }}" target="_blank"
-                        class="inline-flex items-center justify-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
-                        <i class="fa fa-file-pdf mr-2"></i>
-                        Export PDF
-                    </a>
-
-                    <a href="{{ route('penawaran.export.excel', request()->query()) }}"
-                        class="inline-flex items-center justify-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
-                        <i class="fa fa-file-excel mr-2"></i>
-                        Export Excel
-                    </a>
-
-                    <button type="button" id="btnTambah"
-                        class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
-                        <i class="fa fa-plus mr-2"></i>
-                        Tambah Penawaran
-                    </button>
-
-                </div>
-
+        {{-- PAGE HEADER --}}
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Data Penawaran Kendaraan</h1>
+                <p class="text-sm text-gray-500 mt-0.5">Kelola seluruh penawaran kendaraan</p>
             </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ route('penawaran.pdf') }}" target="_blank"
+                    class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    <i class="fa fa-file-pdf"></i> Export PDF
+                </a>
+                <a href="{{ route('penawaran.export.excel', request()->query()) }}"
+                    class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    <i class="fa fa-file-excel"></i> Export Excel
+                </a>
+                <button type="button" id="btnTambah"
+                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    <i class="fa fa-plus text-sm"></i> Tambah Penawaran
+                </button>
+            </div>
+        </div>
 
-            {{-- NAV TABS --}}
-            <div class="border-b border-gray-200">
-                <nav class="flex gap-0 -mb-px overflow-x-auto">
-                    @php
-                        $navItems = [
-                            ['label' => 'Summary', 'url' => '/admin/summary', 'icon' => 'bi bi-bar-chart-line'],
-                            [
-                                'label' => 'Penawaran',
-                                'url' => '/admin/penawaran',
-                                'icon' => 'bi bi-file-earmark-richtext',
-                            ],
-                            ['label' => 'Kontrak', 'url' => '/admin/kontrak', 'icon' => 'bi bi-file-earmark-lock'],
-                            ['label' => 'Invoice', 'url' => '/admin/invoices', 'icon' => 'bi bi-receipt-cutoff'],
-                            ['label' => 'Payments', 'url' => '/admin/payments', 'icon' => 'bi bi-credit-card-2-front'],
-                            ['label' => 'Reminders', 'url' => '/admin/reminders', 'icon' => 'bi bi-bell'],
-                        ];
-                    @endphp
+        {{-- NAV TABS --}}
+        <div class="border-b border-gray-200">
+            <nav class="flex gap-0 -mb-px overflow-x-auto">
+                @php
+                    $navItems = [
+                        ['label' => 'Summary',   'url' => '/admin/summary',   'icon' => 'bi bi-bar-chart-line'],
+                        ['label' => 'Penawaran', 'url' => '/admin/penawaran', 'icon' => 'bi bi-file-earmark-richtext'],
+                        ['label' => 'Kontrak',   'url' => '/admin/kontrak',   'icon' => 'bi bi-file-earmark-lock'],
+                        ['label' => 'Invoice',   'url' => '/admin/invoices',  'icon' => 'bi bi-receipt-cutoff'],
+                        ['label' => 'Payments',  'url' => '/admin/payments',  'icon' => 'bi bi-credit-card-2-front'],
+                        ['label' => 'Reminders', 'url' => '/admin/reminders', 'icon' => 'bi bi-bell'],
+                    ];
+                @endphp
+                @foreach ($navItems as $item)
+                    @php $isActive = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
+                    <a href="{{ $item['url'] }}"
+                        class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
+                            {{ $isActive ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
+                        <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
+                    </a>
+                @endforeach
+            </nav>
+        </div>
 
-                    @foreach ($navItems as $item)
-                        @php
-                            $isActive =
-                                request()->is(ltrim($item['url'], '/')) ||
-                                request()->is(ltrim($item['url'], '/') . '/*');
-                        @endphp
-                        <a href="{{ $item['url'] }}"
-                            class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
-                            {{ $isActive
-                                ? 'border-blue-600 text-blue-600 bg-blue-50/50'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
-                            <i class="{{ $item['icon'] }}"></i>
-                            {{ $item['label'] }}
-                        </a>
+        {{-- STAT CARDS --}}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+                <p class="text-sm text-gray-500">Total Penawaran</p>
+                <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $penawarans->total() }}</h2>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+                <p class="text-sm text-gray-500">Approved</p>
+                <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $penawarans->getCollection()->whereIn('status',['approved','active'])->count() }}</h2>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+                <p class="text-sm text-gray-500">Pending</p>
+                <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $penawarans->getCollection()->where('status','pending')->count() }}</h2>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+                <p class="text-sm text-gray-500">Expired / Rejected</p>
+                <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $penawarans->getCollection()->whereIn('status',['expired','rejected'])->count() }}</h2>
+            </div>
+        </div>
+
+        {{-- TABLE CARD --}}
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+
+        {{-- SEARCH + TOGGLE KOLOM --}}
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+            <form method="GET" class="flex gap-2 flex-1 flex-wrap">
+                <div class="relative flex-1 min-w-[180px]">
+                    <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input type="text" name="search" value="{{ request('search') }}"
+                        placeholder="Cari nomor penawaran atau customer..."
+                        class="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <button class="bg-gray-800 text-white text-xs px-4 py-1.5 rounded-lg">Cari</button>
+            </form>
+            <div id="colToggleWrap" class="relative">
+                <button type="button" onclick="toggleColDropdown()"
+                    class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-600 bg-white hover:bg-gray-50 whitespace-nowrap">
+                    <i class="bi bi-layout-three-columns"></i> Kolom <i class="bi bi-chevron-down text-[10px]"></i>
+                </button>
+                <div id="colDropdown"
+                    class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
+                    <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
+                    @foreach(['col-nopenawaran'=>'No Penawaran','col-tanggal'=>'Tanggal','col-periode'=>'Periode','col-customer'=>'Customer','col-jenis'=>'Jenis Customer','col-kendaraan'=>'Kendaraan','col-total'=>'Total','col-status'=>'Status','col-penawaran'=>'Aksi Approve','col-aksi'=>'Aksi'] as $cid=>$clabel)
+                    <label class="flex items-center gap-2 py-1 cursor-pointer hover:text-blue-600 text-xs text-gray-700">
+                        <input type="checkbox" class="col-toggle" data-col="{{ $cid }}" checked onchange="toggleColumn('{{ $cid }}', this.checked)"> {{ $clabel }}
+                    </label>
                     @endforeach
-                </nav>
+                </div>
             </div>
+        </div>
 
-
-
-            {{-- SEARCH --}}
-            <div class="p-5 border-b">
-                <form method="GET">
-                    <div class="flex gap-3 items-center">
-                        <div class="relative flex-1">
-                            <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
-                            <input type="text" name="search" value="{{ request('search') }}"
-                                placeholder="Cari nomor penawaran atau customer..."
-                                class="w-full border rounded-lg pl-10 pr-4 py-2">
-                        </div>
-                        <button class="bg-gray-800 text-white px-5 rounded-lg py-2">Cari</button>
-
-                        {{-- Tombol + Dropdown Toggle Kolom --}}
-                        <div id="colToggleWrap" class="relative">
-                            <button type="button" onclick="toggleColDropdown()"
-                                class="inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50">
-                                <i class="fa fa-columns"></i> Kolom
-                                <i class="fa fa-chevron-down text-xs"></i>
-                            </button>
-
-                            <div id="colDropdown"
-                                class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
-                                <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
-
-                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
-                                    <input type="checkbox" class="col-toggle" data-col="col-nopenawaran" checked onchange="toggleColumn('col-nopenawaran', this.checked)"> No Penawaran
-                                </label>
-                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
-                                    <input type="checkbox" class="col-toggle" data-col="col-tanggal" checked onchange="toggleColumn('col-tanggal', this.checked)"> Tanggal
-                                </label>
-                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
-                                    <input type="checkbox" class="col-toggle" data-col="col-periode" checked onchange="toggleColumn('col-periode', this.checked)"> Periode
-                                </label>
-                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
-                                    <input type="checkbox" class="col-toggle" data-col="col-customer" checked onchange="toggleColumn('col-customer', this.checked)"> Customer
-                                </label>
-                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
-                                    <input type="checkbox" class="col-toggle" data-col="col-jenis" checked onchange="toggleColumn('col-jenis', this.checked)"> Jenis Customer
-                                </label>
-                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
-                                    <input type="checkbox" class="col-toggle" data-col="col-kendaraan" checked onchange="toggleColumn('col-kendaraan', this.checked)"> Kendaraan
-                                </label>
-                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
-                                    <input type="checkbox" class="col-toggle" data-col="col-total" checked onchange="toggleColumn('col-total', this.checked)"> Total
-                                </label>
-                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
-                                    <input type="checkbox" class="col-toggle" data-col="col-status" checked onchange="toggleColumn('col-status', this.checked)"> Status
-                                </label>
-                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
-                                    <input type="checkbox" class="col-toggle" data-col="col-penawaran" checked onchange="toggleColumn('col-penawaran', this.checked)"> Penawaran
-                                </label>
-                                <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:text-gray-800">
-                                    <input type="checkbox" class="col-toggle" data-col="col-aksi" checked onchange="toggleColumn('col-aksi', this.checked)"> Aksi
-                                </label>
-                            </div>
-                        </div>
-
-                    </div>
-                </form>
-            </div>
-
-            {{-- TABLE --}}
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="px-4 py-3 text-left">No</th>
-                            <th class="px-4 py-3 text-left" data-col="col-nopenawaran">No Penawaran</th>
-                            <th class="px-4 py-3 text-left" data-col="col-tanggal">Tanggal</th>
-                            <th class="px-4 py-3 text-left" data-col="col-periode">Periode</th>
-                            <th class="px-4 py-3 text-left" data-col="col-customer">Customer</th>
-                            <th class="px-4 py-3 text-left" data-col="col-jenis">Jenis Customer</th>
-                            <th class="px-4 py-3 text-left" data-col="col-kendaraan">Kendaraan</th>
-                            <th class="px-4 py-3 text-right" data-col="col-total">Total</th>
-                            <th class="px-4 py-3 text-center" data-col="col-status">Status</th>
-                            <th class="px-4 py-3 text-center" data-col="col-penawaran">Penawaran</th>
-                            <th class="px-4 py-3 text-center" data-col="col-aksi">Aksi</th>
-                        </tr>
-                    </thead>
+        {{-- TABLE --}}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No</th>
+                        <th data-col="col-nopenawaran" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No Penawaran</th>
+                        <th data-col="col-tanggal"     class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
+                        <th data-col="col-periode"     class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Periode</th>
+                        <th data-col="col-customer"    class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Customer</th>
+                        <th data-col="col-jenis"       class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jenis Customer</th>
+                        <th data-col="col-kendaraan"   class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Kendaraan</th>
+                        <th data-col="col-total"       class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total</th>
+                        <th data-col="col-status"      class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
+                        <th data-col="col-penawaran"   class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Approve</th>
+                        <th data-col="col-aksi"        class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
+                    </tr>
+                </thead>
                     <tbody>
                         @forelse ($penawarans as $p)
+                            <tr class="border-t border-gray-50 {{ $p->isExpired ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50' }} transition-colors">
 
-                            <tr class="border-b {{ $p->isExpired ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50' }}">
-
-                                <td class="px-4 py-3">
+                            <td class="px-4 py-3.5 text-gray-400 text-xs">
                                     {{ $loop->iteration + ($penawarans->firstItem() - 1) }}
                                 </td>
-
-                                <td class="px-4 py-3" data-col="col-nopenawaran">
-                                    <span class="font-semibold">{{ $p->no_penawaran }}</span>
+                                <td class="px-4 py-3.5" data-col="col-nopenawaran">
+                                    <span class="font-mono text-xs font-semibold text-blue-700">{{ $p->no_penawaran }}</span>
                                 </td>
-
-                                <td class="px-4 py-3" data-col="col-tanggal">
-                                    {{ optional($p->tanggal_penawaran)->format('d-m-Y') }}
+                                <td class="px-4 py-3.5 text-sm text-gray-600" data-col="col-tanggal">
+                                    {{ optional($p->tanggal_penawaran)->format('d M Y') }}
                                 </td>
 
                                 <td class="px-4 py-3" data-col="col-periode">
@@ -240,99 +199,85 @@
                                     Rp {{ number_format($p->total, 0, ',', '.') }}
                                 </td>
 
-                                <td class="px-4 py-3 text-center" data-col="col-status">
+                                <td class="px-4 py-3.5 text-center" data-col="col-status">
                                     @php
-                                        $warna = match ($p->status) {
-                                            'approved' => 'green',
-                                            'active' => 'blue',
-                                            'pending' => 'yellow',
-                                            'rejected' => 'red',
-                                            'expired' => 'gray',
-                                            default => 'gray',
+                                        $sc = match($p->status) {
+                                            'approved' => 'bg-green-100 text-green-700',
+                                            'active'   => 'bg-blue-100 text-blue-700',
+                                            'pending'  => 'bg-yellow-100 text-yellow-700',
+                                            'rejected' => 'bg-red-100 text-red-700',
+                                            'expired'  => 'bg-gray-100 text-gray-600',
+                                            default    => 'bg-gray-100 text-gray-600',
                                         };
                                     @endphp
-
-                                    <span
-                                        class="px-3 py-1 rounded-full text-xs bg-{{ $warna }}-100 text-{{ $warna }}-700">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $sc }}">
                                         {{ strtoupper($p->status) }}
                                     </span>
                                 </td>
 
-                                <td class="px-4 py-3" data-col="col-penawaran">
-                                    @if (!in_array($p->status, ['approved', 'rejected']))
-                                        @if (!in_array($p->status, ['approved', 'expired', 'rejected']))
+                                <td class="px-4 py-3.5" data-col="col-penawaran">
+                                    <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                                        @if (!in_array($p->status, ['approved', 'rejected', 'expired']))
                                             <form action="{{ route('penawaran.approve', $p->id) }}" method="POST"
-                                                onsubmit="return confirm('Approve penawaran ini dan buat data rental?')">
+                                                onsubmit="return confirm('Approve penawaran ini?')" class="inline">
                                                 @csrf
                                                 <button type="submit"
-                                                    class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs whitespace-nowrap">
-                                                    <i class="fa fa-check mr-1"></i> Approve
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
+                                                    <i class="fa fa-check text-xs"></i> Approve
                                                 </button>
                                             </form>
+                                            <form action="{{ route('penawaran.reject', $p->id) }}" method="POST"
+                                                onsubmit="return confirm('Tolak penawaran ini?')" class="inline">
+                                                @csrf
+                                                <button type="submit"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
+                                                    <i class="fa fa-times text-xs"></i> Reject
+                                                </button>
+                                            </form>
+                                        @else
+                                            <span class="text-xs text-gray-400">{{ ucfirst($p->status) }}</span>
                                         @endif
+                                    </div>
+                                </td>
 
-                                        <form action="{{ route('penawaran.reject', $p->id) }}" method="POST"
-                                            onsubmit="return confirm('Batalkan penawaran ini?')">
-                                            @csrf
-                                            <button class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                                                Reject
+                                <td class="px-4 py-3.5" data-col="col-aksi">
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        <button class="showBtn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                                            data-id="{{ $p->id }}">
+                                            <i class="fa fa-eye text-xs"></i>
+                                        </button>
+                                        <button class="editBtn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-colors"
+                                            data-id="{{ $p->id }}">
+                                            <i class="fa fa-edit text-xs"></i>
+                                        </button>
+                                        <form action="{{ route('penawaran.destroy', $p->id) }}" method="POST"
+                                            onsubmit="return confirm('Hapus data?')" class="inline">
+                                            @csrf @method('DELETE')
+                                            <button type="submit"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
+                                                <i class="fa fa-trash text-xs"></i>
                                             </button>
                                         </form>
-                                    @else
-                                        <span class="text-sm text-gray-500">
-                                            Sudah memiliki status <strong>{{ ucfirst($p->status) }}</strong>.
-                                        </span>
-                                    @endif
+                                    </div>
                                 </td>
-
-                                <td class="px-4 py-3" data-col="col-aksi">
-                                    <div class="flex justify-center gap-2 flex-wrap">
-                                        <div class="flex justify-center gap-2 flex-wrap">
-
-                                            <button class="showBtn bg-sky-500 hover:bg-sky-600 text-white px-3 py-1 rounded"
-                                                data-id="{{ $p->id }}" title="Lihat Detail">
-                                                <i class="fa fa-eye"></i>
-                                            </button>
-
-                                            <button
-                                                class="editBtn bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded"
-                                                data-id="{{ $p->id }}">
-                                                <i class="fa fa-edit"></i>
-                                            </button>
-
-                                            <form action="{{ route('penawaran.destroy', $p->id) }}" method="POST"
-                                                onsubmit="return confirm('Hapus data?')">
-                                                @csrf
-                                                @method('DELETE')
-
-                                                <button class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded">
-                                                    <i class="fa fa-trash"></i>
-                                                </button>
-                                            </form>
-
-                                        </div>
-                                </td>
-
                             </tr>
-
                         @empty
-
                             <tr>
-                                <td colspan="10" class="text-center py-10 text-gray-500">
-                                    Belum ada data.
+                                <td colspan="11" class="text-center py-12 text-gray-400 text-sm">
+                                    <i class="fa fa-inbox text-3xl mb-3 block text-gray-300"></i>
+                                    Belum ada data penawaran
                                 </td>
                             </tr>
-
                         @endforelse
                     </tbody>
                 </table>
-            </div>
-
-            {{-- PAGINATION --}}
-            <div class="py-4 border-t">{{ $penawarans->links() }}</div>
-
         </div>
-    </div>
+
+        {{-- PAGINATION --}}
+        <div class="py-3 border-t border-gray-100">{{ $penawarans->links() }}</div>
+
+        </div>{{-- end TABLE CARD --}}
+    </div>{{-- end space-y-6 --}}
 
     {{-- ========================= MODAL TAMBAH ========================= --}}
     <div id="modalTambah" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">

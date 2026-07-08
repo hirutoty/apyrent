@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Induk Proyek')
 @section('content')
 <div class="space-y-6">
@@ -60,13 +60,6 @@
                     class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
             </div>
         </div>
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select onchange="onPerPageChange(this.value)" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
-                <option value="5">5</option><option value="10" selected>10</option><option value="25">25</option><option value="all">All</option>
-            </select>
-            <span>entries</span>
-        </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
@@ -86,9 +79,8 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors"
-                        data-search="{{ strtolower($d->kode.' '.$d->nama_proyek.' '.$d->jenis.' '.$d->pic.' '.$d->status.' '.$d->lokasi) }}">
-                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $loop->iteration }}</td>
+                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600 font-semibold">{{ $d->kode }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->nama_proyek }}</td>
                         <td class="px-4 py-3.5 text-xs text-gray-600">
@@ -136,7 +128,7 @@
                 </tbody>
             </table>
         </div>
-        <div id="paginationInfo" class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400"></div>
+        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -310,20 +302,5 @@ function openEditModal(id) {
 }
 function closeEditModal() { document.getElementById('modalEdit').classList.replace('flex','hidden'); }
 
-let perPage = 10;
-function onSearchInput(val) { filterTable(val); }
-function onPerPageChange(val) { perPage = val === 'all' ? 99999 : parseInt(val); filterTable(document.querySelector('input[placeholder]').value); }
-function filterTable(search) {
-    const rows = Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
-    const q = search.toLowerCase();
-    let visible = 0;
-    rows.forEach(r => {
-        const match = r.dataset.search.includes(q);
-        r.style.display = (match && visible < perPage) ? '' : 'none';
-        if (match) visible++;
-    });
-    document.getElementById('paginationInfo').textContent = `Menampilkan ${Math.min(visible, perPage)} dari ${rows.filter(r=>r.dataset.search.includes(q)).length} data`;
-}
-filterTable('');
 </script>
 @endsection

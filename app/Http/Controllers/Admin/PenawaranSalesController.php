@@ -10,13 +10,24 @@ use Illuminate\Http\Request;
 
 class PenawaranSalesController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = PenawaranSales::latest()->get();
-        $total        = $data->count();
-        $totalDraft   = $data->where('status', 'Draft')->count();
-        $totalTerkirim = $data->where('status', 'Terkirim')->count();
-        $totalDisetujui = $data->where('status', 'Disetujui')->count();
+        $query = PenawaranSales::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('no_quotation', 'like', "%$q%")
+                   ->orWhere('pelanggan', 'like', "%$q%")
+                   ->orWhere('produk_jasa', 'like', "%$q%");
+            });
+        }
+
+        $data           = $query->paginate(15)->withQueryString();
+        $total          = PenawaranSales::count();
+        $totalDraft     = PenawaranSales::where('status', 'Draft')->count();
+        $totalTerkirim  = PenawaranSales::where('status', 'Terkirim')->count();
+        $totalDisetujui = PenawaranSales::where('status', 'Disetujui')->count();
 
         return view('admin.sales.penawaran.index', compact(
             'data', 'total', 'totalDraft', 'totalTerkirim', 'totalDisetujui'

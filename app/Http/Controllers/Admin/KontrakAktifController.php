@@ -10,13 +10,24 @@ use Illuminate\Http\Request;
 
 class KontrakAktifController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data          = KontrakAktif::latest()->get();
-        $total         = $data->count();
-        $totalAktif    = $data->where('status', 'Aktif')->count();
-        $totalSelesai  = $data->where('status', 'Selesai')->count();
-        $totalDraft    = $data->where('status', 'Draft')->count();
+        $query = KontrakAktif::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('kode_kontrak', 'like', "%$q%")
+                   ->orWhere('mitra', 'like', "%$q%")
+                   ->orWhere('pic', 'like', "%$q%");
+            });
+        }
+
+        $data         = $query->paginate(15)->withQueryString();
+        $total        = KontrakAktif::count();
+        $totalAktif   = KontrakAktif::where('status', 'Aktif')->count();
+        $totalSelesai = KontrakAktif::where('status', 'Selesai')->count();
+        $totalDraft   = KontrakAktif::where('status', 'Draft')->count();
 
         return view('admin.legal.kontrak_aktif.index', compact('data', 'total', 'totalAktif', 'totalSelesai', 'totalDraft'));
     }

@@ -4,88 +4,167 @@
     <meta charset="utf-8">
     <title>Daftar Penawaran Kendaraan</title>
     <style>
-        @page {
-            margin: 20px 25px 20px 25px;
-            size: A4 landscape;
-        }
+    @page {
+        margin: 20px 25px;
+        size: A4 landscape;
+    }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
 
-        body {
-            font-family: DejaVu Sans, sans-serif;
-            font-size: 9px;
-            color: #000;
-        }
+    body {
+        font-family: "Times New Roman", serif;
+        margin: 0;
+        padding: 0;
+        color: #000;
+        background: #fff;
+        font-size: 15px;
+        line-height: 1.5;
+    }
 
-        /* ── JUDUL ── */
-        .title {
-            text-align: center;
-            font-size: 13px;
-            font-weight: bold;
-            text-decoration: underline;
-            margin-bottom: 10px;
-            letter-spacing: 1px;
-        }
+    /* ===========================
+        JUDUL
+    ============================ */
 
-        /* ── TABEL ── */
-        .main-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+    .title {
+        text-align: center;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: underline;
+        margin-bottom: 10px;
+        letter-spacing: 1px;
+    }
 
-        /* Header baris 1 - background biru gelap */
-        .main-table thead tr.row-head-1 th {
-            background: #1e3a6e;
-            color: #fff;
-            border: 1px solid #000;
-            padding: 5px 4px;
-            text-align: center;
-            font-size: 9px;
-            font-weight: bold;
-            vertical-align: middle;
-        }
+    /* ===========================
+        TABEL
+    ============================ */
 
-        /* Sub-header rincian unit - background kuning */
-        .main-table thead tr.row-head-2 th {
-            background: #f5c518;
-            color: #000;
-            border: 1px solid #000;
-            padding: 4px;
-            text-align: center;
-            font-size: 9px;
-            font-weight: bold;
-        }
+    .main-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
 
-        .main-table td {
-            border: 1px solid #000;
-            padding: 4px 5px;
-            vertical-align: middle;
-            font-size: 9px;
-        }
+    .main-table th,
+    .main-table td {
+        border: 1px solid #000;
+    }
 
-        /* Row data biasa */
-        .row-data td {
-            background: #fff;
-        }
+    /* ===========================
+        HEADER
+    ============================ */
 
-        /* Kolom STATUS italic bold */
-        .status-cell {
-            font-style: italic;
-            font-weight: bold;
-            font-size: 8.5px;
-            text-align: center;
-        }
+    .main-table thead tr.row-head-1 th {
+        background: #AFC4DF;
+        color: #000;
+        padding: 5px 4px;
+        text-align: center;
+        font-size: 9px;
+        font-weight: bold;
+        vertical-align: middle;
+    }
 
-        .status-delivered { color: #1a5276; }
-        .status-progress  { color: #145a32; }
-        .status-pending   { color: #784212; }
-        .status-rejected  { color: #922b21; }
-        .status-expired   { color: #7b7d7d; }
+    .main-table thead tr.row-head-2 th {
+        background: #AFC4DF;
+        color: #000;
+        padding: 4px;
+        text-align: center;
+        font-size: 9px;
+        font-weight: bold;
+    }
 
-        .text-center { text-align: center; }
-        .text-right  { text-align: right; }
-        .font-bold   { font-weight: bold; }
-    </style>
+    /* ===========================
+        ISI TABEL
+    ============================ */
+
+    .main-table td {
+        padding: 4px 5px;
+        vertical-align: middle;
+        font-size: 9px;
+    }
+
+    /* No */
+    .main-table tbody td:nth-child(1) {
+        background: #FFFFFF;
+    }
+
+    /* Periode */
+    .main-table tbody td:nth-child(2) {
+        background: #F8E39A;
+    }
+
+    /* Tujuan Penawaran */
+    .main-table tbody td:nth-child(3) {
+        background: #EFE2D2;
+    }
+
+    /* Rincian Unit */
+    .main-table tbody td:nth-child(4),
+    .main-table tbody td:nth-child(5),
+    .main-table tbody td:nth-child(6),
+    .main-table tbody td:nth-child(7),
+    .main-table tbody td:nth-child(8),
+    .main-table tbody td:nth-child(9) {
+        background: #D6DCEC;
+    }
+
+    /* Harga */
+    .main-table tbody td:nth-child(10) {
+        background: #F6E2D6;
+    }
+
+    /* PIC */
+    .main-table tbody td:nth-child(11) {
+        background: #D6DCEC;
+    }
+
+    /* Status */
+    .main-table tbody td:nth-child(12) {
+        background: #D6DCEC;
+    }
+
+    /* ===========================
+        STATUS
+    ============================ */
+
+    .status-cell {
+        text-align: center;
+        font-style: italic;
+        font-weight: bold;
+        font-size: 8.5px;
+        color: #000;
+    }
+
+    .status-delivered,
+    .status-progress,
+    .status-pending,
+    .status-rejected,
+    .status-expired {
+        color: #000;
+    }
+
+    /* ===========================
+        UTILITAS
+    ============================ */
+
+    .row-data td {
+        background: transparent;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .text-right {
+        text-align: right;
+    }
+
+    .font-bold {
+        font-weight: bold;
+    }
+</style>
 </head>
 <body>
 

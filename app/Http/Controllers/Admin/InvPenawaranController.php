@@ -433,6 +433,6 @@ class InvPenawaranController
             'logoSrc'    => $logoSrc,
         ])->setPaper('a4', 'landscape');
 
-        return $pdf->download('Daftar-Penawaran-' . now()->format('Y-m-d') . '.pdf');
+        return $pdf->stream('Daftar-Penawaran-' . now()->format('Y-m-d') . '.pdf');
     }
 }

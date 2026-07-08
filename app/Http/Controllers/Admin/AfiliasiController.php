@@ -10,12 +10,23 @@ use Illuminate\Http\Request;
 
 class AfiliasiController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Afiliasi::latest()->get();
-        $total = $data->count();
-        $totalAktif = $data->where('status', 'Aktif')->count();
-        $totalNonaktif = $data->where('status', 'Nonaktif')->count();
+        $query = Afiliasi::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('id_program', 'like', "%$q%")
+                   ->orWhere('nama_program', 'like', "%$q%")
+                   ->orWhere('kode_referral', 'like', "%$q%");
+            });
+        }
+
+        $data          = $query->paginate(15)->withQueryString();
+        $total         = Afiliasi::count();
+        $totalAktif    = Afiliasi::where('status', 'Aktif')->count();
+        $totalNonaktif = Afiliasi::where('status', 'Nonaktif')->count();
 
         return view('admin.marketing.afiliasi.index', compact(
             'data', 'total', 'totalAktif', 'totalNonaktif'

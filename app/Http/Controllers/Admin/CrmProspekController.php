@@ -10,13 +10,25 @@ use Illuminate\Http\Request;
 
 class CrmProspekController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = CrmProspek::latest()->get();
-        $total = $data->count();
-        $totalProspek    = $data->where('tahapan', 'Prospek')->count();
-        $totalNegotiasi  = $data->where('tahapan', 'Negosiasi')->count();
-        $totalClosing    = $data->where('tahapan', 'Closing')->count();
+        $query = CrmProspek::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('kode_prospek', 'like', "%$q%")
+                   ->orWhere('nama_kontak', 'like', "%$q%")
+                   ->orWhere('perusahaan', 'like', "%$q%")
+                   ->orWhere('sales', 'like', "%$q%");
+            });
+        }
+
+        $data  = $query->paginate(15)->withQueryString();
+        $total          = CrmProspek::count();
+        $totalProspek   = CrmProspek::where('tahapan', 'Prospek')->count();
+        $totalNegotiasi = CrmProspek::where('tahapan', 'Negosiasi')->count();
+        $totalClosing   = CrmProspek::where('tahapan', 'Closing')->count();
 
         return view('admin.sales.crm_prospek.index', compact(
             'data', 'total', 'totalProspek', 'totalNegotiasi', 'totalClosing'

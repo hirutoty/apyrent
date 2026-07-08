@@ -10,13 +10,23 @@ use Illuminate\Http\Request;
 
 class TargetPenjualanController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data  = TargetPenjualan::latest()->get();
-        $total = $data->count();
-        $totalTarget    = $data->sum('target_penjualan');
-        $totalPencapaian = $data->sum('pencapaian');
-        $persentase = $totalTarget > 0 ? round(($totalPencapaian / $totalTarget) * 100, 1) : 0;
+        $query = TargetPenjualan::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('nama_sales', 'like', "%$q%")
+                   ->orWhere('bulan', 'like', "%$q%");
+            });
+        }
+
+        $data            = $query->paginate(15)->withQueryString();
+        $total           = TargetPenjualan::count();
+        $totalTarget     = TargetPenjualan::sum('target_penjualan');
+        $totalPencapaian = TargetPenjualan::sum('pencapaian');
+        $persentase      = $totalTarget > 0 ? round(($totalPencapaian / $totalTarget) * 100, 1) : 0;
 
         return view('admin.sales.target_penjualan.index', compact(
             'data', 'total', 'totalTarget', 'totalPencapaian', 'persentase'

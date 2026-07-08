@@ -10,13 +10,24 @@ use Illuminate\Http\Request;
 
 class KampanyeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Kampanye::latest()->get();
-        $total = $data->count();
-        $totalAktif = $data->where('status', 'Aktif')->count();
-        $totalSelesai = $data->where('status', 'Selesai')->count();
-        $totalDijadwalkan = $data->where('status', 'Dijadwalkan')->count();
+        $query = Kampanye::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('id_kampanye', 'like', "%$q%")
+                   ->orWhere('nama_kampanye', 'like', "%$q%")
+                   ->orWhere('channel', 'like', "%$q%");
+            });
+        }
+
+        $data             = $query->paginate(15)->withQueryString();
+        $total            = Kampanye::count();
+        $totalAktif       = Kampanye::where('status', 'Aktif')->count();
+        $totalSelesai     = Kampanye::where('status', 'Selesai')->count();
+        $totalDijadwalkan = Kampanye::where('status', 'Dijadwalkan')->count();
 
         return view('admin.marketing.kampanye.index', compact(
             'data', 'total', 'totalAktif', 'totalSelesai', 'totalDijadwalkan'

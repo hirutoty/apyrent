@@ -10,13 +10,24 @@ use Illuminate\Http\Request;
 
 class TrackingutmController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Trackingutm::latest()->get();
-        $total = $data->count();
-        $totalAktif = $data->where('status', 'Aktif')->count();
-        $totalKlik = $data->sum('total_klik');
-        $totalKonversi = $data->sum('total_konversi');
+        $query = Trackingutm::latest();
+
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('kode_tracking', 'like', "%$q%")
+                   ->orWhere('utm_source', 'like', "%$q%")
+                   ->orWhere('utm_campaign', 'like', "%$q%");
+            });
+        }
+
+        $data          = $query->paginate(15)->withQueryString();
+        $total         = Trackingutm::count();
+        $totalAktif    = Trackingutm::where('status', 'Aktif')->count();
+        $totalKlik     = Trackingutm::sum('total_klik');
+        $totalKonversi = Trackingutm::sum('total_konversi');
 
         return view('admin.marketing.trackingutm.index', compact(
             'data', 'total', 'totalAktif', 'totalKlik', 'totalKonversi'
