@@ -250,7 +250,7 @@
                 <tr>
 
                     <td class="text-center">
-                        {{ $loop->iteration }}
+                        {{ $data->firstItem() + $loop->index }}
                     </td>
 
                     <td>

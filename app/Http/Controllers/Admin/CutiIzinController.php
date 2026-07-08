@@ -10,12 +10,12 @@ class CutiIzinController extends Controller
 {
     public function index()
     {
-        $data = CutiIzin::latest()->get();
+        $data = CutiIzin::latest()->paginate(15)->withQueryString();
 
-        $totalPengajuan = $data->count();
-        $totalDisetujui = $data->where('status', 'Disetujui')->count();
-        $totalPending   = $data->where('status', 'Pending')->count();
-        $totalDitolak   = $data->where('status', 'Ditolak')->count();
+        $totalPengajuan = CutiIzin::count();
+        $totalDisetujui = CutiIzin::where('status', 'Disetujui')->count();
+        $totalPending   = CutiIzin::where('status', 'Pending')->count();
+        $totalDitolak   = CutiIzin::where('status', 'Ditolak')->count();
 
         return view('admin.hrd.cuti.index', compact(
             'data', 'totalPengajuan', 'totalDisetujui', 'totalPending', 'totalDitolak'

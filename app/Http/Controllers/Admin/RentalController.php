@@ -40,7 +40,7 @@ class RentalController extends Controller
             $query->where('status', $request->status);
         }
 
-        $rentals = $query->latest()->get();
+        $rentals = $query->latest()->paginate(15)->withQueryString();
 
         $setting = Setting::first();
         // Base64 logo untuk DomPDF
@@ -60,7 +60,7 @@ class RentalController extends Controller
             default  => $setting->batas_reminder ?? 0,
         };
 
-        foreach ($rentals as $r) {
+        foreach ($rentals->getCollection() as $r) {
 
             $r->reminder = false;
             $r->terlambat = false;

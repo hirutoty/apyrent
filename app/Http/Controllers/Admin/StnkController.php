@@ -13,7 +13,7 @@ class StnkController extends Controller
 {
     public function index()
     {
-        $data = Stnk::with('kendaraan')->latest()->get();
+        $data = Stnk::with('kendaraan')->latest()->paginate(15)->withQueryString();
         $kendaraan = Kendaraan::all();
 
         return view('admin.stnk.index', compact('data', 'kendaraan'));

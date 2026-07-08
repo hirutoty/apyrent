@@ -289,6 +289,7 @@
                 </tbody>
 
             </table>
+            <div class="py-3 border-t border-gray-100">{{ $kontraks->links() }}</div>
 
             {{-- ================= MODAL CREATE KONTRAK ================= --}}
             <div id="modalCreate" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">

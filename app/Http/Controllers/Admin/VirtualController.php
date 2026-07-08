@@ -27,7 +27,7 @@ class VirtualController extends Controller
                 ->orWhere('status', 'like', "%$search%");
         }
 
-        $data = $query->latest()->get();
+        $data = $query->latest()->paginate(15)->withQueryString();
         $members = Member::all();
         $invoices = Invoice::select('id', 'invoice_no', 'customer_name')->latest()->get();
 

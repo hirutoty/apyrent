@@ -16,7 +16,7 @@ class EfakturController extends Controller
   {
       $statusMap = ['draft' => 'Pending'];
   
-      $data = Efaktur::latest()->get()->map(function ($item) use ($statusMap) {
+      $data = Efaktur::latest()->paginate(13)->withQueryString()->through(function ($item) use ($statusMap) {
           $item->status = $statusMap[$item->status] ?? $item->status;
           return $item;
       });

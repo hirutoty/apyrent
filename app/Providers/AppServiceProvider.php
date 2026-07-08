@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
+use Illuminate\Pagination\Paginator;
 use App\Models\Kendaraan;
 use App\Models\ServiceHistory;
 use App\Models\Setting;
@@ -19,6 +20,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
 {
+    Paginator::defaultView('vendor.pagination.custom-purple');
+
     View::composer('*', function ($view) {
 
     $warningIds = [];

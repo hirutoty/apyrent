@@ -17,7 +17,7 @@ class AgingArController extends Controller
     // =====================
     public function index()
     {
-        $data = AgingAr::with(['member', 'invoice'])->latest()->get();
+        $data = AgingAr::with(['member', 'invoice'])->latest()->paginate(15)->withQueryString();
         $setting = Setting::first();
 
         $batasReminder = $setting?->batas_reminder ?? 7;

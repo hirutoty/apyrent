@@ -258,7 +258,7 @@
                                 data-bulan="{{ $d->masa_berlaku ? \Carbon\Carbon::parse($d->masa_berlaku)->format('Y-m-d') : '' }}">
 
                                 {{-- No --}}
-                                <td class="px-4 py-3.5 text-gray-400 row-number">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-gray-400 row-number">{{ $data->firstItem() + $loop->index }}</td>
 
                                 {{-- Kendaraan --}}
                                 <td class="px-4 py-3.5">
@@ -393,9 +393,8 @@
             </div>
 
             {{-- FOOTER: SHOWING INFO + PAGINATION --}}
-            <div id="tableFooter" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50/50">
-                <p id="showingInfo" class="text-xs text-gray-500"></p>
-                <div id="paginationControls" class="flex items-center gap-1"></div>
+            <div id="tableFooter" class="border-t border-gray-100 bg-gray-50/50">
+                <div class="py-3">{{ $data->links() }}</div>
             </div>
 
         </div>

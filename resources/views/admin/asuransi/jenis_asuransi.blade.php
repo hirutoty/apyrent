@@ -60,7 +60,7 @@
                             data-search="{{ strtolower($d->nama_jenis . ' ' . $d->keterangan) }}">
                             
                             {{-- No --}}
-                            <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
 
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center gap-2">
@@ -110,6 +110,7 @@
                     @endforelse
                 </tbody>
             </table>
+            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
         </div>
 
     </div>

@@ -10,13 +10,13 @@ class PresensiController extends Controller
 {
     public function index()
     {
-        $data = Presensi::latest()->get();
+        $data = Presensi::latest()->paginate(15)->withQueryString();
 
-        $totalPresensi  = $data->count();
-        $totalHadir     = $data->where('status', 'Hadir')->count();
-        $totalAlpa      = $data->where('status', 'Alpa')->count();
-        $totalIzin      = $data->where('status', 'Izin')->count();
-        $totalTerlambat = $data->where('status', 'Terlambat')->count();
+        $totalPresensi  = Presensi::count();
+        $totalHadir     = Presensi::where('status', 'Hadir')->count();
+        $totalAlpa      = Presensi::where('status', 'Alpa')->count();
+        $totalIzin      = Presensi::where('status', 'Izin')->count();
+        $totalTerlambat = Presensi::where('status', 'Terlambat')->count();
 
         return view('admin.hrd.presensi.index', compact(
             'data', 'totalPresensi', 'totalHadir', 'totalAlpa', 'totalIzin', 'totalTerlambat'

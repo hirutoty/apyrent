@@ -13,7 +13,7 @@ class SupplierController extends Controller
 {
     public function index()
     {
-        $data = Supplier::with('user')->latest()->get();
+        $data = Supplier::with('user')->latest()->paginate(15)->withQueryString();
 
         return view('admin.supplier.index', compact('data'));
     }

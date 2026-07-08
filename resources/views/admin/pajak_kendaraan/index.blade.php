@@ -249,7 +249,7 @@
                                 data-status="{{ $item->status }}"
                                 data-jatuh-tempo="{{ $item->jatuh_tempo ? \Carbon\Carbon::parse($item->jatuh_tempo)->format('Y-m-d') : '' }}">
 
-                                <td class="px-4 py-3.5 text-sm text-gray-500">{{ $loop->iteration }}</td>
+                                <td class="px-4 py-3.5 text-sm text-gray-500">{{ $data->firstItem() + $loop->index }}</td>
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-2">
@@ -433,6 +433,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
             </div>
 
             {{-- Entries info bottom --}}

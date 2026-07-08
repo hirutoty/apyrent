@@ -249,7 +249,7 @@
         </div>
 
         {{-- PAGINATION --}}
-        <div class="px-5 py-3 border-t border-gray-100">
+        <div class="py-3 border-t border-gray-100">
             {{ $payments->links() }}
         </div>
 

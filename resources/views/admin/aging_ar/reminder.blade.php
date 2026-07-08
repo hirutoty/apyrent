@@ -55,7 +55,7 @@
                             <tr class="hover:bg-slate-50">
 
                                 <td class="px-5 py-4">
-                                    {{ $loop->iteration }}
+                                    {{ $data->firstItem() + $loop->index }}
                                 </td>
 
                                 <td class="px-5 py-4 font-semibold text-slate-800">

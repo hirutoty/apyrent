@@ -10,12 +10,12 @@ class ShiftLemburController extends Controller
 {
     public function index()
     {
-        $data = ShiftLembur::latest()->get();
+        $data = ShiftLembur::latest()->paginate(15)->withQueryString();
 
-        $totalShift   = $data->count();
-        $totalLembur  = $data->whereNotNull('jam_lembur')->where('jam_lembur', '!=', '')->count();
-        $totalPegawai = $data->pluck('nama_pegawai')->unique()->count();
-        $shiftStats   = $data->groupBy('shift')->map->count();
+        $totalShift   = ShiftLembur::count();
+        $totalLembur  = ShiftLembur::whereNotNull('jam_lembur')->where('jam_lembur', '!=', '')->count();
+        $totalPegawai = ShiftLembur::distinct('nama_pegawai')->count('nama_pegawai');
+        $shiftStats   = ShiftLembur::selectRaw('shift, count(*) as total')->groupBy('shift')->pluck('total', 'shift');
 
         return view('admin.hrd.shift.index', compact(
             'data', 'totalShift', 'totalLembur', 'totalPegawai', 'shiftStats'

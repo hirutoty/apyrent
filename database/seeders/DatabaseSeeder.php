@@ -59,6 +59,15 @@ class DatabaseSeeder extends Seeder
             ProcurementoSeeder::class,
             PurchaseroSeeder::class,
             VendoreoSeeder::class,
+            // Purchase
+            RequestforQuotationSeeder::class,
+            PurchaseOrderSeeder::class,
+            VendorPricelistSeeder::class,
+            ApprovalWorkflowSeeder::class,
+            DropshippingSeeder::class,
+            VendorPerformanceSeeder::class,
+            // IT Technology
+            ItTechnologySeeder::class,
         ]);
     }
 }

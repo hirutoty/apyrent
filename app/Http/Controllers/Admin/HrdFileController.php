@@ -11,12 +11,12 @@ class HrdFileController extends Controller
 {
     public function index()
     {
-        $data = HrdFile::latest()->get();
+        $data = HrdFile::latest()->paginate(15)->withQueryString();
 
-        $totalFile     = $data->count();
-        $totalPegawai  = $data->pluck('nama_pegawai')->unique()->count();
-        $jenisStats    = $data->groupBy('jenis_dokumen')->map->count();
-        $totalJenisDok = $jenisStats->count();
+        $totalFile     = HrdFile::count();
+        $totalPegawai  = HrdFile::distinct('nama_pegawai')->count('nama_pegawai');
+        $jenisStats    = HrdFile::selectRaw('jenis_dokumen, count(*) as total')->groupBy('jenis_dokumen')->pluck('total', 'jenis_dokumen');
+        $totalJenisDok = HrdFile::distinct('jenis_dokumen')->count('jenis_dokumen');
 
         return view('admin.hrd.file.index', compact(
             'data', 'totalFile', 'totalPegawai', 'totalJenisDok', 'jenisStats'

@@ -17,7 +17,7 @@ class PajakController extends Controller
 {
     public function index()
     {
-        $data = PajakKendaraan::with(['kendaraan', 'attachments'])->latest()->get();
+        $data = PajakKendaraan::with(['kendaraan', 'attachments'])->latest()->paginate(15)->withQueryString();
         $kendaraan = Kendaraan::all();
         $setting = Setting::first();
         // Base64 logo untuk DomPDF

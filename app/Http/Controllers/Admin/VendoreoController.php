@@ -10,13 +10,13 @@ class VendoreoController extends Controller
 {
     public function index()
     {
-        $data = Vendoreo::latest()->get();
+        $data = Vendoreo::latest()->paginate(15)->withQueryString();
 
-        $statusStats = $data->groupBy('status')->map->count();
+        $statusStats = Vendoreo::selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
 
-        $totalVendor    = $data->count();
-        $totalAktif     = $data->where('status', 'Aktif')->count();
-        $totalNonaktif  = $data->where('status', 'Tidak Aktif')->count();
+        $totalVendor    = Vendoreo::count();
+        $totalAktif     = Vendoreo::where('status', 'Aktif')->count();
+        $totalNonaktif  = Vendoreo::where('status', 'Tidak Aktif')->count();
 
         return view('admin.vendoreo.index', compact(
             'data', 'statusStats',

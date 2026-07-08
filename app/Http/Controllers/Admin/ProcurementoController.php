@@ -10,14 +10,14 @@ class ProcurementoController extends Controller
 {
     public function index()
     {
-        $data = Procuremento::latest()->get();
+        $data = Procuremento::latest()->paginate(15)->withQueryString();
 
-        $statusStats = $data->groupBy('status')->map->count();
-        $picStats    = $data->groupBy('pic')->map->count();
+        $statusStats = Procuremento::selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+        $picStats    = Procuremento::selectRaw('pic, count(*) as total')->groupBy('pic')->pluck('total', 'pic');
 
-        $totalWorkflow = $data->count();
-        $totalAktif    = $data->where('status', 'Aktif')->count();
-        $totalNonaktif = $data->where('status', 'Nonaktif')->count();
+        $totalWorkflow = Procuremento::count();
+        $totalAktif    = Procuremento::where('status', 'Aktif')->count();
+        $totalNonaktif = Procuremento::where('status', 'Nonaktif')->count();
 
         return view('admin.procuremento.index', compact(
             'data', 'statusStats', 'picStats',
