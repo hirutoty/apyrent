@@ -367,20 +367,63 @@ class InvoicesController extends Controller
         $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'penawaran', 'kontrak'])->findOrFail($id);
         $setting = Setting::first();
 
+        // Hitung grand total dari remaks
+        $grandTotal = 0;
+        foreach ($invoice->periodes as $periode) {
+            foreach ($periode->remaks as $item) {
+                $grandTotal += $item->subtotal ?? ($item->qty * ($item->price ?? 0));
+            }
+        }
+
+        // Tambahkan ppn - pph (nominal)
+        $grandTotal = $grandTotal + floatval($invoice->ppn ?? 0) - floatval($invoice->pph ?? 0);
+
+        $terbilang = ucwords(trim($this->penyebut((int) $grandTotal))) . ' Rupiah';
+
         $images = $this->resolveImageBase64($invoice, $setting);
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.invoice.print', array_merge([
-            'invoice' => $invoice,
-            'setting' => $setting,
-        ], $images))->setPaper('a4', 'portrait');
-
-        $filename = 'Invoice-' . $invoice->invoice_no . '.pdf';
-
-        return response($pdf->output(), 200, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . $filename . '"',
-            'Cache-Control'       => 'no-cache, no-store, must-revalidate',
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.invoice.print', [
+            'invoice'        => $invoice,
+            'setting'        => $setting,
+            'grand_total'    => $grandTotal,
+            'terbilang'      => $terbilang,
+            'ttdStaffSrc'    => $images['ttdStaffSrc'],
+            'ttdDirekturSrc' => $images['ttdDirekturSrc'],
+            'logoSrc'        => $images['logoSrc'],
+        ])
+        ->setPaper('a4', 'portrait')
+        ->setOptions([
+            'dpi'                  => 96,
+            'isHtml5ParserEnabled' => true,
+            'defaultFont'          => 'Times New Roman',
+            'isPhpEnabled'         => true,
+            'margin_top'           => 0,
+            'margin_bottom'        => 0,
+            'margin_left'          => 0,
+            'margin_right'         => 0,
+            'isRemoteEnabled'      => true,
         ]);
+
+        return $pdf->stream('Invoice-' . $invoice->invoice_no . '.pdf');
+    }
+
+    /**
+     * Helper terbilang.
+     */
+    private function penyebut(int $n): string
+    {
+        $n = abs($n);
+        $h = ['','Satu','Dua','Tiga','Empat','Lima','Enam','Tujuh','Delapan','Sembilan','Sepuluh','Sebelas'];
+        if ($n < 12)                return ' ' . $h[$n];
+        elseif ($n < 20)            return $this->penyebut($n - 10) . ' Belas';
+        elseif ($n < 100)           return $this->penyebut(intdiv($n, 10)) . ' Puluh' . $this->penyebut($n % 10);
+        elseif ($n < 200)           return ' Seratus' . $this->penyebut($n - 100);
+        elseif ($n < 1000)          return $this->penyebut(intdiv($n, 100)) . ' Ratus' . $this->penyebut($n % 100);
+        elseif ($n < 2000)          return ' Seribu' . $this->penyebut($n - 1000);
+        elseif ($n < 1000000)       return $this->penyebut(intdiv($n, 1000)) . ' Ribu' . $this->penyebut($n % 1000);
+        elseif ($n < 1000000000)    return $this->penyebut(intdiv($n, 1000000)) . ' Juta' . $this->penyebut($n % 1000000);
+        elseif ($n < 1000000000000) return $this->penyebut(intdiv($n, 1000000000)) . ' Miliar' . $this->penyebut($n % 1000000000);
+        return '';
     }
 
     public function sendEmail($id)
