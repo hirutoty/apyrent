@@ -154,10 +154,28 @@
                                 </td>
                                 <td class="px-4 py-3" data-col="col-tanggal">{{ optional($inv->invoice_date)->format('d-m-Y') }}</td>
                                 <td class="px-4 py-3" data-col="col-customer">{{ $inv->customer_name }}</td>
-                                <td class="px-4 py-3" data-col="col-penawaran">{{ optional($inv->penawaran)->no_penawaran ?? '-' }}</td>
-                                <td class="px-4 py-3" data-col="col-kontrak">{{ optional($inv->kontrak)->no_kontrak ?? '-' }}</td>
+                                <td class="px-4 py-3" data-col="col-penawaran">
+                                    @if($inv->penawarans->count())
+                                        {{ $inv->penawarans->pluck('no_penawaran')->implode(', ') }}
+                                    @elseif($inv->penawaran)
+                                        {{ $inv->penawaran->no_penawaran }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3" data-col="col-kontrak">
+                                    @if($inv->kontraks->count())
+                                        {{ $inv->kontraks->map(fn($k) => $k->no_kontrak ?? '#'.$k->id)->implode(', ') }}
+                                    @elseif($inv->kontrak)
+                                        {{ $inv->kontrak->no_kontrak ?? '-' }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3" data-col="col-kendaraan">
-                                    @if ($inv->kendaraan)
+                                    @if($inv->kendaraans->count())
+                                        {{ $inv->kendaraans->map(fn($k) => $k->merk . ' ' . $k->nopol)->implode(', ') }}
+                                    @elseif($inv->kendaraan)
                                         {{ $inv->kendaraan->merk }} - {{ $inv->kendaraan->nopol }}
                                     @else
                                         -
@@ -278,19 +296,32 @@
     {{-- ========================= MODAL TAMBAH ========================= --}}
     <div id="modalTambah" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
         <div class="bg-white rounded-2xl shadow-xl w-[95%] max-w-3xl max-h-[95vh] overflow-y-auto">
-            <form action="{{ route('invoices.store') }}" method="POST" enctype="multipart/form-data">
-                @csrf
 
-                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                    <div>
-                        <h2 class="text-base font-bold text-gray-800">Tambah Invoice</h2>
-                        <p class="text-xs text-gray-400 mt-0.5">Isi data invoice dengan lengkap</p>
-                    </div>
-                    <button type="button" id="closeTambah"
-                        class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50">
-                        <i class="fa fa-times"></i>
+            {{-- TAB HEADER --}}
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div class="flex gap-0">
+                    <button type="button" id="tambah_tab1_btn"
+                        onclick="switchTambahTab(1)"
+                        class="px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tl-lg">
+                        <i class="fa fa-file-alt mr-1"></i> Data Invoice
+                    </button>
+                    <button type="button" id="tambah_tab2_btn"
+                        onclick="switchTambahTab(2)"
+                        class="px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg"
+                        disabled>
+                        <i class="fa fa-calendar-alt mr-1"></i> Periode & Remaks
                     </button>
                 </div>
+                <button type="button" id="closeTambah"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+
+            {{-- TAB 1: DATA INVOICE --}}
+            <div id="tambah_tab1_content">
+            <form id="formTambah" action="{{ route('invoices.store') }}" method="POST" enctype="multipart/form-data">
+                @csrf
 
                 <div class="px-6 py-5 space-y-6">
 
@@ -354,40 +385,72 @@
                                 <span class="text-blue-600 text-[10px] font-bold">2</span>
                             </div>
                             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Relasi dokumen</h3>
-                            <span class="text-xs text-gray-400">(opsional)</span>
+                            <span class="text-xs text-gray-400">(opsional, bisa lebih dari satu)</span>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Penawaran</label>
-                                <select name="penawaran_id"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
-                                    @foreach ($penawarans as $p)
-                                        <option value="{{ $p->id }}">{{ $p->no_penawaran }} –
-                                            {{ $p->customer_name }}</option>
-                                    @endforeach
-                                </select>
+
+                        {{-- Penawaran rows --}}
+                        <div class="mb-3">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-semibold text-gray-600">Penawaran</label>
+                                <button type="button" onclick="addRelRow('tambah','penawaran')"
+                                    class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                    <i class="fa fa-plus text-[10px]"></i> Tambah
+                                </button>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontrak</label>
-                                <select name="kontrak_id"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
-                                    @foreach ($kontraks as $k)
-                                        <option value="{{ $k->id }}">{{ $k->no_kontrak ?? '#' . $k->id }}</option>
-                                    @endforeach
-                                </select>
+                            <div id="tambah_penawaran_rows" class="space-y-2">
+                                <div class="flex gap-2 items-center rel-row">
+                                    <select name="penawaran_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">— Tidak ada —</option>
+                                        @foreach ($penawarans as $p)
+                                            <option value="{{ $p->id }}">{{ $p->no_penawaran }} – {{ $p->customer_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
+                                </div>
                             </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan</label>
-                                <select name="kendaraan_id"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
-                                    @foreach ($kendaraans as $kd)
-                                        <option value="{{ $kd->id }}">{{ $kd->merk }} – {{ $kd->nopol }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                        </div>
+
+                        {{-- Kontrak rows --}}
+                        <div class="mb-3">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-semibold text-gray-600">Kontrak</label>
+                                <button type="button" onclick="addRelRow('tambah','kontrak')"
+                                    class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                    <i class="fa fa-plus text-[10px]"></i> Tambah
+                                </button>
+                            </div>
+                            <div id="tambah_kontrak_rows" class="space-y-2">
+                                <div class="flex gap-2 items-center rel-row">
+                                    <select name="kontrak_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">— Tidak ada —</option>
+                                        @foreach ($kontraks as $k)
+                                            <option value="{{ $k->id }}">{{ $k->no_kontrak ?? '#' . $k->id }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Kendaraan rows --}}
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-semibold text-gray-600">Kendaraan</label>
+                                <button type="button" onclick="addRelRow('tambah','kendaraan')"
+                                    class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                    <i class="fa fa-plus text-[10px]"></i> Tambah
+                                </button>
+                            </div>
+                            <div id="tambah_kendaraan_rows" class="space-y-2">
+                                <div class="flex gap-2 items-center rel-row">
+                                    <select name="kendaraan_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">— Tidak ada —</option>
+                                        @foreach ($kendaraans as $kd)
+                                            <option value="{{ $kd->id }}">{{ $kd->merk }} – {{ $kd->nopol }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -508,7 +571,7 @@
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
                                 {{-- TTD Staff: hidden input path + UI tab --}}
-                                <input type="hidden" name="ttd_staff_path" id="tambah_ttd_staff_path">
+                                <input type="hidden" name="ttd_staff_path" id="tambah_staff_path">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan Staff</label>
                                     @include('admin.invoice._ttd_picker', ['uid' => 'tambah_staff', 'field' => 'ttd_staff'])
@@ -545,7 +608,7 @@
                                     <input type="text" name="name_direktur" placeholder="Nama lengkap"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
-                                <input type="hidden" name="ttd_direktur_path" id="tambah_ttd_direktur_path">
+                                <input type="hidden" name="ttd_direktur_path" id="tambah_direktur_path">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan Direktur</label>
                                     @include('admin.invoice._ttd_picker', ['uid' => 'tambah_direktur', 'field' => 'ttd_direktur'])
@@ -562,12 +625,49 @@
                         class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
                         Batal
                     </button>
-                    <button type="submit"
+                    <button type="submit" id="btnSimpanTambah"
                         class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
-                        <i class="fa fa-save text-sm"></i> Simpan Invoice
+                        <i class="fa fa-save text-sm"></i> Simpan & Lanjut ke Periode
                     </button>
                 </div>
             </form>
+            </div>{{-- end tab1 --}}
+
+            {{-- TAB 2: PERIODE & REMAKS --}}
+            <div id="tambah_tab2_content" class="hidden">
+                <div class="px-6 py-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-800">Periode & Remaks</h3>
+                            <p class="text-xs text-gray-400 mt-0.5">Invoice: <span id="tambah_invoice_no_label" class="font-semibold text-blue-600">-</span></p>
+                        </div>
+                        <button type="button" id="btnTambahPeriodeTambah"
+                            class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+                            <i class="fa fa-plus"></i> Tambah Periode
+                        </button>
+                    </div>
+                    <div id="periodeListTambah" class="divide-y border rounded-xl min-h-[120px]">
+                        <div class="py-10 text-center text-gray-400 text-xs">
+                            <i class="fa fa-calendar-alt text-2xl mb-2 block"></i>
+                            Belum ada periode. Klik "Tambah Periode" untuk memulai.
+                        </div>
+                    </div>
+                    {{-- Summary --}}
+                    <div class="mt-4 flex justify-end">
+                        <table class="text-sm">
+                            <tr><td class="text-gray-500 pr-8 py-1">Total</td><td class="text-right font-semibold text-gray-800 min-w-[130px]" id="tambahSummaryTotal">Rp 0</td></tr>
+                            <tr><td class="text-gray-500 pr-8 py-1">Grand Total</td><td class="text-right font-bold text-blue-700" id="tambahSummaryGrand">Rp 0</td></tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="border-t border-gray-100 px-6 py-4 flex justify-end">
+                    <button type="button" id="btnSelesaiTambah"
+                        class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
+                        <i class="fa fa-check"></i> Selesai
+                    </button>
+                </div>
+            </div>{{-- end tab2 --}}
+
         </div>
     </div>
 
@@ -862,40 +962,72 @@
                                 <span class="text-blue-600 text-[10px] font-bold">2</span>
                             </div>
                             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Relasi dokumen</h3>
-                            <span class="text-xs text-gray-400">(opsional)</span>
+                            <span class="text-xs text-gray-400">(opsional, bisa lebih dari satu)</span>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Penawaran</label>
-                                <select id="edit_penawaran_id" name="penawaran_id"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
-                                    @foreach ($penawarans as $p)
-                                        <option value="{{ $p->id }}">{{ $p->no_penawaran }} –
-                                            {{ $p->customer_name }}</option>
-                                    @endforeach
-                                </select>
+
+                        {{-- Penawaran rows --}}
+                        <div class="mb-3">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-semibold text-gray-600">Penawaran</label>
+                                <button type="button" onclick="addRelRow('edit','penawaran')"
+                                    class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                    <i class="fa fa-plus text-[10px]"></i> Tambah
+                                </button>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontrak</label>
-                                <select id="edit_kontrak_id" name="kontrak_id"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
-                                    @foreach ($kontraks as $k)
-                                        <option value="{{ $k->id }}">{{ $k->no_kontrak ?? '#' . $k->id }}</option>
-                                    @endforeach
-                                </select>
+                            <div id="edit_penawaran_rows" class="space-y-2">
+                                <div class="flex gap-2 items-center rel-row">
+                                    <select name="penawaran_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">— Tidak ada —</option>
+                                        @foreach ($penawarans as $p)
+                                            <option value="{{ $p->id }}">{{ $p->no_penawaran }} – {{ $p->customer_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
+                                </div>
                             </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan</label>
-                                <select id="edit_kendaraan_id" name="kendaraan_id"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
-                                    @foreach ($kendaraans as $kd)
-                                        <option value="{{ $kd->id }}">{{ $kd->merk }} – {{ $kd->nopol }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                        </div>
+
+                        {{-- Kontrak rows --}}
+                        <div class="mb-3">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-semibold text-gray-600">Kontrak</label>
+                                <button type="button" onclick="addRelRow('edit','kontrak')"
+                                    class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                    <i class="fa fa-plus text-[10px]"></i> Tambah
+                                </button>
+                            </div>
+                            <div id="edit_kontrak_rows" class="space-y-2">
+                                <div class="flex gap-2 items-center rel-row">
+                                    <select name="kontrak_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">— Tidak ada —</option>
+                                        @foreach ($kontraks as $k)
+                                            <option value="{{ $k->id }}">{{ $k->no_kontrak ?? '#' . $k->id }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Kendaraan rows --}}
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-semibold text-gray-600">Kendaraan</label>
+                                <button type="button" onclick="addRelRow('edit','kendaraan')"
+                                    class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                    <i class="fa fa-plus text-[10px]"></i> Tambah
+                                </button>
+                            </div>
+                            <div id="edit_kendaraan_rows" class="space-y-2">
+                                <div class="flex gap-2 items-center rel-row">
+                                    <select name="kendaraan_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">— Tidak ada —</option>
+                                        @foreach ($kendaraans as $kd)
+                                            <option value="{{ $kd->id }}">{{ $kd->merk }} – {{ $kd->nopol }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1014,7 +1146,7 @@
                                     <input id="edit_name_staff" type="text" name="name_staff"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
-                                <input type="hidden" name="ttd_staff_path" id="edit_ttd_staff_path">
+                                <input type="hidden" name="ttd_staff_path" id="edit_staff_path">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan Staff</label>
                                     @include('admin.invoice._ttd_picker', ['uid' => 'edit_staff', 'field' => 'ttd_staff'])
@@ -1050,7 +1182,7 @@
                                     <input id="edit_name_direktur" type="text" name="name_direktur"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
-                                <input type="hidden" name="ttd_direktur_path" id="edit_ttd_direktur_path">
+                                <input type="hidden" name="ttd_direktur_path" id="edit_direktur_path">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanda Tangan Direktur</label>
                                     @include('admin.invoice._ttd_picker', ['uid' => 'edit_direktur', 'field' => 'ttd_direktur'])
@@ -1072,6 +1204,60 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    {{-- ===== MODAL TAMBAH PERIODE (Tab 2) ===== --}}
+    <div id="modalTambahPeriode" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <h3 class="text-sm font-bold text-gray-800">Tambah Periode</h3>
+                <button type="button" id="closeTambahPeriode" class="text-gray-400 hover:text-red-500"><i class="fa fa-times"></i></button>
+            </div>
+            <div class="px-6 py-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Awal <span class="text-red-500">*</span></label>
+                    <input type="date" id="tambahPeriodeAwal" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Akhir</label>
+                    <input type="date" id="tambahPeriodeAkhir" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+            </div>
+            <div class="border-t px-6 py-4 flex justify-end gap-2">
+                <button type="button" id="closeTambahPeriode2" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>
+                <button type="button" id="saveTambahPeriode" class="px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===== MODAL TAMBAH REMAK (Tab 2) ===== --}}
+    <div id="modalTambahRemak" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <h3 class="text-sm font-bold text-gray-800">Tambah Remaks</h3>
+                <button type="button" id="closeTambahRemak" class="text-gray-400 hover:text-red-500"><i class="fa fa-times"></i></button>
+            </div>
+            <div class="px-6 py-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan <span class="text-red-500">*</span></label>
+                    <textarea id="tambahRemakText" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" placeholder="Contoh: Sewa Mobil Innova Reborn Nopol B 2471 SYM"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">QTY <span class="text-red-500">*</span></label>
+                        <input type="number" id="tambahRemakQty" value="1" min="1" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga (Rp) <span class="text-red-500">*</span></label>
+                        <input type="number" id="tambahRemakPrice" value="0" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                </div>
+            </div>
+            <div class="border-t px-6 py-4 flex justify-end gap-2">
+                <button type="button" id="closeTambahRemak2" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>
+                <button type="button" id="saveTambahRemak" class="px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl">Simpan</button>
+            </div>
         </div>
     </div>
 
@@ -1288,7 +1474,22 @@
 
             // ===================== MODAL TAMBAH =====================
             const modalTambah = document.getElementById('modalTambah');
-            document.getElementById('btnTambah').onclick = () => openModal(modalTambah);
+            document.getElementById('btnTambah').onclick = () => {
+                // Reset tab ke 1 dan disable tab 2
+                currentTambahInvoiceId = null;
+                document.getElementById('tambah_tab1_btn').className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tl-lg';
+                document.getElementById('tambah_tab2_btn').className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg';
+                document.getElementById('tambah_tab2_btn').disabled = true;
+                document.getElementById('tambah_tab1_content').classList.remove('hidden');
+                document.getElementById('tambah_tab2_content').classList.add('hidden');
+                document.getElementById('formTambah').reset();
+                // Reset relasi rows ke satu baris kosong
+                ['penawaran','kontrak','kendaraan'].forEach(type => {
+                    const c = document.getElementById('tambah_' + type + '_rows');
+                    if (c) { c.innerHTML = buildRelRow('tambah', type, ''); }
+                });
+                openModal(modalTambah);
+            };
             document.getElementById('closeTambah').onclick = () => closeModal(modalTambah);
             document.getElementById('closeTambah2').onclick = () => closeModal(modalTambah);
             modalTambah.addEventListener('click', e => {
@@ -1387,12 +1588,28 @@
                 if (e.target === modalEdit) closeModal(modalEdit);
             });
 
+            // Helper: rebuild relasi rows untuk modal edit dari array IDs
+            function rebuildRelRows(prefix, type, selectedIds) {
+                const container = document.getElementById(prefix + '_' + type + '_rows');
+                if (!container) return;
+                // Reset ke satu row kosong
+                container.innerHTML = buildRelRow(prefix, type, '');
+                // Populate baris pertama
+                const firstSelect = container.querySelector('select');
+                if (firstSelect && selectedIds.length > 0) firstSelect.value = selectedIds[0];
+                // Tambah baris ekstra jika lebih dari 1
+                for (let i = 1; i < selectedIds.length; i++) {
+                    addRelRow(prefix, type, selectedIds[i]);
+                }
+            }
+
             document.querySelectorAll('.editBtn').forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', async function() {
                     const d = this.dataset;
+                    const invId = d.id;
 
                     // Set form action
-                    formEdit.action = "{{ url('admin/invoices') }}/" + d.id;
+                    formEdit.action = "{{ url('admin/invoices') }}/" + invId;
 
                     // Seksi 1
                     setVal('edit_invoice_no', d.invoice_no);
@@ -1403,11 +1620,6 @@
                     setVal('edit_telephone', d.telephone);
                     setVal('edit_email', d.email);
                     setVal('edit_contact_person', d.contact_person);
-
-                    // Seksi 2
-                    setVal('edit_penawaran_id', d.penawaran_id);
-                    setVal('edit_kontrak_id', d.kontrak_id);
-                    setVal('edit_kendaraan_id', d.kendaraan_id);
 
                     // Seksi 3
                     setVal('edit_satuan', d.satuan);
@@ -1426,20 +1638,286 @@
                     setVal('edit_direktur', d.direktur);
                     setVal('edit_name_direktur', d.name_direktur);
 
-                    // Set TTD picker — tampilkan TTD yang sudah tersimpan
+                    // TTD picker
                     const pickerStaff = document.querySelector('.ttd-picker[data-uid="edit_staff"]');
                     const pickerDir   = document.querySelector('.ttd-picker[data-uid="edit_direktur"]');
-                    if (pickerStaff && d.ttd_staff) {
-                        pickerStaff.setCurrentTtd(d.ttd_staff, '/storage/' + d.ttd_staff);
-                    }
-                    if (pickerDir && d.ttd_direktur) {
-                        pickerDir.setCurrentTtd(d.ttd_direktur, '/storage/' + d.ttd_direktur);
+                    if (pickerStaff && d.ttd_staff) pickerStaff.setCurrentTtd(d.ttd_staff, '/storage/' + d.ttd_staff);
+                    if (pickerDir && d.ttd_direktur) pickerDir.setCurrentTtd(d.ttd_direktur, '/storage/' + d.ttd_direktur);
+
+                    // Seksi 2: Load pivot relasi via AJAX
+                    try {
+                        const resp = await fetch("{{ url('admin/invoices') }}/" + invId + "/edit", {
+                            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                        });
+                        const json = await resp.json();
+                        rebuildRelRows('edit', 'penawaran', json.penawaran_ids ?? []);
+                        rebuildRelRows('edit', 'kontrak',   json.kontrak_ids   ?? []);
+                        rebuildRelRows('edit', 'kendaraan', json.kendaraan_ids ?? []);
+                    } catch(e) {
+                        rebuildRelRows('edit', 'penawaran', []);
+                        rebuildRelRows('edit', 'kontrak',   []);
+                        rebuildRelRows('edit', 'kendaraan', []);
                     }
 
-                    // Buka modal LANGSUNG — tanpa fetch
                     openModal(modalEdit);
                 });
             });
+
+        </script>
+
+        {{-- ====== RELASI ROWS TEMPLATE DATA ====== --}}
+        <script>
+        // Data untuk opsi select (dari Blade ke JS)
+        const PENAWARAN_OPTIONS = @json($penawarans->map(fn($p) => ['id' => $p->id, 'label' => $p->no_penawaran . ' – ' . $p->customer_name]));
+        const KONTRAK_OPTIONS   = @json($kontraks->map(fn($k) => ['id' => $k->id, 'label' => $k->no_kontrak ?? '#'.$k->id]));
+        const KENDARAAN_OPTIONS = @json($kendaraans->map(fn($kd) => ['id' => $kd->id, 'label' => $kd->merk . ' – ' . $kd->nopol]));
+
+        function getOptions(type) {
+            const map = { penawaran: PENAWARAN_OPTIONS, kontrak: KONTRAK_OPTIONS, kendaraan: KENDARAAN_OPTIONS };
+            return map[type] || [];
+        }
+
+        function buildRelRow(prefix, type, selectedId = '') {
+            const opts = getOptions(type);
+            const optHtml = '<option value="">— Tidak ada —</option>' +
+                opts.map(o => `<option value="${o.id}" ${String(o.id) === String(selectedId) ? 'selected' : ''}>${o.label}</option>`).join('');
+            return `<div class="flex gap-2 items-center rel-row">
+                <select name="${type}_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">${optHtml}</select>
+                <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
+            </div>`;
+        }
+
+        function addRelRow(prefix, type, selectedId = '') {
+            const container = document.getElementById(prefix + '_' + type + '_rows');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.innerHTML = buildRelRow(prefix, type, selectedId);
+            container.appendChild(div.firstElementChild);
+        }
+
+        function removeRelRow(btn) {
+            const row = btn.closest('.rel-row');
+            const container = row.parentElement;
+            // Jangan hapus kalau tinggal satu baris
+            if (container.querySelectorAll('.rel-row').length <= 1) {
+                row.querySelector('select').value = '';
+                return;
+            }
+            row.remove();
+        }
+
+        // ====== TAB SWITCH TAMBAH ======
+        let currentTambahInvoiceId = null;
+
+        function switchTambahTab(tab) {
+            const tab1Btn  = document.getElementById('tambah_tab1_btn');
+            const tab2Btn  = document.getElementById('tambah_tab2_btn');
+            const tab1Con  = document.getElementById('tambah_tab1_content');
+            const tab2Con  = document.getElementById('tambah_tab2_content');
+            if (tab === 1) {
+                tab1Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tl-lg';
+                tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg';
+                tab1Con.classList.remove('hidden');
+                tab2Con.classList.add('hidden');
+            } else {
+                if (!currentTambahInvoiceId) return;
+                tab1Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 rounded-tl-lg';
+                tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tr-lg';
+                tab1Con.classList.add('hidden');
+                tab2Con.classList.remove('hidden');
+                loadPeriodesTambah();
+            }
+        }
+
+        function unlockTab2(invoiceId, invoiceNo) {
+            currentTambahInvoiceId = invoiceId;
+            const tab2Btn = document.getElementById('tambah_tab2_btn');
+            tab2Btn.disabled = false;
+            tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-600 hover:text-blue-600 rounded-tr-lg cursor-pointer';
+            document.getElementById('tambah_invoice_no_label').textContent = invoiceNo;
+        }
+
+        // ====== AJAX STORE FORM TAMBAH ======
+        document.getElementById('formTambah').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSimpanTambah');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Menyimpan...';
+
+            const formData = new FormData(this);
+            try {
+                const resp = await fetch(this.action, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                });
+                const json = await resp.json();
+                if (json.success) {
+                    unlockTab2(json.invoice_id, json.invoice_no);
+                    switchTambahTab(2);
+                } else {
+                    alert(json.message || 'Gagal menyimpan invoice.');
+                }
+            } catch(err) {
+                alert('Terjadi kesalahan: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-save text-sm"></i> Simpan & Lanjut ke Periode';
+            }
+        });
+
+        // Tutup + reload saat selesai di tab 2
+        document.getElementById('btnSelesaiTambah').addEventListener('click', function() {
+            closeModal(document.getElementById('modalTambah'));
+            window.location.reload();
+        });
+
+        // ====== PERIODE DI TAB 2 MODAL TAMBAH ======
+        function rpFmt(n) { return 'Rp ' + Number(n||0).toLocaleString('id-ID'); }
+        function fmtDate(s) {
+            if (!s) return '';
+            const d = new Date(s);
+            return d.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+        }
+
+        async function loadPeriodesTambah() {
+            if (!currentTambahInvoiceId) return;
+            const url = '/admin/invoices/' + currentTambahInvoiceId + '/periodes';
+            try {
+                const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                const periodes = await resp.json();
+                renderPeriodeListTambah(periodes);
+            } catch(e) { console.error(e); }
+        }
+
+        function renderPeriodeListTambah(periodes) {
+            const list = document.getElementById('periodeListTambah');
+            if (!periodes.length) {
+                list.innerHTML = '<div class="py-10 text-center text-gray-400 text-xs"><i class="fa fa-calendar-alt text-2xl mb-2 block"></i>Belum ada periode.</div>';
+                document.getElementById('tambahSummaryTotal').textContent = rpFmt(0);
+                document.getElementById('tambahSummaryGrand').textContent = rpFmt(0);
+                return;
+            }
+            let total = 0;
+            list.innerHTML = periodes.map(p => {
+                const remaks = p.remaks || [];
+                const sub = remaks.reduce((s,r) => s + (r.qty||1)*(r.price||0), 0);
+                total += sub;
+                const awal = fmtDate(p.periode_awal);
+                const akhir = p.periode_akhir ? ' – ' + fmtDate(p.periode_akhir) : '';
+                const rows = remaks.map(r => `
+                    <tr>
+                        <td class="px-3 py-1.5 text-xs text-gray-700">${r.remaks||''}</td>
+                        <td class="px-3 py-1.5 text-xs text-center">${r.qty||1}</td>
+                        <td class="px-3 py-1.5 text-xs text-right">${(r.price||0).toLocaleString('id-ID')}</td>
+                        <td class="px-3 py-1.5 text-xs text-right">${((r.qty||1)*(r.price||0)).toLocaleString('id-ID')}</td>
+                        <td class="px-3 py-1.5 text-center">
+                            <button type="button" onclick="deleteTambahRemak(${currentTambahInvoiceId},${p.id},${r.id})" class="text-red-400 hover:text-red-600 text-xs"><i class="fa fa-trash"></i></button>
+                        </td>
+                    </tr>`).join('') || '<tr><td colspan="5" class="text-center py-2 text-gray-400 text-xs">Belum ada remaks</td></tr>';
+                return `<div class="px-4 py-3 border-b">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-semibold text-gray-700">${awal}${akhir}</span>
+                        <div class="flex gap-1">
+                            <button type="button" onclick="openTambahRemakModal(${p.id})"
+                                class="text-xs text-blue-600 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-50">
+                                <i class="fa fa-plus mr-1"></i>Remaks
+                            </button>
+                            <button type="button" onclick="deleteTambahPeriode(${p.id})"
+                                class="text-xs text-red-400 border border-red-200 rounded px-2 py-0.5 hover:bg-red-50">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <table class="w-full text-xs border border-gray-200 rounded">
+                        <thead class="bg-gray-50"><tr>
+                            <th class="px-3 py-1 text-left">Remaks</th>
+                            <th class="px-3 py-1 text-center w-12">QTY</th>
+                            <th class="px-3 py-1 text-right w-28">Harga</th>
+                            <th class="px-3 py-1 text-right w-28">Sub Total</th>
+                            <th class="px-3 py-1 w-12"></th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+            }).join('');
+            document.getElementById('tambahSummaryTotal').textContent = rpFmt(total);
+            document.getElementById('tambahSummaryGrand').textContent = rpFmt(total);
+        }
+
+        // Tambah Periode di tab 2
+        document.getElementById('btnTambahPeriodeTambah').addEventListener('click', function() {
+            openTambahPeriodeModal();
+        });
+
+        let activeTambahPeriodeId = null;
+
+        function openTambahPeriodeModal() {
+            document.getElementById('tambahPeriodeAwal').value = '';
+            document.getElementById('tambahPeriodeAkhir').value = '';
+            openModal(document.getElementById('modalTambahPeriode'));
+        }
+
+        function openTambahRemakModal(periodeId) {
+            activeTambahPeriodeId = periodeId;
+            document.getElementById('tambahRemakText').value = '';
+            document.getElementById('tambahRemakQty').value = 1;
+            document.getElementById('tambahRemakPrice').value = 0;
+            openModal(document.getElementById('modalTambahRemak'));
+        }
+
+        async function deleteTambahPeriode(periodeId) {
+            if (!confirm('Hapus periode ini beserta semua remaksnya?')) return;
+            await fetch('/admin/invoices/' + currentTambahInvoiceId + '/periodes/' + periodeId, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
+            });
+            loadPeriodesTambah();
+        }
+
+        async function deleteTambahRemak(invId, periodeId, remakId) {
+            if (!confirm('Hapus remaks ini?')) return;
+            await fetch('/admin/invoices/' + invId + '/periodes/' + periodeId + '/remaks/' + remakId, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
+            });
+            loadPeriodesTambah();
+        }
+
+        document.getElementById('saveTambahPeriode').addEventListener('click', async function() {
+            const awal  = document.getElementById('tambahPeriodeAwal').value;
+            if (!awal) { alert('Tanggal awal wajib diisi.'); return; }
+            const akhir = document.getElementById('tambahPeriodeAkhir').value;
+            await fetch('/admin/invoices/' + currentTambahInvoiceId + '/periodes', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ periode_awal: awal, periode_akhir: akhir || null })
+            });
+            closeModal(document.getElementById('modalTambahPeriode'));
+            loadPeriodesTambah();
+        });
+
+        document.getElementById('saveTambahRemak').addEventListener('click', async function() {
+            const remaks = document.getElementById('tambahRemakText').value.trim();
+            const qty    = document.getElementById('tambahRemakQty').value;
+            const price  = document.getElementById('tambahRemakPrice').value;
+            if (!remaks) { alert('Keterangan wajib diisi.'); return; }
+            await fetch('/admin/invoices/' + currentTambahInvoiceId + '/periodes/' + activeTambahPeriodeId + '/remaks', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ remaks, qty: parseInt(qty), price: parseFloat(price) })
+            });
+            closeModal(document.getElementById('modalTambahRemak'));
+            loadPeriodesTambah();
+        });
+
+        // Close buttons untuk modal periode/remak tab 2
+        ['closeTambahPeriode','closeTambahPeriode2'].forEach(id => {
+            document.getElementById(id).onclick = () => closeModal(document.getElementById('modalTambahPeriode'));
+        });
+        ['closeTambahRemak','closeTambahRemak2'].forEach(id => {
+            document.getElementById(id).onclick = () => closeModal(document.getElementById('modalTambahRemak'));
+        });
         </script>
     @endpush
 

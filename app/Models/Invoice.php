@@ -66,7 +66,7 @@ class Invoice extends Model
     ];
 
     /**
-     * Relasi ke Penawaran
+     * Relasi ke Penawaran (single, backward-compat)
      */
     public function penawaran()
     {
@@ -74,7 +74,7 @@ class Invoice extends Model
     }
 
     /**
-     * Relasi ke Kontrak
+     * Relasi ke Kontrak (single, backward-compat)
      */
     public function kontrak()
     {
@@ -82,11 +82,38 @@ class Invoice extends Model
     }
 
     /**
-     * Relasi ke Kendaraan
+     * Relasi ke Kendaraan (single, backward-compat)
      */
     public function kendaraan()
     {
         return $this->belongsTo(Kendaraan::class, 'kendaraan_id');
+    }
+
+    /**
+     * Relasi ke Penawarans (multiple via pivot)
+     */
+    public function penawarans()
+    {
+        return $this->belongsToMany(InvPenawaran::class, 'invoice_penawarans', 'invoice_id', 'penawaran_id')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Relasi ke Kontraks (multiple via pivot)
+     */
+    public function kontraks()
+    {
+        return $this->belongsToMany(InvKontrak::class, 'invoice_kontraks', 'invoice_id', 'kontrak_id')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Relasi ke Kendaraans (multiple via pivot)
+     */
+    public function kendaraans()
+    {
+        return $this->belongsToMany(Kendaraan::class, 'invoice_kendaraans', 'invoice_id', 'kendaraan_id')
+                    ->withTimestamps();
     }
 
 

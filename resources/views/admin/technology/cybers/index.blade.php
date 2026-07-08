@@ -73,8 +73,8 @@
                     <button onclick="triggerEdit(this)" class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors"
                         data-action="{{ route('cybers.update', $d->id) }}"
                         data-tanggal_audit="{{ $d->tanggal_audit }}" data-area_diaudit="{{ $d->area_diaudit }}"
-                        data-temuan_risiko="{{ $d->temuan_risiko }}" data-level_risiko="{{ $d->level_risiko }}"
-                        data-tindakan_perbaikan="{{ $d->tindakan_perbaikan }}" data-status="{{ $d->status }}">
+                        data-temuan_risiko="{{ e($d->temuan_risiko) }}" data-level_risiko="{{ $d->level_risiko }}"
+                        data-tindakan_perbaikan="{{ e($d->tindakan_perbaikan) }}" data-status="{{ $d->status }}">
                         <i class="fa fa-edit text-xs"></i> Edit</button>
                     <button onclick="triggerDelete(this)" type="button" class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
                         data-action="{{ route('cybers.destroy', $d->id) }}" data-name="{{ $d->area_diaudit }}">
@@ -154,14 +154,15 @@ function openModal(){document.getElementById('modalTitle').innerText='Tambah Tem
 function closeModal(){mainModal.classList.add('hidden');mainModal.classList.remove('flex');}
 mainModal.addEventListener('click',e=>{if(e.target===mainModal)closeModal();});
 function triggerEdit(btn){document.getElementById('modalTitle').innerText='Edit Temuan';mainForm.action=btn.dataset.action;methodContainer.innerHTML='<input type="hidden" name="_method" value="PUT">';
-['tanggal_audit','area_diaudit','temuan_risiko','level_risiko','tindakan_perbaikan','status'].forEach(k=>{const el=document.getElementById('f_'+k);if(el)el.value=btn.dataset[k]??'';});mainModal.classList.remove('hidden');mainModal.classList.add('flex');}
+const ta=document.createElement('textarea');
+['tanggal_audit','area_diaudit','temuan_risiko','level_risiko','tindakan_perbaikan','status'].forEach(k=>{const el=document.getElementById('f_'+k);if(!el)return;ta.innerHTML=btn.dataset[k]??'';el.value=ta.value;});mainModal.classList.remove('hidden');mainModal.classList.add('flex');}
 const deleteModal=document.getElementById('deleteModal');
 function triggerDelete(btn){document.getElementById('deleteForm').action=btn.dataset.action;document.getElementById('deleteName').innerText=btn.dataset.name||'ini';deleteModal.classList.remove('hidden');deleteModal.classList.add('flex');}
 function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.classList.remove('flex');}
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
 const allRows=Array.from(document.querySelectorAll('#tableBody tr[data-search]'));let currentSearch='';
 function onSearch(v){currentSearch=v.toLowerCase();renderTable();}
-function renderTable(){const perPage=document.getElementById('perPage').value==='all'?Infinity:parseInt(document.getElementById('perPage').value);const fS=document.getElementById('filterStatus').value;const fL=document.getElementById('filterLevel').value;const matched=allRows.filter(r=>r.dataset.search.includes(currentSearch)&&(!fS||r.dataset.status===fS)&&(!fL||r.dataset.level===fL));let shown=0;allRows.forEach(r=>r.style.display='none');matched.forEach(r=>{if(shown<perPage){r.style.display='';shown++;}});const info=matched.length===0?'Tidak ada data':`Menampilkan ${shown} dari ${matched.length} entri`;document.getElementById('entriesInfo').innerText=info;document.getElementById('entriesInfoTop').innerText=info;}
+function renderTable(){const perPage=document.getElementById('perPage').value==='all'?Infinity:parseInt(document.getElementById('perPage').value);const fS=document.getElementById('filterStatus').value;const fL=document.getElementById('filterLevel').value;const matched=allRows.filter(r=>r.dataset.search.includes(currentSearch)&&(!fS||r.dataset.status===fS)&&(!fL||r.dataset.levelRisiko===fL));let shown=0;allRows.forEach(r=>r.style.display='none');matched.forEach(r=>{if(shown<perPage){r.style.display='';shown++;}});const info=matched.length===0?'Tidak ada data':`Menampilkan ${shown} dari ${matched.length} entri`;document.getElementById('entriesInfo').innerText=info;document.getElementById('entriesInfoTop').innerText=info;}
 document.addEventListener('DOMContentLoaded',renderTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
 </script>

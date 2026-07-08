@@ -111,7 +111,8 @@
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Estimasi Waktu <span class="text-red-500">*</span></label>
                     <input type="text" name="estimasi_waktu" id="f_estimasi_waktu" required placeholder="3 bulan" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
-                    <input type="text" name="status" id="f_status" required placeholder="In Progress" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <select name="status" id="f_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">- Pilih -</option><option>In Progress</option><option>Selesai</option><option>Pending</option></select></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Progres (%) <span class="text-red-500">*</span></label>
                     <input type="number" name="progres" id="f_progres" required min="0" max="100" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
             </div>

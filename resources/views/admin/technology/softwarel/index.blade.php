@@ -157,7 +157,8 @@ function openModal(){document.getElementById('modalTitle').innerText='Tambah Sof
 function closeModal(){mainModal.classList.add('hidden');mainModal.classList.remove('flex');}
 mainModal.addEventListener('click',e=>{if(e.target===mainModal)closeModal();});
 function triggerEdit(btn){document.getElementById('modalTitle').innerText='Edit Software License';mainForm.action=btn.dataset.action;methodContainer.innerHTML='<input type="hidden" name="_method" value="PUT">';
-['nama_software','jenis_lisensi','jumlah_lisensi','provider','masa_berlaku','status','tanggal_perpanjangan'].forEach(k=>{const el=document.getElementById('f_'+k);if(el)el.value=btn.dataset[k]??'';});mainModal.classList.remove('hidden');mainModal.classList.add('flex');}
+const dateFields=['masa_berlaku','tanggal_perpanjangan'];
+['nama_software','jenis_lisensi','jumlah_lisensi','provider','masa_berlaku','status','tanggal_perpanjangan'].forEach(k=>{const el=document.getElementById('f_'+k);if(!el)return;let v=btn.dataset[k]??'';if(dateFields.includes(k)&&v)v=v.split(' ')[0];el.value=v;});mainModal.classList.remove('hidden');mainModal.classList.add('flex');}
 const deleteModal=document.getElementById('deleteModal');
 function triggerDelete(btn){document.getElementById('deleteForm').action=btn.dataset.action;document.getElementById('deleteName').innerText=btn.dataset.name||'ini';deleteModal.classList.remove('hidden');deleteModal.classList.add('flex');}
 function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.classList.remove('flex');}

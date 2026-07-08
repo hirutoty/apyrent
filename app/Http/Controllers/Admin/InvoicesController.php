@@ -25,7 +25,10 @@ class InvoicesController extends Controller
         $query = Invoice::with([
             'penawaran',
             'kontrak',
-            'kendaraan'
+            'kendaraan',
+            'penawarans',
+            'kontraks',
+            'kendaraans',
         ])->latest();
 
         if ($request->search) {
@@ -96,9 +99,12 @@ class InvoicesController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'penawaran_id' => 'nullable|exists:inv_penawarans,id',
-            'kontrak_id'   => 'nullable|exists:inv_kontraks,id',
-            'kendaraan_id' => 'nullable|exists:kendaraan,id',
+            'penawaran_ids'  => 'nullable|array',
+            'penawaran_ids.*'=> 'nullable|exists:inv_penawarans,id',
+            'kontrak_ids'    => 'nullable|array',
+            'kontrak_ids.*'  => 'nullable|exists:inv_kontraks,id',
+            'kendaraan_ids'  => 'nullable|array',
+            'kendaraan_ids.*'=> 'nullable|exists:kendaraan,id',
 
             'type'         => 'required|in:perorangan,perusahaan',
             'order_no'     => 'nullable|string|max:255',
@@ -130,15 +136,26 @@ class InvoicesController extends Controller
             'total' => 'nullable|numeric',
         ]);
 
+        // Filter nilai kosong dari array relasi
+        $penawaranIds = array_filter($request->input('penawaran_ids', []), fn($v) => !empty($v));
+        $kontrakIds   = array_filter($request->input('kontrak_ids',   []), fn($v) => !empty($v));
+        $kendaraanIds = array_filter($request->input('kendaraan_ids', []), fn($v) => !empty($v));
+
+        // Bersihkan dari validated array (pivot ditangani terpisah)
+        unset($validated['penawaran_ids'], $validated['kontrak_ids'], $validated['kendaraan_ids']);
+
+        // Backward-compat: isi kolom FK lama dengan nilai pertama jika ada
+        $validated['penawaran_id'] = !empty($penawaranIds) ? $penawaranIds[0] : null;
+        $validated['kontrak_id']   = !empty($kontrakIds)   ? $kontrakIds[0]   : null;
+        $validated['kendaraan_id'] = !empty($kendaraanIds) ? $kendaraanIds[0] : null;
+
         $validated['invoice_no'] = $this->generateInvoiceNo();
 
         $removeBg = new RemoveBgService();
 
         if ($request->hasFile('ttd_staff')) {
-            // Upload baru → remove bg → simpan
             $validated['ttd_staff'] = $removeBg->uploadAndRemoveBg($request->file('ttd_staff'));
         } elseif ($request->filled('ttd_staff_path')) {
-            // Pilih dari library
             $validated['ttd_staff'] = $request->input('ttd_staff_path');
         }
 
@@ -148,7 +165,22 @@ class InvoicesController extends Controller
             $validated['ttd_direktur'] = $request->input('ttd_direktur_path');
         }
 
-        Invoice::create($validated);
+        $invoice = Invoice::create($validated);
+
+        // Sync pivot relations
+        $invoice->penawarans()->sync($penawaranIds);
+        $invoice->kontraks()->sync($kontrakIds);
+        $invoice->kendaraans()->sync($kendaraanIds);
+
+        // Jika request AJAX/JSON (dari modal), kembalikan JSON dengan invoice_id
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success'    => true,
+                'message'    => 'Invoice berhasil ditambahkan.',
+                'invoice_id' => $invoice->id,
+                'invoice_no' => $invoice->invoice_no,
+            ], 201);
+        }
 
         return redirect()
             ->route('invoices.index')
@@ -178,10 +210,15 @@ class InvoicesController extends Controller
      */
     public function edit(Request $request, string $id)
     {
-        $invoice = Invoice::findOrFail($id);
+        $invoice = Invoice::with(['penawarans', 'kontraks', 'kendaraans'])->findOrFail($id);
 
         if ($request->wantsJson() || $request->ajax()) {
-            return response()->json($invoice);
+            return response()->json([
+                'invoice'       => $invoice,
+                'penawaran_ids' => $invoice->penawarans->pluck('id'),
+                'kontrak_ids'   => $invoice->kontraks->pluck('id'),
+                'kendaraan_ids' => $invoice->kendaraans->pluck('id'),
+            ]);
         }
 
         $penawarans = InvPenawaran::latest()->get();
@@ -205,10 +242,13 @@ class InvoicesController extends Controller
         $invoice = Invoice::findOrFail($id);
 
         $validated = $request->validate([
-            'invoice_no'   => 'nullable|string|max:255',
-            'penawaran_id' => 'nullable|exists:inv_penawarans,id',
-            'kontrak_id'   => 'nullable|exists:inv_kontraks,id',
-            'kendaraan_id' => 'nullable|exists:kendaraan,id',
+            'invoice_no'     => 'nullable|string|max:255',
+            'penawaran_ids'  => 'nullable|array',
+            'penawaran_ids.*'=> 'nullable|exists:inv_penawarans,id',
+            'kontrak_ids'    => 'nullable|array',
+            'kontrak_ids.*'  => 'nullable|exists:inv_kontraks,id',
+            'kendaraan_ids'  => 'nullable|array',
+            'kendaraan_ids.*'=> 'nullable|exists:kendaraan,id',
 
             'type'         => 'required|in:perorangan,perusahaan',
 
@@ -239,25 +279,36 @@ class InvoicesController extends Controller
             'total' => 'nullable|numeric',
         ]);
 
+        // Filter nilai kosong dari array relasi
+        $penawaranIds = array_filter($request->input('penawaran_ids', []), fn($v) => !empty($v));
+        $kontrakIds   = array_filter($request->input('kontrak_ids',   []), fn($v) => !empty($v));
+        $kendaraanIds = array_filter($request->input('kendaraan_ids', []), fn($v) => !empty($v));
+
+        unset($validated['penawaran_ids'], $validated['kontrak_ids'], $validated['kendaraan_ids']);
+
+        // Backward-compat: kolom FK lama diisi nilai pertama
+        $validated['penawaran_id'] = !empty($penawaranIds) ? $penawaranIds[0] : null;
+        $validated['kontrak_id']   = !empty($kontrakIds)   ? $kontrakIds[0]   : null;
+        $validated['kendaraan_id'] = !empty($kendaraanIds) ? $kendaraanIds[0] : null;
+
         // invoice_no tidak boleh diubah
         unset($validated['invoice_no']);
 
         $removeBg = new RemoveBgService();
 
-        // Upload TTD Staff — hapus file lama jika ada
+        // Upload TTD Staff
         if ($request->hasFile('ttd_staff')) {
             if ($invoice->ttd_staff && \Storage::disk('public')->exists($invoice->ttd_staff)) {
                 \Storage::disk('public')->delete($invoice->ttd_staff);
             }
             $validated['ttd_staff'] = $removeBg->uploadAndRemoveBg($request->file('ttd_staff'));
         } elseif ($request->filled('ttd_staff_path')) {
-            // Pilih dari library — tidak perlu hapus file lama karena file library tidak dihapus
             $validated['ttd_staff'] = $request->input('ttd_staff_path');
         } else {
             unset($validated['ttd_staff']);
         }
 
-        // Upload TTD Direktur — hapus file lama jika ada
+        // Upload TTD Direktur
         if ($request->hasFile('ttd_direktur')) {
             if ($invoice->ttd_direktur && \Storage::disk('public')->exists($invoice->ttd_direktur)) {
                 \Storage::disk('public')->delete($invoice->ttd_direktur);
@@ -270,6 +321,11 @@ class InvoicesController extends Controller
         }
 
         $invoice->update($validated);
+
+        // Sync pivot relations
+        $invoice->penawarans()->sync($penawaranIds);
+        $invoice->kontraks()->sync($kontrakIds);
+        $invoice->kendaraans()->sync($kendaraanIds);
 
         return redirect()
             ->route('invoices.index')
@@ -293,21 +349,43 @@ class InvoicesController extends Controller
 
     /**
      * List file TTD yang sudah ada di storage sebagai library.
+     * Gabungkan file dari Storage::disk('public') dan dari public/uploads/ttd/
      * Dipakai oleh modal invoice via AJAX.
      */
     public function ttdLibrary()
     {
-        $files = \Storage::disk('public')->files('uploads/ttd');
+        $seen   = [];
+        $result = [];
 
-        $result = collect($files)->map(function ($path) {
-            return [
+        // Sumber 1: Storage::disk('public') → storage/app/public/uploads/ttd/
+        $storageFiles = \Storage::disk('public')->files('uploads/ttd');
+        foreach ($storageFiles as $path) {
+            $name = basename($path);
+            if (isset($seen[$name])) continue;
+            $seen[$name] = true;
+            $result[] = [
                 'path' => $path,
                 'url'  => asset('storage/' . $path),
-                'name' => basename($path),
+                'name' => $name,
             ];
-        })->values();
+        }
 
-        return response()->json($result);
+        // Sumber 2: public/uploads/ttd/ (upload langsung, tidak via Storage)
+        $publicDir = public_path('uploads/ttd');
+        if (is_dir($publicDir)) {
+            foreach (glob($publicDir . '/*.{png,jpg,jpeg,webp,gif}', GLOB_BRACE) as $absPath) {
+                $name = basename($absPath);
+                if (isset($seen[$name])) continue;
+                $seen[$name] = true;
+                $result[] = [
+                    'path' => 'uploads/ttd/' . $name,
+                    'url'  => asset('uploads/ttd/' . $name),
+                    'name' => $name,
+                ];
+            }
+        }
+
+        return response()->json(array_values($result));
     }
 
     /**
@@ -324,6 +402,33 @@ class InvoicesController extends Controller
     }
 
     /**
+     * Resolve path gambar TTD/logo — coba beberapa kemungkinan lokasi.
+     * File bisa tersimpan di:
+     *   1. storage/app/public/... (via Storage::disk('public'))
+     *   2. public/... (upload langsung ke public folder)
+     */
+    private function resolveFilePath(string $relativePath): string
+    {
+        if (empty($relativePath)) {
+            return '';
+        }
+
+        // Kemungkinan 1: via Storage::disk('public') → storage/app/public/
+        $storagePath = storage_path('app/public/' . ltrim($relativePath, '/'));
+        if (file_exists($storagePath) && is_readable($storagePath)) {
+            return $storagePath;
+        }
+
+        // Kemungkinan 2: langsung di public/
+        $publicPath = public_path(ltrim($relativePath, '/'));
+        if (file_exists($publicPath) && is_readable($publicPath)) {
+            return $publicPath;
+        }
+
+        return '';
+    }
+
+    /**
      * Siapkan variabel base64 untuk logo dan TTD agar bisa dipakai di Blade DomPDF.
      */
     private function resolveImageBase64(Invoice $invoice, ?Setting $setting): array
@@ -331,20 +436,20 @@ class InvoicesController extends Controller
         // Logo: pakai logo dari setting, fallback ke images/icon.png
         $logoPath = '';
         if ($setting?->logo) {
-            // Logo setting disimpan relatif ke public/ (misal: uploads/setting/xxx.png)
-            $logoPath = public_path($setting->logo);
+            $logoPath = $this->resolveFilePath($setting->logo);
         }
-        if (!$logoPath || !file_exists($logoPath)) {
+        if (!$logoPath) {
             $logoPath = public_path('images/icon.png');
         }
 
-        // TTD disimpan via Storage::disk('public') → storage/app/public/uploads/ttd/xxx
-        // Harus pakai storage_path bukan public_path
-        $ttdStaffPath    = $invoice->ttd_staff
-            ? storage_path('app/public/' . $invoice->ttd_staff)
+        // TTD Staff
+        $ttdStaffPath = $invoice->ttd_staff
+            ? $this->resolveFilePath($invoice->ttd_staff)
             : '';
+
+        // TTD Direktur
         $ttdDirekturPath = $invoice->ttd_direktur
-            ? storage_path('app/public/' . $invoice->ttd_direktur)
+            ? $this->resolveFilePath($invoice->ttd_direktur)
             : '';
 
         return [
@@ -364,7 +469,7 @@ class InvoicesController extends Controller
 
     public function print($id)
     {
-        $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'penawaran', 'kontrak'])->findOrFail($id);
+        $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'kendaraans', 'penawaran', 'kontrak', 'penawarans', 'kontraks'])->findOrFail($id);
         $setting = Setting::first();
 
         // Hitung grand total dari remaks
@@ -428,7 +533,7 @@ class InvoicesController extends Controller
 
     public function sendEmail($id)
     {
-        $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'penawaran', 'kontrak'])->findOrFail($id);
+        $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'kendaraans', 'penawaran', 'kontrak'])->findOrFail($id);
         $setting = Setting::first();
 
         $toEmails = array_unique(array_filter([
