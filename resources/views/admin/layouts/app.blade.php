@@ -783,7 +783,6 @@
 
             {{-- ════════════════════════════════════
                  GRUP: SALES
-                 GRUP: IT TECHNOLOGY
             ════════════════════════════════════ --}}
             @if ($role == 'superadmin')
                 <div class="nav-group">
@@ -791,8 +790,6 @@
                         class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
                         <i class="bi bi-cart-check-fill w-4 text-center shrink-0"></i>
                         <span class="flex-1 text-left">Sales</span>
-                        <i class="bi bi-cpu w-4 text-center shrink-0"></i>
-                        <span class="flex-1 text-left">IT Technology</span>
                         <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
                     </button>
                     <div class="nav-group-content">
@@ -868,6 +865,25 @@
                             </a> --}}
                             <a href="/admin/adsintegration" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-display-fill w-4 text-center shrink-0"></i> Ads Integration
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ════════════════════════════════════
+                 GRUP: IT TECHNOLOGY
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-cpu w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">IT Technology</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
                             <p class="nav-subgroup-label">Asset & Lisensi</p>
                             <a href="/admin/assetm"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
@@ -927,7 +943,6 @@
 
             {{-- ════════════════════════════════════
                  GRUP: PROJECT
-                 GRUP: ASSET MANAGEMENT
             ════════════════════════════════════ --}}
             @if ($role == 'superadmin')
                 <div class="nav-group">
@@ -935,8 +950,6 @@
                         class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
                         <i class="bi bi-kanban-fill w-4 text-center shrink-0"></i>
                         <span class="flex-1 text-left">Project</span>
-                        <i class="bi bi-building-check w-4 text-center shrink-0"></i>
-                        <span class="flex-1 text-left">Asset</span>
                         <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
                     </button>
                     <div class="nav-group-content">
@@ -944,7 +957,7 @@
                             <p class="nav-subgroup-label">Manajemen Proyek</p>
                             <a href="/admin/project/induk-proyek"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-diagram-project w-4 text-center shrink-0"></i> Induk Proyek
+                                <i class="fa-solid fa-diagram-project w-4 text-center shrink-0"></i> Induk Proyek
                             </a>
                             <a href="/admin/project/planning"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
@@ -1029,7 +1042,24 @@
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/daftar-notaris*') ? 'active' : '' }}">
                                 <i class="bi bi-person-vcard-fill w-4 text-center shrink-0"></i> Daftar Notaris
                             </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
 
+            {{-- ════════════════════════════════════
+                 GRUP: ASSET MANAGEMENT
+            ════════════════════════════════════ --}}
+            @if ($role == 'superadmin')
+                <div class="nav-group">
+                    <button type="button" onclick="toggleGroup(this)"
+                        class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
+                        <i class="bi bi-building-check w-4 text-center shrink-0"></i>
+                        <span class="flex-1 text-left">Asset Management</span>
+                        <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
+                    </button>
+                    <div class="nav-group-content">
+                        <div class="pt-0.5 pb-1 space-y-0.5">
                             <p class="nav-subgroup-label">Data Pokok</p>
                             <a href="/admin/asset/induk"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
