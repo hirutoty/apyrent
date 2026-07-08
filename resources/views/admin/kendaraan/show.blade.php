@@ -97,6 +97,21 @@
                     </div>
                 </div>
 
+                {{-- SHOW ENTRIES --}}
+                <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
+                    <span>Show</span>
+                    <select id="perPageSelect" onchange="renderTable()"
+                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="all">All</option>
+                    </select>
+                    <span>entries</span>
+                    <div class="ml-auto text-xs text-gray-400" id="entriesInfo"></div>
+                </div>
+
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
@@ -380,6 +395,8 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfoBottom"></div>
 
             </div>
 
@@ -1391,12 +1408,38 @@
                 });
             });
 
-            // ── SEARCH ──────────────────────────────────────
+            // ── SEARCH + SHOW ENTRIES ──────────────────────────────────────
+            const allRowsShow  = Array.from(document.querySelectorAll('#kendaraanTableBody tr[data-search]'));
+            let currentSearchShow = '';
+
             function filterKendaraanTable(q) {
-                document.querySelectorAll('#kendaraanTableBody tr[data-search]').forEach(function(row) {
-                    row.style.display = row.dataset.search.includes(q.toLowerCase()) ? '' : 'none';
-                });
+                currentSearchShow = q.toLowerCase();
+                renderTable();
             }
+
+            function renderTable() {
+                const perPageEl = document.getElementById('perPageSelect');
+                const perPage   = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
+                const matched   = allRowsShow.filter(row => row.dataset.search.includes(currentSearchShow));
+                let shown = 0;
+
+                allRowsShow.forEach(row => row.style.display = 'none');
+                matched.forEach(row => {
+                    if (shown < perPage) { row.style.display = ''; shown++; }
+                });
+
+                const infoText = matched.length === 0
+                    ? 'Tidak ada data yang cocok'
+                    : `Menampilkan ${shown} dari ${matched.length} entri` +
+                      (currentSearchShow ? ' (hasil pencarian)' : '');
+
+                const top = document.getElementById('entriesInfo');
+                const bot = document.getElementById('entriesInfoBottom');
+                if (top) top.innerText = infoText;
+                if (bot) bot.innerText = infoText;
+            }
+
+            document.addEventListener('DOMContentLoaded', renderTable);
 
             // ── POPUP ALERT ──────────────────────────────────────
             (function() {

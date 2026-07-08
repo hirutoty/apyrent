@@ -30,6 +30,18 @@
         </button>
     </div>
 
+    {{-- EXPORT --}}
+    <div class="flex gap-2">
+        <a href="{{ route('payments.pdf', request()->query()) }}" target="_blank"
+            class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            <i class="fa fa-file-pdf"></i> Export PDF
+        </a>
+        <a href="{{ route('payments.export.excel', request()->query()) }}"
+            class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            <i class="fa fa-file-excel"></i> Export Excel
+        </a>
+    </div>
+
     {{-- SUMMARY CARDS --}}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-white rounded-2xl border border-gray-100 p-5">

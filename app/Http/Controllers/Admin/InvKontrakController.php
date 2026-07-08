@@ -219,6 +219,14 @@ class InvKontrakController extends Controller
         return back()->with('success', 'Kontrak berhasil dihapus.');
     }
 
+    public function exportExcel(Request $request)
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\KontrakExport($request->search, $request->status),
+            'Kontrak-' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
+
     public function pdf(Request $request)
     {
         $query = InvKontrak::with('penawaran')->latest();

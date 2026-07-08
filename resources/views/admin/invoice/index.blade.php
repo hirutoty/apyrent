@@ -25,9 +25,15 @@
                     <h2 class="text-xl font-bold text-gray-800">Data Invoice</h2>
                     <p class="text-sm text-gray-500 mt-1">Kelola seluruh data invoice.</p>
                 </div>
-                <button type="button" id="btnTambah" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-                    <i class="fa fa-plus mr-2"></i> Tambah Invoice
-                </button>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="{{ route('invoices.export.excel', request()->query()) }}"
+                        class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                        <i class="fa fa-file-excel"></i> Export Excel
+                    </a>
+                    <button type="button" id="btnTambah" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                        <i class="fa fa-plus mr-2"></i> Tambah Invoice
+                    </button>
+                </div>
             </div>
 
             {{-- NAV TABS --}}

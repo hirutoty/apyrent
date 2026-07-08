@@ -53,6 +53,17 @@ use App\Http\Controllers\Admin\PurchaseroController;
 use App\Http\Controllers\Admin\VendoreoController;
 use App\Http\Controllers\Admin\Aging_ApsController;
 use App\Http\Controllers\Admin\AgingARController;
+// HRD
+use App\Http\Controllers\Admin\StrukturOrganisasiController;
+use App\Http\Controllers\Admin\DepartemenController;
+use App\Http\Controllers\Admin\SkillMatrixController;
+use App\Http\Controllers\Admin\PresensiController;
+use App\Http\Controllers\Admin\ShiftLemburController;
+use App\Http\Controllers\Admin\PayrollController;
+use App\Http\Controllers\Admin\CutiIzinController;
+use App\Http\Controllers\Admin\KpiAppraisalController;
+use App\Http\Controllers\Admin\ResignOffboardingController;
+use App\Http\Controllers\Admin\HrdFileController;
 // User
 use App\Http\Controllers\User\ProfileController;
 
@@ -398,6 +409,8 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     ->name('invoices.email');
   Route::get('invoices/ttd-library', [InvoicesController::class, 'ttdLibrary'])
     ->name('invoices.ttd-library');
+  Route::get('invoices/export/excel', [InvoicesController::class, 'exportExcel'])
+    ->name('invoices.export.excel');
   Route::resource('invoices', InvoicesController::class);
 
   // ── PERIODE & REMAKS (nested, AJAX) ────────────────────────
@@ -413,15 +426,21 @@ Route::middleware('auth')->prefix('admin')->group(function () {
 
   Route::get('/payments/pdf', [PaymentsController::class, 'exportPdf'])
     ->name('payments.pdf');
+  Route::get('/payments/export/excel', [PaymentsController::class, 'exportExcel'])
+    ->name('payments.export.excel');
   Route::resource('payments', PaymentsController::class);
 
 
   Route::resource('summary', SummaryController::class);
   Route::get('/admin/summary/pdf', [SummaryController::class, 'exportPdf'])
     ->name('summary.pdf');
+  Route::get('/summary/export/excel', [SummaryController::class, 'exportExcel'])
+    ->name('summary.export.excel');
 
   Route::get('/reminders/pdf', [ReminderController::class, 'exportPdf'])
     ->name('reminders.pdf');
+  Route::get('/reminders/export/excel', [ReminderController::class, 'exportExcel'])
+    ->name('reminders.export.excel');
   Route::resource('reminders', ReminderController::class);
 
 
@@ -433,9 +452,13 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     ->name('penawaran.reject');
   Route::get('/admin/penawaran/pdf', [InvPenawaranController::class, 'exportPdf'])
     ->name('penawaran.pdf');
+  Route::get('/penawaran/export/excel', [InvPenawaranController::class, 'exportExcel'])
+    ->name('penawaran.export.excel');
 
   Route::get('/kontrak/pdf', [InvKontrakController::class, 'pdf'])
     ->name('kontrak.pdf');
+  Route::get('/kontrak/export/excel', [InvKontrakController::class, 'exportExcel'])
+    ->name('kontrak.export.excel');
   Route::resource('kontrak', InvKontrakController::class);
 
   Route::get('/setting', [SettingController::class, 'index'])
@@ -463,4 +486,16 @@ Route::middleware('auth')->prefix('admin')->group(function () {
   // AutoSuggest
   Route::get('/ajax/members', [AgingArController::class, 'searchMember']);
   Route::get('/ajax/invoices', [AgingArController::class, 'searchInvoice']);
+
+  // ── HRD ────────────────────────────────────────────────────
+  Route::resource('struktur', StrukturOrganisasiController::class)->except(['create', 'edit', 'show']);
+  Route::resource('departemen', DepartemenController::class)->except(['create', 'edit', 'show']);
+  Route::resource('skills', SkillMatrixController::class)->except(['create', 'edit', 'show']);
+  Route::resource('presensi', PresensiController::class)->except(['create', 'edit', 'show']);
+  Route::resource('shift', ShiftLemburController::class)->except(['create', 'edit', 'show']);
+  Route::resource('payroll', PayrollController::class)->except(['create', 'edit', 'show']);
+  Route::resource('cuti', CutiIzinController::class)->except(['create', 'edit', 'show']);
+  Route::resource('kpi', KpiAppraisalController::class)->except(['create', 'edit', 'show']);
+  Route::resource('resign', ResignOffboardingController::class)->except(['create', 'edit', 'show']);
+  Route::resource('hrd-file', HrdFileController::class)->except(['create', 'edit', 'show']);
 });

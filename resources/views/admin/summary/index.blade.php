@@ -39,6 +39,13 @@
                     Export PDF
                 </a>
 
+                <a href="{{ route('summary.export.excel', request()->query()) }}"
+                    class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700
+            text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    <i class="fa fa-file-excel"></i>
+                    Export Excel
+                </a>
+
                 <button onclick="openModalTambah()"
                     class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700
             text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">

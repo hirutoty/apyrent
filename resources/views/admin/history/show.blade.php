@@ -79,6 +79,20 @@
                 </div>
             </div>
 
+            {{-- SHOW ENTRIES --}}
+            <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
+                <span>Show</span>
+                <select id="perPageSelect" onchange="applyFilters()"
+                    class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="all">All</option>
+                </select>
+                <span>entries</span>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
@@ -318,20 +332,27 @@
 
     <script>
         function applyFilters() {
-            const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
-            const status = document.getElementById('filterStatus').value;
-            const rows = document.querySelectorAll('#rentalTableBody tr[data-search]');
-            let visible = 0;
+            const keyword   = document.getElementById('searchInput').value.toLowerCase().trim();
+            const status    = document.getElementById('filterStatus').value;
+            const perPageEl = document.getElementById('perPageSelect');
+            const perPage   = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
+            const rows      = Array.from(document.querySelectorAll('#rentalTableBody tr[data-search]'));
 
-            rows.forEach(row => {
+            const matched = rows.filter(row => {
                 const matchSearch = !keyword || row.dataset.search.includes(keyword);
-                const matchStatus = !status || row.dataset.status === status;
-                const show = matchSearch && matchStatus;
-                row.style.display = show ? '' : 'none';
-                if (show) visible++;
+                const matchStatus = !status  || row.dataset.status === status;
+                return matchSearch && matchStatus;
             });
 
-            document.getElementById('totalCount').textContent = visible + ' total transaksi';
+            let visible = 0;
+            rows.forEach(row => row.style.display = 'none');
+            matched.forEach(row => {
+                if (visible < perPage) { row.style.display = ''; visible++; }
+            });
+
+            document.getElementById('totalCount').textContent =
+                matched.length === 0 ? '0 total transaksi'
+                : visible + (matched.length > visible ? ' dari ' + matched.length : '') + ' total transaksi';
 
             const noResult = document.getElementById('noResultRow');
             if (noResult) noResult.classList.toggle('hidden', visible > 0 || rows.length === 0);

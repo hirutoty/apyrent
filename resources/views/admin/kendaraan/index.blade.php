@@ -26,7 +26,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Kendaraan</p>
-                        <h2 class="text-3xl font-bold text-gray-800 mt-1">{{ $data->count() }}</h2>
+                        <h2 class="text-3xl font-bold text-gray-800 mt-1">{{ $totalKendaraan }}</h2>
                     </div>
                     <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
                         <i class="fa fa-truck text-xl"></i>
@@ -41,7 +41,7 @@
                             Tersedia
                         </p>
                         <h2 class="text-3xl font-bold text-emerald-600 mt-1">
-                            {{ $data->where('tersedia_unit', '>', 0)->count() }}
+                            {{ $totalTersedia }}
                         </h2>
                     </div>
 
@@ -55,10 +55,10 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                            Habis
+                            Tidak Tersedia
                         </p>
                         <h2 class="text-3xl font-bold text-red-600 mt-1">
-                            {{ $data->where('tersedia_unit', 0)->count() }}
+                            {{ $totalHabis }}
                         </h2>
                     </div>
 
@@ -79,7 +79,7 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar Kendaraan</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total kendaraan</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $totalKendaraan }} total kendaraan</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <div class="relative">
@@ -98,6 +98,20 @@
                     </button>
                 </div>
             </div>
+
+        {{-- SHOW ENTRIES FILTER --}}
+        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
+            <span>Show</span>
+            <select id="perPageSelect" onchange="onPerPageChange(this.value)"
+                class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="all">All</option>
+            </select>
+            <span>entries</span>
+        </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -195,6 +209,9 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- ENTRIES INFO --}}
+            <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
 
         </div>
 
@@ -1101,12 +1118,44 @@
             });
         });
 
-        // ── SEARCH ──────────────────────────────────────
+        // ── SEARCH + SHOW ENTRIES ──────────────────────────────────────
+        const allRows     = Array.from(document.querySelectorAll('#kendaraanTableBody tr[data-search]'));
+        const entriesInfo = document.getElementById('entriesInfo');
+        let currentSearch  = '';
+        let currentPerPage = 10;
+
         function filterKendaraanTable(q) {
-            document.querySelectorAll('#kendaraanTableBody tr[data-search]').forEach(function(row) {
-                row.style.display = row.dataset.search.includes(q.toLowerCase()) ? '' : 'none';
-            });
+            currentSearch = q.toLowerCase();
+            renderTable();
         }
+
+        function onPerPageChange(value) {
+            currentPerPage = value === 'all' ? Infinity : parseInt(value, 10);
+            renderTable();
+        }
+
+        function renderTable() {
+            if (allRows.length === 0) return;
+
+            const matched = allRows.filter(row => row.dataset.search.includes(currentSearch));
+            let shownCount = 0;
+
+            allRows.forEach(row => row.style.display = 'none');
+
+            matched.forEach(row => {
+                if (shownCount < currentPerPage) {
+                    row.style.display = '';
+                    shownCount++;
+                }
+            });
+
+            entriesInfo.innerText = matched.length === 0
+                ? 'Tidak ada data yang cocok'
+                : 'Menampilkan ' + shownCount + ' dari ' + matched.length + ' entri' +
+                  (currentSearch ? ' (hasil pencarian)' : '');
+        }
+
+        document.addEventListener('DOMContentLoaded', renderTable);
 
         // ── POPUP ALERT ──────────────────────────────────────
         (function() {

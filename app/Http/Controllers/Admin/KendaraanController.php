@@ -26,10 +26,14 @@ class KendaraanController extends Controller
             ->groupBy('merk', 'jenis_id')
             ->get();
 
+        $totalKendaraan  = Kendaraan::count();
+        $totalTersedia   = Kendaraan::where('status_kendaraan', 'tersedia')->count();
+        $totalHabis      = Kendaraan::where('status_kendaraan', '!=', 'tersedia')->count();
+
         $jenis = Jenis::all();
         $kendaraanDetail = Kendaraan::with(['user', 'jenis', 'member'])->latest()->get();
 
-        return view('admin.kendaraan.index', compact('data', 'jenis', 'kendaraanDetail'));
+        return view('admin.kendaraan.index', compact('data', 'jenis', 'kendaraanDetail', 'totalKendaraan', 'totalTersedia', 'totalHabis'));
     }
 
 
