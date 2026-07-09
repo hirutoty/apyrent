@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Kendaraan;
 use App\Models\Jenis;
+use App\Models\Member;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -31,9 +32,10 @@ class KendaraanController extends Controller
         $totalHabis      = Kendaraan::where('status_kendaraan', '!=', 'tersedia')->count();
 
         $jenis = Jenis::all();
+        $members = Member::orderBy('nama')->get();
         $kendaraanDetail = Kendaraan::with(['user', 'jenis', 'member'])->latest()->paginate(15)->withQueryString();
 
-        return view('admin.kendaraan.index', compact('data', 'jenis', 'kendaraanDetail', 'totalKendaraan', 'totalTersedia', 'totalHabis'));
+        return view('admin.kendaraan.index', compact('data', 'jenis', 'members', 'kendaraanDetail', 'totalKendaraan', 'totalTersedia', 'totalHabis'));
     }
 
 
@@ -54,6 +56,7 @@ class KendaraanController extends Controller
             $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
         }
         $jenis = Jenis::all();
+        $members = Member::orderBy('nama')->get();
 
         $reminderHari = match ($setting->satuan_reminder) {
             'hari'   => $setting->batas_reminder,
@@ -93,7 +96,11 @@ class KendaraanController extends Controller
             }
         }
 
-        return view('admin.kendaraan.show', compact('data', 'merk', 'jenis', 'setting'));
+        return view('admin.kendaraan.show', compact('data', 'merk', 'jenis', 'setting', 'members'));
+    }
+
+    private function getMembers() {
+        return Member::orderBy('nama')->get();
     }
 
 
@@ -146,6 +153,7 @@ class KendaraanController extends Controller
         Kendaraan::create([
             'user_id' => Auth::id(), // 🔥 AUTO DARI SESSION
             'jenis_id' => $request->jenis_id,
+            'member_id' => $request->member_id ?: null,
             'nopol' => $request->nopol,
             'foto' => $foto,
             'dokumen' => $dokumen,
@@ -224,6 +232,7 @@ class KendaraanController extends Controller
         $kendaraan->update([
             'user_id' => Auth::id(), // 🔥 AUTO SESSION
             'jenis_id' => $request->jenis_id,
+            'member_id' => $request->member_id ?: null,
             'nopol' => $request->nopol,
             'foto' => $foto,
             'dokumen' => $dokumen,

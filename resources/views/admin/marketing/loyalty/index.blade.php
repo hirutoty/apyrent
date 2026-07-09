@@ -109,9 +109,9 @@
             <input type="text" name="nama_program" id="f_nama_program" required placeholder="Nama program loyalty" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Akumulasi Poin <span class="text-red-500">*</span></label>
-                <input type="text" name="akumulasi_poin" id="f_akumulasi_poin" required placeholder="1 poin per 10.000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="akumulasi_poin" id="f_akumulasi_poin" required min="0" placeholder="10000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Konversi Poin <span class="text-red-500">*</span></label>
-                <input type="text" name="konversi_poin" id="f_konversi_poin" required placeholder="100 poin = Rp 50.000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="konversi_poin" id="f_konversi_poin" required min="0" placeholder="50000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Periode Mulai <span class="text-red-500">*</span></label>

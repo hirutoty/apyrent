@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\ServiceHistory;
 use App\Models\Kendaraan;
 use App\Models\Keuangan;
+use App\Models\Bukubesar;
 use App\Models\Setting;
 use App\Models\Attachment;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -152,10 +153,12 @@ class ServiceHistoryController extends Controller
         ]);
 
         // Catat keuangan
-        $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
+        $lastSaldo  = Keuangan::latest()->value('saldo') ?? 0;
+        $kodeJurnal = 'SRV-' . $service->id;
+
         Keuangan::create([
             'tanggal'     => $request->tanggal_service,
-            'reference'   => 'SRV-' . time(),
+            'reference'   => $kodeJurnal,
             'user_id'     => auth()->id(),
             'kategori'    => 'Pengeluaran',
             'metode'      => 'Cash',
@@ -166,6 +169,21 @@ class ServiceHistoryController extends Controller
             'source_type' => 'service_history',
             'source_id'   => $service->id,
         ]);
+
+        // Auto-posting ke Buku Besar
+        if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban Service - ' . ($service->kendaraan->merk ?? '-') . ' ' . ($service->kendaraan->nopol ?? '-'),
+                'kategori'    => 'Beban',
+                'tanggal'     => $request->tanggal_service,
+                'debit'       => $request->total_biaya,
+                'kredit'      => 0,
+                'saldo'       => $request->total_biaya,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Service kendaraan ' . ($service->kendaraan->nopol ?? '-'),
+            ]);
+        }
 
         return back()->with('success', 'Data service berhasil ditambahkan.');
     }

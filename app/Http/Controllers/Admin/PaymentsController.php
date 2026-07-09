@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\InvSummary;
 use App\Models\Keuangan;
+use App\Models\Bukubesar;
 
 class PaymentsController extends Controller
 {
@@ -171,6 +172,63 @@ class PaymentsController extends Controller
         ]);
     }
 
+    /**
+     * Auto-posting ke Buku Besar saat payment Verified
+     * kategori = Pendapatan, kredit = amount (uang masuk)
+     */
+    private function postBukuBesar(InvoicePayment $payment): void
+    {
+        // Cegah duplikasi
+        if (Bukubesar::where('kode_jurnal', $payment->transaction_id)->exists()) {
+            return;
+        }
+
+        Bukubesar::create([
+            'kode_jurnal' => $payment->transaction_id,
+            'transaksi'   => 'Pembayaran Invoice ' . optional($payment->invoice)->invoice_no,
+            'kategori'    => 'Pendapatan',
+            'tanggal'     => $payment->payment_date,
+            'debit'       => 0,
+            'kredit'      => $payment->amount,
+            'saldo'       => $payment->amount,
+            'aktivitas'   => 'Operasi',
+            'keterangan'  => 'Auto-posting: Pembayaran Invoice '
+                             . optional($payment->invoice)->invoice_no
+                             . ' dari ' . optional($payment->invoice)->customer_name,
+        ]);
+    }
+
+    /**
+     * Update jurnal Buku Besar yang sudah ada (saat payment diubah)
+     */
+    private function updateBukuBesar(InvoicePayment $payment): void
+    {
+        $jurnal = Bukubesar::where('kode_jurnal', $payment->transaction_id)->first();
+
+        if ($jurnal) {
+            $jurnal->update([
+                'transaksi'  => 'Pembayaran Invoice ' . optional($payment->invoice)->invoice_no,
+                'tanggal'    => $payment->payment_date,
+                'kredit'     => $payment->amount,
+                'saldo'      => $payment->amount,
+                'keterangan' => 'Auto-posting: Pembayaran Invoice '
+                                . optional($payment->invoice)->invoice_no
+                                . ' dari ' . optional($payment->invoice)->customer_name,
+            ]);
+        } else {
+            // Belum ada, buat baru
+            $this->postBukuBesar($payment);
+        }
+    }
+
+    /**
+     * Hapus jurnal Buku Besar terkait payment
+     */
+    private function deleteBukuBesar(string $transactionId): void
+    {
+        Bukubesar::where('kode_jurnal', $transactionId)->delete();
+    }
+
     public function exportExcel(Request $request)
     {
         return \Maatwebsite\Excel\Facades\Excel::download(
@@ -227,6 +285,9 @@ class PaymentsController extends Controller
                 $payment->load('invoice');
 
                 $this->createFinanceTransaction($payment);
+
+                // Auto-posting ke Buku Besar
+                $this->postBukuBesar($payment);
             }
 
             // Sync InvSummary & Invoice payment_status
@@ -364,6 +425,11 @@ class PaymentsController extends Controller
 
                     $this->createFinanceTransaction($payment);
                 }
+
+                // Auto-posting / update Buku Besar
+                $payment->load('invoice');
+                $this->updateBukuBesar($payment);
+
             } else {
 
                 // jika bukan verified maka hapus transaksi keuangan
@@ -371,6 +437,9 @@ class PaymentsController extends Controller
                 if ($finance) {
                     $finance->delete();
                 }
+
+                // Hapus jurnal Buku Besar juga
+                $this->deleteBukuBesar($payment->transaction_id);
             }
 
             // Sync InvSummary & Invoice payment_status
@@ -417,6 +486,9 @@ class PaymentsController extends Controller
                 'reference',
                 $payment->transaction_id
             )->delete();
+
+            // hapus jurnal Buku Besar
+            $this->deleteBukuBesar($payment->transaction_id);
 
             // simpan invoice_id sebelum delete
             $invoiceId = $payment->invoice_id;

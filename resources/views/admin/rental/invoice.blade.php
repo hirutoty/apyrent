@@ -203,7 +203,7 @@
         <tr>
             <td width="18%">Nama Customer</td>
             <td width="2%">:</td>
-            <td>{{ $rental->member->nama_member ?? '-' }}</td>
+            <td>{{ $rental->member->nama_pelanggan ?? '-' }}</td>
         </tr>
         <tr>
             <td>Alamat</td>
@@ -213,7 +213,7 @@
         <tr>
             <td>Telepon</td>
             <td>:</td>
-            <td>{{ $rental->member->kontak_member ?? '-' }}</td>
+            <td>{{ $rental->member->kontak_pelanggan ?? '-' }}</td>
         </tr>
     </table>
 
@@ -421,3 +421,4 @@
 </body>
 
 </html>
+

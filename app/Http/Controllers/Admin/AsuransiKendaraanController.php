@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use App\Models\AsuransiKendaraan;
 use App\Models\Kendaraan;
 use App\Models\Keuangan;
+use App\Models\Bukubesar;
 use App\Models\AsuransiHistory;
 use App\Models\JenisAsuransi;
 use App\Models\Setting;
@@ -377,22 +378,36 @@ class AsuransiKendaraanController extends Controller
 
 
         // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
-        $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
-
+        $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
         $pengeluaran = $request->biaya;
+        $kodeJurnal  = 'Asuransi-' . $asuransi->id;
 
         Keuangan::create([
-            'tanggal'      => now(),
-            'reference'    => 'Asuransi-' . $asuransi->id,
-            'user_id'      => auth()->id(),
-            'kategori'     => 'Pengeluaran',
-            'metode'       => '-',
-            // ✅ jenis_pajak diganti ke jenisAsuransi->nama_jenis (field aslinya tidak ada di model Asuransi)
-            'keterangan'   => 'Pembayaran asuransi kendaraan: ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-') . ' - ' . $request->keterangan,
-            'pemasukan'    => 0,
-            'pengeluaran'  => $request->biaya,
-            'saldo' => $lastSaldo - $pengeluaran,
+            'tanggal'     => now(),
+            'reference'   => $kodeJurnal,
+            'user_id'     => auth()->id(),
+            'kategori'    => 'Pengeluaran',
+            'metode'      => '-',
+            'keterangan'  => 'Pembayaran asuransi kendaraan: ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-') . ' - ' . $request->keterangan,
+            'pemasukan'   => 0,
+            'pengeluaran' => $request->biaya,
+            'saldo'       => $lastSaldo - $pengeluaran,
         ]);
+
+        // Auto-posting ke Buku Besar
+        if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban Asuransi - ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-'),
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $request->biaya,
+                'kredit'      => 0,
+                'saldo'       => $request->biaya,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Perpanjangan asuransi kendaraan ' . ($asuransi->kendaraan->nopol ?? '-'),
+            ]);
+        }
 
 
         // Update data aktif

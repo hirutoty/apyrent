@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use App\Models\Pelanggan;
 
 class AgingAr extends Model
 {
@@ -62,7 +63,7 @@ class AgingAr extends Model
 
     public function member()
     {
-        return $this->belongsTo(Member::class, 'member_id');
+        return $this->belongsTo(Pelanggan::class, 'member_id');
     }
 
     public function invoice()

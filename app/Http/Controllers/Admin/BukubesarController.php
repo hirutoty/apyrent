@@ -29,7 +29,11 @@ class BukubesarController extends Controller
 
     $data = $query->latest()->paginate(15)->withQueryString();
 
-    return view('admin.bukubesar.index', compact('data', 'search'));
+    // Query terpisah tanpa paginate — untuk kalkulasi Laba Rugi, Neraca, Arus Kas
+    // Selalu ambil SEMUA data, tidak terpengaruh search/pagination
+    $allData = Bukubesar::all();
+
+    return view('admin.bukubesar.index', compact('data', 'search', 'allData'));
 }
 
     public function store(Request $request)

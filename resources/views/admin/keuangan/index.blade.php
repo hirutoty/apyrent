@@ -775,18 +775,18 @@
                                     data-search="{{ strtolower(
                                         $d->invoice->invoice_no .
                                             ' ' .
-                                            $d->member->nama_member .
+                                            $d->member->nama_pelanggan .
                                             ' ' .
-                                            ($d->member->email_member ?? '') .
+                                            ($d->member->email_pelanggan ?? '') .
                                             ' ' .
                                             $d->kategori,
                                     ) }}">
                                     <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
                                     <td class="px-5 py-4 font-medium text-slate-800">{{ $d->invoice->invoice_no }}</td>
-                                    <td class="px-5 py-4 text-slate-700">{{ $d->member->nama_member }}</td>
-                                    <td class="px-5 py-4 text-slate-600 text-xs">{{ $d->member->email_member ?? '-' }}
+                                    <td class="px-5 py-4 text-slate-700">{{ $d->member->nama_pelanggan }}</td>
+                                    <td class="px-5 py-4 text-slate-600 text-xs">{{ $d->member->email_pelanggan ?? '-' }}
                                     </td>
-                                    <td class="px-5 py-4 text-slate-600 text-xs">{{ $d->member->kontak_member ?? '-' }}
+                                    <td class="px-5 py-4 text-slate-600 text-xs">{{ $d->member->kontak_pelanggan ?? '-' }}
                                     </td>
                                     <td class="px-5 py-4">
                                         @php
@@ -913,9 +913,9 @@
                                 <tr class="hover:bg-slate-50">
                                     <td class="px-5 py-4">{{ $loop->iteration }}</td>
                                     <td class="px-5 py-4 font-semibold text-slate-800">{{ $d->invoice->invoice_no }}</td>
-                                    <td class="px-5 py-4">{{ $d->member->nama_member }}</td>
-                                    <td class="px-5 py-4">{{ $d->member->email_member ?? '-' }}</td>
-                                    <td class="px-5 py-4">{{ $d->member->kontak_member ?? '-' }}</td>
+                                    <td class="px-5 py-4">{{ $d->member->nama_pelanggan }}</td>
+                                    <td class="px-5 py-4">{{ $d->member->email_pelanggan ?? '-' }}</td>
+                                    <td class="px-5 py-4">{{ $d->member->kontak_pelanggan ?? '-' }}</td>
                                     <td class="px-5 py-4 font-semibold text-red-600">Rp
                                         {{ number_format($d->total, 0, ',', '.') }}</td>
                                     <td class="px-5 py-4 text-center">
@@ -1045,7 +1045,7 @@
                                 <tr class="hover:bg-slate-50">
                                     <td class="px-5 py-4">{{ $loop->iteration }}</td>
                                     <td class="px-5 py-4 font-semibold text-slate-800">{{ $d->invoice->invoice_no }}</td>
-                                    <td class="px-5 py-4">{{ $d->member->nama_member }}</td>
+                                    <td class="px-5 py-4">{{ $d->member->nama_pelanggan }}</td>
                                     <td class="px-5 py-4 font-semibold text-green-600">Rp
                                         {{ number_format($d->total, 0, ',', '.') }}</td>
                                     <td class="px-5 py-4 text-center">
@@ -1575,10 +1575,10 @@
                 new Option(data.invoice.invoice_no, data.invoice.id, true, true)
             ).trigger('change');
             $('#ar_edit_member_id').empty().append(
-                new Option(data.member.nama_member, data.member.id, true, true)
+                new Option(data.member.nama_pelanggan, data.member.id, true, true)
             ).trigger('change');
-            document.getElementById('ar_edit_email').value = data.member.email_member ?? '';
-            document.getElementById('ar_edit_kontak').value = data.member.kontak_member ?? '';
+            document.getElementById('ar_edit_email').value = data.member.email_pelanggan ?? '';
+            document.getElementById('ar_edit_kontak').value = data.member.kontak_pelanggan ?? '';
             document.getElementById('ar_edit_jatuh_tempo').value = data.jatuh_tempo.substring(0, 10);
             document.getElementById('ar_edit_total').value = data.total;
             document.getElementById('formEditAr').action = '/admin/aging_ar/' + data.id;
@@ -1746,3 +1746,4 @@
     </script>
 
 @endsection
+

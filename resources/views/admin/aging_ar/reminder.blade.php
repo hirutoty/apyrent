@@ -63,15 +63,15 @@
                                 </td>
 
                                 <td class="px-5 py-4">
-                                    {{ $d->member->nama_member }}
+                                    {{ $d->member->nama_pelanggan }}
                                 </td>
 
                                 <td class="px-5 py-4">
-                                    {{ $d->member->email_member?? '-' }}
+                                    {{ $d->member->email_pelanggan?? '-' }}
                                 </td>
 
                                 <td class="px-5 py-4">
-                                    {{ $d->member->kontak_member?? '-' }}
+                                    {{ $d->member->kontak_pelanggan?? '-' }}
                                 </td>
 
                                 <td class="px-5 py-4 font-semibold text-red-600">
@@ -202,3 +202,4 @@
     </div>
 
 @endsection
+

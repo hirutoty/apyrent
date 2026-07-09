@@ -230,7 +230,7 @@
             <tr>
                 <th width="4%">No</th>
                 <th width="15%">VA Number</th>
-                <th width="18%">Member</th>
+                <th width="18%">Pelanggan</th>
                 <th width="18%">Invoice</th>
                 <th width="10%">Bank</th>
                 <th width="12%">Expected</th>
@@ -256,7 +256,7 @@
                     </td>
 
                     <td>
-                        {{ $item->member->nama_member ?? '-' }}
+                        {{ $item->Pelanggan->nama_Pelanggan ?? '-' }}
                     </td>
 
                     <td>
@@ -339,7 +339,7 @@
     <div class="note-content">
         Laporan ini merupakan data Virtual Account yang tercatat pada sistem
         {{ $setting?->nama_perusahaan }}. Informasi yang ditampilkan meliputi
-        nomor virtual account, nama member, bank tujuan, nominal yang
+        nomor virtual account, nama Pelanggan, bank tujuan, nominal yang
         diharapkan diterima, nominal yang telah dibayarkan, serta status
         pembayaran sebagai dasar monitoring transaksi pelanggan.
     </div>

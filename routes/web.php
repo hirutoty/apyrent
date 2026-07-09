@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\KendaraanController;
 use App\Http\Controllers\Admin\JenisController;
 use App\Http\Controllers\Admin\KirController;
 use App\Http\Controllers\Admin\KirHistoryController;
+use App\Http\Controllers\Admin\PelangganController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\MemberKendaraanController;
 use App\Http\Controllers\Admin\ServiceController;
@@ -236,7 +237,9 @@ Route::middleware('auth')->prefix('admin')->group(function () {
   Route::get('/user/export-pdf', [UserController::class, 'exportPdf'])
     ->name('user.export.pdf');
 
-  Route::get('/member/pdf', [MemberController::class, 'pdf']);
+  Route::get('/pelanggan/pdf', [PelangganController::class, 'pdf']);
+
+  Route::get('/members/pdf', [MemberController::class, 'pdf'])->name('members.pdf');
 
   Route::get('/admin/rental/pdf', [RentalController::class, 'pdf'])
     ->name('rental.pdf');
@@ -385,7 +388,11 @@ Route::middleware('auth')->prefix('admin')->group(function () {
 
   Route::resource('kir', KirController::class);
 
-  Route::resource('member', MemberController::class)->except(['show']);
+  Route::resource('pelanggan', PelangganController::class)->except(['show']);
+
+  Route::resource('members', MemberController::class)->except(['create', 'edit']);
+  Route::delete('/members/{id}/stnk', [MemberController::class, 'destroyStnk'])->name('members.stnk.destroy');
+  Route::delete('/members/{id}/attachment', [MemberController::class, 'destroyAttachment'])->name('members.attachment.destroy');
 
   Route::resource('member-rental', MemberKendaraanController::class);
 
@@ -571,7 +578,7 @@ Route::middleware('auth')->prefix('admin')->group(function () {
   Route::delete('/service-history/attachment/{id}', [ServiceHistoryController::class, 'destroyAttachment'])->name('service-history.attachment.destroy');
 
   // AutoSuggest
-  Route::get('/ajax/members', [AgingArController::class, 'searchMember']);
+  Route::get('/ajax/pelanggan', [AgingArController::class, 'searchMember']);
   Route::get('/ajax/invoices', [AgingArController::class, 'searchInvoice']);
 
   // ── PURCHASE ───────────────────────────────────────────────

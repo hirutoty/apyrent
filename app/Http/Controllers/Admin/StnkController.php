@@ -8,6 +8,7 @@ use App\Models\Stnk;
 use App\Models\StnkHistory;
 use App\Models\Kendaraan;
 use App\Models\Keuangan;
+use App\Models\Bukubesar;
 
 class StnkController extends Controller
 {
@@ -174,21 +175,36 @@ class StnkController extends Controller
         ]);
 
         // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
-        $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
-
+        $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
         $pengeluaran = $request->biaya;
+        $kodeJurnal  = 'STNK-' . $stnk->id;
 
         Keuangan::create([
-            'tanggal'      => now(),
-            'reference'    => 'STNK-' . $stnk->id,
-            'user_id'      => auth()->id(),
-            'kategori'     => 'Pengeluaran',
-            'metode'       => 'cash',
-            'keterangan'   => 'Perpanjangan STNK kendaraan: ' . $stnk->nopol . ' - ' . $stnk->merk,
-            'pemasukan'    => 0,
-            'pengeluaran'  => $pengeluaran,
-            'saldo'        => $lastSaldo - $pengeluaran,
+            'tanggal'     => now(),
+            'reference'   => $kodeJurnal,
+            'user_id'     => auth()->id(),
+            'kategori'    => 'Pengeluaran',
+            'metode'      => 'cash',
+            'keterangan'  => 'Perpanjangan STNK kendaraan: ' . $stnk->nopol . ' - ' . $stnk->merk,
+            'pemasukan'   => 0,
+            'pengeluaran' => $pengeluaran,
+            'saldo'       => $lastSaldo - $pengeluaran,
         ]);
+
+        // Auto-posting ke Buku Besar
+        if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban STNK - ' . $stnk->nopol,
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $pengeluaran,
+                'kredit'      => 0,
+                'saldo'       => $pengeluaran,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Perpanjangan STNK ' . $stnk->merk . ' (' . $stnk->nopol . ')',
+            ]);
+        }
 
         // Update data aktif
         $stnk->update([

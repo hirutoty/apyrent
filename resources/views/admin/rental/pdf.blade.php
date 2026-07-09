@@ -239,7 +239,7 @@
             <thead>
                 <tr>
                     <th>No</th>
-                    <th>Member</th>
+                    <th>Pelanggan</th>
                     <th>Kendaraan</th>
                     <th>Jenis Rental</th>
                     <th>Durasi</th>
@@ -301,7 +301,7 @@
 
                     <tr>
                         <td>{{ $i + 1 }}</td>
-                        <td>{{ $r->member->nama_member ?? '-' }}</td>
+                        <td>{{ $r->member->nama_pelanggan ?? '-' }}</td>
                         <td>
                             <strong>{{ $r->kendaraan->merk ?? '-' }}</strong><br>
                             {{ $r->kendaraan->nopol ?? '-' }}

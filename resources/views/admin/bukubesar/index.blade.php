@@ -5,10 +5,10 @@
 @section('content')
 
     @php
-        $totalJurnal = $data->count();
-        $totalDebit = $data->sum('debit');
-        $totalKredit = $data->sum('kredit');
-        $totalSaldo = $data->sum('saldo');
+        $totalJurnal = $allData->count();
+        $totalDebit = $allData->sum('debit');
+        $totalKredit = $allData->sum('kredit');
+        $totalSaldo = $allData->sum('saldo');
     @endphp
 
     <div class="space-y-6">
@@ -282,14 +282,14 @@
             <div id="pane-laba-rugi" class="hidden">
 
                 @php
-                    $pendapatan = $data->where('kategori', 'Pendapatan')->sum('kredit');
-                    $bebanPokok = $data
+                    $pendapatan = $allData->where('kategori', 'Pendapatan')->sum('kredit');
+                    $bebanPokok = $allData
                         ->filter(
                             fn($i) => $i->kategori == 'Beban' &&
                                 str_contains(strtolower($i->transaksi . ' ' . $i->keterangan), 'pokok'),
                         )
                         ->sum('debit');
-                    $totalBeban = $data->where('kategori', 'Beban')->sum('debit');
+                    $totalBeban = $allData->where('kategori', 'Beban')->sum('debit');
                     $labaKotor = $pendapatan - $bebanPokok;
                     $labaBersih = $pendapatan - $totalBeban;
                 @endphp
@@ -395,7 +395,7 @@
             <div id="pane-neraca" class="hidden">
 
                 @php
-                    $getSaldo = fn($kategori, $like = null) => $data
+                    $getSaldo = fn($kategori, $like = null) => $allData
                         ->filter(
                             fn($i) => $i->kategori == $kategori &&
                                 ($like ? stripos($i->transaksi, $like) !== false : true),
@@ -572,7 +572,7 @@
                             @php
                                 $no = 1;
                                 $totalArusKas = 0;
-                                $arusKasData = $data->whereNotNull('aktivitas');
+                                $arusKasData = $allData->whereNotNull('aktivitas');
                             @endphp
 
                             @forelse($arusKasData as $item)

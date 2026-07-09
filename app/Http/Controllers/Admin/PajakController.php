@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\PajakHistory;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Keuangan;
+use App\Models\Bukubesar;
 
 
 class PajakController extends Controller
@@ -213,20 +214,36 @@ class PajakController extends Controller
         ]);
 
         // MASUK KE KEUANGAN (PENGELUARAN)
-        $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
+        $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
         $pengeluaran = $request->nominal;
+        $kodeJurnal  = 'PAJAK-' . $pajak->id;
 
         Keuangan::create([
-            'tanggal'      => now(),
-            'reference'    => 'PAJAK-' . $pajak->id,
-            'user_id'      => auth()->id(),
-            'kategori'     => 'Pengeluaran',
-            'metode'       => 'cash',
-            'keterangan'   => 'Pembayaran pajak kendaraan: ' . $pajak->jenis_pajak . ' - ' . $request->keterangan,
-            'pemasukan'    => 0,
-            'pengeluaran'  => $request->nominal,
-            'saldo' => $lastSaldo - $pengeluaran,
+            'tanggal'     => now(),
+            'reference'   => $kodeJurnal,
+            'user_id'     => auth()->id(),
+            'kategori'    => 'Pengeluaran',
+            'metode'      => 'cash',
+            'keterangan'  => 'Pembayaran pajak kendaraan: ' . $pajak->jenis_pajak . ' - ' . $request->keterangan,
+            'pemasukan'   => 0,
+            'pengeluaran' => $request->nominal,
+            'saldo'       => $lastSaldo - $pengeluaran,
         ]);
+
+        // Auto-posting ke Buku Besar
+        if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban Pajak - ' . $pajak->jenis_pajak,
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $request->nominal,
+                'kredit'      => 0,
+                'saldo'       => $request->nominal,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Pembayaran pajak kendaraan ' . ($pajak->kendaraan->nopol ?? '-'),
+            ]);
+        }
 
         // Update data aktif
         $pajak->update([

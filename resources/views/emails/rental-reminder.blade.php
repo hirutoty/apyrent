@@ -27,13 +27,13 @@
             </tr>
 
             <tr>
-                <td>Member</td>
-                <td>{{ $rental->member->nama_member }}</td>
+                <td>Pelanggan</td>
+                <td>{{ $rental->member->nama_pelanggan }}</td>
             </tr>
 
             <tr>
-                <td>Jenis Member</td>
-                <td>{{ $rental->member->jenis_member ?? '-' }}</td>
+                <td>Jenis Pelanggan</td>
+                <td>{{ $rental->member->jenis_pelanggan ?? '-' }}</td>
             </tr>
 
             <tr>
@@ -118,13 +118,13 @@
             </tr>
 
             <tr>
-                <td>Member</td>
-                <td>{{ $rental->member->nama_member }}</td>
+                <td>Pelanggan</td>
+                <td>{{ $rental->member->nama_pelanggan }}</td>
             </tr>
 
             <tr>
-                <td>Jenis Member</td>
-                <td>{{ $rental->member->jenis_member ?? '-' }}</td>
+                <td>Jenis Pelanggan</td>
+                <td>{{ $rental->member->jenis_pelanggan ?? '-' }}</td>
             </tr>
 
 
@@ -237,3 +237,4 @@
 </body>
 
 </html>
+

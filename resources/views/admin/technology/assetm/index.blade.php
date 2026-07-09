@@ -123,7 +123,12 @@
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Merek <span class="text-red-500">*</span></label>
                     <input type="text" name="merek" id="f_merek" required placeholder="Dell / HP / Lenovo" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Tahun Beli <span class="text-red-500">*</span></label>
-                    <input type="number" name="tahun_beli" id="f_tahun_beli" required placeholder="{{ date('Y') }}" min="2000" max="2099" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <select name="tahun_beli" id="f_tahun_beli" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Tahun --</option>
+                        @for ($y = date('Y'); $y >= 2000; $y--)
+                            <option value="{{ $y }}">{{ $y }}</option>
+                        @endfor
+                    </select></div>
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
                 <select name="status" id="f_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">

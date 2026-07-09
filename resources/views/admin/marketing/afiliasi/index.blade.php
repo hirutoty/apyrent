@@ -108,7 +108,7 @@
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Diskon Referral (Rp) <span class="text-red-500">*</span></label>
                 <input type="number" name="diskon_referral" id="f_diskon_referral" required min="0" placeholder="50000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Bonus Pengajak <span class="text-red-500">*</span></label>
-                <input type="text" name="bonus_pengajak" id="f_bonus_pengajak" required placeholder="Rp 75.000 kredit" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="bonus_pengajak" id="f_bonus_pengajak" required min="0" placeholder="75000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Batas Waktu <span class="text-red-500">*</span></label>

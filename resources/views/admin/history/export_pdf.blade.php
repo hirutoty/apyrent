@@ -266,7 +266,7 @@
                 <tr>
                     <th width="3%">No</th>
                     <th width="5%">ID</th>
-                    <th width="11%">Member</th>
+                    <th width="11%">Pelanggan</th>
                     <th width="10%">Kontak</th>
                     <th width="9%">Driver</th>
                     <th width="10%">Tgl Mulai</th>
@@ -283,8 +283,8 @@
                     <tr>
                         <td class="text-center">{{ $i + 1 }}</td>
                         <td class="text-center">#{{ $r->id }}</td>
-                        <td>{{ $r->member->nama_member ?? '-' }}</td>
-                        <td>{{ $r->member->kontak_member ?? '-' }}</td>
+                        <td>{{ $r->Pelanggan->nama_Pelanggan ?? '-' }}</td>
+                        <td>{{ $r->Pelanggan->kontak_Pelanggan ?? '-' }}</td>
                         <td>{{ $r->nama_driver ?? '-' }}</td>
                         <td class="text-center">
                             {{ \Carbon\Carbon::parse($r->tanggal_mulai)->format('d-m-Y H:i') }}
@@ -334,7 +334,7 @@
         <p>
             Laporan ini merupakan riwayat transaksi rental untuk kendaraan
             {{ $kendaraan->merk }} ({{ $kendaraan->nopol }}) yang terdaftar pada sistem
-            {{ $setting?->nama_perusahaan }}. Data mencakup informasi member, driver,
+            {{ $setting?->nama_perusahaan }}. Data mencakup informasi Pelanggan, driver,
             periode rental, biaya, serta status transaksi.
         </p>
     </div>

@@ -39,7 +39,7 @@ class InvoicesController extends Controller
             });
         }
 
-        $invoices = $query->paginate(10)->withQueryString();
+        $invoices = $query->paginate(1)->withQueryString();
 
         // dropdown untuk modal tambah/edit
         $penawarans = InvPenawaran::latest()->get();

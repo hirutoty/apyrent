@@ -210,12 +210,12 @@
                         </p>
                         <p class="text-xs mt-0.5 leading-relaxed">
                             @if ($hampirSeminggu)
-                                ⚠️ Keterlambatan sudah hampir 1 minggu! Segera hubungi member untuk konfirmasi
+                                ⚠️ Keterlambatan sudah hampir 1 minggu! Segera hubungi pelanggan untuk konfirmasi
                                 pengembalian kendaraan.
                             @else
                                 Batas waktu pengembalian
                                 ({{ \Carbon\Carbon::parse($rental->tanggal_selesai)->translatedFormat('d M Y') }})
-                                telah terlewati. Segera hubungi member.
+                                telah terlewati. Segera hubungi pelanggan.
                             @endif
                         </p>
                     </div>
@@ -261,14 +261,14 @@
 
                         <div class="info-tile bg-gray-50 rounded-xl p-3.5">
                             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                                <i class="fa fa-user mr-1 text-blue-400"></i> Member
+                                <i class="fa fa-user mr-1 text-blue-400"></i> Pelanggan
                             </p>
-                            <p class="text-sm font-bold text-gray-800">{{ $rental->member->nama_member ?? '-' }}</p>
+                            <p class="text-sm font-bold text-gray-800">{{ $rental->member->nama_pelanggan ?? '-' }}</p>
                             <p class="text-xs text-gray-500 mt-0.5">
-                                <i class="fa fa-phone mr-1"></i>{{ $rental->member->kontak_member ?? '-' }}
+                                <i class="fa fa-phone mr-1"></i>{{ $rental->member->kontak_pelanggan ?? '-' }}
                             </p>
                             <p class="text-xs text-gray-500 mt-0.5">
-                                <i class="fa fa-envelope mr-1"></i>{{ $rental->member->email_member ?? '-' }}
+                                <i class="fa fa-envelope mr-1"></i>{{ $rental->member->email_pelanggan ?? '-' }}
                             </p>
                             @if ($rental->member->alamat ?? false)
                                 <p class="text-xs text-gray-500 mt-0.5">

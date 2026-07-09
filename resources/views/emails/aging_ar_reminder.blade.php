@@ -4,7 +4,7 @@
 <body>
     <h2>Reminder Pembayaran</h2>
 
-    <p>Yth. {{ $aging->member->nama_member }}</p>
+    <p>Yth. {{ $aging->Pelanggan->nama_Pelanggan }}</p>
 
     <p>
         Invoice <strong>{{ $aging->invoice->invoice_no }}</strong>

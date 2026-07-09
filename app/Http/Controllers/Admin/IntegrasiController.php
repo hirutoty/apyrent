@@ -9,7 +9,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\RekonsiliasiBank;
 use App\Models\VirtualAccount;
-use App\Models\Member;
+use App\Models\Pelanggan;
 use App\Models\Invoice;
 use App\Models\Setting;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -29,7 +29,7 @@ class IntegrasiController extends Controller
         $rekonsiliasi    = RekonsiliasiBank::latest()->paginate(10, ['*'], 'rekon_page')->withQueryString();
         $virtualAccounts = $vaQuery->latest()->paginate(10, ['*'], 'va_page')->withQueryString();
 
-        $members  = Member::all();
+        $members  = Pelanggan::all();
         $invoices = Invoice::select('id', 'invoice_no', 'customer_name')->latest()->get();
 
         return view('admin.integrasi-bank.index', compact(
@@ -229,7 +229,7 @@ class IntegrasiController extends Controller
                 $q->where('va_number', 'like', "%$search%")
                   ->orWhere('bank', 'like', "%$search%")
                   ->orWhere('status', 'like', "%$search%")
-                  ->orWhereHas('member', fn($m) => $m->where('nama_member', 'like', "%$search%"));
+                  ->orWhereHas('member', fn($m) => $m->where('nama_pelanggan', 'like', "%$search%"));
             });
         }
         $setting = Setting::first();

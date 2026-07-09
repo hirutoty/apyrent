@@ -293,7 +293,7 @@
                     </a>
                     <div class="relative">
                         <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input type="text" placeholder="Cari VA, member, bank..." oninput="filterVirtual(this.value)"
+                        <input type="text" placeholder="Cari VA, pelanggan, bank..." oninput="filterVirtual(this.value)"
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-52">
                     </div>
                     <button onclick="openModalVirtual()"
@@ -322,7 +322,7 @@
                     <tbody id="tableVirtual">
                         @forelse ($virtualAccounts as $item)
                             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
-                                data-search="{{ strtolower($item->va_number.' '.($item->member->nama_member ?? '').' '.$item->bank.' '.$item->status) }}">
+                                data-search="{{ strtolower($item->va_number.' '.($item->member->nama_pelanggan ?? '').' '.$item->bank.' '.$item->status) }}">
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $virtualAccounts->firstItem() + $loop->index }}</td>
                                 <td class="px-4 py-3.5">
                                     <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $item->va_number }}</span>
@@ -330,9 +330,9 @@
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-2">
                                         <div class="w-7 h-7 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                            {{ strtoupper(substr($item->member->nama_member ?? 'U', 0, 2)) }}
+                                            {{ strtoupper(substr($item->member->nama_pelanggan ?? 'U', 0, 2)) }}
                                         </div>
-                                        <span class="text-sm text-gray-700">{{ $item->member->nama_member ?? '-' }}</span>
+                                        <span class="text-sm text-gray-700">{{ $item->member->nama_pelanggan ?? '-' }}</span>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3.5">
@@ -578,7 +578,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Member <span class="text-red-500">*</span></label>
                 <select name="member_id" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     @foreach ($members as $m)
-                        <option value="{{ $m->id }}">{{ $m->nama_member }}</option>
+                        <option value="{{ $m->id }}">{{ $m->nama_pelanggan }}</option>
                     @endforeach
                 </select>
             </div>
@@ -653,7 +653,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Member <span class="text-red-500">*</span></label>
                 <select name="member_id" id="ev_member_id" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     @foreach ($members as $m)
-                        <option value="{{ $m->id }}">{{ $m->nama_member }}</option>
+                        <option value="{{ $m->id }}">{{ $m->nama_pelanggan }}</option>
                     @endforeach
                 </select>
             </div>
@@ -863,3 +863,4 @@ function openEditVirtual(id, va_number, member_id, invoice_id, bank, expected, p
 @endpush
 
 @endsection
+

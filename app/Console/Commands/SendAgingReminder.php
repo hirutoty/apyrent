@@ -47,9 +47,9 @@ class SendAgingReminder extends Command
     foreach ($agings as $aging) {
 
         $this->info('Invoice : ' . $aging->invoice->invoice_no);
-        $this->info('Email : ' . $aging->member->email_member);
+        $this->info('Email : ' . $aging->member->email_pelanggan);
 
-        Mail::to($aging->member->email_member)
+        Mail::to($aging->member->email_pelanggan)
             ->send(new AgingArReminderMail($aging));
 
         $this->info('Email berhasil dikirim');

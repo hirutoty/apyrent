@@ -517,6 +517,10 @@
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-cash-stack w-4 text-center shrink-0"></i> Cash Flow Forecast
                             </a>
+                              <a href="/admin/hutang-vendor"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-bank2 w-4 text-center shrink-0"></i> Hutang Vendor
+                            </a>
 
                         </div>
                     </div>
@@ -577,9 +581,13 @@
                             {{-- Sub: Rental --}}
                             @if ($role == 'superadmin' || $role == 'keuangan')
                                 <p class="nav-subgroup-label">Rental</p>
-                                <a href="/admin/member"
+                                <a href="/admin/members"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                    <i class="bi bi-people-fill w-4 text-center shrink-0"></i> Member
+                                    <i class="bi bi-person-badge-fill w-4 text-center shrink-0"></i> Member
+                                </a>
+                                <a href="/admin/pelanggan"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-people-fill w-4 text-center shrink-0"></i> Pelanggan
                                 </a>
                                 <a href="/admin/rental"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
@@ -1128,10 +1136,7 @@
                                 Invoice
                             </a>
 
-                            <a href="/admin/hutang-vendor"
-                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-bank2 w-4 text-center shrink-0"></i> Hutang Vendor
-                            </a>
+                          
                             <a href="/admin/budgeting"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-wallet2 w-4 text-center shrink-0"></i> Budgeting

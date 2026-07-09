@@ -182,7 +182,7 @@
                                     transition-all duration-300">
                             <i
                                 class="fa-solid fa-phone text-gray-300 group-focus-within:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
-                            <input type="text" name="no_telp" value="{{ old('no_telp') }}" placeholder="08xxxxxxxxxx"
+                            <input type="tel" name="no_telp" value="{{ old('no_telp') }}" placeholder="08xxxxxxxxxx"
                                 class="flex-1 text-sm text-gray-700 placeholder-gray-300 outline-none bg-transparent" />
                         </div>
                     </div>

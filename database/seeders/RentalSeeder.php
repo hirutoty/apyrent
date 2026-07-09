@@ -57,3 +57,4 @@ class RentalSeeder extends Seeder
         }
     }
 }
+

@@ -94,7 +94,7 @@
                             </td>
 
                             <td class="px-5 py-4">
-                                {{ $d->member->nama_member }}
+                                {{ $d->member->nama_pelanggan }}
                             </td>
 
             

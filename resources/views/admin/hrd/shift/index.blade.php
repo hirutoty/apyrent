@@ -149,12 +149,12 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jam Lembur</label>
-                    <input type="text" name="jam_lembur" id="f_jam_lembur" placeholder="Contoh: 2 jam"
+                    <input type="number" name="jam_lembur" id="f_jam_lembur" min="0" step="0.5" placeholder="2"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Total Jam <span class="text-red-500">*</span></label>
-                    <input type="text" name="total_jam" id="f_total_jam" required placeholder="Contoh: 8 jam"
+                    <input type="number" name="total_jam" id="f_total_jam" required min="0" step="0.5" placeholder="8"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>

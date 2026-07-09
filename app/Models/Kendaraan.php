@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ServiceHistory;
+use App\Models\Pelanggan;
 
 class Kendaraan extends Model
 {
@@ -15,6 +16,7 @@ class Kendaraan extends Model
     protected $fillable = [
         'user_id',
         'jenis_id',
+        'member_id',
 
         'nopol',
         'foto',

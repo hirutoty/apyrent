@@ -88,8 +88,8 @@ class ReminderRentalCommand extends Command
                 }
 
                 // Kirim ke member
-                if (!empty($rental->member?->email_member)) {
-                    Mail::to($rental->member->email_member)->send(
+                if (!empty($rental->member?->email_pelanggan)) {
+                    Mail::to($rental->member->email_pelanggan)->send(
                         new RentalReminderMail($rental, $sisaHari, 'reminder')
                     );
                 }
@@ -108,8 +108,8 @@ class ReminderRentalCommand extends Command
                 }
 
                 // Member
-                if (!empty($rental->member?->email_member)) {
-                    Mail::to($rental->member->email_member)->send(
+                if (!empty($rental->member?->email_pelanggan)) {
+                    Mail::to($rental->member->email_pelanggan)->send(
                         new RentalReminderMail($rental, 1, 'terlambat')
                     );
                 }
@@ -119,3 +119,4 @@ class ReminderRentalCommand extends Command
         $this->info('Selesai reminder rental');
     }
 }
+
