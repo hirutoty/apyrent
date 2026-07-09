@@ -353,7 +353,8 @@
                                         '{{ $d->kendaraan->nopol ?? '-' }}',
                                         '{{ $d->kendaraan->merk ?? '-' }}',
                                         '{{ $d->durasi_bulan }}',
-                                        '{{ $d->biaya }}'
+                                        '{{ $d->biaya }}',
+                                        '{{ \Carbon\Carbon::parse($d->tgl_berakhir)->format('Y-m-d') }}'
                                     )"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
                                             <i class="fa fa-rotate-right text-xs"></i> Perpanjang
@@ -478,34 +479,21 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Mulai <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="tgl_mulai" id="tgl_mulai" required
+                        oninput="hitungTglBerakhirTambah()"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
-
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Durasi Asuransi <span class="text-red-500">*</span>
-                    </label>
-
-                    <div class="relative">
-                        <input type="number" id="durasi_bulan" name="durasi_bulan" min="1" required
-                            placeholder="Masukkan durasi"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500">
-                            Bulan
-                        </span>
-                    </div>
-                </div>
+                {{-- Durasi hidden = 12 --}}
+                <input type="hidden" name="durasi_bulan" value="12">
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Tanggal Berakhir
                     </label>
-
-                    <input type="date" id="tgl_berakhir" name="tgl_berakhir" readonly
-                        class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none">
+                    <input type="date" id="tgl_berakhir_display" disabled
+                        class="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 cursor-not-allowed">
+                    <input type="hidden" name="tgl_berakhir" id="tgl_berakhir">
+                    <p class="text-xs text-gray-400 mt-1">Otomatis tanggal mulai + 1 tahun</p>
                 </div>
 
                 <div>
@@ -688,31 +676,21 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Mulai <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="tgl_mulai" id="edit_tgl_mulai" required
+                        oninput="hitungTglBerakhirEdit()"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Durasi Asuransi <span class="text-red-500">*</span>
-                    </label>
-
-                    <div class="relative">
-                        <input type="number" id="edit_durasi_bulan" name="durasi_bulan" min="1" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
-                            Bulan
-                        </span>
-                    </div>
-                </div>
+                {{-- Durasi hidden = 12 --}}
+                <input type="hidden" name="durasi_bulan" id="edit_durasi_bulan" value="12">
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Tanggal Berakhir
                     </label>
-
-                    <input type="date" name="tgl_berakhir" id="edit_tgl_berakhir" readonly
-                        class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
+                    <input type="date" id="edit_tgl_berakhir_display" disabled
+                        class="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 cursor-not-allowed">
+                    <input type="hidden" name="tgl_berakhir" id="edit_tgl_berakhir">
+                    <p class="text-xs text-gray-400 mt-1">Otomatis tanggal mulai + 1 tahun</p>
                 </div>
 
                 <div>
@@ -886,29 +864,24 @@
                     </select>
                 </div>
 
-                {{-- Tgl Mulai Baru --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Mulai Baru</label>
-                    <input type="date" name="tgl_mulai" id="perpanjang_tgl_mulai" required readonly
-                        value="{{ now()->format('Y-m-d') }}"
-                        class="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed">
-                </div>
-
-                {{-- Durasi --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Durasi (Bulan) <span
-                            class="text-red-500">*</span></label>
-                    <input type="number" name="durasi_bulan" id="perpanjang_durasi" min="1" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                        oninput="hitungTglBerakhirPerpanjang()">
-                </div>
-
-                {{-- Tgl Berakhir (auto) --}}
+                {{-- Tgl Berakhir Baru: lama +1 tahun, disabled --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Berakhir Baru</label>
-                    <input type="date" name="tgl_berakhir" id="perpanjang_tgl_berakhir" readonly
-                        class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600">
-                    <p class="text-xs text-gray-400 mt-1">Otomatis dihitung dari tanggal mulai + durasi</p>
+                    <input type="date" id="perpanjang_tgl_berakhir_display" disabled
+                        class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 cursor-not-allowed">
+                    <input type="hidden" name="tgl_berakhir" id="perpanjang_tgl_berakhir">
+                    {{-- tgl_mulai & durasi hidden --}}
+                    <input type="hidden" name="tgl_mulai" id="perpanjang_tgl_mulai" value="{{ now()->format('Y-m-d') }}">
+                    <input type="hidden" name="durasi_bulan" id="perpanjang_durasi" value="12">
+                    <p class="text-xs text-gray-400 mt-1">Otomatis tanggal berakhir lama + 1 tahun</p>
+                </div>
+
+                {{-- Tanggal Bayar --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar</label>
+                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
+                        value="{{ now()->format('Y-m-d') }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
                 {{-- Biaya --}}
@@ -1118,32 +1091,22 @@
             m.classList.remove('hidden');
             m.classList.add('flex');
 
-            document.getElementById('formEdit').action =
-                '/admin/asuransi-kendaraan/' + id;
+            document.getElementById('formEdit').action = '/admin/asuransi-kendaraan/' + id;
+            document.getElementById('edit_kendaraan_id').value = kendaraan_id;
+            document.getElementById('edit_asuransi_id').value = asuransi_id;
+            document.getElementById('edit_jenis_asuransi_id').value = jenis_asuransi_id;
+            document.getElementById('edit_status_kendaraan').value = status_kendaraan;
+            document.getElementById('edit_tgl_mulai').value = tgl_mulai;
+            document.getElementById('edit_biaya').value = biaya;
 
-            document.getElementById('edit_kendaraan_id').value =
-                kendaraan_id;
-
-            document.getElementById('edit_asuransi_id').value =
-                asuransi_id;
-
-            document.getElementById('edit_jenis_asuransi_id').value =
-                jenis_asuransi_id;
-
-            document.getElementById('edit_status_kendaraan').value =
-                status_kendaraan;
-
-            document.getElementById('edit_tgl_mulai').value =
-                tgl_mulai;
-
-            document.getElementById('edit_tgl_berakhir').value =
-                tgl_berakhir;
-
-            document.getElementById('edit_durasi_bulan').value =
-                durasi_bulan;
-
-            document.getElementById('edit_biaya').value =
-                biaya;
+            // Hitung tgl_berakhir = tgl_mulai + 1 tahun (tampil disabled, kirim via hidden)
+            if (tgl_mulai) {
+                const d = new Date(tgl_mulai);
+                d.setFullYear(d.getFullYear() + 1);
+                const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                document.getElementById('edit_tgl_berakhir_display').value = val;
+                document.getElementById('edit_tgl_berakhir').value = val;
+            }
 
             // preview bukti lama
             const wrap = document.getElementById('previewWrapEdit');
@@ -1152,11 +1115,8 @@
             const fileName = document.getElementById('fileNameEdit');
 
             if (bukti_bayar) {
-
                 wrap.classList.remove('hidden');
-
                 const ext = bukti_bayar.split('.').pop().toLowerCase();
-
                 if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
                     img.classList.remove('hidden');
                     img.src = '/storage/' + bukti_bayar;
@@ -1166,7 +1126,6 @@
                     fileBox.classList.remove('hidden');
                     fileName.textContent = bukti_bayar.split('/').pop();
                 }
-
             } else {
                 wrap.classList.add('hidden');
                 img.classList.add('hidden');
@@ -1196,7 +1155,7 @@
 
 
         // ── MODAL PERPANJANG ───────────────────────────────
-        function openModalPerpanjang(id, asuransi_id, jenis_id, nopol, merk, durasi, biaya) {
+        function openModalPerpanjang(id, asuransi_id, jenis_id, nopol, merk, durasi, biaya, tglBerakhirLama) {
             document.getElementById('formPerpanjang').action =
                 '/admin/asuransi-kendaraan/' + id + '/perpanjang';
 
@@ -1210,10 +1169,28 @@
             document.getElementById('perpanjang_asuransi_id').value = asuransi_id;
             document.getElementById('perpanjang_jenis_id').value = jenis_id;
 
-            document.getElementById('perpanjang_durasi').value = durasi;
             document.getElementById('perpanjang_biaya').value = biaya;
 
-            hitungTglBerakhirPerpanjang();
+            // Hitung tgl_berakhir baru = tgl_berakhir lama + 1 tahun
+            if (tglBerakhirLama) {
+                const d = new Date(tglBerakhirLama);
+                d.setFullYear(d.getFullYear() + 1);
+                const tglBaru = d.getFullYear() + '-' +
+                    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(d.getDate()).padStart(2, '0');
+                document.getElementById('perpanjang_tgl_berakhir_display').value = tglBaru;
+                document.getElementById('perpanjang_tgl_berakhir').value = tglBaru;
+            }
+
+            // Set tgl_mulai = hari ini (hidden), durasi = 12 (hidden)
+            document.getElementById('perpanjang_tgl_mulai').value = new Date().toISOString().split('T')[0];
+            document.getElementById('perpanjang_durasi').value = '12';
+
+            // Reset tanggal bayar ke hari ini
+            document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
+
+            // Reset lampiran
+            document.getElementById('listAttachmentPerpanjang').innerHTML = '';
 
             const m = document.getElementById('modalPerpanjang');
             m.classList.remove('hidden');
@@ -1230,18 +1207,6 @@
         document.getElementById('modalPerpanjang').addEventListener('click', function(e) {
             if (e.target === this) closeModalPerpanjang();
         });
-
-        function hitungTglBerakhirPerpanjang() {
-            const mulai = document.getElementById('perpanjang_tgl_mulai').value;
-            const durasi = parseInt(document.getElementById('perpanjang_durasi').value);
-            if (!mulai || !durasi) return;
-            const d = new Date(mulai);
-            d.setMonth(d.getMonth() + durasi);
-            const yyyy = d.getFullYear();
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            document.getElementById('perpanjang_tgl_berakhir').value = `${yyyy}-${mm}-${dd}`;
-        }
 
 
         // ── SEARCH / FILTER ────────────────────────────────
@@ -1345,64 +1310,30 @@
 
 
 
-        function hitungTanggalBerakhir() {
-
+        // Hitung tgl_berakhir = tgl_mulai + 1 tahun (modal tambah)
+        function hitungTglBerakhirTambah() {
             const tglMulai = document.getElementById('tgl_mulai').value;
-            const durasi = document.getElementById('durasi_bulan').value;
-
-            if (!tglMulai || !durasi) return;
-
-            let tanggal = new Date(tglMulai);
-
-            tanggal.setMonth(
-                tanggal.getMonth() + parseInt(durasi)
-            );
-
-            const yyyy = tanggal.getFullYear();
-            const mm = String(tanggal.getMonth() + 1).padStart(2, '0');
-            const dd = String(tanggal.getDate()).padStart(2, '0');
-
-            document.getElementById('tgl_berakhir').value =
-                `${yyyy}-${mm}-${dd}`;
+            if (!tglMulai) return;
+            const d = new Date(tglMulai);
+            d.setFullYear(d.getFullYear() + 1);
+            const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            document.getElementById('tgl_berakhir_display').value = val;
+            document.getElementById('tgl_berakhir').value = val;
         }
 
-        document
-            .getElementById('tgl_mulai')
-            .addEventListener('change', hitungTanggalBerakhir);
-
-        document
-            .getElementById('durasi_bulan')
-            .addEventListener('input', hitungTanggalBerakhir);
-
-
-        function hitungTanggalBerakhirEdit() {
-
+        // Hitung tgl_berakhir = tgl_mulai + 1 tahun (modal edit)
+        function hitungTglBerakhirEdit() {
             const mulai = document.getElementById('edit_tgl_mulai').value;
-            const durasi = document.getElementById('edit_durasi_bulan').value;
-
-            if (!mulai || !durasi) return;
-
-            let tanggal = new Date(mulai);
-
-            tanggal.setMonth(
-                tanggal.getMonth() + parseInt(durasi)
-            );
-
-            const yyyy = tanggal.getFullYear();
-            const mm = String(tanggal.getMonth() + 1).padStart(2, '0');
-            const dd = String(tanggal.getDate()).padStart(2, '0');
-
-            document.getElementById('edit_tgl_berakhir').value =
-                `${yyyy}-${mm}-${dd}`;
+            if (!mulai) return;
+            const d = new Date(mulai);
+            d.setFullYear(d.getFullYear() + 1);
+            const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            document.getElementById('edit_tgl_berakhir_display').value = val;
+            document.getElementById('edit_tgl_berakhir').value = val;
         }
 
-        document
-            .getElementById('edit_tgl_mulai')
-            .addEventListener('change', hitungTanggalBerakhirEdit);
-
-        document
-            .getElementById('edit_durasi_bulan')
-            .addEventListener('input', hitungTanggalBerakhirEdit);
+        document.getElementById('tgl_mulai').addEventListener('change', hitungTglBerakhirTambah);
+        document.getElementById('edit_tgl_mulai').addEventListener('change', hitungTglBerakhirEdit);
 
         function previewBuktiEdit(input) {
 

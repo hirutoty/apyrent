@@ -335,7 +335,8 @@ class AsuransiKendaraanController extends Controller
             'tgl_berakhir'      => 'required|date',
             'durasi_bulan'      => 'required|integer|min:1',
             'biaya'             => 'required|numeric|min:0',
-            'bukti_bayar'       => 'required|file|max:5120', // ✅ typo 'require' diperbaiki
+            'tanggal_bayar'     => 'nullable|date',
+            'bukti_bayar'       => 'required|file|max:5120',
             'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
         ]);
@@ -405,6 +406,7 @@ class AsuransiKendaraanController extends Controller
             'biaya'             => $request->biaya,
             'bukti_bayar'       => $bukti,
             'status_kendaraan'  => 'aktif',
+            'tanggal_bayar'     => $request->tanggal_bayar ?? now()->toDateString(),
         ]);
 
         // upload attachment tambahan (bukti pendukung perpanjangan)

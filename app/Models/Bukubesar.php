@@ -19,6 +19,7 @@ class Bukubesar extends Model
         'saldo',
         'aktivitas',
         'keterangan',
+        'referensi',
 
     ];
 }

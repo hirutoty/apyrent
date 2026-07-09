@@ -598,10 +598,16 @@
 
                 </div>
 
-                <button type="submit"
-                    class="mt-5 w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
-                    <i class="fa fa-save text-sm"></i> Simpan Data
-                </button>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeModalTambah()"
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
+                        <i class="fa fa-save text-sm"></i> Simpan Data
+                    </button>
+                </div>
             </form>
 
         </div>
@@ -742,10 +748,16 @@
 
                 </div>
 
-                <button type="submit"
-                    class="mt-5 w-full bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
-                    <i class="fa fa-save text-sm"></i> Update Data
-                </button>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeModalEdit()"
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
+                        <i class="fa fa-save text-sm"></i> Update Data
+                    </button>
+                </div>
             </form>
 
         </div>
@@ -821,8 +833,11 @@ MODAL PERPANJANG
                             Jatuh Tempo Baru
                         </label>
 
-                        <input id="perpanjang_jatuh_tempo" type="date" name="jatuh_tempo"
-                            class="w-full border rounded-lg px-3 py-2">
+                        {{-- Tampil disabled (tidak bisa diubah), value dikirim via hidden --}}
+                        <input id="perpanjang_jatuh_tempo_display" type="date"
+                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed" disabled>
+                        <input type="hidden" name="jatuh_tempo" id="perpanjang_jatuh_tempo">
+                        <p class="text-xs text-gray-400 mt-1">Otomatis jatuh tempo lama + 1 tahun</p>
                     </div>
 
                     <div>
@@ -832,7 +847,7 @@ MODAL PERPANJANG
 
                         <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
                             value="{{ now()->format('Y-m-d') }}"
-                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed" readonly>
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
                     <div>
@@ -882,14 +897,16 @@ MODAL PERPANJANG
 
                 </div>
 
-                <button class="mt-5 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold">
-
-                    <i class="fa fa-rotate-right"></i>
-
-                    Perpanjang Pajak
-
-                </button>
-
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeModalPerpanjang()"
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+                        <i class="fa fa-rotate-right"></i> Perpanjang Pajak
+                    </button>
+                </div>
             </form>
 
         </div>
@@ -1033,9 +1050,23 @@ MODAL PERPANJANG
 
             document.getElementById('perpanjang_jenis').value = jenis;
             document.getElementById('perpanjang_nominal').value = nominal;
-            document.getElementById('perpanjang_jatuh_tempo').value = formatDate(jatuhTempo);
             document.getElementById('perpanjang_status').value = status;
             document.getElementById('perpanjang_keterangan').value = keterangan;
+
+            // Hitung jatuh tempo baru = jatuh tempo lama + 1 tahun
+            const jatuhTempoLama = formatDate(jatuhTempo);
+            if (jatuhTempoLama) {
+                const d = new Date(jatuhTempoLama);
+                d.setFullYear(d.getFullYear() + 1);
+                const jatuhTempoBaru = d.getFullYear() + '-' +
+                    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(d.getDate()).padStart(2, '0');
+                document.getElementById('perpanjang_jatuh_tempo_display').value = jatuhTempoBaru;
+                document.getElementById('perpanjang_jatuh_tempo').value = jatuhTempoBaru;
+            }
+
+            // Set tanggal bayar ke hari ini
+            document.getElementById('perpanjang_tanggal_bayar').value = '{{ now()->format("Y-m-d") }}';
 
             modalPerpanjang.classList.remove('hidden');
             modalPerpanjang.classList.add('flex');

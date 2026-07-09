@@ -257,10 +257,11 @@ class KirController extends Controller
     public function perpanjang(Request $request, $id)
     {
         $request->validate([
-            'no_uji'       => 'required',
-            'masa_berlaku' => 'required|date',
-            'biaya'        => 'required|numeric|min:0',
-            'image'        => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'no_uji'         => 'required',
+            'masa_berlaku'   => 'required|date',
+            'biaya'          => 'required|numeric|min:0',
+            'tanggal_bayar'  => 'nullable|date',
+            'image'          => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
             'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
         ]);
@@ -298,10 +299,11 @@ class KirController extends Controller
 
         // update data aktif
         $kir->update([
-            'no_uji'       => $request->no_uji,
-            'masa_berlaku' => $request->masa_berlaku,
-            'biaya'        => $request->biaya,
-            'image'        => $image,
+            'no_uji'        => $request->no_uji,
+            'masa_berlaku'  => $request->masa_berlaku,
+            'biaya'         => $request->biaya,
+            'image'         => $image,
+            'tanggal_bayar' => $request->tanggal_bayar ?? now()->toDateString(),
         ]);
 
         // upload attachment tambahan (bukti pendukung perpanjangan)
