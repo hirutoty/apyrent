@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('member', function (Blueprint $table) {
     $table->id();
 
-    $table->string('nama_member')->nullable();
-    $table->string('kontak_member')->nullable();
-    $table->string('email_member')->nullable();
-    $table->enum('jenis_member', ['perorangan', 'perusahaan'])->nullable();
+    $table->string('nama_pelanggan')->nullable();
+    $table->string('kontak_pelanggan')->nullable();
+    $table->string('email_pelanggan')->nullable();
+    $table->enum('jenis_pelanggan', ['perorangan', 'perusahaan'])->nullable();
     $table->text('alamat')->nullable();
 
     $table->timestamps();
@@ -32,3 +32,4 @@ return new class extends Migration
         Schema::dropIfExists('members');
     }
 };
+

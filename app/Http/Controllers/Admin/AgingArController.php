@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\AgingAr;
 use App\Models\Invoice;
-use App\Models\Member;
+use App\Models\Pelanggan;
 use App\Models\Setting;
 use Carbon\Carbon;
 
@@ -122,15 +122,15 @@ class AgingArController extends Controller
     // =====================
     public function searchMember(Request $request)
     {
-        $data = Member::where('nama_member', 'like', "%{$request->q}%")
+        $data = Pelanggan::where('nama_pelanggan', 'like', "%{$request->q}%")
             ->limit(10)
-            ->get(['id', 'nama_member', 'kontak_member', 'email_member'])
+            ->get(['id', 'nama_pelanggan', 'kontak_pelanggan', 'email_pelanggan'])
             ->map(function ($member) {
                 return [
                     'id'    => $member->id,
-                    'name'  => $member->nama_member,
-                    'kontak' => $member->kontak_member,
-                    'email'  => $member->email_member,
+                    'name'  => $member->nama_pelanggan,
+                    'kontak' => $member->kontak_pelanggan,
+                    'email'  => $member->email_pelanggan,
                 ];
             });
 
@@ -207,3 +207,4 @@ class AgingArController extends Controller
             ->with('active_tab', 'lunas'); 
     }
 }
+

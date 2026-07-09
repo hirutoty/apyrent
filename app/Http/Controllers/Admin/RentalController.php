@@ -6,12 +6,13 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Controller;
 use App\Models\Rental;
 use App\Models\Kendaraan;
-use App\Models\Member;
+use App\Models\Pelanggan;
 use App\Models\BiayaTambahan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Keuangan;
+use App\Models\Bukubesar;
 use Carbon\Carbon;
 use Illuminate\Validation\Rule;
 use App\Models\Setting;
@@ -29,7 +30,7 @@ class RentalController extends Controller
 
         if ($request->search) {
             $query->whereHas('member', function ($q) use ($request) {
-                $q->where('nama_member', 'like', '%' . $request->search . '%');
+                $q->where('nama_pelanggan', 'like', '%' . $request->search . '%');
             })->orWhereHas('kendaraan', function ($q) use ($request) {
                 $q->where('merk', 'like', '%' . $request->search . '%')
                     ->orWhere('nopol', 'like', '%' . $request->search . '%');
@@ -99,8 +100,8 @@ class RentalController extends Controller
 
         return view('admin.rental.index', [
             'rentals'     => $rentals,
-            'members'     => Member::all(),
-            'membersJson' => Member::select('id', 'nama_member', 'kontak_member', 'email_member', 'jenis_member', 'alamat')->get(),
+            'members'     => Pelanggan::all(),
+            'pelangganJson' => Pelanggan::select('id', 'nama_pelanggan', 'kontak_pelanggan', 'email_pelanggan', 'jenis_pelanggan', 'alamat')->get(),
             'kendaraans'  => Kendaraan::all(),
             'bookedDates' => $bookedDates,
         ]);
@@ -132,7 +133,7 @@ class RentalController extends Controller
     {
         $request->validate([
             'kendaraan_id'     => 'required|exists:kendaraan,id',
-            'nama_member'      => 'required_without:member_id|string',
+            'nama_pelanggan'      => 'required_without:member_id|string',
             'tanggal_mulai'    => 'required',
             'jenis_pembayaran' => 'required|in:lunas,dp',
 
@@ -166,15 +167,15 @@ class RentalController extends Controller
             |------------------------------------------------------------------
             */
             if ($request->member_id) {
-                $member = Member::find($request->member_id);
+                $member = Pelanggan::find($request->member_id);
             } else {
-                $member = Member::firstOrCreate(
-                    ['nama_member' => $request->nama_member],
+                $member = Pelanggan::firstOrCreate(
+                    ['nama_pelanggan' => $request->nama_pelanggan],
                     [
-                        'email_member'  => $request->email,
-                        'kontak_member' => $request->kontak_member,
+                        'email_pelanggan'  => $request->email,
+                        'kontak_pelanggan' => $request->kontak_pelanggan,
                         'alamat'        => $request->alamat,
-                        'jenis_member'  => $request->jenis_member,
+                        'jenis_pelanggan'  => $request->jenis_pelanggan,
                     ]
                 );
             }
@@ -380,10 +381,11 @@ class RentalController extends Controller
             }
 
             if ($request->status === 'selesai') {
-                $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
+                $lastSaldo  = Keuangan::latest()->value('saldo') ?? 0;
+                $kodeJurnal = 'RNT-' . $rental->id;
                 Keuangan::create([
                     'tanggal'     => now()->toDateString(),
-                    'reference'   => 'PAY-' . $rental->id . '-' . now()->format('His') . rand(100, 999),
+                    'reference'   => $kodeJurnal,
                     'user_id'     => auth()->id(),
                     'kategori'    => 'Pemasukan',
                     'metode'      => 'auto',
@@ -392,6 +394,20 @@ class RentalController extends Controller
                     'pengeluaran' => 0,
                     'saldo'       => $lastSaldo + $rental->total_biaya,
                 ]);
+                // Auto-posting ke Buku Besar
+                if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                    Bukubesar::create([
+                        'kode_jurnal' => $kodeJurnal,
+                        'transaksi'   => 'Pendapatan Rental - ' . $rental->kendaraan->merk . ' ' . $rental->kendaraan->nopol,
+                        'kategori'    => 'Pendapatan',
+                        'tanggal'     => now()->toDateString(),
+                        'debit'       => 0,
+                        'kredit'      => $rental->total_biaya,
+                        'saldo'       => $rental->total_biaya,
+                        'aktivitas'   => 'Operasi',
+                        'keterangan'  => 'Auto-posting: Rental selesai - ' . $rental->kendaraan->merk . ' (' . $rental->kendaraan->nopol . ')',
+                    ]);
+                }
             }
 
             // Kalau dari fetch (index) → return JSON
@@ -538,7 +554,7 @@ class RentalController extends Controller
 
         if ($request->search) {
             $query->whereHas('member', function ($q) use ($request) {
-                $q->where('nama_member', 'like', '%' . $request->search . '%');
+                $q->where('nama_pelanggan', 'like', '%' . $request->search . '%');
             })->orWhereHas('kendaraan', function ($q) use ($request) {
                 $q->where('merk', 'like', '%' . $request->search . '%');
             });
@@ -605,10 +621,11 @@ class RentalController extends Controller
             }
 
             if ($request->status === 'selesai') {
-                $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
+                $lastSaldo  = Keuangan::latest()->value('saldo') ?? 0;
+                $kodeJurnal = 'RNT-' . $rental->id;
                 Keuangan::create([
                     'tanggal'     => now()->toDateString(),
-                    'reference'   => 'PAY-' . $rental->id . '-' . now()->format('His') . rand(100, 999),
+                    'reference'   => $kodeJurnal,
                     'user_id'     => auth()->id(),
                     'kategori'    => 'Pemasukan',
                     'metode'      => 'auto',
@@ -617,6 +634,20 @@ class RentalController extends Controller
                     'pengeluaran' => 0,
                     'saldo'       => $lastSaldo + $rental->total_biaya,
                 ]);
+                // Auto-posting ke Buku Besar
+                if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                    Bukubesar::create([
+                        'kode_jurnal' => $kodeJurnal,
+                        'transaksi'   => 'Pendapatan Rental - ' . $rental->kendaraan->merk . ' ' . $rental->kendaraan->nopol,
+                        'kategori'    => 'Pendapatan',
+                        'tanggal'     => now()->toDateString(),
+                        'debit'       => 0,
+                        'kredit'      => $rental->total_biaya,
+                        'saldo'       => $rental->total_biaya,
+                        'aktivitas'   => 'Operasi',
+                        'keterangan'  => 'Auto-posting: Rental selesai - ' . $rental->kendaraan->merk . ' (' . $rental->kendaraan->nopol . ')',
+                    ]);
+                }
             }
 
             return response()->json([
@@ -632,3 +663,4 @@ class RentalController extends Controller
         }
     }
 }
+

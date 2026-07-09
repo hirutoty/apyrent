@@ -4,14 +4,14 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\VirtualAccount;
-use App\Models\Member;
+use App\Models\Pelanggan;
 use App\Models\Rental;
 
 class VirtualAccountSeeder extends Seeder
 {
     public function run(): void
     {
-        $member = Member::first();
+        $member = Pelanggan::first();
         $rental = Rental::first();
 
         if (!$member || !$rental) {

@@ -13,6 +13,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use App\Models\GpsKendaraanHistory;
 use App\Models\Keuangan;
+use App\Models\Bukubesar;
 use App\Models\User;
 
 class GpsKendaraanController extends Controller
@@ -332,20 +333,36 @@ class GpsKendaraanController extends Controller
         ]);
 
         // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
-        $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
+        $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
         $pengeluaran = $request->biaya_sewa;
+        $kodeJurnal  = 'GPS-' . $gpsKendaraan->id;
 
         Keuangan::create([
-            'tanggal'      => now(),
-            'reference'    => 'GPS-' . $gpsKendaraan->id,
-            'user_id'      => auth()->id(),
-            'kategori'     => 'Pengeluaran',
-            'metode'       => '-',
-            'keterangan'   => 'Perpanjangan GPS kendaraan: ' . $gpsKendaraan->type . ' - ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
-            'pemasukan'    => 0,
-            'pengeluaran'  => $pengeluaran,
-            'saldo'        => $lastSaldo - $pengeluaran,
+            'tanggal'     => now(),
+            'reference'   => $kodeJurnal,
+            'user_id'     => auth()->id(),
+            'kategori'    => 'Pengeluaran',
+            'metode'      => '-',
+            'keterangan'  => 'Perpanjangan GPS kendaraan: ' . $gpsKendaraan->type . ' - ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
+            'pemasukan'   => 0,
+            'pengeluaran' => $pengeluaran,
+            'saldo'       => $lastSaldo - $pengeluaran,
         ]);
+
+        // Auto-posting ke Buku Besar
+        if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban GPS - ' . $gpsKendaraan->type,
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $pengeluaran,
+                'kredit'      => 0,
+                'saldo'       => $pengeluaran,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Perpanjangan GPS kendaraan ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
+            ]);
+        }
 
         // Update data aktif
         $gpsKendaraan->update([

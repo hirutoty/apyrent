@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\MemberKendaraan;
-use App\Models\Member;
+use App\Models\Pelanggan;
 use App\Models\Kendaraan;
 use Carbon\Carbon;
 
@@ -20,9 +20,9 @@ class MemberKendaraanController extends Controller
         ->diffInDays($d->tanggal_kembali) * $d->biaya_sewa;
 }
 
-        return view('admin.member.member_rental', [
+        return view('admin.pelanggan.pelanggan_rental', [
             'data' => $data,
-            'member' => Member::all(),
+            'member' => Pelanggan::all(),
             'kendaraan' => Kendaraan::all()
         ]);
     }

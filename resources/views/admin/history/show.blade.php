@@ -50,7 +50,7 @@
                     <div class="relative">
                         <i
                             class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-                        <input type="text" id="searchInput" placeholder="Cari member, status..." oninput="applyFilters()"
+                        <input type="text" id="searchInput" placeholder="Cari pelanggan, status..." oninput="applyFilters()"
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                     </div>
                     {{-- Filter Status --}}
@@ -102,11 +102,11 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">ID
                             </th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Member</th>
+                                Pelanggan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Kontak Member</th>
+                                Kontak Pelanggan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Jenis Member</th>
+                                Jenis Pelanggan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Nama Driver
                             </th>
@@ -131,7 +131,7 @@
                     <tbody id="rentalTableBody">
                         @forelse($rentals as $i => $r)
                             <tr class="border-t border-gray-50 transition-colors duration-100 {{ $r->status == 'aktif' ? 'bg-blue-200/50 hover:bg-blue-50' : 'hover:bg-gray-50' }}"
-                                data-search="{{ strtolower(($r->member->nama_member ?? '') . ' ' . $r->status) }}"
+                                data-search="{{ strtolower(($r->member->nama_pelanggan ?? '') . ' ' . $r->status) }}"
                                 data-status="{{ $r->status }}">
 
                                 {{-- NO --}}
@@ -149,9 +149,9 @@
                                     <div class="flex items-center gap-2">
                                         <div
                                             class="w-7 h-7 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                            {{ strtoupper(substr($r->member->nama_member ?? 'U', 0, 2)) }}
+                                            {{ strtoupper(substr($r->member->nama_pelanggan ?? 'U', 0, 2)) }}
                                         </div>
-                                        <span class="text-sm text-gray-700">{{ $r->member->nama_member ?? '-' }}</span>
+                                        <span class="text-sm text-gray-700">{{ $r->member->nama_pelanggan ?? '-' }}</span>
                                     </div>
                                 </td>
 
@@ -159,13 +159,13 @@
                                 
                                 <td class="px-4 py-3.5">
                                     <span class="text-xs text-gray-400">
-                                        {{ $r->member->kontak_member ?? '-' }}
+                                        {{ $r->member->kontak_pelanggan ?? '-' }}
                                     </span>
                                 </td>
 
                                 <td class="px-4 py-3.5">
                                     <span class="text-xs text-gray-400">
-                                        {{ $r->member->jenis_member ?? '-' }}
+                                        {{ $r->member->jenis_pelanggan ?? '-' }}
                                     </span>
                                 </td>
                                 
@@ -368,3 +368,4 @@
     </script>
 
 @endsection
+

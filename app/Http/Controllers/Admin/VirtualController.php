@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\VirtualAccount;
-use App\Models\Member;
+use App\Models\Pelanggan;
 use App\Models\Invoice;
 use App\Exports\VirtualAccountExport;
 use App\Models\Setting;
@@ -28,7 +28,7 @@ class VirtualController extends Controller
         }
 
         $data = $query->latest()->paginate(15)->withQueryString();
-        $members = Member::all();
+        $members = Pelanggan::all();
         $invoices = Invoice::select('id', 'invoice_no', 'customer_name')->latest()->get();
 
         return view('admin.virtual.index', compact('data', 'members', 'search', 'invoices'));
@@ -147,7 +147,7 @@ class VirtualController extends Controller
                     ->orWhere('bank', 'like', "%$search%")
                     ->orWhere('status', 'like', "%$search%")
                     ->orWhereHas('member', function ($m) use ($search) {
-                        $m->where('nama_member', 'like', "%$search%");
+                        $m->where('nama_pelanggan', 'like', "%$search%");
                     });
             });
         }

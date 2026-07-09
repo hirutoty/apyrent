@@ -9,7 +9,7 @@ use App\Models\InvPenawaran;
 use App\Models\InvPenawaranItem;
 use App\Models\Kendaraan;
 use App\Models\Rental;
-use App\Models\Member;
+use App\Models\Pelanggan;
 use App\Models\Setting;
 use Carbon\Carbon;
 
@@ -292,10 +292,10 @@ class InvPenawaranController
             // =========================
             // 1. CREATE / GET MEMBER (HANYA 1X)
             // =========================
-            $member = Member::firstOrCreate(
-                ['nama_member' => $penawaran->kepada],
+            $member = Pelanggan::firstOrCreate(
+                ['nama_pelanggan' => $penawaran->kepada],
                 [
-                    'kontak_member' => $penawaran->contact_person ?? null,
+                    'kontak_pelanggan' => $penawaran->contact_person ?? null,
                 ]
             );
 
@@ -436,3 +436,4 @@ class InvPenawaranController
         return $pdf->stream('Daftar-Penawaran-' . now()->format('Y-m-d') . '.pdf');
     }
 }
+

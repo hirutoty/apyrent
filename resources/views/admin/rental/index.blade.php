@@ -170,7 +170,7 @@
                 {{-- Search --}}
                 <div class="relative flex-1 max-w-xs">
                     <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                    <input type="text" id="searchInput" placeholder="Cari kendaraan / member..." oninput="applyFilters()"
+                    <input type="text" id="searchInput" placeholder="Cari kendaraan / pelanggan..." oninput="applyFilters()"
                         class="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -244,7 +244,7 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Kendaraan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Member</th>
+                                Pelanggan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Check-in</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -288,7 +288,7 @@
                             @endphp
                             <tr class="rental-row border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
                                 data-status="{{ $r->status }}"
-                                data-search="{{ strtolower(($r->kendaraan->merk ?? '') . ' ' . ($r->kendaraan->nopol ?? '') . ' ' . ($r->member->nama_member ?? '') . ' ' . $r->status) }}"
+                                data-search="{{ strtolower(($r->kendaraan->merk ?? '') . ' ' . ($r->kendaraan->nopol ?? '') . ' ' . ($r->member->nama_pelanggan ?? '') . ' ' . $r->status) }}"
                                 data-tanggal="{{ $tanggalMulaiStr }}" data-bulan="{{ $tanggalBulan }}">
 
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-medium row-num">{{ $i + 1 }}</td>
@@ -308,7 +308,7 @@
                                     </div>
                                 </td>
 
-                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $r->member->nama_member ?? '-' }}</td>
+                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $r->member->nama_pelanggan ?? '-' }}</td>
 
                                 <td class="px-4 py-3.5 text-sm text-gray-700">{{ $r->tanggal_mulai }}</td>
                                 <td class="px-4 py-3.5 text-sm text-gray-400">{{ $r->tanggal_selesai }}</td>
@@ -502,19 +502,19 @@
                 </button>
             </div>
 
-            <form action="{{ route('rental.store') }}" method="POST" enctype="multipart/form-data" class="px-6 py-5">
+            <form id="rentalStoreForm" action="{{ route('rental.store') }}" method="POST" enctype="multipart/form-data" class="px-6 py-5">
                 @csrf
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                    {{-- ── MEMBER ── --}}
+                    {{-- ── PELANGGAN ── --}}
                     <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-2">Data Member</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-2">Data Pelanggan</label>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="relative">
-                                <label class="text-xs text-gray-500 mb-1 block">Nama Member</label>
-                                <input type="text" id="nama_member" name="nama_member"
-                                    class="w-full border rounded-lg px-3 py-2" placeholder="Ketik nama member..."
+                                <label class="text-xs text-gray-500 mb-1 block">Nama Pelanggan</label>
+                                <input type="text" id="nama_pelanggan" name="nama_pelanggan"
+                                    class="w-full border rounded-lg px-3 py-2" placeholder="Ketik Nama Pelanggan..."
                                     autocomplete="off" required>
                                 <input type="hidden" name="member_id" id="member_id">
                                 <div id="member-result"
@@ -523,33 +523,33 @@
                             </div>
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">Kontak</label>
-                                <input type="text" name="kontak_member" id="kontak_member"
-                                    placeholder="Ketik kontak member..." class="w-full border rounded-lg px-3 py-2"
+                                <input type="text" name="kontak_pelanggan" id="kontak_pelanggan"
+                                    placeholder="Ketik kontak pelanggan..." class="w-full border rounded-lg px-3 py-2"
                                     required>
                             </div>
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">Alamat</label>
-                                <textarea name="alamat_member" id="alamat_member" rows="2" class="w-full border rounded-lg px-3 py-2"
-                                    placeholder="Ketik alamat member..." required></textarea>
+                                <textarea name="alamat_pelanggan" id="alamat_pelanggan" rows="2" class="w-full border rounded-lg px-3 py-2"
+                                    placeholder="Ketik alamat pelanggan..." required></textarea>
                             </div>
 
-                            {{-- ── EMAIL MEMBER (opsional) ── --}}
+                            {{-- ── Email Pelanggan (opsional) ── --}}
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">
-                                    Email Member <span class="text-gray-400 font-normal">(opsional)</span>
+                                    Email Pelanggan <span class="text-gray-400 font-normal">(opsional)</span>
                                 </label>
-                                <input type="email" name="email_member" id="email_member"
+                                <input type="email" name="email_pelanggan" id="email_pelanggan"
                                     placeholder="contoh@email.com" class="w-full border rounded-lg px-3 py-2">
                             </div>
 
-                            {{-- ── JENIS MEMBER (wajib) ── --}}
+                            {{-- ── Jenis Pelanggan (wajib) ── --}}
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">
-                                    Jenis Member <span class="text-red-500">*</span>
+                                    Jenis Pelanggan <span class="text-red-500">*</span>
                                 </label>
-                                <select name="jenis_member" id="jenis_member"
+                                <select name="jenis_pelanggan" id="jenis_pelanggan"
                                     class="w-full border rounded-lg px-3 py-2 text-sm" required>
-                                    <option value="">-- Pilih Jenis Member --</option>
+                                    <option value="">-- Pilih Jenis Pelanggan --</option>
                                     <option value="perorangan">Perorangan</option>
                                     <option value="perusahaan">Perusahaan</option>
                                 </select>
@@ -874,16 +874,20 @@
 
                             {{-- ── KELAYAKAN ── --}}
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1">
-                                    Surat Kelayakan
-                                </label>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="block text-xs font-semibold text-gray-600">
+                                        Surat Kelayakan <span class="text-red-500">*</span>
+                                    </label>
+                                    <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">
+                                        Wajib
+                                    </span>
+                                </div>
                                 <div id="drop-kelayakan"
                                     class="w-full border-2 border-dashed border-teal-400 bg-teal-50 rounded-xl p-5
                                        flex flex-col items-center justify-center text-center cursor-pointer
                                        transition hover:bg-teal-100">
                                     <input type="file" name="kelayakan" id="file_kelayakan" class="hidden"
-                                        onchange="previewDokumen(event,'prev-kelayakan','drop-kelayakan','nama-kelayakan')"
-                                        required>
+                                        onchange="previewDokumen(event,'prev-kelayakan','drop-kelayakan','nama-kelayakan')">
                                     <div class="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center mb-2">
                                         <i class="fas fa-file-shield text-xl text-teal-600"></i>
                                     </div>
@@ -901,6 +905,9 @@
                                         class="hidden w-28 h-28 object-cover rounded-lg border border-teal-300 shadow-sm"
                                         alt="Preview Kelayakan">
                                 </div>
+                                <p id="kelayakan-error" class="hidden mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                                    <i class="fa fa-exclamation-circle"></i> Surat kelayakan wajib diupload
+                                </p>
                             </div>
 
                         </div>
@@ -1219,6 +1226,42 @@
             initDropDokumen('drop-invoice', 'file_invoice', 'prev-invoice', 'nama-invoice');
             initDropDokumen('drop-kelayakan', 'file_kelayakan', 'prev-kelayakan', 'nama-kelayakan');
         })();
+
+        // ── VALIDASI KELAYAKAN WAJIB ───────────────────────
+        document.getElementById('rentalStoreForm').addEventListener('submit', function(e) {
+            const kelayakanInput = document.getElementById('file_kelayakan');
+            const errorEl = document.getElementById('kelayakan-error');
+            const dropEl  = document.getElementById('drop-kelayakan');
+
+            if (!kelayakanInput.files || kelayakanInput.files.length === 0) {
+                e.preventDefault();
+
+                // Tampilkan pesan error
+                errorEl.classList.remove('hidden');
+
+                // Highlight drop zone merah
+                dropEl.classList.add('border-red-400', 'bg-red-50');
+                dropEl.classList.remove('border-teal-400', 'bg-teal-50');
+
+                // Scroll ke drop zone
+                dropEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                errorEl.classList.add('hidden');
+                dropEl.classList.remove('border-red-400', 'bg-red-50');
+                dropEl.classList.add('border-teal-400', 'bg-teal-50');
+            }
+        });
+
+        // Hilangkan error saat file dipilih
+        document.getElementById('file_kelayakan').addEventListener('change', function() {
+            if (this.files && this.files.length > 0) {
+                const errorEl = document.getElementById('kelayakan-error');
+                const dropEl  = document.getElementById('drop-kelayakan');
+                errorEl.classList.add('hidden');
+                dropEl.classList.remove('border-red-400', 'bg-red-50');
+                dropEl.classList.add('border-teal-400', 'bg-teal-50');
+            }
+        });
     </script>
 
 
@@ -1750,8 +1793,8 @@
         /* ─────────────────────────────
             MEMBER AUTOCOMPLETE
         ──────────────────────────── */
-        const members = @json($membersJson);
-        const memberInput = document.getElementById('nama_member');
+        const members = @json($pelangganJson);
+        const memberInput = document.getElementById('nama_pelanggan');
         const memberResult = document.getElementById('member-result');
 
         if (memberInput && memberResult) {
@@ -1765,27 +1808,27 @@
                     return;
                 }
                 const filtered = members.filter(function(m) {
-                    return m.nama_member.toLowerCase().includes(keyword);
+                    return m.nama_pelanggan.toLowerCase().includes(keyword);
                 });
                 if (filtered.length === 0) {
                     memberResult.innerHTML =
-                        '<div class="px-3 py-2 text-gray-500 text-xs">Member baru akan dibuat</div>';
+                        '<div class="px-3 py-2 text-gray-500 text-xs">Pelanggan baru akan dibuat</div>';
                     memberResult.classList.remove('hidden');
                     return;
                 }
                 filtered.forEach(function(member) {
                     const item = document.createElement('div');
                     item.className = 'mr-item';
-                    item.innerHTML = '<strong style="font-size:13px;">' + member.nama_member +
-                        '</strong><br><small style="color:#6b7280;">' + (member.kontak_member ?? '') +
+                    item.innerHTML = '<strong style="font-size:13px;">' + member.nama_pelanggan +
+                        '</strong><br><small style="color:#6b7280;">' + (member.kontak_pelanggan ?? '') +
                         '</small>';
                     item.onclick = function() {
                         document.getElementById('member_id').value = member.id;
-                        memberInput.value = member.nama_member;
-                        document.getElementById('kontak_member').value = member.kontak_member ?? '';
-                        document.getElementById('alamat_member').value = member.alamat ?? '';
-                        document.getElementById('email_member').value = member.email_member ?? '';
-                        document.getElementById('jenis_member').value = member.jenis_member ?? '';
+                        memberInput.value = member.nama_pelanggan;
+                        document.getElementById('kontak_pelanggan').value = member.kontak_pelanggan ?? '';
+                        document.getElementById('alamat_pelanggan').value = member.alamat ?? '';
+                        document.getElementById('email_pelanggan').value = member.email_pelanggan ?? '';
+                        document.getElementById('jenis_pelanggan').value = member.jenis_pelanggan ?? '';
                         memberResult.classList.add('hidden');
                     };
                     memberResult.appendChild(item);
@@ -2061,3 +2104,5 @@
 
 
 @endsection
+
+

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Pelanggan;
 
 class VirtualAccount extends Model
 {
@@ -24,7 +25,7 @@ class VirtualAccount extends Model
 
     public function member()
     {
-        return $this->belongsTo(Member::class);
+        return $this->belongsTo(Pelanggan::class);
     }
 
     public function invoice()

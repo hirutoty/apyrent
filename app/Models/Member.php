@@ -9,28 +9,26 @@ class Member extends Model
 {
     use HasFactory;
 
-    protected $table = 'member';
+    protected $table = 'members';
 
     protected $fillable = [
-        'nama_member',
-        'kontak_member',
-        'email_member',
-        'alamat',
+        'nama',
+        'kontak',
+        'email',
         'jenis_member',
+        'alamat',
+        'file_stnk',
+        'file_attachment',
+        'file_kontrak',
     ];
 
-    public function memberKendaraan()
-    {
-        return $this->hasMany(MemberKendaraan::class);
-    }
+    protected $casts = [
+        'file_stnk'       => 'array',
+        'file_attachment' => 'array',
+    ];
 
-    public function rentals()
+    public function kendaraans()
     {
-        return $this->hasMany(Rental::class);
-    }
-
-    public function agingAr()
-    {
-        return $this->hasMany(AgingAr::class, 'customer_id');
+        return $this->hasMany(Kendaraan::class, 'member_id');
     }
 }

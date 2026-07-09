@@ -22,13 +22,13 @@ class VirtualAccountExport implements FromQuery, WithHeadings, WithMapping, With
 
     public function query()
     {
-        return VirtualAccount::with('member', 'invoice')
+        return VirtualAccount::with('pelanggan', 'invoice')
             ->when($this->search, fn($q) => $q->where(function ($q2) {
                 $q2->where('va_number', 'like', '%' . $this->search . '%')
                    ->orWhere('bank',    'like', '%' . $this->search . '%')
                    ->orWhere('status',  'like', '%' . $this->search . '%')
-                   ->orWhereHas('member', fn($m) =>
-                       $m->where('nama_member', 'like', '%' . $this->search . '%')
+                   ->orWhereHas('pelanggan', fn($m) =>
+                       $m->where('nama_pelanggan', 'like', '%' . $this->search . '%')
                    );
             }))
             ->orderBy('created_at', 'desc');
@@ -37,7 +37,7 @@ class VirtualAccountExport implements FromQuery, WithHeadings, WithMapping, With
     public function headings(): array
     {
         return [
-            'No', 'VA Number', 'Member', 'Invoice No', 'Customer Invoice',
+            'No', 'VA Number', 'Pelanggan', 'Invoice No', 'Customer Invoice',
             'Bank', 'Expected Amount (Rp)', 'Paid Amount (Rp)',
             'Status', 'Expired At',
         ];
@@ -50,7 +50,7 @@ class VirtualAccountExport implements FromQuery, WithHeadings, WithMapping, With
         return [
             $no,
             $row->va_number,
-            $row->member->nama_member ?? '-',
+            $row->pelanggan->nama_pelanggan ?? '-',
             $row->invoice->invoice_no ?? '-',
             $row->invoice->customer_name ?? '-',
             $row->bank,

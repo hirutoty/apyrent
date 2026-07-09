@@ -189,11 +189,11 @@
                                     @endphp
 
                                     <td class="px-4 py-3.5 text-sm text-gray-700">
-                                        {{ $rental->member->nama_member ?? '-' }}
+                                        {{ $rental->Pelanggan->nama_pelanggan ?? '-' }}
                                     </td>
 
                                     <td class="px-4 py-3.5">
-                                        {{ $rental->member->jenis_member ?? '-' }}
+                                        {{ $rental->Pelanggan->jenis_pelanggan ?? '-' }}
                                     </td>
 
                                     <td class="px-4 py-3.5">
@@ -326,7 +326,7 @@
                                                 data-km_svc="{{ $d->km_terakhir_service }}"
                                                 data-tgl_svc="{{ $d->tanggal_terakhir_service }}"
                                                 data-status_service="{{ $d->status_service }}"
-                                                data-status_kendaraan="{{ $d->status_kendaraan }}">
+                                                data-status_kendaraan="{{ $d->status_kendaraan }}" data-member_id="{{ $d->member_id }}">
                                                 <i class="fa fa-eye text-xs"></i> Detail
                                             </button>
 
@@ -357,7 +357,7 @@
                                                 data-km_terakhir_service="{{ $d->km_terakhir_service }}"
                                                 data-tanggal_terakhir_service="{{ $d->tanggal_terakhir_service }}"
                                                 data-status_service="{{ $d->status_service }}"
-                                                data-status_kendaraan="{{ $d->status_kendaraan }}">
+                                                data-status_kendaraan="{{ $d->status_kendaraan }}" data-member_id="{{ $d->member_id }}">
                                                 <i class="fa fa-edit text-xs"></i> Edit
                                             </button>
 
@@ -815,7 +815,31 @@
                                 <i class="fa fa-id-card mr-1"></i> Data Registrasi
                             </p>
                             <div class="grid grid-cols-3 gap-3">
-                                @foreach ([['tahun_pembuatan', 'Tahun Pembuatan'], ['tahun_perakitan', 'Tahun Perakitan'], ['isi_silinder', 'Isi Silinder'], ['bahan_bakar', 'Bahan Bakar'], ['warna_tnkb', 'Warna TNKB'], ['kode_lokasi', 'Kode Lokasi'], ['no_urut_pendaftaran', 'No Urut Pendaftaran'], ['no_rangka', 'No Rangka'], ['no_mesin', 'No Mesin'], ['no_bpkb', 'No BPKB']] as [$name, $label])
+                                {{-- Tahun Pembuatan --}}
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tahun Pembuatan
+                                        <span class="text-red-500">*</span></label>
+                                    <select name="tahun_pembuatan" required
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">-- Pilih Tahun --</option>
+                                        @for ($y = date('Y'); $y >= 1980; $y--)
+                                            <option value="{{ $y }}">{{ $y }}</option>
+                                        @endfor
+                                    </select>
+                                </div>
+                                {{-- Tahun Perakitan --}}
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tahun Perakitan
+                                        <span class="text-red-500">*</span></label>
+                                    <select name="tahun_perakitan" required
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">-- Pilih Tahun --</option>
+                                        @for ($y = date('Y'); $y >= 1980; $y--)
+                                            <option value="{{ $y }}">{{ $y }}</option>
+                                        @endfor
+                                    </select>
+                                </div>
+                                @foreach ([['isi_silinder', 'Isi Silinder'], ['bahan_bakar', 'Bahan Bakar'], ['warna_tnkb', 'Warna TNKB'], ['kode_lokasi', 'Kode Lokasi'], ['no_urut_pendaftaran', 'No Urut Pendaftaran'], ['no_rangka', 'No Rangka'], ['no_mesin', 'No Mesin'], ['no_bpkb', 'No BPKB']] as [$name, $label])
                                     <div>
                                         <label
                                             class="block text-xs font-semibold text-gray-600 mb-1.5">{{ $label }}
@@ -994,6 +1018,15 @@
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
                                 <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Link ke Member <span class="text-gray-400 font-normal text-xs">(opsional)</span></label>
+                                    <select name="member_id" id="e_member_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">-- Tidak dihubungkan ke Member --</option>
+                                        @foreach($members as $m)
+                                            <option value="{{ $m->id }}">{{ $m->nama }} ({{ ucfirst($m->jenis_member) }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Merk</label>
                                     <input name="merk" id="e_merk"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
@@ -1023,7 +1056,31 @@
                                 <i class="fa fa-id-card mr-1"></i> Data Registrasi
                             </p>
                             <div class="grid grid-cols-3 gap-3">
-                                @foreach ([['tahun_pembuatan', 'Tahun Pembuatan'], ['tahun_perakitan', 'Tahun Perakitan'], ['isi_silinder', 'Isi Silinder (cc)'], ['bahan_bakar', 'Bahan Bakar'], ['warna_tnkb', 'Warna TNKB'], ['kode_lokasi', 'Kode Lokasi'], ['no_urut_pendaftaran', 'No Urut Pendaftaran'], ['no_rangka', 'No Rangka'], ['no_mesin', 'No Mesin'], ['no_bpkb', 'No BPKB']] as [$name, $label])
+                                {{-- Tahun Pembuatan --}}
+                                <div>
+                                    <label
+                                        class="block text-xs font-semibold text-gray-600 mb-1.5">Tahun Pembuatan</label>
+                                    <select name="tahun_pembuatan" id="e_tahun_pembuatan"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">-- Pilih Tahun --</option>
+                                        @for ($y = date('Y'); $y >= 1980; $y--)
+                                            <option value="{{ $y }}">{{ $y }}</option>
+                                        @endfor
+                                    </select>
+                                </div>
+                                {{-- Tahun Perakitan --}}
+                                <div>
+                                    <label
+                                        class="block text-xs font-semibold text-gray-600 mb-1.5">Tahun Perakitan</label>
+                                    <select name="tahun_perakitan" id="e_tahun_perakitan"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <option value="">-- Pilih Tahun --</option>
+                                        @for ($y = date('Y'); $y >= 1980; $y--)
+                                            <option value="{{ $y }}">{{ $y }}</option>
+                                        @endfor
+                                    </select>
+                                </div>
+                                @foreach ([['isi_silinder', 'Isi Silinder (cc)'], ['bahan_bakar', 'Bahan Bakar'], ['warna_tnkb', 'Warna TNKB'], ['kode_lokasi', 'Kode Lokasi'], ['no_urut_pendaftaran', 'No Urut Pendaftaran'], ['no_rangka', 'No Rangka'], ['no_mesin', 'No Mesin'], ['no_bpkb', 'No BPKB']] as [$name, $label])
                                     <div>
                                         <label
                                             class="block text-xs font-semibold text-gray-600 mb-1.5">{{ $label }}</label>
@@ -1386,7 +1443,7 @@
                         'kode_lokasi', 'no_urut_pendaftaran', 'batas_biaya', 'masa_berlaku',
                         'kilometer_sekarang', 'limit_km_service', 'limit_bulan_service',
                         'km_terakhir_service', 'tanggal_terakhir_service',
-                        'status_service', 'status_kendaraan',
+                        'status_service', 'status_kendaraan', 'member_id',
                         'harga_sewa_per_hari', 'harga_sewa_per_jam',
                     ];
 
@@ -1545,3 +1602,4 @@
 
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @endsection
+

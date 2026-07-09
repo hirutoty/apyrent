@@ -183,7 +183,7 @@
                                 </td>
 
                                 <td class="px-4 py-3" data-col="col-jenis">
-                                    {{ $p->jenis_member }}
+                                    {{ $p->jenis_pelanggan }}
                                 </td>
 
                                 <td class="px-4 py-3" data-col="col-kendaraan">
@@ -344,9 +344,9 @@
                         </div>
 
                         <div>
-                            <label>Jenis Member</label>
-                            <select name="jenis_member" class="w-full border rounded-lg p-2 mt-1">
-                                <option value="">-- Pilih Jenis Member --</option>
+                            <label>Jenis Pelanggan</label>
+                            <select name="jenis_pelanggan" class="w-full border rounded-lg p-2 mt-1">
+                                <option value="">-- Pilih Jenis Pelanggan --</option>
                                 <option value="perorangan">Perorangan</option>
                                 <option value="perusahaan">Perusahaan</option>
                             </select>
@@ -543,9 +543,9 @@
                         </div>
 
                         <div>
-                            <label>Jenis Member</label>
-                            <select id="edit_jenis_member" name="jenis_member" class="w-full border rounded-lg p-2 mt-1">
-                                <option value="">-- Pilih Jenis Member --</option>
+                            <label>Jenis Pelanggan</label>
+                            <select id="edit_jenis_pelanggan" name="jenis_pelanggan" class="w-full border rounded-lg p-2 mt-1">
+                                <option value="">-- Pilih Jenis Pelanggan --</option>
                                 <option value="Perorangan">Perorangan</option>
                                 <option value="Perusahaan">Perusahaan</option>
                             </select>
@@ -730,8 +730,8 @@
                         <p id="show_alamat" class="text-gray-800 mt-1">-</p>
                     </div>
                     <div>
-                        <label class="text-sm font-medium text-gray-500">Jenis Member</label>
-                        <p id="show_jenis_member" class="text-gray-800 mt-1">-</p>
+                        <label class="text-sm font-medium text-gray-500">Jenis Pelanggan</label>
+                        <p id="show_jenis_pelanggan" class="text-gray-800 mt-1">-</p>
                     </div>
                 </div>
 
@@ -820,7 +820,12 @@
                     class="qty w-full border rounded p-2">
             </td>
             <td class="border p-2">
-                <input type="text" name="tahun_unit[]" class="w-full border rounded p-2">
+                <select name="tahun_unit[]" class="w-full border rounded p-2">
+                    <option value="">-- Pilih Tahun --</option>
+                    @for ($y = date('Y'); $y >= 1980; $y--)
+                        <option value="{{ $y }}">{{ $y }}</option>
+                    @endfor
+                </select>
             </td>
             <td class="border p-2">
                 <input type="number" name="price[]" value="0" class="price w-full border rounded p-2">
@@ -884,6 +889,15 @@
                 ).join('');
             }
 
+            function buildTahunSelect(selected = '') {
+                const currentYear = new Date().getFullYear();
+                let opts = '<option value="">-- Pilih Tahun --</option>';
+                for (let y = currentYear; y >= 1980; y--) {
+                    opts += `<option value="${y}" ${String(y) === String(selected) ? 'selected' : ''}>${y}</option>`;
+                }
+                return opts;
+            }
+
             function buildEditRow(item = {}) {
                 return `
             <tr>
@@ -896,7 +910,9 @@
                     <input type="number" name="qty[]" value="${item.qty ?? 1}" min="1" class="qty w-full border rounded p-2">
                 </td>
                 <td class="border p-2">
-                    <input type="text" name="tahun_unit[]" value="${item.tahun_unit ?? ''}" class="w-full border rounded p-2">
+                    <select name="tahun_unit[]" class="w-full border rounded p-2">
+                        ${buildTahunSelect(item.tahun_unit ?? '')}
+                    </select>
                 </td>
                 <td class="border p-2">
                     <input type="number" name="price[]" value="${item.price ?? 0}" class="price w-full border rounded p-2">
@@ -1000,7 +1016,7 @@
                             document.getElementById('edit_contact').value = data.contact_person ?? '';
                             document.getElementById('edit_email').value = data.email_person ?? '';
                             document.getElementById('edit_alamat').value = data.alamat ?? '';
-                            document.getElementById('edit_jenis_member').value = data.jenis_member ?? '';
+                            document.getElementById('edit_jenis_pelanggan').value = data.jenis_pelanggan ?? '';
                             document.getElementById('edit_pengirim').value = data.pengirim ?? '';
                             document.getElementById('edit_staff').value = data.staff ?? '';
                             document.getElementById('edit_name_staff').value = data.name_staff ?? '';
@@ -1106,7 +1122,7 @@
                             '-';
                             document.getElementById('show_email').textContent = data.email_person ?? '-';
                             document.getElementById('show_alamat').textContent = data.alamat ?? '-';
-                            document.getElementById('show_jenis_member').textContent = data.jenis_member ??
+                            document.getElementById('show_jenis_pelanggan').textContent = data.jenis_pelanggan ??
                                 '-';
                             document.getElementById('show_pengirim').textContent = data.pengirim ?? '-';
                             document.getElementById('show_staff').textContent = data.staff ?? '-';
@@ -1156,3 +1172,4 @@
     @endpush
 
 @endsection
+

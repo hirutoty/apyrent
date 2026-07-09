@@ -45,7 +45,7 @@ class DatabaseSeeder extends Seeder
             ServiceHistorySeeder::class,
             ServiceDetailSeeder::class,
             KirSeeder::class,
-            MemberSeeder::class,
+            PelangganSeeder::class,
             RentalSeeder::class,
             KeuanganSeeder::class,
             HutangVendorSeeder::class,

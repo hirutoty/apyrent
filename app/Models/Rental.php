@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Pelanggan;
 
 class Rental extends Model
 {
@@ -65,7 +66,7 @@ class Rental extends Model
 
     public function member()
     {
-        return $this->belongsTo(Member::class);
+        return $this->belongsTo(Pelanggan::class);
     }
 
     public function biayaTambahans()

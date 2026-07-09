@@ -129,11 +129,11 @@
                                 data-search="{{ strtolower(
                                     $d->invoice->invoice_no .
                                         ' ' .
-                                        $d->member->nama_member .
+                                        $d->member->nama_pelanggan .
                                         ' ' .
-                                        ($d->member->email_member ?? '') .
+                                        ($d->member->email_pelanggan ?? '') .
                                         ' ' .
-                                        ($d->member->kontak_member ?? '') .
+                                        ($d->member->kontak_pelanggan ?? '') .
                                         ' ' .
                                         $d->kategori .
                                         ' ' .
@@ -149,16 +149,16 @@
                                 <td class="px-5 py-4 font-medium text-slate-800">{{ $d->invoice->invoice_no }}</td>
 
                                 {{-- Customer --}}
-                                <td class="px-5 py-4 text-slate-700">{{ $d->member->nama_member }}</td>
+                                <td class="px-5 py-4 text-slate-700">{{ $d->member->nama_pelanggan }}</td>
 
                                 {{-- Email --}}
                                 <td class="px-5 py-4 text-slate-600 text-xs">
-                                    {{ $d->member->email_member ?? '-' }}
+                                    {{ $d->member->email_pelanggan ?? '-' }}
                                 </td>
 
                                 {{-- Kontak --}}
                                 <td class="px-5 py-4 text-slate-600 text-xs">
-                                    {{ $d->member->kontak_member ?? '-' }}
+                                    {{ $d->member->kontak_pelanggan ?? '-' }}
                                 </td>
 
                                 {{-- Jatuh Tempo --}}
@@ -301,14 +301,14 @@
                     {{-- Email Member (auto) --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Email Member</label>
-                        <input type="text" id="add_email_member" readonly placeholder="Terisi otomatis"
+                        <input type="text" id="add_email_pelanggan" readonly placeholder="Terisi otomatis"
                             class="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-500 outline-none">
                     </div>
 
                     {{-- Kontak Member (auto) --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Kontak Member</label>
-                        <input type="text" id="add_kontak_member" readonly placeholder="Terisi otomatis"
+                        <input type="text" id="add_kontak_pelanggan" readonly placeholder="Terisi otomatis"
                             class="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-500 outline-none">
                     </div>
 
@@ -394,14 +394,14 @@
                     {{-- Email Member (auto) --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Email Member</label>
-                        <input type="text" id="edit_email_member" readonly placeholder="Terisi otomatis"
+                        <input type="text" id="edit_email_pelanggan" readonly placeholder="Terisi otomatis"
                             class="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-500 outline-none">
                     </div>
 
                     {{-- Kontak Member (auto) --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Kontak Member</label>
-                        <input type="text" id="edit_kontak_member" readonly placeholder="Terisi otomatis"
+                        <input type="text" id="edit_kontak_pelanggan" readonly placeholder="Terisi otomatis"
                             class="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-500 outline-none">
                     </div>
 
@@ -505,13 +505,13 @@
             // Auto-isi email & kontak saat member dipilih (modal tambah)
             $('#member_id').on('select2:select', function(e) {
                 const data = e.params.data;
-                $('#add_email_member').val(data.email ?? '');
-                $('#add_kontak_member').val(data.kontak ?? '');
+                $('#add_email_pelanggan').val(data.email ?? '');
+                $('#add_kontak_pelanggan').val(data.kontak ?? '');
             });
 
             $('#member_id').on('select2:clear', function() {
-                $('#add_email_member').val('');
-                $('#add_kontak_member').val('');
+                $('#add_email_pelanggan').val('');
+                $('#add_kontak_pelanggan').val('');
             });
 
             // ===== INVOICE (MODAL TAMBAH) =====
@@ -569,13 +569,13 @@
             // Auto-isi email & kontak saat member dipilih (modal edit)
             $('#edit_member_id').on('select2:select', function(e) {
                 const data = e.params.data;
-                $('#edit_email_member').val(data.email ?? '');
-                $('#edit_kontak_member').val(data.kontak ?? '');
+                $('#edit_email_pelanggan').val(data.email ?? '');
+                $('#edit_kontak_pelanggan').val(data.kontak ?? '');
             });
 
             $('#edit_member_id').on('select2:clear', function() {
-                $('#edit_email_member').val('');
-                $('#edit_kontak_member').val('');
+                $('#edit_email_pelanggan').val('');
+                $('#edit_kontak_pelanggan').val('');
             });
 
             // ===== INVOICE (MODAL EDIT) =====
@@ -624,8 +624,8 @@
                 $('#invoice_id').val(null).trigger('change');
 
                 // reset field auto
-                document.getElementById('add_email_member').value = '';
-                document.getElementById('add_kontak_member').value = '';
+                document.getElementById('add_email_pelanggan').value = '';
+                document.getElementById('add_kontak_pelanggan').value = '';
 
                 modal.classList.remove('hidden');
             };
@@ -644,12 +644,12 @@
                 $('#edit_invoice_id').append(new Option(data.invoice.invoice_no, data.invoice.id, true, true))
                     .trigger('change');
 
-                $('#edit_member_id').append(new Option(data.member.nama_member, data.member.id, true, true))
+                $('#edit_member_id').append(new Option(data.member.nama_pelanggan, data.member.id, true, true))
                     .trigger('change');
 
                 // isi field auto dari data member yang sudah ada
-                document.getElementById('edit_email_member').value = data.member.email_member ?? '';
-                document.getElementById('edit_kontak_member').value = data.member.kontak_member ?? '';
+                document.getElementById('edit_email_pelanggan').value = data.member.email_pelanggan ?? '';
+                document.getElementById('edit_kontak_pelanggan').value = data.member.kontak_pelanggan ?? '';
 
                 document.getElementById('jatuh_tempo').value = data.jatuh_tempo.substring(0, 10);
                 document.getElementById('total').value = data.total;
@@ -717,3 +717,4 @@
 
 
 @endsection
+

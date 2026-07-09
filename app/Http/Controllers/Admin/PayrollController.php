@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payroll;
+use App\Models\Bukubesar;
 use Illuminate\Http\Request;
 
 class PayrollController extends Controller
@@ -35,7 +36,25 @@ class PayrollController extends Controller
             'slip_gaji'    => 'nullable|string|max:255',
         ]);
 
-        Payroll::create($validated);
+        $payroll = Payroll::create($validated);
+
+        // Auto-posting ke Buku Besar sebagai Beban Gaji
+        $kodeJurnal = 'PAY-' . $payroll->id;
+
+        Bukubesar::create([
+            'kode_jurnal' => $kodeJurnal,
+            'transaksi'   => 'Beban Gaji - ' . $payroll->nama_pegawai,
+            'kategori'    => 'Beban',
+            'tanggal'     => now()->toDateString(),
+            'debit'       => $payroll->total_gaji,
+            'kredit'      => 0,
+            'saldo'       => $payroll->total_gaji,
+            'aktivitas'   => 'Operasi',
+            'keterangan'  => 'Auto-posting: Gaji ' . $payroll->nama_pegawai
+                             . ' (Pokok: ' . number_format($payroll->gaji_pokok, 0, ',', '.')
+                             . ', Tunjangan: ' . number_format($payroll->tunjangan, 0, ',', '.')
+                             . ', THR: ' . number_format($payroll->thr, 0, ',', '.') . ')',
+        ]);
 
         return redirect()->route('payroll.index')
             ->with('success', 'Data payroll berhasil ditambahkan.');
@@ -56,12 +75,47 @@ class PayrollController extends Controller
 
         $payroll->update($validated);
 
+        // Sinkron jurnal Buku Besar
+        $kodeJurnal = 'PAY-' . $payroll->id;
+        $jurnal     = Bukubesar::where('kode_jurnal', $kodeJurnal)->first();
+
+        if ($jurnal) {
+            $jurnal->update([
+                'transaksi'  => 'Beban Gaji - ' . $payroll->nama_pegawai,
+                'debit'      => $payroll->total_gaji,
+                'saldo'      => $payroll->total_gaji,
+                'keterangan' => 'Auto-posting: Gaji ' . $payroll->nama_pegawai
+                                . ' (Pokok: ' . number_format($payroll->gaji_pokok, 0, ',', '.')
+                                . ', Tunjangan: ' . number_format($payroll->tunjangan, 0, ',', '.')
+                                . ', THR: ' . number_format($payroll->thr, 0, ',', '.') . ')',
+            ]);
+        } else {
+            // Jurnal belum ada (data lama sebelum fitur ini) — buat baru
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban Gaji - ' . $payroll->nama_pegawai,
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $payroll->total_gaji,
+                'kredit'      => 0,
+                'saldo'       => $payroll->total_gaji,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Gaji ' . $payroll->nama_pegawai
+                                 . ' (Pokok: ' . number_format($payroll->gaji_pokok, 0, ',', '.')
+                                 . ', Tunjangan: ' . number_format($payroll->tunjangan, 0, ',', '.')
+                                 . ', THR: ' . number_format($payroll->thr, 0, ',', '.') . ')',
+            ]);
+        }
+
         return redirect()->route('payroll.index')
             ->with('success', 'Data payroll berhasil diperbarui.');
     }
 
     public function destroy(Payroll $payroll)
     {
+        // Hapus jurnal Buku Besar terkait sebelum delete payroll
+        Bukubesar::where('kode_jurnal', 'PAY-' . $payroll->id)->delete();
+
         $payroll->delete();
 
         return redirect()->route('payroll.index')
