@@ -21,7 +21,7 @@
     .info-table td.sep { width: 10px; }
 
     /* MAIN INVOICE TABLE */
-    .inv-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 10.5pt; }
+    .inv-table { width: 100%; border-collapse: collapse; margin-top: 14px; margin-bottom: 30px; font-size: 10.5pt; }
     .inv-table th {
       border: 1px solid #000;
       padding: 5px 6px;
@@ -40,7 +40,7 @@
     .inv-table tfoot td { font-weight: bold; }
 
     /* BANK INFO */
-    .bank-info { margin margin-top: 14px; font-size: 10.5pt; line-height: 1.6; }
+    .bank-info { margin margin-top: 20px; font-size: 10.5pt; line-height: 1.6; }
 
     /* PAYMENT NOTE */
     .pay-note { margin-top: 8px; font-size: 9.5pt; line-height: 1.5; }

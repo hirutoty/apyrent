@@ -21,10 +21,16 @@ class Purchasero extends Model
         'qty',
         'satuan',
         'alasan_permintaan',
+        'nominal',
         'status',
         'disetujui_oleh',
         'tanggal_persetujuan',
         'catatan',
+        'terakhir_diajukan',
+    ];
+
+    protected $casts = [
+        'terakhir_diajukan' => 'datetime',
     ];
 
     protected static function boot()

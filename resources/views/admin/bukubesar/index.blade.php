@@ -190,7 +190,7 @@
                         <tbody id="tableBody">
                             @forelse ($data as $item)
                                 <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
-                                    data-search="{{ strtolower($item->kode_jurnal . ' ' . $item->transaksi . ' ' . $item->kategori . ' ' . $item->aktivitas) }}">
+                                    data-search="{{ strtolower($item->kode_jurnal . ' ' . $item->transaksi . ' ' . $item->kategori . ' ' . $item->aktivitas . ' ' . $item->referensi) }}">
 
                                     <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $data->firstItem() + $loop->index }}</td>
                                     <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->tanggal }}</td>
@@ -198,6 +198,12 @@
                                     <td class="px-4 py-3.5">
                                         <span
                                             class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $item->kode_jurnal }}</span>
+                                        @if ($item->referensi)
+                                            <br>
+                                            <span class="inline-flex items-center gap-1 mt-1 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-full">
+                                                <i class="fa fa-link text-[10px]"></i>{{ $item->referensi }}
+                                            </span>
+                                        @endif
                                     </td>
 
                                     <td class="px-4 py-3.5 text-sm text-gray-700 max-w-[160px] truncate">

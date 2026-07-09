@@ -347,6 +347,20 @@
                                 {{-- Aksi --}}
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
+                                        {{-- Perpanjang --}}
+                                        <button
+                                            onclick="openModalPerpanjang(
+        '{{ $d->id }}',
+        '{{ $d->kendaraan->nopol ?? '-' }}',
+        '{{ $d->kendaraan->merk ?? '-' }}',
+        '{{ $d->no_uji }}',
+        '{{ $d->biaya }}',
+        '{{ \Carbon\Carbon::parse($d->masa_berlaku)->format('Y-m-d') }}'
+    )"
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
+                                            <i class="fa fa-rotate-right text-xs"></i> Perpanjang
+                                        </button>
+
                                         <button
                                             onclick="openEditModal(
         '{{ $d->id }}',
@@ -446,7 +460,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Masa Berlaku <span
                             class="text-red-500">*</span></label>
-                    <input type="date" name="masa_berlaku" required
+                    <input type="date" name="masa_berlaku" id="tambah_masa_berlaku" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -561,6 +575,7 @@
                             class="text-red-500">*</span></label>
                     <input type="date" name="masa_berlaku" id="edit_masa_berlaku" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <p class="text-xs text-gray-400 mt-1">Isi tanggal masa berlaku KIR</p>
                 </div>
 
                 <div>
@@ -649,11 +664,21 @@
                         class="w-full border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-sm cursor-not-allowed">
                 </div>
 
-                {{-- Masa Berlaku Baru --}}
+                {{-- Masa Berlaku Baru: lama + 1 tahun, disabled --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Masa Berlaku Baru <span
                             class="text-red-500">*</span></label>
-                    <input type="date" name="masa_berlaku" id="perpanjang_masa_berlaku" required
+                    <input type="date" id="perpanjang_masa_berlaku_display" disabled
+                        class="w-full border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-sm cursor-not-allowed">
+                    <input type="hidden" name="masa_berlaku" id="perpanjang_masa_berlaku">
+                    <p class="text-xs text-gray-400 mt-1">Otomatis masa berlaku lama + 1 tahun</p>
+                </div>
+
+                {{-- Tanggal Bayar --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar</label>
+                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
+                        value="{{ now()->format('Y-m-d') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -662,21 +687,33 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Biaya Baru <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="biaya" id="perpanjang_biaya" min="0" required readonly
-                        class="w-full border border-gray-200 bg-gray-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed">
+                        class="w-full border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-sm cursor-not-allowed">
                 </div>
 
                 {{-- Upload Bukti --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Upload Bukti Baru</label>
-                    <input type="file" name="image"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" required>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Upload Bukti Baru <span class="text-red-500">*</span>
+                    </label>
+
+                    {{-- Preview area --}}
+                    <div id="previewWrapPerpanjang" class="hidden mb-3 relative"></div>
+
+                    <label for="perpanjang_image"
+                        class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-1"></i>
+                        <span class="text-xs text-slate-500">Klik untuk upload / ganti file</span>
+                        <span class="text-[11px] text-slate-400">(maks 2MB)</span>
+                    </label>
+
+                    <input type="file" name="image" id="perpanjang_image" class="hidden" required
+                        onchange="previewFilePerpanjang(this)">
                 </div>
 
-
-
-                <div class="md:col-span-2">
+                {{-- Lampiran Tambahan --}}
+                <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Lampiran Tambahan (opsional, bisa lebih dari 1)
+                        Lampiran Tambahan <span class="text-gray-400 font-normal">(opsional, bisa lebih dari 1)</span>
                     </label>
 
                     <label for="bukti_attachment"
@@ -805,6 +842,8 @@
             document.getElementById('edit_kendaraan_id').value = kendaraan_id;
             document.getElementById('edit_no_uji').value = no_uji;
             document.getElementById('edit_biaya').value = biaya;
+
+            // Set masa berlaku dari data yang ada
             document.getElementById('edit_masa_berlaku').value = masa_berlaku;
 
             document.getElementById('edit_image').value = '';
@@ -879,12 +918,25 @@
         });
 
         // ── MODAL PERPANJANG ───────────────────────────────
-        function openModalPerpanjang(id, nopol, merk, no_uji, biaya) {
+        function openModalPerpanjang(id, nopol, merk, no_uji, biaya, masaBerlakuLama) {
             document.getElementById('formPerpanjang').action = '/admin/kir/' + id + '/perpanjang';
             document.getElementById('perpanjang_kendaraan_text').innerText = nopol + ' - ' + merk;
             document.getElementById('perpanjang_no_uji').value = no_uji;
             document.getElementById('perpanjang_biaya').value = biaya;
-            document.getElementById('perpanjang_masa_berlaku').value = '';
+
+            // Hitung masa berlaku baru = lama + 1 tahun
+            if (masaBerlakuLama) {
+                const d = new Date(masaBerlakuLama);
+                d.setFullYear(d.getFullYear() + 1);
+                const masaBerlakuBaru = d.getFullYear() + '-' +
+                    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(d.getDate()).padStart(2, '0');
+                document.getElementById('perpanjang_masa_berlaku_display').value = masaBerlakuBaru;
+                document.getElementById('perpanjang_masa_berlaku').value = masaBerlakuBaru;
+            }
+
+            // Reset tanggal bayar ke hari ini
+            document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
 
             var m = document.getElementById('modalPerpanjang');
             m.classList.remove('hidden');
@@ -895,6 +947,10 @@
             var m = document.getElementById('modalPerpanjang');
             m.classList.add('hidden');
             m.classList.remove('flex');
+            // reset upload
+            removePreviewPerpanjang();
+            document.getElementById('listAttachmentTambah').innerHTML = '';
+            document.getElementById('bukti_attachment').value = '';
         }
 
         document.getElementById('modalPerpanjang').addEventListener('click', function(e) {
@@ -1251,6 +1307,51 @@
             const input = document.getElementById('edit_image');
             const wrap = document.getElementById('previewWrapEdit');
 
+            input.value = '';
+            wrap.innerHTML = '';
+            wrap.classList.add('hidden');
+        }
+
+        function previewFilePerpanjang(input) {
+            const wrap = document.getElementById('previewWrapPerpanjang');
+            wrap.innerHTML = '';
+            wrap.classList.remove('hidden');
+
+            const file = input.files[0];
+            if (!file) return;
+
+            const ext = file.name.split('.').pop().toLowerCase();
+            const url = URL.createObjectURL(file);
+            let html = '';
+
+            if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+                html = `
+                    <div class="relative">
+                        <img src="${url}" class="h-36 w-full object-cover rounded-xl border">
+                        <button type="button" onclick="removePreviewPerpanjang()"
+                            class="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs">✕</button>
+                    </div>`;
+            } else {
+                let icon = 'fa-file';
+                let color = 'text-gray-600 bg-gray-50';
+                if (ext === 'pdf') { icon = 'fa-file-pdf'; color = 'text-red-600 bg-red-50'; }
+                if (ext === 'doc' || ext === 'docx') { icon = 'fa-file-word'; color = 'text-blue-600 bg-blue-50'; }
+                html = `
+                    <div class="flex items-center justify-between p-3 border rounded-xl ${color}">
+                        <div class="flex items-center gap-2 text-sm font-semibold">
+                            <i class="fa-solid ${icon}"></i> ${file.name}
+                        </div>
+                        <button type="button" onclick="removePreviewPerpanjang()"
+                            class="w-6 h-6 bg-red-500 text-white rounded-full text-xs">✕</button>
+                    </div>`;
+            }
+
+            wrap.innerHTML = html;
+        }
+
+        function removePreviewPerpanjang() {
+            const input = document.getElementById('perpanjang_image');
+            const wrap = document.getElementById('previewWrapPerpanjang');
             input.value = '';
             wrap.innerHTML = '';
             wrap.classList.add('hidden');

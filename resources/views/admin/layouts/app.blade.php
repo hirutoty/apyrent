@@ -546,7 +546,7 @@
 
                             {{-- Sub: Kendaraan --}}
                             @if ($role == 'superadmin')
-                                <p class="nav-subgroup-label">Kendaraan</p>
+                                
                                 <a href="/admin/kendaraan"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                     <i class="bi bi-truck-front-fill w-4 text-center shrink-0"></i> Data & Stok
@@ -564,19 +564,24 @@
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                     <i class="bi bi-broadcast-pin w-4 text-center shrink-0"></i> GPS Kendaraan
                                 </a>
-                                <a href="/admin/procuremento"
-                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                    <i class="bi bi-box-seam w-4 text-center shrink-0"></i> Pengadaan
+
+                                 <a href="/admin/kir"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all font-medium
+                            {{ $isKirWarning ? 'bg-red-500/20 text-red-200 hover:bg-red-500/30' : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white' }}">
+                                    <i class="bi bi-clipboard2-check-fill w-4 text-center shrink-0"></i>
+                                    KIR
+                                    @if ($isKirWarning)
+                                        <i class="fas fa-triangle-exclamation text-red-400 animate-pulse ml-auto"></i>
+                                    @endif
                                 </a>
-                                <a href="/admin/purchasero"
-                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                    <i class="bi bi-cart-check w-4 text-center shrink-0"></i> Pembelian
-                                </a>
-                                <a href="/admin/vendoreo"
-                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                    <i class="bi bi-building w-4 text-center shrink-0"></i> Vendor
-                                </a>
+
                             @endif
+
+                            {{-- Pengadaan: tampil untuk semua role di grup Operasi --}}
+                            <a href="/admin/purchasero"
+                                class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                <i class="bi bi-cart-check w-4 text-center shrink-0"></i> Pengadaan
+                            </a>
 
                             {{-- Sub: Rental --}}
                             @if ($role == 'superadmin' || $role == 'keuangan')
@@ -586,6 +591,8 @@
                                     <i class="bi bi-person-badge-fill w-4 text-center shrink-0"></i> Member
                                 </a>
                                 <a href="/admin/pelanggan"
+                                
+                                <a href="/admin/member"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                     <i class="bi bi-people-fill w-4 text-center shrink-0"></i> Pelanggan
                                 </a>
@@ -603,7 +610,7 @@
 
                             {{-- Sub: Service --}}
                             @if ($role == 'superadmin' || $role == 'produksi')
-                                <p class="nav-subgroup-label">Service</p>
+                                
 
                                 @php
                                     $isActive = request()->is('admin/service-history*');
@@ -624,15 +631,7 @@
                                     <i class="bi bi-file-text-fill w-4 text-center shrink-0"></i> Mobil Bermasalah
                                 </a>
 
-                                <a href="/admin/kir"
-                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all font-medium
-                            {{ $isKirWarning ? 'bg-red-500/20 text-red-200 hover:bg-red-500/30' : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white' }}">
-                                    <i class="bi bi-clipboard2-check-fill w-4 text-center shrink-0"></i>
-                                    KIR
-                                    @if ($isKirWarning)
-                                        <i class="fas fa-triangle-exclamation text-red-400 animate-pulse ml-auto"></i>
-                                    @endif
-                                </a>
+                               
                             @endif
 
                         </div>
@@ -737,7 +736,7 @@
                     </button>
                     <div class="nav-group-content">
                         <div class="pt-0.5 pb-1 space-y-0.5">
-                            <p class="nav-subgroup-label">Organisasi</p>
+                            
                             <a href="/admin/struktur"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-diagram-3-fill w-4 text-center shrink-0"></i> Struktur Organisasi
@@ -751,7 +750,7 @@
                                 <i class="bi bi-lightning-fill w-4 text-center shrink-0"></i> Skill Matrix
                             </a>
 
-                            <p class="nav-subgroup-label">Kehadiran</p>
+                            
                             <a href="/admin/presensi"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-calendar-check-fill w-4 text-center shrink-0"></i> Presensi
@@ -765,7 +764,7 @@
                                 <i class="bi bi-calendar2-x-fill w-4 text-center shrink-0"></i> Cuti & Izin
                             </a>
 
-                            <p class="nav-subgroup-label">Penggajian & Evaluasi</p>
+                            
                             <a href="/admin/payroll"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-cash-stack w-4 text-center shrink-0"></i> Payroll
@@ -775,7 +774,7 @@
                                 <i class="bi bi-graph-up-arrow w-4 text-center shrink-0"></i> KPI & Appraisal
                             </a>
 
-                            <p class="nav-subgroup-label">Offboarding</p>
+                            
                             <a href="/admin/resign"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-box-arrow-right w-4 text-center shrink-0"></i> Resign & Offboarding
@@ -802,7 +801,7 @@
                     </button>
                     <div class="nav-group-content">
                         <div class="pt-0.5 pb-1 space-y-0.5">
-                            <p class="nav-subgroup-label">Pipeline & Penawaran</p>
+                            
                             <a href="/admin/crm-prospek" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-person-lines-fill w-4 text-center shrink-0"></i> CRM Prospek
                             </a>
@@ -812,7 +811,7 @@
                             <a href="/admin/sales-order" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-bag-check-fill w-4 text-center shrink-0"></i> Sales Order
                             </a>
-                            <p class="nav-subgroup-label">Harga & Target</p>
+                            
                             <a href="/admin/pricelist-diskon" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-tags-fill w-4 text-center shrink-0"></i> Pricelist & Diskon
                             </a>
@@ -822,7 +821,7 @@
                             <a href="/admin/komisi-sales" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-cash-coin w-4 text-center shrink-0"></i> Komisi Sales
                             </a>
-                            <p class="nav-subgroup-label">Dokumen & Retur</p>
+                            
                             <a href="/admin/retur-penjualan" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-arrow-return-left w-4 text-center shrink-0"></i> Retur Penjualan
                             </a>
@@ -847,7 +846,7 @@
                     </button>
                     <div class="nav-group-content">
                         <div class="pt-0.5 pb-1 space-y-0.5">
-                            <p class="nav-subgroup-label">Kampanye & Otomatisasi</p>
+                            
                             <a href="/admin/kampanye" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-bullseye w-4 text-center shrink-0"></i> Kampanye
                             </a>
@@ -857,14 +856,14 @@
                             <a href="/admin/segmentasi" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-pie-chart-fill w-4 text-center shrink-0"></i> Segmentasi
                             </a>
-                            <p class="nav-subgroup-label">Program & Afiliasi</p>
+                            
                             <a href="/admin/loyalty" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-star-fill w-4 text-center shrink-0"></i> Loyalty
                             </a>
                             <a href="/admin/afiliasi" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-person-plus-fill w-4 text-center shrink-0"></i> Afiliasi
                             </a>
-                            <p class="nav-subgroup-label">Analytics & Iklan</p>
+                            
                             <a href="/admin/sosmedp" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-share-fill w-4 text-center shrink-0"></i> Sosial Media
                             </a>
@@ -892,7 +891,7 @@
                     </button>
                     <div class="nav-group-content">
                         <div class="pt-0.5 pb-1 space-y-0.5">
-                            <p class="nav-subgroup-label">Asset & Lisensi</p>
+                            
                             <a href="/admin/assetm"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-hdd-stack-fill w-4 text-center shrink-0"></i> IT Asset Management
@@ -901,7 +900,7 @@
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-file-earmark-code-fill w-4 text-center shrink-0"></i> Software License
                             </a>
-                            <p class="nav-subgroup-label">Support & Akses</p>
+                            
                             <a href="/admin/helpdesk"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-headset w-4 text-center shrink-0"></i> Helpdesk Support
@@ -910,7 +909,7 @@
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-person-badge-fill w-4 text-center shrink-0"></i> User Access
                             </a>
-                            <p class="nav-subgroup-label">Infrastruktur</p>
+                            
                             <a href="/admin/networkm"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-diagram-3-fill w-4 text-center shrink-0"></i> Network Monitoring
@@ -931,7 +930,7 @@
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-cloud-arrow-up-fill w-4 text-center shrink-0"></i> System Backup
                             </a>
-                            <p class="nav-subgroup-label">Pengembangan & Kebijakan</p>
+                            
                             <a href="/admin/projectm"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-kanban-fill w-4 text-center shrink-0"></i> Project Mgmt IT
@@ -962,7 +961,7 @@
                     </button>
                     <div class="nav-group-content">
                         <div class="pt-0.5 pb-1 space-y-0.5">
-                            <p class="nav-subgroup-label">Manajemen Proyek</p>
+                            
                             <a href="/admin/project/induk-proyek"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="fa-solid fa-diagram-project w-4 text-center shrink-0"></i> Induk Proyek
@@ -976,7 +975,7 @@
                                 <i class="bi bi-calendar2-range-fill w-4 text-center shrink-0"></i> Timeline
                             </a>
 
-                            <p class="nav-subgroup-label">Biaya & Risiko</p>
+                            
                             <a href="/admin/project/cost"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-coin w-4 text-center shrink-0"></i> Cost
@@ -986,7 +985,7 @@
                                 <i class="bi bi-exclamation-triangle-fill w-4 text-center shrink-0"></i> Risk
                             </a>
 
-                            <p class="nav-subgroup-label">Administrasi</p>
+                            
                             <a href="/admin/project/dokumen"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-folder2-open w-4 text-center shrink-0"></i> Dokumen
@@ -1015,7 +1014,7 @@
                         <div class="pt-0.5 pb-1 space-y-0.5">
 
                             {{-- Sub: Dokumen & Kontrak --}}
-                            <p class="nav-subgroup-label">Dokumen & Kontrak</p>
+                            
                             <a href="/admin/legal-document"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/legal-document*') ? 'active' : '' }}">
                                 <i class="bi bi-file-earmark-text-fill w-4 text-center shrink-0"></i> Legal Document
@@ -1030,7 +1029,7 @@
                             </a>
 
                             {{-- Sub: Sengketa & Perizinan --}}
-                            <p class="nav-subgroup-label">Sengketa & Perizinan</p>
+                            
                             <a href="/admin/litigasi"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/litigasi*') ? 'active' : '' }}">
                                 <i class="bi bi-hammer w-4 text-center shrink-0"></i> Litigasi
@@ -1041,7 +1040,7 @@
                             </a>
 
                             {{-- Sub: Hak & Notaris --}}
-                            <p class="nav-subgroup-label">Hak & Notaris</p>
+                            
                             <a href="/admin/hak-hukum"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium {{ request()->is('admin/hak-hukum*') ? 'active' : '' }}">
                                 <i class="bi bi-person-badge-fill w-4 text-center shrink-0"></i> Hak & Akses Hukum
@@ -1068,7 +1067,7 @@
                     </button>
                     <div class="nav-group-content">
                         <div class="pt-0.5 pb-1 space-y-0.5">
-                            <p class="nav-subgroup-label">Data Pokok</p>
+                            
                             <a href="/admin/asset/induk"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-building-check w-4 text-center shrink-0"></i> Induk Asset
@@ -1077,7 +1076,7 @@
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-bag-check-fill w-4 text-center shrink-0"></i> Perolehan Asset
                             </a>
-                            <p class="nav-subgroup-label">Pengelolaan</p>
+                            
                             <a href="/admin/asset/pergerakan"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-arrow-left-right w-4 text-center shrink-0"></i> Pergerakan Asset
@@ -1094,7 +1093,7 @@
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-person-badge-fill w-4 text-center shrink-0"></i> Penanggung Jawab
                             </a>
-                            <p class="nav-subgroup-label">Dokumentasi & Audit</p>
+                            
                             <a href="/admin/asset/dokumentasi"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                 <i class="bi bi-folder2-open w-4 text-center shrink-0"></i> Dokumentasi Asset

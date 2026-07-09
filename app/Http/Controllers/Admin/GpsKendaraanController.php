@@ -284,6 +284,7 @@ class GpsKendaraanController extends Controller
             'durasi_bulan'   => 'required|integer|min:1',
             'tanggal_habis'  => 'required|date',
             'biaya_sewa'     => 'required|integer',
+            'tanggal_bayar'  => 'nullable|date',
             'bukti_bayar'    => 'nullable|file|max:5120',
             'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
@@ -372,6 +373,7 @@ class GpsKendaraanController extends Controller
             'biaya_sewa'     => $request->biaya_sewa,
             'status_sewa'    => 'aktif',
             'bukti_bayar'    => $finalBukti,
+            'tanggal_bayar'  => $request->tanggal_bayar ?? now()->toDateString(),
         ]);
 
         // upload attachment tambahan (bukti pendukung perpanjangan)
