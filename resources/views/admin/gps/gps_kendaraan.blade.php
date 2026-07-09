@@ -355,7 +355,8 @@
                                             data-nopol="{{ $d->kendaraan->nopol ?? '-' }}"
                                             data-gps="{{ $d->gps->nama_gps ?? '-' }}" data-type="{{ $d->type }}"
                                             data-status="{{ $d->status_gps }}" data-biaya="{{ $d->biaya_sewa }}"
-                                            data-durasi="{{ $d->durasi_bulan }}">
+                                            data-durasi="{{ $d->durasi_bulan }}"
+                                            data-tanggal-habis="{{ $d->tanggal_habis ? \Carbon\Carbon::parse($d->tanggal_habis)->format('Y-m-d') : '' }}">
                                             Perpanjang
                                         </button>
 
@@ -497,21 +498,16 @@
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
-                    {{-- Durasi Bulan --}}
-                    <div>
-                        <label class="text-sm font-medium text-slate-700 mb-1 block">Durasi Bulan <span
-                                class="text-red-500">*</span></label>
-                        <input type="number" name="durasi_bulan" id="durasi_bulan" required placeholder="0"
-                            min="1" oninput="hitungTanggalHabis()"
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
+                    {{-- Durasi hidden = 12 --}}
+                    <input type="hidden" name="durasi_bulan" id="durasi_bulan" value="12">
 
                     {{-- Tanggal Habis --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Habis</label>
-                        <input type="date" name="tanggal_habis" id="tanggal_habis" required readonly
+                        <input type="date" id="tanggal_habis_display" disabled
                             class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed outline-none">
-                        <p class="text-xs text-slate-400 mt-1">Otomatis dihitung dari tanggal pasang + durasi</p>
+                        <input type="hidden" name="tanggal_habis" id="tanggal_habis">
+                        <p class="text-xs text-slate-400 mt-1">Otomatis tanggal pasang + 1 tahun</p>
                     </div>
 
                     {{-- Biaya Sewa --}}
@@ -638,27 +634,25 @@
                         <option value="nonaktif">Nonaktif</option>
                     </select>
 
-                    <div>
-                        <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Pasang Baru</label>
-                        <input id="perpanjang_tanggal_pasang" type="date" name="tanggal_pasang"
-                            value="{{ now()->format('Y-m-d') }}" readonly
-                            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed">
-                    </div>
-
-                    <div>
-                        <label class="text-sm font-medium text-slate-700 mb-1 block">Durasi Bulan Baru <span
-                                class="text-red-500">*</span></label>
-                        <input id="perpanjang_durasi" type="number" name="durasi_bulan" min="1" required
-                            oninput="hitungTanggalHabisPerpanjang()"
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-
+                    {{-- Tanggal Habis Baru: lama + 1 tahun, disabled --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Habis Baru</label>
-                        <input id="perpanjang_tanggal_habis" type="date" name="tanggal_habis" required readonly
+                        <input id="perpanjang_tanggal_habis_display" type="date" disabled
                             class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed">
-                        <p class="text-xs text-slate-400 mt-1">Otomatis dihitung dari tanggal pasang baru + durasi
-                            baru</p>
+                        <input type="hidden" name="tanggal_habis" id="perpanjang_tanggal_habis">
+                        {{-- tanggal_pasang diperlukan controller; isi otomatis = hari ini --}}
+                        <input type="hidden" name="tanggal_pasang" id="perpanjang_tanggal_pasang" value="{{ now()->format('Y-m-d') }}">
+                        {{-- durasi_bulan diperlukan controller; isi 12 (1 tahun) --}}
+                        <input type="hidden" name="durasi_bulan" id="perpanjang_durasi" value="12">
+                        <p class="text-xs text-slate-400 mt-1">Otomatis tanggal habis lama + 1 tahun</p>
+                    </div>
+
+                    {{-- Tanggal Bayar --}}
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Bayar</label>
+                        <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
+                            value="{{ now()->format('Y-m-d') }}"
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
                     <div>
@@ -781,7 +775,10 @@
                 document.getElementById('previewFile').classList.add('hidden');
                 document.getElementById('listAttachmentGps').innerHTML = '';
                 document.getElementById('bukti_attachment').value = '';
-                document.getElementById('bukti_bayar').required = true; // ✅ tambahkan ini
+                document.getElementById('bukti_bayar').required = true;
+                // Reset display tanggal habis
+                const displayEl = document.getElementById('tanggal_habis_display');
+                if (displayEl) displayEl.value = '';
             }
 
             // ✅ Expose ke global supaya onclick="openModal()" di HTML bisa jalan
@@ -807,10 +804,19 @@
                 document.getElementById('gps_id').value = btn.dataset.gps_id;
                 document.getElementById('type').value = btn.dataset.type;
                 document.getElementById('status_gps').value = btn.dataset.status_gps;
-                document.getElementById('tanggal_pasang').value = btn.dataset.tanggal_pasang;
-                document.getElementById('durasi_bulan').value = btn.dataset.durasi_bulan;
                 document.getElementById('biaya_sewa').value = btn.dataset.biaya_sewa;
-                document.getElementById('tanggal_habis').value = btn.dataset.tanggal_habis;
+
+                // Set tanggal pasang, lalu hitung tanggal_habis = pasang + 1 tahun
+                const tglPasang = btn.dataset.tanggal_pasang;
+                document.getElementById('tanggal_pasang').value = tglPasang;
+                if (tglPasang) {
+                    const d = new Date(tglPasang);
+                    d.setFullYear(d.getFullYear() + 1);
+                    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                    document.getElementById('tanggal_habis_display').value = val;
+                    document.getElementById('tanggal_habis').value = val;
+                }
+                // durasi_bulan hidden tetap 12
 
                 // === Bukti bayar lama ===
                 const buktiInput = document.getElementById('bukti_bayar');
@@ -867,11 +873,28 @@
                 document.getElementById('perpanjang_type').value = btn.dataset.type;
                 document.getElementById('hidden_status_gps').value = btn.dataset.status;
                 document.getElementById('perpanjang_status_gps').value = btn.dataset.status;
-                document.getElementById('perpanjang_durasi').value = btn.dataset.durasi;
                 document.getElementById('perpanjang_biaya').value = btn.dataset.biaya;
                 document.getElementById('listAttachmentPerpanjangGps').innerHTML = ''; // ✅ ditambahkan
 
-                hitungTanggalHabisPerpanjang();
+                // Hitung tanggal habis baru = tanggal habis lama + 1 tahun
+                const tanggalHabisLama = btn.dataset.tanggalHabis; // format YYYY-MM-DD
+                if (tanggalHabisLama) {
+                    const d = new Date(tanggalHabisLama);
+                    d.setFullYear(d.getFullYear() + 1);
+                    const tanggalHabisBaru = d.getFullYear() + '-' +
+                        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                        String(d.getDate()).padStart(2, '0');
+                    document.getElementById('perpanjang_tanggal_habis_display').value = tanggalHabisBaru;
+                    document.getElementById('perpanjang_tanggal_habis').value = tanggalHabisBaru;
+                }
+
+                // Set tanggal_pasang = hari ini (hidden), durasi = 12 (hidden)
+                document.getElementById('perpanjang_tanggal_pasang').value = new Date().toISOString().split('T')[0];
+                document.getElementById('perpanjang_durasi').value = '12';
+
+                // Reset tanggal bayar ke hari ini
+                document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
+
                 show(modalPerpanjang);
             }
 
@@ -901,12 +924,12 @@
 
             window.hitungTanggalHabis = function() {
                 const tgl = document.getElementById('tanggal_pasang').value;
-                const dur = parseInt(document.getElementById('durasi_bulan').value);
-                if (!tgl || !dur) return;
+                if (!tgl) return;
                 const d = new Date(tgl);
-                d.setMonth(d.getMonth() + dur);
-                document.getElementById('tanggal_habis').value =
-                    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                d.setFullYear(d.getFullYear() + 1);
+                const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                document.getElementById('tanggal_habis_display').value = val;
+                document.getElementById('tanggal_habis').value = val;
             };
 
             window.hitungTanggalHabisPerpanjang = function() {

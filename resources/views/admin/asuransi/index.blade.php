@@ -208,10 +208,16 @@
                 </div>
             </div>
 
-            <button type="submit"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
-                <i class="fa fa-save text-sm"></i> Simpan Data
-            </button>
+            <div class="flex gap-3 pt-1">
+                <button type="button" onclick="closeModal()"
+                    class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                    Batal
+                </button>
+                <button type="submit"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
+                    <i class="fa fa-save text-sm"></i> Simpan Data
+                </button>
+            </div>
         </form>
 
     </div>

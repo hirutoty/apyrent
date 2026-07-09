@@ -17,6 +17,7 @@ class Kir extends Model
         'masa_berlaku',
         'biaya',
         'image',
+        'tanggal_bayar',
     ];
 
     /**

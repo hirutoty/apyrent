@@ -358,8 +358,14 @@ Route::middleware('auth')->prefix('admin')->group(function () {
   Route::resource('procuremento', ProcurementoController::class) // Pengadaan - Procurements
     ->except(['create', 'edit', 'show']); // Form CRUD With Modal
 
-  Route::resource('purchasero', PurchaseroController::class) // Purchase Request
+  Route::resource('purchasero', PurchaseroController::class) // Pengadaan
     ->except(['create', 'edit', 'show']); // Form CRUD With Modal
+
+  Route::post('purchasero/{purchasero}/ajukan', [PurchaseroController::class, 'ajukan'])
+    ->name('purchasero.ajukan');
+
+  Route::post('purchasero/{purchasero}/status', [PurchaseroController::class, 'updateStatusInline'])
+    ->name('purchasero.status');
 
   Route::resource('vendoreo', VendoreoController::class) // Manajemen Vendor
     ->except(['create', 'edit', 'show']); // Form CRUD With Modal
