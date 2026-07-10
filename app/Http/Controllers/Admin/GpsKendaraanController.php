@@ -292,6 +292,15 @@ class GpsKendaraanController extends Controller
 
         $gpsKendaraan = GpsKendaraan::findOrFail($id);
         $bukti = $gpsKendaraan->bukti_bayar;
+        $tanggalBayar = $request->filled('tanggal_bayar')
+            ? Carbon::parse($request->tanggal_bayar)->toDateString()
+            : now()->toDateString();
+        $tanggalPasang = $request->filled('tanggal_bayar')
+            ? $tanggalBayar
+            : ($request->tanggal_pasang ?: $gpsKendaraan->tanggal_pasang);
+        $tanggalHabis = $request->filled('tanggal_bayar') || $request->filled('tanggal_pasang')
+            ? Carbon::parse($tanggalPasang)->addYear()->toDateString()
+            : $request->tanggal_habis;
 
         $path = public_path('gps/bukti_bayar');
 
@@ -367,13 +376,13 @@ class GpsKendaraanController extends Controller
         // Update data aktif
         $gpsKendaraan->update([
             'status_gps'     => $request->status_gps,
-            'tanggal_pasang' => $request->tanggal_pasang,
-            'tanggal_habis'  => $request->tanggal_habis,
+            'tanggal_pasang' => $tanggalPasang,
+            'tanggal_habis'  => $tanggalHabis,
             'durasi_bulan'   => $request->durasi_bulan,
             'biaya_sewa'     => $request->biaya_sewa,
             'status_sewa'    => 'aktif',
             'bukti_bayar'    => $finalBukti,
-            'tanggal_bayar'  => $request->tanggal_bayar ?? now()->toDateString(),
+            'tanggal_bayar'  => $tanggalBayar,
         ]);
 
         // upload attachment tambahan (bukti pendukung perpanjangan)

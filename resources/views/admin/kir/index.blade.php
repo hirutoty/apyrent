@@ -917,6 +917,28 @@
             }
         });
 
+        function syncPerpanjangKirDates() {
+            const bayarInput = document.getElementById('perpanjang_tanggal_bayar');
+            const display = document.getElementById('perpanjang_masa_berlaku_display');
+            const hidden = document.getElementById('perpanjang_masa_berlaku');
+            if (!bayarInput || !display || !hidden) return;
+
+            const bayar = bayarInput.value;
+            if (!bayar) return;
+
+            const d = new Date(bayar);
+            d.setFullYear(d.getFullYear() + 1);
+            const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+            display.value = val;
+            hidden.value = val;
+        }
+
+        const tanggalBayarKirInput = document.getElementById('perpanjang_tanggal_bayar');
+        if (tanggalBayarKirInput) {
+            tanggalBayarKirInput.addEventListener('change', syncPerpanjangKirDates);
+        }
+
         // ── MODAL PERPANJANG ───────────────────────────────
         function openModalPerpanjang(id, nopol, merk, no_uji, biaya, masaBerlakuLama) {
             document.getElementById('formPerpanjang').action = '/admin/kir/' + id + '/perpanjang';
@@ -924,19 +946,8 @@
             document.getElementById('perpanjang_no_uji').value = no_uji;
             document.getElementById('perpanjang_biaya').value = biaya;
 
-            // Hitung masa berlaku baru = lama + 1 tahun
-            if (masaBerlakuLama) {
-                const d = new Date(masaBerlakuLama);
-                d.setFullYear(d.getFullYear() + 1);
-                const masaBerlakuBaru = d.getFullYear() + '-' +
-                    String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                    String(d.getDate()).padStart(2, '0');
-                document.getElementById('perpanjang_masa_berlaku_display').value = masaBerlakuBaru;
-                document.getElementById('perpanjang_masa_berlaku').value = masaBerlakuBaru;
-            }
-
-            // Reset tanggal bayar ke hari ini
             document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
+            syncPerpanjangKirDates();
 
             var m = document.getElementById('modalPerpanjang');
             m.classList.remove('hidden');

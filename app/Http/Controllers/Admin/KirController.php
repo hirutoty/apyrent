@@ -267,6 +267,12 @@ class KirController extends Controller
         ]);
 
         $kir = Kir::findOrFail($id);
+        $tanggalBayar = $request->filled('tanggal_bayar')
+            ? Carbon::parse($request->tanggal_bayar)->toDateString()
+            : now()->toDateString();
+        $masaBerlakuBaru = $request->filled('tanggal_bayar')
+            ? Carbon::parse($request->tanggal_bayar)->addYear()->toDateString()
+            : $request->masa_berlaku;
 
         // default pakai gambar lama
         $image = $kir->image;
@@ -300,10 +306,10 @@ class KirController extends Controller
         // update data aktif
         $kir->update([
             'no_uji'        => $request->no_uji,
-            'masa_berlaku'  => $request->masa_berlaku,
+            'masa_berlaku'  => $masaBerlakuBaru,
             'biaya'         => $request->biaya,
             'image'         => $image,
-            'tanggal_bayar' => $request->tanggal_bayar ?? now()->toDateString(),
+            'tanggal_bayar' => $tanggalBayar,
         ]);
 
         // upload attachment tambahan (bukti pendukung perpanjangan)
