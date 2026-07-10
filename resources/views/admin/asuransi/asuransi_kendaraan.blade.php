@@ -871,7 +871,7 @@
                         class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 cursor-not-allowed">
                     <input type="hidden" name="tgl_berakhir" id="perpanjang_tgl_berakhir">
                     {{-- tgl_mulai & durasi hidden --}}
-                    <input type="hidden" name="tgl_mulai" id="perpanjang_tgl_mulai" value="{{ now()->format('Y-m-d') }}">
+                    <input type="hidden" name="tgl_mulai" id="perpanjang_tgl_mulai" value="">
                     <input type="hidden" name="durasi_bulan" id="perpanjang_durasi" value="12">
                     <p class="text-xs text-gray-400 mt-1">Otomatis tanggal berakhir lama + 1 tahun</p>
                 </div>
@@ -879,8 +879,9 @@
                 {{-- Tanggal Bayar --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar</label>
-                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
-                        value="{{ now()->format('Y-m-d') }}"
+                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar" value="{{ now()->format('Y-m-d') }}"
+                        onchange="syncTanggalMulaiDariBayar()"
+                        oninput="syncTanggalMulaiDariBayar()"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -1182,12 +1183,11 @@
                 document.getElementById('perpanjang_tgl_berakhir').value = tglBaru;
             }
 
-            // Set tgl_mulai = hari ini (hidden), durasi = 12 (hidden)
-            document.getElementById('perpanjang_tgl_mulai').value = new Date().toISOString().split('T')[0];
+            // Reset tanggal bayar ke hari ini dan samakan ke hidden tgl_mulai
+            const tanggalBayarDefault = new Date().toISOString().split('T')[0];
+            document.getElementById('perpanjang_tanggal_bayar').value = tanggalBayarDefault;
+            document.getElementById('perpanjang_tgl_mulai').value = tanggalBayarDefault;
             document.getElementById('perpanjang_durasi').value = '12';
-
-            // Reset tanggal bayar ke hari ini
-            document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
 
             // Reset lampiran
             document.getElementById('listAttachmentPerpanjang').innerHTML = '';
@@ -1195,6 +1195,13 @@
             const m = document.getElementById('modalPerpanjang');
             m.classList.remove('hidden');
             m.classList.add('flex');
+        }
+
+        function syncTanggalMulaiDariBayar() {
+            const tanggalBayar = document.getElementById('perpanjang_tanggal_bayar').value;
+            if (tanggalBayar) {
+                document.getElementById('perpanjang_tgl_mulai').value = tanggalBayar;
+            }
         }
 
         function closeModalPerpanjang() {

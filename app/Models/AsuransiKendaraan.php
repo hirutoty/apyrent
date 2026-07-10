@@ -21,12 +21,14 @@ class AsuransiKendaraan extends Model
         'durasi_bulan',
         'biaya',
         'bukti_bayar',
+        'tanggal_bayar',
     ];
 
     protected $casts = [
         'tgl_mulai' => 'date',
         'tgl_berakhir' => 'date',
         'biaya' => 'decimal:2',
+        'tanggal_bayar' => 'date',
     ];
 
     /**
