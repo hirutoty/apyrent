@@ -367,7 +367,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Telp <span class="text-red-500">*</span></label>
-                    <input type="tel" name="no_telp" id="f_no_telp" required
+                    <input type="number" name="no_telp" id="f_no_telp" required
                         placeholder="Contoh: 0812-3333-8888"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>

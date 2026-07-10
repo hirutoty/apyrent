@@ -778,8 +778,14 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik <span
                                             class="text-red-500">*</span></label>
-                                    <input name="nama_pemilik" required placeholder="Nama lengkap"
+                                    <input name="nama_pemilik" id="nama_pemilik" required list="memberOptions" placeholder="Ketik nama member"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <input type="hidden" name="member_id" id="member_id">
+                                    <datalist id="memberOptions">
+                                        @foreach ($members as $member)
+                                            <option value="{{ $member->nama }}" data-member-id="{{ $member->id }}"></option>
+                                        @endforeach
+                                    </datalist>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Merk <span
@@ -1014,18 +1020,16 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik</label>
-                                    <input name="nama_pemilik" id="e_nama_pemilik"
+                                    <input name="nama_pemilik" id="e_nama_pemilik" list="e_memberOptions"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Link ke Member <span class="text-gray-400 font-normal text-xs">(opsional)</span></label>
-                                    <select name="member_id" id="e_member_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">-- Tidak dihubungkan ke Member --</option>
-                                        @foreach($members as $m)
-                                            <option value="{{ $m->id }}">{{ $m->nama }} ({{ ucfirst($m->jenis_member) }})</option>
+                                    <input type="hidden" name="member_id" id="e_member_id">
+                                    <datalist id="e_memberOptions">
+                                        @foreach ($members as $member)
+                                            <option value="{{ $member->nama }}" data-member-id="{{ $member->id }}"></option>
                                         @endforeach
-                                    </select>
+                                    </datalist>
                                 </div>
+                             
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Merk</label>
                                     <input name="merk" id="e_merk"
@@ -1416,7 +1420,32 @@
                 });
             });
 
-            // ── MODAL EDIT ──────────────────────────────────────
+function bindMemberAutocomplete(inputId, hiddenId, optionsId) {
+            var input = document.getElementById(inputId);
+            var hidden = document.getElementById(hiddenId);
+            var options = Array.from(document.querySelectorAll('#' + optionsId + ' option'));
+
+            if (!input || !hidden) return;
+
+            var syncSelection = function(value) {
+                var match = options.find(function(option) {
+                    return option.value.toLowerCase() === String(value || '').trim().toLowerCase();
+                });
+                hidden.value = match ? (match.dataset.memberId || '') : '';
+            };
+
+            input.addEventListener('input', function() {
+                syncSelection(this.value);
+            });
+            input.addEventListener('change', function() {
+                syncSelection(this.value);
+            });
+        }
+
+        bindMemberAutocomplete('nama_pemilik', 'member_id', 'memberOptions');
+        bindMemberAutocomplete('e_nama_pemilik', 'e_member_id', 'e_memberOptions');
+
+        // ── MODAL EDIT ──────────────────────────────────────
             document.querySelectorAll('.btn-edit').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     document.getElementById('formEdit').action = '/admin/kendaraan/' + this.dataset.id;

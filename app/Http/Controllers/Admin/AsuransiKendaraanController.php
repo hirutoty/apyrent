@@ -375,6 +375,7 @@ class AsuransiKendaraanController extends Controller
             'bukti_bayar'           => $bukti,
             'status_kendaraan'      => 'aktif',
             'diperpanjang_pada'     => now(),
+            'tanggal_bayar'         => $request->tanggal_bayar ?? now()->toDateString(),
         ]);
 
 
@@ -415,7 +416,7 @@ class AsuransiKendaraanController extends Controller
         $asuransi->update([
             'asuransi_id'       => $request->asuransi_id,
             'jenis_asuransi_id' => $request->jenis_asuransi_id,
-            'tgl_mulai'         => now()->toDateString(),
+            'tgl_mulai'         => $request->tanggal_bayar ?? $request->tgl_mulai ?? $asuransi->tgl_mulai,
             'tgl_berakhir'      => $request->tgl_berakhir,
             'durasi_bulan'      => $request->durasi_bulan,
             'biaya'             => $request->biaya,

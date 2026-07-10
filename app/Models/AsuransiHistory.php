@@ -22,6 +22,7 @@ class AsuransiHistory extends Model
             'bukti_bayar',
             'status_kendaraan',
             'diperpanjang_pada',
+            'tanggal_bayar',
         ];
 
         public function kendaraan()

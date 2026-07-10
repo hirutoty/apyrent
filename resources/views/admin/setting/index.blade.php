@@ -93,7 +93,7 @@
 
             <div class="space-y-1.5">
                 <label class="block text-xs font-medium text-gray-500">Telepon</label>
-                <input type="tel" name="telepon"
+                <input type="number" name="telepon"
                     value="{{ old('telepon', $setting?->telepon) }}"
                     placeholder="+62 21 1234 5678"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition">

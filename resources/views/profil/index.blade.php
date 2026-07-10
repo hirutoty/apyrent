@@ -96,7 +96,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         <i class="fa fa-phone text-gray-400 mr-1"></i> No Telepon
                     </label>
-                    <input type="tel" name="no_telp" value="{{ old('no_telp', $user->no_telp) }}"
+                    <input type="number" name="no_telp" value="{{ old('no_telp', $user->no_telp) }}"
                         placeholder="08xx-xxxx-xxxx"
                         class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition">
                 </div>

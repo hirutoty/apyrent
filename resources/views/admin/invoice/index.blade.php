@@ -300,7 +300,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Telepon</label>
-                                <input type="tel" name="telephone" placeholder="Nomor telepon customer"
+                                <input type="number" name="telephone" placeholder="Nomor telepon customer"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5 mt-3">Email</label>
                                 <input type="email" name="email" placeholder="Email Customer"
@@ -870,7 +870,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Telepon</label>
-                                <input id="edit_telephone" type="tel" name="telephone"
+                                <input id="edit_telephone" type="number" name="telephone"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div>
