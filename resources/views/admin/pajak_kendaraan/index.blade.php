@@ -1028,6 +1028,28 @@ MODAL PERPANJANG
         }
         const modalPerpanjang = document.getElementById('modalPerpanjang');
 
+        function syncPerpanjangPajakDates() {
+            const bayarInput = document.getElementById('perpanjang_tanggal_bayar');
+            const display = document.getElementById('perpanjang_jatuh_tempo_display');
+            const hidden = document.getElementById('perpanjang_jatuh_tempo');
+            if (!bayarInput || !display || !hidden) return;
+
+            const bayar = bayarInput.value;
+            if (!bayar) return;
+
+            const d = new Date(bayar);
+            d.setFullYear(d.getFullYear() + 1);
+            const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+            display.value = val;
+            hidden.value = val;
+        }
+
+        const tanggalBayarInput = document.getElementById('perpanjang_tanggal_bayar');
+        if (tanggalBayarInput) {
+            tanggalBayarInput.addEventListener('change', syncPerpanjangPajakDates);
+        }
+
         function openModalPerpanjang(
             id,
             kendaraan_id,
@@ -1053,20 +1075,8 @@ MODAL PERPANJANG
             document.getElementById('perpanjang_status').value = status;
             document.getElementById('perpanjang_keterangan').value = keterangan;
 
-            // Hitung jatuh tempo baru = jatuh tempo lama + 1 tahun
-            const jatuhTempoLama = formatDate(jatuhTempo);
-            if (jatuhTempoLama) {
-                const d = new Date(jatuhTempoLama);
-                d.setFullYear(d.getFullYear() + 1);
-                const jatuhTempoBaru = d.getFullYear() + '-' +
-                    String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                    String(d.getDate()).padStart(2, '0');
-                document.getElementById('perpanjang_jatuh_tempo_display').value = jatuhTempoBaru;
-                document.getElementById('perpanjang_jatuh_tempo').value = jatuhTempoBaru;
-            }
-
-            // Set tanggal bayar ke hari ini
             document.getElementById('perpanjang_tanggal_bayar').value = '{{ now()->format("Y-m-d") }}';
+            syncPerpanjangPajakDates();
 
             modalPerpanjang.classList.remove('hidden');
             modalPerpanjang.classList.add('flex');

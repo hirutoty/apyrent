@@ -864,6 +864,30 @@
                 show(modal);
             }
 
+            function syncPerpanjangGpsDates() {
+                const bayarInput = document.getElementById('perpanjang_tanggal_bayar');
+                const startInput = document.getElementById('perpanjang_tanggal_pasang');
+                const display = document.getElementById('perpanjang_tanggal_habis_display');
+                const hidden = document.getElementById('perpanjang_tanggal_habis');
+                if (!bayarInput || !startInput || !display || !hidden) return;
+
+                const bayar = bayarInput.value;
+                if (!bayar) return;
+
+                startInput.value = bayar;
+                const d = new Date(bayar);
+                d.setFullYear(d.getFullYear() + 1);
+                const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+                display.value = val;
+                hidden.value = val;
+            }
+
+            const tanggalBayarGpsInput = document.getElementById('perpanjang_tanggal_bayar');
+            if (tanggalBayarGpsInput) {
+                tanggalBayarGpsInput.addEventListener('change', syncPerpanjangGpsDates);
+            }
+
             function openPerpanjang(btn) {
                 formPerpanjang.action = `/admin/gps-kendaraan/${btn.dataset.id}/perpanjang`;
 
@@ -876,24 +900,10 @@
                 document.getElementById('perpanjang_biaya').value = btn.dataset.biaya;
                 document.getElementById('listAttachmentPerpanjangGps').innerHTML = ''; // ✅ ditambahkan
 
-                // Hitung tanggal habis baru = tanggal habis lama + 1 tahun
-                const tanggalHabisLama = btn.dataset.tanggalHabis; // format YYYY-MM-DD
-                if (tanggalHabisLama) {
-                    const d = new Date(tanggalHabisLama);
-                    d.setFullYear(d.getFullYear() + 1);
-                    const tanggalHabisBaru = d.getFullYear() + '-' +
-                        String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                        String(d.getDate()).padStart(2, '0');
-                    document.getElementById('perpanjang_tanggal_habis_display').value = tanggalHabisBaru;
-                    document.getElementById('perpanjang_tanggal_habis').value = tanggalHabisBaru;
-                }
-
-                // Set tanggal_pasang = hari ini (hidden), durasi = 12 (hidden)
-                document.getElementById('perpanjang_tanggal_pasang').value = new Date().toISOString().split('T')[0];
                 document.getElementById('perpanjang_durasi').value = '12';
-
-                // Reset tanggal bayar ke hari ini
+                document.getElementById('perpanjang_tanggal_pasang').value = new Date().toISOString().split('T')[0];
                 document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
+                syncPerpanjangGpsDates();
 
                 show(modalPerpanjang);
             }

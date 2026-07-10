@@ -12,7 +12,7 @@ use App\Models\PajakHistory;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Keuangan;
 use App\Models\Bukubesar;
-
+use Carbon\Carbon;
 
 class PajakController extends Controller
 {
@@ -181,6 +181,9 @@ class PajakController extends Controller
 
         $pajak = PajakKendaraan::findOrFail($id);
         $bukti = $pajak->bukti;
+        $tanggalBayar = $request->filled('tanggal_bayar')
+            ? Carbon::parse($request->tanggal_bayar)->toDateString()
+            : now()->toDateString();
 
         $path = public_path('pajak/bukti');
         if (!file_exists($path)) mkdir($path, 0777, true);
@@ -206,7 +209,7 @@ class PajakController extends Controller
             'jenis_pajak'        => $pajak->jenis_pajak,
             'nominal'            => $pajak->nominal,
             'jatuh_tempo'        => $pajak->jatuh_tempo,
-            'tanggal_bayar'      => now(),
+            'tanggal_bayar'      => $tanggalBayar,
             'status'             => 'sudah_bayar',
             'keterangan'         => $pajak->keterangan,
             'bukti'              => $finalBukti,
@@ -248,8 +251,10 @@ class PajakController extends Controller
         // Update data aktif
         $pajak->update([
             'nominal'        => $request->nominal,
-            'jatuh_tempo'    => $request->jatuh_tempo,
-            'tanggal_bayar'  => now()->toDateString(),
+            'jatuh_tempo'    => $request->filled('tanggal_bayar')
+                ? Carbon::parse($request->tanggal_bayar)->addYear()->toDateString()
+                : $request->jatuh_tempo,
+            'tanggal_bayar'  => $tanggalBayar,
             'status'         => 'sudah_bayar',
             'keterangan'     => $request->keterangan,
             'bukti'          => $finalBukti,
