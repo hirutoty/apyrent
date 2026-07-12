@@ -46,14 +46,35 @@
         {{-- PAGE HEADER --}}
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">Service History</h1>
-                <p class="text-sm text-gray-500 mt-0.5">Riwayat Service Kendaraan</p>
+                <h1 class="text-2xl font-bold text-gray-800">Service Kendaraan</h1>
+                <p class="text-sm text-gray-500 mt-0.5">Riwayat Service & Data Mobil Bermasalah</p>
             </div>
             <button onclick="openModalTambah()"
                 class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
                 <i class="fa fa-plus text-sm"></i>
                 Tambah Data
             </button>
+        </div>
+
+        {{-- NAV TABS --}}
+        <div class="border-b border-gray-200">
+            <nav class="flex gap-0 -mb-px overflow-x-auto">
+                @php
+                    $navItems = [
+                        ['label' => 'Service History',  'url' => '/admin/service-history', 'icon' => 'bi bi-clock-history'],
+                        ['label' => 'Mobil Bermasalah', 'url' => '/admin/service-detail',  'icon' => 'bi bi-exclamation-triangle-fill'],
+                        ['label' => 'Reminder Service', 'url' => '/admin/reminder-service','icon' => 'bi bi-bell-fill'],
+                    ];
+                @endphp
+                @foreach ($navItems as $item)
+                    @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
+                    <a href="{{ $item['url'] }}"
+                        class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
+                            {{ $isActiveTab ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
+                        <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
+                    </a>
+                @endforeach
+            </nav>
         </div>
 
         {{-- SUMMARY CARDS --}}
@@ -148,7 +169,7 @@
             <div
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
-                    <h2 class="font-semibold text-gray-800 text-base">Daftar Service History</h2>
+                    <h2 class="font-semibold text-gray-800 text-base">Daftar Service Kendaraan</h2>
                     <p class="text-xs text-gray-400 mt-0.5">{{ $totalService }} total data service</p>
                 </div>
 
@@ -205,6 +226,16 @@
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
 
+                    {{-- EXPAND / COLLAPSE ALL --}}
+                    <button id="btnExpandAll" onclick="expandAllAccordion()"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
+                        <i class="fa fa-chevron-down text-xs"></i> Expand All
+                    </button>
+                    <button id="btnCollapseAll" onclick="collapseAllAccordion()"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="fa fa-chevron-right text-xs"></i> Collapse All
+                    </button>
+
                 </div>
             </div>
 
@@ -258,196 +289,234 @@
                         </tr>
                     </thead>
                     <tbody id="tableBody">
-                        @forelse ($data as $d)
-                            @php
-                                $limit = $d->kendaraan->limit_bulan_service ?? 0;
-                                $sisa = $d->sisa_limit ?? 0;
+                        @php
+                            // Group $data by kendaraan_id for accordion display
+                            $grouped = $data->groupBy('kendaraan_id');
+                        @endphp
 
-                                $rowClass = '';
-                                if ($limit > 0) {
-                                    if ($sisa <= 0) {
-                                        $rowClass = 'bg-red-300 hover:bg-red-200';
-                                    } elseif ($sisa <= $limit * 0.1) {
-                                        $rowClass = 'bg-yellow-50 hover:bg-yellow-100';
-                                    }
-                                }
+                        @forelse ($grouped as $kendaraanId => $rows)
+                            @php
+                                $firstRow       = $rows->first();
+                                $groupMerk      = $firstRow->kendaraan->merk  ?? '-';
+                                $groupNopol     = $firstRow->kendaraan->nopol ?? '-';
+                                $groupCount     = $rows->count();
+                                $groupTotalBiaya = $rows->sum('total_biaya');
+                                $groupId        = 'group-' . $kendaraanId;
                             @endphp
 
-                            <tr class="border-t border-gray-50 transition-colors duration-100 {{ $rowClass ?: 'hover:bg-gray-50' }}"
-                                data-search="{{ strtolower(($d->kendaraan->merk ?? '') . ' ' . ($d->kendaraan->nopol ?? '') . ' ' . $d->keluhan . ' ' . $d->status) }}">
+                            {{-- ── GROUP HEADER ROW ── --}}
+                            <tr class="group-header bg-blue-50 border-t-2 border-blue-100 cursor-pointer select-none hover:bg-blue-100 transition-colors duration-150"
+                                onclick="toggleAccordion('{{ $groupId }}')"
+                                data-group="{{ $groupId }}">
+                                <td colspan="14" class="px-4 py-3">
+                                    <div class="flex items-center gap-3">
+                                        {{-- Car icon --}}
+                                        <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                                            <i class="fa-solid fa-car text-sm"></i>
+                                        </div>
 
-                                {{-- No --}}
-                                <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
+                                        {{-- Merk & Nopol --}}
+                                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                                            <span class="font-bold text-gray-800 text-sm">{{ $groupMerk }}</span>
+                                            <span class="font-mono text-xs text-gray-600 bg-white border border-gray-200 px-2 py-0.5 rounded">{{ $groupNopol }}</span>
+                                        </div>
 
-                                {{-- Kendaraan --}}
-                                <td class="px-4 py-3.5">
-                                    <span class="font-semibold text-gray-800">{{ $d->kendaraan->merk ?? '-' }}</span>
-                                </td>
-
-                                {{-- Nopol --}}
-                                <td class="px-4 py-3.5">
-                                    <span
-                                        class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->kendaraan->nopol ?? '-' }}</span>
-                                </td>
-
-                                {{-- Keluhan --}}
-                                <td class="px-4 py-3.5 text-gray-600">{{ $d->keluhan }}</td>
-
-                                {{-- KM --}}
-                                <td class="px-4 py-3.5 text-gray-600">{{ number_format($d->kilometer, 0, ',', '.') }}</td>
-
-                                <td class="px-4 py-3.5 text-sm text-gray-600">
-                                    @php $maksTahunan = ($d->kendaraan->limit_bulan_service ?? 0) * 12; @endphp
-                                    @if ($maksTahunan > 0)
-                                        Rp {{ number_format($maksTahunan, 0, ',', '.') }}
-                                    @else
-                                        <span class="text-gray-400">-</span>
-                                    @endif
-                                </td>
-
-                                {{-- Limit Service --}}
-                                <td class="px-4 py-3.5 text-sm text-gray-600">
-                                    @if ($d->kendaraan->limit_bulan_service ?? false)
-                                        Rp {{ number_format($d->kendaraan->limit_bulan_service, 0, ',', '.') }}
-                                    @else
-                                        <span class="text-gray-400">-</span>
-                                    @endif
-                                </td>
-
-                                {{-- Total Biaya --}}
-                                <td class="px-4 py-3.5 text-sm font-medium text-green-600">Rp
-                                    {{ number_format($d->total_biaya, 0, ',', '.') }}</td>
-
-                                {{-- Sisa Service --}}
-                                <td class="px-4 py-3.5">
-                                    @php
-                                        $limit = $d->kendaraan->limit_bulan_service ?? 0;
-                                        $sisa = $d->sisa_limit ?? 0;
-                                    @endphp
-                                    @if ($sisa < 0)
-                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                            Over Rp {{ number_format(abs($sisa), 0, ',', '.') }}
-                                        </span>
-                                    @elseif ($sisa <= 0)
-                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                            Limit Habis
-                                        </span>
-                                    @elseif ($limit > 0 && $sisa <= $limit * 0.1)
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-                                            Sisa Rp {{ number_format($sisa, 0, ',', '.') }}
-                                        </span>
-                                    @else
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                                            Sisa Rp {{ number_format($sisa, 0, ',', '.') }}
-                                        </span>
-                                    @endif
-                                </td>
-
-
-
-                                <td class="px-4 py-3.5">
-                                    <button type="button"
-                                        onclick="ubahStatusService({{ $d->id }}, '{{ $d->status }}')"
-                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-200 hover:scale-105
-        {{ $d->status == 'proses'
-            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-            : 'bg-emerald-50 text-emerald-700 border border-emerald-200' }}">
-
-                                        <span
-                                            class="w-1.5 h-1.5 rounded-full
-            {{ $d->status == 'proses' ? 'bg-amber-500' : 'bg-emerald-500' }}">
+                                        {{-- Count badge --}}
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-600 text-white flex-shrink-0">
+                                            {{ $groupCount }} entri
                                         </span>
 
-                                        {{ ucfirst($d->status) }}
-
-                                        <i class="fa-solid fa-pen-to-square text-[10px] opacity-60"></i>
-                                    </button>
-                                </td>
-
-                                <td class="px-4 py-3.5">
-                                    @php
-                                        $limitBulan = $d->kendaraan->limit_bulan_service ?? 0;
-                                        $totalBulanIni = \App\Models\ServiceHistory::where(
-                                            'kendaraan_id',
-                                            $d->kendaraan_id,
-                                        )
-                                            ->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [
-                                                date('Y-m', strtotime($d->tanggal_service)),
-                                            ])
-                                            ->sum('total_biaya');
-                                        $statusPengeluaran =
-                                            $limitBulan > 0 && $totalBulanIni > $limitBulan ? 'overservice' : 'stabil';
-                                    @endphp
-
-                                    @if ($statusPengeluaran === 'overservice')
-                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                            Overservice
+                                        {{-- Total biaya sum --}}
+                                        <span class="text-xs font-semibold text-green-700 bg-green-50 border border-green-100 px-3 py-1 rounded-full flex-shrink-0">
+                                            Rp {{ number_format($groupTotalBiaya, 0, ',', '.') }}
                                         </span>
-                                    @else
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                                            Stabil
-                                        </span>
-                                    @endif
+
+                                        {{-- Chevron icon --}}
+                                        <i id="chevron-{{ $groupId }}"
+                                           class="fa fa-chevron-right text-xs text-blue-400 transition-transform duration-300 flex-shrink-0"></i>
+                                    </div>
                                 </td>
+                            </tr>
 
-                                {{-- Tanggal --}}
-                                <td class="px-4 py-3.5 text-gray-600">{{ $d->tanggal_service }}</td>
+                            {{-- ── DETAIL / CHILD ROWS ── --}}
+                            @foreach ($rows as $loopIndex => $d)
+                                @php
+                                    $limit = $d->kendaraan->limit_bulan_service ?? 0;
+                                    $sisa  = $d->sisa_limit ?? 0;
 
-                                {{-- gambar --}}
-                                <td>
-                                    @if ($d->bukti_pembayaran)
-                                        @php $filename = basename($d->bukti_pembayaran); @endphp
-                                        <a href="{{ asset($d->bukti_pembayaran) }}" target="_blank"
-                                            class="text-blue-600 underline text-xs hover:text-blue-800 block">
-                                            {{ $filename }}
-                                        </a>
-                                    @else
-                                        <span class="text-gray-400 text-xs">-</span>
-                                    @endif
+                                    $rowClass = '';
+                                    if ($limit > 0) {
+                                        if ($sisa <= 0) {
+                                            $rowClass = 'bg-red-50 hover:bg-red-100';
+                                        } elseif ($sisa <= $limit * 0.1) {
+                                            $rowClass = 'bg-yellow-50 hover:bg-yellow-100';
+                                        }
+                                    }
+                                @endphp
 
-                                    @foreach ($d->attachments as $att)
-                                        <div class="flex items-center gap-1 mt-1">
-                                            <a href="{{ asset($att->file_path) }}" target="_blank"
-                                                class="text-blue-500 underline text-[11px] hover:text-blue-700">
-                                                {{ $att->file_name }}
+                                <tr class="group-child border-t border-gray-50 transition-all duration-200 {{ $rowClass ?: 'hover:bg-gray-50' }}"
+                                    data-group="{{ $groupId }}"
+                                    data-search="{{ strtolower(($d->kendaraan->merk ?? '') . ' ' . ($d->kendaraan->nopol ?? '') . ' ' . $d->keluhan . ' ' . $d->status) }}"
+                                    style="display:none;">
+
+                                    {{-- No (sequential within group) --}}
+                                    <td class="px-4 py-3.5 text-gray-400 pl-7">{{ $loopIndex + 1 }}</td>
+
+                                    {{-- Kendaraan --}}
+                                    <td class="px-4 py-3.5">
+                                        <span class="font-semibold text-gray-800">{{ $d->kendaraan->merk ?? '-' }}</span>
+                                    </td>
+
+                                    {{-- Nopol --}}
+                                    <td class="px-4 py-3.5">
+                                        <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->kendaraan->nopol ?? '-' }}</span>
+                                    </td>
+
+                                    {{-- Keluhan --}}
+                                    <td class="px-4 py-3.5 text-gray-600">{{ $d->keluhan }}</td>
+
+                                    {{-- KM --}}
+                                    <td class="px-4 py-3.5 text-gray-600">{{ number_format($d->kilometer, 0, ',', '.') }}</td>
+
+                                    {{-- Maksimum Pertahun --}}
+                                    <td class="px-4 py-3.5 text-sm text-gray-600">
+                                        @php $maksTahunan = ($d->kendaraan->limit_bulan_service ?? 0) * 12; @endphp
+                                        @if ($maksTahunan > 0)
+                                            Rp {{ number_format($maksTahunan, 0, ',', '.') }}
+                                        @else
+                                            <span class="text-gray-400">-</span>
+                                        @endif
+                                    </td>
+
+                                    {{-- Limit Service (Maksimum Bulanan) --}}
+                                    <td class="px-4 py-3.5 text-sm text-gray-600">
+                                        @if ($d->kendaraan->limit_bulan_service ?? false)
+                                            Rp {{ number_format($d->kendaraan->limit_bulan_service, 0, ',', '.') }}
+                                        @else
+                                            <span class="text-gray-400">-</span>
+                                        @endif
+                                    </td>
+
+                                    {{-- Total Biaya --}}
+                                    <td class="px-4 py-3.5 text-sm font-medium text-green-600">Rp
+                                        {{ number_format($d->total_biaya, 0, ',', '.') }}</td>
+
+                                    {{-- Sisa Service --}}
+                                    <td class="px-4 py-3.5">
+                                        @php
+                                            $limit = $d->kendaraan->limit_bulan_service ?? 0;
+                                            $sisa  = $d->sisa_limit ?? 0;
+                                        @endphp
+                                        @if ($sisa < 0)
+                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                                Over Rp {{ number_format(abs($sisa), 0, ',', '.') }}
+                                            </span>
+                                        @elseif ($sisa <= 0)
+                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                                Limit Habis
+                                            </span>
+                                        @elseif ($limit > 0 && $sisa <= $limit * 0.1)
+                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+                                                Sisa Rp {{ number_format($sisa, 0, ',', '.') }}
+                                            </span>
+                                        @else
+                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                                Sisa Rp {{ number_format($sisa, 0, ',', '.') }}
+                                            </span>
+                                        @endif
+                                    </td>
+
+                                    {{-- Status Service --}}
+                                    <td class="px-4 py-3.5">
+                                        <button type="button"
+                                            onclick="ubahStatusService({{ $d->id }}, '{{ $d->status }}')"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-200 hover:scale-105
+                                                {{ $d->status == 'proses'
+                                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200' }}">
+                                            <span class="w-1.5 h-1.5 rounded-full
+                                                {{ $d->status == 'proses' ? 'bg-amber-500' : 'bg-emerald-500' }}">
+                                            </span>
+                                            {{ ucfirst($d->status) }}
+                                            <i class="fa-solid fa-pen-to-square text-[10px] opacity-60"></i>
+                                        </button>
+                                    </td>
+
+                                    {{-- Status Pengeluaran --}}
+                                    <td class="px-4 py-3.5">
+                                        @php
+                                            $limitBulan    = $d->kendaraan->limit_bulan_service ?? 0;
+                                            $totalBulanIni = \App\Models\ServiceHistory::where('kendaraan_id', $d->kendaraan_id)
+                                                ->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [date('Y-m', strtotime($d->tanggal_service))])
+                                                ->sum('total_biaya');
+                                            $statusPengeluaran = $limitBulan > 0 && $totalBulanIni > $limitBulan ? 'overservice' : 'stabil';
+                                        @endphp
+                                        @if ($statusPengeluaran === 'overservice')
+                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                                Overservice
+                                            </span>
+                                        @else
+                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                                Stabil
+                                            </span>
+                                        @endif
+                                    </td>
+
+                                    {{-- Tanggal --}}
+                                    <td class="px-4 py-3.5 text-gray-600">{{ $d->tanggal_service }}</td>
+
+                                    {{-- Bukti --}}
+                                    <td class="px-4 py-3.5">
+                                        @if ($d->bukti_pembayaran)
+                                            @php $filename = basename($d->bukti_pembayaran); @endphp
+                                            <a href="{{ asset($d->bukti_pembayaran) }}" target="_blank"
+                                                class="text-blue-600 underline text-xs hover:text-blue-800 block">
+                                                {{ $filename }}
                                             </a>
-                                            <form action="{{ route('service-history.attachment.destroy', $att->id) }}"
-                                                method="POST" onsubmit="return confirm('Hapus lampiran ini?')"
-                                                class="inline">
+                                        @else
+                                            <span class="text-gray-400 text-xs">-</span>
+                                        @endif
+
+                                        @foreach ($d->attachments as $att)
+                                            <div class="flex items-center gap-1 mt-1">
+                                                <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                    class="text-blue-500 underline text-[11px] hover:text-blue-700">
+                                                    {{ $att->file_name }}
+                                                </a>
+                                                <form action="{{ route('service-history.attachment.destroy', $att->id) }}"
+                                                    method="POST" onsubmit="return confirm('Hapus lampiran ini?')"
+                                                    class="inline">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="text-red-400 hover:text-red-600 text-[10px]">
+                                                        <i class="fa fa-times"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        @endforeach
+                                    </td>
+
+                                    {{-- Aksi --}}
+                                    <td class="px-4 py-3.5">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <form action="{{ route('service-history.destroy', $d->id) }}" method="POST"
+                                                onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"
-                                                    class="text-red-400 hover:text-red-600 text-[10px]">
-                                                    <i class="fa fa-times"></i>
+                                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
+                                                    <i class="fa fa-trash text-xs"></i> Hapus
                                                 </button>
                                             </form>
                                         </div>
-                                    @endforeach
-                                </td>
+                                    </td>
 
-                                {{-- Aksi --}}
-                                <td class="px-4 py-3.5">
-                                    <div class="flex items-center justify-center gap-1.5">
+                                </tr>
+                            @endforeach
 
-                                        <form action="{{ route('service-history.destroy', $d->id) }}" method="POST"
-                                            onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
-                                                <i class="fa fa-trash text-xs"></i> Hapus
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-
-                            </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="px-5 py-12 text-center">
+                                <td colspan="14" class="px-5 py-12 text-center">
                                     <div class="flex flex-col items-center gap-3">
                                         <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                             <i class="fa fa-screwdriver-wrench text-2xl text-gray-300"></i>
@@ -496,27 +565,38 @@
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Kendaraan <span class="text-red-500">*</span>
+                        <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-600">
+                            <i class="fa fa-triangle-exclamation text-[9px]"></i> Tidak Layak
+                        </span>
                     </label>
                     <select name="kendaraan_id" id="kendaraan_id_tambah" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Kendaraan --</option>
-                        @foreach ($kendaraan as $k)
+                        @forelse ($kendaraan as $k)
                             @php
-                                // Gunakan $bulan dari controller (Y-m), default bulan ini
                                 $bulanAktif = $bulan ?? now()->format('Y-m');
-
-                                // Hitung total semua status (proses + selesai) di bulan aktif
-                                $totalSvc = \App\Models\ServiceHistory::where('kendaraan_id', $k->id)
+                                $totalSvc   = \App\Models\ServiceHistory::where('kendaraan_id', $k->id)
                                     ->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [$bulanAktif])
                                     ->sum('total_biaya');
-
-                                $limitK = $k->limit_bulan_service ?? 0;
-                                $sisaK = $limitK > 0 ? max($limitK - $totalSvc, 0) : 0;
+                                $limitK   = $k->limit_bulan_service ?? 0;
+                                $sisaK    = $limitK > 0 ? max($limitK - $totalSvc, 0) : 0;
                                 $persen10 = $limitK * 0.1;
+
+                                $detail        = $detailPerKendaraan[$k->id] ?? null;
+                                $keluhanGabung = $detail['keluhan_gabungan'] ?? '';
+                                $totalBiayaK   = $detail['total_biaya'] ?? 0;
+                                $kilometerK    = $detail['kilometer'] ?? 0;
+                                $rincianK      = $detail['rincian'] ?? [];
+                                $rincianJson   = json_encode($rincianK, JSON_UNESCAPED_UNICODE | JSON_HEX_QUOT | JSON_HEX_APOS);
                             @endphp
-                            <option value="{{ $k->id }}" data-sisa="{{ $sisaK }}"
-                                data-limit="{{ $limitK }}" data-status="{{ $k->status_kendaraan }}"
-                                {{ $limitK > 0 && $sisaK <= 0 ?: '' }}>
+                            <option value="{{ $k->id }}"
+                                data-sisa="{{ $sisaK }}"
+                                data-limit="{{ $limitK }}"
+                                data-status="{{ $k->status_kendaraan }}"
+                                data-keluhan="{{ $keluhanGabung }}"
+                                data-biaya="{{ $totalBiayaK }}"
+                                data-kilometer="{{ $kilometerK }}"
+                                data-rincian="{{ $rincianJson }}">
                                 {{ $k->merk }} - {{ $k->nopol }}
                                 @if ($limitK > 0)
                                     @if ($sisaK < 0)
@@ -532,8 +612,25 @@
                                     (Tidak ada limit)
                                 @endif
                             </option>
-                        @endforeach
+                        @empty
+                            <option value="" disabled>— Tidak ada kendaraan dengan status Tidak Layak —</option>
+                        @endforelse
                     </select>
+
+                    {{-- Panel info masalah dari Mobil Bermasalah --}}
+                    <div id="infoMasalahPanel" class="hidden mt-2 p-3 bg-red-50 border border-red-100 rounded-lg space-y-2">
+                        <div class="flex items-center gap-1.5">
+                            <i class="fa fa-triangle-exclamation text-red-400 text-xs shrink-0"></i>
+                            <span class="text-xs font-semibold text-red-700">Masalah dari tab Mobil Bermasalah:</span>
+                        </div>
+                        {{-- Rincian per keluhan --}}
+                        <ul id="rincianMasalahList" class="space-y-1 pl-1"></ul>
+                        {{-- Total akumulasi --}}
+                        <div class="flex items-center justify-between pt-1 border-t border-red-200 mt-1">
+                            <span class="text-xs font-semibold text-red-700">Total Biaya Akumulasi:</span>
+                            <span id="totalBiayaAkumulasi" class="text-xs font-bold text-red-700"></span>
+                        </div>
+                    </div>
                 </div>
 
                 {{-- Info Maks Bulanan (read-only, dari kendaraan) --}}
@@ -703,21 +800,39 @@
                 @method('PUT')
 
                 {{-- Kendaraan --}}
-                <select name="kendaraan_id" id="edit_kendaraan_id" required
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    @foreach ($kendaraan as $k)
-                        @php
-                            $bulanAktif = $bulan ?? now()->format('Y-m');
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Kendaraan <span class="text-red-500">*</span>
+                        <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-600">
+                            <i class="fa fa-triangle-exclamation text-[9px]"></i> Tidak Layak
+                        </span>
+                    </label>
+                    <select name="kendaraan_id" id="edit_kendaraan_id" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        @foreach ($kendaraan as $k)
+                            @php
+                                $bulanAktif = $bulan ?? now()->format('Y-m');
 
                             $totalSvcEdit = \App\Models\ServiceHistory::where('kendaraan_id', $k->id)
                                 ->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [$bulanAktif])
                                 ->sum('total_biaya');
 
-                            $limitEdit = $k->limit_bulan_service ?? 0;
-                            $sisaEdit = $limitEdit > 0 ? max($limitEdit - $totalSvcEdit, 0) : 0;
+                            $limitEdit   = $k->limit_bulan_service ?? 0;
+                            $sisaEdit    = $limitEdit > 0 ? max($limitEdit - $totalSvcEdit, 0) : 0;
+                            $detailEdit  = $detailPerKendaraan[$k->id] ?? null;
+                            $keluhanEdit = $detailEdit['keluhan_gabungan'] ?? '';
+                            $biayaEdit   = $detailEdit['total_biaya'] ?? 0;
+                            $kmEdit      = $detailEdit['kilometer'] ?? 0;
+                            $rincianEdit = $detailEdit['rincian'] ?? [];
+                            $rincianEditJson = json_encode($rincianEdit, JSON_UNESCAPED_UNICODE | JSON_HEX_QUOT | JSON_HEX_APOS);
                         @endphp
-                        <option value="{{ $k->id }}" data-limit="{{ $limitEdit }}"
-                            data-sisa="{{ $sisaEdit }}">
+                        <option value="{{ $k->id }}"
+                            data-limit="{{ $limitEdit }}"
+                            data-sisa="{{ $sisaEdit }}"
+                            data-keluhan="{{ $keluhanEdit }}"
+                            data-biaya="{{ $biayaEdit }}"
+                            data-kilometer="{{ $kmEdit }}"
+                            data-rincian="{{ $rincianEditJson }}">
                             {{ $k->merk }} - {{ $k->nopol }}
                             @if ($limitEdit > 0)
                                 @if ($sisaEdit <= 0)
@@ -730,7 +845,21 @@
                             @endif
                         </option>
                     @endforeach
-                </select>
+                    </select>
+
+                    {{-- Panel rincian masalah (edit) --}}
+                    <div id="editInfoMasalahPanel" class="hidden mt-2 p-3 bg-red-50 border border-red-100 rounded-lg space-y-2">
+                        <div class="flex items-center gap-1.5">
+                            <i class="fa fa-triangle-exclamation text-red-400 text-xs shrink-0"></i>
+                            <span class="text-xs font-semibold text-red-700">Masalah dari tab Mobil Bermasalah:</span>
+                        </div>
+                        <ul id="editRincianMasalahList" class="space-y-1 pl-1"></ul>
+                        <div class="flex items-center justify-between pt-1 border-t border-red-200 mt-1">
+                            <span class="text-xs font-semibold text-red-700">Total Biaya Akumulasi:</span>
+                            <span id="editTotalBiayaAkumulasi" class="text-xs font-bold text-red-700"></span>
+                        </div>
+                    </div>
+                </div>
 
                 {{-- Info maks bulanan (edit) --}}
                 <div class="md:col-span-2" id="editInfoWrapper">
@@ -919,6 +1048,19 @@
                 transform: translateY(0);
             }
         }
+
+        /* Accordion group child row transition */
+        tr.group-child {
+            transition: opacity 0.2s ease;
+        }
+
+        tr.group-header {
+            transition: background-color 0.15s ease;
+        }
+
+        #chevron-[id] {
+            transition: transform 0.3s ease;
+        }
     </style>
 
     <script>
@@ -930,9 +1072,12 @@
             const perPage   = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
             let shown = 0;
 
-            allServiceRows.forEach(row => row.style.display = 'none');
+            // Only count/show child rows that belong to an expanded group
             allServiceRows.forEach(row => {
-                if (shown < perPage) { row.style.display = ''; shown++; }
+                const groupId  = row.getAttribute('data-group');
+                const isOpen   = groupStates[groupId] === true;
+                row.style.display = (isOpen && shown < perPage) ? '' : 'none';
+                if (isOpen && shown < perPage) shown++;
             });
 
             const total = allServiceRows.length;
@@ -946,7 +1091,43 @@
             if (bot) bot.innerText = infoText;
         }
 
-        document.addEventListener('DOMContentLoaded', renderTable);
+        // ── ACCORDION GROUP TOGGLE ─────────────────────────
+        var groupStates = {};
+
+        function toggleAccordion(groupId) {
+            var isOpen  = groupStates[groupId] === true;
+            var nowOpen = !isOpen;
+            groupStates[groupId] = nowOpen;
+
+            document.querySelectorAll('tr.group-child[data-group="' + groupId + '"]').forEach(function(row) {
+                row.style.display = nowOpen ? '' : 'none';
+            });
+
+            var chevron = document.getElementById('chevron-' + groupId);
+            if (chevron) {
+                chevron.style.transform = nowOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+            }
+        }
+
+        function expandAllAccordion() {
+            document.querySelectorAll('tr.group-header').forEach(function(hdr) {
+                var gid = hdr.getAttribute('data-group');
+                groupStates[gid] = true;
+                document.querySelectorAll('tr.group-child[data-group="' + gid + '"]').forEach(function(r) { r.style.display = ''; });
+                var ch = document.getElementById('chevron-' + gid);
+                if (ch) ch.style.transform = 'rotate(90deg)';
+            });
+        }
+
+        function collapseAllAccordion() {
+            document.querySelectorAll('tr.group-header').forEach(function(hdr) {
+                var gid = hdr.getAttribute('data-group');
+                groupStates[gid] = false;
+                document.querySelectorAll('tr.group-child[data-group="' + gid + '"]').forEach(function(r) { r.style.display = 'none'; });
+                var ch = document.getElementById('chevron-' + gid);
+                if (ch) ch.style.transform = 'rotate(0deg)';
+            });
+        }
 
         // ── MODAL TAMBAH ───────────────────────────────────
         function openModalTambah() {
@@ -1001,8 +1182,48 @@
             // Set info dari data record
             updateEditInfo(maks_bulanan, biaya_tahunan, status_pengeluaran);
 
-            // Hitung sisa dari option yang terpilih
+            // Hitung sisa & tampilkan panel rincian untuk kendaraan terpilih
             updateEditSisa(kendaraan_id);
+            showEditRincianPanel(kendaraan_id);
+        }
+
+        function showEditRincianPanel(kendaraan_id) {
+            var sel   = document.getElementById('edit_kendaraan_id');
+            var opt   = Array.from(sel.options).find(o => o.value == kendaraan_id);
+            var panel = document.getElementById('editInfoMasalahPanel');
+            var list  = document.getElementById('editRincianMasalahList');
+            var total = document.getElementById('editTotalBiayaAkumulasi');
+
+            if (!panel || !opt) return;
+
+            var rincian  = [];
+            var biayaVal = opt.dataset.biaya || 0;
+            try {
+                var raw = opt.getAttribute('data-rincian') || '[]';
+                rincian = JSON.parse(raw);
+            } catch(e) {
+                console.warn('Gagal parse rincian edit JSON:', e);
+                rincian = [];
+            }
+
+            if (rincian.length > 0) {
+                list.innerHTML = '';
+                rincian.forEach(function(item) {
+                    var li = document.createElement('li');
+                    li.className = 'flex items-start justify-between gap-2 text-xs text-red-700';
+                    li.innerHTML =
+                        '<span class="flex items-start gap-1">' +
+                            '<i class="fa fa-circle text-[5px] mt-1.5 text-red-400 shrink-0"></i>' +
+                            '<span>' + item.keluhan + ' <span class="text-red-400 font-normal">(' + item.tanggal + ')</span></span>' +
+                        '</span>' +
+                        '<span class="font-semibold shrink-0">Rp ' + parseInt(item.biaya || 0).toLocaleString('id-ID') + '</span>';
+                    list.appendChild(li);
+                });
+                if (total) total.textContent = 'Rp ' + parseInt(biayaVal || 0).toLocaleString('id-ID');
+                panel.classList.remove('hidden');
+            } else {
+                panel.classList.add('hidden');
+            }
         }
 
         function fmt(n) {
@@ -1052,9 +1273,9 @@
             var sel = document.getElementById('edit_kendaraan_id');
             if (!sel) return;
             sel.addEventListener('change', function() {
-                var opt = sel.options[sel.selectedIndex];
+                var opt   = sel.options[sel.selectedIndex];
                 var limit = parseInt(opt.dataset.limit || 0);
-                var sisa = parseInt(opt.dataset.sisa || 0);
+                var sisa  = parseInt(opt.dataset.sisa  || 0);
 
                 document.getElementById('editInfoMaksBulanan').textContent = fmt(limit);
 
@@ -1072,6 +1293,9 @@
                     sisaEl.textContent = fmt(sisa);
                     sisaEl.className = 'text-green-600 font-semibold';
                 }
+
+                // Tampilkan panel rincian
+                showEditRincianPanel(opt.value);
             });
         })();
 
@@ -1109,20 +1333,91 @@
 
         // ── INFO MAKS BULANAN + WARNING (MODAL TAMBAH) ─────
         (function() {
-            var sel = document.getElementById('kendaraan_id_tambah');
-            var biaya = document.getElementById('total_biaya_tambah');
-            var warning = document.getElementById('warningLimitTambah');
+            var sel      = document.getElementById('kendaraan_id_tambah');
+            var biaya    = document.getElementById('total_biaya_tambah');
+            var warning  = document.getElementById('warningLimitTambah');
             var infoWrap = document.getElementById('infoMaksBulananWrapper');
             var infoNominal = document.getElementById('infoMaksBulananNominal');
+
+            // Field keluhan & kilometer di form
+            var fieldKeluhan   = document.querySelector('#formTambah textarea[name="keluhan"]');
+            var fieldKilometer = document.querySelector('#formTambah input[name="kilometer"]');
+
+            // Panel rincian
+            var panel         = document.getElementById('infoMasalahPanel');
+            var listEl        = document.getElementById('rincianMasalahList');
+            var totalAkumEl   = document.getElementById('totalBiayaAkumulasi');
 
             function fmt(n) {
                 return 'Rp ' + parseInt(n || 0).toLocaleString('id-ID');
             }
 
+            function fillFromOption(opt) {
+                if (!opt || !opt.value) {
+                    if (panel) panel.classList.add('hidden');
+                    return;
+                }
+
+                var keluhan   = opt.dataset.keluhan   || '';
+                var biayaVal  = opt.dataset.biaya     || 0;
+                var kmVal     = opt.dataset.kilometer || 0;
+                var rincian   = [];
+
+                // Baca raw attribute (browser sudah decode HTML entity otomatis via dataset)
+                try {
+                    var raw = opt.getAttribute('data-rincian') || '[]';
+                    rincian = JSON.parse(raw);
+                } catch(e) {
+                    console.warn('Gagal parse rincian JSON:', e);
+                    rincian = [];
+                }
+
+                // Auto-fill keluhan
+                if (fieldKeluhan && keluhan) {
+                    fieldKeluhan.value = keluhan;
+                }
+
+                // Auto-fill kilometer
+                if (fieldKilometer && kmVal) {
+                    fieldKilometer.value = kmVal;
+                }
+
+                // Auto-fill total biaya
+                if (biaya && biayaVal) {
+                    biaya.value = biayaVal;
+                    // Trigger check warning setelah diisi
+                    biaya.dispatchEvent(new Event('input'));
+                }
+
+                // Tampilkan panel rincian
+                if (panel && listEl && rincian.length > 0) {
+                    listEl.innerHTML = '';
+                    rincian.forEach(function(item) {
+                        var li = document.createElement('li');
+                        li.className = 'flex items-start justify-between gap-2 text-xs text-red-700';
+                        li.innerHTML =
+                            '<span class="flex items-start gap-1">' +
+                                '<i class="fa fa-circle text-[5px] mt-1.5 text-red-400 shrink-0"></i>' +
+                                '<span>' + item.keluhan + ' <span class="text-red-400 font-normal">(' + item.tanggal + ')</span></span>' +
+                            '</span>' +
+                            '<span class="font-semibold shrink-0">' + fmt(item.biaya) + '</span>';
+                        listEl.appendChild(li);
+                    });
+
+                    if (totalAkumEl) {
+                        totalAkumEl.textContent = fmt(biayaVal);
+                    }
+
+                    panel.classList.remove('hidden');
+                } else if (panel) {
+                    panel.classList.add('hidden');
+                }
+            }
+
             function check() {
                 if (!sel || !biaya || !warning) return;
-                var opt = sel.options[sel.selectedIndex];
-                var sisa = parseInt(opt ? (opt.dataset.sisa || 0) : 0);
+                var opt   = sel.options[sel.selectedIndex];
+                var sisa  = parseInt(opt ? (opt.dataset.sisa  || 0) : 0);
                 var limit = parseInt(opt ? (opt.dataset.limit || 0) : 0);
                 var nilai = parseInt(biaya.value || 0);
                 var after = sisa - nilai;
@@ -1150,7 +1445,15 @@
                 }
             }
 
-            if (sel) sel.addEventListener('change', check);
+            // Saat kendaraan berubah: auto-fill + warning
+            if (sel) {
+                sel.addEventListener('change', function() {
+                    fillFromOption(sel.options[sel.selectedIndex]);
+                    check();
+                });
+            }
+
+            // Saat biaya diketik manual: hanya update warning
             if (biaya) biaya.addEventListener('input', check);
         })();
 

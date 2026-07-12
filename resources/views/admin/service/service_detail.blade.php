@@ -14,14 +14,35 @@
         {{-- PAGE HEADER --}}
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">Data Mobil Bermasalah</h1>
-                <p class="text-sm text-gray-500 mt-0.5">Detail mobil bermasalah</p>
+                <h1 class="text-2xl font-bold text-gray-800">Service Kendaraan</h1>
+                <p class="text-sm text-gray-500 mt-0.5">Riwayat Service & Data Mobil Bermasalah</p>
             </div>
             <button onclick="openModal()"
                 class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150 mt-2 sm:mt-0">
                 <i class="fa fa-plus text-sm"></i>
                 Tambah
             </button>
+        </div>
+
+        {{-- NAV TABS --}}
+        <div class="border-b border-gray-200">
+            <nav class="flex gap-0 -mb-px overflow-x-auto">
+                @php
+                    $navItems = [
+                        ['label' => 'Service History',  'url' => '/admin/service-history', 'icon' => 'bi bi-clock-history'],
+                        ['label' => 'Mobil Bermasalah', 'url' => '/admin/service-detail',  'icon' => 'bi bi-exclamation-triangle-fill'],
+                        ['label' => 'Reminder Service', 'url' => '/admin/reminder-service','icon' => 'bi bi-bell-fill'],
+                    ];
+                @endphp
+                @foreach ($navItems as $item)
+                    @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
+                    <a href="{{ $item['url'] }}"
+                        class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
+                            {{ $isActiveTab ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
+                        <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
+                    </a>
+                @endforeach
+            </nav>
         </div>
 
         {{-- SUMMARY CARDS --}}
@@ -132,6 +153,16 @@
                         </button>
                     </div>
 
+                    {{-- EXPAND / COLLAPSE ALL --}}
+                    <button type="button" id="btnExpandAll" onclick="expandAllAccordion()"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors">
+                        <i class="fa fa-chevron-down text-[10px]"></i> Expand All
+                    </button>
+                    <button type="button" id="btnCollapseAll" onclick="collapseAllAccordion()"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="fa fa-chevron-up text-[10px]"></i> Collapse All
+                    </button>
+
                     <a id="pdfBtn" href="{{ route('service-detail.pdf') }}" target="_blank"
                         class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
                         PDF
@@ -173,7 +204,7 @@
                             </th>
 
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Tanggal Service
+                                Tanggal Bermasalah
                             </th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Biaya
@@ -192,121 +223,168 @@
                         </tr>
                     </thead>
                     <tbody id="serviceTableBody">
-                        @forelse($data as $i => $d)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
-                                data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . $d->keterangan) }}"
-                                data-status="{{ $d->status }}"
-                                data-bulan="{{ $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->format('Y-m-d') : '' }}">
+                        @php
+                            $grouped = $data->groupBy('kendaraan_id');
+                            $rowCounter = 0;
+                        @endphp
+                        @forelse($grouped as $kendaraanId => $rows)
+                            @php
+                                $firstRow   = $rows->first();
+                                $merk       = $firstRow->kendaraan->merk  ?? '-';
+                                $nopol      = $firstRow->kendaraan->nopol ?? '-';
+                                $groupCount = $rows->count();
+                                $groupBiaya = $rows->sum('biaya');
+                                $groupKey   = 'group-' . $kendaraanId;
+                            @endphp
 
-                                {{-- NO --}}
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium row-number">
-                                    {{ $i + 1 }}
-                                </td>
-
-                                {{-- KENDARAAN --}}
-                                <td class="px-4 py-3.5">
-                                    <div class="flex items-center gap-2">
-                                        <div
-                                            class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                                            <i class="fa fa-car text-blue-400 text-xs"></i>
+                            {{-- ── GROUP HEADER ROW ── --}}
+                            <tr class="group-header bg-orange-50 border-t border-orange-100 cursor-pointer select-none hover:bg-orange-100 transition-colors duration-150"
+                                data-group="{{ $groupKey }}"
+                                onclick="toggleAccordion('{{ $groupKey }}', this)">
+                                <td class="px-4 py-3" colspan="2">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                                            <i class="fa fa-car text-orange-500 text-sm"></i>
                                         </div>
                                         <div>
-                                            <p class="text-sm font-semibold text-gray-800">
-                                                {{ $d->kendaraan->merk ?? '-' }}
-                                            </p>
-                                            <p class="text-xs text-gray-400 font-mono">
-                                                {{ $d->kendaraan->nopol ?? '-' }}
-                                            </p>
+                                            <p class="text-sm font-bold text-gray-800">{{ $merk }}</p>
+                                            <p class="text-xs text-gray-500 font-mono">{{ $nopol }}</p>
                                         </div>
+                                        <span class="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-200 text-orange-700 text-[10px] font-bold">
+                                            {{ $groupCount }}
+                                        </span>
                                     </div>
                                 </td>
-
-
-                                {{-- KILOMETER --}}
-                                <td class="px-4 py-3.5 text-xs text-gray-600">
-                                    {{ number_format($d->kilometer ?? 0, 0, ',', '.') }} km
+                                <td class="px-4 py-3 text-xs text-gray-400 italic" colspan="3">
+                                    {{ $groupCount }} catatan
                                 </td>
-
-
-                                {{-- KELUHAN --}}
-                                <td class="px-4 py-3.5 text-sm text-gray-500 max-w-[160px] truncate">
-                                    {{ $d->keterangan ?? '-' }}
-                                </td>
-                                {{-- TANGGAL SERVICE --}}
-                                <td class="px-4 py-3.5 text-xs text-gray-600">
-                                    {{ $d->tanggal_service ?? '-' }}
-                                </td>
-
-                                {{-- BIAYA --}}
-                                <td class="px-4 py-3.5">
-                                    <span class="text-sm font-semibold text-emerald-600">
-                                        Rp {{ number_format($d->biaya ?? 0, 0, ',', '.') }}
+                                <td class="px-4 py-3" colspan="2">
+                                    <span class="text-sm font-bold text-emerald-600">
+                                        Rp {{ number_format($groupBiaya, 0, ',', '.') }}
                                     </span>
                                 </td>
-
-                                <td class="px-4 py-3.5">
-                                    <button type="button" class="btn-status" data-id="{{ $d->id }}"
-                                        data-status="{{ $d->status }}" onclick="openStatusModal(this)">
-                                        @if ($d->status == 'Layak')
-                                            <span
-                                                class="px-2 py-1 text-xs font-semibold rounded-lg bg-green-100 text-green-600">
-                                                Layak
-                                            </span>
-                                        @else
-                                            <span
-                                                class="px-2 py-1 text-xs font-semibold rounded-lg bg-red-100 text-red-600">
-                                                Tidak Layak
-                                            </span>
-                                        @endif
-                                    </button>
-                                </td>
-
-                                {{-- BUKTI --}}
-                                <td>
-                                    @if ($d->bukti)
-                                        @php
-                                            $filename = basename($d->bukti);
-                                        @endphp
-
-                                        <a href="{{ asset($d->bukti) }}" target="_blank"
-                                            class="text-blue-600 underline text-xs hover:text-blue-800">
-
-                                            {{ $filename }}
-                                        </a>
-                                    @else
-                                        <span class="text-gray-400 text-xs">-</span>
-                                    @endif
-                                </td>
-
-
-                                {{-- AKSI --}}
-                                <td class="px-4 py-3.5">
-                                    <div class="flex items-center justify-center gap-1.5">
-
-                                        <button
-                                            class="btn-edit inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors"
-                                            data-id="{{ $d->id }}" data-kendaraan_id="{{ $d->kendaraan_id }}"
-                                            data-tanggal_service="{{ $d->tanggal_service }}"
-                                            data-kilometer="{{ $d->kilometer }}" data-status="{{ $d->status }}"
-                                            data-biaya="{{ $d->biaya }}" data-keterangan="{{ $d->keterangan }}"
-                                            data-bukti="{{ $d->bukti }}">
-                                            <i class="fa fa-edit text-xs"></i> Edit
-                                        </button>
-
-                                        <form action="{{ route('service-detail.destroy', $d->id) }}" method="POST"
-                                            onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
-                                                <i class="fa fa-trash text-xs"></i> Hapus
-                                            </button>
-                                        </form>
-
+                                <td class="px-4 py-3" colspan="2">
+                                    <div class="flex justify-end pr-2">
+                                        <i class="fa fa-chevron-down text-orange-400 text-xs group-chevron transition-transform duration-200"
+                                           data-group="{{ $groupKey }}"></i>
                                     </div>
                                 </td>
-
                             </tr>
+
+                            {{-- ── CHILD / DETAIL ROWS ── --}}
+                            @foreach($rows as $d)
+                                @php $rowCounter++ @endphp
+                                <tr class="group-child border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                                    data-group-child="{{ $groupKey }}"
+                                    data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . $d->keterangan) }}"
+                                    data-status="{{ $d->status }}"
+                                    data-bulan="{{ $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->format('Y-m-d') : '' }}"
+                                    style="display:none;">
+
+                                    {{-- NO --}}
+                                    <td class="px-4 py-3.5 text-xs text-gray-400 font-medium row-number">
+                                        {{ $rowCounter }}
+                                    </td>
+
+                                    {{-- KENDARAAN --}}
+                                    <td class="px-4 py-3.5">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                                                <i class="fa fa-car text-blue-400 text-xs"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-gray-800">
+                                                    {{ $d->kendaraan->merk ?? '-' }}
+                                                </p>
+                                                <p class="text-xs text-gray-400 font-mono">
+                                                    {{ $d->kendaraan->nopol ?? '-' }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    {{-- KILOMETER --}}
+                                    <td class="px-4 py-3.5 text-xs text-gray-600">
+                                        {{ number_format($d->kilometer ?? 0, 0, ',', '.') }} km
+                                    </td>
+
+                                    {{-- KELUHAN --}}
+                                    <td class="px-4 py-3.5 text-sm text-gray-500 max-w-[160px] truncate">
+                                        {{ $d->keterangan ?? '-' }}
+                                    </td>
+
+                                    {{-- TANGGAL SERVICE --}}
+                                    <td class="px-4 py-3.5 text-xs text-gray-600">
+                                        {{ $d->tanggal_service ?? '-' }}
+                                    </td>
+
+                                    {{-- BIAYA --}}
+                                    <td class="px-4 py-3.5">
+                                        <span class="text-sm font-semibold text-emerald-600">
+                                            Rp {{ number_format($d->biaya ?? 0, 0, ',', '.') }}
+                                        </span>
+                                    </td>
+
+                                    {{-- STATUS --}}
+                                    <td class="px-4 py-3.5">
+                                        <button type="button" class="btn-status" data-id="{{ $d->id }}"
+                                            data-status="{{ $d->status }}" onclick="openStatusModal(this)">
+                                            @if ($d->status == 'Layak')
+                                                <span class="px-2 py-1 text-xs font-semibold rounded-lg bg-green-100 text-green-600">
+                                                    Layak
+                                                </span>
+                                            @else
+                                                <span class="px-2 py-1 text-xs font-semibold rounded-lg bg-red-100 text-red-600">
+                                                    Tidak Layak
+                                                </span>
+                                            @endif
+                                        </button>
+                                    </td>
+
+                                    {{-- BUKTI --}}
+                                    <td class="px-4 py-3.5">
+                                        @if ($d->bukti)
+                                            @php $filename = basename($d->bukti); @endphp
+                                            <a href="{{ asset($d->bukti) }}" target="_blank"
+                                                class="text-blue-600 underline text-xs hover:text-blue-800">
+                                                {{ $filename }}
+                                            </a>
+                                        @else
+                                            <span class="text-gray-400 text-xs">-</span>
+                                        @endif
+                                    </td>
+
+                                    {{-- AKSI --}}
+                                    <td class="px-4 py-3.5">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <button
+                                                class="btn-edit inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors"
+                                                data-id="{{ $d->id }}"
+                                                data-kendaraan_id="{{ $d->kendaraan_id }}"
+                                                data-tanggal_service="{{ $d->tanggal_service }}"
+                                                data-kilometer="{{ $d->kilometer }}"
+                                                data-status="{{ $d->status }}"
+                                                data-biaya="{{ $d->biaya }}"
+                                                data-keterangan="{{ $d->keterangan }}"
+                                                data-bukti="{{ $d->bukti }}">
+                                                <i class="fa fa-edit text-xs"></i> Edit
+                                            </button>
+
+                                            <form action="{{ route('service-detail.destroy', $d->id) }}" method="POST"
+                                                onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
+                                                    <i class="fa fa-trash text-xs"></i> Hapus
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+
+                                </tr>
+                            @endforeach
+
                         @empty
                             <tr>
                                 <td colspan="9" class="px-5 py-12 text-center">
@@ -385,7 +463,7 @@
 
                 {{-- TANGGAL SERVICE --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Service</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Bermasalah</label>
                     <input type="date" name="tanggal_service" id="tanggal_service"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
                 </div>
@@ -399,10 +477,9 @@
 
                 {{-- STATUS --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Kendaraan</label>
-                    <select name="status" id="status"
+                    {{-- <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Kendaraan</label> --}}
+                    <select name="status" id="status" hidden
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                        <option value="Layak">Layak</option>
                         <option value="Tidak Layak">Tidak Layak</option>
                     </select>
                 </div>
@@ -734,55 +811,72 @@
         }
 
         function applyFilters() {
-            const keyword   = document.getElementById('searchInput').value.toLowerCase().trim();
+            const keyword    = document.getElementById('searchInput').value.toLowerCase().trim();
             const filterHari = document.getElementById('filterHari').value;
-            const showVal   = document.getElementById('showEntries').value;
-            const perPage   = showVal === 'all' ? Infinity : parseInt(showVal);
-            const rows      = document.querySelectorAll('#serviceTableBody tr[data-search]');
+            const showVal    = document.getElementById('showEntries').value;
+            const perPage    = showVal === 'all' ? Infinity : parseInt(showVal);
 
-            // Kumpulkan baris yang lolos filter
+            // All child rows (have data-search attribute)
+            const childRows = document.querySelectorAll('#serviceTableBody tr[data-search]');
+
+            // Determine which child rows pass the filters
             const matched = [];
-            rows.forEach(row => {
+            childRows.forEach(row => {
                 const matchSearch = !keyword || row.dataset.search.includes(keyword);
                 const matchStatus = activeStatus === 'semua' || row.dataset.status === activeStatus;
 
-                // data-bulan sekarang format Y-m-d
-                const tgl       = row.dataset.bulan || '';  // "YYYY-MM-DD"
+                const tgl               = row.dataset.bulan || '';
                 const [rowYear, rowMonth, rowDay] = tgl.split('-');
-                const rowYM     = rowYear && rowMonth ? `${rowYear}-${rowMonth}` : '';
+                const rowYM             = rowYear && rowMonth ? `${rowYear}-${rowMonth}` : '';
 
-                const matchHari  = !filterHari   || rowDay   === filterHari;
-                const matchBulan = activeBulan === 'semua' || rowYM === activeBulan;
-                const matchTahun = activeTahun === 'semua' || rowYear === activeTahun;
+                const matchHari  = !filterHari    || rowDay   === filterHari;
+                const matchBulan = activeBulan === 'semua' || rowYM    === activeBulan;
+                const matchTahun = activeTahun === 'semua' || rowYear  === activeTahun;
 
                 if (matchSearch && matchStatus && matchHari && matchBulan && matchTahun) {
                     matched.push(row);
                 }
             });
 
-            const total = matched.length;
+            const total      = matched.length;
             const totalPages = perPage === Infinity ? 1 : Math.ceil(total / perPage);
             if (currentPage > totalPages) currentPage = 1;
 
             const start = perPage === Infinity ? 0 : (currentPage - 1) * perPage;
             const end   = perPage === Infinity ? total : Math.min(start + perPage, total);
 
-            // Tampilkan / sembunyikan baris
-            rows.forEach(row => row.style.display = 'none');
-            matched.forEach((row, idx) => {
-                row.style.display = (idx >= start && idx < end) ? '' : 'none';
-            });
+            // Build a Set of rows visible on this page
+            const pageSet = new Set(matched.slice(start, end));
 
-            // Nomor urut
-            let num = start + 1;
-            matched.forEach((row, idx) => {
-                if (idx >= start && idx < end) {
-                    const cell = row.querySelector('.row-number');
-                    if (cell) cell.textContent = num++;
+            // Build a Set of groups that have at least one matching row overall
+            const visibleGroups = new Set(matched.map(r => r.dataset.groupChild));
+
+            // Show/hide each child row
+            childRows.forEach(row => {
+                if (pageSet.has(row)) {
+                    // Only show if its group is expanded
+                    const gKey = row.dataset.groupChild;
+                    row.style.display = groupState[gKey] ? '' : 'none';
+                    row.style.opacity = '1';
+                } else {
+                    row.style.display = 'none';
                 }
             });
 
-            // Info "Showing X to Y of Z entries"
+            // Show/hide group header rows
+            document.querySelectorAll('#serviceTableBody tr.group-header').forEach(headerRow => {
+                const gKey = headerRow.dataset.group;
+                headerRow.style.display = visibleGroups.has(gKey) ? '' : 'none';
+            });
+
+            // Renumber visible child rows
+            let num = start + 1;
+            matched.slice(start, end).forEach(row => {
+                const cell = row.querySelector('.row-number');
+                if (cell) cell.textContent = num++;
+            });
+
+            // Info text
             const showingInfo = document.getElementById('showingInfo');
             if (showingInfo) {
                 if (total === 0) {
@@ -792,15 +886,15 @@
                 }
             }
 
-            // Pagination buttons
+            // Pagination
             renderPagination(totalPages);
 
-            // totalCount di header
+            // Header count
             document.getElementById('totalCount').textContent = total + ' total data';
 
             // No result row
             const noResult = document.getElementById('noResultRow');
-            if (noResult) noResult.classList.toggle('hidden', total > 0 || rows.length === 0);
+            if (noResult) noResult.classList.toggle('hidden', total > 0 || childRows.length === 0);
 
             updatePdfLink();
         }
@@ -996,6 +1090,71 @@
             wrapper.innerHTML = '';
             wrapper.classList.add('hidden');
         }
+
+        // ── ACCORDION GROUP TOGGLE ────────────────────────────
+        // Track which groups are expanded (key = groupKey, value = bool)
+        const groupState = {};
+
+        function toggleAccordion(groupKey, headerRow) {
+            const isExpanded = groupState[groupKey] || false;
+            const newState   = !isExpanded;
+            groupState[groupKey] = newState;
+
+            // Show/hide child rows
+            const childRows = document.querySelectorAll(`tr[data-group-child="${groupKey}"]`);
+            childRows.forEach(row => {
+                if (newState) {
+                    row.style.display = '';
+                    row.style.opacity = '0';
+                    // Smooth fade-in
+                    requestAnimationFrame(() => {
+                        row.style.transition = 'opacity 0.18s ease';
+                        row.style.opacity = '1';
+                    });
+                } else {
+                    row.style.transition = 'opacity 0.15s ease';
+                    row.style.opacity = '0';
+                    setTimeout(() => { row.style.display = 'none'; }, 150);
+                }
+            });
+
+            // Rotate chevron
+            const chevron = document.querySelector(`.group-chevron[data-group="${groupKey}"]`);
+            if (chevron) {
+                chevron.style.transform = newState ? 'rotate(180deg)' : 'rotate(0deg)';
+            }
+
+            // Update header row appearance
+            if (headerRow) {
+                if (newState) {
+                    headerRow.classList.add('bg-orange-100');
+                    headerRow.classList.remove('bg-orange-50');
+                } else {
+                    headerRow.classList.add('bg-orange-50');
+                    headerRow.classList.remove('bg-orange-100');
+                }
+            }
+        }
+
+        function expandAllAccordion() {
+            document.querySelectorAll('tr.group-header').forEach(headerRow => {
+                const key = headerRow.dataset.group;
+                if (key && !groupState[key]) {
+                    toggleAccordion(key, headerRow);
+                }
+            });
+        }
+
+        function collapseAllAccordion() {
+            document.querySelectorAll('tr.group-header').forEach(headerRow => {
+                const key = headerRow.dataset.group;
+                if (key && groupState[key]) {
+                    toggleAccordion(key, headerRow);
+                }
+            });
+        }
+
+        // ── END ACCORDION ─────────────────────────────────────
 
         // Inisialisasi awal (set link PDF & totalCount sesuai state default)
         applyFilters();

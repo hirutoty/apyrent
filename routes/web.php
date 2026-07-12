@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\MemberKendaraanController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\ServiceHistoryController;
 use App\Http\Controllers\Admin\ServiceDetailController;
+use App\Http\Controllers\Admin\ReminderServiceController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\AsuransiController;
@@ -411,6 +412,11 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   Route::resource('service-detail', ServiceDetailController::class);
   Route::put('service/service-detail/{id}/status', [ServiceDetailController::class, 'updateStatus']);
+
+  // Reminder Service
+  Route::resource('reminder-service', ReminderServiceController::class);
+  Route::put('reminder-service/{id}/status', [ReminderServiceController::class, 'updateStatus'])
+      ->name('reminder-service.update-status');
 
 
 

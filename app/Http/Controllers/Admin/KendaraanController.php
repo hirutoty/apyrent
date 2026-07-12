@@ -8,6 +8,7 @@ use App\Models\Kendaraan;
 use App\Models\Jenis;
 use App\Models\Member;
 use App\Models\Setting;
+use App\Models\ReminderService;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
@@ -150,7 +151,7 @@ class KendaraanController extends Controller
         $dokumenFile->move(public_path('kendaraan/dokumen'), $dokumenName);
         $dokumen = 'kendaraan/dokumen/' . $dokumenName;
 
-        Kendaraan::create([
+        $kendaraan = Kendaraan::create([
             'user_id' => Auth::id(), // 🔥 AUTO DARI SESSION
             'jenis_id' => $request->jenis_id,
             'member_id' => $request->member_id ?: null,
@@ -186,6 +187,11 @@ class KendaraanController extends Controller
             'status_service' => $request->status_service,
             'status_kendaraan' => $request->status_kendaraan,
         ]);
+
+        // 🔔 Auto-create Reminder Service +3 bulan dari tanggal_terakhir_service
+        if ($request->filled('tanggal_terakhir_service')) {
+            $this->buatAtauUpdateReminderService($kendaraan, $request->tanggal_terakhir_service);
+        }
 
         return back()->with('success', 'Data kendaraan berhasil ditambahkan');
     }
@@ -265,6 +271,20 @@ class KendaraanController extends Controller
             'status_service' => $request->status_service,
 
         ]);
+
+        // 🔔 Jika tanggal_terakhir_service berubah, update/create ReminderService
+        if ($request->filled('tanggal_terakhir_service')) {
+            $tanggalLama = $kendaraan->getOriginal('tanggal_terakhir_service');
+            $tanggalBaru = $request->tanggal_terakhir_service;
+
+            // Bandingkan: jika berubah atau belum ada reminder aktif
+            if (
+                Carbon::parse($tanggalLama)->toDateString() !== Carbon::parse($tanggalBaru)->toDateString()
+                || !ReminderService::where('kendaraan_id', $kendaraan->id)->whereIn('status', ['aktif', 'jatuh_tempo'])->exists()
+            ) {
+                $this->buatAtauUpdateReminderService($kendaraan, $tanggalBaru);
+            }
+        }
 
         return back()->with('success', 'Data kendaraan berhasil diupdate');
     }
@@ -350,5 +370,48 @@ class KendaraanController extends Controller
         )->setPaper('A4', 'potrait');
 
         return $pdf->stream('laporan-merk-kendaraan.pdf');
+    }
+
+    // ── HELPER ──────────────────────────────────────────────────────────────
+
+    /**
+     * Buat atau update ReminderService "Service Rutin" +3 bulan dari tanggal terakhir service.
+     * - Jika sudah ada reminder aktif/jatuh_tempo → update tanggal_mulai & jatuh_tempo.
+     * - Jika belum ada → buat baru.
+     */
+    private function buatAtauUpdateReminderService(Kendaraan $kendaraan, string $tanggalTerakhirService): void
+    {
+        $tanggalMulai  = Carbon::parse($tanggalTerakhirService);
+        $jatuhTempo    = (clone $tanggalMulai)->addMonths(3);
+        $statusReminder = Carbon::today()->gte($jatuhTempo) ? 'jatuh_tempo' : 'aktif';
+
+        // Cari reminder aktif / jatuh_tempo yang sudah ada untuk kendaraan ini
+        $existing = ReminderService::where('kendaraan_id', $kendaraan->id)
+            ->where('nama_reminder', 'Service Rutin')
+            ->whereIn('status', ['aktif', 'jatuh_tempo'])
+            ->first();
+
+        if ($existing) {
+            $existing->update([
+                'tanggal_mulai'        => $tanggalMulai->toDateString(),
+                'interval_nilai'       => 3,
+                'interval_satuan'      => 'bulan',
+                'tanggal_jatuh_tempo'  => $jatuhTempo->toDateString(),
+                'status'               => $statusReminder,
+                'sudah_dibuat_masalah' => false,
+            ]);
+        } else {
+            ReminderService::create([
+                'kendaraan_id'         => $kendaraan->id,
+                'nama_reminder'        => 'Service Rutin',
+                'tanggal_mulai'        => $tanggalMulai->toDateString(),
+                'interval_nilai'       => 3,
+                'interval_satuan'      => 'bulan',
+                'tanggal_jatuh_tempo'  => $jatuhTempo->toDateString(),
+                'keterangan'           => 'Auto-generated dari tanggal terakhir service kendaraan',
+                'status'               => $statusReminder,
+                'sudah_dibuat_masalah' => false,
+            ]);
+        }
     }
 }
