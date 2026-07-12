@@ -163,7 +163,7 @@ Route::middleware(['auth'])->group(function () {
 
 
 
-Route::middleware('auth')->prefix('admin')->group(function () {
+Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () {
   // Laporan
   Route::get('/supplier/pdf', [SupplierController::class, 'pdf'])
     ->name('supplier.export.pdf');

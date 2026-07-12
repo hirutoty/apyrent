@@ -30,4 +30,10 @@ class KirHistory extends Model
     {
         return $this->belongsTo(Kir::class);
     }
+
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'relation_id')
+                    ->where('relation_type', 'kir_history');
+    }
 }

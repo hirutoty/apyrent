@@ -30,6 +30,11 @@ class PurchaseroController extends Controller
             $deptMap = [
                 'keuangan'  => 'Keuangan',
                 'produksi'  => 'Produksi',
+                'hrd'       => 'HRD',
+                'purchase'  => 'Purchase',
+                'sales'     => 'Sales',
+                'marketing' => 'Marketing',
+                'it'        => 'IT',
             ];
             if (isset($deptMap[$role])) {
                 $query->where('departemen', $deptMap[$role]);
@@ -52,7 +57,15 @@ class PurchaseroController extends Controller
         // Hitung stats per departemen juga (untuk non-superadmin scope)
         $baseQuery = Purchasero::query();
         if ($role !== 'superadmin') {
-            $deptMap = ['keuangan' => 'Keuangan', 'produksi' => 'Produksi'];
+            $deptMap = [
+                'keuangan'  => 'Keuangan',
+                'produksi'  => 'Produksi',
+                'hrd'       => 'HRD',
+                'purchase'  => 'Purchase',
+                'sales'     => 'Sales',
+                'marketing' => 'Marketing',
+                'it'        => 'IT',
+            ];
             if (isset($deptMap[$role])) {
                 $baseQuery->where('departemen', $deptMap[$role]);
             }
@@ -69,6 +82,11 @@ class PurchaseroController extends Controller
         $deptLabel = match($role) {
             'keuangan'  => 'Keuangan',
             'produksi'  => 'Produksi',
+            'hrd'       => 'HRD',
+            'purchase'  => 'Purchase',
+            'sales'     => 'Sales',
+            'marketing' => 'Marketing',
+            'it'        => 'IT',
             default     => ucfirst($role),
         };
 
@@ -86,6 +104,11 @@ class PurchaseroController extends Controller
         $deptMap = [
             'keuangan'   => 'Keuangan',
             'produksi'   => 'Produksi',
+            'hrd'        => 'HRD',
+            'purchase'   => 'Purchase',
+            'sales'      => 'Sales',
+            'marketing'  => 'Marketing',
+            'it'         => 'IT',
             'superadmin' => 'Manajemen',
         ];
         $departemen = $deptMap[$role] ?? ucfirst($role);

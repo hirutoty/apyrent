@@ -287,15 +287,16 @@
             <thead>
                 <tr>
                     <th width="4%">No</th>
-                    <th width="14%">Kendaraan</th>
-                    <th width="10%">No Polisi</th>
-                    <th width="12%">GPS</th>
-                    <th width="7%">Type</th>
-                    <th width="11%">Biaya Sewa</th>
-                    <th width="11%">Tgl Habis Lama</th>
-                    <th width="13%">Diperpanjang</th>
-                    <th width="9%">Durasi</th>
-                    <th width="9%">Bukti</th>
+                    <th width="12%">Kendaraan</th>
+                    <th width="9%">No Polisi</th>
+                    <th width="10%">GPS</th>
+                    <th width="6%">Type</th>
+                    <th width="10%">Biaya Sewa</th>
+                    <th width="10%">Tgl Habis Lama</th>
+                    <th width="11%">Diperpanjang</th>
+                    <th width="8%">Durasi</th>
+                    <th width="8%">Bukti</th>
+                    <th width="12%">Lampiran</th>
                 </tr>
             </thead>
 
@@ -356,17 +357,25 @@
                                     @endif
                                 </td>
 
+                        <td>
+                            @if($item->attachments->isNotEmpty())
+                                {{ $item->attachments->pluck('file_name')->join(', ') }}
+                            @else
+                                -
+                            @endif
+                        </td>
+
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="text-center">
+                        <td colspan="11" class="text-center">
                             Tidak ada data history perpanjangan ditemukan.
                         </td>
                     </tr>
                 @endforelse
 
                 <tr class="row-subtotal">
-                    <td colspan="9" class="text-right">Total Perpanjangan</td>
+                    <td colspan="10" class="text-right">Total Perpanjangan</td>
                     <td class="text-center">{{ $data->count() }}</td>
                 </tr>
 
@@ -375,7 +384,7 @@
                     <td class="text-right">
                         Rp {{ number_format($totalBiaya, 0, ',', '.') }}
                     </td>
-                    <td colspan="4"></td>
+                    <td colspan="5"></td>
                 </tr>
 
             </tbody>

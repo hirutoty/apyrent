@@ -69,7 +69,7 @@ class AsuransiHistoryController extends Controller
 
     private function filteredQuery($bulan, $tahun)
     {
-        $query = AsuransiHistory::with(['kendaraan', 'asuransi', 'jenisAsuransi']);
+        $query = AsuransiHistory::with(['kendaraan', 'asuransi', 'jenisAsuransi', 'attachments']);
 
         if ($bulan !== 'semua') {
             $query->whereMonth('tgl_mulai', $bulan);

@@ -145,31 +145,56 @@ class DashboardController extends Controller
         /* =====================
 | REMINDER GPS
 ======================*/
+        $gpsHampirHabisAll = GpsKendaraan::with('kendaraan')
+            ->whereDate('tanggal_habis', '<=', now()->addDays(30))
+            ->count();
         $gpsHampirHabis = GpsKendaraan::with('kendaraan')
             ->whereDate('tanggal_habis', '<=', now()->addDays(30))
+            ->latest()
+            ->take(10)
             ->get();
+        $gpsHasMore = $gpsHampirHabisAll > 10;
 
         /* =====================
         | REMINDER PAJAK
         ======================*/
+        $pajakHampirHabisAll = PajakKendaraan::with('kendaraan')
+            ->where('status', 'belum_bayar')
+            ->whereDate('jatuh_tempo', '<=', now()->addDays(7))
+            ->count();
         $pajakHampirHabis = PajakKendaraan::with('kendaraan')
             ->where('status', 'belum_bayar')
             ->whereDate('jatuh_tempo', '<=', now()->addDays(7))
+            ->latest()
+            ->take(10)
             ->get();
+        $pajakHasMore = $pajakHampirHabisAll > 10;
 
         /* =====================
         | REMINDER ASURANSI
         ======================*/
+        $asuransiHampirHabisAll = AsuransiKendaraan::with('kendaraan')
+            ->whereDate('tgl_berakhir', '<=', now()->addDays(30))
+            ->count();
         $asuransiHampirHabis = AsuransiKendaraan::with('kendaraan')
             ->whereDate('tgl_berakhir', '<=', now()->addDays(30))
+            ->latest()
+            ->take(10)
             ->get();
+        $asuransiHasMore = $asuransiHampirHabisAll > 10;
 
         /* =====================
         | REMINDER KIR
         ======================*/
+        $kirHampirHabisAll = Kir::with('kendaraan')
+            ->whereDate('masa_berlaku', '<=', now()->addDays(30))
+            ->count();
         $kirHampirHabis = Kir::with('kendaraan')
             ->whereDate('masa_berlaku', '<=', now()->addDays(30))
+            ->latest()
+            ->take(10)
             ->get();
+        $kirHasMore = $kirHampirHabisAll > 10;
 
         /* =====================
         | GRAFIK PEMASUKAN
@@ -219,10 +244,14 @@ class DashboardController extends Controller
 
             /* reminder */
             'pajakHampirHabis',
+            'pajakHasMore',
             'asuransiHampirHabis',
+            'asuransiHasMore',
             'kirHampirHabis',
-            'stnkHampirHabis',   // baru
-            'gpsHampirHabis',    // baru
+            'kirHasMore',
+            'stnkHampirHabis',
+            'gpsHampirHabis',
+            'gpsHasMore',
 
             /* chart */
             'chartPemasukan'

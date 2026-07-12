@@ -39,6 +39,12 @@ class AsuransiHistory extends Model
         {
             return $this->belongsTo(JenisAsuransi::class, 'jenis_asuransi_id');
         }
+
+        public function attachments()
+        {
+            return $this->hasMany(Attachment::class, 'relation_id')
+                        ->where('relation_type', 'asuransi_history');
+        }
 }
 
    

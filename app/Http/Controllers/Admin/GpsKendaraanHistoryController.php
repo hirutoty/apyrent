@@ -12,7 +12,7 @@ class GpsKendaraanHistoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = GpsKendaraanHistory::with(['kendaraan', 'gps'])
+        $query = GpsKendaraanHistory::with(['kendaraan', 'gps', 'attachments'])
             ->latest('diperpanjang_pada');
 
         if ($request->filled('bulan')) {
@@ -47,7 +47,7 @@ class GpsKendaraanHistoryController extends Controller
 
     public function exportPdf(Request $request)
     {
-        $query = GpsKendaraanHistory::with(['kendaraan', 'gps']);
+        $query = GpsKendaraanHistory::with(['kendaraan', 'gps', 'attachments']);
 
         if ($request->filled('bulan')) {
             $query->whereMonth('diperpanjang_pada', $request->bulan);

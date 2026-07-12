@@ -330,31 +330,53 @@
     ══════════════════════════════════ --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
 
+            @if(auth()->user()->role === 'admin')
             <a href="/admin/kendaraan" class="kpi-card fade-up" style="--hover-color:#3b82f6">
+            @else
+            <div class="kpi-card fade-up" style="cursor:default">
+            @endif
                 <div class="kpi-icon bg-blue-50">
                     <i class="fa fa-car text-blue-500"></i>
                 </div>
                 <div>
-                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">Kendaraan
-                    </p>
+                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">Kendaraan</p>
                     <h2 class="text-[22px] font-bold text-gray-800 leading-none">{{ $totalKendaraan ?? 0 }}</h2>
                 </div>
+                @if(auth()->user()->role === 'admin')
                 <div class="kpi-arrow bg-blue-50 text-blue-500"><i class="bi bi-arrow-up-right"></i></div>
+                @endif
+            @if(auth()->user()->role === 'admin')
             </a>
+            @else
+            </div>
+            @endif
 
+            @if(auth()->user()->role === 'admin')
             <a href="/admin/rental" class="kpi-card fade-up">
+            @else
+            <div class="kpi-card fade-up" style="cursor:default">
+            @endif
                 <div class="kpi-icon bg-violet-50">
                     <i class="fa fa-key text-violet-500"></i>
                 </div>
                 <div>
-                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">Disewa
-                    </p>
+                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">Disewa</p>
                     <h2 class="text-[22px] font-bold text-violet-600 leading-none">{{ $kendaraanDisewa ?? 0 }}</h2>
                 </div>
+                @if(auth()->user()->role === 'admin')
                 <div class="kpi-arrow bg-violet-50 text-violet-500"><i class="bi bi-arrow-up-right"></i></div>
+                @endif
+            @if(auth()->user()->role === 'admin')
             </a>
+            @else
+            </div>
+            @endif
 
+            @if(auth()->user()->role === 'admin')
             <a href="/admin/user" class="kpi-card fade-up">
+            @else
+            <div class="kpi-card fade-up" style="cursor:default">
+            @endif
                 <div class="kpi-icon bg-emerald-50">
                     <i class="fa fa-users text-emerald-500"></i>
                 </div>
@@ -362,20 +384,35 @@
                     <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">User</p>
                     <h2 class="text-[22px] font-bold text-gray-800 leading-none">{{ $totalUser ?? 0 }}</h2>
                 </div>
+                @if(auth()->user()->role === 'admin')
                 <div class="kpi-arrow bg-emerald-50 text-emerald-500"><i class="bi bi-arrow-up-right"></i></div>
+                @endif
+            @if(auth()->user()->role === 'admin')
             </a>
+            @else
+            </div>
+            @endif
 
+            @if(auth()->user()->role === 'admin')
             <a href="/admin/history" class="kpi-card fade-up">
+            @else
+            <div class="kpi-card fade-up" style="cursor:default">
+            @endif
                 <div class="kpi-icon bg-amber-50">
                     <i class="fa fa-file-invoice text-amber-500"></i>
                 </div>
                 <div>
-                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">Total
-                        Rental</p>
+                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">Total Rental</p>
                     <h2 class="text-[22px] font-bold text-amber-600 leading-none">{{ $totalRental ?? 0 }}</h2>
                 </div>
+                @if(auth()->user()->role === 'admin')
                 <div class="kpi-arrow bg-amber-50 text-amber-500"><i class="bi bi-arrow-up-right"></i></div>
+                @endif
+            @if(auth()->user()->role === 'admin')
             </a>
+            @else
+            </div>
+            @endif
 
         </div>
 
@@ -385,31 +422,53 @@
     ══════════════════════════════════ --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
 
+            @if(auth()->user()->role === 'admin')
             <a href="/admin/gps-kendaraan" class="kpi-card fade-up">
+            @else
+            <div class="kpi-card fade-up" style="cursor:default">
+            @endif
                 <div class="kpi-icon bg-sky-50">
                     <i class="fa fa-map-marker-alt text-sky-500"></i>
                 </div>
                 <div>
-                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">GPS Aktif
-                    </p>
+                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">GPS Aktif</p>
                     <h2 class="text-[22px] font-bold text-sky-600 leading-none">{{ $gpsAktif ?? 0 }}</h2>
                 </div>
+                @if(auth()->user()->role === 'admin')
                 <div class="kpi-arrow bg-sky-50 text-sky-500"><i class="bi bi-arrow-up-right"></i></div>
+                @endif
+            @if(auth()->user()->role === 'admin')
             </a>
+            @else
+            </div>
+            @endif
 
+            @if(auth()->user()->role === 'admin')
             <a href="/admin/asuransi" class="kpi-card fade-up">
+            @else
+            <div class="kpi-card fade-up" style="cursor:default">
+            @endif
                 <div class="kpi-icon bg-teal-50">
                     <i class="fa fa-shield-alt text-teal-500"></i>
                 </div>
                 <div>
-                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">Asuransi
-                    </p>
+                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">Asuransi</p>
                     <h2 class="text-[22px] font-bold text-teal-600 leading-none">{{ $totalAsuransi ?? 0 }}</h2>
                 </div>
+                @if(auth()->user()->role === 'admin')
                 <div class="kpi-arrow bg-teal-50 text-teal-500"><i class="bi bi-arrow-up-right"></i></div>
+                @endif
+            @if(auth()->user()->role === 'admin')
             </a>
+            @else
+            </div>
+            @endif
 
+            @if(auth()->user()->role === 'admin')
             <a href="/admin/kir" class="kpi-card fade-up">
+            @else
+            <div class="kpi-card fade-up" style="cursor:default">
+            @endif
                 <div class="kpi-icon bg-yellow-50">
                     <i class="fa fa-clipboard-check text-yellow-500"></i>
                 </div>
@@ -417,20 +476,35 @@
                     <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">KIR</p>
                     <h2 class="text-[22px] font-bold text-yellow-600 leading-none">{{ $totalKir ?? 0 }}</h2>
                 </div>
+                @if(auth()->user()->role === 'admin')
                 <div class="kpi-arrow bg-yellow-50 text-yellow-500"><i class="bi bi-arrow-up-right"></i></div>
+                @endif
+            @if(auth()->user()->role === 'admin')
             </a>
+            @else
+            </div>
+            @endif
 
+            @if(auth()->user()->role === 'admin')
             <a href="/admin/pajak" class="kpi-card fade-up">
+            @else
+            <div class="kpi-card fade-up" style="cursor:default">
+            @endif
                 <div class="kpi-icon bg-rose-50">
                     <i class="fa fa-receipt text-rose-500"></i>
                 </div>
                 <div>
-                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">Pajak
-                    </p>
+                    <p class="text-[11px] text-gray-400 font-semibold uppercase tracking-widest leading-none mb-1">Pajak</p>
                     <h2 class="text-[22px] font-bold text-rose-600 leading-none">{{ $totalPajak ?? 0 }}</h2>
                 </div>
+                @if(auth()->user()->role === 'admin')
                 <div class="kpi-arrow bg-rose-50 text-rose-500"><i class="bi bi-arrow-up-right"></i></div>
+                @endif
+            @if(auth()->user()->role === 'admin')
             </a>
+            @else
+            </div>
+            @endif
 
         </div>
 
@@ -542,6 +616,13 @@
                         <p class="text-[12px] text-gray-400">Semua pajak masih berlaku</p>
                     </div>
                 @endforelse
+                @if(auth()->user()->role === 'admin' && ($pajakHasMore ?? false))
+                    <a href="/admin/pajak"
+                        class="mt-3 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-rose-500 hover:text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg py-2 transition-colors duration-200">
+                        <i class="bi bi-arrow-right-circle text-[12px]"></i>
+                        Lihat Lainnya
+                    </a>
+                @endif
             </div>
 
             {{-- ASURANSI --}}
@@ -576,6 +657,13 @@
                         <p class="text-[12px] text-gray-400">Semua asuransi masih berlaku</p>
                     </div>
                 @endforelse
+                @if(auth()->user()->role === 'admin' && ($asuransiHasMore ?? false))
+                    <a href="/admin/asuransi"
+                        class="mt-3 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-teal-500 hover:text-teal-600 bg-teal-50 hover:bg-teal-100 rounded-lg py-2 transition-colors duration-200">
+                        <i class="bi bi-arrow-right-circle text-[12px]"></i>
+                        Lihat Lainnya
+                    </a>
+                @endif
             </div>
 
             {{-- KIR --}}
@@ -610,6 +698,13 @@
                         <p class="text-[12px] text-gray-400">Semua KIR masih berlaku</p>
                     </div>
                 @endforelse
+                @if(auth()->user()->role === 'admin' && ($kirHasMore ?? false))
+                    <a href="/admin/kir"
+                        class="mt-3 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-amber-500 hover:text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg py-2 transition-colors duration-200">
+                        <i class="bi bi-arrow-right-circle text-[12px]"></i>
+                        Lihat Lainnya
+                    </a>
+                @endif
             </div>
 
            
@@ -646,6 +741,13 @@
                         <p class="text-[12px] text-gray-400">Semua GPS masih aktif</p>
                     </div>
                 @endforelse
+                @if(auth()->user()->role === 'admin' && ($gpsHasMore ?? false))
+                    <a href="/admin/gps-kendaraan"
+                        class="mt-3 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-sky-500 hover:text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-lg py-2 transition-colors duration-200">
+                        <i class="bi bi-arrow-right-circle text-[12px]"></i>
+                        Lihat Lainnya
+                    </a>
+                @endif
             </div>
 
         </div>

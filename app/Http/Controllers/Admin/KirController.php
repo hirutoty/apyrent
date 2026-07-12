@@ -43,10 +43,13 @@ class KirController extends Controller
     }
 
     /**
-     * Helper: simpan banyak attachment sekaligus untuk 1 KIR
-     * (konsisten dengan Pajak, Asuransi, GPS)
+     * Helper: simpan banyak attachment sekaligus.
+     *
+     * @param  array   $files        Array file dari $request->file(...)
+     * @param  int     $relationId   ID record target (kir aktif atau history)
+     * @param  string  $relationType Tipe relasi, default 'kir'
      */
-    private function simpanAttachments($files, $kirId)
+    private function simpanAttachments($files, $relationId, $relationType = 'kir')
     {
         $pathDir = public_path('kir/attachments');
         if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
@@ -62,8 +65,8 @@ class KirController extends Controller
             $file->move($pathDir, $filename);
 
             Attachment::create([
-                'relation_type' => 'kir',
-                'relation_id'   => $kirId,
+                'relation_type' => $relationType,
+                'relation_id'   => $relationId,
                 'file_name'     => $originalName,
                 'file_path'     => 'kir/attachments/' . $filename,
                 'file_type'     => $extension,
@@ -344,7 +347,7 @@ class KirController extends Controller
         }
 
         // --- Simpan data LAMA ke history (pakai image LAMA) ---
-        KirHistory::create([
+        $history = KirHistory::create([
             'kir_id'            => $kir->id,
             'kendaraan_id'      => $kir->kendaraan_id,
             'no_uji'            => $kir->no_uji,
@@ -394,9 +397,9 @@ class KirController extends Controller
             'tanggal_bayar' => $tanggalBayar,
         ]);
 
-        // upload attachment tambahan
+        // upload attachment tambahan — masuk ke history, bukan record aktif
         if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
+            $this->simpanAttachments($request->file('bukti_attachment'), $history->id, 'kir_history');
         }
 
         return back()->with('success', 'KIR berhasil diperpanjang!');

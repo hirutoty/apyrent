@@ -232,15 +232,16 @@
             <thead>
                 <tr>
                     <th width="4%">No</th>
-                    <th width="14%">Kendaraan</th>
-                    <th width="10%">No Polisi</th>
-                    <th width="13%">Asuransi</th>
-                    <th width="10%">Jenis</th>
-                    <th width="10%">Biaya</th>
-                    <th width="12%">Tgl Mulai</th>
-                    <th width="12%">Tgl Berakhir</th>
-                    <th width="15%">Diperpanjang Pada</th>
-                    <th width="15%">Bukti</th>
+                    <th width="12%">Kendaraan</th>
+                    <th width="9%">No Polisi</th>
+                    <th width="11%">Asuransi</th>
+                    <th width="9%">Jenis</th>
+                    <th width="9%">Biaya</th>
+                    <th width="10%">Tgl Mulai</th>
+                    <th width="10%">Tgl Berakhir</th>
+                    <th width="13%">Diperpanjang Pada</th>
+                    <th width="7%">Bukti</th>
+                    <th width="6%">Lampiran</th>
                 </tr>
             </thead>
 
@@ -301,17 +302,25 @@
                                     @endif
                                 </td>
 
+                        <td>
+                            @if($item->attachments->isNotEmpty())
+                                {{ $item->attachments->pluck('file_name')->join(', ') }}
+                            @else
+                                -
+                            @endif
+                        </td>
+
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="text-center">
+                        <td colspan="11" class="text-center">
                             Tidak ada data ditemukan.
                         </td>
                     </tr>
                 @endforelse
 
                 <tr class="row-subtotal">
-                    <td colspan="8" class="text-right">
+                    <td colspan="10" class="text-right">
                         Total Perpanjangan
                     </td>
                     <td class="text-center">
@@ -320,7 +329,7 @@
                 </tr>
 
                 <tr class="row-total">
-                    <td colspan="8" class="text-right">
+                    <td colspan="10" class="text-right">
                         TOTAL BIAYA PERPANJANGAN ASURANSI
                     </td>
                     <td class="text-right">

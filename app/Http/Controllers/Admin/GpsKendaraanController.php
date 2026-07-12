@@ -52,10 +52,13 @@ class GpsKendaraanController extends Controller
     }
 
     /**
-     * Helper: simpan banyak attachment sekaligus untuk 1 GPS kendaraan
-     * (konsisten dengan PajakController & AsuransiKendaraanController)
+     * Helper: simpan banyak attachment sekaligus.
+     *
+     * @param  array   $files        Array file dari $request->file(...)
+     * @param  int     $relationId   ID record target (gps aktif atau history)
+     * @param  string  $relationType Tipe relasi, default 'gps'
      */
-    private function simpanAttachments($files, $gpsKendaraanId)
+    private function simpanAttachments($files, $relationId, $relationType = 'gps')
     {
         $pathDir = public_path('gps/attachments');
         if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
@@ -71,8 +74,8 @@ class GpsKendaraanController extends Controller
             $file->move($pathDir, $filename);
 
             Attachment::create([
-                'relation_type' => 'gps',
-                'relation_id'   => $gpsKendaraanId,
+                'relation_type' => $relationType,
+                'relation_id'   => $relationId,
                 'file_name'     => $originalName,
                 'file_path'     => 'gps/attachments/' . $filename,
                 'file_type'     => $extension,
@@ -317,7 +320,7 @@ class GpsKendaraanController extends Controller
         }
 
         // --- Simpan data LAMA ke history (pakai bukti LAMA) ---
-        GpsKendaraanHistory::create([
+        $history = GpsKendaraanHistory::create([
             'gps_kendaraan_id'  => $gpsKendaraan->id,
             'kendaraan_id'      => $gpsKendaraan->kendaraan_id,
             'gps_id'            => $gpsKendaraan->gps_id,
@@ -375,9 +378,9 @@ class GpsKendaraanController extends Controller
             'tanggal_bayar'  => $tanggalBayar,
         ]);
 
-        // upload attachment tambahan
+        // upload attachment tambahan — masuk ke history, bukan record aktif
         if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $gpsKendaraan->id);
+            $this->simpanAttachments($request->file('bukti_attachment'), $history->id, 'gps_history');
         }
 
         return back()->with('success', 'GPS kendaraan berhasil diperpanjang');

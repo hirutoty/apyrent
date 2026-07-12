@@ -67,7 +67,7 @@ class KirHistoryController extends Controller
 
     private function filteredQuery($bulan, $tahun)
     {
-        $query = KirHistory::with('kendaraan');
+        $query = KirHistory::with(['kendaraan', 'attachments']);
 
         if ($bulan !== 'semua') {
             $query->whereMonth('masa_berlaku', $bulan);

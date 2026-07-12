@@ -79,33 +79,37 @@ class PajakController extends Controller
 }
 
     /**
-     * Helper: simpan banyak attachment sekaligus untuk 1 pajak
+     * Helper: simpan banyak attachment sekaligus.
+     *
+     * @param  array   $files        Array file dari $request->file(...)
+     * @param  int     $relationId   ID record target (pajak aktif atau history)
+     * @param  string  $relationType Tipe relasi, default 'pajak'
      */
-    private function simpanAttachments($files, $pajakId)
-{
-    $pathDir = public_path('pajak/attachments');
-    if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
+    private function simpanAttachments($files, $relationId, $relationType = 'pajak')
+    {
+        $pathDir = public_path('pajak/attachments');
+        if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
 
-    foreach ($files as $file) {
-        $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+        foreach ($files as $file) {
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
 
-        // ambil data SEBELUM file dipindah
-        $originalName = $file->getClientOriginalName();
-        $extension    = $file->getClientOriginalExtension();
-        $size         = $file->getSize();
+            // ambil data SEBELUM file dipindah
+            $originalName = $file->getClientOriginalName();
+            $extension    = $file->getClientOriginalExtension();
+            $size         = $file->getSize();
 
-        $file->move($pathDir, $filename);
+            $file->move($pathDir, $filename);
 
-        Attachment::create([
-            'relation_type' => 'pajak',
-            'relation_id'   => $pajakId,
-            'file_name'     => $originalName,
-            'file_path'     => 'pajak/attachments/' . $filename,
-            'file_type'     => $extension,
-            'file_size'     => $size,
-        ]);
+            Attachment::create([
+                'relation_type' => $relationType,
+                'relation_id'   => $relationId,
+                'file_name'     => $originalName,
+                'file_path'     => 'pajak/attachments/' . $filename,
+                'file_type'     => $extension,
+                'file_size'     => $size,
+            ]);
+        }
     }
-}
 
     public function store(Request $request)
     {
@@ -202,7 +206,7 @@ class PajakController extends Controller
         }
 
         // --- Simpan data LAMA ke history (pakai bukti LAMA) ---
-        PajakHistory::create([
+        $history = PajakHistory::create([
             'pajak_kendaraan_id' => $pajak->id,
             'kendaraan_id'       => $pajak->kendaraan_id,
             'jenis_pajak'        => $pajak->jenis_pajak,
@@ -256,9 +260,9 @@ class PajakController extends Controller
             'bukti'         => $buktiBaru,
         ]);
 
-        // upload attachment tambahan
+        // upload attachment tambahan — masuk ke history, bukan record aktif
         if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id);
+            $this->simpanAttachments($request->file('bukti_attachment'), $history->id, 'pajak_history');
         }
 
         return back()->with('success', 'Pajak berhasil diperpanjang');

@@ -83,10 +83,13 @@ class AsuransiKendaraanController extends Controller
     }
 
     /**
-     * Helper: simpan banyak attachment sekaligus untuk 1 asuransi
-     * (konsisten dengan PajakController)
+     * Helper: simpan banyak attachment sekaligus.
+     *
+     * @param  array   $files        Array file dari $request->file(...)
+     * @param  int     $relationId   ID record target (asuransi aktif atau history)
+     * @param  string  $relationType Tipe relasi, default 'asuransi'
      */
-    private function simpanAttachments($files, $asuransiId)
+    private function simpanAttachments($files, $relationId, $relationType = 'asuransi')
     {
         $pathDir = public_path('asuransi/attachments');
         if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
@@ -102,8 +105,8 @@ class AsuransiKendaraanController extends Controller
             $file->move($pathDir, $filename);
 
             Attachment::create([
-                'relation_type' => 'asuransi',
-                'relation_id'   => $asuransiId,
+                'relation_type' => $relationType,
+                'relation_id'   => $relationId,
                 'file_name'     => $originalName,
                 'file_path'     => 'asuransi/attachments/' . $filename,
                 'file_type'     => $extension,
@@ -364,7 +367,7 @@ class AsuransiKendaraanController extends Controller
         }
 
         // Simpan history (pakai bukti LAMA, tgl_mulai = tgl_berakhir lama)
-        AsuransiHistory::create([
+        $history = AsuransiHistory::create([
             'asuransi_kendaraan_id' => $asuransi->id,
             'kendaraan_id'          => $asuransi->kendaraan_id,
             'asuransi_id'           => $asuransi->asuransi_id,
@@ -424,9 +427,9 @@ class AsuransiKendaraanController extends Controller
             'tanggal_bayar'     => $request->tanggal_bayar ?? now()->toDateString(),
         ]);
 
-        // upload attachment tambahan (bukti pendukung perpanjangan)
+        // upload attachment tambahan — masuk ke history, bukan record aktif
         if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $asuransi->id);
+            $this->simpanAttachments($request->file('bukti_attachment'), $history->id, 'asuransi_history');
         }
 
         return back()->with('success', 'Asuransi berhasil diperpanjang!');
