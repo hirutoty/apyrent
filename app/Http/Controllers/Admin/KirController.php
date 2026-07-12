@@ -9,8 +9,11 @@ use App\Models\Kendaraan;
 use App\Models\Setting;
 use App\Models\KirHistory;
 use App\Models\Attachment;
+use App\Models\Keuangan;
+use App\Models\Bukubesar;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class KirController extends Controller
 {
@@ -40,10 +43,13 @@ class KirController extends Controller
     }
 
     /**
-     * Helper: simpan banyak attachment sekaligus untuk 1 KIR
-     * (konsisten dengan Pajak, Asuransi, GPS)
+     * Helper: simpan banyak attachment sekaligus.
+     *
+     * @param  array   $files        Array file dari $request->file(...)
+     * @param  int     $relationId   ID record target (kir aktif atau history)
+     * @param  string  $relationType Tipe relasi, default 'kir'
      */
-    private function simpanAttachments($files, $kirId)
+    private function simpanAttachments($files, $relationId, $relationType = 'kir')
     {
         $pathDir = public_path('kir/attachments');
         if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
@@ -59,8 +65,8 @@ class KirController extends Controller
             $file->move($pathDir, $filename);
 
             Attachment::create([
-                'relation_type' => 'kir',
-                'relation_id'   => $kirId,
+                'relation_type' => $relationType,
+                'relation_id'   => $relationId,
                 'file_name'     => $originalName,
                 'file_path'     => 'kir/attachments/' . $filename,
                 'file_type'     => $extension,
@@ -254,67 +260,146 @@ class KirController extends Controller
         return $pdf->stream('data-kir.pdf');
     }
 
+    /**
+     * Perpanjang semua KIR sekaligus (bulk)
+     * Setiap record: simpan history lama, update masa_berlaku += 1 tahun
+     */
+    public function perpanjangSemua(Request $request)
+    {
+        $request->validate([
+            'tanggal_bayar' => 'nullable|date',
+            'biaya_default' => 'nullable|numeric|min:0',
+        ]);
+
+        $kirList = Kir::with('kendaraan')->get();
+
+        if ($kirList->isEmpty()) {
+            return back()->with('error', 'Tidak ada data KIR untuk diperpanjang.');
+        }
+
+        $tanggalBayar = $request->filled('tanggal_bayar')
+            ? Carbon::parse($request->tanggal_bayar)->toDateString()
+            : now()->toDateString();
+
+        $count = 0;
+
+        foreach ($kirList as $kir) {
+            // Simpan data lama ke history
+            KirHistory::create([
+                'kir_id'            => $kir->id,
+                'kendaraan_id'      => $kir->kendaraan_id,
+                'no_uji'            => $kir->no_uji,
+                'masa_berlaku'      => $kir->masa_berlaku,
+                'biaya'             => $kir->biaya,
+                'image'             => $kir->image,
+                'diperpanjang_pada' => $tanggalBayar,
+            ]);
+            $masaBerlakuBaru = Carbon::parse($kir->masa_berlaku)->addYear()->toDateString();
+
+            $kir->update([
+                'masa_berlaku'  => $masaBerlakuBaru,
+                'tanggal_bayar' => $tanggalBayar,
+                // gunakan biaya_default kalau diisi, atau pertahankan biaya lama
+                'biaya'         => $request->filled('biaya_default') ? $request->biaya_default : $kir->biaya,
+            ]);
+
+            $count++;
+        }
+
+        return back()->with('success', "Berhasil memperpanjang {$count} data KIR.");
+    }
+
     public function perpanjang(Request $request, $id)
     {
         $request->validate([
             'no_uji'         => 'required',
-            'masa_berlaku'   => 'required|date',
             'biaya'          => 'required|numeric|min:0',
             'tanggal_bayar'  => 'nullable|date',
-            'image'          => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'image'          => 'required|file|max:5120',
             'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $kir = Kir::findOrFail($id);
-        $tanggalBayar = $request->filled('tanggal_bayar')
+
+        // --- Hitung tanggal standar ---
+        $tanggalBayar    = $request->filled('tanggal_bayar')
             ? Carbon::parse($request->tanggal_bayar)->toDateString()
             : now()->toDateString();
-        $masaBerlakuBaru = $request->filled('tanggal_bayar')
-            ? Carbon::parse($request->tanggal_bayar)->addYear()->toDateString()
-            : $request->masa_berlaku;
+        // masa_berlaku_baru = masa_berlaku LAMA + 1 tahun (dari DB)
+        $masaBerlakuBaru = Carbon::parse($kir->masa_berlaku)->addYear()->toDateString();
 
-        // default pakai gambar lama
-        $image = $kir->image;
+        // --- Simpan path image LAMA sebelum upload ---
+        $imageLama = $kir->image;
 
+        // --- Upload image BARU ---
         $destination = public_path('kir/dokumen');
         if (!file_exists($destination)) {
             mkdir($destination, 0777, true);
         }
 
-        // upload file dulu (kalau ada)
+        $imageBaru = $imageLama; // fallback jika tidak ada upload baru
         if ($request->hasFile('image')) {
             $file     = $request->file('image');
             $filename = time() . '_' . $file->getClientOriginalName();
             $file->move($destination, $filename);
-
-            // ini gambar BARU
-            $image = 'kir/dokumen/' . $filename;
+            $imageBaru = 'kir/dokumen/' . $filename;
         }
 
-        // ✅ SIMPAN HISTORY PAKAI GAMBAR BARU
-        KirHistory::create([
+        // --- Simpan data LAMA ke history (pakai image LAMA) ---
+        $history = KirHistory::create([
             'kir_id'            => $kir->id,
             'kendaraan_id'      => $kir->kendaraan_id,
             'no_uji'            => $kir->no_uji,
             'masa_berlaku'      => $kir->masa_berlaku,
             'biaya'             => $kir->biaya,
-            'image'             => $image,
-            'diperpanjang_pada' => now(),
+            'image'             => $imageLama,
+            'diperpanjang_pada' => $tanggalBayar,
         ]);
 
-        // update data aktif
+        // --- Catat ke Keuangan ---
+        $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
+        $pengeluaran = $request->biaya;
+        // Kode jurnal unik per transaksi
+        $kodeJurnal  = 'KIR-' . $kir->id . '-' . now()->timestamp;
+
+        Keuangan::create([
+            'tanggal'     => now(),
+            'reference'   => $kodeJurnal,
+            'user_id'     => auth()->id(),
+            'kategori'    => 'Pengeluaran',
+            'metode'      => '-',
+            'keterangan'  => 'Pembayaran KIR kendaraan: ' . ($kir->kendaraan->nopol ?? '-'),
+            'pemasukan'   => 0,
+            'pengeluaran' => $pengeluaran,
+            'saldo'       => $lastSaldo - $pengeluaran,
+        ]);
+
+        // --- Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat) ---
+        Bukubesar::create([
+            'kode_jurnal' => $kodeJurnal,
+            'transaksi'   => 'Beban KIR - ' . ($kir->kendaraan->nopol ?? '-'),
+            'kategori'    => 'Beban',
+            'tanggal'     => now()->toDateString(),
+            'debit'       => $pengeluaran,
+            'kredit'      => 0,
+            'saldo'       => $pengeluaran,
+            'aktivitas'   => 'Operasi',
+            'keterangan'  => 'Auto-posting: Pembayaran KIR kendaraan ' . ($kir->kendaraan->nopol ?? '-'),
+        ]);
+
+        // --- Update record aktif dengan data BARU ---
         $kir->update([
             'no_uji'        => $request->no_uji,
             'masa_berlaku'  => $masaBerlakuBaru,
             'biaya'         => $request->biaya,
-            'image'         => $image,
+            'image'         => $imageBaru,
             'tanggal_bayar' => $tanggalBayar,
         ]);
 
-        // upload attachment tambahan (bukti pendukung perpanjangan)
+        // upload attachment tambahan — masuk ke history, bukan record aktif
         if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
+            $this->simpanAttachments($request->file('bukti_attachment'), $history->id, 'kir_history');
         }
 
         return back()->with('success', 'KIR berhasil diperpanjang!');

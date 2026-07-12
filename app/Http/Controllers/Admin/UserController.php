@@ -30,7 +30,7 @@ class UserController extends Controller
             'password' => 'required|min:6',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
 
-            'role' => 'required|in:superadmin,keuangan,produksi',
+            'role' => 'required|in:superadmin,keuangan,produksi,hrd,purchase,sales,marketing,it',
             'status' => 'required',
         ], [
             'username.required' => 'Username wajib diisi',
@@ -72,7 +72,7 @@ class UserController extends Controller
 
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
 
-            'role' => 'required|in:superadmin,keuangan,produksi',
+            'role' => 'required|in:superadmin,keuangan,produksi,hrd,purchase,sales,marketing,it',
             'status' => 'required',
         ], [
             'username.required' => 'Username wajib diisi',

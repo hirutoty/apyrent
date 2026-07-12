@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use HasFactory;
+use App\Models\Attachment;
 
 class PajakHistory extends Model
 {
@@ -35,5 +36,11 @@ class PajakHistory extends Model
     public function pajak()
     {
         return $this->belongsTo(PajakKendaraan::class,'pajak_kendaraan_id');
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'relation_id')
+                    ->where('relation_type', 'pajak_history');
     }
 }

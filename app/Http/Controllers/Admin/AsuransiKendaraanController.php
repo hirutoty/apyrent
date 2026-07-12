@@ -83,10 +83,13 @@ class AsuransiKendaraanController extends Controller
     }
 
     /**
-     * Helper: simpan banyak attachment sekaligus untuk 1 asuransi
-     * (konsisten dengan PajakController)
+     * Helper: simpan banyak attachment sekaligus.
+     *
+     * @param  array   $files        Array file dari $request->file(...)
+     * @param  int     $relationId   ID record target (asuransi aktif atau history)
+     * @param  string  $relationType Tipe relasi, default 'asuransi'
      */
-    private function simpanAttachments($files, $asuransiId)
+    private function simpanAttachments($files, $relationId, $relationType = 'asuransi')
     {
         $pathDir = public_path('asuransi/attachments');
         if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
@@ -102,8 +105,8 @@ class AsuransiKendaraanController extends Controller
             $file->move($pathDir, $filename);
 
             Attachment::create([
-                'relation_type' => 'asuransi',
-                'relation_id'   => $asuransiId,
+                'relation_type' => $relationType,
+                'relation_id'   => $relationId,
                 'file_name'     => $originalName,
                 'file_path'     => 'asuransi/attachments/' . $filename,
                 'file_type'     => $extension,
@@ -344,8 +347,9 @@ class AsuransiKendaraanController extends Controller
 
         $asuransi = AsuransiKendaraan::findOrFail($id);
         // Upload file baru terlebih dahulu
-        $bukti = $asuransi->bukti_bayar;
+        $buktiLama = $asuransi->bukti_bayar;
 
+        $bukti = $buktiLama;
         if ($request->hasFile('bukti_bayar')) {
 
             $file = $request->file('bukti_bayar');
@@ -362,27 +366,27 @@ class AsuransiKendaraanController extends Controller
             $bukti = 'asuransi/bukti_bayar/' . $filename;
         }
 
-        // Simpan history
-        AsuransiHistory::create([
+        // Simpan history (pakai bukti LAMA, tgl_mulai = tgl_berakhir lama)
+        $history = AsuransiHistory::create([
             'asuransi_kendaraan_id' => $asuransi->id,
             'kendaraan_id'          => $asuransi->kendaraan_id,
             'asuransi_id'           => $asuransi->asuransi_id,
             'jenis_asuransi_id'     => $asuransi->jenis_asuransi_id,
-            'tgl_mulai'             => $asuransi->tgl_mulai,
+            'tgl_mulai'             => $asuransi->tgl_berakhir,
             'tgl_berakhir'          => $asuransi->tgl_berakhir,
             'durasi_bulan'          => $asuransi->durasi_bulan,
             'biaya'                 => $asuransi->biaya,
-            'bukti_bayar'           => $bukti,
+            'bukti_bayar'           => $buktiLama,
             'status_kendaraan'      => 'aktif',
-            'diperpanjang_pada'     => now(),
+            'diperpanjang_pada'     => $request->tanggal_bayar ?? now()->toDateString(),
             'tanggal_bayar'         => $request->tanggal_bayar ?? now()->toDateString(),
         ]);
-
 
         // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
         $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
         $pengeluaran = $request->biaya;
-        $kodeJurnal  = 'Asuransi-' . $asuransi->id;
+        // Kode jurnal unik per transaksi — pakai timestamp agar perpanjangan ke-2, ke-3 dst tetap masuk
+        $kodeJurnal  = 'Asuransi-' . $asuransi->id . '-' . now()->timestamp;
 
         Keuangan::create([
             'tanggal'     => now(),
@@ -396,27 +400,25 @@ class AsuransiKendaraanController extends Controller
             'saldo'       => $lastSaldo - $pengeluaran,
         ]);
 
-        // Auto-posting ke Buku Besar
-        if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
-            Bukubesar::create([
-                'kode_jurnal' => $kodeJurnal,
-                'transaksi'   => 'Beban Asuransi - ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-'),
-                'kategori'    => 'Beban',
-                'tanggal'     => now()->toDateString(),
-                'debit'       => $request->biaya,
-                'kredit'      => 0,
-                'saldo'       => $request->biaya,
-                'aktivitas'   => 'Operasi',
-                'keterangan'  => 'Auto-posting: Perpanjangan asuransi kendaraan ' . ($asuransi->kendaraan->nopol ?? '-'),
-            ]);
-        }
+        // Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat)
+        Bukubesar::create([
+            'kode_jurnal' => $kodeJurnal,
+            'transaksi'   => 'Beban Asuransi - ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-'),
+            'kategori'    => 'Beban',
+            'tanggal'     => now()->toDateString(),
+            'debit'       => $request->biaya,
+            'kredit'      => 0,
+            'saldo'       => $request->biaya,
+            'aktivitas'   => 'Operasi',
+            'keterangan'  => 'Auto-posting: Perpanjangan asuransi kendaraan ' . ($asuransi->kendaraan->nopol ?? '-'),
+        ]);
 
 
         // Update data aktif
         $asuransi->update([
             'asuransi_id'       => $request->asuransi_id,
             'jenis_asuransi_id' => $request->jenis_asuransi_id,
-            'tgl_mulai'         => $request->tanggal_bayar ?? $request->tgl_mulai ?? $asuransi->tgl_mulai,
+            'tgl_mulai'         => $asuransi->tgl_berakhir,
             'tgl_berakhir'      => $request->tgl_berakhir,
             'durasi_bulan'      => $request->durasi_bulan,
             'biaya'             => $request->biaya,
@@ -425,9 +427,9 @@ class AsuransiKendaraanController extends Controller
             'tanggal_bayar'     => $request->tanggal_bayar ?? now()->toDateString(),
         ]);
 
-        // upload attachment tambahan (bukti pendukung perpanjangan)
+        // upload attachment tambahan — masuk ke history, bukan record aktif
         if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $asuransi->id);
+            $this->simpanAttachments($request->file('bukti_attachment'), $history->id, 'asuransi_history');
         }
 
         return back()->with('success', 'Asuransi berhasil diperpanjang!');

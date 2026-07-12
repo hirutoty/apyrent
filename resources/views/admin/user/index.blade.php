@@ -36,6 +36,31 @@
             color: #fff;
         }
 
+        select.role-select.role-hrd {
+            background-color: #8b5cf6;
+            color: #fff;
+        }
+
+        select.role-select.role-purchase {
+            background-color: #10b981;
+            color: #fff;
+        }
+
+        select.role-select.role-sales {
+            background-color: #f97316;
+            color: #fff;
+        }
+
+        select.role-select.role-marketing {
+            background-color: #ec4899;
+            color: #fff;
+        }
+
+        select.role-select.role-it {
+            background-color: #06b6d4;
+            color: #fff;
+        }
+
         /* ── Status select colors ── */
         select.status-select {
             appearance: none;
@@ -147,6 +172,66 @@
                     </div>
                     <div class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center">
                         <i class="bi bi-gear-fill text-xl text-amber-500"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 font-medium uppercase tracking-widest">HRD</p>
+                        <h2 class="text-3xl font-bold mt-1.5" style="color:#8b5cf6">{{ $data->where('role', 'hrd')->count() }}</h2>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background:#f5f3ff">
+                        <i class="bi bi-people-fill text-xl" style="color:#8b5cf6"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 font-medium uppercase tracking-widest">Purchase</p>
+                        <h2 class="text-3xl font-bold mt-1.5" style="color:#10b981">{{ $data->where('role', 'purchase')->count() }}</h2>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background:#ecfdf5">
+                        <i class="bi bi-cart-fill text-xl" style="color:#10b981"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 font-medium uppercase tracking-widest">Sales</p>
+                        <h2 class="text-3xl font-bold mt-1.5" style="color:#f97316">{{ $data->where('role', 'sales')->count() }}</h2>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background:#fff7ed">
+                        <i class="bi bi-cart-check-fill text-xl" style="color:#f97316"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 font-medium uppercase tracking-widest">Marketing</p>
+                        <h2 class="text-3xl font-bold mt-1.5" style="color:#ec4899">{{ $data->where('role', 'marketing')->count() }}</h2>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background:#fdf2f8">
+                        <i class="bi bi-megaphone-fill text-xl" style="color:#ec4899"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 font-medium uppercase tracking-widest">IT</p>
+                        <h2 class="text-3xl font-bold mt-1.5" style="color:#06b6d4">{{ $data->where('role', 'it')->count() }}</h2>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background:#ecfeff">
+                        <i class="bi bi-cpu text-xl" style="color:#06b6d4"></i>
                     </div>
                 </div>
             </div>
@@ -270,7 +355,21 @@
                                         @else
                                             <div
                                                 class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white
-                                            {{ $d->role == 'superadmin' ? 'bg-gradient-to-br from-red-400 to-red-600' : ($d->role == 'keuangan' ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-amber-400 to-amber-600') }}">
+                                            {{ $d->role == 'superadmin'
+                                                ? 'bg-gradient-to-br from-red-400 to-red-600'
+                                                : ($d->role == 'keuangan'
+                                                    ? 'bg-gradient-to-br from-blue-400 to-blue-600'
+                                                    : ($d->role == 'produksi'
+                                                        ? 'bg-gradient-to-br from-amber-400 to-amber-600'
+                                                        : ($d->role == 'hrd'
+                                                            ? 'bg-gradient-to-br from-violet-400 to-violet-600'
+                                                            : ($d->role == 'purchase'
+                                                                ? 'bg-gradient-to-br from-emerald-400 to-emerald-600'
+                                                                : ($d->role == 'sales'
+                                                                    ? 'bg-gradient-to-br from-orange-400 to-orange-600'
+                                                                    : ($d->role == 'marketing'
+                                                                        ? 'bg-gradient-to-br from-pink-400 to-pink-600'
+                                                                        : 'bg-gradient-to-br from-cyan-400 to-cyan-600')))))) }}">
                                                 {{ strtoupper(substr($d->name, 0, 2)) }}
                                             </div>
                                         @endif
@@ -306,6 +405,16 @@
                                                 Keuangan</option>
                                             <option value="produksi" {{ $d->role == 'produksi' ? 'selected' : '' }}>
                                                 Produksi</option>
+                                            <option value="hrd" {{ $d->role == 'hrd' ? 'selected' : '' }}>
+                                                HRD</option>
+                                            <option value="purchase" {{ $d->role == 'purchase' ? 'selected' : '' }}>
+                                                Purchase</option>
+                                            <option value="sales" {{ $d->role == 'sales' ? 'selected' : '' }}>
+                                                Sales</option>
+                                            <option value="marketing" {{ $d->role == 'marketing' ? 'selected' : '' }}>
+                                                Marketing</option>
+                                            <option value="it" {{ $d->role == 'it' ? 'selected' : '' }}>
+                                                IT</option>
                                         </select>
                                     </form>
                                 </td>
@@ -459,6 +568,11 @@
                             <option value="superadmin">Superadmin</option>
                             <option value="keuangan">Keuangan</option>
                             <option value="produksi">Produksi</option>
+                            <option value="hrd">HRD</option>
+                            <option value="purchase">Purchase</option>
+                            <option value="sales">Sales</option>
+                            <option value="marketing">Marketing</option>
+                            <option value="it">IT</option>
                         </select>
                     </div>
 
@@ -539,7 +653,12 @@
             var roleClasses = {
                 superadmin: 'role-superadmin',
                 keuangan: 'role-keuangan',
-                produksi: 'role-produksi'
+                produksi: 'role-produksi',
+                hrd: 'role-hrd',
+                purchase: 'role-purchase',
+                sales: 'role-sales',
+                marketing: 'role-marketing',
+                it: 'role-it'
             };
             var statusClasses = {
                 aktif: 'status-aktif',

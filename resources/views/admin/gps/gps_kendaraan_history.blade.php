@@ -127,6 +127,7 @@
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Tgl Habis Lama</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Diperpanjang</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Bukti</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Lampiran</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-20">Aksi</th>
                     </tr>
                 </thead>
@@ -193,6 +194,21 @@
                                 </td>
 
                             <td class="px-4 py-3 text-center">
+                                @if($item->attachments->isNotEmpty())
+                                    <div class="flex flex-col gap-1">
+                                        @foreach($item->attachments as $att)
+                                            <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                class="text-blue-600 underline text-xs hover:text-blue-800">
+                                                *{{ $att->file_name }}
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <span class="text-gray-400 text-xs">-</span>
+                                @endif
+                            </td>
+
+                            <td class="px-4 py-3 text-center">
                                 <form action="{{ route('history.gpskendaraan.destroy', $item->id) }}"
                                       method="POST"
                                       onsubmit="return confirm('Yakin ingin menghapus history GPS ini?')">
@@ -210,7 +226,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="py-16 text-center">
+                            <td colspan="11" class="py-16 text-center">
                                 <div class="flex flex-col items-center gap-2 text-gray-400">
                                     <i class="fa fa-inbox text-4xl"></i>
                                     <p class="text-sm font-medium">Belum ada history perpanjangan GPS.</p>

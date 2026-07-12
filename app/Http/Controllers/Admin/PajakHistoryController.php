@@ -67,7 +67,7 @@ class PajakHistoryController extends Controller
 
     private function filteredQuery($bulan, $tahun)
     {
-        $query = PajakHistory::with('kendaraan');
+        $query = PajakHistory::with(['kendaraan', 'attachments']);
 
         if ($bulan !== 'semua') {
             $query->whereMonth('jatuh_tempo', $bulan);

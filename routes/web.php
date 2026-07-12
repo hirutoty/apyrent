@@ -163,7 +163,7 @@ Route::middleware(['auth'])->group(function () {
 
 
 
-Route::middleware('auth')->prefix('admin')->group(function () {
+Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () {
   // Laporan
   Route::get('/supplier/pdf', [SupplierController::class, 'pdf'])
     ->name('supplier.export.pdf');
@@ -335,6 +335,7 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     ->name('history.kir.export');
 
   Route::post('kir/{id}/perpanjang', [KirController::class, 'perpanjang'])->name('kir.perpanjang');
+  Route::post('kir/perpanjang-semua', [KirController::class, 'perpanjangSemua'])->name('kir.perpanjang-semua');
   Route::get('/kir-history', [KirHistoryController::class, 'index'])
     ->name('history.kir.index');
 

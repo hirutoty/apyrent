@@ -825,7 +825,7 @@ MODAL PERPANJANG
                         </label>
 
                         <input id="perpanjang_nominal" type="number" name="nominal"
-                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed" readonly>
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
                     <div>
@@ -860,7 +860,7 @@ MODAL PERPANJANG
                             Lunas
                         </div>
 
-                        <input type="hidden" name="status" value="sudah_bayar" id="perpanjang_status">
+                        <input type="hidden" name="status" value="sudah_bayar">
                     </div>
 
                     <div class="sm:col-span-2">
@@ -869,7 +869,7 @@ MODAL PERPANJANG
                             Bukti Pembayaran Baru
                         </label>
 
-                        <input id="perpanjang_bukti" type="file" required class="w-full border rounded-lg px-3 py-2">
+                        <input id="perpanjang_bukti" type="file" name="bukti" required class="w-full border rounded-lg px-3 py-2">
 
                     </div>
 
@@ -1029,20 +1029,8 @@ MODAL PERPANJANG
         const modalPerpanjang = document.getElementById('modalPerpanjang');
 
         function syncPerpanjangPajakDates() {
-            const bayarInput = document.getElementById('perpanjang_tanggal_bayar');
-            const display = document.getElementById('perpanjang_jatuh_tempo_display');
-            const hidden = document.getElementById('perpanjang_jatuh_tempo');
-            if (!bayarInput || !display || !hidden) return;
-
-            const bayar = bayarInput.value;
-            if (!bayar) return;
-
-            const d = new Date(bayar);
-            d.setFullYear(d.getFullYear() + 1);
-            const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-
-            display.value = val;
-            hidden.value = val;
+            // Jatuh tempo baru sudah dihitung dari jatuh_tempo_lama saat modal dibuka
+            // Fungsi ini tidak perlu melakukan apa-apa lagi
         }
 
         const tanggalBayarInput = document.getElementById('perpanjang_tanggal_bayar');
@@ -1070,13 +1058,23 @@ MODAL PERPANJANG
             document.getElementById('perpanjang_kendaraan_text').innerText =
                 `${nopol} - ${merk}`;
 
-            document.getElementById('perpanjang_jenis').value = jenis;
-            document.getElementById('perpanjang_nominal').value = nominal;
-            document.getElementById('perpanjang_status').value = status;
+            document.getElementById('perpanjang_jenis').value    = jenis;
+            document.getElementById('perpanjang_nominal').value  = nominal;
             document.getElementById('perpanjang_keterangan').value = keterangan;
 
+            // Tanggal bayar = hari ini (editable)
             document.getElementById('perpanjang_tanggal_bayar').value = '{{ now()->format("Y-m-d") }}';
-            syncPerpanjangPajakDates();
+
+            // jatuh_tempo_baru = jatuh_tempo_lama + 1 tahun (dari data lama, tidak berubah saat tanggal_bayar berubah)
+            if (jatuhTempo) {
+                const d = new Date(jatuhTempo);
+                d.setFullYear(d.getFullYear() + 1);
+                const val = d.getFullYear() + '-'
+                    + String(d.getMonth() + 1).padStart(2, '0') + '-'
+                    + String(d.getDate()).padStart(2, '0');
+                document.getElementById('perpanjang_jatuh_tempo_display').value = val;
+                document.getElementById('perpanjang_jatuh_tempo').value = val;
+            }
 
             modalPerpanjang.classList.remove('hidden');
             modalPerpanjang.classList.add('flex');

@@ -30,6 +30,16 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials, $remember)) {
 
+            if (Auth::user()->status === 'blokir') {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return back()->withErrors([
+                    'email' => 'Akun Anda telah diblokir. Hubungi administrator.',
+                ])->onlyInput('email');
+            }
+
             $request->session()->regenerate();
 
             return redirect('/admin/dashboard')

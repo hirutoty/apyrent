@@ -48,11 +48,18 @@
                 <h1 class="text-2xl font-bold text-gray-800">Data KIR</h1>
                 <p class="text-sm text-gray-500 mt-0.5">Uji Kendaraan Bermotor</p>
             </div>
-            <button onclick="openModalTambah()"
-                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
-                <i class="fa fa-plus text-sm"></i>
-                Tambah Data
-            </button>
+            <div class="flex items-center gap-2">
+                <!-- <button onclick="openModalPerpanjangSemua()"
+                    class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
+                    <i class="fa fa-rotate text-sm"></i>
+                    Perpanjang Semua
+                </button> -->
+                <button onclick="openModalTambah()"
+                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
+                    <i class="fa fa-plus text-sm"></i>
+                    Tambah Data
+                </button>
+            </div>
         </div>
 
         {{-- SUMMARY CARDS --}}
@@ -660,8 +667,8 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">No Uji Baru <span
                             class="text-red-500">*</span></label>
-                    <input type="text" name="no_uji" id="perpanjang_no_uji" required readonly
-                        class="w-full border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-sm cursor-not-allowed">
+                    <input type="text" name="no_uji" id="perpanjang_no_uji" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
                 {{-- Masa Berlaku Baru: lama + 1 tahun, disabled --}}
@@ -686,8 +693,8 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Biaya Baru <span
                             class="text-red-500">*</span></label>
-                    <input type="number" name="biaya" id="perpanjang_biaya" min="0" required readonly
-                        class="w-full border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-sm cursor-not-allowed">
+                    <input type="number" name="biaya" id="perpanjang_biaya" min="0" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
                 {{-- Upload Bukti --}}
@@ -918,20 +925,8 @@
         });
 
         function syncPerpanjangKirDates() {
-            const bayarInput = document.getElementById('perpanjang_tanggal_bayar');
-            const display = document.getElementById('perpanjang_masa_berlaku_display');
-            const hidden = document.getElementById('perpanjang_masa_berlaku');
-            if (!bayarInput || !display || !hidden) return;
-
-            const bayar = bayarInput.value;
-            if (!bayar) return;
-
-            const d = new Date(bayar);
-            d.setFullYear(d.getFullYear() + 1);
-            const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-
-            display.value = val;
-            hidden.value = val;
+            // Fungsi ini sekarang tidak perlu melakukan apa-apa untuk masa_berlaku
+            // karena masa_berlaku sudah dihitung dari masaBerlakuLama saat modal dibuka
         }
 
         const tanggalBayarKirInput = document.getElementById('perpanjang_tanggal_bayar');
@@ -946,8 +941,19 @@
             document.getElementById('perpanjang_no_uji').value = no_uji;
             document.getElementById('perpanjang_biaya').value = biaya;
 
+            // Set tanggal_bayar = hari ini
             document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
-            syncPerpanjangKirDates();
+
+            // masa_berlaku_baru = masaBerlakuLama + 1 tahun (dari data lama, tidak berubah saat tanggal_bayar berubah)
+            if (masaBerlakuLama) {
+                const d = new Date(masaBerlakuLama);
+                d.setFullYear(d.getFullYear() + 1);
+                const val = d.getFullYear() + '-'
+                    + String(d.getMonth() + 1).padStart(2, '0') + '-'
+                    + String(d.getDate()).padStart(2, '0');
+                document.getElementById('perpanjang_masa_berlaku_display').value = val;
+                document.getElementById('perpanjang_masa_berlaku').value = val;
+            }
 
             var m = document.getElementById('modalPerpanjang');
             m.classList.remove('hidden');
@@ -1367,6 +1373,94 @@
             wrap.innerHTML = '';
             wrap.classList.add('hidden');
         }
+    </script>
+
+    {{-- ======================================
+    MODAL PERPANJANG SEMUA
+====================================== --}}
+    <div id="modalPerpanjangSemua" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4"
+        style="backdrop-filter:blur(2px)">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md" style="animation:slideUp .2s ease">
+
+            <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+                <div>
+                    <h2 class="text-base font-bold text-gray-800">Perpanjang Semua KIR</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">Semua data KIR akan diperpanjang +1 tahun dari masa berlaku masing-masing. Data lama tersimpan ke history.</p>
+                </div>
+                <button onclick="closeModalPerpanjangSemua()"
+                    class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+
+            <form action="{{ route('kir.perpanjang-semua') }}" method="POST" class="px-6 py-5 grid grid-cols-1 gap-4">
+                @csrf
+
+                {{-- Info jumlah data --}}
+                <div class="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+                    <i class="fa-solid fa-circle-info text-blue-500 text-lg"></i>
+                    <p class="text-xs text-blue-700">
+                        Total <strong>{{ $data->total() }}</strong> data KIR akan diperpanjang sekaligus.
+                    </p>
+                </div>
+
+                {{-- Tanggal Bayar --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Bayar</label>
+                    <input type="date" name="tanggal_bayar" value="{{ now()->format('Y-m-d') }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400">
+                    <p class="text-xs text-gray-400 mt-1">Kosongkan untuk menggunakan tanggal hari ini.</p>
+                </div>
+
+                {{-- Biaya Default (opsional) --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Biaya Baru <span class="text-gray-400 font-normal">(opsional)</span>
+                    </label>
+                    <input type="number" name="biaya_default" min="0" step="1000"
+                        placeholder="Kosongkan untuk pakai biaya masing-masing"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400">
+                    <p class="text-xs text-gray-400 mt-1">Jika diisi, semua KIR akan diupdate dengan biaya ini.</p>
+                </div>
+
+                {{-- Konfirmasi --}}
+                <div class="flex items-start gap-2 bg-yellow-50 border border-yellow-100 rounded-xl px-4 py-3">
+                    <i class="fa-solid fa-triangle-exclamation text-yellow-500 mt-0.5"></i>
+                    <p class="text-xs text-yellow-700">
+                        Tindakan ini tidak dapat dibatalkan. Pastikan data sudah benar sebelum melanjutkan.
+                    </p>
+                </div>
+
+                <div class="flex gap-3 pt-1">
+                    <button type="button" onclick="closeModalPerpanjangSemua()"
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        Batal
+                    </button>
+                    <!-- <button type="submit"
+                        class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+                        <i class="fa fa-rotate"></i> Ya, Perpanjang Semua
+                    </button> -->
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openModalPerpanjangSemua() {
+            var m = document.getElementById('modalPerpanjangSemua');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+
+        function closeModalPerpanjangSemua() {
+            var m = document.getElementById('modalPerpanjangSemua');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        document.getElementById('modalPerpanjangSemua').addEventListener('click', function(e) {
+            if (e.target === this) closeModalPerpanjangSemua();
+        });
     </script>
 
 @endsection

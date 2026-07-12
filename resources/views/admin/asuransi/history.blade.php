@@ -62,10 +62,11 @@
                     <th class="px-4 py-3 text-left">Asuransi</th>
                     <th class="px-4 py-3 text-left">Jenis</th>
                     <th class="px-4 py-3 text-right">Biaya</th>
-                    <th class="px-4 py-3 text-center">Tgl Mulai</th>
-                    <th class="px-4 py-3 text-center">Tgl Berakhir</th>
+                    <th class="px-4 py-3 text-center">Jatuh Tempo Lama</th>
+                    
                     <th class="px-4 py-3 text-center">Diperpanjang</th>
                     <th class="px-4 py-3 text-center">Bukti</th>
+                    <th class="px-4 py-3 text-center">Lampiran</th>
                     <th class="px-4 py-3 text-center">Aksi</th>
                 </tr>
             </thead>
@@ -78,7 +79,7 @@
                         <td class="px-4 py-3">{{ $item->asuransi->nama_asuransi ?? '-' }}</td>
                         <td class="px-4 py-3">{{ $item->jenisAsuransi->nama_jenis ?? '-' }}</td>
                         <td class="px-4 py-3 text-right">Rp {{ number_format($item->biaya, 0, ',', '.') }}</td>
-                        <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->tgl_mulai)->format('d M Y') }}</td>
+                        
                         <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->tgl_berakhir)->format('d M Y') }}</td>
                         <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->diperpanjang_pada)->format('d M Y H:i') }}</td>
                         <td>
@@ -97,6 +98,20 @@
                                     @endif
                                 </td>
                         <td class="px-4 py-3 text-center">
+                            @if($item->attachments->isNotEmpty())
+                                <div class="flex flex-col gap-1">
+                                    @foreach($item->attachments as $att)
+                                        <a href="{{ asset($att->file_path) }}" target="_blank"
+                                            class="text-blue-600 underline text-xs hover:text-blue-800">
+                                            *{{ $att->file_name }}
+                                        </a>
+                                    @endforeach
+                                </div>
+                            @else
+                                <span class="text-gray-400 text-xs">-</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-center">
                             <form action="{{ route('history.asuransi.destroy', $item->id) }}" method="POST"
                                 onsubmit="return confirm('Yakin ingin menghapus history ini?')">
                                 @csrf
@@ -110,7 +125,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="py-12 text-center text-gray-400">
+                        <td colspan="12" class="py-12 text-center text-gray-400">
                             Belum ada history perpanjangan asuransi.
                         </td>
                     </tr>

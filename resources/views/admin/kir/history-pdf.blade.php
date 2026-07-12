@@ -225,12 +225,13 @@
             <thead>
                 <tr>
                     <th width="5%">No</th>
-                    <th width="14%">No Polisi</th>
-                    <th width="20%">Merk Kendaraan</th>
-                    <th width="18%">Nomor Uji</th>
-                    <th width="15%">Masa Berlaku</th>
-                    <th width="13%">Biaya</th>
-                    <th width="15%">Bukti</th>
+                    <th width="12%">No Polisi</th>
+                    <th width="16%">Merk Kendaraan</th>
+                    <th width="14%">Nomor Uji</th>
+                    <th width="13%">Masa Berlaku</th>
+                    <th width="11%">Biaya</th>
+                    <th width="10%">Bukti</th>
+                    <th width="19%">Lampiran</th>
                 </tr>
             </thead>
 
@@ -279,17 +280,25 @@
                                     @endif
                                 </td>
 
+                        <td>
+                            @if($d->attachments->isNotEmpty())
+                                {{ $d->attachments->pluck('file_name')->join(', ') }}
+                            @else
+                                -
+                            @endif
+                        </td>
+
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="text-center">
+                        <td colspan="8" class="text-center">
                             Tidak ada data ditemukan.
                         </td>
                     </tr>
                 @endforelse
 
                 <tr class="row-subtotal">
-                    <td colspan="6" class="text-right">
+                    <td colspan="7" class="text-right">
                         Total Data KIR
                     </td>
                     <td class="text-center">
@@ -298,7 +307,7 @@
                 </tr>
 
                 <tr class="row-total">
-                    <td colspan="6" class="text-right">
+                    <td colspan="7" class="text-right">
                         TOTAL BIAYA KIR
                     </td>
                     <td class="text-right">

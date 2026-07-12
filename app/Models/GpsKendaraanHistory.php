@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Attachment;
 
 class GpsKendaraanHistory extends Model
 {
@@ -54,5 +55,14 @@ class GpsKendaraanHistory extends Model
     public function gps()
     {
         return $this->belongsTo(Gps::class);
+    }
+
+    /**
+     * Relasi ke attachments yang diupload saat perpanjangan
+     */
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'relation_id')
+                    ->where('relation_type', 'gps_history');
     }
 }

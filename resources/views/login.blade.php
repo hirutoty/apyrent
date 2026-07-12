@@ -145,7 +145,7 @@
 
                 {{-- Ingat Saya --}}
                 <div class="flex items-center gap-2 pt-0.5">
-                    <input type="checkbox" id="remember" name="remember" required
+                    <input type="checkbox" id="remember" name="remember"
                         class="w-3.5 h-3.5 accent-blue-500 rounded cursor-pointer">
                     
                     <label for="remember" class="text-xs text-gray-400 cursor-pointer select-none">Ingat saya</label>

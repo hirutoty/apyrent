@@ -232,13 +232,14 @@
             <thead>
                 <tr>
                     <th width="4%">No</th>
-                    <th width="18%">Kendaraan</th>
-                    <th width="12%">No Polisi</th>
-                    <th width="14%">Jenis Pajak</th>
-                    <th width="14%">Nominal</th>
-                    <th width="16%">Jatuh Tempo Lama</th>
-                    <th width="22%">Diperpanjang Pada</th>
-                    <th width="22%">Bukti</th>
+                    <th width="15%">Kendaraan</th>
+                    <th width="11%">No Polisi</th>
+                    <th width="12%">Jenis Pajak</th>
+                    <th width="12%">Biaya</th>
+                    <th width="14%">Jatuh Tempo Lama</th>
+                    <th width="16%">Diperpanjang Pada</th>
+                    <th width="8%">Bukti</th>
+                    <th width="8%">Lampiran</th>
                 </tr>
             </thead>
 
@@ -291,17 +292,25 @@
                                     @endif
                                 </td>
 
+                        <td>
+                            @if($item->attachments->isNotEmpty())
+                                {{ $item->attachments->pluck('file_name')->join(', ') }}
+                            @else
+                                -
+                            @endif
+                        </td>
+
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="text-center">
+                        <td colspan="9" class="text-center">
                             Tidak ada data ditemukan.
                         </td>
                     </tr>
                 @endforelse
 
                 <tr class="row-subtotal">
-                    <td colspan="7" class="text-right">
+                    <td colspan="8" class="text-right">
                         Total Perpanjangan
                     </td>
                     <td class="text-center">
@@ -310,7 +319,7 @@
                 </tr>
 
                 <tr class="row-total">
-                    <td colspan="7" class="text-right">
+                    <td colspan="8" class="text-right">
                         TOTAL NOMINAL PAJAK
                     </td>
                     <td class="text-right">

@@ -1282,7 +1282,7 @@
                     </div>
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Kontak Member</label>
-                        <input type="text" id="ar_add_kontak" readonly placeholder="Terisi otomatis"
+                        <input type="number" id="ar_add_kontak" readonly placeholder="Terisi otomatis"
                             class="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-500 outline-none">
                     </div>
                     <div>
@@ -1358,7 +1358,7 @@
                     </div>
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Kontak Member</label>
-                        <input type="text" id="ar_edit_kontak" readonly placeholder="Terisi otomatis"
+                        <input type="number" id="ar_edit_kontak" readonly placeholder="Terisi otomatis"
                             class="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-500 outline-none">
                     </div>
                     <div>
