@@ -613,7 +613,7 @@
                                 
 
                                 @php
-                                    $isActive = request()->is('admin/service-history*');
+                                    $isActive = request()->is('admin/service-history*') || request()->is('admin/service-detail*') || request()->is('admin/reminder-service*');
                                 @endphp
 
                                 <a href="/admin/service-history"
@@ -624,11 +624,6 @@
                                     @if ($hasWarning)
                                         <i class="fas fa-triangle-exclamation text-red-400 animate-pulse ml-auto"></i>
                                     @endif
-                                </a>
-
-                                <a href="/admin/service-detail"
-                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                    <i class="bi bi-file-text-fill w-4 text-center shrink-0"></i> Mobil Bermasalah
                                 </a>
 
                                

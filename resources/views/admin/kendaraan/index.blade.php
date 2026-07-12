@@ -666,16 +666,15 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Kendaraan <span
-                                        class="text-red-500">*</span></label>
-                                <select name="status_kendaraan" required {{-- Di modal tambah --}} <select
+                                {{-- <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Kendaraan <span
+                                        class="text-red-500">*</span></label> --}}
+                                <select hidden name="status_kendaraan" required 
                                     name="status_kendaraan" required
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <option value="tersedia">Tersedia</option>
                                     <option value="disewa">Disewa</option>
                                     <option value="bermasalah" disabled>Bermasalah (otomatis dari menu)</option>
                                     <option value="service" disabled>Service (otomatis dari menu)</option>
-                                </select>
                                 </select>
                             </div>
                         </div>

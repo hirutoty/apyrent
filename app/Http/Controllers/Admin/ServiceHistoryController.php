@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\ServiceHistory;
+use App\Models\ServiceDetail;
 use App\Models\Kendaraan;
 use App\Models\Keuangan;
 use App\Models\Bukubesar;
 use App\Models\Setting;
 use App\Models\Attachment;
+use App\Models\ReminderService;
+use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class ServiceHistoryController extends Controller
@@ -37,10 +40,46 @@ class ServiceHistoryController extends Controller
             ->latest()
             ->paginate(15)->withQueryString();
 
+        // Hanya kendaraan yang ada di service_detail dengan status 'Tidak Layak'
+        $kendaraanIdsTidakLayak = ServiceDetail::where('status', 'Tidak Layak')
+            ->pluck('kendaraan_id')
+            ->unique();
+
+        $kendaraan = Kendaraan::whereIn('id', $kendaraanIdsTidakLayak)
+            ->orderBy('merk')
+            ->get();
+
+        // Data akumulasi per kendaraan dari service_detail status 'Tidak Layak'
+        $detailPerKendaraan = ServiceDetail::where('status', 'Tidak Layak')
+            ->whereIn('kendaraan_id', $kendaraanIdsTidakLayak)
+            ->orderBy('tanggal_service', 'desc')
+            ->get()
+            ->groupBy('kendaraan_id')
+            ->map(function ($items) {
+                return [
+                    // Gabungan semua keluhan
+                    'keluhan_gabungan' => $items
+                        ->pluck('keterangan')
+                        ->filter()
+                        ->implode(', '),
+                    // Total biaya akumulasi
+                    'total_biaya' => $items->sum('biaya'),
+                    // Kilometer dari record terbaru
+                    'kilometer' => $items->first()->kilometer ?? 0,
+                    // Rincian per item untuk ditampilkan
+                    'rincian' => $items->map(fn($d) => [
+                        'keluhan' => $d->keterangan ?? '-',
+                        'biaya'   => $d->biaya ?? 0,
+                        'tanggal' => $d->tanggal_service ?? '-',
+                    ])->values()->toArray(),
+                ];
+            });
+
         return view('admin.service.service_history', [
-            'data'      => $data,
-            'kendaraan' => Kendaraan::all(),
-            'bulan'     => $bulan,
+            'data'               => $data,
+            'kendaraan'          => $kendaraan,
+            'bulan'              => $bulan,
+            'detailPerKendaraan' => $detailPerKendaraan,
         ]);
     }
 
@@ -151,6 +190,20 @@ class ServiceHistoryController extends Controller
         $kendaraan->update([
             'status_kendaraan' => $request->status === 'proses' ? 'service' : 'tersedia',
         ]);
+
+        // Ubah semua record service_detail kendaraan ini dari 'Tidak Layak' jadi 'Layak'
+        // karena sudah ditangani melalui service history
+        ServiceDetail::where('kendaraan_id', $request->kendaraan_id)
+            ->where('status', 'Tidak Layak')
+            ->update(['status' => 'Layak']);
+
+        // 🔔 Jika status = selesai → update tanggal_terakhir_service & reset ReminderService
+        if ($request->status === 'selesai') {
+            $kendaraan->update([
+                'tanggal_terakhir_service' => $request->tanggal_service,
+            ]);
+            $this->resetReminderService($kendaraan, $request->tanggal_service);
+        }
 
         // Catat keuangan
         $lastSaldo  = Keuangan::latest()->value('saldo') ?? 0;
@@ -269,6 +322,14 @@ class ServiceHistoryController extends Controller
             'status_kendaraan' => $request->status === 'proses' ? 'service' : 'tersedia',
         ]);
 
+        // 🔔 Jika status = selesai → update tanggal_terakhir_service & reset ReminderService
+        if ($request->status === 'selesai') {
+            $kendaraan->update([
+                'tanggal_terakhir_service' => $request->tanggal_service,
+            ]);
+            $this->resetReminderService($kendaraan, $request->tanggal_service);
+        }
+
         return back()->with('success', 'Data berhasil diupdate.');
     }
 
@@ -290,6 +351,15 @@ class ServiceHistoryController extends Controller
                 ? 'service'
                 : 'tersedia',
         ]);
+
+        // 🔔 Jika status berubah ke 'selesai' → update tanggal_terakhir_service & reset ReminderService
+        if ($request->status === 'selesai') {
+            $tanggalSelesai = $service->tanggal_service ?? now()->toDateString();
+            $service->kendaraan->update([
+                'tanggal_terakhir_service' => $tanggalSelesai,
+            ]);
+            $this->resetReminderService($service->kendaraan, $tanggalSelesai);
+        }
 
         return back()->with('success', 'Status berhasil diperbarui.');
     }
@@ -374,5 +444,38 @@ class ServiceHistoryController extends Controller
         $pdf     = Pdf::loadView('admin.service.pdf_history', compact('data', 'search', 'bulan', 'setting', 'logoSrc'));
 
         return $pdf->stream('service-history.pdf');
+    }
+
+    // ── HELPER ──────────────────────────────────────────────────────────────
+
+    /**
+     * Reset ReminderService "Service Rutin" untuk kendaraan setelah service selesai.
+     * - Tandai reminder lama (aktif/jatuh_tempo) sebagai 'selesai'.
+     * - Buat reminder baru +3 bulan dari tanggal selesai service.
+     */
+    private function resetReminderService(Kendaraan $kendaraan, string $tanggalSelesai): void
+    {
+        // Tandai semua reminder Service Rutin yang masih aktif/jatuh_tempo sebagai selesai
+        ReminderService::where('kendaraan_id', $kendaraan->id)
+            ->where('nama_reminder', 'Service Rutin')
+            ->whereIn('status', ['aktif', 'jatuh_tempo'])
+            ->update(['status' => 'selesai']);
+
+        // Buat reminder baru +3 bulan dari tanggal selesai service
+        $tanggalMulai = Carbon::parse($tanggalSelesai);
+        $jatuhTempo   = (clone $tanggalMulai)->addMonths(3);
+        $statusReminder = Carbon::today()->gte($jatuhTempo) ? 'jatuh_tempo' : 'aktif';
+
+        ReminderService::create([
+            'kendaraan_id'         => $kendaraan->id,
+            'nama_reminder'        => 'Service Rutin',
+            'tanggal_mulai'        => $tanggalMulai->toDateString(),
+            'interval_nilai'       => 3,
+            'interval_satuan'      => 'bulan',
+            'tanggal_jatuh_tempo'  => $jatuhTempo->toDateString(),
+            'keterangan'           => 'Auto-reset setelah service selesai pada ' . $tanggalMulai->format('d/m/Y'),
+            'status'               => $statusReminder,
+            'sudah_dibuat_masalah' => false,
+        ]);
     }
 }

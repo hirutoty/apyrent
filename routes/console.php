@@ -53,3 +53,7 @@ Schedule::command('app:reminder-penawaran-command')
 Schedule::command('aging:reminder')
     ->dailyAt('00.01');
 // ->everyMinute();
+
+Schedule::command('reminder-service:cek-jatuh-tempo')
+    // ->dailyAt('00.01');
+->everyMinute();
