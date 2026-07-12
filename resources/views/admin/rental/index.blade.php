@@ -523,7 +523,7 @@
                             </div>
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">Kontak</label>
-                                <input type="text" name="kontak_pelanggan" id="kontak_pelanggan"
+                                <input type="number" name="kontak_pelanggan" id="kontak_pelanggan"
                                     placeholder="Ketik kontak pelanggan..." class="w-full border rounded-lg px-3 py-2"
                                     required>
                             </div>
@@ -695,7 +695,7 @@
                                     <div>
                                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak
                                             Driver</label>
-                                        <input type="text" name="kontak_driver"
+                                        <input type="number" name="kontak_driver"
                                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
                                             placeholder="Nomor HP / WhatsApp">
                                     </div>

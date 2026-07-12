@@ -1181,16 +1181,19 @@
                     String(d.getDate()).padStart(2, '0');
                 document.getElementById('perpanjang_tgl_berakhir_display').value = tglBaru;
                 document.getElementById('perpanjang_tgl_berakhir').value = tglBaru;
+
+                // tgl_mulai periode baru = tgl_berakhir LAMA (bukan tanggal_bayar)
+                document.getElementById('perpanjang_tgl_mulai').value = tglBerakhirLama;
             }
 
-            // Reset tanggal bayar ke hari ini dan samakan ke hidden tgl_mulai
+            // Reset tanggal bayar ke hari ini (hanya untuk pencatatan, tidak mempengaruhi tgl_mulai)
             const tanggalBayarDefault = new Date().toISOString().split('T')[0];
             document.getElementById('perpanjang_tanggal_bayar').value = tanggalBayarDefault;
-            document.getElementById('perpanjang_tgl_mulai').value = tanggalBayarDefault;
             document.getElementById('perpanjang_durasi').value = '12';
 
-            // Reset lampiran
+            // Reset lampiran & file input
             document.getElementById('listAttachmentPerpanjang').innerHTML = '';
+            document.getElementById('perpanjang_bukti_attachment').value = '';
 
             const m = document.getElementById('modalPerpanjang');
             m.classList.remove('hidden');
@@ -1198,10 +1201,8 @@
         }
 
         function syncTanggalMulaiDariBayar() {
-            const tanggalBayar = document.getElementById('perpanjang_tanggal_bayar').value;
-            if (tanggalBayar) {
-                document.getElementById('perpanjang_tgl_mulai').value = tanggalBayar;
-            }
+            // tgl_mulai tidak lagi di-sync dari tanggal_bayar
+            // tgl_mulai sudah di-set ke tgl_berakhir_lama saat modal dibuka
         }
 
         function closeModalPerpanjang() {

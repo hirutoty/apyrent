@@ -308,7 +308,7 @@
                     {{-- Kontak Member (auto) --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Kontak Member</label>
-                        <input type="text" id="add_kontak_pelanggan" readonly placeholder="Terisi otomatis"
+                        <input type="number" id="add_kontak_pelanggan" readonly placeholder="Terisi otomatis"
                             class="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-500 outline-none">
                     </div>
 
@@ -401,7 +401,7 @@
                     {{-- Kontak Member (auto) --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Kontak Member</label>
-                        <input type="text" id="edit_kontak_pelanggan" readonly placeholder="Terisi otomatis"
+                        <input type="number" id="edit_kontak_pelanggan" readonly placeholder="Terisi otomatis"
                             class="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-500 outline-none">
                     </div>
 

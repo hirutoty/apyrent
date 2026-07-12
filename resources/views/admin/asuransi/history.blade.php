@@ -62,8 +62,8 @@
                     <th class="px-4 py-3 text-left">Asuransi</th>
                     <th class="px-4 py-3 text-left">Jenis</th>
                     <th class="px-4 py-3 text-right">Biaya</th>
-                    <th class="px-4 py-3 text-center">Tgl Mulai</th>
-                    <th class="px-4 py-3 text-center">Tgl Berakhir</th>
+                    <th class="px-4 py-3 text-center">Jatuh Tempo Lama</th>
+                    
                     <th class="px-4 py-3 text-center">Diperpanjang</th>
                     <th class="px-4 py-3 text-center">Bukti</th>
                     <th class="px-4 py-3 text-center">Aksi</th>
@@ -78,7 +78,7 @@
                         <td class="px-4 py-3">{{ $item->asuransi->nama_asuransi ?? '-' }}</td>
                         <td class="px-4 py-3">{{ $item->jenisAsuransi->nama_jenis ?? '-' }}</td>
                         <td class="px-4 py-3 text-right">Rp {{ number_format($item->biaya, 0, ',', '.') }}</td>
-                        <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->tgl_mulai)->format('d M Y') }}</td>
+                        
                         <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->tgl_berakhir)->format('d M Y') }}</td>
                         <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->diperpanjang_pada)->format('d M Y H:i') }}</td>
                         <td>

@@ -335,6 +335,7 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     ->name('history.kir.export');
 
   Route::post('kir/{id}/perpanjang', [KirController::class, 'perpanjang'])->name('kir.perpanjang');
+  Route::post('kir/perpanjang-semua', [KirController::class, 'perpanjangSemua'])->name('kir.perpanjang-semua');
   Route::get('/kir-history', [KirHistoryController::class, 'index'])
     ->name('history.kir.index');
 

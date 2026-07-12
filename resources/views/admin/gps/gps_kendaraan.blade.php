@@ -604,73 +604,67 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
+                    {{-- Kendaraan readonly --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Kendaraan</label>
-                        <div
-                            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed select-none">
+                        <div class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed select-none">
                             <span id="perpanjang_kendaraan_text">-</span>
                         </div>
                     </div>
 
+                    {{-- GPS readonly --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">GPS</label>
-                        <div
-                            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed select-none">
+                        <div class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed select-none">
                             <span id="perpanjang_gps_text">-</span>
                         </div>
                     </div>
 
+                    {{-- Type GPS readonly --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Type GPS</label>
                         <input id="perpanjang_type" type="text" readonly
                             class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed">
                     </div>
 
-                    <input type="hidden" name="status_gps" id="hidden_status_gps">
-
-                    <select id="perpanjang_status_gps" disabled
-                        class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm bg-gray-100 cursor-not-allowed">
-                        <option value="aktif">Aktif</option>
-                        <option value="nonaktif">Nonaktif</option>
-                    </select>
-
-                    {{-- Tanggal Habis Baru: lama + 1 tahun, disabled --}}
+                    {{-- Tanggal Habis Baru: otomatis tgl_habis_lama + 1 tahun --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Habis Baru</label>
                         <input id="perpanjang_tanggal_habis_display" type="date" disabled
                             class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed">
                         <input type="hidden" name="tanggal_habis" id="perpanjang_tanggal_habis">
-                        {{-- tanggal_pasang diperlukan controller; isi otomatis = hari ini --}}
-                        <input type="hidden" name="tanggal_pasang" id="perpanjang_tanggal_pasang" value="{{ now()->format('Y-m-d') }}">
-                        {{-- durasi_bulan diperlukan controller; isi 12 (1 tahun) --}}
-                        <input type="hidden" name="durasi_bulan" id="perpanjang_durasi" value="12">
                         <p class="text-xs text-slate-400 mt-1">Otomatis tanggal habis lama + 1 tahun</p>
                     </div>
 
-                    {{-- Tanggal Bayar --}}
+                    {{-- Tanggal Bayar editable, default hari ini, sync ke tanggal_pasang --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Bayar</label>
                         <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
                             value="{{ now()->format('Y-m-d') }}"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        {{-- tanggal_pasang = tanggal_bayar (auto-sync) --}}
+                        <input type="hidden" name="tanggal_pasang" id="perpanjang_tanggal_pasang" value="{{ now()->format('Y-m-d') }}">
+                        <input type="hidden" name="durasi_bulan" value="12">
                     </div>
 
+                    {{-- Biaya readonly (dari data lama) --}}
                     <div>
-                        <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Sewa Baru <span
-                                class="text-red-500">*</span></label>
-                        <input id="perpanjang_biaya" type="number" name="biaya_sewa" required
-                            class="w-full border bg-slate-50 text-slate-500 cursor-not-allowed rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                            readonly>
+                        <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Sewa</label>
+                        <input id="perpanjang_biaya" type="number" name="biaya_sewa" readonly
+                            class="w-full border border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed rounded-xl px-4 py-3 text-sm">
                     </div>
 
+                    {{-- Bukti Bayar Baru (required) --}}
                     <div class="md:col-span-2">
-                        <label class="text-sm font-medium text-slate-700 mb-1 block">Bukti Bayar Baru</label>
+                        <label class="text-sm font-medium text-slate-700 mb-1 block">Bukti Bayar Baru <span class="text-red-500">*</span></label>
                         <input type="file" name="bukti_bayar"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm" required>
                     </div>
+
+                    {{-- Lampiran Tambahan --}}
                     <div class="md:col-span-2">
                         <label class="text-sm font-medium text-slate-700 mb-1 block">
-                            Lampiran Tambahan (opsional, bisa lebih dari 1)
+                            Lampiran Tambahan <span class="text-slate-400 font-normal">(opsional, bisa lebih dari 1)</span>
                         </label>
                         <input type="file" name="bukti_attachment[]" multiple
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm"
@@ -865,22 +859,11 @@
             }
 
             function syncPerpanjangGpsDates() {
-                const bayarInput = document.getElementById('perpanjang_tanggal_bayar');
-                const startInput = document.getElementById('perpanjang_tanggal_pasang');
-                const display = document.getElementById('perpanjang_tanggal_habis_display');
-                const hidden = document.getElementById('perpanjang_tanggal_habis');
-                if (!bayarInput || !startInput || !display || !hidden) return;
-
-                const bayar = bayarInput.value;
-                if (!bayar) return;
-
-                startInput.value = bayar;
-                const d = new Date(bayar);
-                d.setFullYear(d.getFullYear() + 1);
-                const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-
-                display.value = val;
-                hidden.value = val;
+                const bayarInput  = document.getElementById('perpanjang_tanggal_bayar');
+                const startInput  = document.getElementById('perpanjang_tanggal_pasang');
+                if (!bayarInput || !startInput) return;
+                // tanggal_pasang = tanggal_bayar
+                startInput.value = bayarInput.value;
             }
 
             const tanggalBayarGpsInput = document.getElementById('perpanjang_tanggal_bayar');
@@ -894,16 +877,26 @@
                 document.getElementById('perpanjang_kendaraan_text').innerText =
                     `${btn.dataset.merk} - ${btn.dataset.nopol}`;
                 document.getElementById('perpanjang_gps_text').innerText = btn.dataset.gps;
-                document.getElementById('perpanjang_type').value = btn.dataset.type;
-                document.getElementById('hidden_status_gps').value = btn.dataset.status;
-                document.getElementById('perpanjang_status_gps').value = btn.dataset.status;
+                document.getElementById('perpanjang_type').value  = btn.dataset.type;
                 document.getElementById('perpanjang_biaya').value = btn.dataset.biaya;
-                document.getElementById('listAttachmentPerpanjangGps').innerHTML = ''; // ✅ ditambahkan
+                document.getElementById('listAttachmentPerpanjangGps').innerHTML = '';
 
-                document.getElementById('perpanjang_durasi').value = '12';
-                document.getElementById('perpanjang_tanggal_pasang').value = new Date().toISOString().split('T')[0];
-                document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
-                syncPerpanjangGpsDates();
+                // Set tanggal_bayar = hari ini, sync tanggal_pasang
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('perpanjang_tanggal_bayar').value  = today;
+                document.getElementById('perpanjang_tanggal_pasang').value = today;
+
+                // tanggal_habis_baru = tanggal_habis_lama + 1 tahun (dari data-tanggal-habis)
+                const tglHabisLama = btn.dataset.tanggalHabis; // format Y-m-d
+                if (tglHabisLama) {
+                    const d = new Date(tglHabisLama);
+                    d.setFullYear(d.getFullYear() + 1);
+                    const val = d.getFullYear() + '-'
+                        + String(d.getMonth() + 1).padStart(2, '0') + '-'
+                        + String(d.getDate()).padStart(2, '0');
+                    document.getElementById('perpanjang_tanggal_habis_display').value = val;
+                    document.getElementById('perpanjang_tanggal_habis').value = val;
+                }
 
                 show(modalPerpanjang);
             }

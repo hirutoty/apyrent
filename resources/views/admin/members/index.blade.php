@@ -105,28 +105,49 @@
                             </td>
 
                             <td class="px-4 py-3.5">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    @if($d->file_stnk)
-                                        @foreach($d->file_stnk as $stnkIdx => $stnkPath)
-                                        <a href="{{ asset($stnkPath) }}" target="_blank"
-                                            class="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">STNK{{ count($d->file_stnk) > 1 ? ' '.($stnkIdx+1) : '' }}</a>
-                                        @endforeach
-                                    @endif
-                                    @if($d->file_attachment)
-                                        @foreach($d->file_attachment as $attIdx => $attPath)
-                                        <a href="{{ asset($attPath) }}" target="_blank"
-                                            class="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-medium">Att{{ count($d->file_attachment) > 1 ? ' '.($attIdx+1) : '' }}</a>
-                                        @endforeach
-                                    @endif
-                                    @if($d->file_kontrak)
-                                        <a href="{{ asset($d->file_kontrak) }}" target="_blank"
-                                            class="text-xs px-1.5 py-0.5 bg-teal-100 text-teal-700 rounded font-medium">Kontrak</a>
-                                    @endif
-                                    @if(!$d->file_stnk && !$d->file_attachment && !$d->file_kontrak)
-                                        <span class="text-xs text-gray-400">-</span>
-                                    @endif
-                                </div>
-                            </td>
+    <div class="flex flex-col gap-1">
+
+        {{-- STNK --}}
+        @if($d->file_stnk)
+            @foreach($d->file_stnk as $stnkPath)
+                <a href="{{ asset($stnkPath) }}"
+                   target="_blank"
+                   class="text-xs text-amber-700 hover:underline">
+                    <span class="font-semibold">STNK:</span>
+                    {{ preg_replace('/^\d+_/', '', basename($stnkPath)) }}
+                </a>
+            @endforeach
+        @endif
+
+        {{-- Attachment --}}
+        @if($d->file_attachment)
+            @foreach($d->file_attachment as $attPath)
+                <a href="{{ asset($attPath) }}"
+                   target="_blank"
+                   class="text-xs text-purple-700 hover:underline">
+                    <span class="font-semibold">Attachment:</span>
+                    {{ preg_replace('/^\d+_/', '', basename($attPath)) }}
+                </a>
+            @endforeach
+        @endif
+
+        {{-- Kontrak --}}
+        @if($d->file_kontrak)
+            <a href="{{ asset($d->file_kontrak) }}"
+               target="_blank"
+               class="text-xs text-teal-700 hover:underline">
+                <span class="font-semibold">Kontrak:</span>
+                {{ preg_replace('/^\d+_/', '', basename($d->file_kontrak)) }}
+            </a>
+        @endif
+
+        {{-- Tidak ada file --}}
+        @if(empty($d->file_stnk) && empty($d->file_attachment) && empty($d->file_kontrak))
+            <span class="text-xs text-gray-400">-</span>
+        @endif
+
+    </div>
+</td>
 
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1.5">
@@ -205,7 +226,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak</label>
-                    <input type="text" name="kontak" id="f_kontak" placeholder="08xx-xxxx-xxxx"
+                    <input type="number" name="kontak" id="f_kontak" placeholder="08xx-xxxx-xxxx"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>

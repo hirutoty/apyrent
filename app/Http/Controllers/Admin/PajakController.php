@@ -169,40 +169,39 @@ class PajakController extends Controller
     public function perpanjang(Request $request, $id)
     {
         $request->validate([
-            'nominal' => 'required|numeric',
-            'jatuh_tempo' => 'required|date',
-            'tanggal_bayar' => 'nullable|date',
-            'status' => 'required',
-            'keterangan' => 'nullable',
-            'bukti' => 'nullable|file|max:5120',
+            'nominal'        => 'required|numeric',
+            'tanggal_bayar'  => 'nullable|date',
+            'keterangan'     => 'nullable',
+            'bukti'          => 'required|file|max:5120',
             'bukti_attachment' => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $pajak = PajakKendaraan::findOrFail($id);
-        $bukti = $pajak->bukti;
+
+        // --- Hitung tanggal standar ---
         $tanggalBayar = $request->filled('tanggal_bayar')
             ? Carbon::parse($request->tanggal_bayar)->toDateString()
             : now()->toDateString();
+        // jatuh_tempo_baru = jatuh_tempo LAMA + 1 tahun (dari DB, bukan dari tanggal_bayar)
+        $jatuhTempoBaru = Carbon::parse($pajak->jatuh_tempo)->addYear()->toDateString();
 
+        // --- Simpan path bukti LAMA sebelum upload ---
+        $buktiLama = $pajak->bukti;
+
+        // --- Upload bukti BARU ---
         $path = public_path('pajak/bukti');
         if (!file_exists($path)) mkdir($path, 0777, true);
 
+        $buktiBaru = $buktiLama; // fallback jika tidak ada upload baru
         if ($request->hasFile('bukti')) {
-            $file = $request->file('bukti');
+            $file     = $request->file('bukti');
             $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
             $file->move($path, $filename);
-
-            if ($bukti && file_exists(public_path($bukti))) {
-                unlink(public_path($bukti));
-            }
-
-            $bukti = 'pajak/bukti/' . $filename;
+            $buktiBaru = 'pajak/bukti/' . $filename;
         }
 
-        $finalBukti = $bukti;
-
-        // Simpan data lama ke history
+        // --- Simpan data LAMA ke history (pakai bukti LAMA) ---
         PajakHistory::create([
             'pajak_kendaraan_id' => $pajak->id,
             'kendaraan_id'       => $pajak->kendaraan_id,
@@ -212,14 +211,15 @@ class PajakController extends Controller
             'tanggal_bayar'      => $tanggalBayar,
             'status'             => 'sudah_bayar',
             'keterangan'         => $pajak->keterangan,
-            'bukti'              => $finalBukti,
-            'diperpanjang_pada'  => now(),
+            'bukti'              => $buktiLama,
+            'diperpanjang_pada'  => $tanggalBayar,
         ]);
 
-        // MASUK KE KEUANGAN (PENGELUARAN)
+        // --- Catat ke Keuangan ---
         $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
         $pengeluaran = $request->nominal;
-        $kodeJurnal  = 'PAJAK-' . $pajak->id;
+        // Kode jurnal unik per transaksi — pakai timestamp agar perpanjangan ke-2, ke-3 dst tetap masuk
+        $kodeJurnal  = 'PAJAK-' . $pajak->id . '-' . now()->timestamp;
 
         Keuangan::create([
             'tanggal'     => now(),
@@ -233,34 +233,30 @@ class PajakController extends Controller
             'saldo'       => $lastSaldo - $pengeluaran,
         ]);
 
-        // Auto-posting ke Buku Besar
-        if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
-            Bukubesar::create([
-                'kode_jurnal' => $kodeJurnal,
-                'transaksi'   => 'Beban Pajak - ' . $pajak->jenis_pajak,
-                'kategori'    => 'Beban',
-                'tanggal'     => now()->toDateString(),
-                'debit'       => $request->nominal,
-                'kredit'      => 0,
-                'saldo'       => $request->nominal,
-                'aktivitas'   => 'Operasi',
-                'keterangan'  => 'Auto-posting: Pembayaran pajak kendaraan ' . ($pajak->kendaraan->nopol ?? '-'),
-            ]);
-        }
-
-        // Update data aktif
-        $pajak->update([
-            'nominal'        => $request->nominal,
-            'jatuh_tempo'    => $request->filled('tanggal_bayar')
-                ? Carbon::parse($request->tanggal_bayar)->addYear()->toDateString()
-                : $request->jatuh_tempo,
-            'tanggal_bayar'  => $tanggalBayar,
-            'status'         => 'sudah_bayar',
-            'keterangan'     => $request->keterangan,
-            'bukti'          => $finalBukti,
+        // --- Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat) ---
+        Bukubesar::create([
+            'kode_jurnal' => $kodeJurnal,
+            'transaksi'   => 'Beban Pajak - ' . $pajak->jenis_pajak,
+            'kategori'    => 'Beban',
+            'tanggal'     => now()->toDateString(),
+            'debit'       => $request->nominal,
+            'kredit'      => 0,
+            'saldo'       => $request->nominal,
+            'aktivitas'   => 'Operasi',
+            'keterangan'  => 'Auto-posting: Pembayaran pajak kendaraan ' . ($pajak->kendaraan->nopol ?? '-'),
         ]);
 
-        // upload attachment tambahan (bukti pendukung perpanjangan)
+        // --- Update record aktif dengan data BARU ---
+        $pajak->update([
+            'nominal'       => $request->nominal,
+            'jatuh_tempo'   => $jatuhTempoBaru,
+            'tanggal_bayar' => $tanggalBayar,
+            'status'        => 'sudah_bayar',
+            'keterangan'    => $request->keterangan,
+            'bukti'         => $buktiBaru,
+        ]);
+
+        // upload attachment tambahan
         if ($request->hasFile('bukti_attachment')) {
             $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id);
         }
