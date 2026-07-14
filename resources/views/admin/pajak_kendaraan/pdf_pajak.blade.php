@@ -233,14 +233,15 @@
         <thead>
             <tr>
                 <th width="4%">No</th>
-                <th width="10%">Nopol</th>
-                <th width="12%">Merk</th>
-                <th width="12%">Jenis Pajak</th>
-                <th width="12%">Nominal</th>
-                <th width="12%">Jatuh Tempo</th>
-                <th width="12%">Tgl Bayar</th>
-                <th width="10%">Status</th>
-                <th width="16%">Keterangan</th>
+                <th width="9%">Nopol</th>
+                <th width="10%">Merk</th>
+                <th width="11%">Jenis Pajak</th>
+                <th width="11%">Nominal</th>
+                <th width="11%">Jatuh Tempo</th>
+                <th width="11%">Tgl Bayar</th>
+                <th width="9%">Bukti</th>
+                <th width="12%">Keterangan</th>
+                <th width="12%">Lampiran</th>
             </tr>
         </thead>
 
@@ -250,7 +251,7 @@
                 <tr>
 
                     <td class="text-center">
-                        {{ $data->firstItem() + $loop->index }}
+                        {{ $loop->iteration }}
                     </td>
 
                     <td>
@@ -299,11 +300,19 @@
                         {{ $item->keterangan ?? '-' }}
                     </td>
 
+                    <td>
+                        @if ($item->attachments && $item->attachments->isNotEmpty())
+                            {{ $item->attachments->pluck('file_name')->join(', ') }}
+                        @else
+                            -
+                        @endif
+                    </td>
+
                 </tr>
             @empty
 
                 <tr>
-                    <td colspan="9" class="text-center">
+                    <td colspan="10" class="text-center">
                         Tidak ada data pajak kendaraan.
                     </td>
                 </tr>
@@ -320,7 +329,7 @@
                     Rp {{ number_format($data->sum('nominal'), 0, ',', '.') }}
                 </td>
 
-                <td colspan="4"></td>
+                <td colspan="5"></td>
 
             </tr>
 

@@ -229,6 +229,7 @@
                     <th width="16%">Merk Kendaraan</th>
                     <th width="14%">Nomor Uji</th>
                     <th width="13%">Masa Berlaku</th>
+                    <th width="12%">Diperpanjang</th>
                     <th width="11%">Biaya</th>
                     <th width="10%">Bukti</th>
                     <th width="19%">Lampiran</th>
@@ -256,9 +257,12 @@
                             {{ $d->no_uji }}
                         </td>
 
-                        <td class="text-center">
-                            {{ \Carbon\Carbon::parse($d->masa_berlaku)->format('d-m-Y') }}
-                        </td>
+                            <td class="text-center">
+                                {{ \Carbon\Carbon::parse($d->masa_berlaku)->format('d-m-Y') }}
+                            </td>
+
+                            <td class="text-center">
+                            {{ $d->kir?->tanggal_bayar ? \Carbon\Carbon::parse($d->kir->tanggal_bayar)->format('d/m/Y') : '-' }}                            </td>
 
                         <td class="text-right">
                             Rp {{ number_format($d->biaya, 0, ',', '.') }}

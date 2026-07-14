@@ -241,18 +241,19 @@
 
             <thead>
                 <tr>
-                    <th width="4%">No</th>
-                    <th width="12%">Kendaraan</th>
-                    <th width="10%">No Polisi</th>
-                    <th width="12%">GPS</th>
-                    <th width="8%">Type</th>
-                    <th width="10%">Status GPS</th>
-                    <th width="10%">Tgl Pasang</th>
-                    <th width="10%">Tgl Habis</th>
-                    <th width="10%">Biaya</th>
-                    <th width="7%">Durasi</th>
+                    <th width="3%">No</th>
+                    <th width="10%">Kendaraan</th>
+                    <th width="9%">No Polisi</th>
+                    <th width="10%">GPS</th>
+                    <th width="7%">Type</th>
+                    <th width="8%">Status GPS</th>
+                    <th width="9%">Tgl Pasang</th>
+                    <th width="9%">Tgl Habis</th>
+                    <th width="9%">Biaya</th>
+                    <th width="6%">Durasi</th>
                     <th width="7%">Status</th>
                     <th width="7%">Bukti</th>
+                    <th width="10%">Lampiran</th>
                 </tr>
             </thead>
 
@@ -320,10 +321,18 @@
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
                                 </td>
+
+                        <td>
+                            @if ($d->attachments && $d->attachments->isNotEmpty())
+                                {{ $d->attachments->pluck('file_name')->join(', ') }}
+                            @else
+                                -
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="text-center">
+                        <td colspan="13" class="text-center">
                             Tidak ada data ditemukan.
                         </td>
                     </tr>
@@ -331,7 +340,7 @@
 
 
                 <tr class="row-subtotal">
-                    <td colspan="11" class="text-right">
+                    <td colspan="12" class="text-right">
                         Total GPS
                     </td>
                     <td class="text-center">
@@ -340,7 +349,7 @@
                 </tr>
 
                 <tr class="row-subtotal">
-                    <td colspan="11" class="text-right">
+                    <td colspan="12" class="text-right">
                         GPS Aktif
                     </td>
                     <td class="text-center">
@@ -349,7 +358,7 @@
                 </tr>
 
                 <tr class="row-subtotal">
-                    <td colspan="11" class="text-right">
+                    <td colspan="12" class="text-right">
                         GPS Nonaktif
                     </td>
                     <td class="text-center">
@@ -358,7 +367,7 @@
                 </tr>
 
                 <tr class="row-total">
-                    <td colspan="11" class="text-right">
+                    <td colspan="12" class="text-right">
                         TOTAL BIAYA GPS
                     </td>
 

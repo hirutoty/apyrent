@@ -93,7 +93,7 @@
                             </td>
 
                             <td class="px-4 py-3 text-center">
-                                {{ \Carbon\Carbon::parse($item->diperpanjang_pada)->format('d M Y H:i') }}
+                                {{ \Carbon\Carbon::parse($item->kir->tanggal_bayar)->format('d M Y') }}
                             </td>
 
                             <td>

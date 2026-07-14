@@ -389,7 +389,7 @@ class AsuransiKendaraanController extends Controller
             'biaya'                 => $request->biaya,
             'bukti_bayar'           => $bukti,
             'tanggal_bayar'         => $request->tanggal_bayar ?? now()->toDateString(),
-            'diperpanjang_pada'     => now(),
+            'diperpanjang_pada'     => $request->filled('tanggal_bayar') ? Carbon::parse($request->tanggal_bayar)->toDateTimeString() : now()->toDateTimeString(),
         ]);
 
         \Illuminate\Support\Facades\DB::transaction(function () use (
@@ -438,6 +438,7 @@ class AsuransiKendaraanController extends Controller
                 'bukti_bayar'       => $bukti,
                 'status_kendaraan'  => 'aktif',
                 'tanggal_bayar'     => $request->tanggal_bayar ?? now()->toDateString(),
+                'diperpanjang_pada' => $request->filled('tanggal_bayar') ? Carbon::parse($request->tanggal_bayar)->toDateTimeString() : now()->toDateTimeString(),
             ]);
 
             // --- Pindahkan lampiran LAMA ke history ---

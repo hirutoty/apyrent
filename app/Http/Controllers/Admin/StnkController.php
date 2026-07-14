@@ -9,6 +9,8 @@ use App\Models\StnkHistory;
 use App\Models\Kendaraan;
 use App\Models\Keuangan;
 use App\Models\Bukubesar;
+use App\Models\Setting;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class StnkController extends Controller
 {
@@ -223,5 +225,35 @@ class StnkController extends Controller
         $stnk->delete();
 
         return back()->with('success', 'Data STNK berhasil dihapus');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $search = $request->search;
+
+        $query = Stnk::with('kendaraan');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nopol', 'like', "%{$search}%")
+                    ->orWhere('merk', 'like', "%{$search}%")
+                    ->orWhere('nama_pemilik', 'like', "%{$search}%")
+                    ->orWhere('jenis_model', 'like', "%{$search}%");
+            });
+        }
+
+        $data = $query->latest()->get();
+
+        $setting = Setting::first();
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
+        $pdf = Pdf::loadView('admin.stnk.pdf', compact('data', 'search', 'setting', 'logoSrc'));
+
+        return $pdf->stream('data-stnk.pdf');
     }
 }

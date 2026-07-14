@@ -180,16 +180,17 @@
         <thead>
             <tr>
                 <th width="4%">No</th>
-                <th width="15%">Nopol</th>
-                <th width="15%">Merk</th>
-                <th width="18%">Asuransi</th>
-                <th width="15%">Jenis</th>
-                <th width="10%">Status</th>
-                <th width="11%">Tgl Mulai</th>
-                <th width="11%">Durasi</th>
-                <th width="12%">Tgl Berakhir</th>
-                <th width="12%">biaya</th>
-                <th width="12%">bukti bayar</th>
+                <th width="13%">Nopol</th>
+                <th width="13%">Merk</th>
+                <th width="15%">Asuransi</th>
+                <th width="12%">Jenis</th>
+                <th width="8%">Status</th>
+                <th width="9%">Tgl Mulai</th>
+                <th width="6%">Durasi</th>
+                <th width="9%">Tgl Berakhir</th>
+                <th width="10%">Biaya</th>
+                <th width="10%">Bukti Bayar</th>
+                <th width="12%">Lampiran</th>
             </tr>
         </thead>
 
@@ -197,7 +198,7 @@
             @forelse($data as $item)
                 <tr>
                     <td class="text-center">
-                        {{ $data->firstItem() + $loop->index }}
+                        {{ $loop->iteration }}
                     </td>
 
                     <td>
@@ -254,10 +255,18 @@
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
                                 </td>
+
+                    <td>
+                        @if ($item->attachments && $item->attachments->isNotEmpty())
+                            {{ $item->attachments->pluck('file_name')->join(', ') }}
+                        @else
+                            -
+                        @endif
+                    </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="text-center">
+                    <td colspan="12" class="text-center">
                         Tidak ada data ditemukan.
                     </td>
                 </tr>

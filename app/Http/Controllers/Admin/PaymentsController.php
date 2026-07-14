@@ -329,6 +329,37 @@ class PaymentsController extends Controller
     // Export
     // =========================================================================
 
+    public function exportPdf(Request $request)
+    {
+        $query = InvoicePayment::with('invoice')->latest('id');
+
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('transaction_id', 'like', '%' . $request->search . '%')
+                    ->orWhere('method', 'like', '%' . $request->search . '%')
+                    ->orWhere('status', 'like', '%' . $request->search . '%')
+                    ->orWhereHas('invoice', function ($i) use ($request) {
+                        $i->where('invoice_no', 'like', '%' . $request->search . '%')
+                            ->orWhere('customer_name', 'like', '%' . $request->search . '%');
+                    });
+            });
+        }
+
+        $payments = $query->get();
+
+        $setting = \App\Models\Setting::first();
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.payments.pdf', compact('payments', 'setting', 'logoSrc'));
+
+        return $pdf->stream('data-pembayaran.pdf');
+    }
+
     public function exportExcel(Request $request)
     {
         return \Maatwebsite\Excel\Facades\Excel::download(

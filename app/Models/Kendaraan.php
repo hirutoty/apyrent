@@ -118,6 +118,11 @@ class Kendaraan extends Model
         return $this->hasMany(PajakKendaraan::class);
     }
 
+    public function kir()
+{
+    return $this->hasOne(Kir::class);
+}
+
     public function serviceHistories()
     {
         return $this->hasMany(ServiceHistory::class);
