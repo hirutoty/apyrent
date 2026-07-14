@@ -211,6 +211,8 @@
                                 Biaya</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Bukti</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Lampiran</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>
                         </tr>
@@ -312,7 +314,7 @@
                                     Rp {{ number_format($d->biaya, 0, ',', '.') }}
                                 </td>
 
-                                <td>
+                                <td class="px-4 py-3.5">
                                     @if ($d->bukti_bayar)
                                         @php $filename = basename($d->bukti_bayar); @endphp
                                         <a href="{{ asset($d->bukti_bayar) }}" target="_blank"
@@ -322,25 +324,33 @@
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
+                                </td>
 
-                                    @foreach ($d->attachments as $att)
-                                        <div class="flex items-center gap-1 mt-1">
-                                            <a href="{{ asset($att->file_path) }}" target="_blank"
-                                                class="text-blue-500 underline text-[11px] hover:text-blue-700">
-                                                {{ $att->file_name }}
-                                            </a>
-                                            <form action="{{ route('asuransi.attachment.destroy', $att->id) }}"
-                                                method="POST" onsubmit="return confirm('Hapus lampiran ini?')"
-                                                class="inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit"
-                                                    class="text-red-400 hover:text-red-600 text-[10px]">
-                                                    <i class="fa fa-times"></i>
-                                                </button>
-                                            </form>
+                                <td class="px-4 py-3.5">
+                                    @if($d->attachments->isNotEmpty())
+                                        <div class="flex flex-col gap-1">
+                                            @foreach ($d->attachments as $att)
+                                                <div class="flex items-center gap-1">
+                                                    <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                        class="text-blue-500 underline text-[11px] hover:text-blue-700">
+                                                        {{ $att->file_name }}
+                                                    </a>
+                                                    <form action="{{ route('asuransi.attachment.destroy', $att->id) }}"
+                                                        method="POST" onsubmit="return confirm('Hapus lampiran ini?')"
+                                                        class="inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit"
+                                                            class="text-red-400 hover:text-red-600 text-[10px]">
+                                                            <i class="fa fa-times"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            @endforeach
                                         </div>
-                                    @endforeach
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
                                 </td>
                                 {{-- Aksi --}}
                                 <td class="px-4 py-3.5">
@@ -446,7 +456,7 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Kendaraan --</option>
                         @foreach ($kendaraan as $k)
-                            <option value="{{ $k->id }}">{{ $k->nopol }} – {{ $k->merk }}</option>
+                            <option value="{{ $k->id }}">{{ $k->nopol }} ï¿½ {{ $k->merk }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -502,12 +512,8 @@
                     </label>
 
                     <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-                            Rp
-                        </span>
-
-                        <input type="number" name="biaya" min="0" required placeholder="0"
-                            class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <input type="text" inputmode="numeric" name="biaya" required placeholder="0"
+                            class="format-rupiah w-full border border-gray-200 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
                 </div>
 
@@ -643,7 +649,7 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Kendaraan --</option>
                         @foreach ($kendaraan as $k)
-                            <option value="{{ $k->id }}">{{ $k->nopol }} – {{ $k->merk }}</option>
+                            <option value="{{ $k->id }}">{{ $k->nopol }} ï¿½ {{ $k->merk }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -699,12 +705,8 @@
                     </label>
 
                     <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-                            Rp
-                        </span>
-
-                        <input type="number" id="edit_biaya" name="biaya" min="0" required
-                            class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <input type="text" inputmode="numeric" id="edit_biaya" name="biaya" required
+                            class="format-rupiah w-full border border-gray-200 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
                 </div>
 
@@ -890,9 +892,8 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Biaya Baru <span
                             class="text-red-500">*</span></label>
                     <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">Rp</span>
-                        <input type="number" name="biaya" id="perpanjang_biaya" min="0" required readonly
-                            class="w-full border bg-gray-100 cursor-not-allowed rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <input type="text" inputmode="numeric" name="biaya" id="perpanjang_biaya" required readonly
+                            class="format-rupiah w-full border bg-gray-100 cursor-not-allowed rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
                 </div>
 
@@ -1099,6 +1100,7 @@
             document.getElementById('edit_status_kendaraan').value = status_kendaraan;
             document.getElementById('edit_tgl_mulai').value = tgl_mulai;
             document.getElementById('edit_biaya').value = biaya;
+            document.getElementById('edit_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
             // Hitung tgl_berakhir = tgl_mulai + 1 tahun (tampil disabled, kirim via hidden)
             if (tgl_mulai) {
@@ -1171,6 +1173,7 @@
             document.getElementById('perpanjang_jenis_id').value = jenis_id;
 
             document.getElementById('perpanjang_biaya').value = biaya;
+            document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
             // Hitung tgl_berakhir baru = tgl_berakhir lama + 1 tahun
             if (tglBerakhirLama) {

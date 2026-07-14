@@ -225,6 +225,7 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Pengeluaran</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Tanggal</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Bukti</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Lampiran</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Aksi</th>
                         </tr>
                     </thead>
@@ -256,7 +257,7 @@
                             <tr class="group-header bg-blue-50/80 border-t-2 border-b border-blue-100 border-l-4 border-l-blue-500 cursor-pointer select-none hover:bg-blue-100 transition-colors duration-150"
                                 onclick="toggleAccordion('{{ $groupId }}')"
                                 data-group="{{ $groupId }}">
-                                <td colspan="10" class="px-5 py-3.5">
+                                <td colspan="11" class="px-5 py-3.5">
                                     <div class="flex items-center gap-3 flex-wrap">
                                         {{-- Car icon --}}
                                         <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
@@ -424,24 +425,33 @@
                                         @else
                                             <span class="text-gray-400 text-xs">-</span>
                                         @endif
+                                    </td>
 
-                                        @foreach ($d->attachments as $att)
-                                            <div class="flex items-center gap-1 mt-1">
-                                                <a href="{{ asset($att->file_path) }}" target="_blank"
-                                                    class="text-blue-500 underline text-[11px] hover:text-blue-700">
-                                                    {{ $att->file_name }}
-                                                </a>
-                                                <form action="{{ route('service-history.attachment.destroy', $att->id) }}"
-                                                    method="POST" onsubmit="return confirm('Hapus lampiran ini?')"
-                                                    class="inline">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="text-red-400 hover:text-red-600 text-[10px]">
-                                                        <i class="fa fa-times"></i>
-                                                    </button>
-                                                </form>
+                                    {{-- Lampiran --}}
+                                    <td class="px-5 py-4">
+                                        @if($d->attachments->isNotEmpty())
+                                            <div class="flex flex-col gap-1">
+                                                @foreach ($d->attachments as $att)
+                                                    <div class="flex items-center gap-1">
+                                                        <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                            class="text-blue-500 underline text-[11px] hover:text-blue-700">
+                                                            {{ $att->file_name }}
+                                                        </a>
+                                                        <form action="{{ route('service-history.attachment.destroy', $att->id) }}"
+                                                            method="POST" onsubmit="return confirm('Hapus lampiran ini?')"
+                                                            class="inline">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="text-red-400 hover:text-red-600 text-[10px]">
+                                                                <i class="fa fa-times"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                @endforeach
                                             </div>
-                                        @endforeach
+                                        @else
+                                            <span class="text-gray-400 text-xs">-</span>
+                                        @endif
                                     </td>
 
                                     {{-- Aksi --}}
@@ -464,7 +474,7 @@
 
                         @empty
                             <tr>
-                                <td colspan="10" class="px-5 py-16 text-center">
+                                <td colspan="11" class="px-5 py-16 text-center">
                                     <div class="flex flex-col items-center gap-3">
                                         <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                             <i class="fa fa-screwdriver-wrench text-2xl text-gray-300"></i>

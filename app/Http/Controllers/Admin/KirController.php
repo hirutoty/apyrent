@@ -49,7 +49,7 @@ class KirController extends Controller
      * @param  int     $relationId   ID record target (kir aktif atau history)
      * @param  string  $relationType Tipe relasi, default 'kir'
      */
-    private function simpanAttachments($files, $relationId, $relationType = 'kir')
+    private function simpanAttachments($files, $relationId, $relationType = 'kir', $historyId = null)
     {
         $pathDir = public_path('kir/attachments');
         if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
@@ -72,6 +72,17 @@ class KirController extends Controller
                 'file_type'     => $extension,
                 'file_size'     => $size,
             ]);
+
+            if ($historyId) {
+                Attachment::create([
+                    'relation_type' => $relationType . '_history',
+                    'relation_id'   => $historyId,
+                    'file_name'     => $originalName,
+                    'file_path'     => 'kir/attachments/' . $filename,
+                    'file_type'     => $extension,
+                    'file_size'     => $size,
+                ]);
+            }
         }
     }
 
@@ -346,61 +357,83 @@ class KirController extends Controller
             $imageBaru = 'kir/dokumen/' . $filename;
         }
 
-        // --- Simpan data LAMA ke history (pakai image LAMA) ---
-        $history = KirHistory::create([
-            'kir_id'            => $kir->id,
-            'kendaraan_id'      => $kir->kendaraan_id,
-            'no_uji'            => $kir->no_uji,
-            'masa_berlaku'      => $kir->masa_berlaku,
-            'biaya'             => $kir->biaya,
-            'image'             => $imageLama,
-            'diperpanjang_pada' => $tanggalBayar,
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use (
+            $request, $kir, $imageLama, $imageBaru, $tanggalBayar, $masaBerlakuBaru
+        ) {
+            // --- Simpan data BARU ke history (sebagai log perpanjangan) ---
+            $history = KirHistory::create([
+                'kir_id'            => $kir->id,
+                'kendaraan_id'      => $kir->kendaraan_id,
+                'no_uji'            => $request->no_uji,
+                'masa_berlaku'      => $masaBerlakuBaru,
+                'biaya'             => $request->biaya,
+                'image'             => $imageBaru,
+                'tanggal_bayar'     => $tanggalBayar,
+                'diperpanjang_pada' => now(),
+            ]);
 
-        // --- Catat ke Keuangan ---
-        $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
-        $pengeluaran = $request->biaya;
-        // Kode jurnal unik per transaksi
-        $kodeJurnal  = 'KIR-' . $kir->id . '-' . now()->timestamp;
+            // --- Catat ke Keuangan ---
+            $lastSaldo = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            $pengeluaran = $request->biaya;
+            // Kode jurnal unik per transaksi
+            $kodeJurnal  = 'KIR-' . $kir->id . '-' . now()->timestamp;
 
-        Keuangan::create([
-            'tanggal'     => now(),
-            'reference'   => $kodeJurnal,
-            'user_id'     => auth()->id(),
-            'kategori'    => 'Pengeluaran',
-            'metode'      => '-',
-            'keterangan'  => 'Pembayaran KIR kendaraan: ' . ($kir->kendaraan->nopol ?? '-'),
-            'pemasukan'   => 0,
-            'pengeluaran' => $pengeluaran,
-            'saldo'       => $lastSaldo - $pengeluaran,
-        ]);
+            Keuangan::create([
+                'tanggal'     => now(),
+                'reference'   => $kodeJurnal,
+                'user_id'     => auth()->id(),
+                'kategori'    => 'Pengeluaran',
+                'metode'      => '-',
+                'keterangan'  => 'Pembayaran KIR kendaraan: ' . ($kir->kendaraan->nopol ?? '-'),
+                'pemasukan'   => 0,
+                'pengeluaran' => $pengeluaran,
+                'saldo'       => $lastSaldo - $pengeluaran,
+            ]);
 
-        // --- Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat) ---
-        Bukubesar::create([
-            'kode_jurnal' => $kodeJurnal,
-            'transaksi'   => 'Beban KIR - ' . ($kir->kendaraan->nopol ?? '-'),
-            'kategori'    => 'Beban',
-            'tanggal'     => now()->toDateString(),
-            'debit'       => $pengeluaran,
-            'kredit'      => 0,
-            'saldo'       => $pengeluaran,
-            'aktivitas'   => 'Operasi',
-            'keterangan'  => 'Auto-posting: Pembayaran KIR kendaraan ' . ($kir->kendaraan->nopol ?? '-'),
-        ]);
+            // --- Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat) ---
+            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban KIR - ' . ($kir->kendaraan->nopol ?? '-'),
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $pengeluaran,
+                'kredit'      => 0,
+                'saldo'       => $saldoBBTerakhir - $pengeluaran,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Pembayaran KIR kendaraan ' . ($kir->kendaraan->nopol ?? '-'),
+            ]);
 
-        // --- Update record aktif dengan data BARU ---
-        $kir->update([
-            'no_uji'        => $request->no_uji,
-            'masa_berlaku'  => $masaBerlakuBaru,
-            'biaya'         => $request->biaya,
-            'image'         => $imageBaru,
-            'tanggal_bayar' => $tanggalBayar,
-        ]);
+            // --- Update record aktif dengan data BARU ---
+            $kir->update([
+                'no_uji'        => $request->no_uji,
+                'masa_berlaku'  => $masaBerlakuBaru,
+                'biaya'         => $request->biaya,
+                'image'         => $imageBaru,
+                'tanggal_bayar' => $tanggalBayar,
+            ]);
 
-        // upload attachment tambahan — masuk ke history, bukan record aktif
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $history->id, 'kir_history');
-        }
+            // --- Pindahkan lampiran LAMA ke history ---
+            // (Dihapus, karena history sekarang mencatat log baru)
+
+            // --- Upload attachment tambahan BARU — masuk ke record aktif (halaman utama) & history ---
+            if ($request->hasFile('bukti_attachment')) {
+                Attachment::where('relation_type', 'kir')->where('relation_id', $kir->id)->delete();
+                $this->simpanAttachments($request->file('bukti_attachment'), $kir->id, 'kir', $history->id);
+            } else {
+                $oldAttachments = Attachment::where('relation_type', 'kir')->where('relation_id', $kir->id)->get();
+                foreach ($oldAttachments as $att) {
+                    Attachment::create([
+                        'relation_type' => 'kir_history',
+                        'relation_id'   => $history->id,
+                        'file_name'     => $att->file_name,
+                        'file_path'     => $att->file_path,
+                        'file_type'     => $att->file_type,
+                        'file_size'     => $att->file_size,
+                    ]);
+                }
+            }
+        });
 
         return back()->with('success', 'KIR berhasil diperpanjang!');
     }

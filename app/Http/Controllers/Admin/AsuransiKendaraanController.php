@@ -89,7 +89,7 @@ class AsuransiKendaraanController extends Controller
      * @param  int     $relationId   ID record target (asuransi aktif atau history)
      * @param  string  $relationType Tipe relasi, default 'asuransi'
      */
-    private function simpanAttachments($files, $relationId, $relationType = 'asuransi')
+    private function simpanAttachments($files, $relationId, $relationType = 'asuransi', $historyId = null)
     {
         $pathDir = public_path('asuransi/attachments');
         if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
@@ -112,6 +112,17 @@ class AsuransiKendaraanController extends Controller
                 'file_type'     => $extension,
                 'file_size'     => $size,
             ]);
+
+            if ($historyId) {
+                Attachment::create([
+                    'relation_type' => $relationType . '_history',
+                    'relation_id'   => $historyId,
+                    'file_name'     => $originalName,
+                    'file_path'     => 'asuransi/attachments/' . $filename,
+                    'file_type'     => $extension,
+                    'file_size'     => $size,
+                ]);
+            }
         }
     }
 
@@ -366,71 +377,90 @@ class AsuransiKendaraanController extends Controller
             $bukti = 'asuransi/bukti_bayar/' . $filename;
         }
 
-        // Simpan history (pakai bukti LAMA, tgl_mulai = tgl_berakhir lama)
+        // --- Simpan data BARU ke history (sebagai log perpanjangan) ---
         $history = AsuransiHistory::create([
             'asuransi_kendaraan_id' => $asuransi->id,
             'kendaraan_id'          => $asuransi->kendaraan_id,
-            'asuransi_id'           => $asuransi->asuransi_id,
-            'jenis_asuransi_id'     => $asuransi->jenis_asuransi_id,
+            'asuransi_id'           => $request->asuransi_id,
+            'jenis_asuransi_id'     => $request->jenis_asuransi_id,
             'tgl_mulai'             => $asuransi->tgl_berakhir,
-            'tgl_berakhir'          => $asuransi->tgl_berakhir,
-            'durasi_bulan'          => $asuransi->durasi_bulan,
-            'biaya'                 => $asuransi->biaya,
-            'bukti_bayar'           => $buktiLama,
-            'status_kendaraan'      => 'aktif',
-            'diperpanjang_pada'     => $request->tanggal_bayar ?? now()->toDateString(),
+            'tgl_berakhir'          => $request->tgl_berakhir,
+            'durasi_bulan'          => $request->durasi_bulan,
+            'biaya'                 => $request->biaya,
+            'bukti_bayar'           => $bukti,
             'tanggal_bayar'         => $request->tanggal_bayar ?? now()->toDateString(),
+            'diperpanjang_pada'     => now(),
         ]);
 
-        // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
-        $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
-        $pengeluaran = $request->biaya;
-        // Kode jurnal unik per transaksi — pakai timestamp agar perpanjangan ke-2, ke-3 dst tetap masuk
-        $kodeJurnal  = 'Asuransi-' . $asuransi->id . '-' . now()->timestamp;
+        \Illuminate\Support\Facades\DB::transaction(function () use (
+            $request, $asuransi, $buktiLama, $bukti, $history
+        ) {
+            // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
+            $lastSaldo = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            $pengeluaran = $request->biaya;
+            // Kode jurnal unik per transaksi — pakai timestamp agar perpanjangan ke-2, ke-3 dst tetap masuk
+            $kodeJurnal  = 'Asuransi-' . $asuransi->id . '-' . now()->timestamp;
 
-        Keuangan::create([
-            'tanggal'     => now(),
-            'reference'   => $kodeJurnal,
-            'user_id'     => auth()->id(),
-            'kategori'    => 'Pengeluaran',
-            'metode'      => '-',
-            'keterangan'  => 'Pembayaran asuransi kendaraan: ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-') . ' - ' . $request->keterangan,
-            'pemasukan'   => 0,
-            'pengeluaran' => $request->biaya,
-            'saldo'       => $lastSaldo - $pengeluaran,
-        ]);
+            Keuangan::create([
+                'tanggal'     => now(),
+                'reference'   => $kodeJurnal,
+                'user_id'     => auth()->id(),
+                'kategori'    => 'Pengeluaran',
+                'metode'      => '-',
+                'keterangan'  => 'Pembayaran asuransi kendaraan: ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-') . ' - ' . $request->keterangan,
+                'pemasukan'   => 0,
+                'pengeluaran' => $request->biaya,
+                'saldo'       => $lastSaldo - $pengeluaran,
+            ]);
 
-        // Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat)
-        Bukubesar::create([
-            'kode_jurnal' => $kodeJurnal,
-            'transaksi'   => 'Beban Asuransi - ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-'),
-            'kategori'    => 'Beban',
-            'tanggal'     => now()->toDateString(),
-            'debit'       => $request->biaya,
-            'kredit'      => 0,
-            'saldo'       => $request->biaya,
-            'aktivitas'   => 'Operasi',
-            'keterangan'  => 'Auto-posting: Perpanjangan asuransi kendaraan ' . ($asuransi->kendaraan->nopol ?? '-'),
-        ]);
+            // Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat)
+            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban Asuransi - ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-'),
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $request->biaya,
+                'kredit'      => 0,
+                'saldo'       => $saldoBBTerakhir - $request->biaya, // Asumsi Beban mengurangi saldo BB
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Perpanjangan asuransi kendaraan ' . ($asuransi->kendaraan->nopol ?? '-'),
+            ]);
 
+            // Update data aktif
+            $asuransi->update([
+                'asuransi_id'       => $request->asuransi_id,
+                'jenis_asuransi_id' => $request->jenis_asuransi_id,
+                'tgl_mulai'         => $asuransi->tgl_berakhir,
+                'tgl_berakhir'      => $request->tgl_berakhir,
+                'durasi_bulan'      => $request->durasi_bulan,
+                'biaya'             => $request->biaya,
+                'bukti_bayar'       => $bukti,
+                'status_kendaraan'  => 'aktif',
+                'tanggal_bayar'     => $request->tanggal_bayar ?? now()->toDateString(),
+            ]);
 
-        // Update data aktif
-        $asuransi->update([
-            'asuransi_id'       => $request->asuransi_id,
-            'jenis_asuransi_id' => $request->jenis_asuransi_id,
-            'tgl_mulai'         => $asuransi->tgl_berakhir,
-            'tgl_berakhir'      => $request->tgl_berakhir,
-            'durasi_bulan'      => $request->durasi_bulan,
-            'biaya'             => $request->biaya,
-            'bukti_bayar'       => $bukti,
-            'status_kendaraan'  => 'aktif',
-            'tanggal_bayar'     => $request->tanggal_bayar ?? now()->toDateString(),
-        ]);
+            // --- Pindahkan lampiran LAMA ke history ---
+            // (Dihapus karena history sekarang mencatat log baru)
 
-        // upload attachment tambahan — masuk ke history, bukan record aktif
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $history->id, 'asuransi_history');
-        }
+            // --- Upload attachment tambahan BARU — masuk ke record aktif (halaman utama) & History ---
+            if ($request->hasFile('bukti_attachment')) {
+                Attachment::where('relation_type', 'asuransi')->where('relation_id', $asuransi->id)->delete();
+                $this->simpanAttachments($request->file('bukti_attachment'), $asuransi->id, 'asuransi', $history->id);
+            } else {
+                $oldAttachments = Attachment::where('relation_type', 'asuransi')->where('relation_id', $asuransi->id)->get();
+                foreach ($oldAttachments as $att) {
+                    Attachment::create([
+                        'relation_type' => 'asuransi_history',
+                        'relation_id'   => $history->id,
+                        'file_name'     => $att->file_name,
+                        'file_path'     => $att->file_path,
+                        'file_type'     => $att->file_type,
+                        'file_size'     => $att->file_size,
+                    ]);
+                }
+            }
+        });
 
         return back()->with('success', 'Asuransi berhasil diperpanjang!');
     }

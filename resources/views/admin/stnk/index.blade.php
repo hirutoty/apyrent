@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'Data STNK Kendaraan')
 
@@ -98,13 +98,13 @@
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
 
-                    {{-- Export PDF — href diupdate JS setiap filter berubah --}}
+                    {{-- Export PDF ï¿½ href diupdate JS setiap filter berubah --}}
                     {{-- <a id="btnExportPdf" href="{{ route('stnk.export.pdf') }}" target="_blank"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition">
                         <i class="fa fa-file-pdf"></i> Export PDF
                     </a> --}}
 
-                    {{-- Filter Bulan — nilai option pakai angka murni "06" bukan "-06-" --}}
+                    {{-- Filter Bulan ï¿½ nilai option pakai angka murni "06" bukan "-06-" --}}
                     <select id="filterBulan" onchange="filterTable(); updateExportLink();"
                         class="pl-3 pr-7 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 appearance-none bg-white">
                         <option value="">Semua Bulan</option>
@@ -307,7 +307,7 @@
                             </tr>
                         @endforelse
 
-                        {{-- Baris kosong hasil filter — hanya muncul jika ada data di DB tapi filter tidak cocok --}}
+                        {{-- Baris kosong hasil filter ï¿½ hanya muncul jika ada data di DB tapi filter tidak cocok --}}
                         @if ($data->isNotEmpty())
                             <tr id="emptyRow" class="hidden">
                                 <td colspan="9" class="text-center py-12 text-slate-400">
@@ -381,7 +381,7 @@
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya <span class="text-red-500">*</span></label>
-                        <input type="number" name="biaya" required placeholder="0"
+                        <input type="text" inputmode="numeric" name="biaya" required placeholder="0" class="format-rupiah"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
@@ -482,7 +482,7 @@
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya <span class="text-red-500">*</span></label>
-                        <input type="number" name="biaya" id="edit_biaya" required
+                        <input type="text" inputmode="numeric" name="biaya" id="edit_biaya" required class="format-rupiah"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
@@ -507,7 +507,7 @@
                             class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition">
                             <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-1"></i>
                             <span class="text-xs text-slate-500">Klik untuk ganti file</span>
-                            <span class="text-xs text-slate-400">(Maks 5MB — kosongkan jika tidak diganti)</span>
+                            <span class="text-xs text-slate-400">(Maks 5MB ï¿½ kosongkan jika tidak diganti)</span>
                         </label>
                         <input type="file" name="bukti" id="bukti_edit" accept=".jpg,.jpeg,.png,.pdf"
                             class="hidden" onchange="previewBuktiEdit(this)">
@@ -563,7 +563,7 @@
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Baru <span class="text-red-500">*</span></label>
-                        <input type="number" name="biaya" id="perpanjang_biaya" required placeholder="0"
+                        <input type="text" inputmode="numeric" name="biaya" id="perpanjang_biaya" required placeholder="0" class="format-rupiah"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none">
                     </div>
 
@@ -692,6 +692,7 @@
             document.getElementById('edit_jenis_model').value   = jenis_model;
             document.getElementById('edit_masa_berlaku').value  = masa_berlaku.split(' ')[0];
             document.getElementById('edit_biaya').value         = biaya;
+            document.getElementById('edit_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
             const wrap = document.getElementById('editPreviewWrap');
             const img  = document.getElementById('editPreviewImg');
@@ -728,6 +729,7 @@
 
             // Prefill biaya pakai nilai lama supaya tinggal disesuaikan
             document.getElementById('perpanjang_biaya').value = biayaLama;
+            document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('perpanjang_masa_berlaku').value = '';
 
             hapusPerpanjangPreview();

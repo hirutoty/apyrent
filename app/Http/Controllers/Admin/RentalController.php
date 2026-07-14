@@ -365,53 +365,59 @@ class RentalController extends Controller
     public function updateStatus(Request $request, $id)
     {
         try {
-            $rental = Rental::findOrFail($id);
-            $rental->status = $request->status;
-            $rental->save();
+            DB::transaction(function () use ($request, $id) {
+                $rental = Rental::findOrFail($id);
+                $rental->status = $request->status;
+                $rental->save();
 
-            $kendaraan = Kendaraan::find($rental->kendaraan_id);
-            if ($kendaraan) {
-                if ($request->status === 'aktif') {
-                    $kendaraan->status_kendaraan = 'disewa';
+                $kendaraan = Kendaraan::find($rental->kendaraan_id);
+                if ($kendaraan) {
+                    if ($request->status === 'aktif') {
+                        $kendaraan->status_kendaraan = 'disewa';
+                    }
+                    if (in_array($request->status, ['selesai', 'batal'])) {
+                        $kendaraan->status_kendaraan = 'tersedia';
+                    }
+                    $kendaraan->save();
                 }
-                if (in_array($request->status, ['selesai', 'batal'])) {
-                    $kendaraan->status_kendaraan = 'tersedia';
-                }
-                $kendaraan->save();
-            }
 
-            if ($request->status === 'selesai') {
-                $lastSaldo  = Keuangan::latest()->value('saldo') ?? 0;
-                $kodeJurnal = 'RNT-' . $rental->id;
-                Keuangan::create([
-                    'tanggal'     => now()->toDateString(),
-                    'reference'   => $kodeJurnal,
-                    'user_id'     => auth()->id(),
-                    'kategori'    => 'Pemasukan',
-                    'metode'      => 'auto',
-                    'keterangan'  => 'Rental ' . $rental->kendaraan->merk . ' - ' . $rental->kendaraan->nopol,
-                    'pemasukan'   => $rental->total_biaya,
-                    'pengeluaran' => 0,
-                    'saldo'       => $lastSaldo + $rental->total_biaya,
-                ]);
-                // Auto-posting ke Buku Besar
-                if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
-                    Bukubesar::create([
-                        'kode_jurnal' => $kodeJurnal,
-                        'transaksi'   => 'Pendapatan Rental - ' . $rental->kendaraan->merk . ' ' . $rental->kendaraan->nopol,
-                        'kategori'    => 'Pendapatan',
-                        'tanggal'     => now()->toDateString(),
-                        'debit'       => 0,
-                        'kredit'      => $rental->total_biaya,
-                        'saldo'       => $rental->total_biaya,
-                        'aktivitas'   => 'Operasi',
-                        'keterangan'  => 'Auto-posting: Rental selesai - ' . $rental->kendaraan->merk . ' (' . $rental->kendaraan->nopol . ')',
-                    ]);
-                }
-            }
+                if ($request->status === 'selesai') {
+                    // Gunakan lockForUpdate untuk mencegah race condition
+                    $lastSaldo = (float) DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                    $kodeJurnal = 'RNT-' . $rental->id;
 
-            // Kalau dari fetch (index) → return JSON
-            // Kalau dari form (show) → redirect back
+                    // Pastikan belum ada jurnal yang sama sebelumnya
+                    if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
+                        Keuangan::create([
+                            'tanggal'     => now()->toDateString(),
+                            'reference'   => $kodeJurnal,
+                            'user_id'     => auth()->id(),
+                            'kategori'    => 'Pemasukan',
+                            'metode'      => 'auto',
+                            'keterangan'  => 'Rental ' . $rental->kendaraan->merk . ' - ' . $rental->kendaraan->nopol,
+                            'pemasukan'   => $rental->total_biaya,
+                            'pengeluaran' => 0,
+                            'saldo'       => $lastSaldo + $rental->total_biaya,
+                        ]);
+                    }
+
+                    // Auto-posting ke Buku Besar
+                    if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                        Bukubesar::create([
+                            'kode_jurnal' => $kodeJurnal,
+                            'transaksi'   => 'Pendapatan Rental - ' . $rental->kendaraan->merk . ' ' . $rental->kendaraan->nopol,
+                            'kategori'    => 'Pendapatan',
+                            'tanggal'     => now()->toDateString(),
+                            'debit'       => 0,
+                            'kredit'      => $rental->total_biaya,
+                            'saldo'       => $rental->total_biaya,
+                            'aktivitas'   => 'Operasi',
+                            'keterangan'  => 'Auto-posting: Rental selesai - ' . $rental->kendaraan->merk . ' (' . $rental->kendaraan->nopol . ')',
+                        ]);
+                    }
+                }
+            });
+
             if ($request->expectsJson() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -605,50 +611,55 @@ class RentalController extends Controller
     public function toogletatus(Request $request, $id)
     {
         try {
-            $rental = Rental::findOrFail($id);
-            $rental->status = $request->status;
-            $rental->save();
+            DB::transaction(function () use ($request, $id) {
+                $rental = Rental::findOrFail($id);
+                $rental->status = $request->status;
+                $rental->save();
 
-            $kendaraan = Kendaraan::find($rental->kendaraan_id);
-            if ($kendaraan) {
-                if ($request->status === 'aktif') {
-                    $kendaraan->status_kendaraan = 'disewa';
+                $kendaraan = Kendaraan::find($rental->kendaraan_id);
+                if ($kendaraan) {
+                    if ($request->status === 'aktif') {
+                        $kendaraan->status_kendaraan = 'disewa';
+                    }
+                    if (in_array($request->status, ['selesai', 'batal'])) {
+                        $kendaraan->status_kendaraan = 'tersedia';
+                    }
+                    $kendaraan->save();
                 }
-                if (in_array($request->status, ['selesai', 'batal'])) {
-                    $kendaraan->status_kendaraan = 'tersedia';
-                }
-                $kendaraan->save();
-            }
 
-            if ($request->status === 'selesai') {
-                $lastSaldo  = Keuangan::latest()->value('saldo') ?? 0;
-                $kodeJurnal = 'RNT-' . $rental->id;
-                Keuangan::create([
-                    'tanggal'     => now()->toDateString(),
-                    'reference'   => $kodeJurnal,
-                    'user_id'     => auth()->id(),
-                    'kategori'    => 'Pemasukan',
-                    'metode'      => 'auto',
-                    'keterangan'  => 'Rental ' . $rental->kendaraan->merk . ' - ' . $rental->kendaraan->nopol,
-                    'pemasukan'   => $rental->total_biaya,
-                    'pengeluaran' => 0,
-                    'saldo'       => $lastSaldo + $rental->total_biaya,
-                ]);
-                // Auto-posting ke Buku Besar
-                if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
-                    Bukubesar::create([
-                        'kode_jurnal' => $kodeJurnal,
-                        'transaksi'   => 'Pendapatan Rental - ' . $rental->kendaraan->merk . ' ' . $rental->kendaraan->nopol,
-                        'kategori'    => 'Pendapatan',
-                        'tanggal'     => now()->toDateString(),
-                        'debit'       => 0,
-                        'kredit'      => $rental->total_biaya,
-                        'saldo'       => $rental->total_biaya,
-                        'aktivitas'   => 'Operasi',
-                        'keterangan'  => 'Auto-posting: Rental selesai - ' . $rental->kendaraan->merk . ' (' . $rental->kendaraan->nopol . ')',
-                    ]);
+                if ($request->status === 'selesai') {
+                    $lastSaldo = (float) DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                    $kodeJurnal = 'RNT-' . $rental->id;
+
+                    if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
+                        Keuangan::create([
+                            'tanggal'     => now()->toDateString(),
+                            'reference'   => $kodeJurnal,
+                            'user_id'     => auth()->id(),
+                            'kategori'    => 'Pemasukan',
+                            'metode'      => 'auto',
+                            'keterangan'  => 'Rental ' . $rental->kendaraan->merk . ' - ' . $rental->kendaraan->nopol,
+                            'pemasukan'   => $rental->total_biaya,
+                            'pengeluaran' => 0,
+                            'saldo'       => $lastSaldo + $rental->total_biaya,
+                        ]);
+                    }
+                    // Auto-posting ke Buku Besar
+                    if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                        Bukubesar::create([
+                            'kode_jurnal' => $kodeJurnal,
+                            'transaksi'   => 'Pendapatan Rental - ' . $rental->kendaraan->merk . ' ' . $rental->kendaraan->nopol,
+                            'kategori'    => 'Pendapatan',
+                            'tanggal'     => now()->toDateString(),
+                            'debit'       => 0,
+                            'kredit'      => $rental->total_biaya,
+                            'saldo'       => $rental->total_biaya,
+                            'aktivitas'   => 'Operasi',
+                            'keterangan'  => 'Auto-posting: Rental selesai - ' . $rental->kendaraan->merk . ' (' . $rental->kendaraan->nopol . ')',
+                        ]);
+                    }
                 }
-            }
+            });
 
             return response()->json([
                 'success' => true,

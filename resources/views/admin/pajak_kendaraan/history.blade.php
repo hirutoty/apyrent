@@ -86,7 +86,7 @@
                             <td class="px-4 py-3">{{ $item->jenis_pajak }}</td>
                             <td class="px-4 py-3 text-right">Rp {{ number_format($item->nominal, 0, ',', '.') }}</td>
                             <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->jatuh_tempo)->format('d M Y') }}</td>
-                            <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->diperpanjang_pada)->format('d M Y H:i') }}</td>
+                            <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->diperpanjang_pada)->format('d M Y') }}</td>
                             <td>
                                     @if ($item->bukti)
                                         @php

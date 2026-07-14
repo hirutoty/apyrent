@@ -85,7 +85,7 @@ class PajakController extends Controller
      * @param  int     $relationId   ID record target (pajak aktif atau history)
      * @param  string  $relationType Tipe relasi, default 'pajak'
      */
-    private function simpanAttachments($files, $relationId, $relationType = 'pajak')
+    private function simpanAttachments($files, $relationId, $relationType = 'pajak', $historyId = null)
     {
         $pathDir = public_path('pajak/attachments');
         if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
@@ -108,6 +108,17 @@ class PajakController extends Controller
                 'file_type'     => $extension,
                 'file_size'     => $size,
             ]);
+
+            if ($historyId) {
+                Attachment::create([
+                    'relation_type' => $relationType . '_history',
+                    'relation_id'   => $historyId,
+                    'file_name'     => $originalName,
+                    'file_path'     => 'pajak/attachments/' . $filename,
+                    'file_type'     => $extension,
+                    'file_size'     => $size,
+                ]);
+            }
         }
     }
 
@@ -205,65 +216,88 @@ class PajakController extends Controller
             $buktiBaru = 'pajak/bukti/' . $filename;
         }
 
-        // --- Simpan data LAMA ke history (pakai bukti LAMA) ---
-        $history = PajakHistory::create([
-            'pajak_kendaraan_id' => $pajak->id,
-            'kendaraan_id'       => $pajak->kendaraan_id,
-            'jenis_pajak'        => $pajak->jenis_pajak,
-            'nominal'            => $pajak->nominal,
-            'jatuh_tempo'        => $pajak->jatuh_tempo,
-            'tanggal_bayar'      => $tanggalBayar,
-            'status'             => 'sudah_bayar',
-            'keterangan'         => $pajak->keterangan,
-            'bukti'              => $buktiLama,
-            'diperpanjang_pada'  => $tanggalBayar,
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use (
+            $request, $pajak, $buktiLama, $buktiBaru, $tanggalBayar, $jatuhTempoBaru
+        ) {
+            // --- Simpan data BARU ke history (sebagai log perpanjangan) ---
+            $history = PajakHistory::create([
+                'pajak_kendaraan_id' => $pajak->id,
+                'kendaraan_id'       => $pajak->kendaraan_id,
+                'jenis_pajak'        => $pajak->jenis_pajak,
+                'nominal'            => $request->nominal,
+                'jatuh_tempo'        => $jatuhTempoBaru,
+                'tanggal_bayar'      => $tanggalBayar,
+                'status'             => 'sudah_bayar',
+                'keterangan'         => $request->keterangan,
+                'bukti'              => $buktiBaru,
+                'diperpanjang_pada'  => now(),
+            ]);
 
-        // --- Catat ke Keuangan ---
-        $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
-        $pengeluaran = $request->nominal;
-        // Kode jurnal unik per transaksi — pakai timestamp agar perpanjangan ke-2, ke-3 dst tetap masuk
-        $kodeJurnal  = 'PAJAK-' . $pajak->id . '-' . now()->timestamp;
+            // --- Catat ke Keuangan ---
+            $lastSaldo = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            $pengeluaran = $request->nominal;
+            // Kode jurnal unik per transaksi — pakai timestamp agar perpanjangan ke-2, ke-3 dst tetap masuk
+            $kodeJurnal  = 'PAJAK-' . $pajak->id . '-' . now()->timestamp;
 
-        Keuangan::create([
-            'tanggal'     => now(),
-            'reference'   => $kodeJurnal,
-            'user_id'     => auth()->id(),
-            'kategori'    => 'Pengeluaran',
-            'metode'      => 'cash',
-            'keterangan'  => 'Pembayaran pajak kendaraan: ' . $pajak->jenis_pajak . ' - ' . $request->keterangan,
-            'pemasukan'   => 0,
-            'pengeluaran' => $request->nominal,
-            'saldo'       => $lastSaldo - $pengeluaran,
-        ]);
+            Keuangan::create([
+                'tanggal'     => now(),
+                'reference'   => $kodeJurnal,
+                'user_id'     => auth()->id(),
+                'kategori'    => 'Pengeluaran',
+                'metode'      => 'cash',
+                'keterangan'  => 'Pembayaran pajak kendaraan: ' . $pajak->jenis_pajak . ' - ' . $request->keterangan,
+                'pemasukan'   => 0,
+                'pengeluaran' => $request->nominal,
+                'saldo'       => $lastSaldo - $pengeluaran,
+            ]);
 
-        // --- Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat) ---
-        Bukubesar::create([
-            'kode_jurnal' => $kodeJurnal,
-            'transaksi'   => 'Beban Pajak - ' . $pajak->jenis_pajak,
-            'kategori'    => 'Beban',
-            'tanggal'     => now()->toDateString(),
-            'debit'       => $request->nominal,
-            'kredit'      => 0,
-            'saldo'       => $request->nominal,
-            'aktivitas'   => 'Operasi',
-            'keterangan'  => 'Auto-posting: Pembayaran pajak kendaraan ' . ($pajak->kendaraan->nopol ?? '-'),
-        ]);
+            // --- Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat) ---
+            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban Pajak - ' . $pajak->jenis_pajak,
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $request->nominal,
+                'kredit'      => 0,
+                'saldo'       => $saldoBBTerakhir - $request->nominal,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Pembayaran pajak kendaraan ' . ($pajak->kendaraan->nopol ?? '-'),
+            ]);
 
-        // --- Update record aktif dengan data BARU ---
-        $pajak->update([
-            'nominal'       => $request->nominal,
-            'jatuh_tempo'   => $jatuhTempoBaru,
-            'tanggal_bayar' => $tanggalBayar,
-            'status'        => 'sudah_bayar',
-            'keterangan'    => $request->keterangan,
-            'bukti'         => $buktiBaru,
-        ]);
+            // --- Update record aktif dengan data BARU ---
+            $pajak->update([
+                'nominal'       => $request->nominal,
+                'jatuh_tempo'   => $jatuhTempoBaru,
+                'tanggal_bayar' => $tanggalBayar,
+                'status'        => 'sudah_bayar',
+                'keterangan'    => $request->keterangan,
+                'bukti'         => $buktiBaru,
+            ]);
 
-        // upload attachment tambahan — masuk ke history, bukan record aktif
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $history->id, 'pajak_history');
-        }
+            // --- Pindahkan lampiran LAMA ke history ---
+            // (Tidak perlu pindah karena history sekarang mencatat log pembayaran baru)
+
+            // --- Upload attachment tambahan BARU — masuk ke record aktif (halaman utama) & History ---
+            if ($request->hasFile('bukti_attachment')) {
+                // hapus lampiran lama di record aktif (opsional, tapi biasanya perpanjang menggunakan bukti baru murni)
+                Attachment::where('relation_type', 'pajak')->where('relation_id', $pajak->id)->delete();
+                
+                $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id, 'pajak', $history->id);
+            } else {
+                $oldAttachments = Attachment::where('relation_type', 'pajak')->where('relation_id', $pajak->id)->get();
+                foreach ($oldAttachments as $att) {
+                    Attachment::create([
+                        'relation_type' => 'pajak_history',
+                        'relation_id'   => $history->id,
+                        'file_name'     => $att->file_name,
+                        'file_path'     => $att->file_path,
+                        'file_type'     => $att->file_type,
+                        'file_size'     => $att->file_size,
+                    ]);
+                }
+            }
+        });
 
         return back()->with('success', 'Pajak berhasil diperpanjang');
     }

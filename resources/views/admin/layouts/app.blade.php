@@ -585,7 +585,6 @@
 
                             {{-- Sub: Rental --}}
                             @if ($role == 'superadmin' || $role == 'keuangan')
-                                <p class="nav-subgroup-label">Rental</p>
                                 <a href="/admin/members"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                     <i class="bi bi-person-badge-fill w-4 text-center shrink-0"></i> Member
@@ -1621,6 +1620,7 @@
     })();
     </script>
 
+    <script src="{{ asset('js/format-rupiah.js') }}"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
 </body>

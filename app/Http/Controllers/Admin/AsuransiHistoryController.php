@@ -63,8 +63,7 @@ class AsuransiHistoryController extends Controller
         $pdf = Pdf::loadView('admin.asuransi.history-pdf', compact('data', 'namaBulan', 'namaTahun', 'setting', 'logoSrc'))
             ->setPaper('a4', 'landscape');
 
-        return $pdf->stream('history-
-        -' . $namaBulan . '-' . $namaTahun . '.pdf');
+        return $pdf->stream('history-asuransi-' . $namaBulan . '-' . $namaTahun . '.pdf');
     }
 
     private function filteredQuery($bulan, $tahun)
