@@ -1464,6 +1464,163 @@
     </script>
     @stack('scripts')
 
+    {{-- ── GLOBAL CLIENT-SIDE PAGINATION UI ────────────────────────────────────
+         Halaman yang memakai #perPageSelect (JS show-entries) otomatis mendapat
+         UI pagination angka bergaya custom-purple di bawah tabel.
+    ──────────────────────────────────────────────────────────────────────────── --}}
+    <script>
+    (function () {
+        'use strict';
+        window.addEventListener('DOMContentLoaded', function () {
+            const perPageEl = document.getElementById('perPageSelect');
+            if (!perPageEl) return;
+
+            // Jika sudah ada server-side pagination (->links()), jangan dobel.
+            // custom-purple view memakai nav[role=navigation][aria-label="Pagination Navigation"].
+            // Juga skip jika ada elemen dengan class py-3 border-t yang mengandung nav pagination
+            // (kasus paginator->hasPages() = false, nav tidak dirender tapi div wrapper tetap ada).
+            if (document.querySelector('nav[role="navigation"][aria-label="Pagination Navigation"]')) return;
+            // Cek tambahan: ada div.py-3.border-t yang berisi teks "Menampilkan" (info pagination)
+            const allDivs = document.querySelectorAll('div.py-3, div.px-5');
+            for (let i = 0; i < allDivs.length; i++) {
+                if (allDivs[i].textContent.includes('Menampilkan') && allDivs[i].textContent.includes('dari')) return;
+            }
+
+            // 1. Sembunyikan bar "Show X entries"
+            const showEntriesBar = perPageEl.closest('div');
+            if (showEntriesBar) showEntriesBar.style.display = 'none';
+
+            // 2. Temukan tbody
+            let tbody = document.querySelector('tbody[id]') || document.querySelector('tbody');
+            if (!tbody) return;
+
+            // 3. State
+            let currentPage  = 1;
+            let perPage      = perPageEl.value === 'all' ? Infinity : (parseInt(perPageEl.value, 10) || 10);
+            let filteredRows = [];
+
+            // 4. Inject container pagination di bawah tabel
+            const tableWrapper = tbody.closest('.overflow-x-auto') || tbody.closest('table').parentElement;
+            const paginationContainer = document.createElement('div');
+            paginationContainer.id = 'globalPaginationUI';
+            paginationContainer.className = 'border-t border-gray-100';
+            tableWrapper.after(paginationContainer);
+
+            // 5. Render UI pagination
+            function renderPagination(total) {
+                const totalPages = (perPage === Infinity) ? 1 : Math.ceil(total / perPage);
+                if (total === 0) { paginationContainer.innerHTML = ''; return; }
+
+                let pages = [];
+                if (totalPages <= 7) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                    pages.push(1);
+                    if (currentPage > 3) pages.push('...');
+                    const start = Math.max(2, currentPage - 1);
+                    const end   = Math.min(totalPages - 1, currentPage + 1);
+                    for (let i = start; i <= end; i++) pages.push(i);
+                    if (currentPage < totalPages - 2) pages.push('...');
+                    pages.push(totalPages);
+                }
+
+                const first = (perPage === Infinity) ? 1 : (currentPage - 1) * perPage + 1;
+                const last  = (perPage === Infinity) ? total : Math.min(currentPage * perPage, total);
+
+                const base    = 'inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm transition-colors';
+                const active  = base + ' bg-purple-600 text-white font-semibold shadow-sm select-none';
+                const normal  = base + ' border border-gray-200 text-gray-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-600 cursor-pointer';
+                const disable = base + ' text-gray-300 cursor-not-allowed select-none';
+
+                let html = '<nav class="flex items-center justify-center gap-1 py-3">';
+
+                // Prev
+                html += (currentPage === 1)
+                    ? `<span class="${disable}"><i class="bi bi-chevron-left text-sm"></i></span>`
+                    : `<span class="${normal}" onclick="window.__goPagPage(${currentPage - 1})"><i class="bi bi-chevron-left text-sm"></i></span>`;
+
+                // Angka halaman
+                pages.forEach(function (p) {
+                    if (p === '...') {
+                        html += `<span class="${base} text-gray-400 select-none">&hellip;</span>`;
+                    } else if (p === currentPage) {
+                        html += `<span class="${active}" aria-current="page">${p}</span>`;
+                    } else {
+                        html += `<span class="${normal}" onclick="window.__goPagPage(${p})">${p}</span>`;
+                    }
+                });
+
+                // Next
+                html += (currentPage >= totalPages)
+                    ? `<span class="${disable}"><i class="bi bi-chevron-right text-sm"></i></span>`
+                    : `<span class="${normal}" onclick="window.__goPagPage(${currentPage + 1})"><i class="bi bi-chevron-right text-sm"></i></span>`;
+
+                html += '</nav>';
+                html += `<p class="text-center text-xs text-gray-400 pb-2">Menampilkan `
+                      + `<span class="font-medium text-gray-600">${first}</span> &ndash; `
+                      + `<span class="font-medium text-gray-600">${last}</span> dari `
+                      + `<span class="font-medium text-gray-600">${total}</span> data</p>`;
+
+                paginationContainer.innerHTML = html;
+            }
+
+            // 6. Terapkan halaman ke baris
+            function applyPage() {
+                const start = (perPage === Infinity) ? 0 : (currentPage - 1) * perPage;
+                const end   = (perPage === Infinity) ? filteredRows.length : start + perPage;
+                filteredRows.forEach(function (row, idx) {
+                    row.style.display = (idx >= start && idx < end) ? '' : 'none';
+                });
+                renderPagination(filteredRows.length);
+            }
+
+            // 7. Pindah halaman (dipanggil dari onclick di HTML)
+            window.__goPagPage = function (page) {
+                currentPage = page;
+                applyPage();
+                tableWrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            };
+
+            // 8. Kumpulkan baris yang lolos filter lalu paginate
+            function hookAfterFilter() {
+                const allRows = Array.from(tbody.querySelectorAll('tr[data-search]'));
+                if (!allRows.length) return;
+
+                const searchEl = document.getElementById('searchInput')
+                              || document.querySelector('input[placeholder*="Cari"]')
+                              || document.querySelector('input[type="text"]');
+                const keyword  = searchEl ? searchEl.value.toLowerCase().trim() : '';
+
+                filteredRows = allRows.filter(function (row) {
+                    return !keyword || (row.dataset.search || row.textContent.toLowerCase()).includes(keyword);
+                });
+
+                allRows.forEach(function (row) { row.style.display = 'none'; });
+                currentPage = 1;
+                applyPage();
+            }
+
+            // 9. Wrap applyFilters yang sudah ada di masing-masing halaman
+            setTimeout(function () {
+                const orig = window.applyFilters;
+                window.applyFilters = function () {
+                    if (orig) orig.apply(this, arguments);
+                    hookAfterFilter();
+                };
+                // Inisialisasi awal
+                hookAfterFilter();
+            }, 0);
+
+            // 10. Sync jika perPageSelect diubah langsung
+            perPageEl.addEventListener('change', function () {
+                perPage = (this.value === 'all') ? Infinity : parseInt(this.value, 10);
+                currentPage = 1;
+                applyPage();
+            });
+        });
+    })();
+    </script>
+
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
 </body>

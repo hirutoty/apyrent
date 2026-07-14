@@ -35,7 +35,7 @@
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                 </div>
                 <button onclick="window.location.reload()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-sync text-xs"></i> Refresh
                 </button>
             </div>
@@ -53,7 +53,7 @@
                 </thead>
                 <tbody id="jenisTableBody">
                     @forelse($data as $i => $d)
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                             data-search="{{ strtolower(($d->user->name ?? '') . ' ' . $d->nama_jenis) }}">
 
                             <td class="px-4 py-3.5 text-xs text-gray-400 font-semibold">{{ $i + 1 }}</td>
@@ -215,7 +215,7 @@
 </style>
 
 <script>
-// ── MODAL ──────────────────────────────────────
+// -- MODAL --------------------------------------
 const jenisModal      = document.getElementById('jenisModal');
 const jenisForm       = document.getElementById('jenisForm');
 const methodContainer = document.getElementById('methodContainer');
@@ -247,14 +247,14 @@ function triggerEdit(btn) {
     jenisModal.classList.add('flex');
 }
 
-// ── SEARCH ──────────────────────────────────────
+// -- SEARCH --------------------------------------
 function filterJenisTable(q) {
     document.querySelectorAll('#jenisTableBody tr[data-search]').forEach(row => {
         row.style.display = row.dataset.search.includes(q.toLowerCase()) ? '' : 'none';
     });
 }
 
-// ── POPUP ALERT ────────────────────────────────────────
+// -- POPUP ALERT ----------------------------------------
 (function () {
     var overlay = document.getElementById('alertOverlay');
     var box     = document.getElementById('alertBox');

@@ -56,7 +56,7 @@
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                 </div>
                 <button onclick="window.location.reload()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-sync text-xs"></i> Refresh
                 </button>
             </div>
@@ -235,7 +235,7 @@
 </style>
 
 <script>
-// ── SEARCH / FILTER ────────────────────────────────
+// -- SEARCH / FILTER --------------------------------
 function applyFilters() {
     const keyword   = document.getElementById('searchInput').value.toLowerCase().trim();
     const perPageEl = document.getElementById('perPageSelect');
@@ -266,7 +266,7 @@ function applyFilters() {
     });
 }
 
-// ── POPUP ALERT ────────────────────────────────────
+// -- POPUP ALERT ------------------------------------
 (function () {
     var overlay = document.getElementById('alertOverlay');
     var box     = document.getElementById('alertBox');

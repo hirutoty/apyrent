@@ -227,7 +227,7 @@
 
                     {{-- Export --}}
                     <button onclick="exportData()"
-                        class="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf text-xs"></i> Export Rental
                     </button>
 
@@ -286,7 +286,7 @@
                                     ? \Carbon\Carbon::parse($r->tanggal_mulai)->format('Y-m')
                                     : '';
                             @endphp
-                            <tr class="rental-row border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                            <tr class="rental-row border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-status="{{ $r->status }}"
                                 data-search="{{ strtolower(($r->kendaraan->merk ?? '') . ' ' . ($r->kendaraan->nopol ?? '') . ' ' . ($r->member->nama_pelanggan ?? '') . ' ' . $r->status) }}"
                                 data-tanggal="{{ $tanggalMulaiStr }}" data-bulan="{{ $tanggalBulan }}">
@@ -336,11 +336,11 @@
                                             {{-- STATUS --}}
                                             @if ($r->terlambat)
                                                 <div class="text-xs text-red-600 font-semibold mt-1">
-                                                    ⚠️ Terlambat {{ $r->sisa }}
+                                                    ?? Terlambat {{ $r->sisa }}
                                                 </div>
                                             @elseif ($r->reminder)
                                                 <div class="text-xs text-orange-500 mt-1">
-                                                    ⏰ Reminder Sisa {{ $r->sisa }}
+                                                    ? Reminder Sisa {{ $r->sisa }}
                                                 </div>
                                             @endif
                                         @endif
@@ -507,7 +507,7 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                    {{-- ── PELANGGAN ── --}}
+                    {{-- -- PELANGGAN -- --}}
                     <div class="md:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-2">Data Pelanggan</label>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -533,7 +533,7 @@
                                     placeholder="Ketik alamat pelanggan..." required></textarea>
                             </div>
 
-                            {{-- ── Email Pelanggan (opsional) ── --}}
+                            {{-- -- Email Pelanggan (opsional) -- --}}
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">
                                     Email Pelanggan <span class="text-gray-400 font-normal">(opsional)</span>
@@ -542,7 +542,7 @@
                                     placeholder="contoh@email.com" class="w-full border rounded-lg px-3 py-2">
                             </div>
 
-                            {{-- ── Jenis Pelanggan (wajib) ── --}}
+                            {{-- -- Jenis Pelanggan (wajib) -- --}}
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">
                                     Jenis Pelanggan <span class="text-red-500">*</span>
@@ -557,7 +557,7 @@
                         </div>
                     </div>
 
-                    {{-- ── KENDARAAN ── --}}
+                    {{-- -- KENDARAAN -- --}}
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan <span
                                 class="text-red-500">*</span></label>
@@ -575,7 +575,7 @@
                         </select>
                     </div>
 
-                    {{-- ── TANGGAL MULAI ── --}}
+                    {{-- -- TANGGAL MULAI -- --}}
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Mulai <span
                                 class="text-red-500">*</span></label>
@@ -585,7 +585,7 @@
                             required>
                     </div>
 
-                    {{-- ── TIPE RENTAL (3 pilihan) ── --}}
+                    {{-- -- TIPE RENTAL (3 pilihan) -- --}}
                     <input type="hidden" name="tipe_rental" id="tipe_rental" value="bulan">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe Rental</label>
@@ -605,7 +605,7 @@
                         </div>
                     </div>
 
-                    {{-- ── DURASI TAHUN ── --}}
+                    {{-- -- DURASI TAHUN -- --}}
                     <div id="formTahun" class="hidden">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Durasi Tahun <span
                                 class="text-red-500">*</span></label>
@@ -614,7 +614,7 @@
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
-                    {{-- ── DURASI BULAN ── --}}
+                    {{-- -- DURASI BULAN -- --}}
                     <div id="formBulan">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Durasi Bulan <span
                                 class="text-red-500">*</span></label>
@@ -623,7 +623,7 @@
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
-                    {{-- ── DURASI HARI ── --}}
+                    {{-- -- DURASI HARI -- --}}
                     <div id="formHari" class="hidden">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Durasi Hari <span
                                 class="text-red-500">*</span></label>
@@ -632,14 +632,14 @@
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
-                    {{-- ── TANGGAL SELESAI ── --}}
+                    {{-- -- TANGGAL SELESAI -- --}}
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Selesai</label>
                         <input type="text" name="tanggal_selesai" id="tanggalSelesai" readonly
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500">
                     </div>
 
-                    {{-- ── HARGA KENDARAAN ── --}}
+                    {{-- -- HARGA KENDARAAN -- --}}
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Kendaraan</label>
                         <div class="border border-gray-200 rounded-lg px-3 py-2.5 bg-blue-50">
@@ -659,7 +659,7 @@
                                 </div>
                                 <div>
                                     <p class="text-xs font-semibold text-gray-800">Informasi Perjalanan & Driver</p>
-                                    <p class="text-xs text-gray-500">Tujuan wajib · Data driver bisa dikosongkan</p>
+                                    <p class="text-xs text-gray-500">Tujuan wajib � Data driver bisa dikosongkan</p>
                                 </div>
                                 <span
                                     class="ml-auto text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700">Per
@@ -735,7 +735,7 @@
                         </div>
                     </div>
 
-                    {{-- ── BIAYA DASAR ── --}}
+                    {{-- -- BIAYA DASAR -- --}}
                     <div class="md:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya Dasar</label>
                         <div class="border border-gray-200 rounded-lg px-4 py-3 bg-green-50">
@@ -745,7 +745,7 @@
                         </div>
                     </div>
 
-                    {{-- ── METODE & JENIS PEMBAYARAN ── --}}
+                    {{-- -- METODE & JENIS PEMBAYARAN -- --}}
                     <select name="metode_pembayaran" id="metodePembayaran" class="border rounded px-3 py-2 text-sm">
                         <option value="tunai">Tunai</option>
                         <option value="transfer">Transfer</option>
@@ -757,7 +757,7 @@
                         <option value="dp">DP</option>
                     </select>
 
-                    {{-- ── BUKTI LUNAS (drag-drop) ── --}}
+                    {{-- -- BUKTI LUNAS (drag-drop) -- --}}
                     <div id="formLunas" class="md:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Bukti Transfer Lunas</label>
 
@@ -782,7 +782,7 @@
                         </div>
                     </div>
 
-                    {{-- ── BUKTI DP ── --}}
+                    {{-- -- BUKTI DP -- --}}
                     <div id="formDP" class="hidden md:col-span-2">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -822,10 +822,10 @@
                         </div>
                     </div>
 
-                    {{-- ════════════════════════════════════════
+                    {{-- ----------------------------------------
                      DOKUMEN: INVOICE & KELAYAKAN
                      
-                ════════════════════════════════════════ --}}
+                ---------------------------------------- --}}
                     <div class="md:col-span-2">
                         <div class="border-t border-gray-100 pt-4 mb-3">
                             <h3 class="text-xs font-bold text-gray-600 uppercase tracking-wide">
@@ -837,7 +837,7 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                            {{-- ── INVOICE ── --}}
+                            {{-- -- INVOICE -- --}}
                             <div>
                                 <div class="flex items-center justify-between mb-1">
                                     <label class="block text-xs font-semibold text-gray-600">Invoice</label>
@@ -872,7 +872,7 @@
                                 </div>
                             </div>
 
-                            {{-- ── KELAYAKAN ── --}}
+                            {{-- -- KELAYAKAN -- --}}
                             <div>
                                 <div class="flex items-center justify-between mb-1">
                                     <label class="block text-xs font-semibold text-gray-600">
@@ -918,7 +918,7 @@
                 {{-- SUBMIT --}}
                 <div class="flex justify-end gap-2 mt-5">
                     <button type="button" onclick="closeModal()"
-                        class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -933,13 +933,13 @@
 
 
     {{-- ======================================================================
-     SCRIPT TAMBAHAN — tempel di dalam <script> yang sudah ada
+     SCRIPT TAMBAHAN � tempel di dalam <script> yang sudah ada
      
      ====================================================================== --}}
     <script>
-        /* ─────────────────────────────────────────────────────────────────────────
-                                                                                           TIPE RENTAL: sekarang ada 3 pilihan → tahun | bulan | hari
-                                                                                           ───────────────────────────────────────────────────────────────────────── */
+        /* -------------------------------------------------------------------------
+                                                                                           TIPE RENTAL: sekarang ada 3 pilihan ? tahun | bulan | hari
+                                                                                           ------------------------------------------------------------------------- */
         function setTipeRental(tipe) {
             tipeRental = tipe;
             document.getElementById('tipe_rental').value = tipe;
@@ -985,7 +985,7 @@
                 btnHari?.classList.replace('text-gray-600', 'text-white');
             }
 
-            // ── Tampilkan / sembunyikan section driver ──  ← DIPINDAH KE SINI
+            // -- Tampilkan / sembunyikan section driver --  ? DIPINDAH KE SINI
             const sectionDriver = document.getElementById('section-driver');
             const inputTujuan = document.getElementById('input_tujuan');
             const invoiceBadge = document.getElementById('invoice-badge');
@@ -1024,9 +1024,9 @@
 
 
 
-        /* ─────────────────────────────────────────────────────────────────────────
-           HITUNG BIAYA DASAR — support tahun | bulan | hari
-           ───────────────────────────────────────────────────────────────────────── */
+        /* -------------------------------------------------------------------------
+           HITUNG BIAYA DASAR � support tahun | bulan | hari
+           ------------------------------------------------------------------------- */
         function hitungBiayaDasar() {
             let total = 0,
                 rumus = '';
@@ -1051,7 +1051,7 @@
             if (be) be.innerText = total.toLocaleString('id-ID');
             biayaDasar = total;
 
-            // ── Tambahkan biaya driver ke total (khusus Per Hari) ──
+            // -- Tambahkan biaya driver ke total (khusus Per Hari) --
             const biayaDriverVal = parseInt(document.getElementById('biaya_driver')?.value) || 0;
             const hariVal = parseInt(document.getElementById('durasiHari')?.value) || 0;
             const totalDriver = (tipeRental === 'hari') ? biayaDriverVal * hariVal : 0;
@@ -1077,9 +1077,9 @@
             hitungPelunasan();
         }
 
-        /* ─────────────────────────────────────────────────────────────────────────
-           UPDATE TANGGAL SELESAI — support tahun
-           ───────────────────────────────────────────────────────────────────────── */
+        /* -------------------------------------------------------------------------
+           UPDATE TANGGAL SELESAI � support tahun
+           ------------------------------------------------------------------------- */
         function updateTanggalSelesai() {
             const mulai = fpInstance ?
                 fpInstance.input.value :
@@ -1108,9 +1108,9 @@
             validasiRentang();
         }
 
-        /* ─────────────────────────────────────────────────────────────────────────
-           PREVIEW BUKTI BAYAR (lunas / dp) — tetap sama
-           ───────────────────────────────────────────────────────────────────────── */
+        /* -------------------------------------------------------------------------
+           PREVIEW BUKTI BAYAR (lunas / dp) � tetap sama
+           ------------------------------------------------------------------------- */
         function previewFile(event, previewId, dropId) {
             const file = event.target.files[0];
             const preview = document.getElementById(previewId);
@@ -1128,7 +1128,7 @@
                 // PDF/doc: tampilkan nama file di area drop
                 preview.classList.add('hidden');
                 const label = drop?.querySelector('p.text-sm');
-                if (label) label.textContent = '✔ ' + file.name;
+                if (label) label.textContent = '? ' + file.name;
             }
         }
 
@@ -1162,10 +1162,10 @@
             initDrop('drop-dp', 'bukti_dp', 'preview_dp');
         })();
 
-        /* ─────────────────────────────────────────────────────────────────────────
+        /* -------------------------------------------------------------------------
            PREVIEW DOKUMEN (invoice & kelayakan)
            Bedanya: kalau PDF/doc, tampilkan nama file (bukan icon PDF) di bubble
-           ───────────────────────────────────────────────────────────────────────── */
+           ------------------------------------------------------------------------- */
         function previewDokumen(event, previewId, dropId, namaId) {
             const file = event.target.files[0];
             const preview = document.getElementById(previewId);
@@ -1186,9 +1186,9 @@
                 };
                 reader.readAsDataURL(file);
             } else {
-                // PDF / doc / xls → tampilkan nama file
+                // PDF / doc / xls ? tampilkan nama file
                 if (namaEl) {
-                    namaEl.textContent = '✔ ' + file.name;
+                    namaEl.textContent = '? ' + file.name;
                     namaEl.classList.remove('hidden');
                 }
             }
@@ -1227,7 +1227,7 @@
             initDropDokumen('drop-kelayakan', 'file_kelayakan', 'prev-kelayakan', 'nama-kelayakan');
         })();
 
-        // ── VALIDASI KELAYAKAN WAJIB ───────────────────────
+        // -- VALIDASI KELAYAKAN WAJIB -----------------------
         document.getElementById('rentalStoreForm').addEventListener('submit', function(e) {
             const kelayakanInput = document.getElementById('file_kelayakan');
             const errorEl = document.getElementById('kelayakan-error');
@@ -1384,9 +1384,9 @@
 
     {{-- SCRIPT --}}
     <script>
-        /* ─────────────────────────────
+        /* -----------------------------
                                                                                                                             STATE
-                                                                                                                        ──────────────────────────── */
+                                                                                                                        ---------------------------- */
         let activeTab = 'semua';
         let filterTipe = null;
         let tipeRental = 'bulan';
@@ -1394,9 +1394,9 @@
         let biayaDasar = 0;
         let fpInstance = null; // Flatpickr instance
 
-        /* ─────────────────────────────
+        /* -----------------------------
             BOOKED DATES (dari server)
-        ──────────────────────────── */
+        ---------------------------- */
         // Format: { "kendaraan_id": [{ mulai: "...", selesai: "..." }, ...], ... }
         const bookedDates = @json($bookedDates ?? []);
 
@@ -1542,9 +1542,9 @@
             });
         }
 
-        /* ─────────────────────────────
+        /* -----------------------------
             TAB SWITCHING
-        ──────────────────────────── */
+        ---------------------------- */
         const TAB_COLORS = {
             semua: {
                 border: '#3b82f6',
@@ -1610,9 +1610,9 @@
             applyFilters();
         }
 
-        /* ─────────────────────────────
+        /* -----------------------------
             FILTER TIPE
-        ──────────────────────────── */
+        ---------------------------- */
         function setFilterTipe(tipe) {
             if (filterTipe === tipe) {
                 filterTipe = null;
@@ -1649,9 +1649,9 @@
             applyFilters();
         }
 
-        /* ─────────────────────────────
+        /* -----------------------------
             APPLY FILTERS
-        ──────────────────────────── */
+        ---------------------------- */
         function applyFilters() {
             const search     = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
             const tanggalVal = document.getElementById('filterTanggal')?.value || '';
@@ -1700,9 +1700,9 @@
                     : visible + (matched.length > visible ? ' dari ' + matched.length : '');
         }
 
-        /* ─────────────────────────────
+        /* -----------------------------
             EXPORT PDF
-        ──────────────────────────── */
+        ---------------------------- */
         function exportData() {
             const params = new URLSearchParams();
             if (activeTab !== 'semua') params.set('status', activeTab);
@@ -1718,15 +1718,15 @@
             window.open('{{ route('rental.pdf') }}?' + params.toString(), '_blank');
         }
 
-        /* ─────────────────────────────
+        /* -----------------------------
             MODAL
-        ──────────────────────────── */
+        ---------------------------- */
         const modalRental = document.getElementById('modalRental');
 
         function openModal() {
             modalRental?.classList.remove('hidden');
             modalRental?.classList.add('flex');
-            // Init date picker saat modal dibuka (kendaraan belum dipilih → semua terbuka)
+            // Init date picker saat modal dibuka (kendaraan belum dipilih ? semua terbuka)
             refreshDatePicker();
         }
 
@@ -1743,9 +1743,9 @@
             if (e.target === modalRental) closeModal();
         });
 
-        /* ─────────────────────────────
+        /* -----------------------------
             RENTAL LOGIC
-        ──────────────────────────── */
+        ---------------------------- */
 
 
         function setHargaKendaraan() {
@@ -1770,9 +1770,9 @@
 
 
 
-        /* ─────────────────────────────
+        /* -----------------------------
             PAYMENT TOGGLE
-        ──────────────────────────── */
+        ---------------------------- */
         function toggleJenisPembayaran() {
             const jenis = document.getElementById('jenisPembayaran');
             const isLunas = jenis?.value === 'lunas';
@@ -1790,9 +1790,9 @@
             if (el) el.value = sisa >= 0 ? sisa : 0;
         }
 
-        /* ─────────────────────────────
+        /* -----------------------------
             MEMBER AUTOCOMPLETE
-        ──────────────────────────── */
+        ---------------------------- */
         const members = @json($pelangganJson);
         const memberInput = document.getElementById('nama_pelanggan');
         const memberResult = document.getElementById('member-result');
@@ -1842,9 +1842,9 @@
             });
         }
 
-        /* ─────────────────────────────
+        /* -----------------------------
             ALERT POPUP
-        ──────────────────────────── */
+        ---------------------------- */
         (function() {
             const overlay = document.getElementById('alertOverlay');
             const box = document.getElementById('alertBox');
@@ -1868,9 +1868,9 @@
             window.closeAlert = closeAlert;
         })();
 
-        /* ─────────────────────────────
+        /* -----------------------------
             INIT
-        ──────────────────────────── */
+        ---------------------------- */
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('nominal_dp')?.addEventListener('input', hitungPelunasan);
             toggleJenisPembayaran();
@@ -2026,7 +2026,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json', // ← tambah ini
+                        'Accept': 'application/json', // ? tambah ini
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     body: JSON.stringify({

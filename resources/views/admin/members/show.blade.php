@@ -19,7 +19,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {{-- ── KARTU PROFIL MEMBER ── --}}
+        {{-- -- KARTU PROFIL MEMBER -- --}}
         <div class="lg:col-span-1 space-y-4">
 
             {{-- Info Utama --}}
@@ -183,7 +183,7 @@
 
         </div>
 
-        {{-- ── DAFTAR KENDARAAN ── --}}
+        {{-- -- DAFTAR KENDARAAN -- --}}
         <div class="lg:col-span-2">
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
@@ -223,7 +223,7 @@
                             </thead>
                             <tbody>
                                 @foreach($member->kendaraans as $k)
-                                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                                         <td class="px-4 py-3.5">
                                             <div class="flex items-center gap-2.5">
                                                 @if($k->foto)

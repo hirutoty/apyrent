@@ -125,17 +125,17 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <a href="{{ route('bukubesar.pdf', ['search' => request('search')]) }}" target="_blank"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                             <i class="fa fa-file-pdf text-xs"></i> PDF
                         </a>
 
                         <a href="{{ route('bukubesar.export.excel', ['search' => request('search')]) }}"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
                             <i class="fa fa-file-excel text-xs"></i> Excel
                         </a>
 
                         <a href="{{ route('bukubesar.export.csv', ['search' => request('search')]) }}"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-purple-600 text-purple-600 rounded-lg bg-transparent hover:bg-purple-600 hover:text-white transition-colors">
                             <i class="fa fa-file-csv text-xs"></i> CSV
                         </a>
                         <div class="relative">
@@ -152,7 +152,7 @@
                             </form>
                         </div>
                         <button onclick="window.location.reload()"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <i class="fa fa-sync text-xs"></i> Refresh
                         </button>
                     </div>
@@ -189,7 +189,7 @@
                         </thead>
                         <tbody id="tableBody">
                             @forelse ($data as $item)
-                                <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                                <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                     data-search="{{ strtolower($item->kode_jurnal . ' ' . $item->transaksi . ' ' . $item->kategori . ' ' . $item->aktivitas . ' ' . $item->referensi) }}">
 
                                     <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $data->firstItem() + $loop->index }}</td>
@@ -308,15 +308,15 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <a href="{{ route('bukubesar.laba-rugi.pdf') }}" target="_blank"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                             <i class="fa fa-file-pdf text-xs"></i> PDF
                         </a>
                         <a href="{{ route('bukubesar.laba-rugi.excel') }}"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
                             <i class="fa fa-file-excel text-xs"></i> Excel
                         </a>
                         <a href="{{ route('bukubesar.laba-rugi.csv') }}"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-purple-600 text-purple-600 rounded-lg bg-transparent hover:bg-purple-600 hover:text-white transition-colors">
                             <i class="fa fa-file-csv text-xs"></i> CSV
                         </a>
                     </div>
@@ -733,7 +733,7 @@
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalTambah()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -842,7 +842,7 @@
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalEdit()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -926,7 +926,7 @@
     </style>
 
     <script>
-        // ── MODAL TAMBAH ───────────────────────────────────
+        // -- MODAL TAMBAH -----------------------------------
         function openModalTambah() {
             var m = document.getElementById('modalTambah');
             m.classList.remove('hidden');
@@ -942,7 +942,7 @@
             if (e.target === this) closeModalTambah();
         });
 
-        // ── MODAL EDIT ─────────────────────────────────────
+        // -- MODAL EDIT -------------------------------------
         function openEditModal(id, kode_jurnal, transaksi, kategori, tanggal, debit, kredit, saldo, aktivitas, keterangan) {
             var m = document.getElementById('modalEdit');
             m.classList.remove('hidden');
@@ -976,8 +976,8 @@
             }
         });
 
-        // ── SEARCH / FILTER ────────────────────────────────
-        // ── TAB SWITCHER ───────────────────────────────────
+        // -- SEARCH / FILTER --------------------------------
+        // -- TAB SWITCHER -----------------------------------
         function switchTab(name) {
             const panes = ['buku-besar', 'laba-rugi', 'neraca', 'arus-kas'];
             panes.forEach(function(p) {
@@ -1005,7 +1005,7 @@
             });
         }
 
-        // ── POPUP ALERT ────────────────────────────────────
+        // -- POPUP ALERT ------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');

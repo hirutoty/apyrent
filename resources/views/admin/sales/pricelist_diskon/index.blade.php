@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 @section('title', 'Pricelist & Diskon')
 @section('content')
 <div class="space-y-6">
@@ -11,7 +11,7 @@
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('pricelist-diskon.pdf') }}" target="_blank"
-                class="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors">
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                 <i class="fa fa-file-pdf text-sm"></i> Export PDF
             </a>
             <button onclick="openModal()"
@@ -84,7 +84,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->id_harga }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->nama_produk }}</td>
@@ -101,7 +101,7 @@
                         </td>
                         <td class="px-4 py-3.5 text-right text-green-700 text-xs font-semibold">Rp {{ number_format($d->harga_diskon, 0, ',', '.') }}</td>
                         <td class="px-4 py-3.5 text-gray-500 text-xs">
-                            {{ \Carbon\Carbon::parse($d->periode_mulai)->format('d M Y') }} –
+                            {{ \Carbon\Carbon::parse($d->periode_mulai)->format('d M Y') }} �
                             {{ \Carbon\Carbon::parse($d->periode_selesai)->format('d M Y') }}
                         </td>
                         <td class="px-4 py-3.5">

@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'History KIR Kendaraan')
 
@@ -45,7 +45,7 @@
                 </select>
 
                 <a href="{{ route('history.kir.export', ['bulan' => $bulan, 'tahun' => $tahun]) }}" target="_blank"
-                    class="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                     <i class="fa fa-file-pdf"></i> Export PDF
                 </a>
             </form>

@@ -157,14 +157,12 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <a href="{{ route('efaktur.pdf') }}?search=" id="pdfLinkEfaktur" target="_blank"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500
-  rounded-lg hover:bg-red-600">
-                            <i class="fa fa-file-pdf"></i> PDF
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                            <i class="fa fa-file-pdf text-xs"></i> PDF
                         </a>
                         <a href="{{ route('efaktur.export.excel') }}" id="excelLinkEfaktur"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white
-  bg-green-600 rounded-lg hover:bg-green-700">
-                            <i class="fa fa-file-excel"></i> Excel
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
+                            <i class="fa fa-file-excel text-xs"></i> Excel
                         </a>
                         <div class="relative">
                             <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -175,7 +173,7 @@
                         </div>
                         <button onclick="window.location.reload()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border
-  border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+  border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <i class="fa fa-sync text-xs"></i> Refresh
                         </button>
                     </div>
@@ -236,7 +234,7 @@
                         </thead>
                         <tbody id="tableBodyEfaktur">
                             @forelse ($data as $item)
-                                <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                                <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                     data-search="{{ strtolower(
                                         $item->nomor_faktur . ' ' . $item->nama_lawan . ' ' . $item->npwp_lawan . ' ' . $item->tipe . ' ' . $item->status,
                                     ) }}">
@@ -480,14 +478,12 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <a href="{{ route('bupot.pdf') }}?search=" id="pdfLinkBupot" target="_blank"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500
-  rounded-lg hover:bg-red-600">
-                            <i class="fa fa-file-pdf"></i> PDF
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                            <i class="fa fa-file-pdf text-xs"></i> PDF
                         </a>
                         <a href="{{ route('bupot.export.excel') }}" id="excelLinkBupot"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white
-  bg-green-600 rounded-lg hover:bg-green-700">
-                            <i class="fa fa-file-excel"></i> Excel
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
+                            <i class="fa fa-file-excel text-xs"></i> Excel
                         </a>
                         <div class="relative">
                             <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -498,7 +494,7 @@
                         </div>
                         <button onclick="window.location.reload()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border
-  border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+  border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <i class="fa fa-sync text-xs"></i> Refresh
                         </button>
                     </div>
@@ -559,7 +555,7 @@
                         </thead>
                         <tbody id="tableBodyBupot">
                             @forelse ($dataBupot as $item)
-                                <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                                <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                     data-search="{{ strtolower(
                                         $item->nomor_bukti .
                                             ' ' .
@@ -780,7 +776,7 @@
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalTambah()"
                         class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl
-  hover:bg-gray-50 transition-colors">Batal</button>
+  odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
                     <button type="submit"
                         class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl
   transition-colors duration-150 flex items-center justify-center gap-2">
@@ -902,7 +898,7 @@
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeEditModalEfaktur()"
                         class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl
-  hover:bg-gray-50 transition-colors">Batal</button>
+  odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
                     <button type="submit"
                         class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl
   transition-colors duration-150 flex items-center justify-center gap-2">
@@ -1024,7 +1020,7 @@
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalTambahBupot()"
                         class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl
-  hover:bg-gray-50 transition-colors">Batal</button>
+  odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
                     <button type="submit"
                         class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl
   transition-colors duration-150 flex items-center justify-center gap-2">
@@ -1154,7 +1150,7 @@
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeEditModalBupot()"
                         class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl
-  hover:bg-gray-50 transition-colors">Batal</button>
+  odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
                     <button type="submit"
                         class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl
   transition-colors duration-150 flex items-center justify-center gap-2">
@@ -1231,7 +1227,7 @@
     </style>
 
     <script>
-        // ── SWITCH TAB ─────────────────────────────────────────
+        // -- SWITCH TAB -----------------------------------------
         function switchTab(tab) {
             document.getElementById('content-efaktur').classList.add('hidden');
             document.getElementById('content-bupot').classList.add('hidden');
@@ -1245,7 +1241,7 @@
             active.classList.remove('border-transparent', 'text-gray-400');
         }
 
-        // ── MODAL TAMBAH EFAKTUR ───────────────────────────────
+        // -- MODAL TAMBAH EFAKTUR -------------------------------
         function openModalTambah() {
             var m = document.getElementById('modalTambahEfaktur');
             m.classList.remove('hidden');
@@ -1261,7 +1257,7 @@
             if (e.target === this) closeModalTambah();
         });
 
-        // ── MODAL EDIT EFAKTUR ─────────────────────────────────
+        // -- MODAL EDIT EFAKTUR ---------------------------------
         function openEditModalEfaktur(id, nomor, tanggal, tipe, npwp, nama, dpp, ppn, ppnbm,
             status, fileUrl) {
             var m = document.getElementById('modalEditEfaktur');
@@ -1296,7 +1292,7 @@
                           <img src="${fileUrl}" class="w-32 h-32 object-cover rounded-lg border
   shadow-sm">
                       </div>
-                      <p class="text-[11px] text-gray-400 mt-1">File saat ini — upload baru
+                      <p class="text-[11px] text-gray-400 mt-1">File saat ini � upload baru
   untuk mengganti</p>`;
                 } else {
                     var fileName = fileUrl.split('/').pop();
@@ -1322,7 +1318,7 @@
             if (e.target === this) closeEditModalEfaktur();
         });
 
-        // ── MODAL TAMBAH BUPOT ─────────────────────────────────
+        // -- MODAL TAMBAH BUPOT ---------------------------------
         function openModalTambahBupot() {
             var m = document.getElementById('modalTambahBupot');
             m.classList.remove('hidden');
@@ -1338,7 +1334,7 @@
             if (e.target === this) closeModalTambahBupot();
         });
 
-        // ── MODAL EDIT BUPOT ───────────────────────────────────
+        // -- MODAL EDIT BUPOT -----------------------------------
         function openEditModalBupot(id, nomor, tanggal, tipe, npwp_pemotong, nama_pemotong,
             npwp_dipotong, nama_dipotong, bruto, tarif, status) {
             var m = document.getElementById('modalEditBupot');
@@ -1371,7 +1367,7 @@
             if (e.target === this) closeEditModalBupot();
         });
 
-        // ── ESCAPE KEY ─────────────────────────────────────────
+        // -- ESCAPE KEY -----------------------------------------
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeModalTambah();
@@ -1381,7 +1377,7 @@
             }
         });
 
-        // ── SEARCH EFAKTUR ─────────────────────────────────────
+        // -- SEARCH EFAKTUR -------------------------------------
         function filterTableEfaktur(q) {
             var num = 0;
             document.querySelectorAll('#tableBodyEfaktur tr[data-search]').forEach(function(row) {
@@ -1397,7 +1393,7 @@
             document.getElementById('excelLinkEfaktur').href = "{{ route('efaktur.export.excel') }}" + query;
         }
 
-        // ── SEARCH BUPOT ───────────────────────────────────────
+        // -- SEARCH BUPOT ---------------------------------------
         function filterTableBupot(q) {
             var num = 0;
             document.querySelectorAll('#tableBodyBupot tr[data-search]').forEach(function(row) {
@@ -1414,7 +1410,7 @@
                 query;
         }
 
-        // ── PREVIEW FILE (UNIVERSAL) ───────────────────────────
+        // -- PREVIEW FILE (UNIVERSAL) ---------------------------
         function previewFile(event, previewId, inputId) {
             const file = event.target.files[0];
             const preview = document.getElementById(previewId);
@@ -1434,7 +1430,7 @@
                           <button type="button"
   onclick="removeFile('${inputId}','${previewId}')"
                               class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6
-  rounded-full text-xs">×</button>
+  rounded-full text-xs">�</button>
                       </div>`;
                 };
                 reader.readAsDataURL(file);
@@ -1448,7 +1444,7 @@
                       <i class="fa-solid ${icon} text-lg"></i>
                       <span class="text-xs text-gray-600">${file.name}</span>
                       <button type="button" onclick="removeFile('${inputId}','${previewId}')"
-                          class="ml-2 text-red-500 text-sm">×</button>
+                          class="ml-2 text-red-500 text-sm">�</button>
                   </div>`;
             }
         }
@@ -1459,7 +1455,7 @@
             document.getElementById(previewId).classList.add('hidden');
         }
 
-        // ── POPUP ALERT ────────────────────────────────────────
+        // -- POPUP ALERT ----------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');
@@ -1484,7 +1480,7 @@
             window.closeAlert = closeAlert;
         })();
 
-        // ── PERTAHANKAN TAB AKTIF SETELAH SUBMIT ───────────────
+        // -- PERTAHANKAN TAB AKTIF SETELAH SUBMIT ---------------
         (function() {
             const lastTab = sessionStorage.getItem('activeTab');
 

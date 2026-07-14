@@ -21,8 +21,8 @@
     </div>
 
     {{-- NAV TABS --}}
-    <div class="border-b border-gray-200">
-        <nav class="flex gap-0 -mb-px overflow-x-auto">
+    <div>
+        <nav class="inline-flex gap-1 bg-gray-100 rounded-xl p-1">
             @php
                 $navItems = [
                     ['label' => 'Service History',  'url' => '/admin/service-history', 'icon' => 'bi bi-clock-history'],
@@ -33,8 +33,8 @@
             @foreach ($navItems as $item)
                 @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
                 <a href="{{ $item['url'] }}"
-                    class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
-                        {{ $isActiveTab ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
+                        {{ $isActiveTab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60' }}">
                     <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
                 </a>
             @endforeach
@@ -84,41 +84,50 @@
         {{-- TOOLBAR --}}
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
             <div>
-                <h2 class="font-semibold text-gray-800 text-base">Daftar Reminder Service</h2>
-                <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total reminder</p>
+                <h2 class="font-semibold text-gray-800">Reminder Service</h2>
+                <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} data</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
+                {{-- Filter Status (pill) --}}
+                <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                    <a href="{{ url('/admin/reminder-service') }}"
+                        class="px-3 py-1 text-xs font-medium rounded-md transition-colors {{ !request('status') ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                        Semua
+                    </a>
+                    <a href="{{ url('/admin/reminder-service?status=aktif') }}"
+                        class="px-3 py-1 text-xs font-medium rounded-md transition-colors {{ request('status') == 'aktif' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-blue-600' }}">
+                        Aktif
+                    </a>
+                    <a href="{{ url('/admin/reminder-service?status=jatuh_tempo') }}"
+                        class="px-3 py-1 text-xs font-medium rounded-md transition-colors {{ request('status') == 'jatuh_tempo' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-red-600' }}">
+                        Jatuh Tempo
+                    </a>
+                    <a href="{{ url('/admin/reminder-service?status=selesai') }}"
+                        class="px-3 py-1 text-xs font-medium rounded-md transition-colors {{ request('status') == 'selesai' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-emerald-600' }}">
+                        Selesai
+                    </a>
+                </div>
+                {{-- Search --}}
                 <form method="GET" class="flex items-center gap-2">
-                    <input type="hidden" name="search" value="{{ request('search') }}">
-                    <select name="status" onchange="this.form.submit()"
-                        class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="">Semua Status</option>
-                        <option value="aktif"       {{ request('status') == 'aktif'       ? 'selected' : '' }}>Aktif</option>
-                        <option value="jatuh_tempo" {{ request('status') == 'jatuh_tempo' ? 'selected' : '' }}>Jatuh Tempo</option>
-                        <option value="selesai"     {{ request('status') == 'selesai'     ? 'selected' : '' }}>Selesai</option>
-                    </select>
+                    <div class="relative">
+                        <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                        <input type="text" name="search" value="{{ request('search') }}"
+                            placeholder="Cari kendaraan..."
+                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 w-44">
+                    </div>
+                    <button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">Cari</button>
+                    @if(request('search'))
+                    <a href="{{ url('/admin/reminder-service') }}" class="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Reset</a>
+                    @endif
                 </form>
                 <button type="button" id="btnExpandAll" onclick="expandAllAccordion()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors">
-                    <i class="fa fa-angles-down text-xs"></i> Expand All
+                    class="px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
+                    <i class="fa fa-chevron-down text-xs"></i> Buka Semua
                 </button>
                 <button type="button" id="btnCollapseAll" onclick="collapseAllAccordion()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
-                    <i class="fa fa-angles-up text-xs"></i> Collapse All
+                    class="px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <i class="fa fa-chevron-right text-xs"></i> Tutup Semua
                 </button>
-                <form method="GET" class="flex items-center gap-2">
-                    <input type="hidden" name="status" value="{{ request('status') }}">
-                    <div class="relative">
-                        <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input type="text" name="search" value="{{ request('search') }}"
-                            placeholder="Cari kendaraan, reminder..."
-                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 w-48">
-                    </div>
-                    <button type="submit" class="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cari</button>
-                    <a href="{{ url('/admin/reminder-service') }}" class="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
-                        <i class="fa fa-rotate-left text-xs"></i> Reset
-                    </a>
-                </form>
             </div>
         </div>
 
@@ -126,17 +135,15 @@
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-100">
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Kendaraan</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Nama Reminder</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal Mulai</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Interval</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jatuh Tempo</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Sisa Hari</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Keterangan</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
-                        <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
+                    <tr class="bg-gray-50 border-b border-gray-200">
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Reminder</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Interval</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Jatuh Tempo</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Sisa Hari</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Keterangan</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Biaya</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Status</th>
+                        <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -161,22 +168,22 @@
                         @endphp
 
                         {{-- GROUP HEADER ROW --}}
-                        <tr class="group-header bg-purple-50 border-t border-purple-100 cursor-pointer select-none hover:bg-purple-100 transition-colors"
+                        <tr class="group-header bg-blue-50 border-t border-blue-100 border-l-4 border-l-blue-500 cursor-pointer select-none hover:bg-blue-100 transition-colors shadow-sm"
                             onclick="toggleAccordion('{{ $groupId }}')"
                             data-group="{{ $groupId }}">
-                            <td colspan="10" class="px-4 py-3">
+                            <td colspan="8" class="px-5 py-3.5">
                                 <div class="flex items-center gap-3">
                                     {{-- Car icon --}}
-                                    <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center flex-shrink-0">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
                                         <i class="fa-solid fa-car text-sm"></i>
                                     </div>
                                     {{-- Merk & Nopol --}}
                                     <div class="flex-1 min-w-0">
-                                        <span class="font-semibold text-purple-900 text-sm">{{ $merk }}</span>
-                                        <span class="ml-2 text-xs font-mono text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded">{{ $nopol }}</span>
+                                        <span class="font-semibold text-blue-900 text-sm">{{ $merk }}</span>
+                                        <span class="ml-2 text-xs font-mono text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">{{ $nopol }}</span>
                                     </div>
                                     {{-- Total reminders badge --}}
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-white text-purple-700 border border-purple-200">
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-white text-blue-700 border border-blue-200">
                                         <i class="fa-solid fa-bell text-[10px]"></i>
                                         {{ $totalCount }} reminder
                                     </span>
@@ -194,7 +201,7 @@
                                     @endif
                                     {{-- Chevron --}}
                                     <i id="chevron-{{ $groupId }}"
-                                       class="fa-solid fa-chevron-down text-purple-500 text-xs transition-transform duration-200 {{ $autoExpand ? 'rotate-180' : '' }}"></i>
+                                       class="fa-solid fa-chevron-down text-blue-500 text-xs transition-transform duration-200 {{ $autoExpand ? 'rotate-180' : '' }}"></i>
                                 </div>
                             </td>
                         </tr>
@@ -210,58 +217,57 @@
                                     $rowClass = 'bg-yellow-50';
                                 }
                             @endphp
-                            <tr class="group-detail border-t border-gray-50 transition-colors {{ $rowClass ?: 'hover:bg-gray-50' }}"
+                            <tr class="group-detail border-t border-gray-100 transition-colors {{ $rowClass ?: 'hover:bg-blue-50/30' }}"
                                 data-group="{{ $groupId }}"
                                 style="{{ $autoExpand ? '' : 'display:none;' }}">
-                                <td class="px-4 py-3.5 text-xs text-gray-400">{{ $globalIndex++ }}</td>
-
-                                {{-- Kendaraan --}}
-                                <td class="px-4 py-3.5">
-                                    <p class="font-semibold text-gray-800 text-sm">{{ $d->kendaraan->merk ?? '-' }}</p>
-                                    <p class="text-xs text-gray-400 font-mono">{{ $d->kendaraan->nopol ?? '-' }}</p>
+                                {{-- Nama Reminder --}}
+                                <td class="px-5 py-4">
+                                    <p class="text-sm font-semibold text-gray-800">{{ $d->nama_reminder }}</p>
+                                    <p class="text-xs text-gray-400 mt-0.5">Mulai {{ \Carbon\Carbon::parse($d->tanggal_mulai)->format('d M Y') }}</p>
                                 </td>
 
-                                {{-- Nama Reminder --}}
-                                <td class="px-4 py-3.5 font-medium text-gray-700">{{ $d->nama_reminder }}</td>
-
-                                {{-- Tanggal Mulai --}}
-                                <td class="px-4 py-3.5 text-xs text-gray-600">{{ \Carbon\Carbon::parse($d->tanggal_mulai)->format('d/m/Y') }}</td>
-
                                 {{-- Interval --}}
-                                <td class="px-4 py-3.5 text-xs text-gray-600">
+                                <td class="px-5 py-4 text-sm text-gray-600 whitespace-nowrap">
                                     {{ $d->interval_nilai }} {{ $d->interval_satuan }}
                                 </td>
 
                                 {{-- Jatuh Tempo --}}
-                                <td class="px-4 py-3.5 text-xs font-semibold
+                                <td class="px-5 py-4 text-sm font-semibold
                                     {{ $d->status === 'jatuh_tempo' ? 'text-red-600' : 'text-gray-700' }}">
                                     {{ $d->tanggal_jatuh_tempo ? \Carbon\Carbon::parse($d->tanggal_jatuh_tempo)->format('d/m/Y') : '-' }}
                                 </td>
 
                                 {{-- Sisa Hari --}}
-                                <td class="px-4 py-3.5">
+                                <td class="px-5 py-4">
                                     @if ($d->status === 'selesai')
-                                        <span class="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Selesai</span>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500"><span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span> Selesai</span>
                                     @elseif ($sisa < 0)
-                                        <span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                            Lewat {{ abs($sisa) }} hari
-                                        </span>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Lewat {{ abs($sisa) }} hari</span>
                                     @elseif ($sisa === 0)
-                                        <span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Hari ini!</span>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> Hari ini!</span>
                                     @elseif ($sisa <= 7)
-                                        <span class="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">{{ $sisa }} hari lagi</span>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> {{ $sisa }} hari lagi</span>
                                     @else
-                                        <span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">{{ $sisa }} hari lagi</span>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {{ $sisa }} hari lagi</span>
                                     @endif
                                 </td>
 
                                 {{-- Keterangan --}}
-                                <td class="px-4 py-3.5 text-xs text-gray-500 max-w-[180px]">
+                                <td class="px-5 py-4 text-sm text-gray-500 max-w-xs">
                                     <span class="line-clamp-2">{{ $d->keterangan ?? '-' }}</span>
                                 </td>
 
+                                {{-- Biaya --}}
+                                <td class="px-5 py-4 text-sm text-gray-700 whitespace-nowrap">
+                                    @if ($d->biaya !== null)
+                                        Rp {{ number_format($d->biaya, 0, ',', '.') }}
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+
                                 {{-- Status --}}
-                                <td class="px-4 py-3.5">
+                                <td class="px-5 py-4">
                                     <button type="button"
                                         onclick="openStatusModal({{ $d->id }}, '{{ $d->status }}')"
                                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all hover:scale-105
@@ -287,7 +293,8 @@
                                                 '{{ $d->tanggal_mulai }}',
                                                 {{ $d->interval_nilai }},
                                                 '{{ $d->interval_satuan }}',
-                                                '{{ addslashes($d->keterangan ?? '') }}'
+                                                '{{ addslashes($d->keterangan ?? '') }}',
+                                                '{{ $d->biaya ?? '' }}'
                                             )"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                             <i class="fa fa-edit text-xs"></i> Edit
@@ -307,7 +314,7 @@
 
                     @empty
                         <tr>
-                            <td colspan="10" class="px-5 py-12 text-center">
+                            <td colspan="8" class="px-5 py-12 text-center">
                                 <div class="flex flex-col items-center gap-3">
                                     <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                         <i class="fa fa-bell text-2xl text-gray-300"></i>
@@ -333,7 +340,7 @@
 ====================================== --}}
 <div id="modalTambah" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4"
     style="backdrop-filter:blur(2px)">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto"
         style="animation:slideUp .2s ease">
 
         <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
@@ -364,37 +371,38 @@
             </div>
 
             {{-- Header kolom --}}
-            <div class="hidden md:grid grid-cols-12 gap-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-1">
-                <div class="col-span-3">Nama Reminder <span class="text-red-400">*</span></div>
-                <div class="col-span-2">Tanggal Mulai <span class="text-red-400">*</span></div>
-                <div class="col-span-3">Interval <span class="text-red-400">*</span></div>
-                <div class="col-span-3">Keterangan</div>
-                <div class="col-span-1"></div>
+            <div class="hidden md:flex gap-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-1">
+                <div class="flex-[3_3_0%] min-w-0">Nama Reminder <span class="text-red-400">*</span></div>
+                <div class="flex-[2_2_0%] min-w-0">Tanggal Mulai <span class="text-red-400">*</span></div>
+                <div class="flex-[3_3_0%] min-w-0">Interval <span class="text-red-400">*</span></div>
+                <div class="flex-[2_2_0%] min-w-0">Keterangan</div>
+                <div class="flex-[2_2_0%] min-w-0">Biaya</div>
+                <div class="w-8 flex-shrink-0"></div>
             </div>
 
             {{-- Rows Container --}}
             <div id="reminderRows" class="space-y-3">
                 {{-- Row pertama (template) --}}
-                <div class="reminder-row grid grid-cols-12 gap-2 items-start bg-gray-50 border border-gray-100 rounded-xl p-3">
+                <div class="reminder-row flex flex-col md:flex-row gap-3 items-start bg-gray-50 border border-gray-100 rounded-xl p-3">
                     {{-- Nama Reminder --}}
-                    <div class="col-span-12 md:col-span-3">
+                    <div class="w-full md:flex-[3_3_0%] min-w-0">
                         <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Nama Reminder *</label>
                         <input type="text" name="items[0][nama_reminder]" required
                             placeholder="Service Rutin, Ganti Accu..."
                             class="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                     </div>
                     {{-- Tanggal Mulai --}}
-                    <div class="col-span-12 md:col-span-2">
+                    <div class="w-full md:flex-[2_2_0%] min-w-0">
                         <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Tanggal Mulai *</label>
                         <input type="date" name="items[0][tanggal_mulai]" required
                             class="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                     </div>
                     {{-- Interval --}}
-                    <div class="col-span-12 md:col-span-3">
+                    <div class="w-full md:flex-[3_3_0%] min-w-0">
                         <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Interval *</label>
                         <div class="flex gap-1.5">
                             <input type="number" name="items[0][interval_nilai]" required min="1" value="1"
-                                class="w-16 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                                class="w-16 flex-shrink-0 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                             <select name="items[0][interval_satuan]" required
                                 class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                                 <option value="hari">Hari</option>
@@ -405,14 +413,21 @@
                         </div>
                     </div>
                     {{-- Keterangan --}}
-                    <div class="col-span-12 md:col-span-3">
+                    <div class="w-full md:flex-[2_2_0%] min-w-0">
                         <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Keterangan</label>
                         <input type="text" name="items[0][keterangan]"
                             placeholder="Opsional..."
                             class="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                     </div>
+                    {{-- Biaya --}}
+                    <div class="w-full md:flex-[2_2_0%] min-w-0">
+                        <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Biaya</label>
+                        <input type="number" name="items[0][biaya]" min="0" step="1000"
+                            placeholder="0"
+                            class="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                    </div>
                     {{-- Hapus Baris --}}
-                    <div class="col-span-12 md:col-span-1 flex md:justify-center items-center">
+                    <div class="md:flex-shrink-0 flex md:items-center">
                         <button type="button" onclick="hapusBaris(this)"
                             class="hapus-baris w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 flex items-center justify-center transition-colors"
                             title="Hapus baris" style="display:none">
@@ -507,6 +522,17 @@
                 <textarea name="keterangan" id="edit_keterangan" rows="3"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none"></textarea>
                 <p class="text-[10px] text-gray-400 mt-1">Isi keterangan bebas: merek, SN, jenis ban, tipe kendaraan, dll.</p>
+            </div>
+
+            <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
+                    <input type="number" name="biaya" id="edit_biaya" min="0" step="1000"
+                        placeholder="0"
+                        class="w-full border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                </div>
+                <p class="text-[10px] text-gray-400 mt-1">Kosongkan jika tidak ada estimasi biaya.</p>
             </div>
 
             <div class="md:col-span-2 flex gap-3 pt-1">
@@ -637,24 +663,24 @@
         var idx = rowIndex++;
 
         var row = document.createElement('div');
-        row.className = 'reminder-row grid grid-cols-12 gap-2 items-start bg-gray-50 border border-gray-100 rounded-xl p-3';
+        row.className = 'reminder-row flex flex-col md:flex-row gap-3 items-start bg-gray-50 border border-gray-100 rounded-xl p-3';
         row.innerHTML = `
-            <div class="col-span-12 md:col-span-3">
+            <div class="w-full md:flex-[3_3_0%] min-w-0">
                 <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Nama Reminder *</label>
                 <input type="text" name="items[${idx}][nama_reminder]" required
                     placeholder="Service Rutin, Ganti Accu..."
                     class="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
             </div>
-            <div class="col-span-12 md:col-span-2">
+            <div class="w-full md:flex-[2_2_0%] min-w-0">
                 <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Tanggal Mulai *</label>
                 <input type="date" name="items[${idx}][tanggal_mulai]" required
                     class="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
             </div>
-            <div class="col-span-12 md:col-span-3">
+            <div class="w-full md:flex-[3_3_0%] min-w-0">
                 <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Interval *</label>
                 <div class="flex gap-1.5">
                     <input type="number" name="items[${idx}][interval_nilai]" required min="1" value="1"
-                        class="w-16 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                        class="w-16 flex-shrink-0 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                     <select name="items[${idx}][interval_satuan]" required
                         class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                         <option value="hari">Hari</option>
@@ -664,13 +690,19 @@
                     </select>
                 </div>
             </div>
-            <div class="col-span-12 md:col-span-3">
+            <div class="w-full md:flex-[2_2_0%] min-w-0">
                 <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Keterangan</label>
                 <input type="text" name="items[${idx}][keterangan]"
                     placeholder="Opsional..."
                     class="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
             </div>
-            <div class="col-span-12 md:col-span-1 flex md:justify-center items-center">
+            <div class="w-full md:flex-[2_2_0%] min-w-0">
+                <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Biaya</label>
+                <input type="number" name="items[${idx}][biaya]" min="0" step="1000"
+                    placeholder="0"
+                    class="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+            </div>
+            <div class="md:flex-shrink-0 flex md:items-center">
                 <button type="button" onclick="hapusBaris(this)"
                     class="hapus-baris w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 flex items-center justify-center transition-colors"
                     title="Hapus baris">
@@ -712,18 +744,19 @@
     }
 
     // ── MODAL EDIT ─────────────────────────────────────────
-    function openModalEdit(id, kendaraan_id, nama, tanggal_mulai, interval_nilai, interval_satuan, keterangan) {
+    function openModalEdit(id, kendaraan_id, nama, tanggal_mulai, interval_nilai, interval_satuan, keterangan, biaya) {
         var m = document.getElementById('modalEdit');
         m.classList.remove('hidden');
         m.classList.add('flex');
 
         document.getElementById('formEdit').action = '/admin/reminder-service/' + id;
-        document.getElementById('edit_kendaraan_id').value   = kendaraan_id;
-        document.getElementById('edit_nama_reminder').value  = nama;
-        document.getElementById('edit_tanggal_mulai').value  = tanggal_mulai;
-        document.getElementById('edit_interval_nilai').value = interval_nilai;
+        document.getElementById('edit_kendaraan_id').value    = kendaraan_id;
+        document.getElementById('edit_nama_reminder').value   = nama;
+        document.getElementById('edit_tanggal_mulai').value   = tanggal_mulai;
+        document.getElementById('edit_interval_nilai').value  = interval_nilai;
         document.getElementById('edit_interval_satuan').value = interval_satuan;
-        document.getElementById('edit_keterangan').value     = keterangan;
+        document.getElementById('edit_keterangan').value      = keterangan;
+        document.getElementById('edit_biaya').value           = biaya || '';
     }
     function closeModalEdit() {
         var m = document.getElementById('modalEdit');

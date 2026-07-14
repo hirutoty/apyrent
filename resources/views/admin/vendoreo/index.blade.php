@@ -87,7 +87,7 @@
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                 </div>
                 <button onclick="window.location.reload()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-sync text-xs"></i> Refresh
                 </button>
             </div>
@@ -164,7 +164,7 @@
 
             {{-- Reset --}}
             <button onclick="resetFilter()"
-                class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                 <i class="fa fa-rotate-left text-[10px]"></i> Reset
             </button>
 
@@ -191,7 +191,7 @@
                 </thead>
                 <tbody id="vendoreoTableBody">
                     @forelse($data as $d)
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                             data-search="{{ strtolower($d->kode_vendor . ' ' . $d->nama_vendor . ' ' . $d->kategori . ' ' . $d->pic_vendor) }}"
                             data-tanggal="{{ $d->tanggal_terakhir_order ? \Carbon\Carbon::parse($d->tanggal_terakhir_order)->format('Y-m-d') : '' }}">
 
@@ -451,7 +451,7 @@
             @csrf
             @method('DELETE')
             <button type="button" onclick="closeDeleteModal()"
-                class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">
+                class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                 Batal
             </button>
             <button type="submit"
@@ -519,7 +519,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// ── VENDOREO MODAL (Tambah/Edit) ────────────────────
+// -- VENDOREO MODAL (Tambah/Edit) --------------------
 const vendoreoModal   = document.getElementById('vendoreoModal');
 const vendoreoForm    = document.getElementById('vendoreoForm');
 const methodContainer = document.getElementById('methodContainer');
@@ -570,7 +570,7 @@ function triggerEdit(btn) {
     vendoreoModal.classList.add('flex');
 }
 
-// ── DELETE MODAL ─────────────────────────────────────
+// -- DELETE MODAL -------------------------------------
 const deleteModal = document.getElementById('deleteModal');
 const deleteForm  = document.getElementById('deleteForm');
 const deleteName  = document.getElementById('deleteName');
@@ -591,7 +591,7 @@ deleteModal.addEventListener('click', function (e) {
     if (e.target === deleteModal) closeDeleteModal();
 });
 
-// ── SEARCH + SHOW ENTRIES + FILTER BULAN/TAHUN ────────────────
+// -- SEARCH + SHOW ENTRIES + FILTER BULAN/TAHUN ----------------
 const allRows      = Array.from(document.querySelectorAll('#vendoreoTableBody tr[data-search]'));
 const entriesInfo  = document.getElementById('entriesInfo');
 let currentSearch  = '';
@@ -657,7 +657,7 @@ function resetFilter() {
 
 document.addEventListener('DOMContentLoaded', renderTable);
 
-// ── CHART DISTRIBUSI STATUS (compact, sejajar dengan stat card) ──
+// -- CHART DISTRIBUSI STATUS (compact, sejajar dengan stat card) --
 const statusLabels = {!! json_encode($statusStats->keys()) !!};
 const statusData   = {!! json_encode($statusStats->values()) !!};
 
@@ -679,7 +679,7 @@ new Chart(document.getElementById('statusChart'), {
     }
 });
 
-// ── POPUP ALERT (fixed overlay) ────────────────────
+// -- POPUP ALERT (fixed overlay) --------------------
 (function () {
     var overlay = document.getElementById('alertOverlay');
     var box     = document.getElementById('alertBox');

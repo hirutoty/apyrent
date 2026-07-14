@@ -1,11 +1,11 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 @section('title', 'Project Risk')
 @section('content')
 <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div><h1 class="text-2xl font-bold text-gray-800">Project Risk</h1><p class="text-sm text-gray-500 mt-0.5">Kelola risiko dan mitigasi proyek</p></div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('project.risk.pdf') }}" target="_blank" class="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors"><i class="fa fa-file-pdf text-sm"></i> Export PDF</a>
+            <a href="{{ route('project.risk.pdf') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors"><i class="fa fa-file-pdf text-sm"></i> Export PDF</a>
             <button onclick="openModal()" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors"><i class="fa fa-plus text-sm"></i> Tambah Risiko</button>
         </div>
     </div>
@@ -35,7 +35,7 @@
                 </tr></thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600 font-semibold">{{ $d->proyek }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->risiko }}</td>

@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 @section('title', 'Litigasi')
 @section('content')
 <div class="space-y-6">
@@ -11,7 +11,7 @@
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('litigasi.pdf') }}" target="_blank"
-                class="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors">
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                 <i class="fa fa-file-pdf text-sm"></i> Export PDF
             </a>
             <button onclick="openModal()"
@@ -91,7 +91,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @forelse($data as $i => $d)
-                    <tr class="hover:bg-gray-50 transition-colors">
+                    <tr class="odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <td class="px-4 py-3 text-gray-500 text-xs">{{ $i+1 }}</td>
                         <td class="px-4 py-3 font-medium text-gray-800">{{ $d->kasus }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $d->lawan }}</td>

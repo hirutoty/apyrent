@@ -398,6 +398,7 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   Route::resource('pelanggan', PelangganController::class)->except(['show']);
 
+  Route::get('/members/search', [MemberController::class, 'search'])->name('members.search');
   Route::resource('members', MemberController::class)->except(['create', 'edit']);
   Route::delete('/members/{id}/stnk', [MemberController::class, 'destroyStnk'])->name('members.stnk.destroy');
   Route::delete('/members/{id}/attachment', [MemberController::class, 'destroyAttachment'])->name('members.attachment.destroy');

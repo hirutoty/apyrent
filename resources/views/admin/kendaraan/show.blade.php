@@ -91,7 +91,7 @@
                                 class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                         </div>
                         <button onclick="window.location.reload()"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <i class="fa fa-sync text-xs"></i> Refresh
                         </button>
                     </div>
@@ -147,7 +147,7 @@
                         </thead>
                         <tbody id="kendaraanTableBody">
                             @forelse($data as $i => $d)
-                                <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                                <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                     data-search="{{ strtolower($d->merk . ' ' . $d->nopol . ' ' . $d->nama_pemilik . ' ' . ($d->jenis->nama_jenis ?? '')) }}">
 
                                     <td class="px-4 py-3.5 text-xs text-gray-400 font-semibold">{{ $i + 1 }}</td>
@@ -219,12 +219,12 @@
                                             {{-- TERLAMBAT --}}
                                             @if ($d->terlambat)
                                                 <div class="text-xs text-red-600 font-semibold mt-1">
-                                                    ⚠️ Terlambat {{ $d->sisa }}
+                                                    ?? Terlambat {{ $d->sisa }}
                                                 </div>
                                                 {{-- REMINDER --}}
                                             @elseif ($d->reminder)
                                                 <div class="text-xs text-orange-500 mt-1">
-                                                    ⏰ Reminder Sisa {{ $d->sisa }}
+                                                    ? Reminder Sisa {{ $d->sisa }}
                                                 </div>
                                             @endif
                                         @else
@@ -451,7 +451,7 @@
                             </p>
                             <p id="d_nopol"
                                 class="font-mono text-lg font-bold text-gray-900 tracking-widest bg-white border border-gray-200 inline-block px-3 py-1 rounded-lg">
-                                —
+                                �
                             </p>
                         </div>
                         <div class="text-right shrink-0">
@@ -470,49 +470,49 @@
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">User</span>
-                                <span id="d_user" class="text-sm text-gray-700 font-medium">—</span>
+                                <span id="d_user" class="text-sm text-gray-700 font-medium">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span
                                     class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Jenis</span>
-                                <span id="d_jenis" class="text-sm text-gray-700 font-medium">—</span>
+                                <span id="d_jenis" class="text-sm text-gray-700 font-medium">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Merk</span>
-                                <span id="d_merk" class="text-sm text-gray-800 font-semibold">—</span>
+                                <span id="d_merk" class="text-sm text-gray-800 font-semibold">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span
                                     class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Warna</span>
-                                <span id="d_warna" class="text-sm text-gray-700 font-medium">—</span>
+                                <span id="d_warna" class="text-sm text-gray-700 font-medium">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Nama
                                     Pemilik</span>
-                                <span id="d_nama_pemilik" class="text-sm text-gray-700 font-medium">—</span>
+                                <span id="d_nama_pemilik" class="text-sm text-gray-700 font-medium">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Harga /
                                     Jam</span>
-                                <span id="d_harga_jam" class="text-sm text-gray-800 font-semibold">—</span>
+                                <span id="d_harga_jam" class="text-sm text-gray-800 font-semibold">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Harga /
                                     Hari</span>
-                                <span id="d_harga_hari" class="text-sm text-gray-800 font-semibold">—</span>
+                                <span id="d_harga_hari" class="text-sm text-gray-800 font-semibold">�</span>
                             </div>
 
                             <div class="col-span-2 flex flex-col gap-0.5">
                                 <span
                                     class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Alamat</span>
                                 <span id="d_alamat"
-                                    class="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">—</span>
+                                    class="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">�</span>
                             </div>
 
                         </div>
@@ -531,61 +531,61 @@
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Tahun
                                     Pembuatan</span>
-                                <span id="d_tahun_pembuatan" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_tahun_pembuatan" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Tahun
                                     Perakitan</span>
-                                <span id="d_tahun_perakitan" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_tahun_perakitan" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Isi
                                     Silinder</span>
-                                <span id="d_isi_silinder" class="text-sm text-gray-500">—</span>
+                                <span id="d_isi_silinder" class="text-sm text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Bahan
                                     Bakar</span>
-                                <span id="d_bahan_bakar" class="text-sm text-gray-500">—</span>
+                                <span id="d_bahan_bakar" class="text-sm text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Warna
                                     TNKB</span>
-                                <span id="d_warna_tnkb" class="text-sm text-gray-500">—</span>
+                                <span id="d_warna_tnkb" class="text-sm text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Kode
                                     Lokasi</span>
-                                <span id="d_kode_lokasi" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_kode_lokasi" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No
                                     Urut</span>
-                                <span id="d_no_urut" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_no_urut" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No
                                     Rangka</span>
-                                <span id="d_no_rangka" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_no_rangka" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No
                                     Mesin</span>
-                                <span id="d_no_mesin" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_no_mesin" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">No
                                     BPKB</span>
-                                <span id="d_no_bpkb" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_no_bpkb" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                         </div>
@@ -604,19 +604,19 @@
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Batas
                                     Biaya</span>
-                                <span id="d_batas_biaya" class="text-sm text-gray-800 font-semibold">—</span>
+                                <span id="d_batas_biaya" class="text-sm text-gray-800 font-semibold">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Masa
                                     Berlaku</span>
-                                <span id="d_masa_berlaku" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_masa_berlaku" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                         </div>
                         <div class="mt-3 flex flex-col gap-0.5">
                             <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Dokumen</span>
-                            <div id="d_dokumen_wrap" class="text-sm text-gray-600">—</div>
+                            <div id="d_dokumen_wrap" class="text-sm text-gray-600">�</div>
                         </div>
                     </div>
 
@@ -633,31 +633,31 @@
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">KM
                                     Sekarang</span>
-                                <span id="d_km_sekarang" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_km_sekarang" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Limit KM
                                     Service</span>
-                                <span id="d_limit_km" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_limit_km" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Limit Bulan
                                     Service</span>
-                                <span id="d_limit_bln" class="text-sm text-gray-500">—</span>
+                                <span id="d_limit_bln" class="text-sm text-gray-500">-</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">KM Terakhir
                                     Service</span>
-                                <span id="d_km_svc" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_km_svc" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Tanggal
                                     Terakhir Service</span>
-                                <span id="d_tgl_svc" class="text-sm font-mono text-gray-500">—</span>
+                                <span id="d_tgl_svc" class="text-sm font-mono text-gray-500">�</span>
                             </div>
 
                         </div>
@@ -778,14 +778,17 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik <span
                                             class="text-red-500">*</span></label>
-                                    <input name="nama_pemilik" id="nama_pemilik" required list="memberOptions" placeholder="Ketik nama member"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <input type="hidden" name="member_id" id="member_id">
-                                    <datalist id="memberOptions">
-                                        @foreach ($members as $member)
-                                            <option value="{{ $member->nama }}" data-member-id="{{ $member->id }}"></option>
-                                        @endforeach
-                                    </datalist>
+                                    <div class="relative">
+                                        <input type="text" name="nama_pemilik" id="nama_pemilik" autocomplete="off" required
+                                            placeholder="Ketik nama member..."
+                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <input type="hidden" name="member_id" id="member_id">
+                                        <div id="member-result-tambah"
+                                            class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto"></div>
+                                    </div>
+                                    <p id="member_warning_tambah" class="hidden mt-1 text-xs text-red-500 flex items-center gap-1">
+                                        <i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Member tidak ditemukan
+                                    </p>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Merk <span
@@ -802,8 +805,15 @@
                                 <div class="col-span-2">
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat <span
                                             class="text-red-500">*</span></label>
-                                    <input name="alamat" required placeholder="Alamat lengkap"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <div class="relative">
+                                        <input name="alamat" id="alamat" required placeholder="Alamat lengkap"
+                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 pr-8">
+                                        <button type="button" id="alamat_edit_btn"
+                                            onclick="document.getElementById('alamat').readOnly=false;this.style.display='none'"
+                                            style="display:none"
+                                            class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 hover:text-blue-500"
+                                            title="Edit alamat manual"><i class="fa fa-pen"></i></button>
+                                    </div>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Foto <span
@@ -880,8 +890,11 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Dokumen <span
                                             class="text-red-500">*</span></label>
-                                    <input name="dokumen" type="file" required
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <input name="dokumen[]" type="file" multiple required id="dokumen_tambah"
+                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                        onchange="previewDokumen(this,'preview_dokumen_tambah')">
+                                    <div id="preview_dokumen_tambah" class="mt-2 space-y-1 hidden"></div>
                                 </div>
                             </div>
                         </div>
@@ -947,7 +960,7 @@
 
                     <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
                         <button type="button" onclick="closeAllModals()"
-                            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <i class="fa fa-times text-xs"></i> Batal
                         </button>
                         <button type="submit"
@@ -1020,16 +1033,18 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik</label>
-                                    <input name="nama_pemilik" id="e_nama_pemilik" list="e_memberOptions"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <input type="hidden" name="member_id" id="e_member_id">
-                                    <datalist id="e_memberOptions">
-                                        @foreach ($members as $member)
-                                            <option value="{{ $member->nama }}" data-member-id="{{ $member->id }}"></option>
-                                        @endforeach
-                                    </datalist>
+                                    <div class="relative">
+                                        <input type="text" name="nama_pemilik" id="e_nama_pemilik" autocomplete="off"
+                                            placeholder="Ketik nama member..."
+                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        <input type="hidden" name="member_id" id="e_member_id">
+                                        <div id="member-result-edit"
+                                            class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto"></div>
+                                    </div>
+                                    <p id="member_warning_edit" class="hidden mt-1 text-xs text-red-500 flex items-center gap-1">
+                                        <i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Member tidak ditemukan
+                                    </p>
                                 </div>
-                             
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Merk</label>
                                     <input name="merk" id="e_merk"
@@ -1042,8 +1057,15 @@
                                 </div>
                                 <div class="col-span-2">
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat</label>
-                                    <input name="alamat" id="e_alamat"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <div class="relative">
+                                        <input name="alamat" id="e_alamat"
+                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 pr-8">
+                                        <button type="button" id="e_alamat_edit_btn"
+                                            onclick="document.getElementById('e_alamat').readOnly=false;this.style.display='none'"
+                                            style="display:none"
+                                            class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 hover:text-blue-500"
+                                            title="Edit alamat manual"><i class="fa fa-pen"></i></button>
+                                    </div>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Foto (baru)</label>
@@ -1114,13 +1136,14 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Dokumen (baru)</label>
-                                    <input name="dokumen" type="file"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <input name="dokumen[]" type="file" multiple id="dokumen_edit"
+                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                        onchange="previewDokumen(this,'preview_dokumen_edit')">
+                                    <div id="preview_dokumen_edit" class="mt-2 space-y-1 hidden"></div>
                                     <div id="dokumenPreview" class="mt-2 hidden">
-                                        <a id="dokumenLink" href="#" target="_blank"
-                                            class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors">
-                                            <i class="fa fa-file-alt text-xs"></i> Lihat Dokumen Lama
-                                        </a>
+                                        <p class="text-[10px] text-gray-400 mb-1">Dokumen tersimpan:</p>
+                                        <div id="dokumenLamaList" class="space-y-1"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1173,7 +1196,7 @@
 
                     <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
                         <button type="button" onclick="closeAllModals()"
-                            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <i class="fa fa-times text-xs"></i> Batal
                         </button>
                         <button type="submit"
@@ -1244,14 +1267,42 @@
                     transform: translateY(0);
                 }
             }
+
+            /* Member autocomplete item */
+            .mr-item {
+                padding: 8px 12px;
+                cursor: pointer;
+                border-bottom: 1px solid #f3f4f6;
+                font-size: 13px;
+            }
+            .mr-item:hover {
+                background: #f0f9ff;
+            }
         </style>
 
         <script>
-            // ── MODAL HELPERS ──────────────────────────────────────
+            // -- MODAL HELPERS --------------------------------------
             function openModal(id) {
                 document.getElementById(id).classList.remove('hidden');
                 document.getElementById(id).classList.add('flex');
                 document.body.style.overflow = 'hidden';
+
+                // Reset state autocomplete & alamat saat buka modal Tambah
+                if (id === 'modalTambah') {
+                    var wp = document.getElementById('member_warning_tambah');
+                    if (wp) wp.classList.add('hidden');
+                    var dd = document.getElementById('dropdown_tambah');
+                    if (dd) dd.classList.add('hidden');
+                    var al = document.getElementById('alamat');
+                    if (al) { al.readOnly = false; }
+                    var ab = document.getElementById('alamat_edit_btn');
+                    if (ab) ab.style.display = 'none';
+                    var mid = document.getElementById('member_id');
+                    if (mid) mid.value = '';
+                    // Reset preview dokumen
+                    var pd = document.getElementById('preview_dokumen_tambah');
+                    if (pd) { pd.innerHTML = ''; pd.classList.add('hidden'); }
+                }
             }
 
             function closeAllModals() {
@@ -1277,7 +1328,7 @@
                 });
             });
 
-            // ── MODAL STATUS ──────────────────────────────────────
+            // -- MODAL STATUS --------------------------------------
             function ubahStatus(id, statusSekarang) {
 
                 let form = document.getElementById('formStatus');
@@ -1320,7 +1371,7 @@
                 document.body.style.overflow = '';
             }
 
-            // ── HELPERS ──────────────────────────────────────
+            // -- HELPERS --------------------------------------
             function fmtRupiah(val) {
                 var n = parseInt(val) || 0;
                 return 'Rp ' + n.toLocaleString('id-ID');
@@ -1353,12 +1404,12 @@
                     '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>Service</span>';
             }
 
-            // ── MODAL DETAIL ──────────────────────────────────────
+            // -- MODAL DETAIL --------------------------------------
             document.querySelectorAll('.btn-detail').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     var d = this.dataset;
 
-                    document.getElementById('d_title').textContent = (d.merk || '—') + ' — ' + (d.nopol || '—');
+                    document.getElementById('d_title').textContent = (d.merk || '�') + ' � ' + (d.nopol || '�');
 
                     var fotoWrap = document.getElementById('d_foto_wrap');
                     var fotoImg = document.getElementById('d_foto_img');
@@ -1369,30 +1420,30 @@
                         fotoWrap.classList.add('hidden');
                     }
 
-                    document.getElementById('d_user').textContent = d.user || '—';
-                    document.getElementById('d_jenis').textContent = d.jenis || '—';
-                    document.getElementById('d_merk').textContent = d.merk || '—';
-                    document.getElementById('d_warna').textContent = d.warna || '—';
-                    document.getElementById('d_nopol').textContent = d.nopol || '—';
-                    document.getElementById('d_nama_pemilik').textContent = d.nama_pemilik || '—';
-                    document.getElementById('d_alamat').textContent = d.alamat || '—';
+                    document.getElementById('d_user').textContent = d.user || '�';
+                    document.getElementById('d_jenis').textContent = d.jenis || '�';
+                    document.getElementById('d_merk').textContent = d.merk || '�';
+                    document.getElementById('d_warna').textContent = d.warna || '�';
+                    document.getElementById('d_nopol').textContent = d.nopol || '�';
+                    document.getElementById('d_nama_pemilik').textContent = d.nama_pemilik || '�';
+                    document.getElementById('d_alamat').textContent = d.alamat || '�';
                     document.getElementById('d_harga_jam').textContent = fmtRupiah(d.harga_jam);
                     document.getElementById('d_harga_hari').textContent = fmtRupiah(d.harga_hari);
 
-                    document.getElementById('d_tahun_pembuatan').textContent = d.tahun_pembuatan || '—';
-                    document.getElementById('d_tahun_perakitan').textContent = d.tahun_perakitan || '—';
+                    document.getElementById('d_tahun_pembuatan').textContent = d.tahun_pembuatan || '�';
+                    document.getElementById('d_tahun_perakitan').textContent = d.tahun_perakitan || '�';
                     document.getElementById('d_isi_silinder').textContent = d.isi_silinder ? d.isi_silinder +
-                        ' cc' : '—';
-                    document.getElementById('d_bahan_bakar').textContent = d.bahan_bakar || '—';
-                    document.getElementById('d_warna_tnkb').textContent = d.warna_tnkb || '—';
-                    document.getElementById('d_kode_lokasi').textContent = d.kode_lokasi || '—';
-                    document.getElementById('d_no_urut').textContent = d.no_urut || '—';
-                    document.getElementById('d_no_rangka').textContent = d.no_rangka || '—';
-                    document.getElementById('d_no_mesin').textContent = d.no_mesin || '—';
-                    document.getElementById('d_no_bpkb').textContent = d.no_bpkb || '—';
+                        ' cc' : '�';
+                    document.getElementById('d_bahan_bakar').textContent = d.bahan_bakar || '�';
+                    document.getElementById('d_warna_tnkb').textContent = d.warna_tnkb || '�';
+                    document.getElementById('d_kode_lokasi').textContent = d.kode_lokasi || '�';
+                    document.getElementById('d_no_urut').textContent = d.no_urut || '�';
+                    document.getElementById('d_no_rangka').textContent = d.no_rangka || '�';
+                    document.getElementById('d_no_mesin').textContent = d.no_mesin || '�';
+                    document.getElementById('d_no_bpkb').textContent = d.no_bpkb || '�';
 
                     document.getElementById('d_batas_biaya').textContent = fmtRupiah(d.batas_biaya);
-                    document.getElementById('d_masa_berlaku').textContent = d.masa_berlaku || '—';
+                    document.getElementById('d_masa_berlaku').textContent = d.masa_berlaku || '�';
                     var dokWrap = document.getElementById('d_dokumen_wrap');
                     if (d.dokumen) {
                         let filename = d.dokumen.split('/').pop();
@@ -1403,15 +1454,15 @@
                             filename +
                             '</a>';
                     } else {
-                        dokWrap.textContent = '—';
+                        dokWrap.textContent = '�';
                     }
 
                     document.getElementById('d_km_sekarang').textContent = fmtKm(d.km_sekarang);
                     document.getElementById('d_limit_km').textContent = fmtKm(d.limit_km);
-                    document.getElementById('d_limit_bln').textContent = d.limit_bln ? d.limit_bln + ' bulan' :
-                        '—';
+                    document.getElementById('d_limit_bln').textContent =
+                    d.limit_bln ? 'Rp ' + d.limit_bln : '-';
                     document.getElementById('d_km_svc').textContent = fmtKm(d.km_svc);
-                    document.getElementById('d_tgl_svc').textContent = d.tgl_svc || '—';
+                    document.getElementById('d_tgl_svc').textContent = d.tgl_svc || '�';
 
                     document.getElementById('d_status_service').innerHTML = badgeSvc(d.status_service);
                     document.getElementById('d_status_kendaraan').innerHTML = badgeStatus(d.status_kendaraan);
@@ -1420,49 +1471,38 @@
                 });
             });
 
-function bindMemberAutocomplete(inputId, hiddenId, optionsId) {
-            var input = document.getElementById(inputId);
-            var hidden = document.getElementById(hiddenId);
-            var options = Array.from(document.querySelectorAll('#' + optionsId + ' option'));
-
-            if (!input || !hidden) return;
-
-            var syncSelection = function(value) {
-                var match = options.find(function(option) {
-                    return option.value.toLowerCase() === String(value || '').trim().toLowerCase();
-                });
-                hidden.value = match ? (match.dataset.memberId || '') : '';
-            };
-
-            input.addEventListener('input', function() {
-                syncSelection(this.value);
-            });
-            input.addEventListener('change', function() {
-                syncSelection(this.value);
-            });
-        }
-
-        bindMemberAutocomplete('nama_pemilik', 'member_id', 'memberOptions');
-        bindMemberAutocomplete('e_nama_pemilik', 'e_member_id', 'e_memberOptions');
-
-        // ── MODAL EDIT ──────────────────────────────────────
+        // -- MODAL EDIT --------------------------------------
             document.querySelectorAll('.btn-edit').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     document.getElementById('formEdit').action = '/admin/kendaraan/' + this.dataset.id;
 
                     var dokumen = this.dataset.dokumen;
-                    var preview = document.getElementById('dokumenPreview');
-                    var link = document.getElementById('dokumenLink');
+                    var previewWrap = document.getElementById('dokumenPreview');
+                    var lamaList    = document.getElementById('dokumenLamaList');
 
-                    if (dokumen) {
-                        preview.classList.remove('hidden');
+                    // Reset file input baru
+                    document.getElementById('dokumen_edit').value = '';
+                    document.getElementById('preview_dokumen_edit').innerHTML = '';
+                    document.getElementById('preview_dokumen_edit').classList.add('hidden');
 
-                        let filename = dokumen.split('/').pop();
-
-                        link.href = '/storage/' + dokumen;
-                        link.textContent = filename;
+                    if (dokumen && dokumen !== 'null' && dokumen !== '') {
+                        previewWrap.classList.remove('hidden');
+                        lamaList.innerHTML = '';
+                        var docs = [];
+                        try { docs = JSON.parse(dokumen); if (!Array.isArray(docs)) docs = [docs]; }
+                        catch(e) { docs = [dokumen]; }
+                        docs.forEach(function(d) {
+                            if (!d) return;
+                            var fname = d.split('/').pop();
+                            var ext   = fname.split('.').pop().toLowerCase();
+                            var icon  = ext === 'pdf' ? 'fa-file-pdf text-red-500'
+                                      : (['doc','docx'].includes(ext) ? 'fa-file-word text-blue-500'
+                                      : (['jpg','jpeg','png'].includes(ext) ? 'fa-file-image text-green-500'
+                                      : 'fa-file text-gray-400'));
+                            lamaList.innerHTML += '<a href="/' + d + '" target="_blank" class="flex items-center gap-1.5 text-xs text-blue-600 hover:underline"><i class="fa-solid ' + icon + '"></i>' + fname + '</a>';
+                        });
                     } else {
-                        preview.classList.add('hidden');
+                        previewWrap.classList.add('hidden');
                     }
 
                     var fields = [
@@ -1490,11 +1530,29 @@ function bindMemberAutocomplete(inputId, hiddenId, optionsId) {
                         }
                     });
 
+                    // Sinkronisasi autocomplete member edit
+                    var editMemberId = this.dataset.member_id || '';
+                    document.getElementById('e_member_id').value = editMemberId;
+
+                    // Alamat: jika dari member (member_id ada), set readonly + tampilkan tombol edit
+                    var editAlamat   = document.getElementById('e_alamat');
+                    var editAlamatBtn = document.getElementById('e_alamat_edit_btn');
+                    if (editMemberId) {
+                        editAlamat.readOnly = true;
+                        if (editAlamatBtn) editAlamatBtn.style.display = '';
+                    } else {
+                        editAlamat.readOnly = false;
+                        if (editAlamatBtn) editAlamatBtn.style.display = 'none';
+                    }
+
+                    // Reset warning member
+                    document.getElementById('member_warning_edit').classList.add('hidden');
+
                     openModal('modalEdit');
                 });
             });
 
-            // ── SEARCH + SHOW ENTRIES ──────────────────────────────────────
+            // -- SEARCH + SHOW ENTRIES --------------------------------------
             const allRowsShow  = Array.from(document.querySelectorAll('#kendaraanTableBody tr[data-search]'));
             let currentSearchShow = '';
 
@@ -1527,7 +1585,7 @@ function bindMemberAutocomplete(inputId, hiddenId, optionsId) {
 
             document.addEventListener('DOMContentLoaded', renderTable);
 
-            // ── POPUP ALERT ──────────────────────────────────────
+            // -- POPUP ALERT --------------------------------------
             (function() {
                 var overlay = document.getElementById('alertOverlay');
                 var box = document.getElementById('alertBox');
@@ -1630,5 +1688,243 @@ function bindMemberAutocomplete(inputId, hiddenId, optionsId) {
         </script>
 
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+        <script>
+        // ── MEMBER AUTOCOMPLETE (pola rental) ──────────────────────────
+        const memberData = @json($members->map(fn($m) => ['id' => $m->id, 'nama' => $m->nama, 'alamat' => $m->alamat ?? '']));
+
+        function initMemberAutocomplete(inputId, resultId, hiddenId, alamatId, warningId, editBtnId) {
+            const input   = document.getElementById(inputId);
+            const result  = document.getElementById(resultId);
+            const hidden  = document.getElementById(hiddenId);
+            const warning = document.getElementById(warningId);
+            if (!input || !result) return;
+
+            input.addEventListener('keyup', function() {
+                const keyword = this.value.toLowerCase().trim();
+                result.innerHTML = '';
+                if (hidden) hidden.value = '';
+
+                if (keyword.length < 1) {
+                    result.classList.add('hidden');
+                    if (warning) warning.classList.add('hidden');
+                    return;
+                }
+
+                const filtered = memberData.filter(m =>
+                    m.nama.toLowerCase().includes(keyword)
+                );
+
+                if (filtered.length === 0) {
+                    result.innerHTML = '<div class="px-3 py-2 text-xs text-red-500 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Member tidak ditemukan</div>';
+                    result.classList.remove('hidden');
+                    if (warning) warning.classList.remove('hidden');
+                    return;
+                }
+
+                if (warning) warning.classList.add('hidden');
+
+                filtered.forEach(function(m) {
+                    const item = document.createElement('div');
+                    item.className = 'mr-item';
+                    item.innerHTML = '<strong style="font-size:13px;">' + m.nama + '</strong><br>'
+                                   + '<small style="color:#6b7280;">' + (m.alamat || '-') + '</small>';
+                    item.onclick = function() {
+                        input.value = m.nama;
+                        if (hidden) hidden.value = m.id;
+                        result.classList.add('hidden');
+                        if (warning) warning.classList.add('hidden');
+
+                        // Autofill alamat
+                        const alamatEl = document.getElementById(alamatId);
+                        const editBtn  = document.getElementById(editBtnId);
+                        if (alamatEl) {
+                            alamatEl.value    = m.alamat;
+                            alamatEl.readOnly = true;
+                            if (editBtn) editBtn.style.display = '';
+                        }
+                    };
+                    result.appendChild(item);
+                });
+                result.classList.remove('hidden');
+            });
+
+            // Tutup saat klik di luar
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !result.contains(e.target)) {
+                    result.classList.add('hidden');
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initMemberAutocomplete('nama_pemilik',   'member-result-tambah', 'member_id',   'alamat',   'member_warning_tambah', 'alamat_edit_btn');
+            initMemberAutocomplete('e_nama_pemilik', 'member-result-edit',   'e_member_id', 'e_alamat', 'member_warning_edit',   'e_alamat_edit_btn');
+        });
+
+        // ── PREVIEW MULTI DOKUMEN ──────────────────────────────────────
+        function previewDokumen(input, previewId) {
+            const container = document.getElementById(previewId);
+            container.innerHTML = '';
+            if (!input.files.length) { container.classList.add('hidden'); return; }
+            container.classList.remove('hidden');
+            Array.from(input.files).forEach(function(file) {
+                const ext  = file.name.split('.').pop().toLowerCase();
+                const icon = ext === 'pdf'                     ? 'fa-file-pdf text-red-500'
+                           : ['doc','docx'].includes(ext)      ? 'fa-file-word text-blue-500'
+                           : ['jpg','jpeg','png'].includes(ext) ? 'fa-file-image text-green-500'
+                           : 'fa-file text-gray-400';
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-2 text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1.5';
+                div.innerHTML = `<i class="fa-solid ${icon}"></i><span class="truncate flex-1">${file.name}</span><span class="text-gray-400 flex-shrink-0">${(file.size/1024).toFixed(0)} KB</span>`;
+                container.appendChild(div);
+            });
+        }
+        </script>
+
+        <script>
+        // ── MEMBER AUTOCOMPLETE (pola rental) ─────────────────────────
+        const memberData = @json($members->map(fn($m) => ['id' => $m->id, 'nama' => $m->nama, 'alamat' => $m->alamat ?? '']));
+
+        function initMemberAutocomplete(inputId, resultId, hiddenId, alamatId, warningId, editBtnId) {
+            const input   = document.getElementById(inputId);
+            const result  = document.getElementById(resultId);
+            const hidden  = document.getElementById(hiddenId);
+            const warning = document.getElementById(warningId);
+            if (!input || !result) return;
+
+            input.addEventListener('keyup', function() {
+                const keyword = this.value.toLowerCase().trim();
+                result.innerHTML = '';
+                if (hidden) hidden.value = '';
+
+                if (keyword.length < 1) {
+                    result.classList.add('hidden');
+                    if (warning) warning.classList.add('hidden');
+                    return;
+                }
+
+                const filtered = memberData.filter(m => m.nama.toLowerCase().includes(keyword));
+
+                if (filtered.length === 0) {
+                    result.innerHTML = '<div class="px-3 py-2 text-xs text-red-500 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Member tidak ditemukan</div>';
+                    result.classList.remove('hidden');
+                    if (warning) warning.classList.remove('hidden');
+                    return;
+                }
+
+                if (warning) warning.classList.add('hidden');
+
+                filtered.forEach(function(m) {
+                    const item = document.createElement('div');
+                    item.className = 'mr-item';
+                    item.innerHTML = '<strong style="font-size:13px;">' + m.nama + '</strong><br>'
+                                   + '<small style="color:#6b7280;">' + (m.alamat || '-') + '</small>';
+                    item.onclick = function() {
+                        input.value = m.nama;
+                        if (hidden) hidden.value = m.id;
+                        result.classList.add('hidden');
+                        if (warning) warning.classList.add('hidden');
+                        const alamatEl = document.getElementById(alamatId);
+                        const editBtn  = document.getElementById(editBtnId);
+                        if (alamatEl) {
+                            alamatEl.value    = m.alamat;
+                            alamatEl.readOnly = true;
+                            if (editBtn) editBtn.style.display = '';
+                        }
+                    };
+                    result.appendChild(item);
+                });
+                result.classList.remove('hidden');
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !result.contains(e.target)) {
+                    result.classList.add('hidden');
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initMemberAutocomplete('nama_pemilik',   'member-result-tambah', 'member_id',   'alamat',   'member_warning_tambah', 'alamat_edit_btn');
+            initMemberAutocomplete('e_nama_pemilik', 'member-result-edit',   'e_member_id', 'e_alamat', 'member_warning_edit',   'e_alamat_edit_btn');
+        });
+
+        // fungsi lama tidak dipakai lagi — diganti initMemberAutocomplete
+        function memberSuggest(input, dropdownId, hiddenId, alamatId, warningId) {
+            const q       = input.value.trim();
+            const ul      = document.getElementById(dropdownId);
+            const hidden  = document.getElementById(hiddenId);
+            const alamatEl = document.getElementById(alamatId);
+            const warning = document.getElementById(warningId);
+
+            hidden.value = '';
+            input.setCustomValidity('');
+
+            if (!q) {
+                ul.classList.add('hidden');
+                warning.classList.add('hidden');
+                return;
+            }
+
+            const filtered = memberData.filter(m =>
+                m.nama.toLowerCase().includes(q.toLowerCase())
+            );
+
+            if (filtered.length === 0) {
+                ul.classList.add('hidden');
+                warning.classList.remove('hidden');
+                input.setCustomValidity('Member tidak ditemukan, pilih dari daftar.');
+                return;
+            }
+
+            warning.classList.add('hidden');
+
+            ul.innerHTML = filtered.map(m => `
+                <li class="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
+                    onmousedown="pilihMember(event,${m.id},${JSON.stringify(m.nama)},${JSON.stringify(m.alamat)},'${input.id}','${dropdownId}','${hiddenId}','${alamatId}','${warningId}')">
+                    <div class="font-medium text-gray-800">${m.nama}</div>
+                    <div class="text-xs text-gray-400 truncate">${m.alamat}</div>
+                </li>
+            `).join('');
+            ul.classList.remove('hidden');
+        }
+
+        function pilihMember(e, id, nama, alamat, inputId, dropdownId, hiddenId, alamatId, warningId) {
+            e.preventDefault();
+            document.getElementById(inputId).value  = nama;
+            document.getElementById(inputId).setCustomValidity('');
+            document.getElementById(hiddenId).value = id;
+            document.getElementById(dropdownId).classList.add('hidden');
+            document.getElementById(warningId).classList.add('hidden');
+
+            const alamatEl  = document.getElementById(alamatId);
+            const editBtn   = document.getElementById(alamatId === 'alamat' ? 'alamat_edit_btn' : 'e_alamat_edit_btn');
+            if (alamatEl) {
+                alamatEl.value    = alamat;
+                alamatEl.readOnly = true;
+                if (editBtn) editBtn.style.display = '';
+            }
+        }
+
+        // ── PREVIEW MULTI DOKUMEN ──────────────────────────────────────
+        function previewDokumen(input, previewId) {
+            const container = document.getElementById(previewId);
+            container.innerHTML = '';
+            if (!input.files.length) { container.classList.add('hidden'); return; }
+            container.classList.remove('hidden');
+            Array.from(input.files).forEach(function(file) {
+                const ext  = file.name.split('.').pop().toLowerCase();
+                const icon = ext === 'pdf'            ? 'fa-file-pdf text-red-500'
+                           : ['doc','docx'].includes(ext) ? 'fa-file-word text-blue-500'
+                           : ['jpg','jpeg','png'].includes(ext) ? 'fa-file-image text-green-500'
+                           : 'fa-file text-gray-400';
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-2 text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1.5';
+                div.innerHTML = `<i class="fa-solid ${icon}"></i><span class="truncate flex-1">${file.name}</span><span class="text-gray-400 flex-shrink-0">${(file.size/1024).toFixed(0)} KB</span>`;
+                container.appendChild(div);
+            });
+        }
+        </script>
     @endsection
 

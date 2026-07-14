@@ -26,7 +26,7 @@
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4">
             <div class="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-500 text-lg flex-shrink-0"><i class="fa fa-trophy"></i></div>
-            <div><p class="text-xl font-bold text-gray-800 leading-none">{{ $totalNilaiTinggi }}</p><p class="text-xs text-gray-500 mt-1">Nilai ≥ 80</p></div>
+            <div><p class="text-xl font-bold text-gray-800 leading-none">{{ $totalNilaiTinggi }}</p><p class="text-xs text-gray-500 mt-1">Nilai = 80</p></div>
         </div>
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -62,7 +62,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors"
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors"
                             data-search="{{ strtolower($d->nama_pegawai . ' ' . $d->periode_evaluasi . ' ' . $d->evaluator) }}">
                             <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3.5 font-semibold text-gray-800">{{ $d->nama_pegawai }}</td>

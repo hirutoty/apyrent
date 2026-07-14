@@ -99,7 +99,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors"
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors"
                             data-search="{{ strtolower($d->nama_departemen . ' ' . $d->kepala_departemen) }}">
                             <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3.5">
@@ -244,7 +244,7 @@
         <form id="deleteForm" action="" method="POST" class="px-6 pb-6 pt-4 flex items-center gap-2">
             @csrf @method('DELETE')
             <button type="button" onclick="closeDeleteModal()"
-                class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">Batal</button>
+                class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
             <button type="submit"
                 class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl py-2.5 transition-colors">
                 <i class="fa fa-trash text-xs"></i> Hapus

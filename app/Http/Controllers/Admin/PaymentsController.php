@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\InvSummary;
@@ -20,18 +19,14 @@ class PaymentsController extends Controller
      */
     public function index(Request $request)
     {
-        $query = InvoicePayment::with('invoice')->latest();
+        $query = InvoicePayment::with('invoice')->latest('id');
 
         if ($request->search) {
-
             $query->where(function ($q) use ($request) {
-
                 $q->where('transaction_id', 'like', '%' . $request->search . '%')
                     ->orWhere('method', 'like', '%' . $request->search . '%')
                     ->orWhere('status', 'like', '%' . $request->search . '%')
-
                     ->orWhereHas('invoice', function ($i) use ($request) {
-
                         $i->where('invoice_no', 'like', '%' . $request->search . '%')
                             ->orWhere('customer_name', 'like', '%' . $request->search . '%');
                     });
@@ -46,10 +41,7 @@ class PaymentsController extends Controller
 
         return view(
             'admin.payments.index',
-            compact(
-                'payments',
-                'invoices'
-            )
+            compact('payments', 'invoices')
         );
     }
 
@@ -57,30 +49,109 @@ class PaymentsController extends Controller
      * Generate Transaction ID
      * TRX-20260626-00001
      */
-    private function generateTransactionId()
+    private function generateTransactionId(): string
     {
         $prefix = 'TRX-' . now()->format('Ymd') . '-';
 
-        $last = InvoicePayment::where(
-            'transaction_id',
-            'like',
-            $prefix . '%'
-        )
+        $last = InvoicePayment::where('transaction_id', 'like', $prefix . '%')
             ->latest('id')
             ->first();
 
         $number = 1;
 
         if ($last) {
-
             $number = intval(substr($last->transaction_id, -5)) + 1;
         }
 
         return $prefix . str_pad($number, 5, '0', STR_PAD_LEFT);
     }
 
+    // =========================================================================
+    // P0 #1 — Recalculate saldo keuangan dari baris $fromId ke bawah
+    // =========================================================================
+
     /**
-     * Sinkronisasi paid_amount di InvSummary dan payment_status di Invoice
+     * Hitung ulang kolom saldo di tabel keuangans mulai dari row dengan id = $fromId.
+     * Saldo awal diambil dari row tepat sebelum $fromId; jika tidak ada, dimulai dari 0.
+     *
+     * @param int|null $fromId  id Keuangan pertama yang perlu dihitung ulang.
+     *                          Jika null maka hitung ulang seluruh tabel.
+     */
+    public static function recalculateKeuanganSaldo(?int $fromId): void
+    {
+        // Saldo awal = saldo baris tepat sebelum fromId, atau 0
+        if ($fromId !== null) {
+            $saldoAwal = DB::table('keuangans')
+                ->where('id', '<', $fromId)
+                ->orderBy('id', 'desc')
+                ->value('saldo') ?? 0;
+        } else {
+            $saldoAwal = 0;
+        }
+
+        // Ambil semua baris mulai dari fromId, urut by id ASC
+        $rows = DB::table('keuangans')
+            ->when($fromId !== null, fn ($q) => $q->where('id', '>=', $fromId))
+            ->orderBy('id', 'asc')
+            ->get(['id', 'pemasukan', 'pengeluaran']);
+
+        $saldo = (float) $saldoAwal;
+
+        foreach ($rows as $row) {
+            $saldo = $saldo + (float) $row->pemasukan - (float) $row->pengeluaran;
+
+            DB::table('keuangans')
+                ->where('id', $row->id)
+                ->update(['saldo' => $saldo]);
+        }
+    }
+
+    // =========================================================================
+    // P1 #2 — Recalculate saldo buku besar dari baris $fromId ke bawah
+    // =========================================================================
+
+    /**
+     * Hitung ulang kolom saldo di tabel bukubesars mulai dari row dengan id = $fromId.
+     * Saldo awal diambil dari row tepat sebelum $fromId; jika tidak ada, dimulai dari 0.
+     *
+     * @param int|null $fromId  id Bukubesar pertama yang perlu dihitung ulang.
+     *                          Jika null maka hitung ulang seluruh tabel.
+     */
+    public static function recalculateBukubesarSaldo(?int $fromId): void
+    {
+        // Saldo awal = saldo baris tepat sebelum fromId, atau 0
+        if ($fromId !== null) {
+            $saldoAwal = DB::table('bukubesars')
+                ->where('id', '<', $fromId)
+                ->orderBy('id', 'desc')
+                ->value('saldo') ?? 0;
+        } else {
+            $saldoAwal = 0;
+        }
+
+        // Ambil semua baris mulai dari fromId, urut by id ASC
+        $rows = DB::table('bukubesars')
+            ->when($fromId !== null, fn ($q) => $q->where('id', '>=', $fromId))
+            ->orderBy('id', 'asc')
+            ->get(['id', 'kredit', 'debit']);
+
+        $saldo = (float) $saldoAwal;
+
+        foreach ($rows as $row) {
+            $saldo = $saldo + (float) $row->kredit - (float) $row->debit;
+
+            DB::table('bukubesars')
+                ->where('id', $row->id)
+                ->update(['saldo' => $saldo]);
+        }
+    }
+
+    // =========================================================================
+    // Sync summary (P0 #4, P0 #5, MEDIUM #1)
+    // =========================================================================
+
+    /**
+     * Sinkronisasi paid_amount di InvSummary dan payment_status + status di Invoice
      * berdasarkan total semua payment Verified untuk invoice tertentu.
      */
     private function syncSummary(int $invoiceId): void
@@ -90,91 +161,93 @@ class PaymentsController extends Controller
             ->where('status', 'Verified')
             ->sum('amount');
 
-        // Update InvSummary yang terkait invoice ini
-        $summary = InvSummary::where('invoice_id', $invoiceId)->first();
-
-        if ($summary) {
-            $remaining = max(0, $summary->total_amount - $totalVerified);
-
-            if ($totalVerified <= 0) {
-                $paymentStatus = 'Unpaid';
-            } elseif ($remaining <= 0) {
-                $paymentStatus = 'Paid';
-            } else {
-                $paymentStatus = 'Partial';
-            }
-
-            $summary->update([
-                'paid_amount'      => $totalVerified,
-                'remaining_amount' => $remaining,
-                'payment_status'   => $paymentStatus,
-            ]);
-        }
-
-        // Update payment_status di tabel invoices juga
+        // P0 #4: gunakan computeTotal() bukan kolom total
         $invoice = Invoice::find($invoiceId);
-        if ($invoice) {
-            $invoiceTotal = $invoice->total ?? 0;
-            $remaining    = max(0, $invoiceTotal - $totalVerified);
 
-            if ($totalVerified <= 0) {
-                $paymentStatus = 'Unpaid';
-            } elseif ($remaining <= 0) {
-                $paymentStatus = 'Paid';
-            } else {
-                $paymentStatus = 'Partial';
-            }
-
-            $invoice->update(['payment_status' => $paymentStatus]);
-        }
-    }
-
-    /**
-     * Simpan transaksi keuangan
-     */
-    private function createFinanceTransaction(InvoicePayment $payment)
-    {
-        // Jangan sampai duplicate
-        if (
-            Keuangan::where(
-                'reference',
-                $payment->transaction_id
-            )->exists()
-        ) {
+        if (! $invoice) {
             return;
         }
 
-        $saldoTerakhir = Keuangan::latest('id')->value('saldo') ?? 0;
+        // P0 #4 — invoice total via computeTotal()
+        $invoiceTotal = $invoice->computeTotal();
+        $remaining    = max(0, $invoiceTotal - $totalVerified);
 
-        $saldoBaru = $saldoTerakhir + $payment->amount;
+        // MEDIUM #1 — tentukan status konsisten untuk KEDUA kolom
+        if ($totalVerified <= 0) {
+            $paymentStatus = 'unpaid';   // kolom payment_status
+            $statusKolom   = 'draft';    // kolom status
+        } elseif ($remaining <= 0) {
+            $paymentStatus = 'paid';
+            $statusKolom   = 'lunas';
+        } else {
+            $paymentStatus = 'partial';
+            $statusKolom   = 'partial';
+        }
 
-        Keuangan::create([
+        // P0 #5 — upsert InvSummary (updateOrCreate menggantikan find + conditional update)
+        InvSummary::updateOrCreate(
+            ['invoice_id' => $invoiceId],
+            [
+                'total_amount'     => $invoiceTotal,
+                'paid_amount'      => $totalVerified,
+                'remaining_amount' => $remaining,
+                'payment_status'   => $paymentStatus,
+            ]
+        );
 
-            'tanggal' => $payment->payment_date,
-
-            'reference' => $payment->transaction_id,
-
-            'user_id' => auth()->id(),
-
-            'kategori' => 'Payment Invoice',
-
-            'metode' => $payment->method,
-
-            'keterangan' =>
-            'Pembayaran Invoice ' .
-                optional($payment->invoice)->invoice_no,
-
-            'pemasukan' => $payment->amount,
-
-            'pengeluaran' => 0,
-
-            'saldo' => $saldoBaru,
+        // MEDIUM #1 — update kedua kolom di tabel invoices secara konsisten
+        $invoice->update([
+            'payment_status' => $paymentStatus,
+            'status'         => $statusKolom,
         ]);
     }
 
+    // =========================================================================
+    // Finance transaction (P0 #2, P0 #3, FIX #15)
+    // =========================================================================
+
     /**
-     * Auto-posting ke Buku Besar saat payment Verified
-     * kategori = Pendapatan, kredit = amount (uang masuk)
+     * Simpan transaksi keuangan.
+     * HARUS dipanggil di dalam DB::transaction agar lockForUpdate efektif.
+     */
+    private function createFinanceTransaction(InvoicePayment $payment): void
+    {
+        // Cegah duplikasi
+        if (Keuangan::where('reference', $payment->transaction_id)->exists()) {
+            return;
+        }
+
+        // P0 #3 — gunakan lockForUpdate untuk mencegah race condition
+        $saldoTerakhir = DB::table('keuangans')
+            ->lockForUpdate()
+            ->orderBy('id', 'desc')
+            ->value('saldo') ?? 0;
+
+        $saldoBaru = (float) $saldoTerakhir + (float) $payment->amount;
+
+        // FIX #15 — tambah 'sumber' => 'auto'
+        Keuangan::create([
+            'tanggal'     => $payment->payment_date,
+            'reference'   => $payment->transaction_id,
+            'user_id'     => auth()->id(),
+            'kategori'    => 'Payment Invoice',
+            'metode'      => $payment->method,
+            'keterangan'  => 'Pembayaran Invoice ' . optional($payment->invoice)->invoice_no,
+            'pemasukan'   => $payment->amount,
+            'pengeluaran' => 0,
+            'saldo'       => $saldoBaru,
+            'sumber'      => 'auto',
+        ]);
+    }
+
+    // =========================================================================
+    // Buku Besar helpers (P1 #2, FIX #7, #8, #9)
+    // =========================================================================
+
+    /**
+     * Auto-posting ke Buku Besar saat payment Verified.
+     * kategori = Pendapatan, kredit = amount (uang masuk).
+     * HARUS dipanggil di dalam DB::transaction agar lockForUpdate efektif.
      */
     private function postBukuBesar(InvoicePayment $payment): void
     {
@@ -183,6 +256,14 @@ class PaymentsController extends Controller
             return;
         }
 
+        // FIX #7 — lockForUpdate untuk saldo buku besar
+        $saldoTerakhir = DB::table('bukubesars')
+            ->lockForUpdate()
+            ->orderBy('id', 'desc')
+            ->value('saldo') ?? 0;
+
+        $saldoBaru = (float) $saldoTerakhir + (float) $payment->amount;
+
         Bukubesar::create([
             'kode_jurnal' => $payment->transaction_id,
             'transaksi'   => 'Pembayaran Invoice ' . optional($payment->invoice)->invoice_no,
@@ -190,7 +271,7 @@ class PaymentsController extends Controller
             'tanggal'     => $payment->payment_date,
             'debit'       => 0,
             'kredit'      => $payment->amount,
-            'saldo'       => $payment->amount,
+            'saldo'       => $saldoBaru,
             'aktivitas'   => 'Operasi',
             'keterangan'  => 'Auto-posting: Pembayaran Invoice '
                              . optional($payment->invoice)->invoice_no
@@ -199,7 +280,8 @@ class PaymentsController extends Controller
     }
 
     /**
-     * Update jurnal Buku Besar yang sudah ada (saat payment diubah)
+     * Update jurnal Buku Besar yang sudah ada (saat payment diubah).
+     * FIX #8 — setelah update jurnal, panggil recalculateBukubesarSaldo.
      */
     private function updateBukuBesar(InvoicePayment $payment): void
     {
@@ -210,11 +292,13 @@ class PaymentsController extends Controller
                 'transaksi'  => 'Pembayaran Invoice ' . optional($payment->invoice)->invoice_no,
                 'tanggal'    => $payment->payment_date,
                 'kredit'     => $payment->amount,
-                'saldo'      => $payment->amount,
                 'keterangan' => 'Auto-posting: Pembayaran Invoice '
                                 . optional($payment->invoice)->invoice_no
                                 . ' dari ' . optional($payment->invoice)->customer_name,
             ]);
+
+            // FIX #8 — recalculate saldo buku besar mulai dari baris ini
+            self::recalculateBukubesarSaldo($jurnal->id);
         } else {
             // Belum ada, buat baru
             $this->postBukuBesar($payment);
@@ -222,12 +306,28 @@ class PaymentsController extends Controller
     }
 
     /**
-     * Hapus jurnal Buku Besar terkait payment
+     * Hapus jurnal Buku Besar terkait payment.
+     * FIX #9 — simpan id jurnal sebelum delete, lalu recalculate saldo.
      */
     private function deleteBukuBesar(string $transactionId): void
     {
-        Bukubesar::where('kode_jurnal', $transactionId)->delete();
+        $jurnal = Bukubesar::where('kode_jurnal', $transactionId)->first();
+
+        if (! $jurnal) {
+            return;
+        }
+
+        // FIX #9 — simpan id sebelum delete agar recalculate mulai dari posisi yang tepat
+        $jurnalId = $jurnal->id;
+
+        $jurnal->delete();
+
+        self::recalculateBukubesarSaldo($jurnalId);
     }
+
+    // =========================================================================
+    // Export
+    // =========================================================================
 
     public function exportExcel(Request $request)
     {
@@ -237,88 +337,92 @@ class PaymentsController extends Controller
         );
     }
 
+    // =========================================================================
+    // Store (MEDIUM #6 overpayment validation)
+    // =========================================================================
+
     /**
      * Store
      */
     public function store(Request $request)
     {
         $request->validate([
-
-            'invoice_id' => 'required|exists:invoices,id',
-
-            'amount' => 'required|numeric|min:1',
-
-            'payment_date' => 'required|date',
-
-            'method' => 'required|string|max:100',
-
-            'status' => 'required|in:Pending,Verified,Rejected',
-
+            'invoice_id'      => 'required|exists:invoices,id',
+            'amount'          => 'required|numeric|min:1',
+            'payment_date'    => 'required|date',
+            'method'          => 'required|string|max:100',
+            'status'          => 'required|in:Pending,Verified,Rejected',
             'file_pembayaran' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:4096',
         ]);
+
+        // MEDIUM #6 — validasi overpayment sebelum simpan
+        if ($request->status === 'Verified') {
+            $invoice = Invoice::findOrFail($request->invoice_id);
+
+            $invoiceTotal = $invoice->computeTotal();
+
+            $alreadyPaid = InvoicePayment::where('invoice_id', $request->invoice_id)
+                ->where('status', 'Verified')
+                ->sum('amount');
+
+            $remaining = $invoiceTotal - (float) $alreadyPaid;
+
+            if ((float) $request->amount > $remaining) {
+                return back()
+                    ->withInput()
+                    ->with('error', 'Jumlah pembayaran melebihi sisa tagihan. Sisa tagihan: ' . number_format($remaining, 0, ',', '.'));
+            }
+        }
 
         DB::beginTransaction();
 
         try {
-
             $data = $request->all();
 
             $data['transaction_id'] = $this->generateTransactionId();
 
             // Upload file
             if ($request->hasFile('file_pembayaran')) {
-
-                $file = $request->file('file_pembayaran');
-
+                $file     = $request->file('file_pembayaran');
                 $namaFile = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
                 $file->move(public_path('uploads/payment'), $namaFile);
-
                 $data['file_pembayaran'] = 'uploads/payment/' . $namaFile;
             }
 
             $payment = InvoicePayment::create($data);
 
-            // jika verified
-            if ($payment->status == 'Verified') {
-
+            // Jika Verified: catat keuangan & buku besar
+            if ($payment->status === 'Verified') {
                 $payment->load('invoice');
-
                 $this->createFinanceTransaction($payment);
-
-                // Auto-posting ke Buku Besar
                 $this->postBukuBesar($payment);
             }
 
-            // Sync InvSummary & Invoice payment_status
+            // Sync InvSummary & Invoice payment_status + status
             $this->syncSummary($payment->invoice_id);
 
             DB::commit();
 
             return redirect()
                 ->route('payments.index')
-                ->with(
-                    'success',
-                    'Pembayaran berhasil ditambahkan.'
-                );
+                ->with('success', 'Pembayaran berhasil ditambahkan.');
         } catch (\Exception $e) {
-
             DB::rollBack();
 
-            if (!empty($data['file_pembayaran'])) {
-
-                Storage::disk('public')
-                    ->delete($data['file_pembayaran']);
+            // MEDIUM #7 — gunakan file_exists + unlink bukan Storage::disk
+            if (! empty($data['file_pembayaran']) && file_exists(public_path($data['file_pembayaran']))) {
+                unlink(public_path($data['file_pembayaran']));
             }
 
             return back()
                 ->withInput()
-                ->with(
-                    'error',
-                    $e->getMessage()
-                );
+                ->with('error', $e->getMessage());
         }
     }
+
+    // =========================================================================
+    // Edit
+    // =========================================================================
 
     /**
      * Edit
@@ -333,11 +437,12 @@ class PaymentsController extends Controller
 
         $invoices = Invoice::orderBy('invoice_no')->get();
 
-        return view('admin.payment.edit', compact(
-            'payment',
-            'invoices'
-        ));
+        return view('admin.payment.edit', compact('payment', 'invoices'));
     }
+
+    // =========================================================================
+    // Update (FIX #10, #11, #12, #13, #14)
+    // =========================================================================
 
     /**
      * Update
@@ -347,82 +452,77 @@ class PaymentsController extends Controller
         $payment = InvoicePayment::findOrFail($id);
 
         $request->validate([
-
-            'invoice_id' => 'required|exists:invoices,id',
-
-            'amount' => 'required|numeric|min:1',
-
-            'payment_date' => 'required|date',
-
-            'method' => 'required|string|max:100',
-
-            'status' => 'required|in:Pending,Verified,Rejected',
-
+            'invoice_id'      => 'required|exists:invoices,id',
+            'amount'          => 'required|numeric|min:1',
+            'payment_date'    => 'required|date',
+            'method'          => 'required|string|max:100',
+            'status'          => 'required|in:Pending,Verified,Rejected',
             'file_pembayaran' => 'nullable|file|max:4096',
         ]);
+
+        // MEDIUM #6 — validasi overpayment sebelum simpan
+        if ($request->status === 'Verified') {
+            $invoice = Invoice::findOrFail($request->invoice_id);
+
+            $invoiceTotal = $invoice->computeTotal();
+
+            // Jumlah sudah dibayar kecuali payment yang sedang diedit
+            $alreadyPaid = InvoicePayment::where('invoice_id', $request->invoice_id)
+                ->where('status', 'Verified')
+                ->where('id', '!=', $payment->id)
+                ->sum('amount');
+
+            $remaining = $invoiceTotal - (float) $alreadyPaid;
+
+            if ((float) $request->amount > $remaining) {
+                return back()
+                    ->withInput()
+                    ->with('error', 'Jumlah pembayaran melebihi sisa tagihan. Sisa tagihan: ' . number_format($remaining, 0, ',', '.'));
+            }
+        }
 
         DB::beginTransaction();
 
         try {
-
             $data = $request->except('file_pembayaran');
 
             // Upload file baru
             if ($request->hasFile('file_pembayaran')) {
-
-                // Hapus file lama
-                if (
-                    $payment->file_pembayaran &&
-                    file_exists(public_path($payment->file_pembayaran))
-                ) {
+                // MEDIUM #7 — hapus file lama dengan file_exists + unlink
+                if ($payment->file_pembayaran && file_exists(public_path($payment->file_pembayaran))) {
                     unlink(public_path($payment->file_pembayaran));
                 }
 
-                $file = $request->file('file_pembayaran');
-
+                $file     = $request->file('file_pembayaran');
                 $namaFile = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
                 $file->move(public_path('uploads/payment'), $namaFile);
-
                 $data['file_pembayaran'] = 'uploads/payment/' . $namaFile;
             }
+
             $payment->update($data);
 
-            /*
-            |--------------------------------------------------------------------------
-            | Sinkronisasi keuangan
-            |--------------------------------------------------------------------------
-            */
+            // ---------------------------------------------------------------
+            // Sinkronisasi keuangan
+            // ---------------------------------------------------------------
 
-            $finance = Keuangan::where(
-                'reference',
-                $payment->transaction_id
-            )->first();
+            $finance = Keuangan::where('reference', $payment->transaction_id)->first();
 
-            if ($payment->status == 'Verified') {
+            if ($payment->status === 'Verified') {
 
                 if ($finance) {
-
-                    // update transaksi keuangan
-
+                    // Update transaksi keuangan yang sudah ada
                     $finance->update([
-
-                        'tanggal' => $payment->payment_date,
-
-                        'metode' => $payment->method,
-
-                        'keterangan' =>
-                        'Pembayaran Invoice ' .
-                            optional($payment->invoice)->invoice_no,
-
-                        'pemasukan' => $payment->amount,
+                        'tanggal'    => $payment->payment_date,
+                        'metode'     => $payment->method,
+                        'keterangan' => 'Pembayaran Invoice ' . optional($payment->invoice)->invoice_no,
+                        'pemasukan'  => $payment->amount,
                     ]);
+
+                    // FIX #13 — recalculate saldo keuangan setelah update
+                    self::recalculateKeuanganSaldo($finance->id);
                 } else {
-
-                    // belum ada -> buat baru
-
+                    // Belum ada -> buat baru
                     $payment->load('invoice');
-
                     $this->createFinanceTransaction($payment);
                 }
 
@@ -431,18 +531,20 @@ class PaymentsController extends Controller
                 $this->updateBukuBesar($payment);
 
             } else {
-
-                // jika bukan verified maka hapus transaksi keuangan
+                // Jika bukan Verified: hapus transaksi keuangan dan buku besar
 
                 if ($finance) {
+                    // FIX #14 — simpan id, delete, lalu recalculate
+                    $financeId = $finance->id;
                     $finance->delete();
+                    self::recalculateKeuanganSaldo($financeId);
                 }
 
-                // Hapus jurnal Buku Besar juga
+                // Hapus jurnal Buku Besar (sudah include recalculate di dalam deleteBukuBesar)
                 $this->deleteBukuBesar($payment->transaction_id);
             }
 
-            // Sync InvSummary & Invoice payment_status
+            // Sync InvSummary & Invoice payment_status + status
             $this->syncSummary($payment->invoice_id);
 
             DB::commit();
@@ -451,7 +553,6 @@ class PaymentsController extends Controller
                 ->route('payments.index')
                 ->with('success', 'Pembayaran berhasil diperbarui.');
         } catch (\Exception $e) {
-
             DB::rollBack();
 
             return back()
@@ -459,6 +560,10 @@ class PaymentsController extends Controller
                 ->with('error', $e->getMessage());
         }
     }
+
+    // =========================================================================
+    // Destroy (FIX #11, #14)
+    // =========================================================================
 
     /**
      * Destroy
@@ -468,34 +573,31 @@ class PaymentsController extends Controller
         DB::beginTransaction();
 
         try {
-
             $payment = InvoicePayment::findOrFail($id);
 
-            // hapus file
-
-            if (
-                $payment->file_pembayaran &&
-                Storage::disk('public')->exists($payment->file_pembayaran)
-            ) {
-                Storage::disk('public')->delete($payment->file_pembayaran);
+            // MEDIUM #7 — hapus file dengan file_exists + unlink
+            if ($payment->file_pembayaran && file_exists(public_path($payment->file_pembayaran))) {
+                unlink(public_path($payment->file_pembayaran));
             }
 
-            // hapus transaksi keuangan
+            // FIX #14 — simpan id keuangan, delete, lalu recalculate
+            $finance = Keuangan::where('reference', $payment->transaction_id)->first();
 
-            Keuangan::where(
-                'reference',
-                $payment->transaction_id
-            )->delete();
+            if ($finance) {
+                $financeId = $finance->id;
+                $finance->delete();
+                self::recalculateKeuanganSaldo($financeId);
+            }
 
-            // hapus jurnal Buku Besar
+            // Hapus jurnal Buku Besar (sudah include recalculate di dalam deleteBukuBesar)
             $this->deleteBukuBesar($payment->transaction_id);
 
-            // simpan invoice_id sebelum delete
+            // Simpan invoice_id sebelum delete
             $invoiceId = $payment->invoice_id;
 
             $payment->delete();
 
-            // Sync InvSummary & Invoice payment_status
+            // Sync InvSummary & Invoice payment_status + status
             $this->syncSummary($invoiceId);
 
             DB::commit();
@@ -504,7 +606,6 @@ class PaymentsController extends Controller
                 ->route('payments.index')
                 ->with('success', 'Pembayaran berhasil dihapus.');
         } catch (\Exception $e) {
-
             DB::rollBack();
 
             return back()

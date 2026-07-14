@@ -20,6 +20,7 @@ class ReminderService extends Model
         'interval_satuan',
         'tanggal_jatuh_tempo',
         'keterangan',
+        'biaya',
         'status',
         'sudah_dibuat_masalah',
     ];

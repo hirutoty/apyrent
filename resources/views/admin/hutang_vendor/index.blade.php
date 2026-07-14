@@ -115,19 +115,19 @@
                         </select>
                     </div>
                     <a id="pdfBtn" target="_blank"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors"
                         href="#">
                         <i class="fa fa-file-pdf"></i> PDF
                     </a>
 
                     {{-- TAMBAHKAN INI --}}
                     <a id="excelBtn"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors"
                         href="#">
                         <i class="fa fa-file-excel"></i> Excel
                     </a>
                     <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
                 </div>
@@ -159,7 +159,7 @@
                     </thead>
                     <tbody id="hutangTableBody">
                         @forelse($data as $i => $item)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower($item->nama_vendor . ' ' . $item->kategori . ' ' . ($item->keterangan ?? '')) }}"
                                 data-status="{{ $item->status }}">
 
@@ -482,7 +482,7 @@
     </style>
 
     <script>
-        // ── MODAL ──────────────────────────────────────────
+        // -- MODAL ------------------------------------------
         const modalTambah = document.getElementById('modalTambah');
 
         function openModal() {
@@ -499,7 +499,7 @@
             if (e.target === modalTambah) closeModal();
         });
 
-        // ── FILTER & SEARCH ────────────────────────────────
+        // -- FILTER & SEARCH --------------------------------
         function applyFilters() {
             const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
             const status = document.getElementById('filterStatus').value;
@@ -530,7 +530,7 @@
             });
         }
 
-        // ── POPUP ALERT ────────────────────────────────────
+        // -- POPUP ALERT ------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');
@@ -570,7 +570,7 @@
             document.getElementById('excelBtn').href = `/admin/hutang-vendor/excel${query}`;
         }
 
-        // Ganti semua pemanggilan updatePdfLink() → updateExportLinks()
+        // Ganti semua pemanggilan updatePdfLink() ? updateExportLinks()
         document.getElementById('searchInput').addEventListener('input', updateExportLinks);
         document.getElementById('filterStatus').addEventListener('change', updateExportLinks);
         updateExportLinks(); // initial

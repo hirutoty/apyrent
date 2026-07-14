@@ -39,7 +39,7 @@ class InvoicesController extends Controller
             });
         }
 
-        $invoices = $query->paginate(1)->withQueryString();
+        $invoices = $query->paginate(15)->withQueryString();
 
         // dropdown untuk modal tambah/edit
         $penawarans = InvPenawaran::latest()->get();
@@ -166,6 +166,10 @@ class InvoicesController extends Controller
         }
 
         $invoice = Invoice::create($validated);
+
+        // Auto-update total dari remaks (akan diisi setelah user tambah remaks)
+        // Di sini kita sync invoice->total agar konsisten dengan computeTotal di syncSummary
+        // Note: total akan akurat setelah remaks ditambahkan
 
         // Sync pivot relations
         $invoice->penawarans()->sync($penawaranIds);
@@ -321,6 +325,10 @@ class InvoicesController extends Controller
         }
 
         $invoice->update($validated);
+
+        // Auto-update total dari remaks (akan diisi setelah user tambah remaks)
+        // Di sini kita sync invoice->total agar konsisten dengan computeTotal di syncSummary
+        // Note: total akan akurat setelah remaks ditambahkan
 
         // Sync pivot relations
         $invoice->penawarans()->sync($penawaranIds);

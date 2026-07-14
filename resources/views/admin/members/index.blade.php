@@ -27,8 +27,8 @@
             </div>
             <div class="flex items-center gap-2">
                 <a id="pdfBtn" target="_blank" href="{{ route('members.pdf') }}"
-                    class="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                    <i class="fa fa-file-pdf mr-1"></i> Export PDF
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                    <i class="fa fa-file-pdf text-xs"></i> Export PDF
                 </a>
                 <div class="relative">
                     <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -36,7 +36,7 @@
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                 </div>
                 <button onclick="window.location.reload()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-sync text-xs"></i>
                 </button>
             </div>
@@ -63,6 +63,7 @@
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Nama</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Kontak</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Email</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Alamat</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jenis</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Kendaraan</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Dokumen</th>
@@ -71,7 +72,7 @@
                 </thead>
                 <tbody id="memberTableBody">
                     @forelse ($data as $i => $d)
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors"
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors"
                             data-search="{{ strtolower($d->nama . ' ' . $d->kontak . ' ' . $d->email . ' ' . $d->alamat) }}">
 
                             <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $loop->iteration }}</td>
@@ -83,13 +84,14 @@
                                     </div>
                                     <div>
                                         <p class="text-sm font-semibold text-gray-800">{{ $d->nama }}</p>
-                                        <p class="text-xs text-gray-400">{{ $d->alamat ? Str::limit($d->alamat, 30) : '-' }}</p>
+                                       
                                     </div>
                                 </div>
                             </td>
 
                             <td class="px-4 py-3.5 text-xs text-gray-600 font-mono">{{ $d->kontak ?? '-' }}</td>
                             <td class="px-4 py-3.5 text-xs text-gray-600">{{ $d->email ?? '-' }}</td>
+                            <td class="px-4 py-3.5 text-xs text-gray-600 font-mono"> <p class="text-xs text-gray-400">{{ $d->alamat ? Str::limit($d->alamat, 30) : '-' }}</p></td>
 
                             <td class="px-4 py-3.5">
                                 <span class="px-2 py-1 text-xs rounded-full font-medium
@@ -200,7 +202,7 @@
 
 </div>
 
-{{-- ══ MODAL TAMBAH / EDIT ══ --}}
+{{-- -- MODAL TAMBAH / EDIT -- --}}
 <div id="memberModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30" style="backdrop-filter:blur(2px)">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" style="animation:slideUp .2s ease">
 
@@ -300,7 +302,7 @@
 
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeModal()"
-                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">Batal</button>
+                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
                 <button type="submit"
                     class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
                     <i class="fa fa-save text-sm"></i> Simpan
@@ -385,7 +387,7 @@ function previewFile(input, previewId, namaId) {
     const file = input.files[0];
     if (!file) return;
     const nama = document.getElementById(namaId);
-    nama.textContent = '✔ ' + file.name;
+    nama.textContent = '? ' + file.name;
     nama.classList.remove('hidden');
     const prev = document.getElementById(previewId);
     if (file.type.startsWith('image/')) {
@@ -410,7 +412,7 @@ function previewMultipleFiles(input, listId, countId, color) {
         return;
     }
 
-    countEl.textContent = '✔ ' + files.length + ' file dipilih';
+    countEl.textContent = '? ' + files.length + ' file dipilih';
     countEl.classList.remove('hidden');
 
     listEl.innerHTML = '';

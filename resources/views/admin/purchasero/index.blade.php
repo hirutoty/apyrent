@@ -116,7 +116,7 @@
             <div class="flex-1 text-xs text-gray-500">
                 Menampilkan <span class="font-semibold text-gray-700">{{ $data->total() }}</span> data
                 @if ($role !== 'superadmin' && $tab !== 'semua')
-                    — tab: <span class="font-semibold text-gray-700">{{ $tab }}</span>
+                    � tab: <span class="font-semibold text-gray-700">{{ $tab }}</span>
                 @endif
             </div>
             <div class="flex items-center gap-2">
@@ -160,7 +160,7 @@
                 </thead>
                 <tbody>
                     @forelse($data as $d)
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <td class="px-4 py-3.5 text-xs text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3.5">
                                 <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->no_pr }}</span>
@@ -260,7 +260,7 @@
                                                 <i class="fa fa-times"></i> Tolak
                                             </button>
                                         @else
-                                            <span class="text-xs text-gray-300 italic">—</span>
+                                            <span class="text-xs text-gray-300 italic">�</span>
                                         @endif
 
                                     @else
@@ -330,7 +330,7 @@
 
 
 {{-- ======================================================
-    MODAL TOLAK (superadmin — wajib isi catatan)
+    MODAL TOLAK (superadmin � wajib isi catatan)
 ====================================================== --}}
 @if ($role === 'superadmin')
 <div id="tolakModal"
@@ -369,7 +369,7 @@
 
             <div class="flex gap-2 pt-1">
                 <button type="button" onclick="closeTolakModal()"
-                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">
+                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     Batal
                 </button>
                 <button type="submit"
@@ -398,7 +398,7 @@
                 <h2 id="modalTitle" class="text-base font-bold text-gray-800">Tambah Pengadaan</h2>
                 <p class="text-xs text-gray-500 mt-0.5">
                     Departemen: <span class="font-semibold text-blue-600">{{ $deptLabel }}</span>
-                    &nbsp;·&nbsp; No PR dibuat otomatis
+                    &nbsp;�&nbsp; No PR dibuat otomatis
                 </p>
             </div>
             <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
@@ -471,7 +471,7 @@
                         oninput="formatNominalInput(this)"
                         class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
-                <p class="text-xs text-gray-400 mt-1">Opsional — isi jika sudah ada estimasi harga.</p>
+                <p class="text-xs text-gray-400 mt-1">Opsional � isi jika sudah ada estimasi harga.</p>
             </div>
 
             <button type="submit"
@@ -546,7 +546,7 @@
 </style>
 
 <script>
-// ── MODAL TOLAK (superadmin) ─────────────────────────────────
+// -- MODAL TOLAK (superadmin) ---------------------------------
 @if ($role === 'superadmin')
 const tolakModal = document.getElementById('tolakModal');
 const tolakForm  = document.getElementById('tolakForm');
@@ -568,7 +568,7 @@ function closeTolakModal() {
 tolakModal.addEventListener('click', e => { if (e.target === tolakModal) closeTolakModal(); });
 @endif
 
-// ── MODAL TAMBAH/EDIT (non-superadmin) ───────────────────────
+// -- MODAL TAMBAH/EDIT (non-superadmin) -----------------------
 @if ($role !== 'superadmin')
 const purchaseroModal = document.getElementById('purchaseroModal');
 const purchaseroForm  = document.getElementById('purchaseroForm');
@@ -622,7 +622,7 @@ function triggerEdit(btn) {
     purchaseroModal.classList.add('flex');
 }
 
-// Format input nominal: 1000000 → "1.000.000", strip non-digit sebelum submit
+// Format input nominal: 1000000 ? "1.000.000", strip non-digit sebelum submit
 function formatNominalInput(el) {
     const raw = el.value.replace(/\D/g, '');
     el.value  = raw ? parseInt(raw, 10).toLocaleString('id-ID') : '';
@@ -640,7 +640,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 @endif
 
-// ── DELETE MODAL ─────────────────────────────────────────────
+// -- DELETE MODAL ---------------------------------------------
 const deleteModal = document.getElementById('deleteModal');
 const deleteForm  = document.getElementById('deleteForm');
 
@@ -658,7 +658,7 @@ function closeDeleteModal() {
 
 deleteModal.addEventListener('click', e => { if (e.target === deleteModal) closeDeleteModal(); });
 
-// ── POPUP ALERT ───────────────────────────────────────────────
+// -- POPUP ALERT -----------------------------------------------
 (function () {
     var overlay = document.getElementById('alertOverlay');
     var box     = document.getElementById('alertBox');

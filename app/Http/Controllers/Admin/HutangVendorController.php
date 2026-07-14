@@ -11,6 +11,7 @@ use App\Models\HutangVendor;
 use App\Models\Keuangan;
 use App\Models\Bukubesar;
 use App\Models\Setting;
+use Illuminate\Support\Facades\DB; // P0 #3 / P1 #2: needed for lockForUpdate
 
 class HutangVendorController extends Controller
 {
@@ -48,9 +49,8 @@ class HutangVendorController extends Controller
             default   => $setting->batas_reminder,
         };
 
-
         return view('admin.hutang_vendor.index', [
-            'data'     => $query->latest()->paginate(15)->withQueryString(),
+            'data'     => $query->latest('id')->paginate(15)->withQueryString(), // MEDIUM #8: latest('id')
             'reminder' => $reminder,
         ]);
     }
@@ -62,61 +62,83 @@ class HutangVendorController extends Controller
     {
         $request->validate([
             'nama_vendor' => 'required',
-            'kategori' => 'required',
-            'nominal' => 'required|numeric',
-            'dibayar' => 'nullable|numeric',
+            'kategori'    => 'required',
+            'nominal'     => 'required|numeric',
+            'dibayar'     => 'nullable|numeric',
             'jatuh_tempo' => 'required|date',
-            'status' => 'required',
+            'status'      => 'required',
         ]);
 
         $dibayar = $request->dibayar ?? 0;
-
-        $sisa = $request->nominal - $dibayar;
+        $sisa    = $request->nominal - $dibayar;
 
         $data = HutangVendor::create([
             'nama_vendor' => $request->nama_vendor,
-            'kategori' => $request->kategori,
-            'nominal' => $request->nominal,
-            'dibayar' => $dibayar,
-            'sisa' => $sisa,
+            'kategori'    => $request->kategori,
+            'nominal'     => $request->nominal,
+            'dibayar'     => $dibayar,
+            'sisa'        => $sisa,
             'jatuh_tempo' => $request->jatuh_tempo,
-            'status' => $request->status,
-            'keterangan' => $request->keterangan,
+            'status'      => $request->status,
+            'keterangan'  => $request->keterangan,
         ]);
 
         if ($request->status == 'lunas') {
 
-            $kodeJurnal = 'HTG-' . $data->id;
-            $lastSaldo  = Keuangan::latest()->value('saldo') ?? 0;
-            $saldoBaru  = $lastSaldo - $request->nominal;
+            DB::beginTransaction();
+            try {
+                $kodeJurnal = 'HTG-' . $data->id;
 
-            Keuangan::create([
-                'tanggal'    => now()->toDateString(),
-                'reference'  => $kodeJurnal,
-                'user_id'    => auth()->id(),
-                'kategori'   => 'Pengeluaran',
-                'metode'     => 'Cash',
-                'keterangan' => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
-                'pemasukan'  => 0,
-                'pengeluaran' => $request->nominal,
-                'saldo'      => $saldoBaru,
-            ]);
+                // P0 #3 FIX RACE CONDITION: lockForUpdate inside transaction
+                $lastSaldo = (float) DB::table('keuangans')
+                    ->lockForUpdate()
+                    ->orderBy('id', 'desc')
+                    ->value('saldo') ?? 0;
 
-            // Auto-posting ke Buku Besar
-            if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
-                Bukubesar::create([
-                    'kode_jurnal' => $kodeJurnal,
-                    'transaksi'   => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
-                    'kategori'    => 'Beban',
+                $saldoBaru = $lastSaldo - $request->nominal;
+
+                // P0 #1: create Keuangan; saldo already safe via lockForUpdate (no recalculate needed after create)
+                Keuangan::create([
                     'tanggal'     => now()->toDateString(),
-                    'debit'       => $request->nominal,
-                    'kredit'      => 0,
-                    'saldo'       => $request->nominal,
-                    'aktivitas'   => 'Operasi',
-                    'keterangan'  => 'Auto-posting: Pelunasan hutang kepada '
-                                     . $request->nama_vendor
-                                     . ' kategori ' . $request->kategori,
+                    'reference'   => $kodeJurnal,
+                    'user_id'     => auth()->id(),
+                    'kategori'    => 'Pengeluaran',
+                    'metode'      => 'Cash',
+                    'keterangan'  => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
+                    'pemasukan'   => 0,
+                    'pengeluaran' => $request->nominal,
+                    'saldo'       => $saldoBaru,
+                    'sumber'      => 'auto',
                 ]);
+
+                // P1 #2 FIX BUKU BESAR SALDO: accumulative saldo with lockForUpdate
+                if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                    $saldoBBTerakhir = (float) DB::table('bukubesars')
+                        ->lockForUpdate()
+                        ->orderBy('id', 'desc')
+                        ->value('saldo') ?? 0;
+
+                    Bukubesar::create([
+                        'kode_jurnal' => $kodeJurnal,
+                        'transaksi'   => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
+                        'kategori'    => 'Beban',
+                        'tanggal'     => now()->toDateString(),
+                        'debit'       => $request->nominal,
+                        'kredit'      => 0,
+                        'saldo'       => $saldoBBTerakhir + $request->nominal, // P1 #2: accumulative
+                        'aktivitas'   => 'Operasi',
+                        'keterangan'  => 'Auto-posting: Pelunasan hutang kepada '
+                                         . $request->nama_vendor
+                                         . ' kategori ' . $request->kategori,
+                    ]);
+                }
+
+                // TODO P1#6: aging_aps belum punya relasi FK ke hutang_vendor. Butuh migration untuk link keduanya.
+
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                throw $e;
             }
         }
 
@@ -131,84 +153,123 @@ class HutangVendorController extends Controller
         $data = HutangVendor::findOrFail($id);
 
         /*
-    |--------------------------------------------------------------------------
-    | UPDATE STATUS CEPAT DARI TABLE
-    |--------------------------------------------------------------------------
-    */
-
+        |----------------------------------------------------------------------
+        | UPDATE STATUS CEPAT DARI TABLE
+        |----------------------------------------------------------------------
+        */
         if ($request->has('status') && count($request->all()) <= 3) {
 
             $statusLama = $data->status;
 
             $data->update([
-                'status' => $request->status
+                'status' => $request->status,
             ]);
 
             $kodeJurnal = 'HTG-' . $data->id;
 
             if ($request->status == 'lunas' && $statusLama != 'lunas') {
 
-                $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
-                $saldoBaru = $lastSaldo - $data->nominal;
+                DB::beginTransaction();
+                try {
+                    // P0 #3 FIX RACE CONDITION: lockForUpdate inside transaction
+                    $lastSaldo = (float) DB::table('keuangans')
+                        ->lockForUpdate()
+                        ->orderBy('id', 'desc')
+                        ->value('saldo') ?? 0;
 
-                Keuangan::create([
-                    'tanggal'    => now()->toDateString(),
-                    'reference'  => $kodeJurnal,
-                    'user_id'    => auth()->id(),
-                    'kategori'   => 'Pengeluaran',
-                    'metode'     => 'Cash',
-                    'keterangan' => 'Pelunasan Hutang Vendor - ' . $data->nama_vendor,
-                    'pemasukan'  => 0,
-                    'pengeluaran' => $data->nominal,
-                    'saldo'      => $saldoBaru,
-                ]);
+                    $saldoBaru = $lastSaldo - $data->nominal;
 
-                // Auto-posting ke Buku Besar (cegah duplikasi)
-                if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
-                    Bukubesar::create([
-                        'kode_jurnal' => $kodeJurnal,
-                        'transaksi'   => 'Pelunasan Hutang Vendor - ' . $data->nama_vendor,
-                        'kategori'    => 'Beban',
+                    // P0 #1: create Keuangan; no recalculate needed after create (saldo safe via lockForUpdate)
+                    Keuangan::create([
                         'tanggal'     => now()->toDateString(),
-                        'debit'       => $data->nominal,
-                        'kredit'      => 0,
-                        'saldo'       => $data->nominal,
-                        'aktivitas'   => 'Operasi',
-                        'keterangan'  => 'Auto-posting: Pelunasan hutang kepada '
-                                         . $data->nama_vendor
-                                         . ' kategori ' . $data->kategori,
+                        'reference'   => $kodeJurnal,
+                        'user_id'     => auth()->id(),
+                        'kategori'    => 'Pengeluaran',
+                        'metode'      => 'Cash',
+                        'keterangan'  => 'Pelunasan Hutang Vendor - ' . $data->nama_vendor,
+                        'pemasukan'   => 0,
+                        'pengeluaran' => $data->nominal,
+                        'saldo'       => $saldoBaru,
+                        'sumber'      => 'auto',
                     ]);
+
+                    // Auto-posting ke Buku Besar (cegah duplikasi)
+                    if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                        // P1 #2 FIX BUKU BESAR SALDO: accumulative saldo with lockForUpdate
+                        $saldoBBTerakhir = (float) DB::table('bukubesars')
+                            ->lockForUpdate()
+                            ->orderBy('id', 'desc')
+                            ->value('saldo') ?? 0;
+
+                        Bukubesar::create([
+                            'kode_jurnal' => $kodeJurnal,
+                            'transaksi'   => 'Pelunasan Hutang Vendor - ' . $data->nama_vendor,
+                            'kategori'    => 'Beban',
+                            'tanggal'     => now()->toDateString(),
+                            'debit'       => $data->nominal,
+                            'kredit'      => 0,
+                            'saldo'       => $saldoBBTerakhir + $data->nominal, // P1 #2: accumulative
+                            'aktivitas'   => 'Operasi',
+                            'keterangan'  => 'Auto-posting: Pelunasan hutang kepada '
+                                             . $data->nama_vendor
+                                             . ' kategori ' . $data->kategori,
+                        ]);
+                    }
+
+                    // TODO P1#6: aging_aps belum punya relasi FK ke hutang_vendor. Butuh migration untuk link keduanya.
+
+                    DB::commit();
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    throw $e;
                 }
 
             } elseif ($request->status != 'lunas' && $statusLama == 'lunas') {
 
                 // Berubah dari lunas ke status lain — hapus jurnal & keuangan
-                Keuangan::where('reference', $kodeJurnal)->delete();
-                Bukubesar::where('kode_jurnal', $kodeJurnal)->delete();
+                DB::beginTransaction();
+                try {
+                    // P0 #1 FIX: simpan id sebelum delete, lalu recalculate
+                    $keuangan = Keuangan::where('reference', $kodeJurnal)->first();
+                    if ($keuangan) {
+                        $keuanganId = $keuangan->id;
+                        $keuangan->delete();
+                        \App\Http\Controllers\Admin\PaymentsController::recalculateKeuanganSaldo($keuanganId);
+                    }
+
+                    $jurnal = Bukubesar::where('kode_jurnal', $kodeJurnal)->first();
+                    if ($jurnal) {
+                        $jurnalId = $jurnal->id;
+                        $jurnal->delete();
+                        \App\Http\Controllers\Admin\PaymentsController::recalculateBukubesarSaldo($jurnalId);
+                    }
+
+                    DB::commit();
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    throw $e;
+                }
             }
 
             return back()->with('success', 'Status berhasil diubah');
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | UPDATE FULL FORM
-    |--------------------------------------------------------------------------
-    */
-
+        |----------------------------------------------------------------------
+        | UPDATE FULL FORM
+        |----------------------------------------------------------------------
+        */
         $request->validate([
             'nama_vendor' => 'required',
-            'kategori' => 'required',
-            'nominal' => 'required|numeric',
-            'dibayar' => 'nullable|numeric',
+            'kategori'    => 'required',
+            'nominal'     => 'required|numeric',
+            'dibayar'     => 'nullable|numeric',
             'jatuh_tempo' => 'required|date',
-            'status' => 'required',
+            'status'      => 'required',
         ]);
 
-        $dibayar = $request->dibayar ?? 0;
-
-        $sisa = $request->nominal - $dibayar;
-
+        $dibayar    = $request->dibayar ?? 0;
+        $sisa       = $request->nominal - $dibayar;
         $statusLama = $data->status;
 
         $data->update([
@@ -226,68 +287,114 @@ class HutangVendorController extends Controller
 
         if ($request->status == 'lunas') {
 
-            // --- Sinkron KEUANGAN ---
-            $keuangan = Keuangan::where('reference', $kodeJurnal)->first();
+            DB::beginTransaction();
+            try {
+                // --- Sinkron KEUANGAN ---
+                $keuangan = Keuangan::where('reference', $kodeJurnal)->first();
 
-            if ($keuangan) {
-                // Update nominal jika berubah
-                $keuangan->update([
-                    'pengeluaran' => $request->nominal,
-                    'keterangan'  => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
-                ]);
-            } elseif ($statusLama != 'lunas') {
-                // Baru lunas — buat entri Keuangan baru
-                $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
-                $saldoBaru = $lastSaldo - $request->nominal;
+                if ($keuangan) {
+                    // P0 #1 FIX: update nominal, lalu recalculate saldo dari baris ini ke bawah
+                    $keuangan->update([
+                        'pengeluaran' => $request->nominal,
+                        'keterangan'  => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
+                    ]);
+                    \App\Http\Controllers\Admin\PaymentsController::recalculateKeuanganSaldo($keuangan->id);
 
-                Keuangan::create([
-                    'tanggal'     => now()->toDateString(),
-                    'reference'   => $kodeJurnal,
-                    'user_id'     => auth()->id(),
-                    'kategori'    => 'Pengeluaran',
-                    'metode'      => 'Cash',
-                    'keterangan'  => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
-                    'pemasukan'   => 0,
-                    'pengeluaran' => $request->nominal,
-                    'saldo'       => $saldoBaru,
-                ]);
-            }
+                } elseif ($statusLama != 'lunas') {
+                    // Baru lunas — buat entri Keuangan baru
+                    // P0 #3 FIX RACE CONDITION: lockForUpdate inside transaction
+                    $lastSaldo = (float) DB::table('keuangans')
+                        ->lockForUpdate()
+                        ->orderBy('id', 'desc')
+                        ->value('saldo') ?? 0;
 
-            // --- Sinkron BUKU BESAR ---
-            $jurnal = Bukubesar::where('kode_jurnal', $kodeJurnal)->first();
+                    $saldoBaru = $lastSaldo - $request->nominal;
 
-            if ($jurnal) {
-                // Update nominal jika berubah
-                $jurnal->update([
-                    'transaksi'  => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
-                    'debit'      => $request->nominal,
-                    'saldo'      => $request->nominal,
-                    'keterangan' => 'Auto-posting: Pelunasan hutang kepada '
-                                    . $request->nama_vendor
-                                    . ' kategori ' . $request->kategori,
-                ]);
-            } elseif ($statusLama != 'lunas') {
-                // Baru lunas — buat jurnal baru
-                Bukubesar::create([
-                    'kode_jurnal' => $kodeJurnal,
-                    'transaksi'   => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
-                    'kategori'    => 'Beban',
-                    'tanggal'     => now()->toDateString(),
-                    'debit'       => $request->nominal,
-                    'kredit'      => 0,
-                    'saldo'       => $request->nominal,
-                    'aktivitas'   => 'Operasi',
-                    'keterangan'  => 'Auto-posting: Pelunasan hutang kepada '
-                                     . $request->nama_vendor
-                                     . ' kategori ' . $request->kategori,
-                ]);
+                    // P0 #1: create; saldo safe via lockForUpdate (no recalculate needed)
+                    Keuangan::create([
+                        'tanggal'     => now()->toDateString(),
+                        'reference'   => $kodeJurnal,
+                        'user_id'     => auth()->id(),
+                        'kategori'    => 'Pengeluaran',
+                        'metode'      => 'Cash',
+                        'keterangan'  => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
+                        'pemasukan'   => 0,
+                        'pengeluaran' => $request->nominal,
+                        'saldo'       => $saldoBaru,
+                        'sumber'      => 'auto',
+                    ]);
+                }
+
+                // --- Sinkron BUKU BESAR ---
+                $jurnal = Bukubesar::where('kode_jurnal', $kodeJurnal)->first();
+
+                if ($jurnal) {
+                    // P1 #2 FIX: update jurnal, lalu recalculate saldo buku besar
+                    $jurnal->update([
+                        'transaksi'  => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
+                        'debit'      => $request->nominal,
+                        'keterangan' => 'Auto-posting: Pelunasan hutang kepada '
+                                        . $request->nama_vendor
+                                        . ' kategori ' . $request->kategori,
+                    ]);
+                    \App\Http\Controllers\Admin\PaymentsController::recalculateBukubesarSaldo($jurnal->id);
+
+                } elseif ($statusLama != 'lunas') {
+                    // Baru lunas — buat jurnal baru
+                    // P1 #2 FIX BUKU BESAR SALDO: accumulative saldo with lockForUpdate
+                    $saldoBBTerakhir = (float) DB::table('bukubesars')
+                        ->lockForUpdate()
+                        ->orderBy('id', 'desc')
+                        ->value('saldo') ?? 0;
+
+                    Bukubesar::create([
+                        'kode_jurnal' => $kodeJurnal,
+                        'transaksi'   => 'Pelunasan Hutang Vendor - ' . $request->nama_vendor,
+                        'kategori'    => 'Beban',
+                        'tanggal'     => now()->toDateString(),
+                        'debit'       => $request->nominal,
+                        'kredit'      => 0,
+                        'saldo'       => $saldoBBTerakhir + $request->nominal, // P1 #2: accumulative
+                        'aktivitas'   => 'Operasi',
+                        'keterangan'  => 'Auto-posting: Pelunasan hutang kepada '
+                                         . $request->nama_vendor
+                                         . ' kategori ' . $request->kategori,
+                    ]);
+                }
+
+                // TODO P1#6: aging_aps belum punya relasi FK ke hutang_vendor. Butuh migration untuk link keduanya.
+
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                throw $e;
             }
 
         } else {
 
             // Status bukan lunas — hapus jurnal & keuangan jika ada
-            Keuangan::where('reference', $kodeJurnal)->delete();
-            Bukubesar::where('kode_jurnal', $kodeJurnal)->delete();
+            DB::beginTransaction();
+            try {
+                // P0 #1 FIX: simpan id sebelum delete, lalu recalculate
+                $keuangan = Keuangan::where('reference', $kodeJurnal)->first();
+                if ($keuangan) {
+                    $keuanganId = $keuangan->id;
+                    $keuangan->delete();
+                    \App\Http\Controllers\Admin\PaymentsController::recalculateKeuanganSaldo($keuanganId);
+                }
+
+                $jurnal = Bukubesar::where('kode_jurnal', $kodeJurnal)->first();
+                if ($jurnal) {
+                    $jurnalId = $jurnal->id;
+                    $jurnal->delete();
+                    \App\Http\Controllers\Admin\PaymentsController::recalculateBukubesarSaldo($jurnalId);
+                }
+
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                throw $e;
+            }
         }
 
         return back()->with('success', 'Data berhasil diupdate');
@@ -300,28 +407,43 @@ class HutangVendorController extends Controller
     {
         $hutang = HutangVendor::findOrFail($id);
 
-        // Hapus jurnal Buku Besar & Keuangan terkait
         $kodeJurnal = 'HTG-' . $hutang->id;
-        Bukubesar::where('kode_jurnal', $kodeJurnal)->delete();
-        Keuangan::where('reference', $kodeJurnal)->delete();
 
-        $hutang->delete();
+        DB::beginTransaction();
+        try {
+            // P0 #1 FIX: simpan id sebelum delete, lalu recalculate setelah delete
+            $keuangan = Keuangan::where('reference', $kodeJurnal)->first();
+            if ($keuangan) {
+                $keuanganId = $keuangan->id;
+                $keuangan->delete();
+                \App\Http\Controllers\Admin\PaymentsController::recalculateKeuanganSaldo($keuanganId);
+            }
 
-        return back()->with(
-            'success',
-            'Data berhasil dihapus'
-        );
+            $jurnal = Bukubesar::where('kode_jurnal', $kodeJurnal)->first();
+            if ($jurnal) {
+                $jurnalId = $jurnal->id;
+                $jurnal->delete();
+                \App\Http\Controllers\Admin\PaymentsController::recalculateBukubesarSaldo($jurnalId);
+            }
+
+            $hutang->delete();
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+        return back()->with('success', 'Data berhasil dihapus');
     }
 
-
-
-
-
+    /**
+     * PDF EXPORT
+     */
     public function pdf(Request $request)
     {
         $query = HutangVendor::query();
 
-        // 🔥 pakai filter yang sama seperti di table
         if ($request->search) {
             $query->where(function ($q) use ($request) {
                 $q->where('nama_vendor', 'like', "%{$request->search}%")
@@ -350,8 +472,9 @@ class HutangVendorController extends Controller
         return $pdf->stream('hutang-vendor.pdf');
     }
 
-
-
+    /**
+     * EXCEL EXPORT
+     */
     public function exportExcel(Request $request)
     {
         $filename = 'hutang_vendor_' . now()->format('Ymd_His') . '.xlsx';

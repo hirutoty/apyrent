@@ -104,7 +104,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="exportPdf()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf text-xs"></i> Export PDF
                     </button>
                     <div class="relative">
@@ -114,7 +114,7 @@
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-56">
                     </div>
                     <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
                 </div>
@@ -179,7 +179,7 @@
 
                 {{-- Reset --}}
                 <button onclick="resetFilter()"
-                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-rotate-left text-[10px]"></i> Reset
                 </button>
 
@@ -284,7 +284,7 @@
                                             <span
                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold w-fit">
 
-                                                ⚠️ Terlambat {{ abs($d->sisaHari) }} hari
+                                                ?? Terlambat {{ abs($d->sisaHari) }} hari
 
                                         </div>
                                     @elseif ($d->isSoon)
@@ -296,7 +296,7 @@
                                             <span
                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold w-fit">
 
-                                                ⚠️ Berakhir dalam {{ $d->sisaHari }} hari
+                                                ?? Berakhir dalam {{ $d->sisaHari }} hari
 
                                         </div>
                                     @else
@@ -446,7 +446,7 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Kendaraan --</option>
                         @foreach ($kendaraan as $k)
-                            <option value="{{ $k->id }}">{{ $k->nopol }} – {{ $k->merk }}</option>
+                            <option value="{{ $k->id }}">{{ $k->nopol }} � {{ $k->merk }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -598,7 +598,7 @@
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalTambah()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -643,7 +643,7 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Kendaraan --</option>
                         @foreach ($kendaraan as $k)
-                            <option value="{{ $k->id }}">{{ $k->nopol }} – {{ $k->merk }}</option>
+                            <option value="{{ $k->id }}">{{ $k->nopol }} � {{ $k->merk }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -787,7 +787,7 @@
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalEdit()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -916,7 +916,7 @@
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalPerpanjang()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -1056,7 +1056,7 @@
     </style>
 
     <script>
-        // ── MODAL TAMBAH ───────────────────────────────────
+        // -- MODAL TAMBAH -----------------------------------
         function openModalTambah() {
             var m = document.getElementById('modalTambah');
             m.classList.remove('hidden');
@@ -1074,7 +1074,7 @@
             if (e.target === this) closeModalTambah();
         });
 
-        // ── MODAL EDIT ─────────────────────────────────────
+        // -- MODAL EDIT -------------------------------------
         function openEditModal(
             id,
             kendaraan_id,
@@ -1155,7 +1155,7 @@
         });
 
 
-        // ── MODAL PERPANJANG ───────────────────────────────
+        // -- MODAL PERPANJANG -------------------------------
         function openModalPerpanjang(id, asuransi_id, jenis_id, nopol, merk, durasi, biaya, tglBerakhirLama) {
             document.getElementById('formPerpanjang').action =
                 '/admin/asuransi-kendaraan/' + id + '/perpanjang';
@@ -1217,7 +1217,7 @@
         });
 
 
-        // ── SEARCH / FILTER ────────────────────────────────
+        // -- SEARCH / FILTER --------------------------------
         function filterTable(q) {
             applyFilter(q);
         }
@@ -1279,7 +1279,7 @@
 
         document.addEventListener('DOMContentLoaded', () => applyFilter(''));
 
-        // ── POPUP ALERT ────────────────────────────────────
+        // -- POPUP ALERT ------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');

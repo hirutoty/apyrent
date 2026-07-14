@@ -97,15 +97,15 @@
 
                         @if (request('bulan'))
                             <a href="{{ route('stnk-history.index') }}"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-slate-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-slate-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                                 <i class="fa fa-rotate-left text-xs"></i> Reset
                             </a>
                         @endif
                     </form>
 
                     <a href="{{ route('stnk-history.export.pdf', ['bulan' => request('bulan')]) }}" target="_blank"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition">
-                        <i class="fa fa-file-pdf"></i>
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                        <i class="fa fa-file-pdf text-xs"></i>
                         Export PDF
                     </a>
 
@@ -303,7 +303,7 @@
     @endif
 
     <script>
-        // ── SEARCH (client-side) ────────────────────────────
+        // -- SEARCH (client-side) ----------------------------
         const search = document.getElementById('search');
 
         search.addEventListener('keyup', function() {
@@ -314,7 +314,7 @@
             });
         });
 
-        // ── POPUP ALERT ──────────────────────────────────────
+        // -- POPUP ALERT --------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box     = document.getElementById('alertBox');

@@ -28,8 +28,8 @@
             </div>
             <div class="flex gap-2 flex-wrap">
                 <a href="{{ route('invoices.print', $invoice->id) }}" target="_blank"
-                   class="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg">
-                    <i class="fa fa-file-pdf"></i> Preview PDF
+                   class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                    <i class="fa fa-file-pdf text-xs"></i> Preview PDF
                 </a>
                 <form action="{{ route('invoices.email', $invoice->id) }}" method="POST">
                     @csrf

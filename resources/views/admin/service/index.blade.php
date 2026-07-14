@@ -76,7 +76,7 @@
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-56">
                 </div>
                 <button onclick="window.location.reload()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-sync text-xs"></i> Refresh
                 </button>
             </div>
@@ -95,7 +95,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $i => $d)
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                             data-search="{{ strtolower(($d->user->name ?? '') . ' ' . $d->nama_service) }}">
 
                             {{-- NO --}}
@@ -222,7 +222,7 @@
 
             <div class="flex gap-3 pt-1">
                 <button type="button" onclick="closeModal()"
-                    class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                    class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     Batal
                 </button>
                 <button type="submit"
@@ -289,7 +289,7 @@
 </style>
 
 <script>
-// ── MODAL ──────────────────────────────────────────
+// -- MODAL ------------------------------------------
 const modal = document.getElementById('modal');
 
 function openModal() {
@@ -326,7 +326,7 @@ document.querySelectorAll('.btn-edit').forEach(btn => {
     });
 });
 
-// ── SEARCH / FILTER ────────────────────────────────
+// -- SEARCH / FILTER --------------------------------
 function filterTable(q) {
     const rows = document.querySelectorAll('#tableBody tr[data-search]');
     let visible = 0;
@@ -351,7 +351,7 @@ function filterTable(q) {
     });
 }
 
-// ── POPUP ALERT ────────────────────────────────────
+// -- POPUP ALERT ------------------------------------
 (function () {
     var overlay = document.getElementById('alertOverlay');
     var box     = document.getElementById('alertBox');

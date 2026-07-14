@@ -136,13 +136,13 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <a href="{{ route('bupot.pdf') }}?search=" id="pdfLink" target="_blank"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf"></i> PDF
                     </a>
 
                     {{-- TAMBAHKAN INI --}}
                     <a href="{{ route('bupot.export.excel') }}" id="excelLink"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
                         <i class="fa fa-file-excel"></i> Excel
                     </a>
                     <div class="relative">
@@ -152,7 +152,7 @@
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-56">
                     </div>
                     <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
                 </div>
@@ -190,7 +190,7 @@
                     </thead>
                     <tbody id="tableBody">
                         @forelse ($data as $item)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower($item->nomor_bukti . ' ' . $item->nama_pemotong . ' ' . $item->nama_dipotong . ' ' . $item->tipe . ' ' . $item->status) }}">
 
                                 {{-- No --}}
@@ -440,7 +440,7 @@
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalTambah()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -588,7 +588,7 @@
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalEdit()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -673,7 +673,7 @@
     </style>
 
     <script>
-        // ── MODAL TAMBAH ───────────────────────────────────
+        // -- MODAL TAMBAH -----------------------------------
         function openModalTambah() {
             var m = document.getElementById('modalTambah');
             m.classList.remove('hidden');
@@ -689,7 +689,7 @@
             if (e.target === this) closeModalTambah();
         });
 
-        // ── MODAL EDIT ─────────────────────────────────────
+        // -- MODAL EDIT -------------------------------------
         function openEditModal(id, nomor, tanggal, tipe, npwp_pemotong, nama_pemotong, npwp_dipotong, nama_dipotong, bruto,
             tarif, status) {
             var m = document.getElementById('modalEdit');
@@ -730,7 +730,7 @@
             }
         });
 
-        // ── SEARCH / FILTER ────────────────────────────────
+        // -- SEARCH / FILTER --------------------------------
         function filterTable(q) {
             var num = 0;
             document.querySelectorAll('#tableBody tr[data-search]').forEach(function(row) {
@@ -748,10 +748,10 @@
             document.getElementById('excelLink').href = "{{ route('bupot.export.excel') }}" + query;
         }
 
-        // initial — set Excel link saat halaman pertama load
+        // initial � set Excel link saat halaman pertama load
         document.getElementById('excelLink').href = "{{ route('bupot.export.excel') }}";
 
-        // ── POPUP ALERT ────────────────────────────────────
+        // -- POPUP ALERT ------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');
@@ -802,7 +802,7 @@
                     <button type="button"
                         onclick="removeBupot()"
                         class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs">
-                        ×
+                        �
                     </button>
                 </div>
             `;
@@ -826,7 +826,7 @@
                 <button type="button"
                     onclick="removeBupot()"
                     class="ml-2 text-red-500 text-sm">
-                    ×
+                    �
                 </button>
             </div>
         `;
@@ -863,7 +863,7 @@
                     <button type="button"
                         onclick="removeBupotEdit()"
                         class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs">
-                        ×
+                        �
                     </button>
                 </div>
             `;
@@ -887,7 +887,7 @@
                 <button type="button"
                     onclick="removeBupotEdit()"
                     class="ml-2 text-red-500 text-sm">
-                    ×
+                    �
                 </button>
             </div>
         `;

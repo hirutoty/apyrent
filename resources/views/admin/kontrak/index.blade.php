@@ -25,11 +25,11 @@
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('kontrak.pdf', request()->query()) }}" target="_blank"
-                    class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                     <i class="fa fa-file-pdf"></i> Export PDF
                 </a>
                 <a href="{{ route('kontrak.export.excel', request()->query()) }}"
-                    class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
                     <i class="fa fa-file-excel"></i> Export Excel
                 </a>
                 <button onclick="openModal('modalCreate')"
@@ -146,7 +146,7 @@
                     </thead>
                     <tbody>
                         @forelse ($kontraks as $no => $k)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                                 <td class="px-4 py-3.5 text-xs text-gray-400">{{ $no + 1 }}</td>
 
                                 <td class="px-4 py-3.5" data-col="col-nokontrak">
@@ -154,7 +154,7 @@
                                 </td>
 
                                 <td class="px-4 py-3.5 text-sm text-gray-600" data-col="col-penawaran">
-                                    {{ $k->penawaran->no_penawaran ?? 'â€”' }}
+                                    {{ $k->penawaran->no_penawaran ?? '—' }}
                                 </td>
 
                                 <td class="px-4 py-3.5 text-sm text-gray-600" data-col="col-tanggal">
@@ -191,7 +191,7 @@
                                             <i class="fa fa-file text-xs"></i> Lihat
                                         </a>
                                     @else
-                                        <span class="text-gray-400 text-xs">â€”</span>
+                                        <span class="text-gray-400 text-xs">—</span>
                                     @endif
                                 </td>
 
@@ -202,7 +202,7 @@
                                             <i class="fa fa-file text-xs"></i> Lihat
                                         </a>
                                     @else
-                                        <span class="text-gray-400 text-xs">â€”</span>
+                                        <span class="text-gray-400 text-xs">—</span>
                                     @endif
                                 </td>
 
@@ -427,14 +427,14 @@
                     </div>
                     <div class="px-6 py-5 space-y-3 text-sm">
                         <div class="grid grid-cols-2 gap-x-4 gap-y-3">
-                            <div><p class="text-xs text-gray-400">No Kontrak</p><p id="d_no_kontrak" class="font-semibold text-gray-800 mt-0.5">â€”</p></div>
-                            <div><p class="text-xs text-gray-400">Penawaran</p><p id="d_penawaran" class="text-gray-700 mt-0.5">â€”</p></div>
-                            <div><p class="text-xs text-gray-400">Tanggal Kontrak</p><p id="d_tanggal" class="text-gray-700 mt-0.5">â€”</p></div>
-                            <div><p class="text-xs text-gray-400">Status</p><p id="d_status" class="text-gray-700 mt-0.5">â€”</p></div>
-                            <div><p class="text-xs text-gray-400">Pihak 1</p><p id="d_pihak1" class="text-gray-700 mt-0.5">â€”</p></div>
-                            <div><p class="text-xs text-gray-400">Kontak 1</p><p id="d_contact1" class="text-gray-700 mt-0.5">â€”</p></div>
-                            <div><p class="text-xs text-gray-400">Pihak 2</p><p id="d_pihak2" class="text-gray-700 mt-0.5">â€”</p></div>
-                            <div><p class="text-xs text-gray-400">Kontak 2</p><p id="d_contact2" class="text-gray-700 mt-0.5">â€”</p></div>
+                            <div><p class="text-xs text-gray-400">No Kontrak</p><p id="d_no_kontrak" class="font-semibold text-gray-800 mt-0.5">—</p></div>
+                            <div><p class="text-xs text-gray-400">Penawaran</p><p id="d_penawaran" class="text-gray-700 mt-0.5">—</p></div>
+                            <div><p class="text-xs text-gray-400">Tanggal Kontrak</p><p id="d_tanggal" class="text-gray-700 mt-0.5">—</p></div>
+                            <div><p class="text-xs text-gray-400">Status</p><p id="d_status" class="text-gray-700 mt-0.5">—</p></div>
+                            <div><p class="text-xs text-gray-400">Pihak 1</p><p id="d_pihak1" class="text-gray-700 mt-0.5">—</p></div>
+                            <div><p class="text-xs text-gray-400">Kontak 1</p><p id="d_contact1" class="text-gray-700 mt-0.5">—</p></div>
+                            <div><p class="text-xs text-gray-400">Pihak 2</p><p id="d_pihak2" class="text-gray-700 mt-0.5">—</p></div>
+                            <div><p class="text-xs text-gray-400">Kontak 2</p><p id="d_contact2" class="text-gray-700 mt-0.5">—</p></div>
                         </div>
                         <div class="border-t border-gray-100 pt-3 flex gap-4">
                             <div><p class="text-xs text-gray-400 mb-1">File Kontrak</p><a id="d_file_kontrak" href="#" target="_blank" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"><i class="fa fa-file text-xs"></i> Lihat</a></div>
@@ -449,7 +449,7 @@
 
 
     <script>
-        // â”€â”€ Toggle Kolom â”€â”€
+        // -- Toggle Kolom --
         function toggleColDropdown() {
             document.getElementById('colDropdown').classList.toggle('hidden');
         }

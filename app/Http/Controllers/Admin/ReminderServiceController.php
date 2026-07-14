@@ -54,12 +54,15 @@ class ReminderServiceController extends Controller
             'items.*.interval_nilai'    => 'required|integer|min:1',
             'items.*.interval_satuan'   => 'required|in:hari,minggu,bulan,tahun',
             'items.*.keterangan'        => 'nullable|string',
+            'items.*.biaya'             => 'nullable|numeric|min:0',
         ], [
             'items.required'                    => 'Minimal satu reminder harus diisi.',
             'items.*.nama_reminder.required'    => 'Nama reminder wajib diisi.',
             'items.*.tanggal_mulai.required'    => 'Tanggal mulai wajib diisi.',
             'items.*.interval_nilai.required'   => 'Interval wajib diisi.',
             'items.*.interval_satuan.required'  => 'Satuan interval wajib dipilih.',
+            'items.*.biaya.numeric'             => 'Biaya harus berupa angka.',
+            'items.*.biaya.min'                 => 'Biaya tidak boleh negatif.',
         ]);
 
         foreach ($request->items as $item) {
@@ -80,6 +83,7 @@ class ReminderServiceController extends Controller
                 'interval_satuan'      => $item['interval_satuan'],
                 'tanggal_jatuh_tempo'  => $jatuhTempo->toDateString(),
                 'keterangan'           => $item['keterangan'] ?? null,
+                'biaya'                => isset($item['biaya']) && $item['biaya'] !== '' ? $item['biaya'] : null,
                 'status'               => $status,
                 'sudah_dibuat_masalah' => false,
             ]);
@@ -103,6 +107,7 @@ class ReminderServiceController extends Controller
             'interval_nilai'  => 'required|integer|min:1',
             'interval_satuan' => 'required|in:hari,minggu,bulan,tahun',
             'keterangan'      => 'nullable|string',
+            'biaya'           => 'nullable|numeric|min:0',
         ]);
 
         $reminder     = ReminderService::findOrFail($id);
@@ -123,6 +128,7 @@ class ReminderServiceController extends Controller
             'interval_satuan'     => $request->interval_satuan,
             'tanggal_jatuh_tempo' => $jatuhTempo->toDateString(),
             'keterangan'          => $request->keterangan,
+            'biaya'               => $request->biaya !== '' ? $request->biaya : null,
             'status'              => $status,
             // Reset sudah_dibuat_masalah jika tanggal/interval berubah
             'sudah_dibuat_masalah' => false,

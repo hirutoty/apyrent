@@ -4,7 +4,7 @@
 
 @push('styles')
     <style>
-        /* ── Role select colors ── */
+        /* -- Role select colors -- */
         select.role-select {
             appearance: none;
             -webkit-appearance: none;
@@ -61,7 +61,7 @@
             color: #fff;
         }
 
-        /* ── Status select colors ── */
+        /* -- Status select colors -- */
         select.status-select {
             appearance: none;
             -webkit-appearance: none;
@@ -297,17 +297,15 @@
                     <div class="flex items-center gap-2">
 
                         <a id="pdfBtn" target="_blank" href="{{ route('user.export.pdf') }}"
-                            class="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium
-                       bg-red-500 text-white rounded-xl hover:bg-red-600 transition">
-
-                            <i class="fa fa-file-pdf"></i>
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                            <i class="fa fa-file-pdf text-xs"></i>
                             Export PDF
                         </a>
 
                         <button onclick="window.location.reload()"
                             class="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium
                        text-gray-600 border border-gray-200 rounded-xl
-                       hover:bg-gray-50 transition-colors">
+                       odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
 
                             <i class="fa fa-rotate-right"></i>
                             Refresh
@@ -387,7 +385,7 @@
                                         class="font-mono text-[11px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md mt-0.5 inline-block">{{ $d->no_telp }}</span>
                                 </td>
 
-                                {{-- Role — independent color per row ── --}}
+                                {{-- Role � independent color per row -- --}}
                                 <td class="px-4 py-3.5">
                                     <form action="/admin/user/{{ $d->id }}" method="POST">
                                         @csrf @method('PUT')
@@ -419,7 +417,7 @@
                                     </form>
                                 </td>
 
-                                {{-- Status — independent color per row ── --}}
+                                {{-- Status � independent color per row -- --}}
                                 <td class="px-4 py-3.5">
                                     <form action="/admin/user/{{ $d->id }}" method="POST">
                                         @csrf @method('PUT')
@@ -431,9 +429,9 @@
 
                                         <select name="status" onchange="updateStatusColor(this); this.form.submit()"
                                             class="status-select status-{{ $d->status }} text-xs font-semibold px-2.5 py-1.5 rounded-lg outline-none focus:ring-2 focus:ring-offset-1 focus:ring-emerald-300">
-                                            <option value="aktif" {{ $d->status == 'aktif' ? 'selected' : '' }}>✓ Aktif
+                                            <option value="aktif" {{ $d->status == 'aktif' ? 'selected' : '' }}>? Aktif
                                             </option>
-                                            <option value="blokir" {{ $d->status == 'blokir' ? 'selected' : '' }}>✕ Blokir
+                                            <option value="blokir" {{ $d->status == 'blokir' ? 'selected' : '' }}>? Blokir
                                             </option>
                                         </select>
                                     </form>
@@ -645,9 +643,9 @@
 
     @push('scripts')
         <script>
-            // ══════════════════════════════════════════════
-            //  ROLE & STATUS COLOR — per row, independent
-            // ══════════════════════════════════════════════
+            // ----------------------------------------------
+            //  ROLE & STATUS COLOR � per row, independent
+            // ----------------------------------------------
 
             // Role color classes map
             var roleClasses = {
@@ -687,7 +685,7 @@
                 sel.classList.add(statusClasses[sel.value] || '');
             }
 
-            // ── On page load: apply correct colors to every row independently ──
+            // -- On page load: apply correct colors to every row independently --
             document.querySelectorAll('select.role-select').forEach(function(sel) {
                 // Already set via PHP class, but re-apply to be safe
                 Object.values(roleClasses).forEach(function(c) {
@@ -703,9 +701,9 @@
                 sel.classList.add(statusClasses[sel.value] || '');
             });
 
-            // ══════════════════════════════════════════════
+            // ----------------------------------------------
             //  MODAL
-            // ══════════════════════════════════════════════
+            // ----------------------------------------------
             var userModal = document.getElementById('userModal');
             var userForm = document.getElementById('userForm');
             var methodContainer = document.getElementById('methodContainer');
@@ -761,7 +759,7 @@
                 });
             });
 
-            // ── Toggle password visibility ──
+            // -- Toggle password visibility --
             function togglePassword() {
                 var inp = document.getElementById('f_password');
                 var ico = document.getElementById('eyeIcon');
@@ -774,7 +772,7 @@
                 }
             }
 
-            // ── Preview foto saat dipilih ──
+            // -- Preview foto saat dipilih --
             document.getElementById('f_foto').addEventListener('change', function() {
                 var preview = document.getElementById('fotoPreview');
                 if (this.files && this.files[0]) {
@@ -790,7 +788,7 @@
                 }
             });
 
-            // ── Table search filter ──
+            // -- Table search filter --
             function filterUserTable(q) {
                 document.querySelectorAll('#userTableBody tr[data-search]').forEach(row => {
                     row.style.display = row.dataset.search.includes(q.toLowerCase()) ? '' : 'none';
@@ -801,9 +799,9 @@
                     '/admin/user/export-pdf?search=' + encodeURIComponent(q);
             }
 
-            // ══════════════════════════════════════════════
+            // ----------------------------------------------
             //  POPUP ALERT
-            // ══════════════════════════════════════════════
+            // ----------------------------------------------
             (function() {
                 var overlay = document.getElementById('alertOverlay');
                 var box = document.getElementById('alertBox');

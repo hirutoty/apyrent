@@ -33,12 +33,12 @@
     {{-- EXPORT --}}
     <div class="flex gap-2">
         <a href="{{ route('payments.pdf', request()->query()) }}" target="_blank"
-            class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-            <i class="fa fa-file-pdf"></i> Export PDF
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+            <i class="fa fa-file-pdf text-xs"></i> Export PDF
         </a>
         <a href="{{ route('payments.export.excel', request()->query()) }}"
-            class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-            <i class="fa fa-file-excel"></i> Export Excel
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
+            <i class="fa fa-file-excel text-xs"></i> Export Excel
         </a>
     </div>
 
@@ -176,7 +176,7 @@
                                 default     => 'bg-gray-100 text-gray-600',
                             };
                         @endphp
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <td class="px-4 py-3.5 text-xs text-gray-400">{{ $payments->firstItem() + $i }}</td>
                             <td data-col="col-trxid" class="px-4 py-3.5">
                                 <span class="font-mono text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
@@ -210,7 +210,7 @@
                                         <i class="fa fa-file text-xs"></i> Lihat
                                     </a>
                                 @else
-                                    <span class="text-xs text-gray-400">—</span>
+                                    <span class="text-xs text-gray-400">�</span>
                                 @endif
                             </td>
                             <td data-col="col-status" class="px-4 py-3.5 text-center">
@@ -293,10 +293,10 @@
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice <span class="text-red-500">*</span></label>
                             <select name="invoice_id" required
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="">— Pilih Invoice —</option>
+                                <option value="">� Pilih Invoice �</option>
                                 @foreach ($invoices as $inv)
                                     <option value="{{ $inv->id }}">
-                                        {{ $inv->invoice_no }} — {{ $inv->customer_name }}
+                                        {{ $inv->invoice_no }} � {{ $inv->customer_name }}
                                     </option>
                                 @endforeach
                             </select>
@@ -380,7 +380,7 @@
             {{-- FOOTER --}}
             <div class="border-t border-gray-100 px-6 py-4 flex justify-end gap-2">
                 <button type="button" onclick="closeModalTambah()"
-                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     Batal
                 </button>
                 <button type="submit"
@@ -436,10 +436,10 @@
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice <span class="text-red-500">*</span></label>
                             <select id="edit_invoice_id" name="invoice_id" required
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="">— Pilih Invoice —</option>
+                                <option value="">� Pilih Invoice �</option>
                                 @foreach ($invoices as $inv)
                                     <option value="{{ $inv->id }}">
-                                        {{ $inv->invoice_no }} — {{ $inv->customer_name }}
+                                        {{ $inv->invoice_no }} � {{ $inv->customer_name }}
                                     </option>
                                 @endforeach
                             </select>
@@ -498,7 +498,7 @@
                             <span class="text-blue-600 text-[10px] font-bold">3</span>
                         </div>
                         <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bukti pembayaran</h3>
-                        <span class="text-xs text-gray-400">(opsional — kosongkan jika tidak diganti)</span>
+                        <span class="text-xs text-gray-400">(opsional � kosongkan jika tidak diganti)</span>
                     </div>
 
                     {{-- Preview file lama --}}
@@ -535,7 +535,7 @@
             {{-- FOOTER --}}
             <div class="border-t border-gray-100 px-6 py-4 flex justify-end gap-2">
                 <button type="button" onclick="closeModalEdit()"
-                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     Batal
                 </button>
                 <button type="submit"
@@ -558,7 +558,7 @@
 
 @push('scripts')
 <script>
-    /* ── Toggle Kolom ── */
+    /* -- Toggle Kolom -- */
     function toggleColDropdown() {
         document.getElementById('colDropdown').classList.toggle('hidden');
     }
@@ -574,7 +574,7 @@
         });
     }
 
-    /* ── MODAL TAMBAH ── */
+    /* -- MODAL TAMBAH -- */
     const modalTambah = document.getElementById('modalTambah');
 
     function openModalTambah() {
@@ -587,7 +587,7 @@
     }
     modalTambah.addEventListener('click', e => { if (e.target === modalTambah) closeModalTambah(); });
 
-    /* ── MODAL EDIT ── */
+    /* -- MODAL EDIT -- */
     const modalEdit = document.getElementById('modalEdit');
     const formEdit  = document.getElementById('formEdit');
 
@@ -639,7 +639,7 @@
     }
     modalEdit.addEventListener('click', e => { if (e.target === modalEdit) closeModalEdit(); });
 
-    /* ── DRAG DROP & PREVIEW ── */
+    /* -- DRAG DROP & PREVIEW -- */
     function previewFilePembayaran(event, previewId, dropId) {
         const file    = event.target.files[0];
         const preview = document.getElementById(previewId);
@@ -656,7 +656,7 @@
         } else {
             preview.classList.add('hidden');
             const label = drop.querySelector('p.text-sm');
-            if (label) label.textContent = '✔ ' + file.name;
+            if (label) label.textContent = '? ' + file.name;
         }
     }
 
