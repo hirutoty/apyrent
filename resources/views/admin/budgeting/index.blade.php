@@ -84,7 +84,7 @@
 
                 <div class="flex items-center gap-2">
                     <a id="pdfBtn"
-    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors"
     target="_blank"
     href="{{ route('budgeting.pdf') }}">
     <i class="fa fa-file-pdf"></i> PDF
@@ -92,7 +92,7 @@
 
 {{-- TAMBAHKAN INI --}}
 <a id="excelBtn"
-    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors"
     target="_blank"
     href="{{ route('budgeting.export.excel') }}">
     <i class="fa fa-file-excel"></i> Excel
@@ -105,7 +105,7 @@
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-48">
                     </div>
                     <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
                 </div>
@@ -135,7 +135,7 @@
                     </thead>
                     <tbody id="budgetingTableBody">
                         @forelse($data as $i => $item)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower($item->proyek . ' ' . $item->kategori) }}">
 
                                 {{-- NO --}}
@@ -441,7 +441,7 @@
     </style>
 
     <script>
-        // ── MODAL TAMBAH ───────────────────────────────────
+        // -- MODAL TAMBAH -----------------------------------
 const modalTambah = document.getElementById('modalTambah');
 const modalEdit   = document.getElementById('modalEdit');
 
@@ -455,7 +455,7 @@ function closeModalTambah() {
 }
 modalTambah.addEventListener('click', e => { if (e.target === modalTambah) closeModalTambah(); });
 
-// ── MODAL EDIT ─────────────────────────────────────
+// -- MODAL EDIT -------------------------------------
 function openModalEdit(id, proyek, kategori, budget, realisasi) {
     document.getElementById('formEdit').action      = `/admin/budgeting/${id}`;
     document.getElementById('edit_proyek').value    = proyek;
@@ -471,7 +471,7 @@ function closeModalEdit() {
 }
 modalEdit.addEventListener('click', e => { if (e.target === modalEdit) closeModalEdit(); });
 
-// ── UPDATE EXPORT LINKS ────────────────────────────
+// -- UPDATE EXPORT LINKS ----------------------------
 function updateExportLinks() {
     const keyword = document.getElementById('searchInput').value.trim();
     const query   = keyword ? '?search=' + encodeURIComponent(keyword) : '';
@@ -480,7 +480,7 @@ function updateExportLinks() {
     document.getElementById('excelBtn').href = `/admin/budgeting/excel${query}`;
 }
 
-// ── SEARCH / FILTER ────────────────────────────────
+// -- SEARCH / FILTER --------------------------------
 function applyFilters() {
     const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
     const rows    = document.querySelectorAll('#budgetingTableBody tr[data-search]');
@@ -511,7 +511,7 @@ function applyFilters() {
 // initial
 updateExportLinks();
 
-// ── POPUP ALERT ────────────────────────────────────
+// -- POPUP ALERT ------------------------------------
 (function () {
     var overlay = document.getElementById('alertOverlay');
     var box     = document.getElementById('alertBox');

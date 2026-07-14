@@ -57,8 +57,8 @@
         </div>
 
         {{-- NAV TABS --}}
-        <div class="border-b border-gray-200">
-            <nav class="flex gap-0 -mb-px overflow-x-auto">
+        <div>
+            <nav class="inline-flex gap-1 bg-gray-100 rounded-xl p-1">
                 @php
                     $navItems = [
                         ['label' => 'Service History',  'url' => '/admin/service-history', 'icon' => 'bi bi-clock-history'],
@@ -69,8 +69,8 @@
                 @foreach ($navItems as $item)
                     @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
                     <a href="{{ $item['url'] }}"
-                        class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
-                            {{ $isActiveTab ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
+                        class="flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
+                            {{ $isActiveTab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60' }}">
                         <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
                     </a>
                 @endforeach
@@ -166,126 +166,66 @@
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
-            <div
-                class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
+            {{-- TOOLBAR --}}
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
-                    <h2 class="font-semibold text-gray-800 text-base">Daftar Service Kendaraan</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $totalService }} total data service</p>
+                    <h2 class="font-semibold text-gray-800">Riwayat Service</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $totalService }} data</p>
                 </div>
-
-                <div class="flex items-center gap-2 flex-wrap">
-
-                    {{-- FILTER BULAN --}}
+                <div class="flex flex-wrap items-center gap-2">
+                    {{-- Filter bulan + search digabung dalam satu form --}}
                     <form method="GET" class="flex items-center gap-2">
                         <input type="month" name="bulan" value="{{ request('bulan', now()->format('Y-m')) }}"
                             class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-
-                        <button type="submit"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                            <i class="fa fa-filter text-xs"></i> Filter
-                        </button>
-
-                        <a href="{{ url('/admin/service-history') }}"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                            <i class="fa fa-rotate-left text-xs"></i> Reset
-                        </a>
-                    </form>
-
-                    {{-- SEARCH + PDF --}}
-                    <form method="GET" class="flex items-center gap-2">
-
-                        <input type="hidden" name="bulan" value="{{ request('bulan') }}">
-
                         <div class="relative">
-                            <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-
+                            <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
                             <input type="text" name="search" value="{{ request('search') }}"
-                                placeholder="Cari kendaraan, keluhan..."
-                                class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-56">
+                                placeholder="Cari kendaraan..."
+                                class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                         </div>
-
                         <button type="submit"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                            class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
                             Cari
                         </button>
-
-                        {{-- PDF (PASTI IKUT FILTER) --}}
-                        <a href="{{ route('service-history.pdf', [
-                            'bulan' => request('bulan'),
-                            'search' => request('search'),
-                        ]) }}"
-                            target="_blank"
-                            class="inline-flex items-center gap-2 px-3 py-1.5 text-xs border rounded-lg bg-red-600 text-white hover:bg-red-700">
-                            <i class="fa fa-file-pdf"></i> PDF
+                        @if(request('bulan') || request('search'))
+                        <a href="{{ url('/admin/service-history') }}"
+                            class="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                            Reset
                         </a>
-
+                        @endif
                     </form>
-
-                    <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <i class="fa fa-sync text-xs"></i> Refresh
-                    </button>
-
-                    {{-- EXPAND / COLLAPSE ALL --}}
+                    <a href="{{ route('service-history.pdf', ['bulan' => request('bulan'), 'search' => request('search')]) }}"
+                        target="_blank"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                        <i class="fa fa-file-pdf"></i> PDF
+                    </a>
                     <button id="btnExpandAll" onclick="expandAllAccordion()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
-                        <i class="fa fa-chevron-down text-xs"></i> Expand All
+                        class="px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
+                        <i class="fa fa-chevron-down text-xs"></i> Buka Semua
                     </button>
                     <button id="btnCollapseAll" onclick="collapseAllAccordion()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <i class="fa fa-chevron-right text-xs"></i> Collapse All
+                        class="px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="fa fa-chevron-right text-xs"></i> Tutup Semua
                     </button>
-
                 </div>
             </div>
 
-            {{-- SHOW ENTRIES --}}
-            <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-                <span>Show</span>
-                <select id="perPageSelect" onchange="renderTable()"
-                    class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <option value="5">5</option>
-                    <option value="10" selected>10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="all">All</option>
-                </select>
-                <span>entries</span>
-                <div class="ml-auto text-xs text-gray-400" id="entriesInfo"></div>
-            </div>
+
 
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="bg-gray-50 border-b border-gray-100">
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No
-                            </th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Kendaraan</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Nopol</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Keluhan</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">KM
-                            </th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Maksimum Pertahun</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Maksimum Bulanan</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Total Biaya</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Sisa Per-bulan</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Status Service</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Status Pengeluaran</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Tanggal</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Bukti</th>
-                            <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Aksi</th>
+                        <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Keluhan</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">KM</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Biaya</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4 col-budget">Maks Bulanan</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4 col-budget">Sisa Budget</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Status</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Pengeluaran</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Tanggal</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Bukti</th>
+                            <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
@@ -296,34 +236,70 @@
 
                         @forelse ($grouped as $kendaraanId => $rows)
                             @php
-                                $firstRow       = $rows->first();
-                                $groupMerk      = $firstRow->kendaraan->merk  ?? '-';
-                                $groupNopol     = $firstRow->kendaraan->nopol ?? '-';
-                                $groupCount     = $rows->count();
+                                $firstRow        = $rows->first();
+                                $groupMerk       = $firstRow->kendaraan->merk  ?? '-';
+                                $groupNopol      = $firstRow->kendaraan->nopol ?? '-';
+                                $groupCount      = $rows->count();
                                 $groupTotalBiaya = $rows->sum('total_biaya');
-                                $groupId        = 'group-' . $kendaraanId;
+                                $groupId         = 'group-' . $kendaraanId;
+
+                                $limitBulan  = $firstRow->kendaraan->limit_bulan_service ?? 0;
+                                $limitTahun  = $limitBulan * 12;
+                                $sisaBulan   = $rows->sortByDesc('tanggal_service')->first()->sisa_limit ?? 0;
+                                $pctSisa     = $limitBulan > 0 ? ($sisaBulan / $limitBulan) * 100 : 100;
+                                $sisaColor   = $pctSisa <= 0  ? 'text-red-600 bg-red-50 border-red-200'
+                                             : ($pctSisa <= 30 ? 'text-amber-600 bg-amber-50 border-amber-200'
+                                             :                   'text-emerald-600 bg-emerald-50 border-emerald-200');
                             @endphp
 
-                            {{-- ── GROUP HEADER ROW ── --}}
-                            <tr class="group-header bg-blue-50 border-t-2 border-blue-100 cursor-pointer select-none hover:bg-blue-100 transition-colors duration-150"
+                            {{-- -- GROUP HEADER ROW -- --}}
+                            <tr class="group-header bg-blue-50/80 border-t-2 border-b border-blue-100 border-l-4 border-l-blue-500 cursor-pointer select-none hover:bg-blue-100 transition-colors duration-150"
                                 onclick="toggleAccordion('{{ $groupId }}')"
                                 data-group="{{ $groupId }}">
-                                <td colspan="14" class="px-4 py-3">
-                                    <div class="flex items-center gap-3">
+                                <td colspan="10" class="px-5 py-3.5">
+                                    <div class="flex items-center gap-3 flex-wrap">
                                         {{-- Car icon --}}
                                         <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
                                             <i class="fa-solid fa-car text-sm"></i>
                                         </div>
 
                                         {{-- Merk & Nopol --}}
-                                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-shrink-0">
                                             <span class="font-bold text-gray-800 text-sm">{{ $groupMerk }}</span>
                                             <span class="font-mono text-xs text-gray-600 bg-white border border-gray-200 px-2 py-0.5 rounded">{{ $groupNopol }}</span>
                                         </div>
 
+                                        @if ($limitBulan > 0)
+                                            <span class="text-gray-300 text-xs flex-shrink-0">|</span>
+
+                                            {{-- Max Bulan / Tahun --}}
+                                            <span class="text-xs text-gray-500 flex-shrink-0 whitespace-nowrap">
+                                                Max Bulan/Tahun:
+                                                <span class="font-semibold text-gray-700">
+                                                    Rp {{ number_format($limitBulan, 0, ',', '.') }} / {{ number_format($limitTahun, 0, ',', '.') }}
+                                                </span>
+                                            </span>
+
+                                            <span class="text-gray-300 text-xs flex-shrink-0">•</span>
+
+                                            {{-- Sisa Bulanan --}}
+                                            <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md border flex-shrink-0 whitespace-nowrap {{ $sisaColor }}">
+                                                @if ($pctSisa <= 0)
+                                                    <i class="fa-solid fa-ban text-[10px]"></i>
+                                                @elseif ($pctSisa <= 30)
+                                                    <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
+                                                @else
+                                                    <i class="fa-solid fa-circle-check text-[10px]"></i>
+                                                @endif
+                                                Sisa Service Bulanan: Rp {{ number_format($sisaBulan, 0, ',', '.') }}
+                                            </span>
+                                        @endif
+
+                                        <div class="flex-1"></div>
+
                                         {{-- Count badge --}}
                                         <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-600 text-white flex-shrink-0">
-                                            {{ $groupCount }} entri
+                                            {{ $groupCount }} Service
                                         </span>
 
                                         {{-- Total biaya sum --}}
@@ -338,7 +314,7 @@
                                 </td>
                             </tr>
 
-                            {{-- ── DETAIL / CHILD ROWS ── --}}
+                            {{-- -- DETAIL / CHILD ROWS -- --}}
                             @foreach ($rows as $loopIndex => $d)
                                 @php
                                     $limit = $d->kendaraan->limit_bulan_service ?? 0;
@@ -354,119 +330,91 @@
                                     }
                                 @endphp
 
-                                <tr class="group-child border-t border-gray-50 transition-all duration-200 {{ $rowClass ?: 'hover:bg-gray-50' }}"
+                                <tr class="group-child border-t border-gray-100 transition-all duration-200 {{ $rowClass ?: 'hover:bg-blue-50/30' }}"
                                     data-group="{{ $groupId }}"
                                     data-search="{{ strtolower(($d->kendaraan->merk ?? '') . ' ' . ($d->kendaraan->nopol ?? '') . ' ' . $d->keluhan . ' ' . $d->status) }}"
                                     style="display:none;">
 
-                                    {{-- No (sequential within group) --}}
-                                    <td class="px-4 py-3.5 text-gray-400 pl-7">{{ $loopIndex + 1 }}</td>
-
-                                    {{-- Kendaraan --}}
-                                    <td class="px-4 py-3.5">
-                                        <span class="font-semibold text-gray-800">{{ $d->kendaraan->merk ?? '-' }}</span>
-                                    </td>
-
-                                    {{-- Nopol --}}
-                                    <td class="px-4 py-3.5">
-                                        <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->kendaraan->nopol ?? '-' }}</span>
-                                    </td>
-
                                     {{-- Keluhan --}}
-                                    <td class="px-4 py-3.5 text-gray-600">{{ $d->keluhan }}</td>
+                                    <td class="px-5 py-4 text-sm text-gray-700 max-w-xs">
+                                        <span class="line-clamp-10">{{ $d->keluhan }}</span>
+                                    </td>
 
                                     {{-- KM --}}
-                                    <td class="px-4 py-3.5 text-gray-600">{{ number_format($d->kilometer, 0, ',', '.') }}</td>
-
-                                    {{-- Maksimum Pertahun --}}
-                                    <td class="px-4 py-3.5 text-sm text-gray-600">
-                                        @php $maksTahunan = ($d->kendaraan->limit_bulan_service ?? 0) * 12; @endphp
-                                        @if ($maksTahunan > 0)
-                                            Rp {{ number_format($maksTahunan, 0, ',', '.') }}
-                                        @else
-                                            <span class="text-gray-400">-</span>
-                                        @endif
-                                    </td>
-
-                                    {{-- Limit Service (Maksimum Bulanan) --}}
-                                    <td class="px-4 py-3.5 text-sm text-gray-600">
-                                        @if ($d->kendaraan->limit_bulan_service ?? false)
-                                            Rp {{ number_format($d->kendaraan->limit_bulan_service, 0, ',', '.') }}
-                                        @else
-                                            <span class="text-gray-400">-</span>
-                                        @endif
+                                    <td class="px-5 py-4 text-sm text-gray-600 whitespace-nowrap">
+                                        {{ number_format($d->kilometer, 0, ',', '.') }} km
                                     </td>
 
                                     {{-- Total Biaya --}}
-                                    <td class="px-4 py-3.5 text-sm font-medium text-green-600">Rp
-                                        {{ number_format($d->total_biaya, 0, ',', '.') }}</td>
+                                    <td class="px-5 py-4 whitespace-nowrap">
+                                        <span class="text-sm font-semibold text-gray-800">Rp {{ number_format($d->total_biaya, 0, ',', '.') }}</span>
+                                    </td>
 
-                                    {{-- Sisa Service --}}
-                                    <td class="px-4 py-3.5">
-                                        @php
-                                            $limit = $d->kendaraan->limit_bulan_service ?? 0;
-                                            $sisa  = $d->sisa_limit ?? 0;
-                                        @endphp
-                                        @if ($sisa < 0)
-                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                                Over Rp {{ number_format(abs($sisa), 0, ',', '.') }}
-                                            </span>
+                                    {{-- Maks Bulanan (hidden by default) --}}
+                                    <td class="col-budget px-5 py-4 text-sm text-gray-500 whitespace-nowrap">
+                                        @if ($d->kendaraan->limit_bulan_service ?? false)
+                                            Rp {{ number_format($d->kendaraan->limit_bulan_service, 0, ',', '.') }}
+                                        @else
+                                            <span class="text-gray-300">—</span>
+                                        @endif
+                                    </td>
+
+                                    {{-- Sisa Budget (hidden by default) --}}
+                                    @php
+                                        $limit = $d->kendaraan->limit_bulan_service ?? 0;
+                                        $sisa  = $d->sisa_limit ?? 0;
+                                    @endphp
+                                    <td class="col-budget px-5 py-4 whitespace-nowrap">
+                                        @if ($limit <= 0)
+                                            <span class="text-gray-300 text-sm">—</span>
                                         @elseif ($sisa <= 0)
-                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                                Limit Habis
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Habis
                                             </span>
-                                        @elseif ($limit > 0 && $sisa <= $limit * 0.1)
-                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-                                                Sisa Rp {{ number_format($sisa, 0, ',', '.') }}
+                                        @elseif ($sisa <= $limit * 0.2)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Rp {{ number_format($sisa, 0, ',', '.') }}
                                             </span>
                                         @else
-                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                                                Sisa Rp {{ number_format($sisa, 0, ',', '.') }}
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Rp {{ number_format($sisa, 0, ',', '.') }}
                                             </span>
                                         @endif
                                     </td>
 
                                     {{-- Status Service --}}
-                                    <td class="px-4 py-3.5">
+                                    <td class="px-5 py-4 whitespace-nowrap">
                                         <button type="button"
                                             onclick="ubahStatusService({{ $d->id }}, '{{ $d->status }}')"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-200 hover:scale-105
-                                                {{ $d->status == 'proses'
-                                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200' }}">
-                                            <span class="w-1.5 h-1.5 rounded-full
-                                                {{ $d->status == 'proses' ? 'bg-amber-500' : 'bg-emerald-500' }}">
-                                            </span>
-                                            {{ ucfirst($d->status) }}
-                                            <i class="fa-solid fa-pen-to-square text-[10px] opacity-60"></i>
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors hover:opacity-80
+                                                {{ $d->status == 'proses' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }}">
+                                            <span class="w-1.5 h-1.5 rounded-full {{ $d->status == 'proses' ? 'bg-amber-400' : 'bg-emerald-500' }}"></span>
+                                            {{ $d->status == 'proses' ? 'Proses' : 'Selesai' }}
                                         </button>
                                     </td>
 
-                                    {{-- Status Pengeluaran --}}
-                                    <td class="px-4 py-3.5">
-                                        @php
-                                            $limitBulan    = $d->kendaraan->limit_bulan_service ?? 0;
-                                            $totalBulanIni = \App\Models\ServiceHistory::where('kendaraan_id', $d->kendaraan_id)
-                                                ->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [date('Y-m', strtotime($d->tanggal_service))])
-                                                ->sum('total_biaya');
-                                            $statusPengeluaran = $limitBulan > 0 && $totalBulanIni > $limitBulan ? 'overservice' : 'stabil';
-                                        @endphp
-                                        @if ($statusPengeluaran === 'overservice')
-                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                                Overservice
+                                    {{-- Pengeluaran --}}
+                                    <td class="px-5 py-4 whitespace-nowrap">
+                                        @if ($d->status_pengeluaran === 'overservice')
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                                                <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
+                                                Over Service
                                             </span>
                                         @else
-                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                <i class="fa-solid fa-circle-check text-[10px]"></i>
                                                 Stabil
                                             </span>
                                         @endif
                                     </td>
 
                                     {{-- Tanggal --}}
-                                    <td class="px-4 py-3.5 text-gray-600">{{ $d->tanggal_service }}</td>
+                                    <td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">
+                                        {{ \Carbon\Carbon::parse($d->tanggal_service)->format('d M Y') }}
+                                    </td>
 
                                     {{-- Bukti --}}
-                                    <td class="px-4 py-3.5">
+                                    <td class="px-5 py-4">
                                         @if ($d->bukti_pembayaran)
                                             @php $filename = basename($d->bukti_pembayaran); @endphp
                                             <a href="{{ asset($d->bukti_pembayaran) }}" target="_blank"
@@ -497,7 +445,7 @@
                                     </td>
 
                                     {{-- Aksi --}}
-                                    <td class="px-4 py-3.5">
+                                    <td class="px-5 py-4">
                                         <div class="flex items-center justify-center gap-1.5">
                                             <form action="{{ route('service-history.destroy', $d->id) }}" method="POST"
                                                 onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
@@ -516,7 +464,7 @@
 
                         @empty
                             <tr>
-                                <td colspan="14" class="px-5 py-12 text-center">
+                                <td colspan="10" class="px-5 py-16 text-center">
                                     <div class="flex flex-col items-center gap-3">
                                         <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                             <i class="fa fa-screwdriver-wrench text-2xl text-gray-300"></i>
@@ -600,11 +548,11 @@
                                 {{ $k->merk }} - {{ $k->nopol }}
                                 @if ($limitK > 0)
                                     @if ($sisaK < 0)
-                                        (⚠ Over Rp {{ number_format(abs($sisaK), 0, ',', '.') }})
+                                        (? Over Rp {{ number_format(abs($sisaK), 0, ',', '.') }})
                                     @elseif ($sisaK <= 0)
                                         (Limit Habis)
                                     @elseif ($sisaK <= $persen10)
-                                        (⚠ Sisa Rp {{ number_format($sisaK, 0, ',', '.') }})
+                                        (? Sisa Rp {{ number_format($sisaK, 0, ',', '.') }})
                                     @else
                                         (Sisa Rp {{ number_format($sisaK, 0, ',', '.') }})
                                     @endif
@@ -613,7 +561,7 @@
                                 @endif
                             </option>
                         @empty
-                            <option value="" disabled>— Tidak ada kendaraan dengan status Tidak Layak —</option>
+                            <option value="" disabled>� Tidak ada kendaraan dengan status Tidak Layak �</option>
                         @endforelse
                     </select>
 
@@ -661,8 +609,12 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Kilometer <span class="text-red-500">*</span>
                     </label>
-                    <input type="number" name="kilometer" required placeholder="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <div class="relative">
+                        <input readonly type="number" name="kilometer" id="tambah_kilometer" required placeholder="0"
+                            class="disabled cursor-not-allowed w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 pr-24"
+                            oninput="onKmTambahInput()">
+                     
+                    </div>
                 </div>
 
                 {{-- Total Biaya --}}
@@ -761,7 +713,7 @@
                 {{-- Tombol --}}
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalTambah()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -902,8 +854,15 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Kilometer <span class="text-red-500">*</span>
                     </label>
-                    <input type="number" name="kilometer" id="edit_kilometer" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <div class="relative">
+                        <input type="number" name="kilometer" id="edit_kilometer" required
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 pr-24"
+                            oninput="onKmEditInput()">
+                        <span id="km-edit-badge"
+                            class="absolute right-2 top-1/2 -translate-y-1/2 hidden items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md px-1.5 py-0.5 pointer-events-none">
+                            <i class="fa-solid fa-database text-[9px]"></i> Dari DB
+                        </span>
+                    </div>
                 </div>
 
                 {{-- Total Biaya --}}
@@ -966,7 +925,7 @@
                 {{-- Tombol --}}
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalEdit()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -979,6 +938,77 @@
         </div>
     </div>
 
+
+    {{-- ======================================
+    MODAL UBAH STATUS SERVICE
+====================================== --}}
+    <div id="modalStatusService"
+        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4"
+        style="backdrop-filter:blur(3px)">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            style="animation:slideUp .2s ease">
+
+            {{-- Header strip warna dinamis --}}
+            <div id="msvc-header" class="px-6 pt-6 pb-4 flex items-center gap-4">
+                <div id="msvc-icon"
+                    class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl">
+                </div>
+                <div>
+                    <h2 class="text-base font-bold text-gray-800">Ubah Status Service</h2>
+                    <p id="msvc-desc" class="text-xs text-gray-400 mt-0.5"></p>
+                </div>
+            </div>
+
+            {{-- Pilihan status --}}
+            <div class="px-6 pb-2 space-y-2">
+                {{-- Proses --}}
+                <label id="opt-proses"
+                    class="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all
+                           border-transparent hover:border-amber-200 hover:bg-amber-50 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-50">
+                    <input type="radio" name="msvc_status" value="proses" class="hidden">
+                    <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-clock-rotate-left text-sm"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-800">Proses</p>
+                        <p class="text-xs text-gray-400">Service sedang berjalan</p>
+                    </div>
+                    <div class="ml-auto w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center opt-radio-dot transition-colors">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500 hidden opt-dot"></span>
+                    </div>
+                </label>
+
+                {{-- Selesai --}}
+                <label id="opt-selesai"
+                    class="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all
+                           border-transparent hover:border-emerald-200 hover:bg-emerald-50 has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50">
+                    <input type="radio" name="msvc_status" value="selesai" class="hidden">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-circle-check text-sm"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-800">Selesai</p>
+                        <p class="text-xs text-gray-400">Service telah diselesaikan</p>
+                    </div>
+                    <div class="ml-auto w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center opt-radio-dot transition-colors">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 hidden opt-dot"></span>
+                    </div>
+                </label>
+            </div>
+
+            {{-- Footer --}}
+            <div class="px-6 py-4 flex gap-3">
+                <button type="button" onclick="closeMsvcModal()"
+                    class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                    Batal
+                </button>
+                <button type="button" id="msvc-confirm-btn" onclick="submitMsvcStatus()"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors">
+                    <i class="fa-solid fa-check text-xs"></i> Simpan
+                </button>
+            </div>
+        </div>
+    </div>
 
     {{-- ======================================
     POPUP ALERT
@@ -1064,7 +1094,34 @@
     </style>
 
     <script>
-        // ── SHOW ENTRIES ───────────────────────────────────
+        // -- TOGGLE KOLOM BUDGET ----------------------------
+        var budgetColsVisible = false;
+        function toggleBudgetCols() {
+            budgetColsVisible = !budgetColsVisible;
+            var cols = document.querySelectorAll('.col-budget');
+            cols.forEach(function(el) {
+                el.style.display = budgetColsVisible ? '' : 'none';
+            });
+            var icon = document.getElementById('iconBudget');
+            var btn  = document.getElementById('btnToggleBudget');
+            if (budgetColsVisible) {
+                icon.className = 'fa fa-eye text-xs';
+                btn.classList.add('text-blue-600', 'border-blue-300', 'bg-blue-50');
+                btn.classList.remove('text-gray-600', 'border-gray-200');
+            } else {
+                icon.className = 'fa fa-eye-slash text-xs';
+                btn.classList.remove('text-blue-600', 'border-blue-300', 'bg-blue-50');
+                btn.classList.add('text-gray-600', 'border-gray-200');
+            }
+        }
+        // Hide budget cols on load
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.col-budget').forEach(function(el) {
+                el.style.display = 'none';
+            });
+        });
+
+        // -- SHOW ENTRIES -----------------------------------
         const allServiceRows = Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
 
         function renderTable() {
@@ -1091,7 +1148,7 @@
             if (bot) bot.innerText = infoText;
         }
 
-        // ── ACCORDION GROUP TOGGLE ─────────────────────────
+        // -- ACCORDION GROUP TOGGLE -------------------------
         var groupStates = {};
 
         function toggleAccordion(groupId) {
@@ -1129,7 +1186,7 @@
             });
         }
 
-        // ── MODAL TAMBAH ───────────────────────────────────
+        // -- MODAL TAMBAH -----------------------------------
         function openModalTambah() {
             var m = document.getElementById('modalTambah');
             m.classList.remove('hidden');
@@ -1159,8 +1216,8 @@
             if (e.target === this) closeModalTambah();
         });
 
-        // ── MODAL EDIT ─────────────────────────────────────
-        // ── MODAL EDIT ─────────────────────────────────────
+        // -- MODAL EDIT -------------------------------------
+        // -- MODAL EDIT -------------------------------------
         function openEditModal(id, kendaraan_id, keluhan, kilometer, total_biaya,
             status, tanggal_service, maks_bulanan, biaya_tahunan, status_pengeluaran, bukti_pembayaran) {
 
@@ -1178,6 +1235,9 @@
             document.getElementById('edit_total_biaya').value = total_biaya;
             document.getElementById('edit_status').value = status;
             document.getElementById('edit_tanggal_service').value = tanggal_service;
+
+            // Cek badge KM dari DB
+            checkKmEditBadge();
 
             // Set info dari data record
             updateEditInfo(maks_bulanan, biaya_tahunan, status_pengeluaran);
@@ -1314,7 +1374,7 @@
             }
         });
 
-        // ── PREVIEW FOTO ───────────────────────────────────
+        // -- PREVIEW FOTO -----------------------------------
         function previewTambah(event) {
             var file = event.target.files[0];
             if (!file) return;
@@ -1331,7 +1391,7 @@
             img.classList.remove('hidden');
         }
 
-        // ── INFO MAKS BULANAN + WARNING (MODAL TAMBAH) ─────
+        // -- INFO MAKS BULANAN + WARNING (MODAL TAMBAH) -----
         (function() {
             var sel      = document.getElementById('kendaraan_id_tambah');
             var biaya    = document.getElementById('total_biaya_tambah');
@@ -1457,7 +1517,7 @@
             if (biaya) biaya.addEventListener('input', check);
         })();
 
-        // ── UPDATE INFO MAKS BULANAN SAAT GANTI KENDARAAN (EDIT) ──
+        // -- UPDATE INFO MAKS BULANAN SAAT GANTI KENDARAAN (EDIT) --
         (function() {
             var sel = document.getElementById('edit_kendaraan_id');
             if (!sel) return;
@@ -1473,7 +1533,7 @@
             });
         })();
 
-        // ── POPUP ALERT ────────────────────────────────────
+        // -- POPUP ALERT ------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');
@@ -1499,46 +1559,89 @@
             window.closeAlert = closeAlert;
         })();
 
+        // ── MODAL STATUS SERVICE ───────────────────────────────
+        var _msvcId = null;
+
         function ubahStatusService(id, currentStatus) {
+            _msvcId = id;
 
-            Swal.fire({
-                title: 'Status Service',
-                text: 'Pilih status baru',
-                width: '320px',
-                input: 'select',
-                inputValue: currentStatus,
-                inputOptions: {
-                    proses: '🟡 Proses',
-                    selesai: '🟢 Selesai'
-                },
-                showCancelButton: true,
-                confirmButtonText: 'Simpan',
-                cancelButtonText: 'Batal',
-                confirmButtonColor: '#10b981',
-                cancelButtonColor: '#64748b',
-                customClass: {
-                    popup: 'rounded-3xl',
-                    title: 'text-lg font-bold',
-                    confirmButton: 'rounded-xl px-4 py-2',
-                    cancelButton: 'rounded-xl px-4 py-2'
-                }
-            }).then((result) => {
+            // Set deskripsi header
+            var desc = document.getElementById('msvc-desc');
+            var icon = document.getElementById('msvc-icon');
+            if (currentStatus === 'proses') {
+                desc.textContent = 'Status saat ini: Proses';
+                icon.className = 'w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl bg-amber-100 text-amber-600';
+                icon.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i>';
+            } else {
+                desc.textContent = 'Status saat ini: Selesai';
+                icon.className = 'w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl bg-emerald-100 text-emerald-600';
+                icon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+            }
 
-                if (!result.isConfirmed) return;
-
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = `{{ url('admin/service-history') }}/${id}/status`;
-
-                form.innerHTML = `
-            @csrf
-            <input type="hidden" name="_method" value="PUT">
-            <input type="hidden" name="status" value="${result.value}">
-        `;
-
-                document.body.appendChild(form);
-                form.submit();
+            // Set radio aktif sesuai status saat ini
+            document.querySelectorAll('input[name="msvc_status"]').forEach(function(r) {
+                r.checked = r.value === currentStatus;
             });
+            updateMsvcRadioUI();
+
+            // Buka modal
+            var m = document.getElementById('modalStatusService');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+
+        function closeMsvcModal() {
+            var m = document.getElementById('modalStatusService');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        // Update visual radio button
+        function updateMsvcRadioUI() {
+            ['proses', 'selesai'].forEach(function(val) {
+                var label = document.getElementById('opt-' + val);
+                var radio = label.querySelector('input[type="radio"]');
+                var dot   = label.querySelector('.opt-dot');
+                var ring  = label.querySelector('.opt-radio-dot');
+                if (radio.checked) {
+                    dot.classList.remove('hidden');
+                    ring.classList.add(val === 'proses' ? 'border-amber-400' : 'border-emerald-400');
+                    ring.classList.remove('border-gray-300');
+                } else {
+                    dot.classList.add('hidden');
+                    ring.classList.remove('border-amber-400', 'border-emerald-400');
+                    ring.classList.add('border-gray-300');
+                }
+            });
+        }
+
+        // Listen perubahan radio
+        document.querySelectorAll('input[name="msvc_status"]').forEach(function(r) {
+            r.addEventListener('change', updateMsvcRadioUI);
+        });
+
+        // Tutup saat klik backdrop
+        document.getElementById('modalStatusService').addEventListener('click', function(e) {
+            if (e.target === this) closeMsvcModal();
+        });
+
+        function submitMsvcStatus() {
+            var selected = document.querySelector('input[name="msvc_status"]:checked');
+            if (!selected) return;
+
+            var btn = document.getElementById('msvc-confirm-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Menyimpan...';
+
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/admin/service-history/' + _msvcId + '/status';
+            form.innerHTML =
+                '<input type="hidden" name="_token" value="{{ csrf_token() }}">' +
+                '<input type="hidden" name="_method" value="PUT">' +
+                '<input type="hidden" name="status" value="' + selected.value + '">';
+            document.body.appendChild(form);
+            form.submit();
         }
 
 
@@ -1582,6 +1685,71 @@
             document.getElementById('previewImg').classList.add('hidden');
             document.getElementById('previewFileLink').classList.add('hidden');
         }
+
+        // ── KILOMETER AUTO-FILL ────────────────────────────────
+        const kmMap = {
+            @foreach ($kendaraan as $k)
+            {{ $k->id }}: {{ $k->kilometer_sekarang ?? 0 }},
+            @endforeach
+        };
+
+        function setKmBadge(inputEl, badgeEl, hintEl, show) {
+            if (show) {
+                badgeEl.classList.remove('hidden');
+                badgeEl.classList.add('inline-flex');
+                if (hintEl) hintEl.classList.remove('hidden');
+            } else {
+                badgeEl.classList.add('hidden');
+                badgeEl.classList.remove('inline-flex');
+                if (hintEl) hintEl.classList.add('hidden');
+            }
+        }
+
+        // Modal Tambah
+        function autoFillKmTambah() {
+            const id     = document.getElementById('kendaraan_id_tambah').value;
+            const input  = document.getElementById('tambah_kilometer');
+            const badge  = document.getElementById('km-tambah-badge');
+            const hint   = document.getElementById('km-tambah-hint');
+
+            if (id && kmMap[id] !== undefined) {
+                input.value = kmMap[id];
+                setKmBadge(input, badge, hint, true);
+            } else {
+                setKmBadge(input, badge, hint, false);
+            }
+        }
+        function onKmTambahInput() {
+            setKmBadge(
+                document.getElementById('tambah_kilometer'),
+                document.getElementById('km-tambah-badge'),
+                document.getElementById('km-tambah-hint'),
+                false
+            );
+        }
+        document.getElementById('kendaraan_id_tambah').addEventListener('change', autoFillKmTambah);
+
+        // Modal Edit — tampilkan badge jika nilai sama dengan DB
+        function checkKmEditBadge() {
+            const id    = document.getElementById('edit_kendaraan_id').value;
+            const input = document.getElementById('edit_kilometer');
+            const badge = document.getElementById('km-edit-badge');
+
+            if (id && kmMap[id] !== undefined && parseInt(input.value) === kmMap[id]) {
+                setKmBadge(input, badge, null, true);
+            } else {
+                setKmBadge(input, badge, null, false);
+            }
+        }
+        function onKmEditInput() {
+            setKmBadge(
+                document.getElementById('edit_kilometer'),
+                document.getElementById('km-edit-badge'),
+                null,
+                false
+            );
+        }
+        // ── END KILOMETER AUTO-FILL ───────────────────────────
     </script>
 
 

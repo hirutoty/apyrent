@@ -98,7 +98,7 @@
                 <div class="flex items-center gap-2">
 
                     <a id="btnExportPdf" href="{{ route('gps-kendaraan.export.pdf') }}" target="_blank"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf"></i>
                         Export PDF
                     </a>
@@ -109,7 +109,7 @@
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 w-52">
                     </div>
                     <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
                 </div>
@@ -186,7 +186,7 @@
 
                 {{-- Reset --}}
                 <button id="btnResetFilter"
-                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-rotate-left text-[10px]"></i> Reset
                 </button>
 
@@ -775,7 +775,7 @@
                 if (displayEl) displayEl.value = '';
             }
 
-            // ✅ Expose ke global supaya onclick="openModal()" di HTML bisa jalan
+            // ? Expose ke global supaya onclick="openModal()" di HTML bisa jalan
             window.openModal = function() {
                 resetForm();
                 show(modal);
@@ -901,7 +901,7 @@
                 show(modalPerpanjang);
             }
 
-            // ✅ Satu event listener, pakai closest, tanpa capture phase
+            // ? Satu event listener, pakai closest, tanpa capture phase
             document.addEventListener('click', function(e) {
 
                 const perpanjangBtn = e.target.closest('.btn-perpanjang');
@@ -949,7 +949,7 @@
                 applyFilter();
             };
 
-            // ── SEARCH + SHOW ENTRIES + FILTER BULAN/TAHUN ──────────
+            // -- SEARCH + SHOW ENTRIES + FILTER BULAN/TAHUN ----------
             function applyFilter() {
                 const keyword     = (document.getElementById('searchInput').value || '').toLowerCase();
                 const filterBulan = document.getElementById('filterBulan').value;
@@ -1040,7 +1040,7 @@
                 if (file.type.startsWith('image/')) {
                     img.src = url;
                     img.classList.remove('hidden');
-                    link.classList.add('hidden'); // ✅ diperbaiki dari 'adda' menjadi 'add'
+                    link.classList.add('hidden'); // ? diperbaiki dari 'adda' menjadi 'add'
                 } else {
                     link.href = url;
                     link.classList.remove('hidden');

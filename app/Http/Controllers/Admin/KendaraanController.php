@@ -132,7 +132,8 @@ class KendaraanController extends Controller
             'jenis_id' => 'required|exists:jenis,id',
             'nopol' => 'required|unique:kendaraan,nopol',
             'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
-            'dokumen' => 'required|file|max:4096',
+            'dokumen' => 'required|array',
+            'dokumen.*' => 'file|max:4096',
         ], [
             'jenis_id.required' => 'Jenis kendaraan wajib dipilih',
             'nopol.required' => 'Nomor polisi wajib diisi',
@@ -146,10 +147,13 @@ class KendaraanController extends Controller
         $fotoFile->move(public_path('kendaraan/foto'), $fotoName);
         $foto = 'kendaraan/foto/' . $fotoName;
 
-        $dokumenFile = $request->file('dokumen');
-        $dokumenName = time() . '_' . $dokumenFile->getClientOriginalName();
-        $dokumenFile->move(public_path('kendaraan/dokumen'), $dokumenName);
-        $dokumen = 'kendaraan/dokumen/' . $dokumenName;
+        $dokumenPaths = [];
+        foreach ($request->file('dokumen') as $file) {
+            $name = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('kendaraan/dokumen'), $name);
+            $dokumenPaths[] = 'kendaraan/dokumen/' . $name;
+        }
+        $dokumen = count($dokumenPaths) === 1 ? $dokumenPaths[0] : json_encode($dokumenPaths);
 
         $kendaraan = Kendaraan::create([
             'user_id' => Auth::id(), // 🔥 AUTO DARI SESSION
@@ -174,6 +178,9 @@ class KendaraanController extends Controller
             'no_rangka' => $request->no_rangka,
             'no_mesin' => $request->no_mesin,
             'no_bpkb' => $request->no_bpkb,
+
+            'kode_lokasi' => $request->kode_lokasi,
+            'no_urut_pendaftaran' => $request->no_urut_pendaftaran,
 
             'batas_biaya' => $request->batas_biaya,
             'masa_berlaku' => $request->masa_berlaku,
@@ -224,15 +231,24 @@ class KendaraanController extends Controller
         }
 
         if ($request->hasFile('dokumen')) {
-            if ($kendaraan->dokumen && file_exists(public_path($kendaraan->dokumen))) {
-                unlink(public_path($kendaraan->dokumen));
+            // Hapus file lama (bisa string tunggal atau JSON array)
+            $oldDokumen = $kendaraan->dokumen;
+            if ($oldDokumen) {
+                $oldPaths = [];
+                try { $oldPaths = json_decode($oldDokumen, true) ?: [$oldDokumen]; }
+                catch (\Exception $e) { $oldPaths = [$oldDokumen]; }
+                foreach ($oldPaths as $old) {
+                    if ($old && file_exists(public_path($old))) unlink(public_path($old));
+                }
             }
 
-            $dokumenFile = $request->file('dokumen');
-            $dokumenName = time() . '_' . $dokumenFile->getClientOriginalName();
-            $dokumenFile->move(public_path('kendaraan/dokumen'), $dokumenName);
-
-            $dokumen = 'kendaraan/dokumen/' . $dokumenName;
+            $dokumenPaths = [];
+            foreach ($request->file('dokumen') as $file) {
+                $name = time() . '_' . $file->getClientOriginalName();
+                $file->move(public_path('kendaraan/dokumen'), $name);
+                $dokumenPaths[] = 'kendaraan/dokumen/' . $name;
+            }
+            $dokumen = count($dokumenPaths) === 1 ? $dokumenPaths[0] : json_encode($dokumenPaths);
         }
 
         $kendaraan->update([
@@ -258,6 +274,9 @@ class KendaraanController extends Controller
             'no_rangka' => $request->no_rangka,
             'no_mesin' => $request->no_mesin,
             'no_bpkb' => $request->no_bpkb,
+
+            'kode_lokasi' => $request->kode_lokasi,
+            'no_urut_pendaftaran' => $request->no_urut_pendaftaran,
 
             'batas_biaya' => $request->batas_biaya,
             'masa_berlaku' => $request->masa_berlaku,

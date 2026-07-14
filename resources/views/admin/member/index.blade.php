@@ -32,8 +32,8 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <a id="pdfBtn" target="_blank" href="/admin/member/pdf"
-                        class="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg">
-                        Export PDF
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                        <i class="fa fa-file-pdf text-xs"></i> Export PDF
                     </a>
                     <div class="relative">
                         <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -41,7 +41,7 @@
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                     </div>
                     <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
                 </div>
@@ -84,7 +84,7 @@
                     </thead>
                     <tbody id="memberTableBody">
                         @forelse ($data as $i => $d)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower($d->nama_member . ' ' . $d->kontak_member . ' ' . $d->alamat) }}">
 
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $i + 1 }}</td>
@@ -310,7 +310,7 @@
     </style>
 
     <script>
-        // ── MEMBER MODAL ──────────────────────────────────────
+        // -- MEMBER MODAL --------------------------------------
         const memberModal = document.getElementById('memberModal');
         const memberForm = document.getElementById('memberForm');
         const methodContainer = document.getElementById('methodContainer');
@@ -346,7 +346,7 @@
             memberModal.classList.add('flex');
         }
 
-        // ── SEARCH + SHOW ENTRIES ────────────────────────────
+        // -- SEARCH + SHOW ENTRIES ----------------------------
         const allRows    = Array.from(document.querySelectorAll('#memberTableBody tr[data-search]'));
         let currentSearch = '';
 
@@ -385,7 +385,7 @@
 
         document.addEventListener('DOMContentLoaded', renderTable);
 
-        // ── POPUP ALERT (fixed overlay) ────────────────────
+        // -- POPUP ALERT (fixed overlay) --------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');

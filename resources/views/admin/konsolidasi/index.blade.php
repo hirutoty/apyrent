@@ -99,13 +99,13 @@
         </div>
         <div class="flex items-center gap-2">
             <a id="pdfBtn"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors"
                 target="_blank" href="{{ route('konsolidasi.pdf') }}">
                 <i class="fa fa-file-pdf"></i> PDF
             </a>
 
             <a id="excelBtn"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors"
                 target="_blank" href="#">
                 <i class="fa fa-file-excel"></i> Excel
             </a>
@@ -118,7 +118,7 @@
             </div>
 
             <button onclick="window.location.reload()"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                 <i class="fa fa-sync text-xs"></i> Refresh
             </button>
         </div>
@@ -141,7 +141,7 @@
             </thead>
             <tbody id="tableBody">
                 @forelse ($data as $item)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                         data-search="{{ strtolower($item->nama_perusahaan . ' ' . $item->periode) }}">
 
                         <td class="px-4 py-3.5 text-gray-400 text-sm">{{ $data->firstItem() + $loop->index }}</td>
@@ -293,7 +293,7 @@
 
                 <div class="flex gap-3 pt-1">
                     <button type="button" onclick="closeModalTambah()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -361,7 +361,7 @@
 
                 <div class="flex gap-3 pt-1">
                     <button type="button" onclick="closeModalEdit()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -446,7 +446,7 @@
     </style>
 
     <script>
-        // ── MODAL TAMBAH ───────────────────────────────────
+        // -- MODAL TAMBAH -----------------------------------
         function openModalTambah() {
             var m = document.getElementById('modalTambah');
             m.classList.remove('hidden');
@@ -462,7 +462,7 @@
             if (e.target === this) closeModalTambah();
         });
 
-        // ── MODAL EDIT ─────────────────────────────────────
+        // -- MODAL EDIT -------------------------------------
         function openEditModal(id, nama, pendapatan, beban, periode) {
             var m = document.getElementById('modalEdit');
             m.classList.remove('hidden');
@@ -484,7 +484,7 @@
             if (e.target === this) closeModalEdit();
         });
 
-        // ── UPDATE EXPORT LINKS ────────────────────────────
+        // -- UPDATE EXPORT LINKS ----------------------------
         function updateExportLinks() {
             const keyword = document.getElementById('searchInput')?.value.trim() ?? '';
             const query = keyword ? '?search=' + encodeURIComponent(keyword) : '';
@@ -493,8 +493,8 @@
             document.getElementById('excelBtn').href = `/admin/konsolidasi/excel${query}`;
         }
 
-        // ── SEARCH / FILTER ────────────────────────────────
-        // ── SEARCH / FILTER ────────────────────────────────
+        // -- SEARCH / FILTER --------------------------------
+        // -- SEARCH / FILTER --------------------------------
 function filterTable(q) {
     const rows = document.querySelectorAll('#tableBody tr[data-search]');
     let visible = 0;
@@ -526,7 +526,7 @@ function filterTable(q) {
         // initial
         updateExportLinks();
 
-        // ── POPUP ALERT ────────────────────────────────────
+        // -- POPUP ALERT ------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');

@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 @section('title', 'Otomatisasi Marketing')
 @section('content')
 <div class="space-y-6">
@@ -8,7 +8,7 @@
             <p class="text-sm text-gray-500 mt-0.5">Kelola alur kerja otomatis marketing</p>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('otomatisasi.pdf') }}" target="_blank" class="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors">
+            <a href="{{ route('otomatisasi.pdf') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                 <i class="fa fa-file-pdf text-sm"></i> Export PDF
             </a>
             <button onclick="openModal()" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors">
@@ -55,7 +55,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->workflow_id }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800">{{ $d->nama_workflow }}</td>
@@ -148,7 +148,7 @@
         </div>
         <form id="deleteForm" action="" method="POST" class="px-6 pb-6 pt-4 flex items-center gap-2">
             @csrf @method('DELETE')
-            <button type="button" onclick="closeDeleteModal()" class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">Batal</button>
+            <button type="button" onclick="closeDeleteModal()" class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
             <button type="submit" class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl py-2.5 transition-colors"><i class="fa fa-trash text-xs"></i> Hapus</button>
         </form>
     </div>

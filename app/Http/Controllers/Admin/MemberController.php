@@ -219,6 +219,19 @@ class MemberController extends Controller
         return back()->with('success', 'Data member berhasil dihapus');
     }
 
+    public function search(Request $request)
+    {
+        $q = trim($request->get('q', ''));
+
+        $members = Member::where('nama', 'like', '%' . $q . '%')
+            ->orWhere('kontak', 'like', '%' . $q . '%')
+            ->orderBy('nama')
+            ->limit(10)
+            ->get(['id', 'nama', 'kontak', 'alamat', 'jenis_member']);
+
+        return response()->json($members);
+    }
+
     public function pdf(Request $request)
     {
         $query = Member::withCount('kendaraans');

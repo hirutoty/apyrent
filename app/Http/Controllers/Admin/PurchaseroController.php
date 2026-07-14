@@ -47,9 +47,9 @@ class PurchaseroController extends Controller
         }
 
         if ($sort === 'terlama') {
-            $query->oldest();
+            $query->oldest('id');
         } else {
-            $query->latest();
+            $query->latest('id');
         }
 
         $data = $query->paginate(15)->withQueryString();
@@ -220,8 +220,8 @@ class PurchaseroController extends Controller
                 'transaksi'   => 'Pengadaan: ' . $purchasero->barang_jasa,
                 'kategori'    => 'Beban',
                 'tanggal'     => $purchasero->tanggal_persetujuan,
-                'debit'       => 0,
-                'kredit'      => $nominal,
+                'debit'       => $nominal,   // Beban/pengeluaran = sisi DEBIT
+                'kredit'      => 0,
                 'saldo'       => $saldoBaru,
                 'aktivitas'   => 'pengadaan',
                 'keterangan'  => 'PR #' . $purchasero->no_pr . ' disetujui oleh ' . $purchasero->disetujui_oleh,

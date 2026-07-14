@@ -9,6 +9,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\KeuanganExport;
 use App\Models\Setting;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\DB;
 
 class KeuanganController extends Controller
 {
@@ -17,7 +18,8 @@ class KeuanganController extends Controller
      */
    public function index(Request $request)
   {
-      $query = Keuangan::with('user')->latest();
+      // FIX MEDIUM #8: gunakan latest('id') agar ordering konsisten berdasarkan PK
+      $query = Keuangan::with('user')->latest('id');
   
       if ($request->filled('jenis')) {
           if ($request->jenis == 'Pemasukan') {
@@ -111,32 +113,38 @@ class KeuanganController extends Controller
             'keterangan' => 'required|string|max:255',
         ]);
 
-        $lastSaldo = Keuangan::latest()->value('saldo') ?? 0;
+        // P0 #3 FIX RACE CONDITION: wrap in transaction with row-level lock
+        DB::transaction(function () use ($request) {
+            // MEDIUM #8 FIX LATEST: gunakan lockForUpdate + orderBy id desc untuk mencegah race condition
+            $lastSaldo = (float) DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
 
-        $pemasukan = 0;
-        $pengeluaran = 0;
+            $pemasukan = 0;
+            $pengeluaran = 0;
 
-        if ($request->jenis == 'Pemasukan') {
-            $pemasukan = $request->nominal;
-            $saldoBaru = $lastSaldo + $pemasukan;
-            $reference = 'INC-' . time();
-        } else {
-            $pengeluaran = $request->nominal;
-            $saldoBaru = $lastSaldo - $pengeluaran;
-            $reference = 'EXP-' . time();
-        }
+            if ($request->jenis == 'Pemasukan') {
+                $pemasukan = $request->nominal;
+                $saldoBaru = $lastSaldo + $pemasukan;
+                $reference = 'INC-' . time();
+            } else {
+                $pengeluaran = $request->nominal;
+                $saldoBaru = $lastSaldo - $pengeluaran;
+                $reference = 'EXP-' . time();
+            }
 
-        Keuangan::create([
-            'tanggal'      => now(),
-            'reference'    => $reference,
-            'user_id'      => auth()->id(),
-            'kategori'     => $request->kategori,
-            'metode'       => $request->metode,
-            'keterangan'   => $request->keterangan,
-            'pemasukan'    => $pemasukan,
-            'pengeluaran'  => $pengeluaran,
-            'saldo'        => $saldoBaru,
-        ]);
+            // MEDIUM #11 KOLOM SUMBER: tambahkan 'sumber' => 'manual'
+            Keuangan::create([
+                'tanggal'      => now(),
+                'reference'    => $reference,
+                'user_id'      => auth()->id(),
+                'kategori'     => $request->kategori,
+                'metode'       => $request->metode,
+                'keterangan'   => $request->keterangan,
+                'pemasukan'    => $pemasukan,
+                'pengeluaran'  => $pengeluaran,
+                'saldo'        => $saldoBaru,
+                'sumber'       => 'manual',
+            ]);
+        });
 
         return back()->with('success', 'Pengeluaran berhasil ditambahkan.');
     }

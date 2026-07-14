@@ -60,7 +60,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors"
+                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors"
                         data-search="{{ strtolower($d->kode_aset.' '.$d->diperiksa_oleh.' '.$d->status_fisik.' '.$d->temuan) }}">
                         <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $data->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5"><span class="font-mono text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{{ $d->kode_aset }}</span></td>

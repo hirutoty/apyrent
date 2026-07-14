@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Daftar Kendaraan')
 
@@ -88,12 +88,12 @@
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                     </div>
                     <a href="{{ route('kendaraan.export.merk') }}" target="_blank"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <i class="fa fa-download text-xs"></i>
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                        <i class="fa fa-file-pdf text-xs"></i>
                         Export PDF
                     </a>
                     <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
                 </div>
@@ -134,7 +134,7 @@
                     </thead>
                     <tbody id="kendaraanTableBody">
                         @forelse($data as $i => $d)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower($d->merk . ' ' . $d->nopol . ' ' . $d->nama_pemilik . ' ' . ($d->jenis->nama_jenis ?? '')) }}">
 
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-semibold">{{ $i + 1 }}</td>
@@ -258,7 +258,7 @@
 
                 <div class="flex justify-end gap-2">
                     <button type="button" onclick="closeModalStatus()"
-                        class="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                        class="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -445,7 +445,7 @@
 
             <div class="flex items-center justify-end px-6 py-4 border-t border-gray-100 shrink-0">
                 <button onclick="closeAllModals()"
-                    class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-times text-xs"></i> Tutup
                 </button>
             </div>
@@ -517,16 +517,18 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik <span
                                         class="text-red-500">*</span></label>
-                                <input name="nama_pemilik" id="nama_pemilik" required list="memberOptions" placeholder="Ketik nama member"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <input type="hidden" name="member_id" id="member_id">
-                                <datalist id="memberOptions">
-                                    @foreach ($members as $member)
-                                        <option value="{{ $member->nama }}" data-member-id="{{ $member->id }}"></option>
-                                    @endforeach
-                                </datalist>
+                                <div class="relative">
+                                    <input type="text" name="nama_pemilik" id="nama_pemilik" autocomplete="off" required
+                                        placeholder="Ketik nama member..."
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <input type="hidden" name="member_id" id="member_id">
+                                    <div id="member-result-tambah"
+                                        class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto"></div>
+                                </div>
+                                <p id="member_warning_tambah" class="hidden mt-1 text-xs text-red-500 flex items-center gap-1">
+                                    <i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Member tidak ditemukan
+                                </p>
                             </div>
-                       
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Merk <span
                                         class="text-red-500">*</span></label>
@@ -542,8 +544,15 @@
                             <div class="col-span-2">
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat <span
                                         class="text-red-500">*</span></label>
-                                <input name="alamat" required placeholder="Alamat lengkap"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <div class="relative">
+                                    <input name="alamat" id="alamat" required placeholder="Alamat lengkap"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 pr-8">
+                                    <button type="button" id="alamat_edit_btn"
+                                        onclick="document.getElementById('alamat').readOnly=false;this.style.display='none'"
+                                        style="display:none"
+                                        class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 hover:text-blue-500"
+                                        title="Edit alamat manual"><i class="fa fa-pen"></i></button>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Foto <span
@@ -585,15 +594,75 @@
                                     @endfor
                                 </select>
                             </div>
-                            @foreach ([['isi_silinder', 'Isi Silinder'], ['bahan_bakar', 'Bahan Bakar'], ['warna_tnkb', 'Warna TNKB'], ['kode_lokasi', 'Kode Lokasi'], ['no_urut_pendaftaran', 'No Urut Pendaftaran'], ['no_rangka', 'No Rangka'], ['no_mesin', 'No Mesin'], ['no_bpkb', 'No BPKB']] as [$name, $label])
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">{{ $label }}
-                                        <span class="text-red-500">*</span></label>
-                                    <input name="{{ $name }}" required
-                                        placeholder="Masukkan {{ $label }}"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                </div>
-                            @endforeach
+                            {{-- Isi Silinder --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Isi Silinder
+                                    <span class="text-red-500">*</span></label>
+                                <input name="isi_silinder" required placeholder="Masukkan Isi Silinder (cc)"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            {{-- Bahan Bakar (dropdown) --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bahan Bakar
+                                    <span class="text-red-500">*</span></label>
+                                <select name="bahan_bakar" required
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <option value="">-- Pilih Bahan Bakar --</option>
+                                    <option value="Bensin">Bensin</option>
+                                    <option value="Solar">Solar</option>
+                                    <option value="Pertamax">Pertamax</option>
+                                    <option value="Pertalite">Pertalite</option>
+                                    <option value="Listrik">Listrik</option>
+                                    <option value="Hybrid">Hybrid</option>
+                                </select>
+                            </div>
+                            {{-- Warna TNKB (dropdown) --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Warna TNKB
+                                    <span class="text-red-500">*</span></label>
+                                <select name="warna_tnkb" required
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <option value="">-- Pilih Warna TNKB --</option>
+                                    <option value="Hitam">Hitam</option>
+                                    <option value="Putih">Putih</option>
+                                    <option value="Merah">Merah</option>
+                                </select>
+                            </div>
+                            {{-- Kode Lokasi --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Lokasi
+                                    <span class="text-red-500">*</span></label>
+                                <input name="kode_lokasi" required placeholder="Masukkan Kode Lokasi"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            {{-- No Urut Pendaftaran --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Urut Pendaftaran
+                                    <span class="text-red-500">*</span></label>
+                                <input name="no_urut_pendaftaran" required placeholder="Masukkan No Urut Pendaftaran"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            {{-- No Rangka --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Rangka
+                                    <span class="text-red-500">*</span></label>
+                                <input name="no_rangka" required placeholder="Masukkan No Rangka"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            {{-- No Mesin --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Mesin
+                                    <span class="text-red-500">*</span></label>
+                                <input name="no_mesin" required placeholder="Masukkan No Mesin"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            {{-- No BPKB --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">No BPKB
+                                    <span class="text-red-500">*</span></label>
+                                <input name="no_bpkb" required placeholder="Masukkan No BPKB"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
                         </div>
                     </div>
 
@@ -619,8 +688,11 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Dokumen <span
                                         class="text-red-500">*</span></label>
-                                <input name="dokumen" type="file" required
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <input name="dokumen[]" type="file" multiple required id="dokumen_tambah"
+                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                    onchange="previewDokumen(this,'preview_dokumen_tambah')">
+                                <div id="preview_dokumen_tambah" class="mt-2 space-y-1 hidden"></div>
                             </div>
                         </div>
                     </div>
@@ -684,7 +756,7 @@
 
                 <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
                     <button type="button" onclick="closeAllModals()"
-                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-times text-xs"></i> Batal
                     </button>
                     <button type="submit"
@@ -749,20 +821,23 @@
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Sewa / Jam</label>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Sewa / Bulan</label>
                                 <input name="harga_sewa_per_jam" id="e_harga_sewa_per_jam" type="number"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik</label>
-                                <input name="nama_pemilik" id="e_nama_pemilik" list="e_memberOptions"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <input type="hidden" name="member_id" id="e_member_id">
-                                <datalist id="e_memberOptions">
-                                    @foreach ($members as $member)
-                                        <option value="{{ $member->nama }}" data-member-id="{{ $member->id }}"></option>
-                                    @endforeach
-                                </datalist>
+                                <div class="relative">
+                                    <input type="text" name="nama_pemilik" id="e_nama_pemilik" autocomplete="off"
+                                        placeholder="Ketik nama member..."
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <input type="hidden" name="member_id" id="e_member_id">
+                                    <div id="member-result-edit"
+                                        class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto"></div>
+                                </div>
+                                <p id="member_warning_edit" class="hidden mt-1 text-xs text-red-500 flex items-center gap-1">
+                                    <i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Member tidak ditemukan
+                                </p>
                             </div>
                         
                             <div>
@@ -777,8 +852,15 @@
                             </div>
                             <div class="col-span-2">
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat</label>
-                                <input name="alamat" id="e_alamat"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <div class="relative">
+                                    <input name="alamat" id="e_alamat"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 pr-8">
+                                    <button type="button" id="e_alamat_edit_btn"
+                                        onclick="document.getElementById('e_alamat').readOnly=false;this.style.display='none'"
+                                        style="display:none"
+                                        class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 hover:text-blue-500"
+                                        title="Edit alamat manual"><i class="fa fa-pen"></i></button>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Foto (baru)</label>
@@ -819,14 +901,67 @@
                                     @endfor
                                 </select>
                             </div>
-                            @foreach ([['isi_silinder', 'Isi Silinder (cc)'], ['bahan_bakar', 'Bahan Bakar'], ['warna_tnkb', 'Warna TNKB'], ['kode_lokasi', 'Kode Lokasi'], ['no_urut_pendaftaran', 'No Urut Pendaftaran'], ['no_rangka', 'No Rangka'], ['no_mesin', 'No Mesin'], ['no_bpkb', 'No BPKB']] as [$name, $label])
-                                <div>
-                                    <label
-                                        class="block text-xs font-semibold text-gray-600 mb-1.5">{{ $label }}</label>
-                                    <input name="{{ $name }}" id="e_{{ $name }}"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                </div>
-                            @endforeach
+                            {{-- Isi Silinder --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Isi Silinder (cc)</label>
+                                <input name="isi_silinder" id="e_isi_silinder"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            {{-- Bahan Bakar (dropdown) --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bahan Bakar</label>
+                                <select name="bahan_bakar" id="e_bahan_bakar"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <option value="">-- Pilih Bahan Bakar --</option>
+                                    <option value="Bensin">Bensin</option>
+                                    <option value="Solar">Solar</option>
+                                    <option value="Pertamax">Pertamax</option>
+                                    <option value="Pertalite">Pertalite</option>
+                                    <option value="Listrik">Listrik</option>
+                                    <option value="Hybrid">Hybrid</option>
+                                </select>
+                            </div>
+                            {{-- Warna TNKB (dropdown) --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Warna TNKB</label>
+                                <select name="warna_tnkb" id="e_warna_tnkb"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <option value="">-- Pilih Warna TNKB --</option>
+                                    <option value="Hitam">Hitam</option>
+                                    <option value="Putih">Putih</option>
+                                    <option value="Merah">Merah</option>
+                                </select>
+                            </div>
+                            {{-- Kode Lokasi --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Lokasi</label>
+                                <input name="kode_lokasi" id="e_kode_lokasi"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            {{-- No Urut Pendaftaran --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Urut Pendaftaran</label>
+                                <input name="no_urut_pendaftaran" id="e_no_urut_pendaftaran"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            {{-- No Rangka --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Rangka</label>
+                                <input name="no_rangka" id="e_no_rangka"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            {{-- No Mesin --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Mesin</label>
+                                <input name="no_mesin" id="e_no_mesin"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            {{-- No BPKB --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">No BPKB</label>
+                                <input name="no_bpkb" id="e_no_bpkb"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
                         </div>
                     </div>
 
@@ -849,13 +984,14 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Dokumen (baru)</label>
-                                <input name="dokumen" type="file"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <input name="dokumen[]" type="file" multiple id="dokumen_edit"
+                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                    onchange="previewDokumen(this,'preview_dokumen_edit')">
+                                <div id="preview_dokumen_edit" class="mt-2 space-y-1 hidden"></div>
                                 <div id="dokumenPreview" class="mt-2 hidden">
-                                    <a id="dokumenLink" href="#" target="_blank"
-                                        class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors">
-                                        <i class="fa fa-file-alt text-xs"></i> Lihat Dokumen Lama
-                                    </a>
+                                    <p class="text-[10px] text-gray-400 mb-1">Dokumen tersimpan:</p>
+                                    <div id="dokumenLamaList" class="space-y-1"></div>
                                 </div>
                             </div>
                         </div>
@@ -918,7 +1054,7 @@
 
                 <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
                     <button type="button" onclick="closeAllModals()"
-                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-times text-xs"></i> Batal
                     </button>
                     <button type="submit"
@@ -992,7 +1128,7 @@
     </style>
 
     <script>
-        // ── MODAL HELPERS ──────────────────────────────────────
+        // -- MODAL HELPERS --------------------------------------
         function openModal(id) {
             document.getElementById(id).classList.remove('hidden');
             document.getElementById(id).classList.add('flex');
@@ -1022,7 +1158,7 @@
             });
         });
 
-        // ── MODAL STATUS ──────────────────────────────────────
+        // -- MODAL STATUS --------------------------------------
         function ubahStatus(id, statusSekarang) {
             document.getElementById('formStatus').action = '/admin/kendaraan/' + id;
             document.getElementById('statusKendaraanInput').value = statusSekarang;
@@ -1040,7 +1176,7 @@
             document.body.style.overflow = '';
         }
 
-        // ── HELPERS ──────────────────────────────────────
+        // -- HELPERS --------------------------------------
         function fmtRupiah(val) {
             var n = parseInt(val) || 0;
             return 'Rp ' + n.toLocaleString('id-ID');
@@ -1073,7 +1209,7 @@
                 '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>Service</span>';
         }
 
-        // ── MODAL DETAIL ──────────────────────────────────────
+        // -- MODAL DETAIL --------------------------------------
         document.querySelectorAll('.btn-detail').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var d = this.dataset;
@@ -1136,32 +1272,82 @@
             });
         });
 
-        function bindMemberAutocomplete(inputId, hiddenId, optionsId) {
-            var input = document.getElementById(inputId);
-            var hidden = document.getElementById(hiddenId);
-            var options = Array.from(document.querySelectorAll('#' + optionsId + ' option'));
+        // -- MEMBER AUTOCOMPLETE (inline data) -------------------------
+        const memberData = {!! json_encode($members->map(function($m) { return ['id' => $m->id, 'nama' => $m->nama, 'kontak' => $m->kontak ?? '', 'alamat' => $m->alamat ?? '', 'jenis_member' => $m->jenis_member ?? '']; })) !!};
 
-            if (!input || !hidden) return;
+        function initMemberAutocomplete(inputId, resultId, hiddenId, alamatId, warningId, editBtnId) {
+            const input   = document.getElementById(inputId);
+            const result  = document.getElementById(resultId);
+            const hidden  = document.getElementById(hiddenId);
+            const warning = document.getElementById(warningId);
+            if (!input || !result) return;
 
-            var syncSelection = function(value) {
-                var match = options.find(function(option) {
-                    return option.value.toLowerCase() === String(value || '').trim().toLowerCase();
+            input.addEventListener('keyup', function() {
+                const keyword = this.value.toLowerCase().trim();
+                result.innerHTML = '';
+                if (hidden) hidden.value = '';
+
+                if (keyword.length < 1) {
+                    result.classList.add('hidden');
+                    if (warning) warning.classList.add('hidden');
+                    return;
+                }
+
+                const filtered = memberData.filter(m => m.nama.toLowerCase().includes(keyword));
+
+                if (filtered.length === 0) {
+                    result.innerHTML = '<div class="px-3 py-2 text-xs text-red-500 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Member tidak ditemukan</div>';
+                    result.classList.remove('hidden');
+                    if (warning) warning.classList.remove('hidden');
+                    return;
+                }
+
+                if (warning) warning.classList.add('hidden');
+
+                filtered.forEach(function(m) {
+                    const item = document.createElement('div');
+                    item.className = 'px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0';
+                    item.innerHTML = '<div class="text-xs font-semibold text-gray-800">' + m.nama + '</div>'
+                                   + '<div class="text-[11px] text-gray-400 mt-0.5">'
+                                   + (m.kontak ? '<span class="mr-2"><i class="fa fa-phone text-[10px]"></i> ' + m.kontak + '</span>' : '')
+                                   + '<span class="capitalize text-blue-400">' + (m.jenis_member || '') + '</span>'
+                                   + '</div>';
+
+                    item.onclick = function() {
+                        input.value = m.nama;
+                        if (hidden) hidden.value = m.id;
+                        result.classList.add('hidden');
+                        if (warning) warning.classList.add('hidden');
+
+                        // Auto-fill alamat
+                        const alamatEl = document.getElementById(alamatId);
+                        const editBtn  = document.getElementById(editBtnId);
+                        if (alamatEl && m.alamat) {
+                            alamatEl.value    = m.alamat;
+                            alamatEl.readOnly = true;
+                            if (editBtn) editBtn.style.display = '';
+                        }
+                    };
+                    result.appendChild(item);
                 });
-                hidden.value = match ? (match.dataset.memberId || '') : '';
-            };
 
-            input.addEventListener('input', function() {
-                syncSelection(this.value);
+                result.classList.remove('hidden');
             });
-            input.addEventListener('change', function() {
-                syncSelection(this.value);
+
+            // Tutup saat klik di luar
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !result.contains(e.target)) {
+                    result.classList.add('hidden');
+                }
             });
         }
 
-        bindMemberAutocomplete('nama_pemilik', 'member_id', 'memberOptions');
-        bindMemberAutocomplete('e_nama_pemilik', 'e_member_id', 'e_memberOptions');
+        document.addEventListener('DOMContentLoaded', function() {
+            initMemberAutocomplete('nama_pemilik',   'member-result-tambah', 'member_id',   'alamat',   'member_warning_tambah', 'alamat_edit_btn');
+            initMemberAutocomplete('e_nama_pemilik', 'member-result-edit',   'e_member_id', 'e_alamat', 'member_warning_edit',   'e_alamat_edit_btn');
+        });
 
-        // ── MODAL EDIT ──────────────────────────────────────
+        // -- MODAL EDIT --------------------------------------
         document.querySelectorAll('.btn-edit').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 document.getElementById('formEdit').action = '/admin/kendaraan/' + this.dataset.id;
@@ -1210,7 +1396,7 @@
             });
         });
 
-        // ── SEARCH + SHOW ENTRIES ──────────────────────────────────────
+        // -- SEARCH + SHOW ENTRIES --------------------------------------
         const allRows     = Array.from(document.querySelectorAll('#kendaraanTableBody tr[data-search]'));
         const entriesInfo = document.getElementById('entriesInfo');
         let currentSearch  = '';
@@ -1249,7 +1435,7 @@
 
         document.addEventListener('DOMContentLoaded', renderTable);
 
-        // ── POPUP ALERT ──────────────────────────────────────
+        // -- POPUP ALERT --------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');

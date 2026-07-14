@@ -17,19 +17,29 @@ class aging_aps extends Model
         'jatuh_tempo',
         'jumlah',
         'kategori',
+        'hutang_vendor_id',
+        'status_lunas',
     ];
 
     protected $casts = [
         'jatuh_tempo' => 'date',
-        'jumlah' => 'integer',
+        'jumlah' => 'decimal:2',
+        'status_lunas' => 'boolean',
     ];
 
     /**
      * Auto hitung umur jika tidak diisi (optional helper)
      */
-
     public function getUmurOtomatisAttribute()
-{
-    return round(now()->diffInDays($this->jatuh_tempo, false));
-}
+    {
+        return round(now()->diffInDays($this->jatuh_tempo, false));
+    }
+
+    /**
+     * Relasi ke HutangVendor
+     */
+    public function hutangVendor()
+    {
+        return $this->belongsTo(HutangVendor::class, 'hutang_vendor_id');
+    }
 }

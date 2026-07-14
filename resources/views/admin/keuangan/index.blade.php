@@ -113,12 +113,11 @@
                         <div class="flex flex-wrap items-center gap-2">
                             <a href="{{ route('keuangan.export.pdf', request()->query()) }}" target="_blank"
                                 class="inline-flex items-center gap-2 px-3 py-2 text-xs
-  font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 shadow-sm">
+  font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                                 <i class="fa fa-file-pdf text-sm"></i> Export PDF
                             </a>
                             <a href="{{ route('keuangan.export.excel', request()->query()) }}"
-                                class="inline-flex items-center gap-2 px-3 py-2 text-xs
-  font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 shadow-sm">
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
                                 <i class="fa fa-file-excel text-sm"></i> Export Excel
                             </a>
                         </div>
@@ -274,8 +273,7 @@
                         </thead>
                         <tbody id="keuanganTableBody">
                             @forelse($keuangans as $i => $k)
-                                <tr class="border-t border-gray-50 hover:bg-gray-50
-  transition-colors duration-100">
+                                <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100">
                                     <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">
                                         {{ $keuangans->firstItem() + $i }}</td>
                                     <td class="px-4 py-3.5 text-sm text-gray-600">
@@ -304,7 +302,7 @@
                                             <span class="text-sm font-semibold text-green-600">Rp
                                                 {{ number_format($k->pemasukan) }}</span>
                                         @else
-                                            <span class="text-xs text-gray-300">—</span>
+                                            <span class="text-xs text-gray-300">�</span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3.5">
@@ -312,7 +310,7 @@
                                             <span class="text-sm font-semibold text-red-500">Rp
                                                 {{ number_format($k->pengeluaran) }}</span>
                                         @else
-                                            <span class="text-xs text-gray-300">—</span>
+                                            <span class="text-xs text-gray-300">�</span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3.5">
@@ -748,7 +746,7 @@
                         </div>
                         <button onclick="window.location.reload()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg
-  hover:bg-gray-50 transition-colors">
+  odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <i class="fa fa-sync text-xs"></i> Refresh
                         </button>
                     </div>
@@ -1459,7 +1457,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
-        // ── SWITCH  ─────────────────────────────────────────
+        // -- SWITCH  -----------------------------------------
         function switchTab(tab) {
             ['cashflow', 'aging-ap', 'aging-ar', 'reminder', 'lunas'].forEach(t => {
                 document.getElementById('content-' + t).classList.add('hidden');
@@ -1473,7 +1471,7 @@
             active.classList.remove('border-transparent', 'text-gray-400');
         }
 
-        // ── PERTAHANKAN  AKTIF ──────────────────────────────
+        // -- PERTAHANKAN  AKTIF ------------------------------
 
         (function() {
             let targetTab = null;
@@ -1513,7 +1511,7 @@
                 });
             });
         })();
-        // ── MODAL KEUANGAN ─────────────────────────────────────
+        // -- MODAL KEUANGAN -------------------------------------
         function openModalKeuangan() {
             var m = document.getElementById('modalKeuangan');
             m.classList.remove('hidden');
@@ -1529,7 +1527,7 @@
             if (e.target === this) closeModalKeuangan();
         });
 
-        // ── MODAL AGING AP ─────────────────────────────────────
+        // -- MODAL AGING AP -------------------------------------
         function openModalAp() {
             document.getElementById('modalTambahAp').classList.remove('hidden');
         }
@@ -1556,7 +1554,7 @@
             if (e.target === this) closeEditModalAp();
         });
 
-        // ── MODAL AGING AR ─────────────────────────────────────
+        // -- MODAL AGING AR -------------------------------------
         function openModalAr() {
             $('#ar_member_id').val(null).trigger('change');
             $('#ar_invoice_id').val(null).trigger('change');
@@ -1595,7 +1593,7 @@
             if (e.target === this) closeEditModalAr();
         });
 
-        // ── ESCAPE KEY ─────────────────────────────────────────
+        // -- ESCAPE KEY -----------------------------------------
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeModalKeuangan();
@@ -1606,7 +1604,7 @@
             }
         });
 
-        // ── SEARCH FILTER ──────────────────────────────────────
+        // -- SEARCH FILTER --------------------------------------
         function filterTableAp(q) {
             document.querySelectorAll('#tableBodyAp tr[data-search]').forEach(row => {
                 row.style.display = row.dataset.search.includes(q.toLowerCase()) ? '' : 'none';
@@ -1619,7 +1617,7 @@
             });
         }
 
-        // ── POPUP ALERT ────────────────────────────────────────
+        // -- POPUP ALERT ----------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');
@@ -1643,7 +1641,7 @@
             window.closeAlert = closeAlert;
         })();
 
-        // ── SELECT2 AGING AR ───────────────────────────────────
+        // -- SELECT2 AGING AR -----------------------------------
         $(document).ready(function() {
 
             // Member - Modal Tambah

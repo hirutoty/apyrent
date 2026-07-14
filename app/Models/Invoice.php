@@ -15,20 +15,16 @@ class Invoice extends Model
         'penawaran_id',
         'kontrak_id',
         'kendaraan_id',
-
         'type',
         'invoice_no',
         'order_no',
-
         'customer_name',
         'customer_address',
         'contact_person',
         'telephone',
         'email',
-
         'satuan',
         'invoice_date',
-
         'pengirim',
         'staff',
         'name_staff',
@@ -36,105 +32,72 @@ class Invoice extends Model
         'name_direktur',
         'ttd_staff',
         'ttd_direktur',
-
         'status',
         'payment_status',
-
         'ppn',
         'pph',
         'total',
-
-
-
-
         'last_email_sent_at',
     ];
 
     protected $casts = [
-
         'invoice_date'       => 'date',
         'ppn'                => 'decimal:2',
         'pph'                => 'decimal:2',
         'total'              => 'decimal:2',
-
-        'invoice_date'   => 'date',
-        'ppn'            => 'decimal:2',
-        'pph'            => 'decimal:2',
-        'total'          => 'decimal:2',
-
         'last_email_sent_at' => 'datetime',
     ];
 
-    /**
-     * Relasi ke Penawaran (single, backward-compat)
-     */
-    public function penawaran()
-    {
-        return $this->belongsTo(InvPenawaran::class, 'penawaran_id');
-    }
+    public function penawaran() { return $this->belongsTo(InvPenawaran::class, 'penawaran_id'); }
+    public function kontrak() { return $this->belongsTo(InvKontrak::class, 'kontrak_id'); }
+    public function kendaraan() { return $this->belongsTo(Kendaraan::class, 'kendaraan_id'); }
+    public function penawarans() { return $this->belongsToMany(InvPenawaran::class, 'invoice_penawarans', 'invoice_id', 'penawaran_id')->withTimestamps(); }
+    public function kontraks() { return $this->belongsToMany(InvKontrak::class, 'invoice_kontraks', 'invoice_id', 'kontrak_id')->withTimestamps(); }
+    public function kendaraans() { return $this->belongsToMany(Kendaraan::class, 'invoice_kendaraans', 'invoice_id', 'kendaraan_id')->withTimestamps(); }
+    public function periodes() { return $this->hasMany(InvoicePeriode::class, 'invoice_id'); }
+    public function remaks() { return $this->hasMany(InvoiceRemak::class, 'invoice_id'); }
+    public function agingAr() { return $this->hasOne(AgingAr::class, 'invoice_id'); }
 
     /**
-     * Relasi ke Kontrak (single, backward-compat)
+     * Hitung total invoice dari remaks (qty * price) + ppn - pph.
+     *
+     * Prioritas sumber remaks:
+     *   1. periodes.remaks  — remaks yang terikat ke periode invoice
+     *   2. remaks langsung  — remaks yang langsung terikat ke invoice (tanpa periode)
+     *
+     * Jika tidak ada remaks sama sekali dari kedua sumber, fallback ke nilai
+     * kolom $this->total yang tersimpan di database.
+     *
+     * @return float
      */
-    public function kontrak()
+    public function computeTotal(): float
     {
-        return $this->belongsTo(InvKontrak::class, 'kontrak_id');
-    }
+        // Eager-load periodes beserta remaks-nya jika belum di-load
+        if (! $this->relationLoaded('periodes')) {
+            $this->load('periodes.remaks');
+        } elseif ($this->periodes->isNotEmpty() && ! $this->periodes->first()->relationLoaded('remaks')) {
+            $this->load('periodes.remaks');
+        }
 
-    /**
-     * Relasi ke Kendaraan (single, backward-compat)
-     */
-    public function kendaraan()
-    {
-        return $this->belongsTo(Kendaraan::class, 'kendaraan_id');
-    }
+        // Kumpulkan semua remaks dari periodes
+        $remaksFromPeriodes = $this->periodes->flatMap(fn ($periode) => $periode->remaks);
 
-    /**
-     * Relasi ke Penawarans (multiple via pivot)
-     */
-    public function penawarans()
-    {
-        return $this->belongsToMany(InvPenawaran::class, 'invoice_penawarans', 'invoice_id', 'penawaran_id')
-                    ->withTimestamps();
-    }
+        if ($remaksFromPeriodes->isNotEmpty()) {
+            $subtotal = $remaksFromPeriodes->sum(fn ($remak) => (float) $remak->qty * (float) $remak->price);
+        } else {
+            // Fallback: gunakan remaks yang langsung terikat ke invoice
+            if (! $this->relationLoaded('remaks')) {
+                $this->load('remaks');
+            }
 
-    /**
-     * Relasi ke Kontraks (multiple via pivot)
-     */
-    public function kontraks()
-    {
-        return $this->belongsToMany(InvKontrak::class, 'invoice_kontraks', 'invoice_id', 'kontrak_id')
-                    ->withTimestamps();
-    }
+            if ($this->remaks->isEmpty()) {
+                // Tidak ada remaks sama sekali — kembalikan nilai tersimpan
+                return (float) $this->total;
+            }
 
-    /**
-     * Relasi ke Kendaraans (multiple via pivot)
-     */
-    public function kendaraans()
-    {
-        return $this->belongsToMany(Kendaraan::class, 'invoice_kendaraans', 'invoice_id', 'kendaraan_id')
-                    ->withTimestamps();
-    }
+            $subtotal = $this->remaks->sum(fn ($remak) => (float) $remak->qty * (float) $remak->price);
+        }
 
-
-    /**
-     * Relasi ke Periode sewa (hasMany InvoicePeriode)
-     */
-    public function periodes()
-    {
-        return $this->hasMany(InvoicePeriode::class, 'invoice_id');
-    }
-
-    /**
-     * Relasi ke semua Remaks invoice
-     */
-    public function remaks()
-    {
-        return $this->hasMany(InvoiceRemak::class, 'invoice_id');
-    }
-
-    public function agingAr()
-    {
-        return $this->hasOne(AgingAr::class, 'invoice_id');
+        return $subtotal + (float) $this->ppn - (float) $this->pph;
     }
 }

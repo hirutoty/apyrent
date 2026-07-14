@@ -106,13 +106,13 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <a href="{{ route('virtual.pdf') }}" id="pdfBtn" target="_blank"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf text-xs"></i> PDF
                     </a>
 
                     {{-- TAMBAHKAN INI --}}
                     <a href="{{ route('virtual.export.excel') }}" id="excelBtn"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
                         <i class="fa fa-file-excel text-xs"></i> Excel
                     </a>
                     <div class="relative">
@@ -121,7 +121,7 @@
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg w-56">
                     </div>
                     <button onclick="window.location.href = window.location.pathname"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
                 </div>
@@ -157,7 +157,7 @@
                     </thead>
                     <tbody id="tableBody">
                         @forelse ($data as $item)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower($item->va_number . ' ' . ($item->member->nama_pelanggan ?? '') . ' ' . $item->bank . ' ' . $item->status) }}">
 
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $data->firstItem() + $loop->index }}</td>
@@ -370,7 +370,7 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Invoice --</option>
                         @foreach ($invoices as $invoice)
-                            <option value="{{ $invoice->id }}">{{ $invoice->invoice_no }} — {{ $invoice->customer_name }}</option>
+                            <option value="{{ $invoice->id }}">{{ $invoice->invoice_no }} � {{ $invoice->customer_name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -412,7 +412,7 @@
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalTambah()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -475,7 +475,7 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Invoice --</option>
                         @foreach ($invoices as $invoice)
-                            <option value="{{ $invoice->id }}">{{ $invoice->invoice_no }} — {{ $invoice->customer_name }}</option>
+                            <option value="{{ $invoice->id }}">{{ $invoice->invoice_no }} � {{ $invoice->customer_name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -549,7 +549,7 @@
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
                     <button type="button" onclick="closeModalEdit()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -633,7 +633,7 @@
     </style>
 
     <script>
-        // ── MODAL TAMBAH ───────────────────────────────────
+        // -- MODAL TAMBAH -----------------------------------
         function openModalTambah() {
             var m = document.getElementById('modalTambah');
             m.classList.remove('hidden');
@@ -649,7 +649,7 @@
             if (e.target === this) closeModalTambah();
         });
 
-        // ── MODAL EDIT ─────────────────────────────────────
+        // -- MODAL EDIT -------------------------------------
         function openEditModal(id, va_number, member_id, invoice_id, bank, expected_amount, paid_amount, status, expired_at) {
             var m = document.getElementById('modalEdit');
             m.classList.remove('hidden');
@@ -687,14 +687,14 @@
             }
         });
 
-        // ── UPDATE EXPORT LINKS ────────────────────────────
+        // -- UPDATE EXPORT LINKS ----------------------------
         function updateExportLinks(q) {
             const query = q ? '?search=' + encodeURIComponent(q) : '';
             document.getElementById('pdfBtn').href = "{{ route('virtual.pdf') }}" + query;
             document.getElementById('excelBtn').href = "{{ route('virtual.export.excel') }}" + query;
         }
 
-        // ── SEARCH / FILTER ────────────────────────────────
+        // -- SEARCH / FILTER --------------------------------
         document.getElementById('searchInput').addEventListener('input', function() {
             const q = this.value.trim();
 
@@ -721,10 +721,10 @@
             updateExportLinks(q);
         });
 
-        // initial — set link saat halaman pertama load
+        // initial � set link saat halaman pertama load
         updateExportLinks('');
 
-        // ── POPUP ALERT ────────────────────────────────────
+        // -- POPUP ALERT ------------------------------------
 
 
 
@@ -752,7 +752,7 @@
                     <button type="button"
                         onclick="removeFileVA()"
                         class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs">
-                        ×
+                        �
                     </button>
                 </div>
             `;
@@ -776,7 +776,7 @@
                 <button type="button"
                     onclick="removeFileVA()"
                     class="ml-2 text-red-500 text-sm">
-                    ×
+                    �
                 </button>
             </div>
         `;
@@ -813,7 +813,7 @@
                     <button type="button"
                         onclick="removeFileVAEdit()"
                         class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs">
-                        ×
+                        �
                     </button>
                 </div>
             `;
@@ -837,7 +837,7 @@
                 <button type="button"
                     onclick="removeFileVAEdit()"
                     class="ml-2 text-red-500 text-sm">
-                    ×
+                    �
                 </button>
             </div>
         `;

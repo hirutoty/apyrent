@@ -98,13 +98,13 @@
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
 
-                    {{-- Export PDF — href diupdate JS setiap filter berubah --}}
+                    {{-- Export PDF � href diupdate JS setiap filter berubah --}}
                     {{-- <a id="btnExportPdf" href="{{ route('stnk.export.pdf') }}" target="_blank"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition">
                         <i class="fa fa-file-pdf"></i> Export PDF
                     </a> --}}
 
-                    {{-- Filter Bulan — nilai option pakai angka murni "06" bukan "-06-" --}}
+                    {{-- Filter Bulan � nilai option pakai angka murni "06" bukan "-06-" --}}
                     <select id="filterBulan" onchange="filterTable(); updateExportLink();"
                         class="pl-3 pr-7 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 appearance-none bg-white">
                         <option value="">Semua Bulan</option>
@@ -141,7 +141,7 @@
 
                     {{-- Refresh --}}
                     <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
 
@@ -173,9 +173,9 @@
                             @endphp
 
                             {{--
-                                data-masa  : format YYYY-MM-DD  → dipakai JS untuk filter bulan/tahun
+                                data-masa  : format YYYY-MM-DD  ? dipakai JS untuk filter bulan/tahun
                                 Contoh     : "2026-06-15"
-                                Filter bulan "06" → masa.substring(5,7) === "06"  ✓
+                                Filter bulan "06" ? masa.substring(5,7) === "06"  ?
                             --}}
                             <tr class="hover:bg-slate-50 transition"
                                 data-search="{{ strtolower(($item->nopol ?? '') . ' ' . ($item->merk ?? '') . ' ' . $item->nama_pemilik . ' ' . $item->jenis_model) }}"
@@ -307,7 +307,7 @@
                             </tr>
                         @endforelse
 
-                        {{-- Baris kosong hasil filter — hanya muncul jika ada data di DB tapi filter tidak cocok --}}
+                        {{-- Baris kosong hasil filter � hanya muncul jika ada data di DB tapi filter tidak cocok --}}
                         @if ($data->isNotEmpty())
                             <tr id="emptyRow" class="hidden">
                                 <td colspan="9" class="text-center py-12 text-slate-400">
@@ -507,7 +507,7 @@
                             class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition">
                             <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-1"></i>
                             <span class="text-xs text-slate-500">Klik untuk ganti file</span>
-                            <span class="text-xs text-slate-400">(Maks 5MB — kosongkan jika tidak diganti)</span>
+                            <span class="text-xs text-slate-400">(Maks 5MB � kosongkan jika tidak diganti)</span>
                         </label>
                         <input type="file" name="bukti" id="bukti_edit" accept=".jpg,.jpeg,.png,.pdf"
                             class="hidden" onchange="previewBuktiEdit(this)">
@@ -673,7 +673,7 @@
 
     {{-- SCRIPT --}}
     <script>
-        // ── MODAL TAMBAH ──────────────────────────────────────
+        // -- MODAL TAMBAH --------------------------------------
         function openModalTambah() {
             document.getElementById('modalTambah').classList.remove('hidden');
         }
@@ -684,7 +684,7 @@
             if (e.target === this) closeTambah();
         });
 
-        // ── MODAL EDIT ────────────────────────────────────────
+        // -- MODAL EDIT ----------------------------------------
         function openEdit(id, kendaraan_id, nama_pemilik, jenis_model, masa_berlaku, biaya, bukti) {
             document.getElementById('formEdit').action = `/admin/stnk/${id}`;
             document.getElementById('edit_kendaraan_id').value  = kendaraan_id;
@@ -721,7 +721,7 @@
             if (e.target === this) closeEdit();
         });
 
-        // ── MODAL PERPANJANG ──────────────────────────────────
+        // -- MODAL PERPANJANG ----------------------------------
         function openPerpanjang(id, nopol, merk, biayaLama) {
             document.getElementById('formPerpanjang').action = `/admin/stnk/${id}/perpanjang`;
             document.getElementById('perpanjang_kendaraan_text').innerText = `${nopol} - ${merk}`;
@@ -749,7 +749,7 @@
             }
         });
 
-        // ── PREVIEW BUKTI TAMBAH ──────────────────────────────
+        // -- PREVIEW BUKTI TAMBAH ------------------------------
         function previewBuktiTambah(input) {
             const file = input.files[0];
             if (!file) return;
@@ -769,7 +769,7 @@
             document.getElementById('tambahPreviewWrap').classList.add('hidden');
         }
 
-        // ── PREVIEW BUKTI EDIT ────────────────────────────────
+        // -- PREVIEW BUKTI EDIT --------------------------------
         function previewBuktiEdit(input) {
             const file = input.files[0];
             if (!file) return;
@@ -785,7 +785,7 @@
             }
         }
 
-        // ── PREVIEW BUKTI PERPANJANG ───────────────────────────
+        // -- PREVIEW BUKTI PERPANJANG ---------------------------
         function previewBuktiPerpanjang(input) {
             const file = input.files[0];
             if (!file) return;
@@ -807,7 +807,7 @@
             document.getElementById('perpanjangPreviewFile').classList.add('hidden');
         }
 
-        // ── FILTER TABLE ──────────────────────────────────────
+        // -- FILTER TABLE --------------------------------------
         // data-masa format: "YYYY-MM-DD"
         // nilai option bulan: "06" (2 digit)
         // cocokkan: masa.substring(5,7) === "06"
@@ -841,7 +841,7 @@
             updateExportLink();
         }
 
-        // ── UPDATE LINK EXPORT PDF ────────────────────────────
+        // -- UPDATE LINK EXPORT PDF ----------------------------
         // Mengirim bulan (angka: "06") dan tahun ("2026") ke controller via query string
         function updateExportLink() {
             const bulan = document.getElementById('filterBulan').value;  // "06" atau ""
@@ -856,7 +856,7 @@
                 base + (params.toString() ? '?' + params.toString() : '');
         }
 
-        // ── POPUP ALERT ───────────────────────────────────────
+        // -- POPUP ALERT ---------------------------------------
         const alertOverlay = document.getElementById('alertOverlay');
         if (alertOverlay) {
             alertOverlay.style.pointerEvents = 'auto';

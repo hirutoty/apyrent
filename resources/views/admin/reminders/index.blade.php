@@ -14,12 +14,12 @@
         </div>
         <div class="flex gap-2">
             <a href="{{ route('reminders.pdf', request()->query()) }}" target="_blank"
-                class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-                <i class="fa fa-file-pdf"></i> Export PDF
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                <i class="fa fa-file-pdf text-xs"></i> Export PDF
             </a>
             <a href="{{ route('reminders.export.excel') }}"
-                class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-                <i class="fa fa-file-excel"></i> Export Excel
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
+                <i class="fa fa-file-excel text-xs"></i> Export Excel
             </a>
         </div>
     </div>
@@ -108,7 +108,7 @@
                 </thead>
                 <tbody>
                     @foreach($overdue as $row)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <td class="px-4 py-3.5">
                             <span class="font-mono text-xs font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded">
                                 {{ $row->invoice->invoice_no ?? '-' }}
@@ -167,7 +167,7 @@
                 </thead>
                 <tbody>
                     @foreach($dueToday as $row)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <td class="px-4 py-3.5">
                             <span class="font-mono text-xs font-semibold text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded">
                                 {{ $row->invoice->invoice_no ?? '-' }}
@@ -226,7 +226,7 @@
                 </thead>
                 <tbody>
                     @foreach($upcoming as $row)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <td class="px-4 py-3.5">
                             <span class="font-mono text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
                                 {{ $row->invoice->invoice_no ?? '-' }}
@@ -285,7 +285,7 @@
                 </thead>
                 <tbody>
                     @foreach($others as $row)
-                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <td class="px-4 py-3.5">
                             <span class="font-mono text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
                                 {{ $row->invoice->invoice_no ?? '-' }}
@@ -304,7 +304,7 @@
                                     {{ $row->days_left }} hari lagi
                                 </span>
                             @else
-                                <span class="text-xs text-gray-400">â€”</span>
+                                <span class="text-xs text-gray-400">—</span>
                             @endif
                         </td>
                         <td class="px-4 py-3.5 text-center">

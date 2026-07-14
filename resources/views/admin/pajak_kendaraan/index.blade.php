@@ -92,11 +92,11 @@
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-64">
                     </div>
                     <button onclick="exportPdf()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-download text-xs"></i> Export
                     </button>
                     <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
                     {{-- FILTER STATUS --}}
@@ -187,7 +187,7 @@
 
                 {{-- Reset filter --}}
                 <button onclick="resetFilter()"
-                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-rotate-left text-[10px]"></i> Reset
                 </button>
 
@@ -228,7 +228,7 @@
                                 $jatuhTempo = \Carbon\Carbon::parse($item->jatuh_tempo);
                                 $selisihHari = (int) $today->diffInDays($jatuhTempo, false);
                             @endphp
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower(
                                     ($item->kendaraan->nopol ?? '') .
                                         ' ' .
@@ -289,7 +289,7 @@
                                             <span
                                                 class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full w-fit font-semibold">
 
-                                                ⚠️ Terlambat {{ abs($selisihHari) }} hari
+                                                ?? Terlambat {{ abs($selisihHari) }} hari
 
                                             </span>
                                         @elseif ($selisihHari <= $reminder)
@@ -297,7 +297,7 @@
                                                 class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full w-fit font-semibold">
 
 
-                                                ⚠️ Jatuh tempo {{ $selisihHari }} hari lagi
+                                                ?? Jatuh tempo {{ $selisihHari }} hari lagi
 
                                             </span>
                                         @endif
@@ -600,7 +600,7 @@
 
                 <div class="flex gap-3 pt-2">
                     <button type="button" onclick="closeModalTambah()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -750,7 +750,7 @@
 
                 <div class="flex gap-3 pt-2">
                     <button type="button" onclick="closeModalEdit()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -899,7 +899,7 @@ MODAL PERPANJANG
 
                 <div class="flex gap-3 pt-2">
                     <button type="button" onclick="closeModalPerpanjang()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -986,7 +986,7 @@ MODAL PERPANJANG
     </style>
 
     <script>
-        // ── MODAL TAMBAH ──────────────────────────────────────
+        // -- MODAL TAMBAH --------------------------------------
         const modalTambah = document.getElementById('modalTambah');
 
         function openModalTambah() {
@@ -1005,7 +1005,7 @@ MODAL PERPANJANG
             if (e.target === modalTambah) closeModalTambah();
         });
 
-        // ── MODAL EDIT ──────────────────────────────────────
+        // -- MODAL EDIT --------------------------------------
         const modalEdit = document.getElementById('modalEdit');
 
         function openModalEdit(id, kendaraan_id, jenis_pajak, nominal, jatuh_tempo, tanggal_bayar, status, keterangan,
@@ -1094,8 +1094,8 @@ MODAL PERPANJANG
             return dateString.split(' ')[0];
         }
 
-        // ── SEARCH FILTER ──────────────────────────────────────
-        // ── STATUS FILTER ──────────────────────────────────────
+        // -- SEARCH FILTER --------------------------------------
+        // -- STATUS FILTER --------------------------------------
         let activeStatus = 'semua';
 
         function filterStatus(status) {
@@ -1211,7 +1211,7 @@ MODAL PERPANJANG
 
         document.addEventListener('DOMContentLoaded', () => applyFilter(''));
 
-        // ── POPUP ALERT ────────────────────────────────────────
+        // -- POPUP ALERT ----------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
             var box = document.getElementById('alertBox');
@@ -1259,7 +1259,7 @@ MODAL PERPANJANG
         }
 
 
-        // ── PREVIEW BUKTI (dipakai bersama oleh Tambah & Edit) ──
+        // -- PREVIEW BUKTI (dipakai bersama oleh Tambah & Edit) --
         function renderPreviewBukti(file, wrapId, imgId, fileBoxId) {
             const wrap = document.getElementById(wrapId);
             const img = document.getElementById(imgId);
@@ -1311,7 +1311,7 @@ MODAL PERPANJANG
                 .classList.add('hidden');
         }
 
-        // ── PREVIEW BUKTI KHUSUS MODAL EDIT ──
+        // -- PREVIEW BUKTI KHUSUS MODAL EDIT --
         function previewBuktiEdit(input) {
             const file = input.files[0];
             if (!file) return;

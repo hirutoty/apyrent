@@ -25,7 +25,7 @@
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('invoices.export.excel', request()->query()) }}"
-                    class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
                     <i class="fa fa-file-excel"></i> Export Excel
                 </a>
                 <button type="button" id="btnTambah"
@@ -143,28 +143,28 @@
                                 default  => 'bg-gray-100 text-gray-600',
                             };
                         @endphp
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <td class="px-4 py-3.5 text-xs text-gray-400">{{ $loop->iteration + ($invoices->firstItem() - 1) }}</td>
                             <td data-col="col-noinvoice"  class="px-4 py-3.5"><span class="font-mono text-xs font-semibold text-blue-700">{{ $inv->invoice_no }}</span></td>
                             <td data-col="col-tanggal"    class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->invoice_date)->format('d M Y') }}</td>
                             <td data-col="col-customer"   class="px-4 py-3.5 text-sm font-semibold text-gray-800">{{ $inv->customer_name }}</td>
-                            <td data-col="col-penawaran"  class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->penawaran)->no_penawaran ?? '—' }}</td>
-                            <td data-col="col-kontrak"    class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->kontrak)->no_kontrak ?? '—' }}</td>
+                            <td data-col="col-penawaran"  class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->penawaran)->no_penawaran ?? '�' }}</td>
+                            <td data-col="col-kontrak"    class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->kontrak)->no_kontrak ?? '�' }}</td>
                             <td data-col="col-kendaraan"  class="px-4 py-3.5 text-sm text-gray-600">
-                                {{ $inv->kendaraan ? $inv->kendaraan->merk . ' – ' . $inv->kendaraan->nopol : '—' }}
+                                {{ $inv->kendaraan ? $inv->kendaraan->merk . ' � ' . $inv->kendaraan->nopol : '�' }}
                             </td>
                             <td data-col="col-status" class="px-4 py-3.5 text-center">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $statusColor }}">
-                                    {{ $inv->status ? strtoupper($inv->status) : '—' }}
+                                    {{ $inv->status ? strtoupper($inv->status) : '�' }}
                                 </span>
                             </td>
                             <td data-col="col-pembayaran" class="px-4 py-3.5 text-center">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $payColor }}">
-                                    {{ $inv->payment_status ? strtoupper($inv->payment_status) : '—' }}
+                                    {{ $inv->payment_status ? strtoupper($inv->payment_status) : '�' }}
                                 </span>
                             </td>
                             <td data-col="col-reminder" class="px-4 py-3.5 text-center text-xs text-gray-500">
-                                {{ $inv->last_email_sent_at?->format('d M Y') ?? '—' }}
+                                {{ $inv->last_email_sent_at?->format('d M Y') ?? '�' }}
                             </td>
                             <td data-col="col-aksi" class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1.5 flex-wrap">
@@ -333,9 +333,9 @@
                             <div id="tambah_penawaran_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="penawaran_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">� Tidak ada �</option>
                                         @foreach ($penawarans as $p)
-                                            <option value="{{ $p->id }}">{{ $p->no_penawaran }} – {{ $p->customer_name }}</option>
+                                            <option value="{{ $p->id }}">{{ $p->no_penawaran }} � {{ $p->customer_name }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
@@ -355,7 +355,7 @@
                             <div id="tambah_kontrak_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="kontrak_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">� Tidak ada �</option>
                                         @foreach ($kontraks as $k)
                                             <option value="{{ $k->id }}">{{ $k->no_kontrak ?? '#' . $k->id }}</option>
                                         @endforeach
@@ -377,9 +377,9 @@
                             <div id="tambah_kendaraan_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="kendaraan_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">� Tidak ada �</option>
                                         @foreach ($kendaraans as $kd)
-                                            <option value="{{ $kd->id }}">{{ $kd->merk }} – {{ $kd->nopol }}</option>
+                                            <option value="{{ $kd->id }}">{{ $kd->merk }} � {{ $kd->nopol }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
@@ -910,9 +910,9 @@
                             <div id="edit_penawaran_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="penawaran_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">� Tidak ada �</option>
                                         @foreach ($penawarans as $p)
-                                            <option value="{{ $p->id }}">{{ $p->no_penawaran }} – {{ $p->customer_name }}</option>
+                                            <option value="{{ $p->id }}">{{ $p->no_penawaran }} � {{ $p->customer_name }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
@@ -932,7 +932,7 @@
                             <div id="edit_kontrak_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="kontrak_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">� Tidak ada �</option>
                                         @foreach ($kontraks as $k)
                                             <option value="{{ $k->id }}">{{ $k->no_kontrak ?? '#' . $k->id }}</option>
                                         @endforeach
@@ -954,9 +954,9 @@
                             <div id="edit_kendaraan_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="kendaraan_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">� Tidak ada �</option>
                                         @foreach ($kendaraans as $kd)
-                                            <option value="{{ $kd->id }}">{{ $kd->merk }} – {{ $kd->nopol }}</option>
+                                            <option value="{{ $kd->id }}">{{ $kd->merk }} � {{ $kd->nopol }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
@@ -1196,7 +1196,7 @@
 
     @push('scripts')
         <script>
-        // ── Toggle Kolom ──
+        // -- Toggle Kolom --
         function toggleColDropdown() {
             document.getElementById('colDropdown').classList.toggle('hidden');
         }
@@ -1255,7 +1255,7 @@
 
             let libLoaded = false;
 
-            // ── Tab switch ──────────────────────────────
+            // -- Tab switch ------------------------------
             tabLib.addEventListener('click', () => {
                 tabLib.classList.replace('bg-white', 'bg-blue-600');
                 tabLib.classList.replace('text-gray-500', 'text-white');
@@ -1281,7 +1281,7 @@
                 clearPreview();
             });
 
-            // ── Render library ──────────────────────────
+            // -- Render library --------------------------
             async function renderLibrary() {
                 libLoaded = true;
                 const files = await loadTtdLibrary();
@@ -1316,7 +1316,7 @@
                 });
             }
 
-            // ── Preview file upload baru ──────────────
+            // -- Preview file upload baru --------------
             fileInput.addEventListener('change', function () {
                 if (this.files[0]) {
                     const url = URL.createObjectURL(this.files[0]);
@@ -1327,7 +1327,7 @@
                 }
             });
 
-            // ── Preview helpers ───────────────────────
+            // -- Preview helpers -----------------------
             function showPreview(url) {
                 previewImg.src = url;
                 preview.classList.remove('hidden');
@@ -1347,7 +1347,7 @@
                 });
             });
 
-            // ── Set preview dari luar (saat edit) ──────
+            // -- Set preview dari luar (saat edit) ------
             picker.setCurrentTtd = function (path, url) {
                 if (!path) return;
                 if (hiddenPath) hiddenPath.value = path;
@@ -1475,7 +1475,7 @@
                     setText('show_pph', (d.pph || '0') + '%');
                     setText('show_total', formatRupiah(d.total));
 
-                    // Seksi 4 — status badges
+                    // Seksi 4 � status badges
                     const statusEl = document.getElementById('show_status');
                     statusEl.textContent = d.status ? d.status.toUpperCase() : '-';
                     statusEl.className = 'px-3 py-1 rounded-full text-xs font-semibold ' + (statusColorMap[d
@@ -1601,9 +1601,9 @@
         {{-- ====== RELASI ROWS TEMPLATE DATA ====== --}}
         <script>
         // Data untuk opsi select (dari Blade ke JS)
-        const PENAWARAN_OPTIONS = @json($penawarans->map(fn($p) => ['id' => $p->id, 'label' => $p->no_penawaran . ' – ' . $p->customer_name]));
+        const PENAWARAN_OPTIONS = @json($penawarans->map(fn($p) => ['id' => $p->id, 'label' => $p->no_penawaran . ' � ' . $p->customer_name]));
         const KONTRAK_OPTIONS   = @json($kontraks->map(fn($k) => ['id' => $k->id, 'label' => $k->no_kontrak ?? '#'.$k->id]));
-        const KENDARAAN_OPTIONS = @json($kendaraans->map(fn($kd) => ['id' => $kd->id, 'label' => $kd->merk . ' – ' . $kd->nopol]));
+        const KENDARAAN_OPTIONS = @json($kendaraans->map(fn($kd) => ['id' => $kd->id, 'label' => $kd->merk . ' � ' . $kd->nopol]));
 
         function getOptions(type) {
             const map = { penawaran: PENAWARAN_OPTIONS, kontrak: KONTRAK_OPTIONS, kendaraan: KENDARAAN_OPTIONS };
@@ -1612,7 +1612,7 @@
 
         function buildRelRow(prefix, type, selectedId = '') {
             const opts = getOptions(type);
-            const optHtml = '<option value="">— Tidak ada —</option>' +
+            const optHtml = '<option value="">� Tidak ada �</option>' +
                 opts.map(o => `<option value="${o.id}" ${String(o.id) === String(selectedId) ? 'selected' : ''}>${o.label}</option>`).join('');
             return `<div class="flex gap-2 items-center rel-row">
                 <select name="${type}_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">${optHtml}</select>
@@ -1737,7 +1737,7 @@
                 const sub = remaks.reduce((s,r) => s + (r.qty||1)*(r.price||0), 0);
                 total += sub;
                 const awal = fmtDate(p.periode_awal);
-                const akhir = p.periode_akhir ? ' – ' + fmtDate(p.periode_akhir) : '';
+                const akhir = p.periode_akhir ? ' � ' + fmtDate(p.periode_akhir) : '';
                 const rows = remaks.map(r => `
                     <tr>
                         <td class="px-3 py-1.5 text-xs text-gray-700">${r.remaks||''}</td>

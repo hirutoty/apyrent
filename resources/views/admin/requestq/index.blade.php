@@ -75,7 +75,7 @@
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                 </div>
                 <button onclick="window.location.reload()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-sync text-xs"></i> Refresh
                 </button>
             </div>
@@ -109,7 +109,7 @@
                 @endforeach
             </select>
             <button onclick="resetFilter()"
-                class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                 <i class="fa fa-rotate-left text-[10px]"></i> Reset
             </button>
             <div class="ml-auto text-xs text-gray-400" id="entriesInfoTop"></div>
@@ -135,7 +135,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors"
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors"
                             data-search="{{ strtolower($d->id_rfq . ' ' . $d->vendor . ' ' . $d->nama_barang . ' ' . $d->kode_barang) }}"
                             data-tanggal="{{ $d->tanggal_rfq ? \Carbon\Carbon::parse($d->tanggal_rfq)->format('Y-m-d') : '' }}">
                             <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>

@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Data Penawaran Kendaraan')
 
@@ -25,11 +25,11 @@
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('penawaran.pdf') }}" target="_blank"
-                    class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                     <i class="fa fa-file-pdf"></i> Export PDF
                 </a>
                 <a href="{{ route('penawaran.export.excel', request()->query()) }}"
-                    class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
                     <i class="fa fa-file-excel"></i> Export Excel
                 </a>
                 <button type="button" id="btnTambah"

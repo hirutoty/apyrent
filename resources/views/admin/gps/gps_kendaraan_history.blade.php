@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'History GPS Kendaraan')
 
@@ -13,7 +13,7 @@
             <p class="text-sm text-gray-500 mt-0.5">Riwayat seluruh data GPS kendaraan yang telah diperpanjang.</p>
         </div>
         <a href="{{ route('gps-kendaraan-history.export', request()->query()) }}" target="_blank"
-           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition">
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
             <i class="fa fa-file-pdf"></i> Export PDF
         </a>
     </div>

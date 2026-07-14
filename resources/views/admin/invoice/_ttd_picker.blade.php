@@ -14,7 +14,7 @@
             <i class="fa fa-images mr-1"></i> Pilih Library
         </button>
         <button type="button"
-            class="ttd-tab-upload flex-1 py-1.5 bg-white text-gray-500 hover:bg-gray-50 transition-colors"
+            class="ttd-tab-upload flex-1 py-1.5 bg-white text-gray-500 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors"
             data-target="upload">
             <i class="fa fa-upload mr-1"></i> Upload Baru
         </button>

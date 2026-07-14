@@ -25,9 +25,9 @@
         </button>
     </div>
 
-    {{-- ═══════════════════════════════════════════
+    {{-- -------------------------------------------
          TAB: REKONSILIASI BANK
-    ═══════════════════════════════════════════ --}}
+    ------------------------------------------- --}}
     <div id="panel-rekonsiliasi">
 
         {{-- SUMMARY CARDS --}}
@@ -101,11 +101,11 @@
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
                     <a href="{{ route('integrasi-bank.rekonsiliasi.pdf') }}" target="_blank"
-                        class="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg inline-flex items-center gap-1.5 hover:bg-red-700">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf"></i> PDF
                     </a>
                     <a href="{{ route('integrasi-bank.rekonsiliasi.excel') }}"
-                        class="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg inline-flex items-center gap-1.5 hover:bg-green-700">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
                         <i class="fa fa-file-excel"></i> Excel
                     </a>
                     <div class="relative">
@@ -138,7 +138,7 @@
                     </thead>
                     <tbody id="tableRekonsiliasi">
                         @forelse ($rekonsiliasi as $item)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower($item->tanggal.' '.$item->deskripsi.' '.$item->reference_no.' '.$item->currency.' '.$item->status_rekonsiliasi) }}">
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $rekonsiliasi->firstItem() + $loop->index }}</td>
                                 <td class="px-4 py-3.5 text-sm text-gray-700">{{ $item->tanggal }}</td>
@@ -207,9 +207,9 @@
     </div>{{-- end panel-rekonsiliasi --}}
 
 
-    {{-- ═══════════════════════════════════════════
+    {{-- -------------------------------------------
          TAB: VIRTUAL ACCOUNT
-    ═══════════════════════════════════════════ --}}
+    ------------------------------------------- --}}
     <div id="panel-virtual" class="hidden">
 
         {{-- SUMMARY CARDS --}}
@@ -284,11 +284,11 @@
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
                     <a href="{{ route('integrasi-bank.virtual.pdf') }}" target="_blank"
-                        class="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg inline-flex items-center gap-1.5 hover:bg-red-700">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf"></i> PDF
                     </a>
                     <a href="{{ route('integrasi-bank.virtual.excel') }}"
-                        class="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg inline-flex items-center gap-1.5 hover:bg-green-700">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
                         <i class="fa fa-file-excel"></i> Excel
                     </a>
                     <div class="relative">
@@ -321,7 +321,7 @@
                     </thead>
                     <tbody id="tableVirtual">
                         @forelse ($virtualAccounts as $item)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower($item->va_number.' '.($item->member->nama_pelanggan ?? '').' '.$item->bank.' '.$item->status) }}">
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $virtualAccounts->firstItem() + $loop->index }}</td>
                                 <td class="px-4 py-3.5">
@@ -422,9 +422,9 @@
 
 
 
-{{-- ═══════════════════════════════════════════
+{{-- -------------------------------------------
      MODAL TAMBAH REKONSILIASI
-═══════════════════════════════════════════ --}}
+------------------------------------------- --}}
 <div id="modalRekonsiliasi" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4" style="backdrop-filter:blur(2px)">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="animation:slideUp .2s ease">
         <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
@@ -480,7 +480,7 @@
                 <input type="file" name="bukti_pembayaran" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
             <div class="md:col-span-2 flex gap-3 pt-1">
-                <button type="button" onclick="closeModalRekonsiliasi()" class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">Batal</button>
+                <button type="button" onclick="closeModalRekonsiliasi()" class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
                 <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                     <i class="fa fa-save"></i> Simpan
                 </button>
@@ -489,9 +489,9 @@
     </div>
 </div>
 
-{{-- ═══════════════════════════════════════════
+{{-- -------------------------------------------
      MODAL EDIT REKONSILIASI
-═══════════════════════════════════════════ --}}
+------------------------------------------- --}}
 <div id="modalEditRekonsiliasi" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4" style="backdrop-filter:blur(2px)">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="animation:slideUp .2s ease">
         <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
@@ -547,7 +547,7 @@
                 <input type="file" name="bukti_pembayaran" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
             <div class="md:col-span-2 flex gap-3 pt-1">
-                <button type="button" onclick="closeEditRekonsiliasi()" class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">Batal</button>
+                <button type="button" onclick="closeEditRekonsiliasi()" class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
                 <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                     <i class="fa fa-save"></i> Update
                 </button>
@@ -557,9 +557,9 @@
 </div>
 
 
-{{-- ═══════════════════════════════════════════
+{{-- -------------------------------------------
      MODAL TAMBAH VIRTUAL ACCOUNT
-═══════════════════════════════════════════ --}}
+------------------------------------------- --}}
 <div id="modalVirtual" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4" style="backdrop-filter:blur(2px)">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="animation:slideUp .2s ease">
         <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
@@ -606,7 +606,7 @@
                 <select name="invoice_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">-- Pilih Invoice --</option>
                     @foreach ($invoices as $inv)
-                        <option value="{{ $inv->id }}">{{ $inv->invoice_no }} — {{ $inv->customer_name }}</option>
+                        <option value="{{ $inv->id }}">{{ $inv->invoice_no }} � {{ $inv->customer_name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -619,7 +619,7 @@
                 <input type="file" name="bukti_pembayaran" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
             <div class="md:col-span-2 flex gap-3 pt-1">
-                <button type="button" onclick="closeModalVirtual()" class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">Batal</button>
+                <button type="button" onclick="closeModalVirtual()" class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
                 <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                     <i class="fa fa-save"></i> Simpan
                 </button>
@@ -628,9 +628,9 @@
     </div>
 </div>
 
-{{-- ═══════════════════════════════════════════
+{{-- -------------------------------------------
      MODAL EDIT VIRTUAL ACCOUNT
-═══════════════════════════════════════════ --}}
+------------------------------------------- --}}
 <div id="modalEditVirtual" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4" style="backdrop-filter:blur(2px)">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="animation:slideUp .2s ease">
         <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
@@ -662,7 +662,7 @@
                 <select name="invoice_id" id="ev_invoice_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">-- Pilih Invoice --</option>
                     @foreach ($invoices as $inv)
-                        <option value="{{ $inv->id }}">{{ $inv->invoice_no }} — {{ $inv->customer_name }}</option>
+                        <option value="{{ $inv->id }}">{{ $inv->invoice_no }} � {{ $inv->customer_name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -694,7 +694,7 @@
                 <input type="file" name="bukti_pembayaran" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
             <div class="md:col-span-2 flex gap-3 pt-1">
-                <button type="button" onclick="closeEditVirtual()" class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">Batal</button>
+                <button type="button" onclick="closeEditVirtual()" class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">Batal</button>
                 <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                     <i class="fa fa-save"></i> Update
                 </button>
@@ -704,9 +704,9 @@
 </div>
 
 
-{{-- ═══════════════════════════════════════════
+{{-- -------------------------------------------
      POPUP ALERT
-═══════════════════════════════════════════ --}}
+------------------------------------------- --}}
 @if (session('success') || session('error') || $errors->any())
 <div id="alertOverlay" class="fixed inset-0 z-[9999] flex items-start justify-center pt-6"
     style="background:rgba(0,0,0,0.18);opacity:0;transition:opacity 0.2s;pointer-events:none">
@@ -745,7 +745,7 @@
 
 @push('scripts')
 <script>
-// ── Tab switching ──────────────────────────────────────────
+// -- Tab switching ------------------------------------------
 function switchTab(tab) {
     const tabs = ['rekonsiliasi', 'virtual'];
     tabs.forEach(t => {
@@ -782,7 +782,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-// ── Filter Rekonsiliasi ────────────────────────────────────
+// -- Filter Rekonsiliasi ------------------------------------
 function filterRekonsiliasi(val) {
     const rows = document.querySelectorAll('#tableRekonsiliasi tr[data-search]');
     rows.forEach(r => {
@@ -790,7 +790,7 @@ function filterRekonsiliasi(val) {
     });
 }
 
-// ── Filter Virtual ─────────────────────────────────────────
+// -- Filter Virtual -----------------------------------------
 function filterVirtual(val) {
     const rows = document.querySelectorAll('#tableVirtual tr[data-search]');
     rows.forEach(r => {
@@ -798,7 +798,7 @@ function filterVirtual(val) {
     });
 }
 
-// ── Modal helpers ──────────────────────────────────────────
+// -- Modal helpers ------------------------------------------
 function showModal(id) { document.getElementById(id).classList.replace('hidden', 'flex'); }
 function hideModal(id) { document.getElementById(id).classList.replace('flex', 'hidden'); }
 

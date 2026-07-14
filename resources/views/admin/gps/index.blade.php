@@ -35,11 +35,11 @@
                         oninput="filterGpsTable(this.value)"
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                 </div>
-                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-download text-xs"></i> Export
                 </button>
                 <button onclick="window.location.reload()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-sync text-xs"></i> Refresh
                 </button>
             </div>
@@ -62,7 +62,7 @@
                 </thead>
                 <tbody id="gpsTableBody">
                     @forelse($data as $d)
-                        <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100"
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                             data-search="{{ strtolower($d->nama_gps . ' ' . $d->alamat . ' ' . $d->nama_marketing . ' ' . $d->nama_bengkel) }}">
 
                             {{-- No --}}
@@ -211,7 +211,7 @@
 
             <div class="flex gap-3 pt-1">
                 <button type="button" onclick="closeModal()"
-                    class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                    class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     Batal
                 </button>
                 <button type="submit"
@@ -226,7 +226,7 @@
 
 
 {{-- ======================================
-    POPUP ALERT (FIXED OVERLAY — seperti dashboard)
+    POPUP ALERT (FIXED OVERLAY � seperti dashboard)
 ======================================--}}
 @if (session('success') || session('error') || $errors->any())
 <div id="alertOverlay"
@@ -279,7 +279,7 @@
 </style>
 
 <script>
-// ── GPS MODAL ──────────────────────────────────────
+// -- GPS MODAL --------------------------------------
 const gpsModal        = document.getElementById('gpsModal');
 const gpsForm         = document.getElementById('gpsForm');
 const methodContainer = document.getElementById('methodContainer');
@@ -322,7 +322,7 @@ function filterGpsTable(q) {
     });
 }
 
-// ── POPUP ALERT (fixed overlay) ────────────────────
+// -- POPUP ALERT (fixed overlay) --------------------
 (function () {
     var overlay = document.getElementById('alertOverlay');
     var box     = document.getElementById('alertBox');
