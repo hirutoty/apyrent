@@ -247,6 +247,8 @@
                                 Biaya</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Bukti</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Lampiran</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>
                         </tr>
@@ -321,7 +323,7 @@
                                 </td>
 
                                 {{-- Bukti --}}
-                                <td>
+                                <td class="px-4 py-3.5">
                                     @if ($d->image)
                                         @php $filename = basename($d->image); @endphp
                                         <a href="{{ asset($d->image) }}" target="_blank"
@@ -331,24 +333,33 @@
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
+                                </td>
 
-                                    @foreach ($d->attachments as $att)
-                                        <div class="flex items-center gap-1 mt-1">
-                                            <a href="{{ asset($att->file_path) }}" target="_blank"
-                                                class="text-blue-500 underline text-[11px] hover:text-blue-700">
-                                                {{ $att->file_name }}
-                                            </a>
-                                            <form action="{{ route('kir.attachment.destroy', $att->id) }}" method="POST"
-                                                onsubmit="return confirm('Hapus lampiran ini?')" class="inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit"
-                                                    class="text-red-400 hover:text-red-600 text-[10px]">
-                                                    <i class="fa fa-times"></i>
-                                                </button>
-                                            </form>
+                                {{-- Lampiran --}}
+                                <td class="px-4 py-3.5">
+                                    @if($d->attachments->isNotEmpty())
+                                        <div class="flex flex-col gap-1">
+                                            @foreach ($d->attachments as $att)
+                                                <div class="flex items-center gap-1">
+                                                    <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                        class="text-blue-500 underline text-[11px] hover:text-blue-700">
+                                                        {{ $att->file_name }}
+                                                    </a>
+                                                    <form action="{{ route('kir.attachment.destroy', $att->id) }}" method="POST"
+                                                        onsubmit="return confirm('Hapus lampiran ini?')" class="inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit"
+                                                            class="text-red-400 hover:text-red-600 text-[10px]">
+                                                            <i class="fa fa-times"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            @endforeach
                                         </div>
-                                    @endforeach
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
                                 </td>
 
                                 {{-- Aksi --}}
@@ -398,7 +409,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-5 py-12 text-center">
+                                <td colspan="8" class="px-5 py-12 text-center">
                                     <div class="flex flex-col items-center gap-3">
                                         <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                             <i class="fa-solid fa-file-circle-check text-2xl text-gray-300"></i>
@@ -475,9 +486,9 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya <span
                             class="text-red-500">*</span></label>
 
-                    <input type="number" name="biaya" min="0" step="1000"
+                    <input type="text" inputmode="numeric" name="biaya"
                         placeholder="Tambahkan biaya kir"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                        class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                         required>
                 </div>
 
@@ -588,8 +599,8 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya <span
                             class="text-red-500">*</span></label>
-                    <input type="number" name="biaya" id="edit_biaya" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" inputmode="numeric" name="biaya" id="edit_biaya" required
+                        class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
                 <div>
@@ -693,8 +704,8 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Biaya Baru <span
                             class="text-red-500">*</span></label>
-                    <input type="number" name="biaya" id="perpanjang_biaya" min="0" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" inputmode="numeric" name="biaya" id="perpanjang_biaya" required
+                        class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
                 {{-- Upload Bukti --}}
@@ -849,6 +860,7 @@
             document.getElementById('edit_kendaraan_id').value = kendaraan_id;
             document.getElementById('edit_no_uji').value = no_uji;
             document.getElementById('edit_biaya').value = biaya;
+            document.getElementById('edit_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
             // Set masa berlaku dari data yang ada
             document.getElementById('edit_masa_berlaku').value = masa_berlaku;
@@ -940,6 +952,7 @@
             document.getElementById('perpanjang_kendaraan_text').innerText = nopol + ' - ' + merk;
             document.getElementById('perpanjang_no_uji').value = no_uji;
             document.getElementById('perpanjang_biaya').value = biaya;
+            document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
             // Set tanggal_bayar = hari ini
             document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
@@ -1417,9 +1430,9 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Biaya Baru <span class="text-gray-400 font-normal">(opsional)</span>
                     </label>
-                    <input type="number" name="biaya_default" min="0" step="1000"
+                    <input type="text" inputmode="numeric" name="biaya_default"
                         placeholder="Kosongkan untuk pakai biaya masing-masing"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400">
+                        class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400">
                     <p class="text-xs text-gray-400 mt-1">Jika diisi, semua KIR akan diupdate dengan biaya ini.</p>
                 </div>
 

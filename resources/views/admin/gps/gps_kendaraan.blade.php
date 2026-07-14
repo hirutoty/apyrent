@@ -209,6 +209,7 @@
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Durasi</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Status Sewa</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Bukti</th>
+                            <th class="px-5 py-4 text-left font-semibold text-slate-600">Lampiran</th>
                             <th class="px-5 py-4 text-center font-semibold text-slate-600">Aksi</th>
                         </tr>
                     </thead>
@@ -314,7 +315,7 @@
                                     @endif
                                 </td>
 
-                                <td>
+                                <td class="px-5 py-4">
                                     @if ($d->bukti_bayar)
                                         @php $filename = basename($d->bukti_bayar); @endphp
                                         <a href="{{ asset($d->bukti_bayar) }}" target="_blank"
@@ -324,24 +325,32 @@
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
+                                </td>
 
-                                    @foreach ($d->attachments as $att)
-                                        <div class="flex items-center gap-1 mt-1">
-                                            <a href="{{ asset($att->file_path) }}" target="_blank"
-                                                class="text-blue-500 underline text-[11px] hover:text-blue-700">
-                                                {{ $att->file_name }}
-                                            </a>
-                                            <form action="{{ route('gps.attachment.destroy', $att->id) }}" method="POST"
-                                                onsubmit="return confirm('Hapus lampiran ini?')" class="inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit"
-                                                    class="text-red-400 hover:text-red-600 text-[10px]">
-                                                    <i class="fa fa-times"></i>
-                                                </button>
-                                            </form>
+                                <td class="px-5 py-4">
+                                    @if($d->attachments->isNotEmpty())
+                                        <div class="flex flex-col gap-1">
+                                            @foreach ($d->attachments as $att)
+                                                <div class="flex items-center gap-1">
+                                                    <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                        class="text-blue-500 underline text-[11px] hover:text-blue-700">
+                                                        {{ $att->file_name }}
+                                                    </a>
+                                                    <form action="{{ route('gps.attachment.destroy', $att->id) }}" method="POST"
+                                                        onsubmit="return confirm('Hapus lampiran ini?')" class="inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit"
+                                                            class="text-red-400 hover:text-red-600 text-[10px]">
+                                                            <i class="fa fa-times"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            @endforeach
                                         </div>
-                                    @endforeach
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
                                 </td>
 
                                 {{-- Aksi --}}
@@ -403,7 +412,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="12" class="text-center py-12 text-slate-400">
+                                <td colspan="13" class="text-center py-12 text-slate-400">
                                     <i class="fa-solid fa-satellite-dish text-4xl mb-3 block"></i>
                                     Belum ada data GPS kendaraan
                                 </td>
@@ -514,8 +523,8 @@
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Sewa <span
                                 class="text-red-500">*</span></label>
-                        <input type="number" name="biaya_sewa" id="biaya_sewa" required placeholder="0"
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="text" inputmode="numeric" name="biaya_sewa" id="biaya_sewa" required placeholder="0"
+                            class="format-rupiah w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
                     {{-- Bukti Bayar --}}
@@ -650,8 +659,8 @@
                     {{-- Biaya readonly (dari data lama) --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Sewa</label>
-                        <input id="perpanjang_biaya" type="number" name="biaya_sewa" readonly
-                            class="w-full border border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed rounded-xl px-4 py-3 text-sm">
+                        <input id="perpanjang_biaya" type="text" inputmode="numeric" name="biaya_sewa" readonly
+                            class="format-rupiah w-full border border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed rounded-xl px-4 py-3 text-sm">
                     </div>
 
                     {{-- Bukti Bayar Baru (required) --}}
@@ -799,6 +808,7 @@
                 document.getElementById('type').value = btn.dataset.type;
                 document.getElementById('status_gps').value = btn.dataset.status_gps;
                 document.getElementById('biaya_sewa').value = btn.dataset.biaya_sewa;
+                document.getElementById('biaya_sewa').dispatchEvent(new Event('input', { bubbles: true }));
 
                 // Set tanggal pasang, lalu hitung tanggal_habis = pasang + 1 tahun
                 const tglPasang = btn.dataset.tanggal_pasang;
@@ -879,6 +889,7 @@
                 document.getElementById('perpanjang_gps_text').innerText = btn.dataset.gps;
                 document.getElementById('perpanjang_type').value  = btn.dataset.type;
                 document.getElementById('perpanjang_biaya').value = btn.dataset.biaya;
+                document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
                 document.getElementById('listAttachmentPerpanjangGps').innerHTML = '';
 
                 // Set tanggal_bayar = hari ini, sync tanggal_pasang

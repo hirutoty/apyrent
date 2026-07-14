@@ -58,7 +58,7 @@ class GpsKendaraanController extends Controller
      * @param  int     $relationId   ID record target (gps aktif atau history)
      * @param  string  $relationType Tipe relasi, default 'gps'
      */
-    private function simpanAttachments($files, $relationId, $relationType = 'gps')
+    private function simpanAttachments($files, $relationId, $relationType = 'gps', $historyId = null)
     {
         $pathDir = public_path('gps/attachments');
         if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
@@ -81,6 +81,17 @@ class GpsKendaraanController extends Controller
                 'file_type'     => $extension,
                 'file_size'     => $size,
             ]);
+
+            if ($historyId) {
+                Attachment::create([
+                    'relation_type' => $relationType . '_history',
+                    'relation_id'   => $historyId,
+                    'file_name'     => $originalName,
+                    'file_path'     => 'gps/attachments/' . $filename,
+                    'file_type'     => $extension,
+                    'file_size'     => $size,
+                ]);
+            }
         }
     }
 
@@ -319,69 +330,92 @@ class GpsKendaraanController extends Controller
             $buktiBayarBaru = 'gps/bukti_bayar/' . $filename;
         }
 
-        // --- Simpan data LAMA ke history (pakai bukti LAMA) ---
-        $history = GpsKendaraanHistory::create([
-            'gps_kendaraan_id'  => $gpsKendaraan->id,
-            'kendaraan_id'      => $gpsKendaraan->kendaraan_id,
-            'gps_id'            => $gpsKendaraan->gps_id,
-            'type'              => $gpsKendaraan->type,
-            'status_gps'        => $gpsKendaraan->status_gps,
-            'tanggal_pasang'    => $gpsKendaraan->tanggal_pasang,
-            'tanggal_habis'     => $gpsKendaraan->tanggal_habis,
-            'biaya_sewa'        => $gpsKendaraan->biaya_sewa,
-            'durasi_bulan'      => $gpsKendaraan->durasi_bulan,
-            'status_sewa'       => $gpsKendaraan->status_sewa,
-            'bukti_bayar'       => $buktiBayarLama,
-            'diperpanjang_pada' => $tanggalBayar,
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use (
+            $request, $gpsKendaraan, $buktiBayarLama, $buktiBayarBaru, $tanggalBayar, $tanggalPasang, $tanggalHabis
+        ) {
+            // --- Simpan data BARU ke history (sebagai log perpanjangan) ---
+            $history = GpsKendaraanHistory::create([
+                'gps_id'           => $gpsKendaraan->gps_id,
+                'gps_kendaraan_id' => $gpsKendaraan->id,
+                'kendaraan_id'     => $gpsKendaraan->kendaraan_id,
+                'type'             => $gpsKendaraan->type,
+                'vendor_id'        => $gpsKendaraan->vendor_id,
+                'tanggal_pasang'   => $tanggalPasang,
+                'tanggal_habis'    => $tanggalHabis,
+                'durasi_bulan'     => $request->durasi_bulan,
+                'biaya_sewa'       => $request->biaya_sewa,
+                'status_sewa'      => 'aktif',
+                'status_gps'       => $gpsKendaraan->status_gps,
+                'bukti_bayar'      => $buktiBayarBaru,
+                'tanggal_bayar'    => $tanggalBayar,
+                'diperpanjang_pada'=> now(),
+            ]);
 
-        // --- Catat ke Keuangan ---
-        $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
-        $pengeluaran = $request->biaya_sewa;
-        // Kode jurnal unik per transaksi — pakai timestamp agar perpanjangan ke-2, ke-3 dst tetap masuk
-        $kodeJurnal  = 'GPS-' . $gpsKendaraan->id . '-' . now()->timestamp;
+            // --- Catat ke Keuangan ---
+            $lastSaldo = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            $pengeluaran = $request->biaya_sewa;
+            // Kode jurnal unik per transaksi — pakai timestamp agar perpanjangan ke-2, ke-3 dst tetap masuk
+            $kodeJurnal  = 'GPS-' . $gpsKendaraan->id . '-' . now()->timestamp;
 
-        Keuangan::create([
-            'tanggal'     => now(),
-            'reference'   => $kodeJurnal,
-            'user_id'     => auth()->id(),
-            'kategori'    => 'Pengeluaran',
-            'metode'      => '-',
-            'keterangan'  => 'Perpanjangan GPS kendaraan: ' . $gpsKendaraan->type . ' - ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
-            'pemasukan'   => 0,
-            'pengeluaran' => $pengeluaran,
-            'saldo'       => $lastSaldo - $pengeluaran,
-        ]);
+            Keuangan::create([
+                'tanggal'     => now(),
+                'reference'   => $kodeJurnal,
+                'user_id'     => auth()->id(),
+                'kategori'    => 'Pengeluaran',
+                'metode'      => '-',
+                'keterangan'  => 'Perpanjangan GPS kendaraan: ' . $gpsKendaraan->type . ' - ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
+                'pemasukan'   => 0,
+                'pengeluaran' => $pengeluaran,
+                'saldo'       => $lastSaldo - $pengeluaran,
+            ]);
 
-        // --- Auto-posting ke Buku Besar (tanpa pengecekan duplikat — kode jurnal sudah unik) ---
-        Bukubesar::create([
-            'kode_jurnal' => $kodeJurnal,
-            'transaksi'   => 'Beban GPS - ' . $gpsKendaraan->type,
-            'kategori'    => 'Beban',
-            'tanggal'     => now()->toDateString(),
-            'debit'       => $pengeluaran,
-            'kredit'      => 0,
-            'saldo'       => $pengeluaran,
-            'aktivitas'   => 'Operasi',
-            'keterangan'  => 'Auto-posting: Perpanjangan GPS kendaraan ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
-        ]);
+            // --- Auto-posting ke Buku Besar (tanpa pengecekan duplikat — kode jurnal sudah unik) ---
+            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban GPS - ' . $gpsKendaraan->type,
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $pengeluaran,
+                'kredit'      => 0,
+                'saldo'       => $saldoBBTerakhir - $pengeluaran,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Perpanjangan GPS kendaraan ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
+            ]);
 
-        // --- Update record aktif dengan data BARU ---
-        $gpsKendaraan->update([
-            'status_gps'     => 'aktif',
-            'tanggal_pasang' => $tanggalPasang,
-            'tanggal_habis'  => $tanggalHabis,
-            'durasi_bulan'   => $request->durasi_bulan,
-            'biaya_sewa'     => $request->biaya_sewa,
-            'status_sewa'    => 'aktif',
-            'bukti_bayar'    => $buktiBayarBaru,
-            'tanggal_bayar'  => $tanggalBayar,
-        ]);
+            // --- Update record aktif dengan data BARU ---
+            $gpsKendaraan->update([
+                'status_gps'     => 'aktif',
+                'tanggal_pasang' => $tanggalPasang,
+                'tanggal_habis'  => $tanggalHabis,
+                'durasi_bulan'   => $request->durasi_bulan,
+                'biaya_sewa'     => $request->biaya_sewa,
+                'status_sewa'    => 'aktif',
+                'bukti_bayar'    => $buktiBayarBaru,
+                'tanggal_bayar'  => $tanggalBayar,
+            ]);
 
-        // upload attachment tambahan — masuk ke history, bukan record aktif
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $history->id, 'gps_history');
-        }
+            // --- Pindahkan lampiran LAMA ke history ---
+            // (Dihapus karena history sekarang mencatat log baru)
+
+            // --- Upload attachment tambahan BARU — masuk ke record aktif (halaman utama) & History ---
+            if ($request->hasFile('bukti_attachment')) {
+                Attachment::where('relation_type', 'gps')->where('relation_id', $gpsKendaraan->id)->delete();
+                $this->simpanAttachments($request->file('bukti_attachment'), $gpsKendaraan->id, 'gps', $history->id);
+            } else {
+                $oldAttachments = Attachment::where('relation_type', 'gps')->where('relation_id', $gpsKendaraan->id)->get();
+                foreach ($oldAttachments as $att) {
+                    Attachment::create([
+                        'relation_type' => 'gps_history',
+                        'relation_id'   => $history->id,
+                        'file_name'     => $att->file_name,
+                        'file_path'     => $att->file_path,
+                        'file_type'     => $att->file_type,
+                        'file_size'     => $att->file_size,
+                    ]);
+                }
+            }
+        });
 
         return back()->with('success', 'GPS kendaraan berhasil diperpanjang');
     }

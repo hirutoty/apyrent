@@ -143,56 +143,52 @@ class StnkController extends Controller
             mkdir($path, 0777, true);
         }
 
+        $buktiLama = $bukti;
+        $buktiBaru = $buktiLama;
+
         if ($request->hasFile('bukti')) {
-
             $file = $request->file('bukti');
-
             $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
             $file->move($path, $filename);
-
-            if ($bukti && file_exists(public_path($bukti))) {
-                unlink(public_path($bukti));
-            }
-
-            $bukti = 'stnk/bukti/' . $filename;
+            $buktiBaru = 'stnk/bukti/' . $filename;
         }
 
-        $finalBukti = $bukti;
+        \Illuminate\Support\Facades\DB::transaction(function () use (
+            $request, $stnk, $buktiLama, $buktiBaru
+        ) {
+            // Simpan data BARU ke history (sebagai log perpanjangan)
+            StnkHistory::create([
+                'stnk_id'           => $stnk->id,
+                'kendaraan_id'      => $stnk->kendaraan_id,
+                'nopol'             => $stnk->nopol,
+                'merk'              => $stnk->merk,
+                'nama_pemilik'      => $stnk->nama_pemilik,
+                'jenis_model'       => $stnk->jenis_model,
+                'masa_berlaku'      => $request->masa_berlaku,
+                'biaya'             => $request->biaya,
+                'bukti'             => $buktiBaru,
+                'diperpanjang_pada' => now(),
+            ]);
 
-        // Simpan data lama ke history
-        StnkHistory::create([
-            'stnk_id'           => $stnk->id,
-            'kendaraan_id'      => $stnk->kendaraan_id,
-            'nopol'             => $stnk->nopol,
-            'merk'              => $stnk->merk,
-            'nama_pemilik'      => $stnk->nama_pemilik,
-            'jenis_model'       => $stnk->jenis_model,
-            'masa_berlaku'      => $stnk->masa_berlaku,
-            'biaya'             => $stnk->biaya,
-            'bukti'             => $finalBukti,
-            'diperpanjang_pada' => now(),
-        ]);
+            // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
+            $lastSaldo = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            $pengeluaran = $request->biaya;
+            $kodeJurnal  = 'STNK-' . $stnk->id . '-' . now()->timestamp;
 
-        // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
-        $lastSaldo   = Keuangan::latest()->value('saldo') ?? 0;
-        $pengeluaran = $request->biaya;
-        $kodeJurnal  = 'STNK-' . $stnk->id;
+            Keuangan::create([
+                'tanggal'     => now(),
+                'reference'   => $kodeJurnal,
+                'user_id'     => auth()->id(),
+                'kategori'    => 'Pengeluaran',
+                'metode'      => 'cash',
+                'keterangan'  => 'Perpanjangan STNK kendaraan: ' . $stnk->nopol . ' - ' . $stnk->merk,
+                'pemasukan'   => 0,
+                'pengeluaran' => $pengeluaran,
+                'saldo'       => $lastSaldo - $pengeluaran,
+            ]);
 
-        Keuangan::create([
-            'tanggal'     => now(),
-            'reference'   => $kodeJurnal,
-            'user_id'     => auth()->id(),
-            'kategori'    => 'Pengeluaran',
-            'metode'      => 'cash',
-            'keterangan'  => 'Perpanjangan STNK kendaraan: ' . $stnk->nopol . ' - ' . $stnk->merk,
-            'pemasukan'   => 0,
-            'pengeluaran' => $pengeluaran,
-            'saldo'       => $lastSaldo - $pengeluaran,
-        ]);
-
-        // Auto-posting ke Buku Besar
-        if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+            // Auto-posting ke Buku Besar
+            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
             Bukubesar::create([
                 'kode_jurnal' => $kodeJurnal,
                 'transaksi'   => 'Beban STNK - ' . $stnk->nopol,
@@ -200,18 +196,18 @@ class StnkController extends Controller
                 'tanggal'     => now()->toDateString(),
                 'debit'       => $pengeluaran,
                 'kredit'      => 0,
-                'saldo'       => $pengeluaran,
+                'saldo'       => $saldoBBTerakhir - $pengeluaran,
                 'aktivitas'   => 'Operasi',
                 'keterangan'  => 'Auto-posting: Perpanjangan STNK ' . $stnk->merk . ' (' . $stnk->nopol . ')',
             ]);
-        }
 
-        // Update data aktif
-        $stnk->update([
-            'masa_berlaku' => $request->masa_berlaku,
-            'biaya'        => $request->biaya,
-            'bukti'        => $finalBukti,
-        ]);
+            // Update data aktif
+            $stnk->update([
+                'masa_berlaku' => $request->masa_berlaku,
+                'biaya'        => $request->biaya,
+                'bukti'        => $buktiBaru,
+            ]);
+        });
 
         return back()->with('success', 'STNK berhasil diperpanjang');
     }

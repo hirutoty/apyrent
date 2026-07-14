@@ -216,6 +216,8 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Bukti</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Lampiran</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Keterangan</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>
@@ -322,7 +324,7 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td>
+                                <td class="px-4 py-3.5">
                                     @if ($item->bukti)
                                         @php $filename = basename($item->bukti); @endphp
                                         <a href="{{ asset($item->bukti) }}" target="_blank"
@@ -332,25 +334,33 @@
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
+                                </td>
 
-                                    @foreach ($item->attachments as $att)
-                                        <div class="flex items-center gap-1 mt-1">
-                                            <a href="{{ asset($att->file_path) }}" target="_blank"
-                                                class="text-blue-500 underline text-[11px] hover:text-blue-700">
-                                                {{ $att->file_name }}
-                                            </a>
-                                            <form action="{{ route('pajak.attachment.destroy', $att->id) }}"
-                                                method="POST" onsubmit="return confirm('Hapus lampiran ini?')"
-                                                class="inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit"
-                                                    class="text-red-400 hover:text-red-600 text-[10px]">
-                                                    <i class="fa fa-times"></i>
-                                                </button>
-                                            </form>
+                                <td class="px-4 py-3.5">
+                                    @if($item->attachments->isNotEmpty())
+                                        <div class="flex flex-col gap-1">
+                                            @foreach ($item->attachments as $att)
+                                                <div class="flex items-center gap-1">
+                                                    <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                        class="text-blue-500 underline text-[11px] hover:text-blue-700">
+                                                        {{ $att->file_name }}
+                                                    </a>
+                                                    <form action="{{ route('pajak.attachment.destroy', $att->id) }}"
+                                                        method="POST" onsubmit="return confirm('Hapus lampiran ini?')"
+                                                        class="inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit"
+                                                            class="text-red-400 hover:text-red-600 text-[10px]">
+                                                            <i class="fa fa-times"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            @endforeach
                                         </div>
-                                    @endforeach
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3.5 text-sm text-gray-500 max-w-[140px] truncate">
@@ -489,8 +499,8 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal <span
                                 class="text-red-500">*</span></label>
-                        <input type="number" name="nominal" required placeholder="Nominal pajak"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <input type="text" inputmode="numeric" name="nominal" required placeholder="Nominal pajak"
+                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
                     <div>
@@ -657,8 +667,8 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal</label>
-                        <input type="number" name="nominal" id="edit_nominal"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <input type="text" inputmode="numeric" name="nominal" id="edit_nominal"
+                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
                     <div>
@@ -824,8 +834,8 @@ MODAL PERPANJANG
                             Nominal Baru
                         </label>
 
-                        <input id="perpanjang_nominal" type="number" name="nominal"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <input id="perpanjang_nominal" type="text" inputmode="numeric" name="nominal"
+                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
                     <div>
@@ -1014,6 +1024,7 @@ MODAL PERPANJANG
             document.getElementById('edit_kendaraan_id').value = kendaraan_id;
             document.getElementById('edit_jenis_pajak').value = jenis_pajak;
             document.getElementById('edit_nominal').value = nominal;
+            document.getElementById('edit_nominal').dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('edit_jatuh_tempo').value = formatDate(jatuh_tempo);
             document.getElementById('edit_tanggal_bayar').value = formatDate(tanggal_bayar);
             document.getElementById('edit_status').value = status;
@@ -1060,6 +1071,7 @@ MODAL PERPANJANG
 
             document.getElementById('perpanjang_jenis').value    = jenis;
             document.getElementById('perpanjang_nominal').value  = nominal;
+            document.getElementById('perpanjang_nominal').dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('perpanjang_keterangan').value = keterangan;
 
             // Tanggal bayar = hari ini (editable)
