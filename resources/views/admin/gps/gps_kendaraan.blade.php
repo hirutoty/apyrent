@@ -203,7 +203,7 @@
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">GPS</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Type</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Status GPS</th>
-                            <th class="px-5 py-4 text-left font-semibold text-slate-600">Tgl Pasang</th>
+                            <th class="px-5 py-4 text-left font-semibold text-slate-600">Tgl Bayar</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Tgl Habis</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Biaya</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Durasi</th>

@@ -244,6 +244,8 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Masa
                                 Berlaku</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Tanggal Bayar</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Biaya</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Bukti</th>
@@ -316,6 +318,10 @@
                                         @endif
 
                                     </div>
+                                </td>
+
+                                <td class="px-4 py-3">
+                                    {{ $d->tanggal_bayar ? \Carbon\Carbon::parse($d->tanggal_bayar)->format('d M Y') : '-' }}
                                 </td>
 
                                 <td class="px-4 py-3">

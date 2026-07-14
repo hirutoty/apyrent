@@ -10,7 +10,7 @@
  *  <input type="text" inputmode="numeric" name="biaya" class="format-rupiah ...">
  *
  *  Otomatis:
- *  - Saat user mengetik  → tampil Rp100.000
+ *  - Saat user mengetik  → tampil 100.000
  *  - Saat form disubmit  → kirim 100000 (angka murni)
  *  - Saat page load       → format nilai yang sudah ada
  * ============================================================
@@ -19,26 +19,34 @@
 (function () {
     'use strict';
 
-    // ── Helper: angka → "Rp1.000.000" ──
+    // ── Helper: angka → "1.000.000" ──
     function formatRupiah(value) {
         var num = parseRupiah(value);
         if (isNaN(num) || num === 0) return '';
         var isNeg = num < 0;
-        var abs = Math.abs(Math.round(num)); // bulatkan ke integer
+        var abs = Math.abs(Math.round(num));
         var str = abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        return (isNeg ? '-Rp' : 'Rp') + str;
+        return (isNeg ? '-' : '') + str;
     }
 
-    // ── Helper: "Rp1.000.000" → 1000000 ──
+    // ── Helper: "1.000.000" → 1000000 ──
     function parseRupiah(value) {
         if (typeof value === 'number') return value;
         if (!value) return 0;
-        // Hapus semua karakter non-digit kecuali minus dan koma
-        var cleaned = value.toString().replace(/[^\d,\-]/g, '');
-        // Ganti koma jadi titik untuk parseFloat
+        var str = value.toString().trim();
+        // Jika sudah berupa angka murni dari DB (misal "500000" atau "500000.00")
+        if (/^-?\d+(\.\d+)?$/.test(str)) {
+            var result = parseFloat(str);
+            return isNaN(result) ? 0 : Math.round(result);
+        }
+        // Hapus prefix Rp dan spasi
+        str = str.replace(/^-?Rp\s*/i, '');
+        // Hapus semua karakter non-digit kecuali koma dan minus
+        var cleaned = str.replace(/[^\d,\-]/g, '');
+        // Ganti koma (desimal Indonesia) jadi titik untuk parseFloat
         cleaned = cleaned.replace(',', '.');
         var result = parseFloat(cleaned);
-        return isNaN(result) ? 0 : result;
+        return isNaN(result) ? 0 : Math.round(result);
     }
 
     // ── Format semua input .format-rupiah saat DOM ready ──

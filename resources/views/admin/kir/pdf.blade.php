@@ -1,4 +1,3 @@
-blade
 <!DOCTYPE html>
 <html>
 
@@ -215,13 +214,14 @@ blade
 
             <thead>
                 <tr>
-                    <th width="8%">No</th>
-                    <th width="20%">No Polisi</th>
-                    <th width="25%">Merk Kendaraan</th>
-                    <th width="22%">Nomor Uji</th>
-                    <th width="25%">Masa Berlaku</th>
-                    <th width="25%">Biaya</th>
-                    <th width="25%">Bukti</th>
+                    <th width="6%">No</th>
+                    <th width="16%">No Polisi</th>
+                    <th width="18%">Merk Kendaraan</th>
+                    <th width="16%">Nomor Uji</th>
+                    <th width="14%">Masa Berlaku</th>
+                    <th width="12%">Biaya</th>
+                    <th width="10%">Bukti</th>
+                    <th width="12%">Lampiran</th>
                 </tr>
             </thead>
 
@@ -270,11 +270,20 @@ blade
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
                                 </td>
+
+                        {{-- LAMPIRAN --}}
+                        <td>
+                            @if ($d->attachments && $d->attachments->isNotEmpty())
+                                {{ $d->attachments->pluck('file_name')->join(', ') }}
+                            @else
+                                -
+                            @endif
+                        </td>
                     </tr>
                 @endforeach
 
                 <tr class="row-subtotal">
-                    <td colspan="6" class="text-right">
+                    <td colspan="7" class="text-right">
                         TOTAL DATA KIR
                     </td>
 

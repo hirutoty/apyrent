@@ -246,19 +246,20 @@
 
             <thead>
                 <tr>
-                    <th width="4%">No</th>
-                    <th width="12%">Kendaraan</th>
-                    <th width="10%">Nopol</th>
-                    <th width="15%">Keluhan</th>
-                    <th width="6%">KM</th>
-                    <th width="10%">Max per Tahun</th>
-                    <th width="10%">Max per Bulan</th>
-                    <th width="10%">Biaya</th>
-                    <th width="10%">Sisa</th>
-                    <th width="8%">Status</th>
-                    <th width="10%">Pengeluaran</th>
-                    <th width="10%">Tanggal</th>
-                    <th width="15%">Bukti</th>
+                    <th width="3%">No</th>
+                    <th width="10%">Kendaraan</th>
+                    <th width="8%">Nopol</th>
+                    <th width="12%">Keluhan</th>
+                    <th width="5%">KM</th>
+                    <th width="8%">Max per Tahun</th>
+                    <th width="8%">Max per Bulan</th>
+                    <th width="8%">Biaya</th>
+                    <th width="8%">Sisa</th>
+                    <th width="7%">Status</th>
+                    <th width="8%">Pengeluaran</th>
+                    <th width="8%">Tanggal</th>
+                    <th width="8%">Bukti</th>
+                    <th width="10%">Lampiran</th>
                 </tr>
             </thead>
 
@@ -345,12 +346,20 @@
                                     @endif
                                 </td>
 
+                        <td>
+                            @if ($d->attachments && $d->attachments->isNotEmpty())
+                                {{ $d->attachments->pluck('file_name')->join(', ') }}
+                            @else
+                                -
+                            @endif
+                        </td>
+
                     </tr>
 
                 @empty
 
                     <tr>
-                        <td colspan="13" class="text-center">
+                        <td colspan="14" class="text-center">
                             Tidak ada data service kendaraan.
                         </td>
                     </tr>

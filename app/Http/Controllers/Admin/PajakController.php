@@ -230,7 +230,7 @@ class PajakController extends Controller
                 'status'             => 'sudah_bayar',
                 'keterangan'         => $request->keterangan,
                 'bukti'              => $buktiBaru,
-                'diperpanjang_pada'  => now(),
+                'diperpanjang_pada'  => $request->filled('tanggal_bayar') ? Carbon::parse($request->tanggal_bayar)->toDateTimeString() : now()->toDateTimeString(),
             ]);
 
             // --- Catat ke Keuangan ---

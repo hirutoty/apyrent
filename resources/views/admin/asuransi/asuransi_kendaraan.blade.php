@@ -201,12 +201,11 @@
                                 Jenis</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Status</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl
-                                Mulai</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                durasi</th>
+                            
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl
                                 Berakhir</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl
+                                Bayar</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Biaya</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -263,14 +262,7 @@
                                     @endif
                                 </td>
 
-                                {{-- Tgl Mulai --}}
-                                <td class="px-4 py-3.5 text-gray-600">
-                                    {{ $d->tgl_mulai ? \Carbon\Carbon::parse($d->tgl_mulai)->format('d M Y') : '-' }}
-                                </td>
-
-                                <td class="px-4 py-3 text-sm text-gray-700">
-                                    {{ $d->durasi_bulan }} Bulan
-                                </td>
+                              
 
 
 
@@ -309,6 +301,9 @@
 
                                 </td>
 
+                                <td class="px-4 py-3 text-center">
+                                    {{ \Carbon\Carbon::parse($d->tanggal_bayar)->format('d M Y') }}
+                                </td>
 
                                 <td class="px-4 py-3 text-sm text-gray-700">
                                     Rp {{ number_format($d->biaya, 0, ',', '.') }}

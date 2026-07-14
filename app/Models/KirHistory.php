@@ -30,6 +30,7 @@ class KirHistory extends Model
     {
         return $this->belongsTo(Kir::class);
     }
+    
 
     public function attachments()
     {

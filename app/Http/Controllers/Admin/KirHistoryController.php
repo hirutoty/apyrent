@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Kir;
 use App\Models\KirHistory;
 use App\Models\Setting;
 use Illuminate\Http\Request;
@@ -67,8 +68,7 @@ class KirHistoryController extends Controller
 
     private function filteredQuery($bulan, $tahun)
     {
-        $query = KirHistory::with(['kendaraan', 'attachments']);
-
+$query = KirHistory::with(['kendaraan', 'attachments', 'kir']);
         if ($bulan !== 'semua') {
             $query->whereMonth('masa_berlaku', $bulan);
         }

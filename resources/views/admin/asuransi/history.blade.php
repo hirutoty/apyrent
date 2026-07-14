@@ -81,7 +81,7 @@
                         <td class="px-4 py-3 text-right">Rp {{ number_format($item->biaya, 0, ',', '.') }}</td>
                         
                         <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->tgl_berakhir)->format('d M Y') }}</td>
-                        <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->diperpanjang_pada)->format('d M Y H:i') }}</td>
+                        <td class="px-4 py-3 text-center">{{ \Carbon\Carbon::parse($item->diperpanjang_pada)->format('d M Y') }}</td>
                         <td>
                                     @if ($item->bukti_bayar)
                                         @php
