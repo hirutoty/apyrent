@@ -34,17 +34,18 @@
         if (typeof value === 'number') return value;
         if (!value) return 0;
         var str = value.toString().trim();
-        // Jika sudah berupa angka murni dari DB (misal "500000" atau "500000.00")
-        if (/^-?\d+(\.\d+)?$/.test(str)) {
-            var result = parseFloat(str);
-            return isNaN(result) ? 0 : Math.round(result);
-        }
+
         // Hapus prefix Rp dan spasi
-        str = str.replace(/^-?Rp\s*/i, '');
-        // Hapus semua karakter non-digit kecuali koma dan minus
-        var cleaned = str.replace(/[^\d,\-]/g, '');
-        // Ganti koma (desimal Indonesia) jadi titik untuk parseFloat
-        cleaned = cleaned.replace(',', '.');
+        str = str.replace(/^-?\s*Rp\s*/i, '');
+
+        // Format murni dari DB: "9000000" atau "9000000.00" (titik = desimal, bukan ribuan)
+        if (/^-?\d+(\.\d{1,2})?$/.test(str)) {
+            return Math.round(parseFloat(str)) || 0;
+        }
+
+        // Format ribuan Indonesia: "9.000.000" atau "9.000.000,50"
+        // Hapus titik pemisah ribuan, ganti koma desimal jadi titik
+        var cleaned = str.replace(/\./g, '').replace(',', '.').replace(/[^\d.\-]/g, '');
         var result = parseFloat(cleaned);
         return isNaN(result) ? 0 : Math.round(result);
     }
