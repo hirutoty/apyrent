@@ -124,7 +124,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -140,29 +140,29 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Kode <span class="text-red-500">*</span></label>
-                    <input type="text" name="kode" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="kode" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('kode') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Jenis <span class="text-red-500">*</span></label>
-                    <input type="text" name="jenis" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="jenis" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('jenis') }}">
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Nama Dokumen <span class="text-red-500">*</span></label>
-                <input type="text" name="nama_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <input type="text" name="nama_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nama_dokumen') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Pihak Terkait <span class="text-red-500">*</span></label>
-                <input type="text" name="pihak_terkait" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <input type="text" name="pihak_terkait" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pihak_terkait') }}">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tgl Terbit <span class="text-red-500">*</span></label>
-                    <input type="date" name="tgl_terbit" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="tgl_terbit" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tgl_terbit') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Berlaku Hingga</label>
-                    <input type="date" name="berlaku_hingga" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="berlaku_hingga" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('berlaku_hingga') }}">
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
@@ -170,18 +170,18 @@
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                     <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">-- Pilih --</option>
-                        <option value="Aktif">Aktif</option>
-                        <option value="Kadaluarsa">Kadaluarsa</option>
-                        <option value="Tidak Aktif">Tidak Aktif</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                        <option value="Kadaluarsa" {{ old('status') == 'Kadaluarsa' ? 'selected' : '' }}>Kadaluarsa</option>
+                        <option value="Tidak Aktif" {{ old('status') == 'Tidak Aktif' ? 'selected' : '' }}>Tidak Aktif</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Format <span class="text-red-500">*</span></label>
                     <select name="format" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">-- Pilih --</option>
-                        <option value="PDF">PDF</option>
-                        <option value="Word">Word</option>
-                        <option value="Fisik">Fisik</option>
+                        <option value="PDF" {{ old('format') == 'PDF' ? 'selected' : '' }}>PDF</option>
+                        <option value="Word" {{ old('format') == 'Word' ? 'selected' : '' }}>Word</option>
+                        <option value="Fisik" {{ old('format') == 'Fisik' ? 'selected' : '' }}>Fisik</option>
                     </select>
                 </div>
             </div>
@@ -205,46 +205,46 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Kode</label>
-                    <input type="text" name="kode" id="edit_kode" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="kode" id="edit_kode" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('kode') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Jenis</label>
-                    <input type="text" name="jenis" id="edit_jenis" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="jenis" id="edit_jenis" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('jenis') }}">
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Nama Dokumen</label>
-                <input type="text" name="nama_dokumen" id="edit_nama_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <input type="text" name="nama_dokumen" id="edit_nama_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nama_dokumen') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Pihak Terkait</label>
-                <input type="text" name="pihak_terkait" id="edit_pihak_terkait" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <input type="text" name="pihak_terkait" id="edit_pihak_terkait" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pihak_terkait') }}">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tgl Terbit</label>
-                    <input type="date" name="tgl_terbit" id="edit_tgl_terbit" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="tgl_terbit" id="edit_tgl_terbit" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tgl_terbit') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Berlaku Hingga</label>
-                    <input type="date" name="berlaku_hingga" id="edit_berlaku_hingga" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="berlaku_hingga" id="edit_berlaku_hingga" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('berlaku_hingga') }}">
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
                     <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Aktif">Aktif</option>
-                        <option value="Kadaluarsa">Kadaluarsa</option>
-                        <option value="Tidak Aktif">Tidak Aktif</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                        <option value="Kadaluarsa" {{ old('status') == 'Kadaluarsa' ? 'selected' : '' }}>Kadaluarsa</option>
+                        <option value="Tidak Aktif" {{ old('status') == 'Tidak Aktif' ? 'selected' : '' }}>Tidak Aktif</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Format</label>
                     <select name="format" id="edit_format" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="PDF">PDF</option>
-                        <option value="Word">Word</option>
-                        <option value="Fisik">Fisik</option>
+                        <option value="PDF" {{ old('format') == 'PDF' ? 'selected' : '' }}>PDF</option>
+                        <option value="Word" {{ old('format') == 'Word' ? 'selected' : '' }}>Word</option>
+                        <option value="Fisik" {{ old('format') == 'Fisik' ? 'selected' : '' }}>Fisik</option>
                     </select>
                 </div>
             </div>
@@ -257,7 +257,7 @@
 </div>
 
 @endsection
-<div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+<div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
 @push('scripts')
 <script>
 function openModal(){ document.getElementById('modalCreate').classList.remove('hidden'); }
@@ -282,5 +282,13 @@ function openEdit(id){
 }
 
 
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endpush

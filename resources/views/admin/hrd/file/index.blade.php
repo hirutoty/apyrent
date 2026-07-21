@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Dokumen HRD')
 @section('content')
 <div class="space-y-6">
@@ -121,12 +121,12 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pegawai <span class="text-red-500">*</span></label>
                     <input type="text" name="nama_pegawai" id="f_nama_pegawai" required placeholder="Nama lengkap"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_pegawai') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama File <span class="text-red-500">*</span></label>
                     <input type="text" name="nama_file" id="f_nama_file" required placeholder="Contoh: KTP Agus"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_file') }}"
                 </div>
             </div>
             <div>
@@ -134,14 +134,14 @@
                 <select name="jenis_dokumen" id="f_jenis_dokumen" required
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">- Pilih Jenis -</option>
-                    <option value="KTP">KTP</option>
-                    <option value="Ijazah">Ijazah</option>
-                    <option value="SK Pengangkatan">SK Pengangkatan</option>
-                    <option value="Kontrak Kerja">Kontrak Kerja</option>
-                    <option value="Sertifikat">Sertifikat</option>
-                    <option value="NPWP">NPWP</option>
-                    <option value="BPJS">BPJS</option>
-                    <option value="Lainnya">Lainnya</option>
+                    <option value="KTP" {{ old('jenis_dokumen') == 'KTP' ? 'selected' : '' }}>KTP</option>
+                    <option value="Ijazah" {{ old('jenis_dokumen') == 'Ijazah' ? 'selected' : '' }}>Ijazah</option>
+                    <option value="SK Pengangkatan" {{ old('jenis_dokumen') == 'SK Pengangkatan' ? 'selected' : '' }}>SK Pengangkatan</option>
+                    <option value="Kontrak Kerja" {{ old('jenis_dokumen') == 'Kontrak Kerja' ? 'selected' : '' }}>Kontrak Kerja</option>
+                    <option value="Sertifikat" {{ old('jenis_dokumen') == 'Sertifikat' ? 'selected' : '' }}>Sertifikat</option>
+                    <option value="NPWP" {{ old('jenis_dokumen') == 'NPWP' ? 'selected' : '' }}>NPWP</option>
+                    <option value="BPJS" {{ old('jenis_dokumen') == 'BPJS' ? 'selected' : '' }}>BPJS</option>
+                    <option value="Lainnya" {{ old('jenis_dokumen') == 'Lainnya' ? 'selected' : '' }}>Lainnya</option>
                 </select>
             </div>
             <div id="fileInputWrapper">
@@ -153,7 +153,7 @@
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan</label>
                 <textarea name="keterangan" id="f_keterangan" rows="2" placeholder="Keterangan (opsional)..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                 <i class="fa fa-save text-sm"></i> Simpan
@@ -231,5 +231,16 @@ function onPerPageChange(v){cp=v==='all'?Infinity:parseInt(v);renderTable();}
 function renderTable(){if(!allRows.length)return;const m=allRows.filter(r=>r.dataset.search.includes(cs));let s=0;allRows.forEach(r=>r.style.display='none');m.forEach(r=>{if(s<cp){r.style.display='';s++;}});entriesInfo.innerText=m.length===0?'Tidak ada data':`Menampilkan ${s} dari ${m.length} entri`+(cs?' (hasil pencarian)':'');}
 document.addEventListener('DOMContentLoaded',renderTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endsection

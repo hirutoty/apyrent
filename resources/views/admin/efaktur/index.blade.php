@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'eFaktur & Bupot')
 
@@ -567,7 +567,7 @@
                                             ' ' .
                                             $item->status,
                                     ) }}">
-                                    <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration }}</td>
+                                    <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                                     <td class="px-4 py-3.5"><span
                                             class="font-semibold text-gray-800">{{ $item->nomor_bukti }}</span></td>
                                     <td class="px-4 py-3.5 text-gray-600">{{ $item->tanggal_bukti }}</td>
@@ -694,14 +694,14 @@
                             class="text-red-500">*</span></label>
                     <input type="text" name="nomor_faktur" required placeholder="Masukkan nomor faktur"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nomor_faktur') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Faktur <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_faktur" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_faktur') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe <span
@@ -710,8 +710,8 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
   focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Tipe --</option>
-                        <option value="Keluaran">Keluaran</option>
-                        <option value="Masukan">Masukan</option>
+                        <option value="Keluaran" {{ old('tipe') == 'Keluaran' ? 'selected' : '' }}>Keluaran</option>
+                        <option value="Masukan" {{ old('tipe') == 'Masukan' ? 'selected' : '' }}>Masukan</option>
                     </select>
                 </div>
                 <div>
@@ -719,28 +719,28 @@
                             class="text-red-500">*</span></label>
                     <input type="text" name="npwp_lawan" required placeholder="xx.xxx.xxx.x-xxx.xxx"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('npwp_lawan') }}">
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Lawan <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_lawan" required placeholder="Nama perusahaan / individu"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_lawan') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">DPP <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="dpp" required placeholder="0"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('dpp') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPN <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="ppn" required placeholder="0"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('ppn') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPNBM <span
@@ -755,9 +755,9 @@
                     <select name="status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
   focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Pending">Pending</option>
-                        <option value="Approve">Approve</option>
-                        <option value="Submit DJP">Submit DJP</option>
+                        <option value="Pending" {{ old('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="Approve" {{ old('status') == 'Approve' ? 'selected' : '' }}>Approve</option>
+                        <option value="Submit DJP" {{ old('status') == 'Submit DJP' ? 'selected' : '' }}>Submit DJP</option>
                     </select>
                 </div>
                 <div class="md:col-span-2">
@@ -816,14 +816,14 @@
                             class="text-red-500">*</span></label>
                     <input type="text" name="nomor_faktur" id="ef_nomor_faktur" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nomor_faktur') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Faktur <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_faktur" id="ef_tanggal_faktur" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_faktur') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe <span
@@ -831,8 +831,8 @@
                     <select name="tipe" id="ef_tipe" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
   focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Keluaran">Keluaran</option>
-                        <option value="Masukan">Masukan</option>
+                        <option value="Keluaran" {{ old('tipe') == 'Keluaran' ? 'selected' : '' }}>Keluaran</option>
+                        <option value="Masukan" {{ old('tipe') == 'Masukan' ? 'selected' : '' }}>Masukan</option>
                     </select>
                 </div>
                 <div>
@@ -840,35 +840,35 @@
                             class="text-red-500">*</span></label>
                     <input type="text" name="npwp_lawan" id="ef_npwp_lawan" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('npwp_lawan') }}">
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Lawan <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_lawan" id="ef_nama_lawan" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_lawan') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">DPP <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="dpp" id="ef_dpp" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('dpp') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPN <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="ppn" id="ef_ppn" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('ppn') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPNBM <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="ppnbm" id="ef_ppnbm" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('ppnbm') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span
@@ -876,9 +876,9 @@
                     <select name="status" id="ef_status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
   focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Pending">Pending</option>
-                        <option value="Approve">Approve</option>
-                        <option value="Submit DJP">Submit DJP</option>
+                        <option value="Pending" {{ old('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="Approve" {{ old('status') == 'Approve' ? 'selected' : '' }}>Approve</option>
+                        <option value="Submit DJP" {{ old('status') == 'Submit DJP' ? 'selected' : '' }}>Submit DJP</option>
                     </select>
                 </div>
                 <div class="md:col-span-2">
@@ -937,7 +937,7 @@
                             class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_bukti" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_bukti') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe <span
@@ -945,10 +945,10 @@
                     <select name="tipe" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
   focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="PPh21">PPh21</option>
-                        <option value="PPh22">PPh22</option>
-                        <option value="PPh23">PPh23</option>
-                        <option value="PPh26">PPh26</option>
+                        <option value="PPh21" {{ old('tipe') == 'PPh21' ? 'selected' : '' }}>PPh21</option>
+                        <option value="PPh22" {{ old('tipe') == 'PPh22' ? 'selected' : '' }}>PPh22</option>
+                        <option value="PPh23" {{ old('tipe') == 'PPh23' ? 'selected' : '' }}>PPh23</option>
+                        <option value="PPh26" {{ old('tipe') == 'PPh26' ? 'selected' : '' }}>PPh26</option>
                     </select>
                 </div>
                 <div>
@@ -957,9 +957,9 @@
                     <select name="status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
   focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Draft">Draft</option>
-                        <option value="Approve">Approve</option>
-                        <option value="Submit DJP">Submit DJP</option>
+                        <option value="Draft" {{ old('status') == 'Draft' ? 'selected' : '' }}>Draft</option>
+                        <option value="Approve" {{ old('status') == 'Approve' ? 'selected' : '' }}>Approve</option>
+                        <option value="Submit DJP" {{ old('status') == 'Submit DJP' ? 'selected' : '' }}>Submit DJP</option>
                     </select>
                 </div>
                 <div>
@@ -967,42 +967,42 @@
                             class="text-red-500">*</span></label>
                     <input type="text" name="npwp_pemotong" required placeholder="xx.xxx.xxx.x-xxx.xxx"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('npwp_pemotong') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemotong <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_pemotong" required placeholder="Nama pemotong"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_pemotong') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">NPWP Dipotong <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="npwp_dipotong" required placeholder="xx.xxx.xxx.x-xxx.xxx"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('npwp_dipotong') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Dipotong <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_dipotong" required placeholder="Nama dipotong"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_dipotong') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jumlah Bruto <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="jumlah_bruto" required placeholder="0"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jumlah_bruto') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tarif Pajak % <span
                             class="text-red-500">*</span></label>
                     <input type="number" step="0.01" name="tarif_pajak" required placeholder="0.00"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tarif_pajak') }}">
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-2">File Bupot</label>
@@ -1066,7 +1066,7 @@
                             class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_bukti" id="bp_tanggal_bukti" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_bukti') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe <span
@@ -1074,10 +1074,10 @@
                     <select name="tipe" id="bp_tipe" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
   focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="PPh21">PPh21</option>
-                        <option value="PPh22">PPh22</option>
-                        <option value="PPh23">PPh23</option>
-                        <option value="PPh26">PPh26</option>
+                        <option value="PPh21" {{ old('tipe') == 'PPh21' ? 'selected' : '' }}>PPh21</option>
+                        <option value="PPh22" {{ old('tipe') == 'PPh22' ? 'selected' : '' }}>PPh22</option>
+                        <option value="PPh23" {{ old('tipe') == 'PPh23' ? 'selected' : '' }}>PPh23</option>
+                        <option value="PPh26" {{ old('tipe') == 'PPh26' ? 'selected' : '' }}>PPh26</option>
                     </select>
                 </div>
                 <div>
@@ -1086,9 +1086,9 @@
                     <select name="status" id="bp_status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
   focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Draft">Draft</option>
-                        <option value="Approve">Approve</option>
-                        <option value="Submit DJP">Submit DJP</option>
+                        <option value="Draft" {{ old('status') == 'Draft' ? 'selected' : '' }}>Draft</option>
+                        <option value="Approve" {{ old('status') == 'Approve' ? 'selected' : '' }}>Approve</option>
+                        <option value="Submit DJP" {{ old('status') == 'Submit DJP' ? 'selected' : '' }}>Submit DJP</option>
                     </select>
                 </div>
                 <div>
@@ -1096,42 +1096,42 @@
                             class="text-red-500">*</span></label>
                     <input type="text" name="npwp_pemotong" id="bp_npwp_pemotong" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('npwp_pemotong') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemotong <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_pemotong" id="bp_nama_pemotong" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_pemotong') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">NPWP Dipotong <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="npwp_dipotong" id="bp_npwp_dipotong" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('npwp_dipotong') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Dipotong <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_dipotong" id="bp_nama_dipotong" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_dipotong') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jumlah Bruto <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="jumlah_bruto" id="bp_jumlah_bruto" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jumlah_bruto') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tarif Pajak % <span
                             class="text-red-500">*</span></label>
                     <input type="number" step="0.01" name="tarif_pajak" id="bp_tarif_pajak" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none
-  focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+  focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tarif_pajak') }}">
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-2">File Bupot</label>
@@ -1292,7 +1292,7 @@
                           <img src="${fileUrl}" class="w-32 h-32 object-cover rounded-lg border
   shadow-sm">
                       </div>
-                      <p class="text-[11px] text-gray-400 mt-1">File saat ini — upload baru
+                      <p class="text-[11px] text-gray-400 mt-1">File saat ini ï¿½ upload baru
   untuk mengganti</p>`;
                 } else {
                     var fileName = fileUrl.split('/').pop();
@@ -1430,7 +1430,7 @@
                           <button type="button"
   onclick="removeFile('${inputId}','${previewId}')"
                               class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6
-  rounded-full text-xs">×</button>
+  rounded-full text-xs">ï¿½</button>
                       </div>`;
                 };
                 reader.readAsDataURL(file);
@@ -1444,7 +1444,7 @@
                       <i class="fa-solid ${icon} text-lg"></i>
                       <span class="text-xs text-gray-600">${file.name}</span>
                       <button type="button" onclick="removeFile('${inputId}','${previewId}')"
-                          class="ml-2 text-red-500 text-sm">×</button>
+                          class="ml-2 text-red-500 text-sm">ï¿½</button>
                   </div>`;
             }
         }
@@ -1492,6 +1492,14 @@
                 });
             });
         })();
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 
 @endsection

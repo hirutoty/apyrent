@@ -115,21 +115,8 @@
                 </div>
             </div>
 
-            {{-- FILTER BAR: Show entries + Bulan & Tahun Habis --}}
+            {{-- FILTER BAR: Bulan & Tahun Habis --}}
             <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-slate-100 text-xs text-slate-500">
-                {{-- Show entries --}}
-                <div class="flex items-center gap-2">
-                    <span>Show</span>
-                    <select id="perPageSelect"
-                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400">
-                        <option value="5">5</option>
-                        <option value="10" selected>10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="all">All</option>
-                    </select>
-                    <span>entries</span>
-                </div>
 
                 <div class="w-px h-4 bg-gray-200"></div>
 
@@ -221,7 +208,7 @@
                                 data-tanggal-habis="{{ $d->tanggal_habis ? \Carbon\Carbon::parse($d->tanggal_habis)->format('Y-m-d') : '' }}">
 
                                 {{-- No --}}
-                                <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
+                                <td class="px-4 py-3.5 text-gray-400 row-number">{{ $data->firstItem() + $loop->index }}</td>
 
                                 {{-- Kendaraan --}}
                                 <td class="px-5 py-4">
@@ -421,11 +408,8 @@
 
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 px-5 border-t border-gray-100 flex items-center gap-1.5" id="paginationControls"></div>
             </div>
-
-            {{-- Entries info bottom --}}
-            <div class="px-5 py-3 border-t border-slate-100 text-xs text-slate-400" id="entriesInfoBottom"></div>
 
         </div>
 
@@ -451,6 +435,7 @@
 
             <form id="form" action="/admin/gps-kendaraan" method="POST" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="_modal_open" value="tambah">
                 <div id="method-container"></div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -462,7 +447,7 @@
                         <select name="kendaraan_id" id="kendaraan_id" required
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                             @foreach ($kendaraan as $k)
-                                <option value="{{ $k->id }}">{{ $k->merk ?? '-' }} - {{ $k->nopol }}</option>
+                                <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }}>{{ $k->merk ?? '-' }} - {{ $k->nopol }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -474,7 +459,7 @@
                         <select name="gps_id" id="gps_id" required
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                             @foreach ($gps as $g)
-                                <option value="{{ $g->id }}">{{ $g->nama_gps }}</option>
+                                <option value="{{ $g->id }}" {{ old('gps_id') == $g->id ? 'selected' : '' }}>{{ $g->nama_gps }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -484,6 +469,7 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Type GPS <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="type" id="type" required placeholder="Contoh: GT06N"
+                            value="{{ old('type') }}"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
@@ -493,8 +479,8 @@
                                 class="text-red-500">*</span></label>
                         <select name="status_gps" id="status_gps" required
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="aktif">Aktif</option>
-                            <option value="nonaktif">Nonaktif</option>
+                            <option value="aktif" {{ old('status_gps') == 'aktif' ? 'selected' : '' }}>Aktif</option>
+                            <option value="nonaktif" {{ old('status_gps') == 'nonaktif' ? 'selected' : '' }}>Nonaktif</option>
                         </select>
                     </div>
 
@@ -503,6 +489,7 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Pasang <span
                                 class="text-red-500">*</span></label>
                         <input type="date" name="tanggal_pasang" id="tanggal_pasang" required
+                            value="{{ old('tanggal_pasang') }}"
                             oninput="hitungTanggalHabis()"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
@@ -514,8 +501,9 @@
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Habis</label>
                         <input type="date" id="tanggal_habis_display" disabled
+                            value="{{ old('tanggal_habis') }}"
                             class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed outline-none">
-                        <input type="hidden" name="tanggal_habis" id="tanggal_habis">
+                        <input type="hidden" name="tanggal_habis" id="tanggal_habis" value="{{ old('tanggal_habis') }}">
                         <p class="text-xs text-slate-400 mt-1">Otomatis tanggal pasang + 1 tahun</p>
                     </div>
 
@@ -524,6 +512,7 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Sewa <span
                                 class="text-red-500">*</span></label>
                         <input type="text" inputmode="numeric" name="biaya_sewa" id="biaya_sewa" required placeholder="0"
+                            value="{{ old('biaya_sewa') }}"
                             class="format-rupiah w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
@@ -610,6 +599,17 @@
 
             <form id="formPerpanjang" method="POST" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="_modal_open" value="perpanjang">
+                {{-- Hidden fields konteks perpanjang (untuk reopen saat validasi gagal) --}}
+                <input type="hidden" name="_perpanjang_id"             id="_perpanjang_id"             value="{{ old('_perpanjang_id') }}">
+                <input type="hidden" name="_perpanjang_merk"           id="_perpanjang_merk"           value="{{ old('_perpanjang_merk') }}">
+                <input type="hidden" name="_perpanjang_nopol"          id="_perpanjang_nopol"          value="{{ old('_perpanjang_nopol') }}">
+                <input type="hidden" name="_perpanjang_gps"            id="_perpanjang_gps"            value="{{ old('_perpanjang_gps') }}">
+                <input type="hidden" name="_perpanjang_type"           id="_perpanjang_type"           value="{{ old('_perpanjang_type') }}">
+                <input type="hidden" name="_perpanjang_status"         id="_perpanjang_status"         value="{{ old('_perpanjang_status') }}">
+                <input type="hidden" name="_perpanjang_biaya"          id="_perpanjang_biaya_ctx"      value="{{ old('_perpanjang_biaya') }}">
+                <input type="hidden" name="_perpanjang_durasi"         id="_perpanjang_durasi_ctx"     value="{{ old('_perpanjang_durasi') }}">
+                <input type="hidden" name="_perpanjang_tanggal_habis"  id="_perpanjang_tanggal_habis"  value="{{ old('_perpanjang_tanggal_habis') }}">
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -649,10 +649,10 @@
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Bayar</label>
                         <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
-                            value="{{ now()->format('Y-m-d') }}"
+                            value="{{ old('tanggal_bayar', now()->format('Y-m-d')) }}"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                         {{-- tanggal_pasang = tanggal_bayar (auto-sync) --}}
-                        <input type="hidden" name="tanggal_pasang" id="perpanjang_tanggal_pasang" value="{{ now()->format('Y-m-d') }}">
+                        <input type="hidden" name="tanggal_pasang" id="perpanjang_tanggal_pasang" value="{{ old('tanggal_bayar', now()->format('Y-m-d')) }}">
                         <input type="hidden" name="durasi_bulan" value="12">
                     </div>
 
@@ -683,7 +683,7 @@
 
                 </div>
 
-                <button type="submit"
+                <button type="submit" id="btnPerpanjangGps"
                     class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-rotate-right"></i> Perpanjang GPS
                 </button>
@@ -790,6 +790,41 @@
                 show(modal);
             };
 
+            // Auto-reopen modal pada validation error
+            @if ($errors->any() && !session('success'))
+                @if (old('_modal_open') === 'perpanjang')
+                    // Reopen modal perpanjang — bangun ulang dari hidden field old()
+                    (function() {
+                        // Buat objek pseudo-btn untuk diteruskan ke openPerpanjang
+                        var pseudoBtn = {
+                            dataset: {
+                                id:           '{{ old('_perpanjang_id') }}',
+                                merk:         '{{ old('_perpanjang_merk') }}',
+                                nopol:        '{{ old('_perpanjang_nopol') }}',
+                                gps:          '{{ old('_perpanjang_gps') }}',
+                                type:         '{{ old('_perpanjang_type') }}',
+                                status:       '{{ old('_perpanjang_status') }}',
+                                biaya:        '{{ old('_perpanjang_biaya') }}',
+                                durasi:       '{{ old('_perpanjang_durasi') }}',
+                                tanggalHabis: '{{ old('_perpanjang_tanggal_habis') }}'
+                            }
+                        };
+                        if (typeof openPerpanjang === 'function') openPerpanjang(pseudoBtn);
+                    })();
+                @else
+                    // Reopen modal tambah
+                    resetForm();
+                    show(modal);
+                    // Re-trigger hitungTanggalHabis jika tanggal_pasang sudah terisi (old())
+                    (function() {
+                        var tglPasang = document.getElementById('tanggal_pasang');
+                        if (tglPasang && tglPasang.value && typeof hitungTanggalHabis === 'function') {
+                            hitungTanggalHabis();
+                        }
+                    })();
+                @endif
+            @endif
+
             window.closeModal = function() {
                 hide(modal);
             };
@@ -892,10 +927,27 @@
                 document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
                 document.getElementById('listAttachmentPerpanjangGps').innerHTML = '';
 
-                // Set tanggal_bayar = hari ini, sync tanggal_pasang
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('perpanjang_tanggal_bayar').value  = today;
-                document.getElementById('perpanjang_tanggal_pasang').value = today;
+                // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)
+                document.getElementById('_perpanjang_id').value             = btn.dataset.id;
+                document.getElementById('_perpanjang_merk').value           = btn.dataset.merk;
+                document.getElementById('_perpanjang_nopol').value          = btn.dataset.nopol;
+                document.getElementById('_perpanjang_gps').value            = btn.dataset.gps;
+                document.getElementById('_perpanjang_type').value           = btn.dataset.type;
+                document.getElementById('_perpanjang_status').value         = btn.dataset.status;
+                document.getElementById('_perpanjang_biaya_ctx').value      = btn.dataset.biaya;
+                document.getElementById('_perpanjang_durasi_ctx').value     = btn.dataset.durasi;
+                document.getElementById('_perpanjang_tanggal_habis').value  = btn.dataset.tanggalHabis;
+
+                // tanggal_bayar: jika belum ada nilai dari old(), set ke hari ini dan sync tanggal_pasang
+                if (!document.getElementById('perpanjang_tanggal_bayar').value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    document.getElementById('perpanjang_tanggal_bayar').value  = today;
+                    document.getElementById('perpanjang_tanggal_pasang').value = today;
+                } else {
+                    // sync tanggal_pasang dari nilai tanggal_bayar yang ada
+                    document.getElementById('perpanjang_tanggal_pasang').value =
+                        document.getElementById('perpanjang_tanggal_bayar').value;
+                }
 
                 // tanggal_habis_baru = tanggal_habis_lama + 1 tahun (dari data-tanggal-habis)
                 const tglHabisLama = btn.dataset.tanggalHabis; // format Y-m-d
@@ -957,26 +1009,28 @@
             };
 
             window.filterTable = function(q) {
+                currentGpsPage = 1;
                 applyFilter();
             };
 
-            // -- SEARCH + SHOW ENTRIES + FILTER BULAN/TAHUN ----------
+            // -- SEARCH + FILTER BULAN/TAHUN ----------
+            let currentGpsPage = 1;
+            const GPS_PER_PAGE = 10;
+
             function applyFilter() {
                 const keyword     = (document.getElementById('searchInput').value || '').toLowerCase();
                 const filterBulan = document.getElementById('filterBulan').value;
                 const filterTahun = document.getElementById('filterTahun').value;
                 const filterHari  = document.getElementById('filterHari').value;
-                const perPageEl   = document.getElementById('perPageSelect');
-                const perPage     = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
+                const perPage     = GPS_PER_PAGE;
 
                 const allRows = Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
-                let matched   = [];
-                let nomor     = 1;
+                const matched = [];
 
                 allRows.forEach(row => {
                     const matchSearch = row.dataset.search.includes(keyword);
 
-                    const tglHabis         = row.dataset.tanggalHabis || '';  // "YYYY-MM-DD"
+                    const tglHabis         = row.dataset.tanggalHabis || '';
                     const [rowYear, rowMonth, rowDay] = tglHabis.split('-');
                     const matchHari   = !filterHari  || rowDay   === filterHari;
                     const matchBulan  = !filterBulan || rowMonth === filterBulan;
@@ -986,37 +1040,78 @@
                     if (matchSearch && matchHari && matchBulan && matchTahun) matched.push(row);
                 });
 
-                let shown = 0;
-                matched.forEach(row => {
-                    if (shown < perPage) {
+                const total      = matched.length;
+                const totalPages = Math.ceil(total / perPage) || 1;
+                if (currentGpsPage > totalPages) currentGpsPage = 1;
+
+                const start = (currentGpsPage - 1) * perPage;
+                const end   = Math.min(start + perPage, total);
+
+                let num = start + 1;
+                matched.forEach((row, idx) => {
+                    if (idx >= start && idx < end) {
                         row.style.display = '';
-                        shown++;
+                        const cell = row.querySelector('.row-number');
+                        if (cell) cell.textContent = num++;
                     }
                 });
 
-                const infoText = matched.length === 0
-                    ? 'Tidak ada data yang cocok'
-                    : 'Menampilkan ' + shown + ' dari ' + matched.length + ' entri' +
-                      (keyword || filterHari || filterBulan || filterTahun ? ' (difilter)' : '');
+                renderGpsPagination(totalPages);
+            }
 
-                const topInfo = document.getElementById('entriesInfo');
-                const botInfo = document.getElementById('entriesInfoBottom');
-                if (topInfo) topInfo.innerText = infoText;
-                if (botInfo) botInfo.innerText = infoText;
+            function renderGpsPagination(totalPages) {
+                const container = document.getElementById('paginationControls');
+                if (!container) return;
+                container.innerHTML = '';
+                if (totalPages <= 1) return;
+
+                const btnBase       = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
+                const activeClass   = 'bg-indigo-600 text-white border-indigo-600';
+                const normalClass   = 'border-gray-200 text-gray-600 hover:bg-gray-50';
+                const disabledClass = 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400';
+
+                const prev = document.createElement('button');
+                prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
+                prev.className = btnBase + ' ' + (currentGpsPage === 1 ? disabledClass : normalClass);
+                prev.disabled  = currentGpsPage === 1;
+                prev.onclick   = () => { currentGpsPage--; applyFilter(); };
+                container.appendChild(prev);
+
+                const range = 2;
+                for (let i = 1; i <= totalPages; i++) {
+                    if (i === 1 || i === totalPages || (i >= currentGpsPage - range && i <= currentGpsPage + range)) {
+                        const btn = document.createElement('button');
+                        btn.textContent = i;
+                        btn.className = btnBase + ' ' + (i === currentGpsPage ? activeClass : normalClass);
+                        btn.onclick = (function(page) { return () => { currentGpsPage = page; applyFilter(); }; })(i);
+                        container.appendChild(btn);
+                    } else if (i === currentGpsPage - range - 1 || i === currentGpsPage + range + 1) {
+                        const dots = document.createElement('span');
+                        dots.textContent = '…';
+                        dots.className = 'px-1 text-xs text-gray-400';
+                        container.appendChild(dots);
+                    }
+                }
+
+                const next = document.createElement('button');
+                next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
+                next.className = btnBase + ' ' + (currentGpsPage === totalPages ? disabledClass : normalClass);
+                next.disabled  = currentGpsPage === totalPages;
+                next.onclick   = () => { currentGpsPage++; applyFilter(); };
+                container.appendChild(next);
             }
 
             // Event listeners untuk dropdown filter
-            document.getElementById('perPageSelect').addEventListener('change', applyFilter);
-            document.getElementById('filterBulan').addEventListener('change', applyFilter);
-            document.getElementById('filterTahun').addEventListener('change', applyFilter);
-            document.getElementById('filterHari').addEventListener('change', applyFilter);
+            document.getElementById('filterBulan').addEventListener('change', () => { currentGpsPage = 1; applyFilter(); });
+            document.getElementById('filterTahun').addEventListener('change', () => { currentGpsPage = 1; applyFilter(); });
+            document.getElementById('filterHari').addEventListener('change',  () => { currentGpsPage = 1; applyFilter(); });
 
             document.getElementById('btnResetFilter').addEventListener('click', function() {
                 document.getElementById('searchInput').value   = '';
                 document.getElementById('filterHari').value   = '';
                 document.getElementById('filterBulan').value  = '';
                 document.getElementById('filterTahun').value  = '';
-                document.getElementById('perPageSelect').value = '10';
+                currentGpsPage = 1;
                 applyFilter();
             });
 
@@ -1098,4 +1193,18 @@
             }
         }
     </style>
+
+    <script>
+        // ── Anti double-submit: disable tombol saat form perpanjang di-submit ──
+        (function () {
+            var form = document.getElementById('formPerpanjang');
+            var btn  = document.getElementById('btnPerpanjangGps');
+            if (!form || !btn) return;
+            form.addEventListener('submit', function () {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
+                btn.classList.add('opacity-60', 'cursor-not-allowed');
+            });
+        })();
+    </script>
 @endsection

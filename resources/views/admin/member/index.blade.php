@@ -196,6 +196,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Member <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_member" id="f_nama_member" required placeholder="Contoh: Budi Santoso"
+                        value="{{ old('nama_member') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -203,6 +204,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="kontak_member" id="f_kontak_member" placeholder="08xx-xxxx-xxxx"
+                        value="{{ old('kontak_member') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -210,6 +212,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="email_member" id="f_email_member" placeholder="xxxx@xxxx.xxx"
+                        value="{{ old('email_member') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -217,7 +220,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat <span
                             class="text-red-500">*</span></label>
                     <textarea name="alamat" id="f_alamat" rows="3" placeholder="Masukkan alamat lengkap..."
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('alamat') }}</textarea>
                 </div>
 
                 <div>
@@ -229,8 +232,8 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                         required>
                         <option value="">-- Pilih Jenis Member --</option>
-                        <option value="perorangan">Perorangan</option>
-                        <option value="perusahaan">Perusahaan</option>
+                        <option value="perorangan" {{ old('jenis_member') == 'perorangan' ? 'selected' : '' }}>Perorangan</option>
+                        <option value="perusahaan" {{ old('jenis_member') == 'perusahaan' ? 'selected' : '' }}>Perusahaan</option>
                     </select>
                 </div>
 
@@ -323,6 +326,13 @@
             memberModal.classList.remove('hidden');
             memberModal.classList.add('flex');
         }
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            openModal();
+        });
+        @endif
 
         function closeModal() {
             memberModal.classList.add('hidden');

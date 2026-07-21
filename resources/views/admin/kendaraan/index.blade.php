@@ -99,19 +99,7 @@
                 </div>
             </div>
 
-        {{-- SHOW ENTRIES FILTER --}}
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select id="perPageSelect" onchange="onPerPageChange(this.value)"
-                class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="all">All</option>
-            </select>
-            <span>entries</span>
-        </div>
+        {{-- nomor baris sekarang dari server, $data->firstItem() --}}
 
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -137,7 +125,7 @@
                             <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower($d->merk . ' ' . $d->nopol . ' ' . $d->nama_pemilik . ' ' . ($d->jenis->nama_jenis ?? '')) }}">
 
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-semibold">{{ $i + 1 }}</td>
+                                <td class="px-4 py-3.5 text-xs text-gray-400 font-semibold">{{ $data->firstItem() + $loop->index }}</td>
 
 
 
@@ -208,11 +196,8 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $kendaraanDetail->links() }}</div>
+                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
             </div>
-
-            {{-- ENTRIES INFO --}}
-            <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
 
         </div>
 
@@ -492,7 +477,7 @@
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <option value="">-- Pilih Jenis --</option>
                                     @foreach ($jenis as $j)
-                                        <option value="{{ $j->id }}">{{ $j->nama_jenis }}</option>
+                                        <option value="{{ $j->id }}" {{ old('jenis_id') == $j->id ? 'selected' : '' }}>{{ $j->nama_jenis }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -500,18 +485,21 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nomor Polisi <span
                                         class="text-red-500">*</span></label>
                                 <input name="nopol" required placeholder="AB 1234 CD"
+                                    value="{{ old('nopol') }}"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Sewa / Hari <span
                                         class="text-red-500">*</span></label>
                                 <input name="harga_sewa_per_hari" required type="number" placeholder="0"
+                                    value="{{ old('harga_sewa_per_hari') }}"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Sewa / Bulan <span
                                         class="text-red-500">*</span></label>
                                 <input name="harga_sewa_per_jam" required type="number" placeholder="0"
+                                    value="{{ old('harga_sewa_per_jam') }}"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div>
@@ -520,6 +508,7 @@
                                 <div class="relative">
                                     <input type="text" name="nama_pemilik" id="nama_pemilik" autocomplete="off" required
                                         placeholder="Ketik nama member..."
+                                        value="{{ old('nama_pemilik') }}"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <input type="hidden" name="member_id" id="member_id">
                                     <div id="member-result-tambah"
@@ -533,12 +522,14 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Merk <span
                                         class="text-red-500">*</span></label>
                                 <input name="merk" required placeholder="Toyota, Honda"
+                                    value="{{ old('merk') }}"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Warna <span
                                         class="text-red-500">*</span></label>
                                 <input name="warna" required placeholder="Hitam / Putih"
+                                    value="{{ old('warna') }}"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div class="col-span-2">
@@ -1135,8 +1126,14 @@
             document.body.style.overflow = 'hidden';
         }
 
-        function closeAllModals() {
-            ['modalTambah', 'modalEdit', 'modalDetail', 'modalStatus'].forEach(function(id) {
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            openModal('modalTambah');
+        });
+        @endif
+
+        function closeAllModals() {            ['modalTambah', 'modalEdit', 'modalDetail', 'modalStatus'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (el) {
                     el.classList.add('hidden');
@@ -1396,44 +1393,13 @@
             });
         });
 
-        // -- SEARCH + SHOW ENTRIES --------------------------------------
-        const allRows     = Array.from(document.querySelectorAll('#kendaraanTableBody tr[data-search]'));
-        const entriesInfo = document.getElementById('entriesInfo');
-        let currentSearch  = '';
-        let currentPerPage = 10;
-
+        // -- SEARCH (client-side, hanya filter baris yang ada di halaman ini) --
         function filterKendaraanTable(q) {
-            currentSearch = q.toLowerCase();
-            renderTable();
-        }
-
-        function onPerPageChange(value) {
-            currentPerPage = value === 'all' ? Infinity : parseInt(value, 10);
-            renderTable();
-        }
-
-        function renderTable() {
-            if (allRows.length === 0) return;
-
-            const matched = allRows.filter(row => row.dataset.search.includes(currentSearch));
-            let shownCount = 0;
-
-            allRows.forEach(row => row.style.display = 'none');
-
-            matched.forEach(row => {
-                if (shownCount < currentPerPage) {
-                    row.style.display = '';
-                    shownCount++;
-                }
+            const keyword = q.toLowerCase();
+            document.querySelectorAll('#kendaraanTableBody tr[data-search]').forEach(row => {
+                row.style.display = row.dataset.search.includes(keyword) ? '' : 'none';
             });
-
-            entriesInfo.innerText = matched.length === 0
-                ? 'Tidak ada data yang cocok'
-                : 'Menampilkan ' + shownCount + ' dari ' + matched.length + ' entri' +
-                  (currentSearch ? ' (hasil pencarian)' : '');
         }
-
-        document.addEventListener('DOMContentLoaded', renderTable);
 
         // -- POPUP ALERT --------------------------------------
         (function() {

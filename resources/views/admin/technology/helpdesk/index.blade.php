@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Helpdesk Support')
 @section('content')
 <div class="space-y-6">
@@ -107,14 +107,14 @@
             @csrf <div id="methodContainer"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">No Tiket <span class="text-red-500">*</span></label>
-                    <input type="text" name="no_tiket" id="f_no_tiket" required placeholder="TKT-001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="no_tiket" id="f_no_tiket" required placeholder="TKT-001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('no_tiket') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" id="f_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="date" name="tanggal" id="f_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal') }}"></div>
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Departemen <span class="text-red-500">*</span></label>
-                <input type="text" name="departemen" id="f_departemen" required placeholder="IT / Finance / HR" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="departemen" id="f_departemen" required placeholder="IT / Finance / HR" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('departemen') }}"></div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Masalah <span class="text-red-500">*</span></label>
-                <textarea name="masalah" id="f_masalah" required rows="3" placeholder="Deskripsi masalah..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea></div>
+                <textarea name="masalah" id="f_masalah" required rows="3" placeholder="Deskripsi masalah..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('masalah') }}</textarea></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Prioritas <span class="text-red-500">*</span></label>
                     <select name="prioritas" id="f_prioritas" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
@@ -125,9 +125,9 @@
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Teknisi <span class="text-red-500">*</span></label>
-                    <input type="text" name="teknisi" id="f_teknisi" required placeholder="Nama teknisi" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="teknisi" id="f_teknisi" required placeholder="Nama teknisi" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('teknisi') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Waktu Respon <span class="text-red-500">*</span></label>
-                    <input type="text" name="waktu_respon" id="f_waktu_respon" required placeholder="2 jam / 1 hari" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="waktu_respon" id="f_waktu_respon" required placeholder="2 jam / 1 hari" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('waktu_respon') }}"></div>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"><i class="fa fa-save"></i> Simpan Data</button>
         </form>
@@ -178,6 +178,14 @@ function onSearch(v){currentSearch=v.toLowerCase();renderTable();}
 function renderTable(){const perPage=document.getElementById('perPage').value==='all'?Infinity:parseInt(document.getElementById('perPage').value);const fS=document.getElementById('filterStatus').value;const fP=document.getElementById('filterPrioritas').value;const matched=allRows.filter(r=>r.dataset.search.includes(currentSearch)&&(!fS||r.dataset.status===fS)&&(!fP||r.dataset.prioritas===fP));let shown=0;allRows.forEach(r=>r.style.display='none');matched.forEach(r=>{if(shown<perPage){r.style.display='';shown++;}});const info=matched.length===0?'Tidak ada data':`Menampilkan ${shown} dari ${matched.length} entri`;document.getElementById('entriesInfo').innerText=info;document.getElementById('entriesInfoTop').innerText=info;}
 document.addEventListener('DOMContentLoaded',renderTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 </div>
 @endsection

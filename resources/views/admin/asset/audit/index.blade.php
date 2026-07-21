@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Audit Asset')
 @section('content')
 <div class="space-y-6">
@@ -115,28 +115,28 @@
             <div id="methodContainer"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Aset <span class="text-red-500">*</span></label>
-                    <input type="text" name="kode_aset" id="f_kode_aset" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="kode_aset" id="f_kode_aset" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode_aset') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Audit <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal_audit" id="f_tanggal_audit" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="date" name="tanggal_audit" id="f_tanggal_audit" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_audit') }}"></div>
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Diperiksa Oleh <span class="text-red-500">*</span></label>
-                <input type="text" name="diperiksa_oleh" id="f_diperiksa_oleh" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="diperiksa_oleh" id="f_diperiksa_oleh" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('diperiksa_oleh') }}"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Fisik <span class="text-red-500">*</span></label>
                     <select name="status_fisik" id="f_status_fisik" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="">- Pilih -</option><option value="Baik">Baik</option>
-                        <option value="Rusak Ringan">Rusak Ringan</option><option value="Rusak Berat">Rusak Berat</option><option value="Hilang">Hilang</option>
+                        <option value="">- Pilih -</option><option value="Baik" {{ old('status_fisik') == 'Baik' ? 'selected' : '' }}>Baik</option>
+                        <option value="Rusak Ringan" {{ old('status_fisik') == 'Rusak Ringan' ? 'selected' : '' }}>Rusak Ringan</option><option value="Rusak Berat" {{ old('status_fisik') == 'Rusak Berat' ? 'selected' : '' }}>Rusak Berat</option><option value="Hilang" {{ old('status_fisik') == 'Hilang' ? 'selected' : '' }}>Hilang</option>
                     </select></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Temuan <span class="text-red-500">*</span></label>
                     <select name="temuan" id="f_temuan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="">- Pilih -</option><option value="Tidak Ada Temuan">Tidak Ada Temuan</option>
-                        <option value="Ada Temuan Minor">Ada Temuan Minor</option><option value="Ada Temuan Mayor">Ada Temuan Mayor</option>
+                        <option value="">- Pilih -</option><option value="Tidak Ada Temuan" {{ old('temuan') == 'Tidak Ada Temuan' ? 'selected' : '' }}>Tidak Ada Temuan</option>
+                        <option value="Ada Temuan Minor" {{ old('temuan') == 'Ada Temuan Minor' ? 'selected' : '' }}>Ada Temuan Minor</option><option value="Ada Temuan Mayor" {{ old('temuan') == 'Ada Temuan Mayor' ? 'selected' : '' }}>Ada Temuan Mayor</option>
                     </select></div>
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Tindakan</label>
-                <input type="text" name="tindakan" id="f_tindakan" placeholder="Tindakan yang perlu diambil" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="tindakan" id="f_tindakan" placeholder="Tindakan yang perlu diambil" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tindakan') }}"></div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan</label>
-                <textarea name="catatan" id="f_catatan" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea></div>
+                <textarea name="catatan" id="f_catatan" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('catatan') }}</textarea></div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                 <i class="bi bi-floppy"></i> Simpan Data</button>
         </form>
@@ -190,5 +190,13 @@ function onSearchInput(v){currentSearch=v.toLowerCase();renderTable();}
 function renderTable(){if(!allRows.length)return;const p=document.getElementById('perPageSelect').value==='all'?Infinity:parseInt(document.getElementById('perPageSelect').value);const m=allRows.filter(r=>r.dataset.search.includes(currentSearch));let s=0;allRows.forEach(r=>r.style.display='none');m.forEach(r=>{if(s<p){r.style.display='';s++;}});document.getElementById('entriesInfo').innerText=m.length?`Menampilkan ${s} dari ${m.length} entri`:'Tidak ada data';}
 document.addEventListener('DOMContentLoaded',renderTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endsection

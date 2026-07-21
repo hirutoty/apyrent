@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'Rekonsiliasi Bank')
 
@@ -290,28 +290,28 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="tanggal" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Reference No <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="reference_no" required placeholder="Nomor referensi"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('reference_no') }}">
                 </div>
 
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Deskripsi <span
                             class="text-red-500">*</span></label>
                     <textarea name="deskripsi" rows="3" required placeholder="Deskripsi transaksi..."
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('deskripsi') }}</textarea>
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Amount <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="amount" required placeholder="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('amount') }}">
                 </div>
 
                 <div>
@@ -326,9 +326,9 @@
                             class="text-red-500">*</span></label>
                     <select name="status_rekonsiliasi" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Pending">Pending</option>
-                        <option value="matched">Matched</option>
-                        <option value="unmatched">Unmatched</option>
+                        <option value="Pending" {{ old('status_rekonsiliasi') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="matched" {{ old('status_rekonsiliasi') == 'matched' ? 'selected' : '' }}>Matched</option>
+                        <option value="unmatched" {{ old('status_rekonsiliasi') == 'unmatched' ? 'selected' : '' }}>Unmatched</option>
                     </select>
                 </div>
 
@@ -336,12 +336,12 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice ID <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="invoice_id" required placeholder="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('invoice_id') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">VA</label>
                     <input type="text" name="va" placeholder="Virtual Account"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('va') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bukti Pembayaran <span
@@ -392,35 +392,35 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="tanggal" id="edit_tanggal" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Reference No <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="reference_no" id="edit_reference_no" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('reference_no') }}">
                 </div>
 
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Deskripsi <span
                             class="text-red-500">*</span></label>
                     <textarea name="deskripsi" id="edit_deskripsi" rows="3" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('deskripsi') }}</textarea>
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Amount <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="amount" id="edit_amount" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('amount') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Currency <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="currency" id="edit_currency" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('currency') }}">
                 </div>
 
                 <div>
@@ -428,9 +428,9 @@
                             class="text-red-500">*</span></label>
                     <select name="status_rekonsiliasi" id="edit_status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Pending">Pending</option>
-                        <option value="matched">Matched</option>
-                        <option value="unmatched">Unmatched</option>
+                        <option value="Pending" {{ old('status_rekonsiliasi') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="matched" {{ old('status_rekonsiliasi') == 'matched' ? 'selected' : '' }}>Matched</option>
+                        <option value="unmatched" {{ old('status_rekonsiliasi') == 'unmatched' ? 'selected' : '' }}>Unmatched</option>
                     </select>
                 </div>
 
@@ -438,7 +438,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice ID <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="invoice_id" id="edit_invoice_id" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('invoice_id') }}">
                 </div>
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
@@ -594,7 +594,7 @@ function filterTable(q) {
     document.getElementById('excelBtn').href = "{{ route('rekonsiliasi.export.excel') }}" + query;
 }
 
-// initial — pastikan URL Excel sudah benar saat halaman load
+// initial ï¿½ pastikan URL Excel sudah benar saat halaman load
 document.getElementById('excelBtn').href = "{{ route('rekonsiliasi.export.excel') }}";
 
         // -- POPUP ALERT ------------------------------------
@@ -623,6 +623,14 @@ document.getElementById('excelBtn').href = "{{ route('rekonsiliasi.export.excel'
             }
             window.closeAlert = closeAlert;
         })();
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 
 @endsection

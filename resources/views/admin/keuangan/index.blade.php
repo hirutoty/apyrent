@@ -1102,14 +1102,15 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Transaksi</label>
                     <select name="jenis" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                        <option value="Pemasukan">Pemasukan</option>
-                        <option value="Pengeluaran">Pengeluaran</option>
+                        <option value="Pemasukan" {{ old('jenis') == 'Pemasukan' ? 'selected' : '' }}>Pemasukan</option>
+                        <option value="Pengeluaran" {{ old('jenis') == 'Pengeluaran' ? 'selected' : '' }}>Pengeluaran</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kategori <span
                             class="text-blue-500">*</span></label>
                     <input type="text" name="kategori" required placeholder="Contoh: BBM, Servis, dll"
+                        value="{{ old('kategori') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100
   focus:border-blue-400">
                 </div>
@@ -1117,6 +1118,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Metode <span
                             class="text-blue-500">*</span></label>
                     <input type="text" name="metode" required placeholder="Cash / Transfer"
+                        value="{{ old('metode') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100
   focus:border-blue-400">
                 </div>
@@ -1124,6 +1126,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal Transaksi <span
                             class="text-blue-500">*</span></label>
                     <input type="number" name="nominal" required placeholder="Contoh: 150000"
+                        value="{{ old('nominal') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100
   focus:border-blue-400">
                 </div>
@@ -1131,6 +1134,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan <span
                             class="text-blue-500">*</span></label>
                     <input type="text" name="keterangan" required placeholder="Keterangan singkat transaksi"
+                        value="{{ old('keterangan') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100
   focus:border-blue-400">
                 </div>
@@ -1526,6 +1530,13 @@
         document.getElementById('modalKeuangan').addEventListener('click', function(e) {
             if (e.target === this) closeModalKeuangan();
         });
+
+        // Auto-reopen modal keuangan on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            openModalKeuangan();
+        });
+        @endif
 
         // -- MODAL AGING AP -------------------------------------
         function openModalAp() {

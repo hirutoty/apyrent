@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'Data Summary')
 
@@ -221,14 +221,14 @@
                                         <p class="text-sm font-semibold text-blue-700">{{ $s->invoice->invoice_no }}</p>
                                         <p class="text-xs text-gray-500">{{ $s->invoice->customer_name }}</p>
                                     @else
-                                        <span class="text-xs text-gray-400">—</span>
+                                        <span class="text-xs text-gray-400">ï¿½</span>
                                     @endif
                                 </td>
                                 <td data-col="col-penawaran" class="px-4 py-3.5 text-sm text-gray-600">
-                                    {{ optional($s->penawaran)->no_penawaran ?? '—' }}
+                                    {{ optional($s->penawaran)->no_penawaran ?? 'ï¿½' }}
                                 </td>
                                 <td data-col="col-kontrak" class="px-4 py-3.5 text-sm text-gray-600">
-                                    {{ optional($s->kontrak)->no_kontrak ?? '—' }}
+                                    {{ optional($s->kontrak)->no_kontrak ?? 'ï¿½' }}
                                 </td>
                                 <td data-col="col-tipe" class="px-4 py-3.5">
                                     <span
@@ -327,9 +327,9 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice</label>
                                 <select name="invoice_id"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
+                                    <option value="">ï¿½ Tidak ada ï¿½</option>
                                     @foreach ($invoices as $inv)
-                                        <option value="{{ $inv->id }}">{{ $inv->invoice_no }}</option>
+                                        <option value="{{ $inv->id }}" {{ old('invoice_id') == $inv->id ? 'selected' : '' }}>{{ $inv->invoice_no }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -337,9 +337,9 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Penawaran</label>
                                 <select name="penawaran_id"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
+                                    <option value="">ï¿½ Tidak ada ï¿½</option>
                                     @foreach ($penawarans as $p)
-                                        <option value="{{ $p->id }}">{{ $p->no_penawaran }}</option>
+                                        <option value="{{ $p->id }}" {{ old('penawaran_id') == $p->id ? 'selected' : '' }}>{{ $p->no_penawaran }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -347,9 +347,9 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontrak</label>
                                 <select name="kontrak_id"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
+                                    <option value="">ï¿½ Tidak ada ï¿½</option>
                                     @foreach ($kontraks as $k)
-                                        <option value="{{ $k->id }}">{{ $k->no_kontrak ?? '#' . $k->id }}</option>
+                                        <option value="{{ $k->id }}" {{ old('kontrak_id') == $k->id ? 'selected' : '' }}>{{ $k->no_kontrak ?? '#' . $k->id }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -372,10 +372,10 @@
                             <select name="type" required
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <option value="">-- Pilih Tipe --</option>
-                                <option value="Rental">Rental</option>
-                                <option value="Service">Service</option>
-                                <option value="Leasing">Leasing</option>
-                                <option value="Lainnya">Lainnya</option>
+                                <option value="Rental" {{ old('type') == 'Rental' ? 'selected' : '' }}>Rental</option>
+                                <option value="Service" {{ old('type') == 'Service' ? 'selected' : '' }}>Service</option>
+                                <option value="Leasing" {{ old('type') == 'Leasing' ? 'selected' : '' }}>Leasing</option>
+                                <option value="Lainnya" {{ old('type') == 'Lainnya' ? 'selected' : '' }}>Lainnya</option>
                             </select>
                         </div>
 
@@ -413,7 +413,7 @@
                                 </div>
                                 <span id="tambah_status_badge"
                                     class="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
-                                    —
+                                    ï¿½
                                 </span>
                             </div>
                             <div class="mt-2 flex items-baseline gap-1">
@@ -481,9 +481,9 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice</label>
                                 <select id="edit_invoice_id" name="invoice_id"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
+                                    <option value="">ï¿½ Tidak ada ï¿½</option>
                                     @foreach ($invoices as $inv)
-                                        <option value="{{ $inv->id }}">{{ $inv->invoice_no }}</option>
+                                        <option value="{{ $inv->id }}" {{ old('invoice_id') == $inv->id ? 'selected' : '' }}>{{ $inv->invoice_no }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -491,9 +491,9 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Penawaran</label>
                                 <select id="edit_penawaran_id" name="penawaran_id"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
+                                    <option value="">ï¿½ Tidak ada ï¿½</option>
                                     @foreach ($penawarans as $p)
-                                        <option value="{{ $p->id }}">{{ $p->no_penawaran }}</option>
+                                        <option value="{{ $p->id }}" {{ old('penawaran_id') == $p->id ? 'selected' : '' }}>{{ $p->no_penawaran }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -501,9 +501,9 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontrak</label>
                                 <select id="edit_kontrak_id" name="kontrak_id"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">— Tidak ada —</option>
+                                    <option value="">ï¿½ Tidak ada ï¿½</option>
                                     @foreach ($kontraks as $k)
-                                        <option value="{{ $k->id }}">{{ $k->no_kontrak ?? '#' . $k->id }}</option>
+                                        <option value="{{ $k->id }}" {{ old('kontrak_id') == $k->id ? 'selected' : '' }}>{{ $k->no_kontrak ?? '#' . $k->id }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -526,10 +526,10 @@
                             <select id="edit_type" name="type" required
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <option value="">-- Pilih Tipe --</option>
-                                <option value="Rental">Rental</option>
-                                <option value="Service">Service</option>
-                                <option value="Leasing">Leasing</option>
-                                <option value="Lainnya">Lainnya</option>
+                                <option value="Rental" {{ old('type') == 'Rental' ? 'selected' : '' }}>Rental</option>
+                                <option value="Service" {{ old('type') == 'Service' ? 'selected' : '' }}>Service</option>
+                                <option value="Leasing" {{ old('type') == 'Leasing' ? 'selected' : '' }}>Leasing</option>
+                                <option value="Lainnya" {{ old('type') == 'Lainnya' ? 'selected' : '' }}>Lainnya</option>
                             </select>
                         </div>
 
@@ -541,7 +541,7 @@
                                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
                                     <input type="number" id="edit_total" name="total_amount" required min="0"
                                         oninput="hitungSisaEdit()"
-                                        class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('total_amount') }}">
                                 </div>
                             </div>
                             <div>
@@ -551,7 +551,7 @@
                                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
                                     <input type="number" id="edit_paid" name="paid_amount" required min="0"
                                         oninput="hitungSisaEdit()"
-                                        class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('paid_amount') }}">
                                 </div>
                             </div>
                         </div>
@@ -567,7 +567,7 @@
                                 </div>
                                 <span id="edit_status_badge"
                                     class="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
-                                    —
+                                    ï¿½
                                 </span>
                             </div>
                             <div class="mt-2 flex items-baseline gap-1">
@@ -647,7 +647,7 @@
                 }
             }
 
-            /* --- Hitung sisa — modal tambah --- */
+            /* --- Hitung sisa ï¿½ modal tambah --- */
             function hitungSisaTambah() {
                 const total = parseFloat(document.getElementById('tambah_total').value) || 0;
                 const paid = parseFloat(document.getElementById('tambah_paid').value) || 0;
@@ -655,7 +655,7 @@
                 updateSisaUI(sisa, paid, 'tambah_sisa_display', 'tambah_status_badge');
             }
 
-            /* --- Hitung sisa — modal edit --- */
+            /* --- Hitung sisa ï¿½ modal edit --- */
             function hitungSisaEdit() {
                 const total = parseFloat(document.getElementById('edit_total').value) || 0;
                 const paid = parseFloat(document.getElementById('edit_paid').value) || 0;
@@ -746,7 +746,15 @@
                     el.style.display = show ? '' : 'none';
                 });
             }
-        </script>
+        
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
     @endpush
 
 @endsection

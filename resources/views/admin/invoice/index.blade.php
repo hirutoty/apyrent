@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'Data Invoice')
 
@@ -144,27 +144,27 @@
                             };
                         @endphp
                         <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                            <td class="px-4 py-3.5 text-xs text-gray-400">{{ $loop->iteration + ($invoices->firstItem() - 1) }}</td>
+                            <td class="px-4 py-3.5 text-xs text-gray-400">{{ $invoices->firstItem() + $loop->index }}</td>
                             <td data-col="col-noinvoice"  class="px-4 py-3.5"><span class="font-mono text-xs font-semibold text-blue-700">{{ $inv->invoice_no }}</span></td>
                             <td data-col="col-tanggal"    class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->invoice_date)->format('d M Y') }}</td>
                             <td data-col="col-customer"   class="px-4 py-3.5 text-sm font-semibold text-gray-800">{{ $inv->customer_name }}</td>
-                            <td data-col="col-penawaran"  class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->penawaran)->no_penawaran ?? '—' }}</td>
-                            <td data-col="col-kontrak"    class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->kontrak)->no_kontrak ?? '—' }}</td>
+                            <td data-col="col-penawaran"  class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->penawaran)->no_penawaran ?? 'ï¿½' }}</td>
+                            <td data-col="col-kontrak"    class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->kontrak)->no_kontrak ?? 'ï¿½' }}</td>
                             <td data-col="col-kendaraan"  class="px-4 py-3.5 text-sm text-gray-600">
-                                {{ $inv->kendaraan ? $inv->kendaraan->merk . ' – ' . $inv->kendaraan->nopol : '—' }}
+                                {{ $inv->kendaraan ? $inv->kendaraan->merk . ' ï¿½ ' . $inv->kendaraan->nopol : 'ï¿½' }}
                             </td>
                             <td data-col="col-status" class="px-4 py-3.5 text-center">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $statusColor }}">
-                                    {{ $inv->status ? strtoupper($inv->status) : '—' }}
+                                    {{ $inv->status ? strtoupper($inv->status) : 'ï¿½' }}
                                 </span>
                             </td>
                             <td data-col="col-pembayaran" class="px-4 py-3.5 text-center">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $payColor }}">
-                                    {{ $inv->payment_status ? strtoupper($inv->payment_status) : '—' }}
+                                    {{ $inv->payment_status ? strtoupper($inv->payment_status) : 'ï¿½' }}
                                 </span>
                             </td>
                             <td data-col="col-reminder" class="px-4 py-3.5 text-center text-xs text-gray-500">
-                                {{ $inv->last_email_sent_at?->format('d M Y') ?? '—' }}
+                                {{ $inv->last_email_sent_at?->format('d M Y') ?? 'ï¿½' }}
                             </td>
                             <td data-col="col-aksi" class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1.5 flex-wrap">
@@ -283,28 +283,28 @@
                                         class="text-red-500">*</span></label>
                                 <input type="text" name="customer_name" required
                                     placeholder="Nama customer atau perusahaan"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('customer_name') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe customer</label>
                                 <select name="type"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="perorangan">Perorangan</option>
-                                    <option value="perusahaan">Perusahaan</option>
+                                    <option value="perorangan" {{ old('type') == 'perorangan' ? 'selected' : '' }}>Perorangan</option>
+                                    <option value="perusahaan" {{ old('type') == 'perusahaan' ? 'selected' : '' }}>Perusahaan</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat customer</label>
                                 <textarea name="customer_address" rows="2" placeholder="Alamat lengkap customer"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">{{ old('customer_address') }}</textarea>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Telepon</label>
                                 <input type="number" name="telephone" placeholder="Nomor telepon customer"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('telephone') }}">
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5 mt-3">Email</label>
                                 <input type="email" name="email" placeholder="Email Customer"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('email') }}">
                             </div>
                         </div>
                     </div>
@@ -333,9 +333,9 @@
                             <div id="tambah_penawaran_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="penawaran_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">ï¿½ Tidak ada ï¿½</option>
                                         @foreach ($penawarans as $p)
-                                            <option value="{{ $p->id }}">{{ $p->no_penawaran }} – {{ $p->customer_name }}</option>
+                                            <option value="{{ $p->id }}" {{ old('penawaran_ids[]') == $p->id ? 'selected' : '' }}>{{ $p->no_penawaran }} ï¿½ {{ $p->customer_name }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
@@ -355,9 +355,9 @@
                             <div id="tambah_kontrak_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="kontrak_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">ï¿½ Tidak ada ï¿½</option>
                                         @foreach ($kontraks as $k)
-                                            <option value="{{ $k->id }}">{{ $k->no_kontrak ?? '#' . $k->id }}</option>
+                                            <option value="{{ $k->id }}" {{ old('kontrak_ids[]') == $k->id ? 'selected' : '' }}>{{ $k->no_kontrak ?? '#' . $k->id }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
@@ -377,9 +377,9 @@
                             <div id="tambah_kendaraan_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="kendaraan_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">ï¿½ Tidak ada ï¿½</option>
                                         @foreach ($kendaraans as $kd)
-                                            <option value="{{ $kd->id }}">{{ $kd->merk }} – {{ $kd->nopol }}</option>
+                                            <option value="{{ $kd->id }}" {{ old('kendaraan_ids[]') == $kd->id ? 'selected' : '' }}>{{ $kd->merk }} ï¿½ {{ $kd->nopol }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
@@ -402,12 +402,12 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Satuan</label>
                                 <input type="text" name="satuan" placeholder="Contoh: Unit, Pcs"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('satuan') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pengirim</label>
                                 <input type="text" name="pengirim" placeholder="Nama pengirim"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pengirim') }}">
                             </div>
                         </div>
                         <div class="grid grid-cols-3 gap-4 mt-4">
@@ -444,18 +444,18 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status invoice</label>
                                 <select name="status"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="draft">Draft</option>
-                                    <option value="partial">Partial</option>
-                                    <option value="overdue">Overdue</option>
-                                    <option value="lunas">Lunas</option>
+                                    <option value="draft" {{ old('status') == 'draft' ? 'selected' : '' }}>Draft</option>
+                                    <option value="partial" {{ old('status') == 'partial' ? 'selected' : '' }}>Partial</option>
+                                    <option value="overdue" {{ old('status') == 'overdue' ? 'selected' : '' }}>Overdue</option>
+                                    <option value="lunas" {{ old('status') == 'lunas' ? 'selected' : '' }}>Lunas</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status pembayaran</label>
                                 <select name="payment_status"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="unpaid">Unpaid</option>
-                                    <option value="paid">Paid</option>
+                                    <option value="unpaid" {{ old('payment_status') == 'unpaid' ? 'selected' : '' }}>Unpaid</option>
+                                    <option value="paid" {{ old('payment_status') == 'paid' ? 'selected' : '' }}>Paid</option>
                                 </select>
                             </div>
                         </div>
@@ -501,7 +501,7 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama staff</label>
                                     <input type="text" name="name_staff" placeholder="Nama lengkap"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('name_staff') }}">
                                 </div>
                                 {{-- TTD Staff: hidden input path + UI tab --}}
                                 <input type="hidden" name="ttd_staff_path" id="tambah_staff_path">
@@ -539,7 +539,7 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama direktur</label>
                                     <input type="text" name="name_direktur" placeholder="Nama lengkap"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('name_direktur') }}">
                                 </div>
                                 <input type="hidden" name="ttd_direktur_path" id="tambah_direktur_path">
                                 <div>
@@ -847,41 +847,41 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal invoice <span
                                         class="text-red-500">*</span></label>
                                 <input id="edit_invoice_date" type="date" name="invoice_date" required
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('invoice_date') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama customer <span
                                         class="text-red-500">*</span></label>
                                 <input id="edit_customer_name" type="text" name="customer_name" required
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('customer_name') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe customer</label>
                                 <select id="edit_type" name="type"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="perorangan">Perorangan</option>
-                                    <option value="perusahaan">Perusahaan</option>
+                                    <option value="perorangan" {{ old('type') == 'perorangan' ? 'selected' : '' }}>Perorangan</option>
+                                    <option value="perusahaan" {{ old('type') == 'perusahaan' ? 'selected' : '' }}>Perusahaan</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat customer</label>
                                 <textarea id="edit_customer_address" name="customer_address" rows="2"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">{{ old('customer_address') }}</textarea>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Telepon</label>
                                 <input id="edit_telephone" type="number" name="telephone"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('telephone') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email</label>
                                 <input id="edit_email" type="email" name="email"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('email') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Contact person</label>
                                 <input id="edit_contact_person" type="text" name="contact_person"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_person') }}">
                             </div>
                         </div>
                     </div>
@@ -910,9 +910,9 @@
                             <div id="edit_penawaran_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="penawaran_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">ï¿½ Tidak ada ï¿½</option>
                                         @foreach ($penawarans as $p)
-                                            <option value="{{ $p->id }}">{{ $p->no_penawaran }} – {{ $p->customer_name }}</option>
+                                            <option value="{{ $p->id }}" {{ old('penawaran_ids[]') == $p->id ? 'selected' : '' }}>{{ $p->no_penawaran }} ï¿½ {{ $p->customer_name }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
@@ -932,9 +932,9 @@
                             <div id="edit_kontrak_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="kontrak_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">ï¿½ Tidak ada ï¿½</option>
                                         @foreach ($kontraks as $k)
-                                            <option value="{{ $k->id }}">{{ $k->no_kontrak ?? '#' . $k->id }}</option>
+                                            <option value="{{ $k->id }}" {{ old('kontrak_ids[]') == $k->id ? 'selected' : '' }}>{{ $k->no_kontrak ?? '#' . $k->id }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
@@ -954,9 +954,9 @@
                             <div id="edit_kendaraan_rows" class="space-y-2">
                                 <div class="flex gap-2 items-center rel-row">
                                     <select name="kendaraan_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">— Tidak ada —</option>
+                                        <option value="">ï¿½ Tidak ada ï¿½</option>
                                         @foreach ($kendaraans as $kd)
-                                            <option value="{{ $kd->id }}">{{ $kd->merk }} – {{ $kd->nopol }}</option>
+                                            <option value="{{ $kd->id }}" {{ old('kendaraan_ids[]') == $kd->id ? 'selected' : '' }}>{{ $kd->merk }} ï¿½ {{ $kd->nopol }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
@@ -979,29 +979,29 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Satuan</label>
                                 <input id="edit_satuan" type="text" name="satuan"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('satuan') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pengirim</label>
                                 <input id="edit_pengirim" type="text" name="pengirim"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pengirim') }}">
                             </div>
                         </div>
                         <div class="grid grid-cols-3 gap-4 mt-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPN (%)</label>
                                 <input id="edit_ppn" type="number" step="0.01" name="ppn" min="0"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('ppn') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPH (%)</label>
                                 <input id="edit_pph" type="number" step="0.01" name="pph" min="0"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pph') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Total (Rp)</label>
                                 <input id="edit_total" type="number" step="0.01" name="total" min="0"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('total') }}">
                             </div>
                         </div>
                     </div>
@@ -1021,18 +1021,18 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status invoice</label>
                                 <select id="edit_status" name="status"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="draft">Draft</option>
-                                    <option value="partial">Partial</option>
-                                    <option value="overdue">Overdue</option>
-                                    <option value="lunas">Lunas</option>
+                                    <option value="draft" {{ old('status') == 'draft' ? 'selected' : '' }}>Draft</option>
+                                    <option value="partial" {{ old('status') == 'partial' ? 'selected' : '' }}>Partial</option>
+                                    <option value="overdue" {{ old('status') == 'overdue' ? 'selected' : '' }}>Overdue</option>
+                                    <option value="lunas" {{ old('status') == 'lunas' ? 'selected' : '' }}>Lunas</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status pembayaran</label>
                                 <select id="edit_payment_status" name="payment_status"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="unpaid">Unpaid</option>
-                                    <option value="paid">Paid</option>
+                                    <option value="unpaid" {{ old('payment_status') == 'unpaid' ? 'selected' : '' }}>Unpaid</option>
+                                    <option value="paid" {{ old('payment_status') == 'paid' ? 'selected' : '' }}>Paid</option>
                                 </select>
                             </div>
                         </div>
@@ -1077,7 +1077,7 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama staff</label>
                                     <input id="edit_name_staff" type="text" name="name_staff"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('name_staff') }}">
                                 </div>
                                 <input type="hidden" name="ttd_staff_path" id="edit_staff_path">
                                 <div>
@@ -1113,7 +1113,7 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama direktur</label>
                                     <input id="edit_name_direktur" type="text" name="name_direktur"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('name_direktur') }}">
                                 </div>
                                 <input type="hidden" name="ttd_direktur_path" id="edit_direktur_path">
                                 <div>
@@ -1475,7 +1475,7 @@
                     setText('show_pph', (d.pph || '0') + '%');
                     setText('show_total', formatRupiah(d.total));
 
-                    // Seksi 4 — status badges
+                    // Seksi 4 ï¿½ status badges
                     const statusEl = document.getElementById('show_status');
                     statusEl.textContent = d.status ? d.status.toUpperCase() : '-';
                     statusEl.className = 'px-3 py-1 rounded-full text-xs font-semibold ' + (statusColorMap[d
@@ -1601,9 +1601,9 @@
         {{-- ====== RELASI ROWS TEMPLATE DATA ====== --}}
         <script>
         // Data untuk opsi select (dari Blade ke JS)
-        const PENAWARAN_OPTIONS = @json($penawarans->map(fn($p) => ['id' => $p->id, 'label' => $p->no_penawaran . ' – ' . $p->customer_name]));
+        const PENAWARAN_OPTIONS = @json($penawarans->map(fn($p) => ['id' => $p->id, 'label' => $p->no_penawaran . ' ï¿½ ' . $p->customer_name]));
         const KONTRAK_OPTIONS   = @json($kontraks->map(fn($k) => ['id' => $k->id, 'label' => $k->no_kontrak ?? '#'.$k->id]));
-        const KENDARAAN_OPTIONS = @json($kendaraans->map(fn($kd) => ['id' => $kd->id, 'label' => $kd->merk . ' – ' . $kd->nopol]));
+        const KENDARAAN_OPTIONS = @json($kendaraans->map(fn($kd) => ['id' => $kd->id, 'label' => $kd->merk . ' ï¿½ ' . $kd->nopol]));
 
         function getOptions(type) {
             const map = { penawaran: PENAWARAN_OPTIONS, kontrak: KONTRAK_OPTIONS, kendaraan: KENDARAAN_OPTIONS };
@@ -1612,7 +1612,7 @@
 
         function buildRelRow(prefix, type, selectedId = '') {
             const opts = getOptions(type);
-            const optHtml = '<option value="">— Tidak ada —</option>' +
+            const optHtml = '<option value="">ï¿½ Tidak ada ï¿½</option>' +
                 opts.map(o => `<option value="${o.id}" ${String(o.id) === String(selectedId) ? 'selected' : ''}>${o.label}</option>`).join('');
             return `<div class="flex gap-2 items-center rel-row">
                 <select name="${type}_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">${optHtml}</select>
@@ -1737,7 +1737,7 @@
                 const sub = remaks.reduce((s,r) => s + (r.qty||1)*(r.price||0), 0);
                 total += sub;
                 const awal = fmtDate(p.periode_awal);
-                const akhir = p.periode_akhir ? ' – ' + fmtDate(p.periode_akhir) : '';
+                const akhir = p.periode_akhir ? ' ï¿½ ' + fmtDate(p.periode_akhir) : '';
                 const rows = remaks.map(r => `
                     <tr>
                         <td class="px-3 py-1.5 text-xs text-gray-700">${r.remaks||''}</td>
@@ -1851,7 +1851,15 @@
         ['closeTambahRemak','closeTambahRemak2'].forEach(id => {
             document.getElementById(id).onclick = () => closeModal(document.getElementById('modalTambahRemak'));
         });
-        </script>
+        
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
     @endpush
 
 @endsection

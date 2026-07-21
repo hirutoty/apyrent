@@ -43,6 +43,29 @@ class RentalController extends Controller
 
         $rentals = $query->latest()->paginate(15)->withQueryString();
 
+        // ── SUMMARY AGGREGATE (dari seluruh data, bukan hanya halaman ini) ──
+        $summaryQuery    = Rental::query();
+        if ($request->search) {
+            $summaryQuery->where(function ($q) use ($request) {
+                $q->whereHas('member', function ($q2) use ($request) {
+                    $q2->where('nama_pelanggan', 'like', '%' . $request->search . '%');
+                })->orWhereHas('kendaraan', function ($q2) use ($request) {
+                    $q2->where('merk', 'like', '%' . $request->search . '%')
+                        ->orWhere('nopol', 'like', '%' . $request->search . '%');
+                });
+            });
+        }
+        if ($request->status) {
+            $summaryQuery->where('status', $request->status);
+        }
+        $totalRental     = (clone $summaryQuery)->count();
+        $totalPendapatan = (clone $summaryQuery)->sum('total_biaya');
+        $countPending    = (clone $summaryQuery)->where('status', 'Pending')->count();
+        $countBooking    = (clone $summaryQuery)->where('status', 'booking')->count();
+        $countAktif      = (clone $summaryQuery)->where('status', 'aktif')->count();
+        $countSelesai    = (clone $summaryQuery)->where('status', 'selesai')->count();
+        $countBatal      = (clone $summaryQuery)->where('status', 'batal')->count();
+
         $setting = Setting::first();
         // Base64 logo untuk DomPDF
         $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
@@ -99,11 +122,18 @@ class RentalController extends Controller
             ->toArray();
 
         return view('admin.rental.index', [
-            'rentals'     => $rentals,
-            'members'     => Pelanggan::all(),
-            'pelangganJson' => Pelanggan::select('id', 'nama_pelanggan', 'kontak_pelanggan', 'email_pelanggan', 'jenis_pelanggan', 'alamat')->get(),
-            'kendaraans'  => Kendaraan::all(),
-            'bookedDates' => $bookedDates,
+            'rentals'          => $rentals,
+            'totalRental'      => $totalRental,
+            'totalPendapatan'  => $totalPendapatan,
+            'countPending'     => $countPending,
+            'countBooking'     => $countBooking,
+            'countAktif'       => $countAktif,
+            'countSelesai'     => $countSelesai,
+            'countBatal'       => $countBatal,
+            'members'          => Pelanggan::all(),
+            'pelangganJson'    => Pelanggan::select('id', 'nama_pelanggan', 'kontak_pelanggan', 'email_pelanggan', 'jenis_pelanggan', 'alamat')->get(),
+            'kendaraans'       => Kendaraan::all(),
+            'bookedDates'      => $bookedDates,
         ]);
     }
 
@@ -186,7 +216,7 @@ class RentalController extends Controller
             |------------------------------------------------------------------
             */
             $rental                       = new Rental();
-            $rental->user_id              = 1; // Auth::id()
+            $rental->user_id              = auth()->id();
             $rental->kendaraan_id         = $request->kendaraan_id;
             $rental->member_id            = $member->id;
             $rental->tanggal_mulai        = $request->tanggal_mulai;
@@ -326,21 +356,58 @@ class RentalController extends Controller
 
         $request->validate([
             'bukti_pelunasan'   => 'required|file',
-            'nominal_pelunasan' => 'required|numeric',
+            'nominal_pelunasan' => 'required|numeric|min:0',
         ]);
 
-        if ($request->hasFile('bukti_pelunasan')) {
-            $file     = $request->file('bukti_pelunasan');
-            $filename = time() . '_pelunasan_' . $file->getClientOriginalName();
-            $file->move(public_path('uploads/pembayaran'), $filename);
-            $rental->bukti_pelunasan = 'uploads/pembayaran/' . $filename;
+        // Validasi nominal: tidak boleh kurang dari sisa tagihan
+        $sudahBayar = $rental->nominal_dp ?? 0;
+        $sisa       = $rental->total_biaya - $sudahBayar;
+
+        if ((float) $request->nominal_pelunasan < (float) $sisa) {
+            return back()->with('error',
+                'Nominal pelunasan (Rp ' . number_format($request->nominal_pelunasan, 0, ',', '.') .
+                ') kurang dari sisa tagihan (Rp ' . number_format($sisa, 0, ',', '.') . ')'
+            );
         }
 
-        $rental->status_pembayaran = 'lunas';
-        $rental->status            = 'aktif';
-        $rental->save();
+        DB::beginTransaction();
+        try {
+            if ($request->hasFile('bukti_pelunasan')) {
+                $file     = $request->file('bukti_pelunasan');
+                $filename = time() . '_pelunasan_' . $file->getClientOriginalName();
+                $file->move(public_path('uploads/pembayaran'), $filename);
+                $rental->bukti_pelunasan = 'uploads/pembayaran/' . $filename;
+            }
 
-        return back()->with('success', 'Pelunasan berhasil');
+            $rental->nominal_pelunasan = $request->nominal_pelunasan;
+            $rental->status_pembayaran = 'lunas';
+            $rental->status            = 'aktif';
+            $rental->save();
+
+            // Auto-create entri Keuangan untuk pelunasan
+            $kodeJurnal = 'PLS-' . $rental->id;
+            if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
+                $lastSaldo = (float) DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                Keuangan::create([
+                    'tanggal'     => now()->toDateString(),
+                    'reference'   => $kodeJurnal,
+                    'user_id'     => auth()->id(),
+                    'kategori'    => 'Pemasukan',
+                    'metode'      => 'auto',
+                    'keterangan'  => 'Pelunasan Rental #' . $rental->id . ' - ' . optional($rental->kendaraan)->merk . ' ' . optional($rental->kendaraan)->nopol,
+                    'pemasukan'   => $request->nominal_pelunasan,
+                    'pengeluaran' => 0,
+                    'saldo'       => $lastSaldo + $request->nominal_pelunasan,
+                ]);
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Pelunasan berhasil dicatat');
     }
 
     /*
@@ -403,6 +470,7 @@ class RentalController extends Controller
 
                     // Auto-posting ke Buku Besar
                     if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                        $saldoBBTerakhir = (float) DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
                         Bukubesar::create([
                             'kode_jurnal' => $kodeJurnal,
                             'transaksi'   => 'Pendapatan Rental - ' . $rental->kendaraan->merk . ' ' . $rental->kendaraan->nopol,
@@ -410,7 +478,7 @@ class RentalController extends Controller
                             'tanggal'     => now()->toDateString(),
                             'debit'       => 0,
                             'kredit'      => $rental->total_biaya,
-                            'saldo'       => $rental->total_biaya,
+                            'saldo'       => $saldoBBTerakhir + $rental->total_biaya,
                             'aktivitas'   => 'Operasi',
                             'keterangan'  => 'Auto-posting: Rental selesai - ' . $rental->kendaraan->merk . ' (' . $rental->kendaraan->nopol . ')',
                         ]);
@@ -442,7 +510,12 @@ class RentalController extends Controller
     */
     public function destroy($id)
     {
-        $rental    = Rental::findOrFail($id);
+        $rental = Rental::findOrFail($id);
+
+        if (in_array(strtolower($rental->status), ['aktif', 'booking'])) {
+            return back()->with('error', 'Rental yang sedang aktif atau booking tidak dapat dihapus. Ubah status ke Batal terlebih dahulu.');
+        }
+
         $kendaraan = Kendaraan::find($rental->kendaraan_id);
         if ($kendaraan) {
             $kendaraan->status_kendaraan = 'tersedia';
@@ -646,6 +719,7 @@ class RentalController extends Controller
                     }
                     // Auto-posting ke Buku Besar
                     if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                        $saldoBBTerakhir = (float) DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
                         Bukubesar::create([
                             'kode_jurnal' => $kodeJurnal,
                             'transaksi'   => 'Pendapatan Rental - ' . $rental->kendaraan->merk . ' ' . $rental->kendaraan->nopol,
@@ -653,7 +727,7 @@ class RentalController extends Controller
                             'tanggal'     => now()->toDateString(),
                             'debit'       => 0,
                             'kredit'      => $rental->total_biaya,
-                            'saldo'       => $rental->total_biaya,
+                            'saldo'       => $saldoBBTerakhir + $rental->total_biaya,
                             'aktivitas'   => 'Operasi',
                             'keterangan'  => 'Auto-posting: Rental selesai - ' . $rental->kendaraan->merk . ' (' . $rental->kendaraan->nopol . ')',
                         ]);

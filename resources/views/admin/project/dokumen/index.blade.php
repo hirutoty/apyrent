@@ -36,7 +36,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600 font-semibold">{{ $d->proyek }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->nama_dokumen }}</td>
                         <td class="px-4 py-3.5 text-xs">
@@ -61,7 +61,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -72,11 +72,11 @@
         <form action="{{ route('project.dokumen.store') }}" method="POST" enctype="multipart/form-data" class="px-6 py-5 space-y-4">@csrf
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Proyek <span class="text-red-500">*</span></label>
-                    <select name="proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option>@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}">{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
+                    <select name="proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option>@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}" {{ old('proyek') == $kode ? 'selected' : '' }}>{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Upload <span class="text-red-500">*</span></label><input type="date" name="tanggal_upload" required value="{{ date('Y-m-d') }}" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
-                <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Nama Dokumen <span class="text-red-500">*</span></label><input type="text" name="nama_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Nama Dokumen <span class="text-red-500">*</span></label><input type="text" name="nama_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_dokumen') }}"></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
-                    <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option><option value="Valid">Valid</option><option value="Draft">Draft</option><option value="Expired">Expired</option></select></div>
+                    <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option><option value="Valid" {{ old('status') == 'Valid' ? 'selected' : '' }}>Valid</option><option value="Draft" {{ old('status') == 'Draft' ? 'selected' : '' }}>Draft</option><option value="Expired" {{ old('status') == 'Expired' ? 'selected' : '' }}>Expired</option></select></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Upload File</label><input type="file" name="file_upload" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
             </div>
             <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Batal</button><button type="submit" class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan</button></div>
@@ -91,11 +91,11 @@
         <form id="editForm" method="POST" enctype="multipart/form-data" class="px-6 py-5 space-y-4">@csrf @method('PUT')
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Proyek <span class="text-red-500">*</span></label>
-                    <select name="proyek" id="edit_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}">{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Upload <span class="text-red-500">*</span></label><input type="date" name="tanggal_upload" id="edit_tanggal_upload" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
-                <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Nama Dokumen <span class="text-red-500">*</span></label><input type="text" name="nama_dokumen" id="edit_nama_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <select name="proyek" id="edit_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}" {{ old('proyek') == $kode ? 'selected' : '' }}>{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Upload <span class="text-red-500">*</span></label><input type="date" name="tanggal_upload" id="edit_tanggal_upload" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_upload') }}"></div>
+                <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Nama Dokumen <span class="text-red-500">*</span></label><input type="text" name="nama_dokumen" id="edit_nama_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_dokumen') }}"></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
-                    <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="Valid">Valid</option><option value="Draft">Draft</option><option value="Expired">Expired</option></select></div>
+                    <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="Valid" {{ old('status') == 'Valid' ? 'selected' : '' }}>Valid</option><option value="Draft" {{ old('status') == 'Draft' ? 'selected' : '' }}>Draft</option><option value="Expired" {{ old('status') == 'Expired' ? 'selected' : '' }}>Expired</option></select></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Ganti File (opsional)</label><input type="file" name="file_upload" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
             </div>
             <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeEditModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Batal</button><button type="submit" class="px-4 py-2 text-sm bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg">Update</button></div>
@@ -117,5 +117,13 @@ function openEditModal(id){
 }
 function closeEditModal(){document.getElementById('modalEdit').classList.replace('flex','hidden');}
 let perPage=10;
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endsection

@@ -80,7 +80,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600 font-semibold">{{ $d->kode }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->nama_proyek }}</td>
                         <td class="px-4 py-3.5 text-xs text-gray-600">
@@ -128,7 +128,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -144,57 +144,57 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Kode <span class="text-red-500">*</span></label>
-                    <input type="text" name="kode" required placeholder="PRJ001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="kode" required placeholder="PRJ001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Jenis <span class="text-red-500">*</span></label>
                     <select name="jenis" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih --</option>
-                        <option value="Internal">Internal</option>
-                        <option value="Eksternal">Eksternal</option>
+                        <option value="Internal" {{ old('jenis') == 'Internal' ? 'selected' : '' }}>Internal</option>
+                        <option value="Eksternal" {{ old('jenis') == 'Eksternal' ? 'selected' : '' }}>Eksternal</option>
                     </select>
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nama Proyek <span class="text-red-500">*</span></label>
-                    <input type="text" name="nama_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="nama_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_proyek') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Klien/Vendor</label>
-                    <input type="text" name="klien_vendor" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="klien_vendor" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('klien_vendor') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">PIC <span class="text-red-500">*</span></label>
-                    <input type="text" name="pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pic') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal Mulai <span class="text-red-500">*</span></label>
-                    <input type="date" name="mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="date" name="mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('mulai') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Target Selesai <span class="text-red-500">*</span></label>
-                    <input type="date" name="target_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="date" name="target_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('target_selesai') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Progres</label>
-                    <input type="text" name="progres" placeholder="0%" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="progres" placeholder="0%" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('progres') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nilai Proyek (Rp)</label>
-                    <input type="number" name="nilai_proyek" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="number" name="nilai_proyek" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nilai_proyek') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Lokasi</label>
-                    <input type="text" name="lokasi" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="lokasi" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('lokasi') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                     <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih --</option>
-                        <option value="Plan">Plan</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Berjalan">Berjalan</option>
-                        <option value="Selesai">Selesai</option>
-                        <option value="Ditunda">Ditunda</option>
+                        <option value="Plan" {{ old('status') == 'Plan' ? 'selected' : '' }}>Plan</option>
+                        <option value="Approved" {{ old('status') == 'Approved' ? 'selected' : '' }}>Approved</option>
+                        <option value="Berjalan" {{ old('status') == 'Berjalan' ? 'selected' : '' }}>Berjalan</option>
+                        <option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
+                        <option value="Ditunda" {{ old('status') == 'Ditunda' ? 'selected' : '' }}>Ditunda</option>
                     </select>
                 </div>
             </div>
@@ -218,55 +218,55 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Kode <span class="text-red-500">*</span></label>
-                    <input type="text" name="kode" id="edit_kode" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="kode" id="edit_kode" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Jenis <span class="text-red-500">*</span></label>
                     <select name="jenis" id="edit_jenis" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Internal">Internal</option>
-                        <option value="Eksternal">Eksternal</option>
+                        <option value="Internal" {{ old('jenis') == 'Internal' ? 'selected' : '' }}>Internal</option>
+                        <option value="Eksternal" {{ old('jenis') == 'Eksternal' ? 'selected' : '' }}>Eksternal</option>
                     </select>
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nama Proyek <span class="text-red-500">*</span></label>
-                    <input type="text" name="nama_proyek" id="edit_nama_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="nama_proyek" id="edit_nama_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_proyek') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Klien/Vendor</label>
-                    <input type="text" name="klien_vendor" id="edit_klien_vendor" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="klien_vendor" id="edit_klien_vendor" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('klien_vendor') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">PIC <span class="text-red-500">*</span></label>
-                    <input type="text" name="pic" id="edit_pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="pic" id="edit_pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pic') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal Mulai <span class="text-red-500">*</span></label>
-                    <input type="date" name="mulai" id="edit_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="date" name="mulai" id="edit_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('mulai') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Target Selesai <span class="text-red-500">*</span></label>
-                    <input type="date" name="target_selesai" id="edit_target_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="date" name="target_selesai" id="edit_target_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('target_selesai') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Progres</label>
-                    <input type="text" name="progres" id="edit_progres" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="progres" id="edit_progres" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('progres') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nilai Proyek (Rp)</label>
-                    <input type="number" name="nilai_proyek" id="edit_nilai_proyek" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="number" name="nilai_proyek" id="edit_nilai_proyek" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nilai_proyek') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Lokasi</label>
-                    <input type="text" name="lokasi" id="edit_lokasi" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="lokasi" id="edit_lokasi" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('lokasi') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                     <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Plan">Plan</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Berjalan">Berjalan</option>
-                        <option value="Selesai">Selesai</option>
-                        <option value="Ditunda">Ditunda</option>
+                        <option value="Plan" {{ old('status') == 'Plan' ? 'selected' : '' }}>Plan</option>
+                        <option value="Approved" {{ old('status') == 'Approved' ? 'selected' : '' }}>Approved</option>
+                        <option value="Berjalan" {{ old('status') == 'Berjalan' ? 'selected' : '' }}>Berjalan</option>
+                        <option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
+                        <option value="Ditunda" {{ old('status') == 'Ditunda' ? 'selected' : '' }}>Ditunda</option>
                     </select>
                 </div>
             </div>
@@ -302,5 +302,13 @@ function openEditModal(id) {
 }
 function closeEditModal() { document.getElementById('modalEdit').classList.replace('flex','hidden'); }
 
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endsection

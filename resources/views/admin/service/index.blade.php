@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Data Service')
 
@@ -210,14 +210,14 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Service <span class="text-red-500">*</span></label>
                 <input type="text" name="nama_service" id="nama_service" required
                     placeholder="Masukkan nama service"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_service') }}"
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya Default <span class="text-red-500">*</span></label>
                 <input type="number" name="biaya_default" id="biaya_default" required
                     placeholder="Masukkan biaya"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('biaya_default') }}"
             </div>
 
             <div class="flex gap-3 pt-1">
@@ -377,6 +377,17 @@ function filterTable(q) {
     }
     window.closeAlert = closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 
 @endsection

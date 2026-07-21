@@ -148,6 +148,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Jenis <span class="text-red-500">*</span></label>
                 <input type="text" name="nama_jenis" id="f_nama_jenis" required
                     placeholder="Contoh: Sedan, SUV, Truck, Motor..."
+                    value="{{ old('nama_jenis') }}"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
 
@@ -228,6 +229,13 @@ function openModal() {
     jenisModal.classList.remove('hidden');
     jenisModal.classList.add('flex');
 }
+
+// Auto-reopen modal tambah on validation error
+@if ($errors->any() && !session('success'))
+document.addEventListener('DOMContentLoaded', function() {
+    openModal();
+});
+@endif
 
 function closeModal() {
     jenisModal.classList.add('hidden');

@@ -193,6 +193,7 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('history.export.pdf');
 
   Route::post('gps-kendaraan/{id}/perpanjang', [GpsKendaraanController::class, 'perpanjang'])
+    ->middleware('throttle:5,1')
     ->name('gps-kendaraan.perpanjang');
 
   Route::resource('gps-kendaraan-history', GpsKendaraanHistoryController::class)
@@ -229,7 +230,7 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::post(
     'pajak/{id}/perpanjang',
     [PajakController::class, 'perpanjang']
-  )->name('pajak.perpanjang');
+  )->middleware('throttle:5,1')->name('pajak.perpanjang');
   Route::delete('/admin/history/pajak/{id}', [PajakHistoryController::class, 'destroy'])
     ->name('history.pajak.destroy');
 
@@ -335,7 +336,9 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get('/admin/history-kir/export-pdf', [KirHistoryController::class, 'exportPdf'])
     ->name('history.kir.export');
 
-  Route::post('kir/{id}/perpanjang', [KirController::class, 'perpanjang'])->name('kir.perpanjang');
+  Route::post('kir/{id}/perpanjang', [KirController::class, 'perpanjang'])
+    ->middleware('throttle:5,1')
+    ->name('kir.perpanjang');
   Route::post('kir/perpanjang-semua', [KirController::class, 'perpanjangSemua'])->name('kir.perpanjang-semua');
   Route::get('/kir-history', [KirHistoryController::class, 'index'])
     ->name('history.kir.index');

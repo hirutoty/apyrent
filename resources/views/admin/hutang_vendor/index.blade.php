@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Hutang Vendor')
 
@@ -348,21 +348,21 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Vendor <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="nama_vendor" required placeholder="Nama vendor / supplier"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_vendor') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kategori <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="kategori" required placeholder="Bengkel / Sparepart / Leasing"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kategori') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="nominal" required placeholder="Nominal hutang"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
                     </div>
 
                     <div>
@@ -376,7 +376,7 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jatuh Tempo <span
                                 class="text-red-500">*</span></label>
                         <input type="date" name="jatuh_tempo" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jatuh_tempo') }}">
                     </div>
 
                     <div>
@@ -384,8 +384,8 @@
                                 class="text-red-500">*</span></label>
                         <select name="status" required
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
-                            <option value="belum_lunas">Belum Lunas</option>
-                            <option value="lunas">Lunas</option>
+                            <option value="belum_lunas" {{ old('status') == 'belum_lunas' ? 'selected' : '' }}>Belum Lunas</option>
+                            <option value="lunas" {{ old('status') == 'lunas' ? 'selected' : '' }}>Lunas</option>
                         </select>
                     </div>
 
@@ -393,7 +393,7 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan <span
                                 class="text-red-500">*</span></label>
                         <textarea name="keterangan" rows="3" required placeholder="Keterangan hutang..."
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
                     </div>
 
                     <div class="md:col-span-2 flex justify-end gap-3 pt-1">
@@ -581,6 +581,14 @@
 
         // initial
         updatePdfLink();
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 
 @endsection

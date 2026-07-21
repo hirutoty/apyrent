@@ -84,7 +84,7 @@
                             @if($d->terakhir_dipakai)
                                 {{ \Carbon\Carbon::parse($d->terakhir_dipakai)->format('d/m/Y') }}
                             @else
-                                <span class="text-gray-400">—</span>
+                                <span class="text-gray-400">ï¿½</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-center">
@@ -115,7 +115,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -133,29 +133,29 @@
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Nama Kantor <span class="text-red-500">*</span></label>
                 <input type="text" name="nama_kantor" required placeholder="Contoh: Notaris Budi Santoso, SH"
-                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nama_kantor') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Layanan <span class="text-red-500">*</span></label>
                 <input type="text" name="layanan" required placeholder="Contoh: Akta Jual Beli, PPJB, Sewa"
-                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('layanan') }}">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Kontak <span class="text-red-500">*</span></label>
                     <input type="number" name="kontak" required placeholder="08xx-xxxx-xxxx"
-                           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('kontak') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
                     <input type="email" name="email" required placeholder="notaris@email.com"
-                           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('email') }}">
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Terakhir Dipakai <span class="text-gray-400 font-normal">(opsional)</span></label>
                 <input type="date" name="terakhir_dipakai"
-                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('terakhir_dipakai') }}">
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
                 <button type="button" onclick="closeModal()"
@@ -186,29 +186,29 @@
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Nama Kantor <span class="text-red-500">*</span></label>
                 <input type="text" name="nama_kantor" id="edit_nama_kantor" required
-                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nama_kantor') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Layanan <span class="text-red-500">*</span></label>
                 <input type="text" name="layanan" id="edit_layanan" required
-                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('layanan') }}">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Kontak <span class="text-red-500">*</span></label>
                     <input type="number" name="kontak" id="edit_kontak" required
-                           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('kontak') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
                     <input type="email" name="email" id="edit_email" required
-                           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('email') }}">
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Terakhir Dipakai <span class="text-gray-400 font-normal">(opsional)</span></label>
                 <input type="date" name="terakhir_dipakai" id="edit_terakhir_dipakai"
-                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('terakhir_dipakai') }}">
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
                 <button type="button" onclick="closeEditModal()"
@@ -225,7 +225,7 @@
 </div>
 @endsection
 
-<div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+<div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
 @push('scripts')
 <script>
 function openModal() {
@@ -260,5 +260,13 @@ function openEdit(id) {
         }
     });
 });
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endpush

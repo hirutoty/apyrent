@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'Virtual Account')
 
@@ -327,7 +327,7 @@
                     <select name="member_id" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         @foreach ($members as $member)
-                            <option value="{{ $member->id }}">{{ $member->nama_pelanggan }}</option>
+                            <option value="{{ $member->id }}" {{ old('member_id') == $member->id ? 'selected' : '' }}>{{ $member->nama_pelanggan }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -336,14 +336,14 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bank <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="bank" required placeholder="Nama bank"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('bank') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Expected Amount <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="expected_amount" required placeholder="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('expected_amount') }}">
                 </div>
 
                 <div>
@@ -358,8 +358,8 @@
                             class="text-red-500">*</span></label>
                     <select name="status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Pending">Pending</option>
-                        <option value="paid">Paid</option>
+                        <option value="Pending" {{ old('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="paid" {{ old('status') == 'paid' ? 'selected' : '' }}>Paid</option>
                     </select>
                 </div>
 
@@ -370,7 +370,7 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Invoice --</option>
                         @foreach ($invoices as $invoice)
-                            <option value="{{ $invoice->id }}">{{ $invoice->invoice_no }} — {{ $invoice->customer_name }}</option>
+                            <option value="{{ $invoice->id }}" {{ old('invoice_id') == $invoice->id ? 'selected' : '' }}>{{ $invoice->invoice_no }} ï¿½ {{ $invoice->customer_name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -378,7 +378,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Expired At</label>
                     <input type="datetime-local" name="expired_at"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('expired_at') }}">
                 </div>
 
                 {{-- UPLOAD GPS STYLE --}}
@@ -454,7 +454,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">VA Number <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="va_number" id="edit_va_number" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('va_number') }}">
                 </div>
 
                 <div>
@@ -463,7 +463,7 @@
                     <select name="member_id" id="edit_member_id" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         @foreach ($members as $member)
-                            <option value="{{ $member->id }}">{{ $member->nama_pelanggan }}</option>
+                            <option value="{{ $member->id }}" {{ old('member_id') == $member->id ? 'selected' : '' }}>{{ $member->nama_pelanggan }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -475,7 +475,7 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Invoice --</option>
                         @foreach ($invoices as $invoice)
-                            <option value="{{ $invoice->id }}">{{ $invoice->invoice_no }} — {{ $invoice->customer_name }}</option>
+                            <option value="{{ $invoice->id }}" {{ old('invoice_id') == $invoice->id ? 'selected' : '' }}>{{ $invoice->invoice_no }} ï¿½ {{ $invoice->customer_name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -484,21 +484,21 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bank <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="bank" id="edit_bank" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('bank') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Expected Amount <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="expected_amount" id="edit_expected_amount" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('expected_amount') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Paid Amount <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="paid_amount" id="edit_paid_amount" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('paid_amount') }}">
                 </div>
 
                 <div>
@@ -506,15 +506,15 @@
                             class="text-red-500">*</span></label>
                     <select name="status" id="edit_status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Pending">Pending</option>
-                        <option value="paid">Paid</option>
+                        <option value="Pending" {{ old('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="paid" {{ old('status') == 'paid' ? 'selected' : '' }}>Paid</option>
                     </select>
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Expired At</label>
                     <input type="datetime-local" name="expired_at" id="edit_expired_at"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('expired_at') }}">
                 </div>
 
                 <div class="md:col-span-2">
@@ -721,7 +721,7 @@
             updateExportLinks(q);
         });
 
-        // initial — set link saat halaman pertama load
+        // initial ï¿½ set link saat halaman pertama load
         updateExportLinks('');
 
         // -- POPUP ALERT ------------------------------------
@@ -752,7 +752,7 @@
                     <button type="button"
                         onclick="removeFileVA()"
                         class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs">
-                        ×
+                        ï¿½
                     </button>
                 </div>
             `;
@@ -776,7 +776,7 @@
                 <button type="button"
                     onclick="removeFileVA()"
                     class="ml-2 text-red-500 text-sm">
-                    ×
+                    ï¿½
                 </button>
             </div>
         `;
@@ -813,7 +813,7 @@
                     <button type="button"
                         onclick="removeFileVAEdit()"
                         class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs">
-                        ×
+                        ï¿½
                     </button>
                 </div>
             `;
@@ -837,7 +837,7 @@
                 <button type="button"
                     onclick="removeFileVAEdit()"
                     class="ml-2 text-red-500 text-sm">
-                    ×
+                    ï¿½
                 </button>
             </div>
         `;
@@ -849,6 +849,14 @@
             document.getElementById('previewVAEdit').innerHTML = '';
             document.getElementById('previewVAEdit').classList.add('hidden');
         }
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 
 @endsection

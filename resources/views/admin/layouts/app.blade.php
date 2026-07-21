@@ -590,8 +590,6 @@
                                     <i class="bi bi-person-badge-fill w-4 text-center shrink-0"></i> Member
                                 </a>
                                 <a href="/admin/pelanggan"
-                                
-                                <a href="/admin/member"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                     <i class="bi bi-people-fill w-4 text-center shrink-0"></i> Pelanggan
                                 </a>
@@ -648,25 +646,25 @@
                             <div class="pt-0.5 pb-1 space-y-0.5">
                                
 
-                                  <a href="pajak-history"
+                                  <a href="/admin/pajak-history"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                     <i class="fa-solid fa-receipt w-4 text-center"></i>
                                     History Pajak
                                 </a>
-    
-                                <a href="asuransi-history"
+
+                                <a href="/admin/asuransi-history"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                     <i class="fa-solid fa-shield-halved w-4 text-center"></i>
                                     History Asuransi
                                 </a>
 
-                                 <a href="gps-kendaraan-history"
+                                <a href="/admin/gps-kendaraan-history"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                     <i class="fa-solid fa-location-crosshairs w-4 text-center"></i>
                                     History GPS
                                 </a>
-    
-                                <a href="kir-history"
+
+                                <a href="/admin/kir-history"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
                                     <i class="fa-solid fa-file-lines w-4 text-center"></i>
                                     History KIR

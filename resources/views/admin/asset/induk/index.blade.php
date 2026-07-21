@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Induk Asset')
 @section('content')
 <div class="space-y-6">
@@ -163,36 +163,36 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Aset <span class="text-red-500">*</span></label>
                     <input type="text" name="kode_aset" id="f_kode_aset" required placeholder="AST-001"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode_aset') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Aset <span class="text-red-500">*</span></label>
                     <input type="text" name="nama_aset" id="f_nama_aset" required placeholder="Nama aset"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_aset') }}">
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kategori <span class="text-red-500">*</span></label>
                     <input type="text" name="kategori" id="f_kategori" required placeholder="Kendaraan / Elektronik / dll"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kategori') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Lokasi <span class="text-red-500">*</span></label>
                     <input type="text" name="lokasi" id="f_lokasi" required placeholder="Gudang A / Kantor Pusat"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('lokasi') }}">
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Perolehan <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_perolehan" id="f_tanggal_perolehan" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_perolehan') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Perolehan (Rp) <span class="text-red-500">*</span></label>
                     <input type="number" min="0" name="harga_perolehan" id="f_harga_perolehan" required placeholder="50000000"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('harga_perolehan') }}">
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -200,18 +200,18 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
                     <select name="status" id="f_status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Aktif">Aktif</option><option value="Nonaktif">Nonaktif</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option><option value="Nonaktif" {{ old('status') == 'Nonaktif' ? 'selected' : '' }}>Nonaktif</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">PIC <span class="text-red-500">*</span></label>
                     <input type="text" name="pic" id="f_pic" required placeholder="Nama penanggung jawab"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pic') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Umur Ekonomis (thn) <span class="text-red-500">*</span></label>
                     <input type="number" min="1" name="umur_ekonomis" id="f_umur_ekonomis" required placeholder="5"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('umur_ekonomis') }}">
                 </div>
             </div>
             <div>
@@ -219,9 +219,9 @@
                 <select name="metode_penyusutan" id="f_metode_penyusutan" required
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">- Pilih Metode -</option>
-                    <option value="Garis Lurus">Garis Lurus</option>
-                    <option value="Saldo Menurun">Saldo Menurun</option>
-                    <option value="Unit Produksi">Unit Produksi</option>
+                    <option value="Garis Lurus" {{ old('metode_penyusutan') == 'Garis Lurus' ? 'selected' : '' }}>Garis Lurus</option>
+                    <option value="Saldo Menurun" {{ old('metode_penyusutan') == 'Saldo Menurun' ? 'selected' : '' }}>Saldo Menurun</option>
+                    <option value="Unit Produksi" {{ old('metode_penyusutan') == 'Unit Produksi' ? 'selected' : '' }}>Unit Produksi</option>
                 </select>
             </div>
             <button type="submit"
@@ -330,5 +330,13 @@ document.addEventListener('DOMContentLoaded', renderTable);
     function closeAlert(){ clearTimeout(t); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
     window.closeAlert=closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endsection

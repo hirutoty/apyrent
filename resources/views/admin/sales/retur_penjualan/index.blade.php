@@ -94,7 +94,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600 font-semibold">{{ $d->no_retur }}</td>
                         <td class="px-4 py-3.5 text-gray-500 text-xs">{{ \Carbon\Carbon::parse($d->tanggal)->format('d M Y') }}</td>
                         <td class="px-4 py-3.5 text-xs text-gray-600">{{ $d->no_order }}</td>
@@ -142,7 +142,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -162,47 +162,47 @@
                     <label class="block text-xs font-medium text-gray-700 mb-1">No Retur <span class="text-red-500">*</span></label>
                     <input type="text" name="no_retur" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                        placeholder="RTR-001">
+                        placeholder="RTR-001" value="{{ old('no_retur') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">No Order <span class="text-red-500">*</span></label>
                     <input type="text" name="no_order" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                        placeholder="SO-2026-001">
+                        placeholder="SO-2026-001" value="{{ old('no_order') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Pelanggan <span class="text-red-500">*</span></label>
                     <input type="text" name="pelanggan" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pelanggan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Produk <span class="text-red-500">*</span></label>
                     <input type="text" name="produk" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('produk') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Qty <span class="text-red-500">*</span></label>
                     <input type="number" name="qty" required min="1"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('qty') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nilai Retur <span class="text-red-500">*</span></label>
                     <input type="number" name="nilai_retur" required min="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nilai_retur') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                     <select name="status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih --</option>
-                        <option value="Menunggu">Menunggu</option>
-                        <option value="Diproses">Diproses</option>
-                        <option value="Selesai">Selesai</option>
+                        <option value="Menunggu" {{ old('status') == 'Menunggu' ? 'selected' : '' }}>Menunggu</option>
+                        <option value="Diproses" {{ old('status') == 'Diproses' ? 'selected' : '' }}>Diproses</option>
+                        <option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
                     </select>
                 </div>
             </div>
@@ -210,7 +210,7 @@
                 <label class="block text-xs font-medium text-gray-700 mb-1">Alasan <span class="text-red-500">*</span></label>
                 <textarea name="alasan" required rows="2"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                    placeholder="Alasan retur..."></textarea>
+                    placeholder="Alasan retur...">{{ old('alasan') }}</textarea>
             </div>
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeModal()"
@@ -237,52 +237,52 @@
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">No Retur <span class="text-red-500">*</span></label>
                     <input type="text" name="no_retur" id="edit_no_retur" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('no_retur') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal" id="edit_tanggal" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">No Order <span class="text-red-500">*</span></label>
                     <input type="text" name="no_order" id="edit_no_order" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('no_order') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Pelanggan <span class="text-red-500">*</span></label>
                     <input type="text" name="pelanggan" id="edit_pelanggan" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pelanggan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Produk <span class="text-red-500">*</span></label>
                     <input type="text" name="produk" id="edit_produk" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('produk') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Qty <span class="text-red-500">*</span></label>
                     <input type="number" name="qty" id="edit_qty" required min="1"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('qty') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nilai Retur <span class="text-red-500">*</span></label>
                     <input type="number" name="nilai_retur" id="edit_nilai_retur" required min="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nilai_retur') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                     <select name="status" id="edit_status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Menunggu">Menunggu</option>
-                        <option value="Diproses">Diproses</option>
-                        <option value="Selesai">Selesai</option>
+                        <option value="Menunggu" {{ old('status') == 'Menunggu' ? 'selected' : '' }}>Menunggu</option>
+                        <option value="Diproses" {{ old('status') == 'Diproses' ? 'selected' : '' }}>Diproses</option>
+                        <option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
                     </select>
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Alasan <span class="text-red-500">*</span></label>
                 <textarea name="alasan" id="edit_alasan" required rows="2"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">{{ old('alasan') }}</textarea>
             </div>
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeEditModal()"
@@ -381,6 +381,17 @@ function closeEditModal() {
     function closeAlert(){ clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
     window.closeAlert = closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endif
 @endsection

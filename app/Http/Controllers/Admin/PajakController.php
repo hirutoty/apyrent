@@ -194,6 +194,11 @@ class PajakController extends Controller
 
         $pajak = PajakKendaraan::findOrFail($id);
 
+        // Cek: masa berlaku masih > 30 hari ke depan, perpanjangan belum diperlukan
+        if ($pajak->jatuh_tempo && Carbon::parse($pajak->jatuh_tempo)->diffInDays(now(), false) < -30) {
+            return back()->with('error', 'Masa berlaku pajak masih panjang (> 30 hari), perpanjangan belum diperlukan.');
+        }
+
         // --- Hitung tanggal standar ---
         $tanggalBayar = $request->filled('tanggal_bayar')
             ? Carbon::parse($request->tanggal_bayar)->toDateString()

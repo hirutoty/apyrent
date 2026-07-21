@@ -100,7 +100,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -114,20 +114,20 @@
         <form action="{{ route('kontrak-aktif.store') }}" method="POST" class="px-6 py-4 space-y-4">
             @csrf
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kode Kontrak *</label><input type="text" name="kode_kontrak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kode Kontrak *</label><input type="text" name="kode_kontrak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('kode_kontrak') }}"></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Status *</label>
                     <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Aktif">Aktif</option><option value="Draft">Draft</option><option value="Selesai">Selesai</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option><option value="Draft" {{ old('status') == 'Draft' ? 'selected' : '' }}>Draft</option><option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
                     </select>
                 </div>
             </div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Mitra *</label><input type="text" name="mitra" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Nilai (Rp) *</label><input type="number" name="nilai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Mitra *</label><input type="text" name="mitra" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('mitra') }}"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Nilai (Rp) *</label><input type="number" name="nilai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nilai') }}"></div>
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Mulai *</label><input type="date" name="tgl_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Selesai *</label><input type="date" name="tgl_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Mulai *</label><input type="date" name="tgl_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tgl_mulai') }}"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Selesai *</label><input type="date" name="tgl_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tgl_selesai') }}"></div>
             </div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">PIC *</label><input type="text" name="pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">PIC *</label><input type="text" name="pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pic') }}"></div>
             <div class="flex items-center gap-2">
                 <input type="checkbox" name="perpanjangan" id="perpanjangan" value="1" class="rounded">
                 <label for="perpanjangan" class="text-sm text-gray-700">Perpanjangan Otomatis</label>
@@ -150,20 +150,20 @@
         <form id="editForm" method="POST" class="px-6 py-4 space-y-4">
             @csrf @method('PUT')
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kode Kontrak</label><input type="text" name="kode_kontrak" id="edit_kode_kontrak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kode Kontrak</label><input type="text" name="kode_kontrak" id="edit_kode_kontrak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('kode_kontrak') }}"></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
                     <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Aktif">Aktif</option><option value="Draft">Draft</option><option value="Selesai">Selesai</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option><option value="Draft" {{ old('status') == 'Draft' ? 'selected' : '' }}>Draft</option><option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
                     </select>
                 </div>
             </div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Mitra</label><input type="text" name="mitra" id="edit_mitra" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Nilai (Rp)</label><input type="number" name="nilai" id="edit_nilai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Mitra</label><input type="text" name="mitra" id="edit_mitra" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('mitra') }}"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Nilai (Rp)</label><input type="number" name="nilai" id="edit_nilai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nilai') }}"></div>
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Mulai</label><input type="date" name="tgl_mulai" id="edit_tgl_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Selesai</label><input type="date" name="tgl_selesai" id="edit_tgl_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Mulai</label><input type="date" name="tgl_mulai" id="edit_tgl_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tgl_mulai') }}"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tgl Selesai</label><input type="date" name="tgl_selesai" id="edit_tgl_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tgl_selesai') }}"></div>
             </div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">PIC</label><input type="text" name="pic" id="edit_pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">PIC</label><input type="text" name="pic" id="edit_pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pic') }}"></div>
             <div class="flex items-center gap-2">
                 <input type="checkbox" name="perpanjangan" id="edit_perpanjangan" value="1" class="rounded">
                 <label for="edit_perpanjangan" class="text-sm text-gray-700">Perpanjangan Otomatis</label>
@@ -176,7 +176,7 @@
     </div>
 </div>
 @endsection
-<div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+<div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
 @push('scripts')
 <script>
 function openModal(){ document.getElementById('modalCreate').classList.remove('hidden'); }
@@ -198,5 +198,13 @@ function openEdit(id){
         });
 }
 
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endpush

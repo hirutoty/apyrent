@@ -85,7 +85,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->id_harga }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->nama_produk }}</td>
                         <td class="px-4 py-3.5">
@@ -101,7 +101,7 @@
                         </td>
                         <td class="px-4 py-3.5 text-right text-green-700 text-xs font-semibold">Rp {{ number_format($d->harga_diskon, 0, ',', '.') }}</td>
                         <td class="px-4 py-3.5 text-gray-500 text-xs">
-                            {{ \Carbon\Carbon::parse($d->periode_mulai)->format('d M Y') }} –
+                            {{ \Carbon\Carbon::parse($d->periode_mulai)->format('d M Y') }} ï¿½
                             {{ \Carbon\Carbon::parse($d->periode_selesai)->format('d M Y') }}
                         </td>
                         <td class="px-4 py-3.5">
@@ -135,7 +135,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -151,50 +151,50 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">ID Harga <span class="text-red-500">*</span></label>
-                    <input type="text" name="id_harga" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="PRC-001">
+                    <input type="text" name="id_harga" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="PRC-001" value="{{ old('id_harga') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nama Produk <span class="text-red-500">*</span></label>
-                    <input type="text" name="nama_produk" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="nama_produk" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nama_produk') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Level Pelanggan <span class="text-red-500">*</span></label>
                     <select name="level_pelanggan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">-- Pilih --</option>
-                        <option value="Regular">Regular</option>
-                        <option value="Silver">Silver</option>
-                        <option value="Gold">Gold</option>
-                        <option value="Platinum">Platinum</option>
+                        <option value="Regular" {{ old('level_pelanggan') == 'Regular' ? 'selected' : '' }}>Regular</option>
+                        <option value="Silver" {{ old('level_pelanggan') == 'Silver' ? 'selected' : '' }}>Silver</option>
+                        <option value="Gold" {{ old('level_pelanggan') == 'Gold' ? 'selected' : '' }}>Gold</option>
+                        <option value="Platinum" {{ old('level_pelanggan') == 'Platinum' ? 'selected' : '' }}>Platinum</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Harga Normal <span class="text-red-500">*</span></label>
                     <input type="number" name="harga_normal" required min="0" oninput="calcHargaDiskon()" id="harga_normal"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('harga_normal') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Diskon (%) <span class="text-red-500">*</span></label>
                     <input type="number" name="diskon" required min="0" max="100" oninput="calcHargaDiskon()" id="diskon"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('diskon') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Harga Diskon <span class="text-red-500">*</span></label>
                     <input type="number" name="harga_diskon" id="harga_diskon" required min="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50" value="{{ old('harga_diskon') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Periode Mulai <span class="text-red-500">*</span></label>
-                    <input type="date" name="periode_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="periode_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('periode_mulai') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Periode Selesai <span class="text-red-500">*</span></label>
-                    <input type="date" name="periode_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="periode_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('periode_selesai') }}"
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
                     <select name="status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Aktif">Aktif</option>
-                        <option value="Tidak Aktif">Tidak Aktif</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                        <option value="Tidak Aktif" {{ old('status') == 'Tidak Aktif' ? 'selected' : '' }}>Tidak Aktif</option>
                     </select>
                 </div>
             </div>
@@ -218,46 +218,46 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">ID Harga <span class="text-red-500">*</span></label>
-                    <input type="text" name="id_harga" id="edit_id_harga" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="id_harga" id="edit_id_harga" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('id_harga') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nama Produk <span class="text-red-500">*</span></label>
-                    <input type="text" name="nama_produk" id="edit_nama_produk" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="nama_produk" id="edit_nama_produk" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nama_produk') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Level Pelanggan <span class="text-red-500">*</span></label>
                     <select name="level_pelanggan" id="edit_level_pelanggan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Regular">Regular</option>
-                        <option value="Silver">Silver</option>
-                        <option value="Gold">Gold</option>
-                        <option value="Platinum">Platinum</option>
+                        <option value="Regular" {{ old('level_pelanggan') == 'Regular' ? 'selected' : '' }}>Regular</option>
+                        <option value="Silver" {{ old('level_pelanggan') == 'Silver' ? 'selected' : '' }}>Silver</option>
+                        <option value="Gold" {{ old('level_pelanggan') == 'Gold' ? 'selected' : '' }}>Gold</option>
+                        <option value="Platinum" {{ old('level_pelanggan') == 'Platinum' ? 'selected' : '' }}>Platinum</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Harga Normal <span class="text-red-500">*</span></label>
-                    <input type="number" name="harga_normal" id="edit_harga_normal" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="harga_normal" id="edit_harga_normal" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('harga_normal') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Diskon (%) <span class="text-red-500">*</span></label>
-                    <input type="number" name="diskon" id="edit_diskon" required min="0" max="100" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="diskon" id="edit_diskon" required min="0" max="100" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('diskon') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Harga Diskon <span class="text-red-500">*</span></label>
-                    <input type="number" name="harga_diskon" id="edit_harga_diskon" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="harga_diskon" id="edit_harga_diskon" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('harga_diskon') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Periode Mulai <span class="text-red-500">*</span></label>
-                    <input type="date" name="periode_mulai" id="edit_periode_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="periode_mulai" id="edit_periode_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('periode_mulai') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Periode Selesai <span class="text-red-500">*</span></label>
-                    <input type="date" name="periode_selesai" id="edit_periode_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="periode_selesai" id="edit_periode_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('periode_selesai') }}"
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
                     <select name="status" id="edit_status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Aktif">Aktif</option>
-                        <option value="Tidak Aktif">Tidak Aktif</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                        <option value="Tidak Aktif" {{ old('status') == 'Tidak Aktif' ? 'selected' : '' }}>Tidak Aktif</option>
                     </select>
                 </div>
             </div>
@@ -351,6 +351,17 @@ function closeEditModal() { document.getElementById('modalEdit').classList.add('
     function closeAlert(){ clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
     window.closeAlert = closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endif
 @endsection

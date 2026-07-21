@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'Data Kontrak Kendaraan')
 
@@ -154,7 +154,7 @@
                                 </td>
 
                                 <td class="px-4 py-3.5 text-sm text-gray-600" data-col="col-penawaran">
-                                    {{ $k->penawaran->no_penawaran ?? '—' }}
+                                    {{ $k->penawaran->no_penawaran ?? 'ï¿½' }}
                                 </td>
 
                                 <td class="px-4 py-3.5 text-sm text-gray-600" data-col="col-tanggal">
@@ -191,7 +191,7 @@
                                             <i class="fa fa-file text-xs"></i> Lihat
                                         </a>
                                     @else
-                                        <span class="text-gray-400 text-xs">—</span>
+                                        <span class="text-gray-400 text-xs">ï¿½</span>
                                     @endif
                                 </td>
 
@@ -202,7 +202,7 @@
                                             <i class="fa fa-file text-xs"></i> Lihat
                                         </a>
                                     @else
-                                        <span class="text-gray-400 text-xs">—</span>
+                                        <span class="text-gray-400 text-xs">ï¿½</span>
                                     @endif
                                 </td>
 
@@ -280,34 +280,34 @@
                             <select name="penawaran_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                                 <option value="">-- Pilih Penawaran --</option>
                                 @foreach ($penawarans as $p)
-                                    <option value="{{ $p->id }}">{{ $p->no_penawaran ?? 'Penawaran #' . $p->id }}</option>
+                                    <option value="{{ $p->id }}" {{ old('penawaran_id') == $p->id ? 'selected' : '' }}>{{ $p->no_penawaran ?? 'Penawaran #' . $p->id }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Kontrak</label>
-                            <input type="date" name="tanggal_kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                            <input type="date" name="tanggal_kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required value="{{ old('tanggal_kontrak') }}">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Perjanjian Pembayaran</label>
-                            <input type="date" name="perjanjian_pembayaran" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            <input type="date" name="perjanjian_pembayaran" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('perjanjian_pembayaran') }}">
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Pertama</label>
-                                <input type="text" name="pihak_pertama" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                                <input type="text" name="pihak_pertama" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required value="{{ old('pihak_pertama') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 1</label>
-                                <input type="number" name="contact_pertama" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <input type="number" name="contact_pertama" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_pertama') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Kedua</label>
-                                <input type="text" name="pihak_kedua" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                                <input type="text" name="pihak_kedua" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required value="{{ old('pihak_kedua') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 2</label>
-                                <input type="number" name="contact_kedua" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <input type="number" name="contact_kedua" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_kedua') }}">
                             </div>
                         </div>
                         <div>
@@ -321,12 +321,12 @@
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                             <select name="status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
-                                <option value="pending">Pending</option>
-                                <option value="approved">Approved</option>
-                                <option value="active">Active</option>
-                                <option value="rejected">Rejected</option>
-                                <option value="expired">Expired</option>
-                                <option value="completed">Completed</option>
+                                <option value="pending" {{ old('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="approved" {{ old('status') == 'approved' ? 'selected' : '' }}>Approved</option>
+                                <option value="active" {{ old('status') == 'active' ? 'selected' : '' }}>Active</option>
+                                <option value="rejected" {{ old('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
+                                <option value="expired" {{ old('status') == 'expired' ? 'selected' : '' }}>Expired</option>
+                                <option value="completed" {{ old('status') == 'completed' ? 'selected' : '' }}>Completed</option>
                             </select>
                         </div>
                         <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
@@ -353,49 +353,49 @@
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Penawaran</label>
                             <select name="penawaran_id" id="edit_penawaran_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                                 @foreach ($penawarans as $p)
-                                    <option value="{{ $p->id }}">{{ $p->no_penawaran ?? 'Penawaran #' . $p->id }}</option>
+                                    <option value="{{ $p->id }}" {{ old('penawaran_id') == $p->id ? 'selected' : '' }}>{{ $p->no_penawaran ?? 'Penawaran #' . $p->id }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Kontrak</label>
-                            <input type="text" name="no_kontrak" id="edit_no_kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                            <input type="text" name="no_kontrak" id="edit_no_kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required value="{{ old('no_kontrak') }}">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Kontrak</label>
-                            <input type="date" name="tanggal_kontrak" id="edit_tanggal_kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                            <input type="date" name="tanggal_kontrak" id="edit_tanggal_kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required value="{{ old('tanggal_kontrak') }}">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Perjanjian Pembayaran</label>
-                            <input type="date" name="perjanjian_pembayaran" id="edit_perjanjian_pembayaran" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            <input type="date" name="perjanjian_pembayaran" id="edit_perjanjian_pembayaran" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('perjanjian_pembayaran') }}">
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Pertama</label>
-                                <input type="text" name="pihak_pertama" id="edit_pihak_pertama" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                                <input type="text" name="pihak_pertama" id="edit_pihak_pertama" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required value="{{ old('pihak_pertama') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 1</label>
-                                <input type="number" name="contact_pertama" id="edit_contact_pertama" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <input type="number" name="contact_pertama" id="edit_contact_pertama" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_pertama') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Kedua</label>
-                                <input type="text" name="pihak_kedua" id="edit_pihak_kedua" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                                <input type="text" name="pihak_kedua" id="edit_pihak_kedua" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required value="{{ old('pihak_kedua') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 2</label>
-                                <input type="number" name="contact_kedua" id="edit_contact_kedua" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <input type="number" name="contact_kedua" id="edit_contact_kedua" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_kedua') }}">
                             </div>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                             <select name="status" id="edit_status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
-                                <option value="pending">Pending</option>
-                                <option value="approved">Approved</option>
-                                <option value="active">Active</option>
-                                <option value="rejected">Rejected</option>
-                                <option value="expired">Expired</option>
-                                <option value="completed">Completed</option>
+                                <option value="pending" {{ old('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="approved" {{ old('status') == 'approved' ? 'selected' : '' }}>Approved</option>
+                                <option value="active" {{ old('status') == 'active' ? 'selected' : '' }}>Active</option>
+                                <option value="rejected" {{ old('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
+                                <option value="expired" {{ old('status') == 'expired' ? 'selected' : '' }}>Expired</option>
+                                <option value="completed" {{ old('status') == 'completed' ? 'selected' : '' }}>Completed</option>
                             </select>
                         </div>
                         <p class="text-xs text-gray-400">File baru akan menggantikan file lama (opsional)</p>
@@ -427,14 +427,14 @@
                     </div>
                     <div class="px-6 py-5 space-y-3 text-sm">
                         <div class="grid grid-cols-2 gap-x-4 gap-y-3">
-                            <div><p class="text-xs text-gray-400">No Kontrak</p><p id="d_no_kontrak" class="font-semibold text-gray-800 mt-0.5">—</p></div>
-                            <div><p class="text-xs text-gray-400">Penawaran</p><p id="d_penawaran" class="text-gray-700 mt-0.5">—</p></div>
-                            <div><p class="text-xs text-gray-400">Tanggal Kontrak</p><p id="d_tanggal" class="text-gray-700 mt-0.5">—</p></div>
-                            <div><p class="text-xs text-gray-400">Status</p><p id="d_status" class="text-gray-700 mt-0.5">—</p></div>
-                            <div><p class="text-xs text-gray-400">Pihak 1</p><p id="d_pihak1" class="text-gray-700 mt-0.5">—</p></div>
-                            <div><p class="text-xs text-gray-400">Kontak 1</p><p id="d_contact1" class="text-gray-700 mt-0.5">—</p></div>
-                            <div><p class="text-xs text-gray-400">Pihak 2</p><p id="d_pihak2" class="text-gray-700 mt-0.5">—</p></div>
-                            <div><p class="text-xs text-gray-400">Kontak 2</p><p id="d_contact2" class="text-gray-700 mt-0.5">—</p></div>
+                            <div><p class="text-xs text-gray-400">No Kontrak</p><p id="d_no_kontrak" class="font-semibold text-gray-800 mt-0.5">ï¿½</p></div>
+                            <div><p class="text-xs text-gray-400">Penawaran</p><p id="d_penawaran" class="text-gray-700 mt-0.5">ï¿½</p></div>
+                            <div><p class="text-xs text-gray-400">Tanggal Kontrak</p><p id="d_tanggal" class="text-gray-700 mt-0.5">ï¿½</p></div>
+                            <div><p class="text-xs text-gray-400">Status</p><p id="d_status" class="text-gray-700 mt-0.5">ï¿½</p></div>
+                            <div><p class="text-xs text-gray-400">Pihak 1</p><p id="d_pihak1" class="text-gray-700 mt-0.5">ï¿½</p></div>
+                            <div><p class="text-xs text-gray-400">Kontak 1</p><p id="d_contact1" class="text-gray-700 mt-0.5">ï¿½</p></div>
+                            <div><p class="text-xs text-gray-400">Pihak 2</p><p id="d_pihak2" class="text-gray-700 mt-0.5">ï¿½</p></div>
+                            <div><p class="text-xs text-gray-400">Kontak 2</p><p id="d_contact2" class="text-gray-700 mt-0.5">ï¿½</p></div>
                         </div>
                         <div class="border-t border-gray-100 pt-3 flex gap-4">
                             <div><p class="text-xs text-gray-400 mb-1">File Kontrak</p><a id="d_file_kontrak" href="#" target="_blank" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"><i class="fa fa-file text-xs"></i> Lihat</a></div>
@@ -538,5 +538,13 @@
                 document.getElementById('d_file_persyaratan').removeAttribute('href');
             }
         }
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 @endsection

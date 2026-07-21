@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Workflow Procurement')
 
@@ -256,20 +256,20 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Workflow <span class="text-red-500">*</span></label>
                 <input type="text" name="nama_workflow" id="f_nama_workflow" required
                     placeholder="Contoh: Follow-Up Keranjang Kosong"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_workflow') }}">
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Event <span class="text-red-500">*</span></label>
                 <input type="text" name="trigger_event" id="f_trigger_event" required
-                    placeholder="Contoh: Keranjang ditinggal > 1 hari"
+                    placeholder="Contoh: Keranjang ditinggal  value="{{ old('trigger_event') }}"> 1 hari"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Syarat Tambahan <span class="text-red-500">*</span></label>
                 <input type="text" name="syarat_tambahan" id="f_syarat_tambahan" required
-                    placeholder="Contoh: Total nilai > 100.000"
+                    placeholder="Contoh: Total nilai  value="{{ old('syarat_tambahan') }}"> 100.000"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
 
@@ -278,13 +278,13 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Aksi <span class="text-red-500">*</span></label>
                     <input type="text" name="aksi_dilakukan" id="f_aksi_dilakukan" required
                         placeholder="Contoh: Kirim Email Reminder"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('aksi_dilakukan') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Delay Aksi <span class="text-red-500">*</span></label>
                     <input type="text" name="delay_aksi" id="f_delay_aksi" required
                         placeholder="Contoh: 24 jam"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('delay_aksi') }}">
                 </div>
             </div>
 
@@ -294,15 +294,15 @@
                     <select name="status" id="f_status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih Status -</option>
-                        <option value="Aktif">Aktif</option>
-                        <option value="Nonaktif">Nonaktif</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                        <option value="Nonaktif" {{ old('status') == 'Nonaktif' ? 'selected' : '' }}>Nonaktif</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">PIC <span class="text-red-500">*</span></label>
                     <input type="text" name="pic" id="f_pic" required
                         placeholder="Contoh: Rina"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pic') }}">
                 </div>
             </div>
 
@@ -310,7 +310,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan</label>
                 <textarea name="catatan" id="f_catatan" rows="3"
                     placeholder="Catatan tambahan (opsional)..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('catatan') }}</textarea>
             </div>
 
             <button type="submit"
@@ -571,6 +571,14 @@ new Chart(document.getElementById('statusChart'), {
     }
     window.closeAlert = closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 
 @endsection

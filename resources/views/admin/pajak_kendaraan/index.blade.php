@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Data Pajak Kendaraan')
 
@@ -117,23 +117,8 @@
                 </div>
             </div>
 
-            {{-- FILTER BAR: Show entries + Hari, Bulan & Tahun --}}
+            {{-- FILTER BAR: Hari, Bulan & Tahun --}}
             <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-                {{-- Show entries --}}
-                <div class="flex items-center gap-2">
-                    <span>Show</span>
-                    <select id="perPageSelect" onchange="applyFilter()"
-                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="5">5</option>
-                        <option value="10" selected>10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="all">All</option>
-                    </select>
-                    <span>entries</span>
-                </div>
-
-                <div class="w-px h-4 bg-gray-200"></div>
 
                 {{-- Filter Hari --}}
                 <div class="flex items-center gap-2">
@@ -443,11 +428,8 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 px-5 border-t border-gray-100 flex items-center gap-1.5" id="paginationControls"></div>
             </div>
-
-            {{-- Entries info bottom --}}
-            <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfoBottom"></div>
 
         </div>
 
@@ -475,6 +457,7 @@
 
             <form action="{{ route('pajak.store') }}" method="POST" enctype="multipart/form-data" class="px-6 py-5">
                 @csrf
+                <input type="hidden" name="_modal_open" value="tambah">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                     <div>
@@ -484,7 +467,7 @@
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             <option value="">-- Pilih Kendaraan --</option>
                             @foreach ($kendaraan as $k)
-                                <option value="{{ $k->id }}">{{ $k->nopol }} - {{ $k->merk }}</option>
+                                <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }}>{{ $k->nopol }} - {{ $k->merk }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -493,28 +476,28 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pajak <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="jenis_pajak" required placeholder="Contoh: PKB, BBNKB"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jenis_pajak') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal <span
                                 class="text-red-500">*</span></label>
                         <input type="text" inputmode="numeric" name="nominal" required placeholder="Nominal pajak"
-                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jatuh Tempo <span
                                 class="text-red-500">*</span></label>
                         <input type="date" name="jatuh_tempo" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jatuh_tempo') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Bayar <span
                                 class="text-red-500">*</span></label>
                         <input type="date" name="tanggal_bayar" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_bayar') }}">
                     </div>
 
                     <div>
@@ -522,8 +505,8 @@
                                 class="text-red-500">*</span></label>
                         <select name="status" required
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                            <option value="belum_bayar">Belum Lunas</option>
-                            <option value="sudah_bayar">Lunas</option>
+                            <option value="belum_bayar" {{ old('status') == 'belum_bayar' ? 'selected' : '' }}>Belum Lunas</option>
+                            <option value="sudah_bayar" {{ old('status') == 'sudah_bayar' ? 'selected' : '' }}>Lunas</option>
                         </select>
                     </div>
 
@@ -603,7 +586,7 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan <span
                                 class="text-red-500">*</span></label>
                         <textarea name="keterangan" rows="3" required placeholder="Tambahkan keterangan..."
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
                     </div>
 
                 </div>
@@ -654,7 +637,7 @@
                         <select name="kendaraan_id" id="edit_kendaraan_id"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             @foreach ($kendaraan as $k)
-                                <option value="{{ $k->id }}">{{ $k->nopol }}</option>
+                                <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }}>{{ $k->nopol }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -662,19 +645,19 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pajak</label>
                         <input type="text" name="jenis_pajak" id="edit_jenis_pajak"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jenis_pajak') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal</label>
                         <input type="text" inputmode="numeric" name="nominal" id="edit_nominal"
-                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jatuh Tempo</label>
                         <input type="date" name="jatuh_tempo" id="edit_jatuh_tempo"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jatuh_tempo') }}">
                     </div>
 
                     <div>
@@ -691,8 +674,8 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                         <select name="status" id="edit_status"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                            <option value="belum_bayar">Belum Lunas</option>
-                            <option value="sudah_bayar">Lunas</option>
+                            <option value="belum_bayar" {{ old('status') == 'belum_bayar' ? 'selected' : '' }}>Belum Lunas</option>
+                            <option value="sudah_bayar" {{ old('status') == 'sudah_bayar' ? 'selected' : '' }}>Lunas</option>
                         </select>
                     </div>
 
@@ -753,7 +736,7 @@
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan</label>
                         <textarea name="keterangan" id="edit_keterangan" rows="3"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
                     </div>
 
                 </div>
@@ -804,6 +787,14 @@ MODAL PERPANJANG
             <form id="formPerpanjang" method="POST" enctype="multipart/form-data" class="px-6 py-5">
 
                 @csrf
+                <input type="hidden" name="_modal_open" value="perpanjang">
+                {{-- Hidden fields untuk menyimpan konteks perpanjang saat reopen --}}
+                <input type="hidden" name="_perpanjang_id"         id="_perpanjang_id"         value="{{ old('_perpanjang_id') }}">
+                <input type="hidden" name="_perpanjang_kendaraan_id" id="_perpanjang_kendaraan_id" value="{{ old('_perpanjang_kendaraan_id') }}">
+                <input type="hidden" name="_perpanjang_nopol"      id="_perpanjang_nopol"      value="{{ old('_perpanjang_nopol') }}">
+                <input type="hidden" name="_perpanjang_merk"       id="_perpanjang_merk"       value="{{ old('_perpanjang_merk') }}">
+                <input type="hidden" name="_perpanjang_jenis"      id="_perpanjang_jenis"      value="{{ old('_perpanjang_jenis') }}">
+                <input type="hidden" name="_perpanjang_jatuh_tempo" id="_perpanjang_jatuh_tempo" value="{{ old('_perpanjang_jatuh_tempo') }}">
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
@@ -826,7 +817,7 @@ MODAL PERPANJANG
                         </label>
 
                         <input id="perpanjang_jenis" type="text" name="jenis_pajak"
-                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed" readonly>
+                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed" readonly value="{{ old('jenis_pajak') }}">
                     </div>
 
                     <div>
@@ -835,7 +826,7 @@ MODAL PERPANJANG
                         </label>
 
                         <input id="perpanjang_nominal" type="text" inputmode="numeric" name="nominal"
-                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
                     </div>
 
                     <div>
@@ -856,7 +847,7 @@ MODAL PERPANJANG
                         </label>
 
                         <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
-                            value="{{ now()->format('Y-m-d') }}"
+                            value="{{ old('tanggal_bayar', now()->format('Y-m-d')) }}"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
@@ -901,7 +892,7 @@ MODAL PERPANJANG
                             Keterangan
                         </label>
 
-                        <textarea id="perpanjang_keterangan" name="keterangan" rows="3" class="w-full border rounded-lg px-3 py-2"></textarea>
+                        <textarea id="perpanjang_keterangan" name="keterangan" rows="3" class="w-full border rounded-lg px-3 py-2">{{ old('keterangan') }}</textarea>
 
                     </div>
 
@@ -912,7 +903,7 @@ MODAL PERPANJANG
                         class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
-                    <button type="submit"
+                    <button type="submit" id="btnPerpanjangPajak"
                         class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                         <i class="fa fa-rotate-right"></i> Perpanjang Pajak
                     </button>
@@ -1074,8 +1065,13 @@ MODAL PERPANJANG
             document.getElementById('perpanjang_nominal').dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('perpanjang_keterangan').value = keterangan;
 
-            // Tanggal bayar = hari ini (editable)
-            document.getElementById('perpanjang_tanggal_bayar').value = '{{ now()->format("Y-m-d") }}';
+            // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)
+            document.getElementById('_perpanjang_id').value           = id;
+            document.getElementById('_perpanjang_kendaraan_id').value = kendaraan_id;
+            document.getElementById('_perpanjang_nopol').value        = nopol;
+            document.getElementById('_perpanjang_merk').value         = merk;
+            document.getElementById('_perpanjang_jenis').value        = jenis;
+            document.getElementById('_perpanjang_jatuh_tempo').value  = jatuhTempo;
 
             // jatuh_tempo_baru = jatuh_tempo_lama + 1 tahun (dari data lama, tidak berubah saat tanggal_bayar berubah)
             if (jatuhTempo) {
@@ -1106,12 +1102,14 @@ MODAL PERPANJANG
             return dateString.split(' ')[0];
         }
 
-        // -- SEARCH FILTER --------------------------------------
         // -- STATUS FILTER --------------------------------------
         let activeStatus = 'semua';
+        let currentPage = 1;
+        const PER_PAGE = 10;
 
         function filterStatus(status) {
             activeStatus = status;
+            currentPage = 1;
 
             // update tampilan tombol aktif
             const buttons = {
@@ -1138,6 +1136,7 @@ MODAL PERPANJANG
         }
 
         function filterPajakTable(keyword) {
+            currentPage = 1;
             applyFilter(keyword);
         }
 
@@ -1147,22 +1146,19 @@ MODAL PERPANJANG
             }
             keyword = keyword.toLowerCase();
 
-            const filterBulan  = document.getElementById('filterBulan').value;   // e.g. '07'
-            const filterTahun  = document.getElementById('filterTahun').value;   // e.g. '2026'
-            const filterHari   = document.getElementById('filterHari').value;    // e.g. '15'
-            const perPageEl    = document.getElementById('perPageSelect');
-            const perPage      = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
+            const filterBulan  = document.getElementById('filterBulan').value;
+            const filterTahun  = document.getElementById('filterTahun').value;
+            const filterHari   = document.getElementById('filterHari').value;
+            const perPage      = PER_PAGE;
 
             const allRows = Array.from(document.querySelectorAll('#pajakTableBody tr[data-search]'));
             let matched   = [];
-            let nomor     = 1;
 
             allRows.forEach(row => {
                 const matchSearch = row.dataset.search.includes(keyword);
                 const matchStatus = activeStatus === 'semua' || row.dataset.status === activeStatus;
 
-                // data-jatuh-tempo format: "YYYY-MM-DD"
-                const jatuhTempo  = row.dataset.jatuhTempo || '';  // "2026-07-15"
+                const jatuhTempo  = row.dataset.jatuhTempo || '';
                 const [rowYear, rowMonth, rowDay] = jatuhTempo.split('-');
                 const matchHari   = !filterHari   || rowDay   === filterHari;
                 const matchBulan  = !filterBulan  || rowMonth === filterBulan;
@@ -1174,24 +1170,72 @@ MODAL PERPANJANG
                 if (tampil) matched.push(row);
             });
 
-            let shown = 0;
-            matched.forEach(row => {
-                if (shown < perPage) {
+            const total = matched.length;
+            const totalPages = Math.ceil(total / perPage) || 1;
+            if (currentPage > totalPages) currentPage = 1;
+            const start = (currentPage - 1) * perPage;
+            const end = Math.min(start + perPage, total);
+
+            let num = start + 1;
+            matched.forEach((row, index) => {
+                if (index >= start && index < end) {
                     row.style.display = '';
-                    row.querySelector('td:first-child').textContent = nomor++;
-                    shown++;
+                    row.querySelector('td:first-child').textContent = num++;
                 }
             });
 
-            const infoText = matched.length === 0
+            const shown = end - start;
+            const infoText = total === 0
                 ? 'Tidak ada data yang cocok'
-                : 'Menampilkan ' + shown + ' dari ' + matched.length + ' entri' +
+                : 'Menampilkan ' + (start + 1) + '-' + end + ' dari ' + total + ' entri' +
                   (keyword || filterHari || filterBulan || filterTahun || activeStatus !== 'semua' ? ' (difilter)' : '');
 
             const topInfo = document.getElementById('entriesInfo');
-            const botInfo = document.getElementById('entriesInfoBottom');
             if (topInfo) topInfo.innerText = infoText;
-            if (botInfo) botInfo.innerText = infoText;
+
+            renderPagination(totalPages);
+        }
+
+        function renderPagination(totalPages) {
+            const container = document.getElementById('paginationControls');
+            if (!container) return;
+            container.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const btnBase       = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
+            const activeClass   = 'bg-indigo-600 text-white border-indigo-600';
+            const normalClass   = 'border-gray-200 text-gray-600 hover:bg-gray-50';
+            const disabledClass = 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400';
+
+            const prev = document.createElement('button');
+            prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
+            prev.className = btnBase + ' ' + (currentPage === 1 ? disabledClass : normalClass);
+            prev.disabled  = currentPage === 1;
+            prev.onclick   = () => { currentPage--; applyFilter(); };
+            container.appendChild(prev);
+
+            const range = 2;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - range && i <= currentPage + range)) {
+                    const btn = document.createElement('button');
+                    btn.textContent = i;
+                    btn.className = btnBase + ' ' + (i === currentPage ? activeClass : normalClass);
+                    btn.onclick = (function(page) { return () => { currentPage = page; applyFilter(); }; })(i);
+                    container.appendChild(btn);
+                } else if (i === currentPage - range - 1 || i === currentPage + range + 1) {
+                    const dots = document.createElement('span');
+                    dots.textContent = '…';
+                    dots.className = 'px-1 text-xs text-gray-400';
+                    container.appendChild(dots);
+                }
+            }
+
+            const next = document.createElement('button');
+            next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
+            next.className = btnBase + ' ' + (currentPage === totalPages ? disabledClass : normalClass);
+            next.disabled  = currentPage === totalPages;
+            next.onclick   = () => { currentPage++; applyFilter(); };
+            container.appendChild(next);
         }
 
         function resetFilter() {
@@ -1199,7 +1243,7 @@ MODAL PERPANJANG
             document.getElementById('filterHari').value   = '';
             document.getElementById('filterBulan').value  = '';
             document.getElementById('filterTahun').value  = '';
-            document.getElementById('perPageSelect').value = '10';
+            currentPage = 1;
             activeStatus = 'semua';
 
             // reset tombol status
@@ -1222,7 +1266,6 @@ MODAL PERPANJANG
         }
 
         document.addEventListener('DOMContentLoaded', () => applyFilter(''));
-
         // -- POPUP ALERT ----------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
@@ -1394,6 +1437,44 @@ MODAL PERPANJANG
                 list.appendChild(li);
             });
         }
-    </script>
+    
+        // Auto-reopen modal pada validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            @if (old('_modal_open') === 'perpanjang')
+                // Reopen modal perpanjang dengan data old()
+                (function() {
+                    var id           = '{{ old('_perpanjang_id') }}';
+                    var kendaraanId  = '{{ old('_perpanjang_kendaraan_id') }}';
+                    var nopol        = '{{ old('_perpanjang_nopol') }}';
+                    var merk         = '{{ old('_perpanjang_merk') }}';
+                    var jenis        = '{{ old('_perpanjang_jenis') }}';
+                    var nominal      = '{{ old('nominal') }}';
+                    var jatuhTempo   = '{{ old('_perpanjang_jatuh_tempo') }}';
+                    var keterangan   = '{{ old('keterangan') }}';
+
+                    if (typeof openModalPerpanjang === 'function') {
+                        openModalPerpanjang(id, kendaraanId, nopol, merk, jenis, nominal, jatuhTempo, '', 'sudah_bayar', keterangan, '');
+                    }
+                })();
+            @else
+                if (typeof openModalTambah === 'function') openModalTambah();
+                else if (typeof openModal === 'function') openModal();
+            @endif
+        });
+        @endif
+
+        // ── Anti double-submit: disable tombol saat form perpanjang di-submit ──
+        (function () {
+            var form = document.getElementById('formPerpanjang');
+            var btn  = document.getElementById('btnPerpanjangPajak');
+            if (!form || !btn) return;
+            form.addEventListener('submit', function () {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
+                btn.classList.add('opacity-60', 'cursor-not-allowed');
+            });
+        })();
+</script>
 
 @endsection

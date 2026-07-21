@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'Data Pembayaran Invoice')
 
@@ -210,7 +210,7 @@
                                         <i class="fa fa-file text-xs"></i> Lihat
                                     </a>
                                 @else
-                                    <span class="text-xs text-gray-400">—</span>
+                                    <span class="text-xs text-gray-400">ï¿½</span>
                                 @endif
                             </td>
                             <td data-col="col-status" class="px-4 py-3.5 text-center">
@@ -293,22 +293,23 @@
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice <span class="text-red-500">*</span></label>
                             <select name="invoice_id" required
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="">— Pilih Invoice —</option>
+                                <option value="">ï¿½ Pilih Invoice ï¿½</option>
                                 @foreach ($invoices as $inv)
                                     <option value="{{ $inv->id }}">
-                                        {{ $inv->invoice_no }} — {{ $inv->customer_name }}
+                                        {{ $inv->invoice_no }} ï¿½ {{ $inv->customer_name }}
                                     </option>
                                 @endforeach
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Pembayaran <span class="text-red-500">*</span></label>
-                            <input type="date" name="payment_date" value="{{ date('Y-m-d') }}" required
+                            <input type="date" name="payment_date" value="{{ old('payment_date', date('Y-m-d')) }}" required
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Metode Pembayaran <span class="text-red-500">*</span></label>
                             <input type="text" name="method" required placeholder="Contoh: Transfer, Tunai, QRIS"
+ value="{{ old('method') }}"
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         </div>
                     </div>
@@ -330,6 +331,7 @@
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
                                 <input type="number" name="amount" required min="1" placeholder="0"
+                                    value="{{ old('amount') }}"
                                     class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                         </div>
@@ -337,9 +339,9 @@
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
                             <select name="status" required
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="Pending">Pending</option>
-                                <option value="Verified">Verified</option>
-                                <option value="Rejected">Rejected</option>
+                                <option value="Pending" {{ old('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="Verified" {{ old('status') == 'Verified' ? 'selected' : '' }}>Verified</option>
+                                <option value="Rejected" {{ old('status') == 'Rejected' ? 'selected' : '' }}>Rejected</option>
                             </select>
                         </div>
                     </div>
@@ -436,10 +438,10 @@
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice <span class="text-red-500">*</span></label>
                             <select id="edit_invoice_id" name="invoice_id" required
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="">— Pilih Invoice —</option>
+                                <option value="">ï¿½ Pilih Invoice ï¿½</option>
                                 @foreach ($invoices as $inv)
                                     <option value="{{ $inv->id }}">
-                                        {{ $inv->invoice_no }} — {{ $inv->customer_name }}
+                                        {{ $inv->invoice_no }} ï¿½ {{ $inv->customer_name }}
                                     </option>
                                 @endforeach
                             </select>
@@ -498,7 +500,7 @@
                             <span class="text-blue-600 text-[10px] font-bold">3</span>
                         </div>
                         <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bukti pembayaran</h3>
-                        <span class="text-xs text-gray-400">(opsional — kosongkan jika tidak diganti)</span>
+                        <span class="text-xs text-gray-400">(opsional ï¿½ kosongkan jika tidak diganti)</span>
                     </div>
 
                     {{-- Preview file lama --}}
@@ -586,6 +588,13 @@
         modalTambah.classList.remove('flex');
     }
     modalTambah.addEventListener('click', e => { if (e.target === modalTambah) closeModalTambah(); });
+
+    // Auto-reopen modal tambah on validation error
+    @if ($errors->any() && !session('success'))
+    document.addEventListener('DOMContentLoaded', function() {
+        openModalTambah();
+    });
+    @endif
 
     /* -- MODAL EDIT -- */
     const modalEdit = document.getElementById('modalEdit');

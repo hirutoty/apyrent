@@ -62,19 +62,7 @@
             </div>
         </div>
 
-        {{-- SHOW ENTRIES --}}
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select id="perPageSelect" onchange="applyFilters()"
-                class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="all">All</option>
-            </select>
-            <span>entries</span>
-        </div>
+        {{-- pagination diatur JS --}}
 
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -165,6 +153,9 @@
                 </tbody>
             </table>
 
+            {{-- Pagination controls --}}
+            <div class="py-3 px-5 border-t border-gray-100 flex items-center gap-1.5" id="paginationControls"></div>
+
             <div id="noResultRow" class="hidden px-5 py-12 text-center">
                 <div class="flex flex-col items-center gap-3">
                     <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
@@ -235,36 +226,86 @@
 </style>
 
 <script>
-// -- SEARCH / FILTER --------------------------------
-function applyFilters() {
-    const keyword   = document.getElementById('searchInput').value.toLowerCase().trim();
-    const perPageEl = document.getElementById('perPageSelect');
-    const perPage   = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
-    const rows      = Array.from(document.querySelectorAll('#historyTableBody tr[data-search]'));
+// -- SEARCH / FILTER / PAGINATION -------------------
+let currentPage = 1;
+const HISTORY_PER_PAGE = 10;
 
-    const matched = rows.filter(row => !keyword || row.dataset.search.includes(keyword));
-    let visible = 0;
+function applyFilters() {
+    const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+    const rows    = Array.from(document.querySelectorAll('#historyTableBody tr[data-search]'));
+    const perPage = HISTORY_PER_PAGE;
+
+    const matched    = rows.filter(row => !keyword || row.dataset.search.includes(keyword));
+    const total      = matched.length;
+    const totalPages = Math.ceil(total / perPage) || 1;
+    if (currentPage > totalPages) currentPage = 1;
+
+    const start = (currentPage - 1) * perPage;
+    const end   = Math.min(start + perPage, total);
 
     rows.forEach(row => row.style.display = 'none');
-    matched.forEach(row => {
-        if (visible < perPage) { row.style.display = ''; visible++; }
+    matched.forEach((row, idx) => {
+        row.style.display = (idx >= start && idx < end) ? '' : 'none';
     });
 
-    document.getElementById('totalCount').textContent =
-        matched.length === 0 ? '0 total kendaraan'
-        : visible + (matched.length > visible ? ' dari ' + matched.length : '') + ' total kendaraan';
-
     const noResult = document.getElementById('noResultRow');
-    if (noResult) noResult.classList.toggle('hidden', visible > 0 || rows.length === 0);
+    if (noResult) noResult.classList.toggle('hidden', (end - start) > 0 || rows.length === 0);
 
-    let num = 1;
-    rows.forEach(row => {
-        if (row.style.display !== 'none') {
+    // Nomor baris lanjut dari offset (tidak reset ke 1)
+    let num = start + 1;
+    matched.forEach((row, idx) => {
+        if (idx >= start && idx < end) {
             const cell = row.querySelector('.row-number');
             if (cell) cell.textContent = num++;
         }
     });
+
+    renderPagination(totalPages);
 }
+
+function renderPagination(totalPages) {
+    const container = document.getElementById('paginationControls');
+    if (!container) return;
+    container.innerHTML = '';
+    if (totalPages <= 1) return;
+
+    const btnBase       = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
+    const activeClass   = 'bg-blue-600 text-white border-blue-600';
+    const normalClass   = 'border-gray-200 text-gray-600 hover:bg-gray-50';
+    const disabledClass = 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400';
+
+    const prev = document.createElement('button');
+    prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
+    prev.className = btnBase + ' ' + (currentPage === 1 ? disabledClass : normalClass);
+    prev.disabled  = currentPage === 1;
+    prev.onclick   = () => { currentPage--; applyFilters(); };
+    container.appendChild(prev);
+
+    const range = 2;
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - range && i <= currentPage + range)) {
+            const btn = document.createElement('button');
+            btn.textContent = i;
+            btn.className = btnBase + ' ' + (i === currentPage ? activeClass : normalClass);
+            btn.onclick = (function(page) { return () => { currentPage = page; applyFilters(); }; })(i);
+            container.appendChild(btn);
+        } else if (i === currentPage - range - 1 || i === currentPage + range + 1) {
+            const dots = document.createElement('span');
+            dots.textContent = '…';
+            dots.className = 'px-1 text-xs text-gray-400';
+            container.appendChild(dots);
+        }
+    }
+
+    const next = document.createElement('button');
+    next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
+    next.className = btnBase + ' ' + (currentPage === totalPages ? disabledClass : normalClass);
+    next.disabled  = currentPage === totalPages;
+    next.onclick   = () => { currentPage++; applyFilters(); };
+    container.appendChild(next);
+}
+
+document.addEventListener('DOMContentLoaded', applyFilters);
 
 // -- POPUP ALERT ------------------------------------
 (function () {

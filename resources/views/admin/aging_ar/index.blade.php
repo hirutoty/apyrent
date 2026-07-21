@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Aging AR')
 
@@ -317,7 +317,7 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Jatuh Tempo <span
                                 class="text-red-500">*</span></label>
                         <input type="date" name="jatuh_tempo" id="add_jatuh_tempo" required
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value="{{ old('jatuh_tempo') }}">
                     </div>
 
                     {{-- Total --}}
@@ -325,7 +325,7 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Total <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="total" id="add_total" required placeholder="0"
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value="{{ old('total') }}">
                     </div>
 
                     {{-- Kategori --}}
@@ -334,11 +334,11 @@
                                 class="text-red-500">*</span></label>
                         <select name="kategori" id="add_kategori" required
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="Current">Current</option>
-                            <option value="1-30 Hari">1-30 Hari</option>
-                            <option value="31-60 Hari">31-60 Hari</option>
-                            <option value="61-90 Hari">61-90 Hari</option>
-                            <option value=">90 Hari">&gt;90 Hari</option>
+                            <option value="Current" {{ old('kategori') == 'Current' ? 'selected' : '' }}>Current</option>
+                            <option value="1-30 Hari" {{ old('kategori') == '1-30 Hari' ? 'selected' : '' }}>1-30 Hari</option>
+                            <option value="31-60 Hari" {{ old('kategori') == '31-60 Hari' ? 'selected' : '' }}>31-60 Hari</option>
+                            <option value="61-90 Hari" {{ old('kategori') == '61-90 Hari' ? 'selected' : '' }}>61-90 Hari</option>
+                            <option value=">90 Hari" {{ old('kategori') == '>90 Hari' ? 'selected' : '' }}>&gt;90 Hari</option>
                         </select>
                     </div>
 
@@ -410,7 +410,7 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Jatuh Tempo <span
                                 class="text-red-500">*</span></label>
                         <input type="date" name="jatuh_tempo" id="jatuh_tempo" required
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value="{{ old('jatuh_tempo') }}">
                     </div>
 
                     {{-- Total --}}
@@ -418,7 +418,7 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Total <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="total" id="total" required
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value="{{ old('total') }}">
                     </div>
 
                 </div>
@@ -698,7 +698,15 @@
             }
             window.closeAlert = closeAlert;
         })();
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 
     {{-- STYLE --}}
     <style>

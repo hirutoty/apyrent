@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'Rental')
 
@@ -40,7 +40,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Total Rental</p>
-                        <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $rentals->count() }}</h2>
+                        <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $totalRental }}</h2>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
                         <i class="bi bi-car-front text-2xl text-blue-600"></i>
@@ -53,7 +53,7 @@
                     <div>
                         <p class="text-sm text-gray-500">Total Pendapatan</p>
                         <h2 class="text-lg font-bold text-green-600 mt-2 leading-tight">
-                            Rp {{ number_format($rentals->sum('total_biaya'), 0, ',', '.') }}
+                            Rp {{ number_format($totalPendapatan, 0, ',', '.') }}
                         </h2>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center">
@@ -67,7 +67,7 @@
                     <div>
                         <p class="text-sm text-gray-500">Pending</p>
                         <h2 class="text-3xl font-bold text-gray-700 mt-2" id="count-Pending">
-                            {{ $rentals->where('status', 'Pending')->count() }}</h2>
+                            {{ $countPending }}</h2>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center">
                         <i class="bi bi-hourglass-split text-2xl text-gray-600"></i>
@@ -80,7 +80,7 @@
                     <div>
                         <p class="text-sm text-gray-500">Booking</p>
                         <h2 class="text-3xl font-bold text-blue-600 mt-2" id="count-booking">
-                            {{ $rentals->where('status', 'booking')->count() }}</h2>
+                            {{ $countBooking }}</h2>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
                         <i class="bi bi-calendar-check text-2xl text-blue-600"></i>
@@ -93,7 +93,7 @@
                     <div>
                         <p class="text-sm text-gray-500">Aktif</p>
                         <h2 class="text-3xl font-bold text-green-600 mt-2" id="count-aktif">
-                            {{ $rentals->where('status', 'aktif')->count() }}</h2>
+                            {{ $countAktif }}</h2>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center">
                         <i class="bi bi-check-circle text-2xl text-green-600"></i>
@@ -106,7 +106,7 @@
                     <div>
                         <p class="text-sm text-gray-500">Selesai</p>
                         <h2 class="text-3xl font-bold text-gray-800 mt-2" id="count-selesai">
-                            {{ $rentals->where('status', 'selesai')->count() }}</h2>
+                            {{ $countSelesai }}</h2>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center">
                         <i class="bi bi-flag text-2xl text-gray-700"></i>
@@ -119,7 +119,7 @@
                     <div>
                         <p class="text-sm text-gray-500">Batal</p>
                         <h2 class="text-3xl font-bold text-red-500 mt-2" id="count-batal">
-                            {{ $rentals->where('status', 'batal')->count() }}</h2>
+                            {{ $countBatal }}</h2>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
                         <i class="bi bi-x-circle text-2xl text-red-500"></i>
@@ -154,9 +154,19 @@
                             class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold
                         {{ $tab['key'] === 'semua' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500' }}">
                             @if ($tab['key'] === 'semua')
-                                {{ $rentals->count() }}
+                                {{ $totalRental }}
+                            @elseif ($tab['key'] === 'Pending')
+                                {{ $countPending }}
+                            @elseif ($tab['key'] === 'booking')
+                                {{ $countBooking }}
+                            @elseif ($tab['key'] === 'aktif')
+                                {{ $countAktif }}
+                            @elseif ($tab['key'] === 'selesai')
+                                {{ $countSelesai }}
+                            @elseif ($tab['key'] === 'batal')
+                                {{ $countBatal }}
                             @else
-                                {{ $rentals->where('status', $tab['key'])->count() }}
+                                0
                             @endif
                         </span>
                     </button>
@@ -176,22 +186,6 @@
 
                 {{-- Date Filters --}}
                 <div class="flex flex-wrap items-center gap-2">
-
-                    {{-- Show entries --}}
-                    <div class="flex items-center gap-1.5 text-xs text-gray-500">
-                        <span>Show</span>
-                        <select id="perPageSelect" onchange="applyFilters()"
-                            class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
-                            <option value="10" selected>10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                            <option value="all">All</option>
-                        </select>
-                        <span>entries</span>
-                    </div>
-
-                    <div class="w-px h-4 bg-gray-200"></div>
 
                     {{-- Filter Tipe --}}
                     <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -416,7 +410,7 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $rentals->links() }}</div>
+                <div class="py-3 px-5 border-t border-gray-100 flex items-center gap-1.5" id="paginationControls"></div>
             </div>
 
             {{-- MODAL STATUS --}}
@@ -515,7 +509,7 @@
                                 <label class="text-xs text-gray-500 mb-1 block">Nama Pelanggan</label>
                                 <input type="text" id="nama_pelanggan" name="nama_pelanggan"
                                     class="w-full border rounded-lg px-3 py-2" placeholder="Ketik Nama Pelanggan..."
-                                    autocomplete="off" required>
+                                    autocomplete="off" required value="{{ old('nama_pelanggan') }}">
                                 <input type="hidden" name="member_id" id="member_id">
                                 <div id="member-result"
                                     class="absolute z-50 w-full bg-white border rounded shadow hidden max-h-40 overflow-y-auto">
@@ -525,12 +519,12 @@
                                 <label class="text-xs text-gray-500 mb-1 block">Kontak</label>
                                 <input type="number" name="kontak_pelanggan" id="kontak_pelanggan"
                                     placeholder="Ketik kontak pelanggan..." class="w-full border rounded-lg px-3 py-2"
-                                    required>
+                                    required value="{{ old('kontak_pelanggan') }}">
                             </div>
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">Alamat</label>
                                 <textarea name="alamat_pelanggan" id="alamat_pelanggan" rows="2" class="w-full border rounded-lg px-3 py-2"
-                                    placeholder="Ketik alamat pelanggan..." required></textarea>
+                                    placeholder="Ketik alamat pelanggan..." required>{{ old('alamat_pelanggan') }}</textarea>
                             </div>
 
                             {{-- -- Email Pelanggan (opsional) -- --}}
@@ -539,7 +533,7 @@
                                     Email Pelanggan <span class="text-gray-400 font-normal">(opsional)</span>
                                 </label>
                                 <input type="email" name="email_pelanggan" id="email_pelanggan"
-                                    placeholder="contoh@email.com" class="w-full border rounded-lg px-3 py-2">
+                                    placeholder="contoh@email.com" class="w-full border rounded-lg px-3 py-2" value="{{ old('email_pelanggan') }}">
                             </div>
 
                             {{-- -- Jenis Pelanggan (wajib) -- --}}
@@ -550,8 +544,8 @@
                                 <select name="jenis_pelanggan" id="jenis_pelanggan"
                                     class="w-full border rounded-lg px-3 py-2 text-sm" required>
                                     <option value="">-- Pilih Jenis Pelanggan --</option>
-                                    <option value="perorangan">Perorangan</option>
-                                    <option value="perusahaan">Perusahaan</option>
+                                    <option value="perorangan" {{ old('jenis_pelanggan') == 'perorangan' ? 'selected' : '' }}>Perorangan</option>
+                                    <option value="perusahaan" {{ old('jenis_pelanggan') == 'perusahaan' ? 'selected' : '' }}>Perusahaan</option>
                                 </select>
                             </div>
                         </div>
@@ -566,7 +560,7 @@
                             required>
                             <option value="">-- Pilih Kendaraan --</option>
                             @foreach ($kendaraans as $k)
-                                <option value="{{ $k->id }}" data-hari="{{ $k->harga_sewa_per_hari }}"
+                                <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }} data-hari="{{ $k->harga_sewa_per_hari }}"
                                     data-jam="{{ $k->harga_sewa_per_jam }}"
                                     data-bulan="{{ $k->harga_sewa_per_bulan ?? 0 }}">
                                     {{ $k->merk }} - {{ $k->nopol }}
@@ -582,7 +576,7 @@
                         <input type="datetime-local" name="tanggal_mulai" id="tanggalMulai"
                             onchange="updateTanggalSelesai()"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                            required>
+                            required value="{{ old('tanggal_mulai') }}">
                     </div>
 
                     {{-- -- TIPE RENTAL (3 pilihan) -- --}}
@@ -636,7 +630,7 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Selesai</label>
                         <input type="text" name="tanggal_selesai" id="tanggalSelesai" readonly
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500" value="{{ old('tanggal_selesai') }}">
                     </div>
 
                     {{-- -- HARGA KENDARAAN -- --}}
@@ -659,7 +653,7 @@
                                 </div>
                                 <div>
                                     <p class="text-xs font-semibold text-gray-800">Informasi Perjalanan & Driver</p>
-                                    <p class="text-xs text-gray-500">Tujuan wajib · Data driver bisa dikosongkan</p>
+                                    <p class="text-xs text-gray-500">Tujuan wajib ï¿½ Data driver bisa dikosongkan</p>
                                 </div>
                                 <span
                                     class="ml-auto text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700">Per
@@ -673,7 +667,7 @@
                                 </label>
                                 <input type="text" name="tujuan" id="input_tujuan"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                                    placeholder="Contoh: Dalam Kota / Luar Kota.">
+                                    placeholder="Contoh: Dalam Kota / Luar Kota." value="{{ old('tujuan') }}">
                                 <p class="text-xs text-gray-400 mt-1">
                                     <i class="fa fa-info-circle text-blue-400"></i> Wajib diisi untuk rental harian
                                 </p>
@@ -690,14 +684,14 @@
                                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Driver</label>
                                         <input type="text" name="nama_driver"
                                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                                            placeholder="Nama lengkap driver">
+                                            placeholder="Nama lengkap driver" value="{{ old('nama_driver') }}">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak
                                             Driver</label>
                                         <input type="number" name="kontak_driver"
                                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                                            placeholder="Nomor HP / WhatsApp">
+                                            placeholder="Nomor HP / WhatsApp" value="{{ old('kontak_driver') }}">
                                     </div>
                                 </div>
                                 <div>
@@ -747,14 +741,14 @@
 
                     {{-- -- METODE & JENIS PEMBAYARAN -- --}}
                     <select name="metode_pembayaran" id="metodePembayaran" class="border rounded px-3 py-2 text-sm">
-                        <option value="tunai">Tunai</option>
-                        <option value="transfer">Transfer</option>
+                        <option value="tunai" {{ old('metode_pembayaran') == 'tunai' ? 'selected' : '' }}>Tunai</option>
+                        <option value="transfer" {{ old('metode_pembayaran') == 'transfer' ? 'selected' : '' }}>Transfer</option>
                     </select>
 
                     <select name="jenis_pembayaran" id="jenisPembayaran" onchange="toggleJenisPembayaran()"
                         class="border rounded px-3 py-2 text-sm">
-                        <option value="lunas">Lunas</option>
-                        <option value="dp">DP</option>
+                        <option value="lunas" {{ old('jenis_pembayaran') == 'lunas' ? 'selected' : '' }}>Lunas</option>
+                        <option value="dp" {{ old('jenis_pembayaran') == 'dp' ? 'selected' : '' }}>DP</option>
                     </select>
 
                     {{-- -- BUKTI LUNAS (drag-drop) -- --}}
@@ -789,7 +783,7 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1">Nominal DP</label>
                                 <input type="number" id="nominal_dp" name="nominal_dp"
                                     class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Nominal DP"
-                                    oninput="hitungPelunasan()">
+                                    oninput="hitungPelunasan()" value="{{ old('nominal_dp') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1">Sisa Pelunasan</label>
@@ -933,7 +927,7 @@
 
 
     {{-- ======================================================================
-     SCRIPT TAMBAHAN — tempel di dalam <script> yang sudah ada
+     SCRIPT TAMBAHAN ï¿½ tempel di dalam <script> yang sudah ada
      
      ====================================================================== --}}
     <script>
@@ -1025,7 +1019,7 @@
 
 
         /* -------------------------------------------------------------------------
-           HITUNG BIAYA DASAR — support tahun | bulan | hari
+           HITUNG BIAYA DASAR ï¿½ support tahun | bulan | hari
            ------------------------------------------------------------------------- */
         function hitungBiayaDasar() {
             let total = 0,
@@ -1078,7 +1072,7 @@
         }
 
         /* -------------------------------------------------------------------------
-           UPDATE TANGGAL SELESAI — support tahun
+           UPDATE TANGGAL SELESAI ï¿½ support tahun
            ------------------------------------------------------------------------- */
         function updateTanggalSelesai() {
             const mulai = fpInstance ?
@@ -1109,7 +1103,7 @@
         }
 
         /* -------------------------------------------------------------------------
-           PREVIEW BUKTI BAYAR (lunas / dp) — tetap sama
+           PREVIEW BUKTI BAYAR (lunas / dp) ï¿½ tetap sama
            ------------------------------------------------------------------------- */
         function previewFile(event, previewId, dropId) {
             const file = event.target.files[0];
@@ -1586,6 +1580,7 @@
 
         function switchTab(tab) {
             activeTab = tab;
+            currentRentalPage = 1;
             document.querySelectorAll('.tab-btn').forEach(function(btn) {
                 btn.style.borderColor = 'transparent';
                 btn.style.color = '#6b7280';
@@ -1616,6 +1611,7 @@
         function setFilterTipe(tipe) {
             if (filterTipe === tipe) {
                 filterTipe = null;
+                currentRentalPage = 1;
                 document.getElementById('filterHarian').classList.add('hidden');
                 document.getElementById('filterHarian').classList.remove('flex');
                 document.getElementById('filterBulanan').classList.add('hidden');
@@ -1652,12 +1648,14 @@
         /* -----------------------------
             APPLY FILTERS
         ---------------------------- */
+        let currentRentalPage = 1;
+        const RENTAL_PER_PAGE = 10;
+
         function applyFilters() {
             const search     = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
             const tanggalVal = document.getElementById('filterTanggal')?.value || '';
             const bulanVal   = document.getElementById('filterBulan')?.value || '';
-            const perPageEl  = document.getElementById('perPageSelect');
-            const perPage    = perPageEl?.value === 'all' ? Infinity : parseInt(perPageEl?.value || '10', 10);
+            const perPage    = RENTAL_PER_PAGE;
             const rows       = document.querySelectorAll('#rentalTableBody .rental-row');
 
             // Kumpulkan baris yang lolos filter
@@ -1671,33 +1669,77 @@
                 if (tabOk && searchOk && dateOk) matched.push(row);
             });
 
-            // Tampilkan sesuai limit perPage
-            let visible = 0;
+            const total      = matched.length;
+            const totalPages = Math.ceil(total / perPage) || 1;
+            if (currentRentalPage > totalPages) currentRentalPage = 1;
+
+            const start = (currentRentalPage - 1) * perPage;
+            const end   = Math.min(start + perPage, total);
+
             rows.forEach(row => row.style.display = 'none');
-            matched.forEach(function(row) {
-                if (visible < perPage) {
-                    row.style.display = '';
-                    visible++;
-                }
+            matched.forEach(function(row, idx) {
+                if (idx >= start && idx < end) row.style.display = '';
             });
 
-            // Renumber
-            let n = 1;
-            rows.forEach(function(row) {
-                if (row.style.display !== 'none') {
+            // Renumber â€” nomor lanjut dari offset
+            let n = start + 1;
+            matched.forEach(function(row, idx) {
+                if (idx >= start && idx < end) {
                     const cell = row.querySelector('.row-num');
                     if (cell) cell.textContent = n++;
                 }
             });
 
             const empty = document.getElementById('emptyState');
-            if (empty) empty.classList.toggle('hidden', visible > 0);
+            if (empty) empty.classList.toggle('hidden', (end - start) > 0);
 
             const cnt = document.getElementById('visibleCount');
             if (cnt) cnt.textContent =
-                matched.length === 0
-                    ? '0'
-                    : visible + (matched.length > visible ? ' dari ' + matched.length : '');
+                total === 0 ? '0' : (start + 1) + 'â€“' + end + ' dari ' + total;
+
+            renderRentalPagination(totalPages);
+        }
+
+        function renderRentalPagination(totalPages) {
+            const container = document.getElementById('paginationControls');
+            if (!container) return;
+            container.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const btnBase       = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
+            const activeClass   = 'bg-indigo-600 text-white border-indigo-600';
+            const normalClass   = 'border-gray-200 text-gray-600 hover:bg-gray-50';
+            const disabledClass = 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400';
+
+            const prev = document.createElement('button');
+            prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
+            prev.className = btnBase + ' ' + (currentRentalPage === 1 ? disabledClass : normalClass);
+            prev.disabled  = currentRentalPage === 1;
+            prev.onclick   = () => { currentRentalPage--; applyFilters(); };
+            container.appendChild(prev);
+
+            const range = 2;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentRentalPage - range && i <= currentRentalPage + range)) {
+                    const btn = document.createElement('button');
+                    btn.textContent = i;
+                    btn.className = btnBase + ' ' + (i === currentRentalPage ? activeClass : normalClass);
+                    btn.onclick = (function(page) { return () => { currentRentalPage = page; applyFilters(); }; })(i);
+                    container.appendChild(btn);
+                } else if (i === currentRentalPage - range - 1 || i === currentRentalPage + range + 1) {
+                    const dots = document.createElement('span');
+                    dots.textContent = 'â€¦';
+                    dots.className = 'px-1 text-xs text-gray-400';
+                    container.appendChild(dots);
+                }
+            }
+
+            const next = document.createElement('button');
+            next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
+            next.className = btnBase + ' ' + (currentRentalPage === totalPages ? disabledClass : normalClass);
+            next.disabled  = currentRentalPage === totalPages;
+            next.onclick   = () => { currentRentalPage++; applyFilters(); };
+            container.appendChild(next);
         }
 
         /* -----------------------------
@@ -1729,6 +1771,17 @@
             // Init date picker saat modal dibuka (kendaraan belum dipilih ? semua terbuka)
             refreshDatePicker();
         }
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (modalRental) {
+                modalRental.classList.remove('hidden');
+                modalRental.classList.add('flex');
+                refreshDatePicker();
+            }
+        });
+        @endif
 
         function closeModal() {
             modalRental?.classList.add('hidden');
