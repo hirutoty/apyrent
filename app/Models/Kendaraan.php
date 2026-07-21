@@ -50,7 +50,8 @@ class Kendaraan extends Model
 
         'kilometer_sekarang',
         'limit_km_service',
-        'limit_bulan_service',
+        'limit_biaya_bulanan_service',
+        'limit_biaya_tahunan_service',
         'km_terakhir_service',
 
         'tanggal_terakhir_service',
@@ -141,7 +142,8 @@ class Kendaraan extends Model
 
         'kilometer_sekarang' => 'integer',
         'limit_km_service' => 'integer',
-        'limit_bulan_service' => 'integer',
+        'limit_biaya_bulanan_service' => 'integer',
+        'limit_biaya_tahunan_service' => 'integer',
         'km_terakhir_service' => 'integer',
 
         'masa_berlaku' => 'date',

@@ -134,7 +134,6 @@ class AsuransiKendaraanController extends Controller
             'jenis_asuransi_id'  => 'required|exists:jenis_asuransi,id',
             'tgl_mulai'          => 'required|date',
             'tgl_berakhir'       => 'required|date|after_or_equal:tgl_mulai',
-
             'durasi_bulan'       => 'required|integer|min:1',
             'biaya'              => 'required|numeric|min:0',
             'bukti_bayar'        => 'required|file|max:5120',
@@ -173,11 +172,9 @@ class AsuransiKendaraanController extends Controller
             'jenis_asuransi_id' => $request->jenis_asuransi_id,
             'tgl_mulai'         => $request->tgl_mulai,
             'tgl_berakhir'      => $request->tgl_berakhir,
-
             'durasi_bulan'      => $request->durasi_bulan,
             'biaya'             => $request->biaya,
             'bukti_bayar'       => $buktiBayar,
-
             'status_kendaraan'  => 'aktif',
         ]);
 

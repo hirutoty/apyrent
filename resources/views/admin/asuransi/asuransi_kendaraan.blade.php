@@ -1117,7 +1117,7 @@
                 const ext = bukti_bayar.split('.').pop().toLowerCase();
                 if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
                     img.classList.remove('hidden');
-                    img.src = '/storage/' + bukti_bayar;
+                    img.src = '/' + bukti_bayar;
                     fileBox.classList.add('hidden');
                 } else {
                     img.classList.add('hidden');

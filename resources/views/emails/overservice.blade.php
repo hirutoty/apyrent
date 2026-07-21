@@ -25,7 +25,7 @@
 
     <tr>
         <td>Limit Bulan</td>
-        <td>Rp {{ number_format($service->kendaraan->limit_bulan_service, 0, ',', '.') }}</td>
+        <td>Rp {{ number_format($service->kendaraan->limit_biaya_bulanan_service, 0, ',', '.') }}</td>
     </tr>
 
     <tr>

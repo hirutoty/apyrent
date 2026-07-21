@@ -136,10 +136,11 @@
                                     Durasi</th>
                                 <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                     CheckIn/Out</th>
-                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                    Status hari ini</th>
+                                
                                 <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                     Status Bayar</th>
+                                    <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Status hari ini</th>
                                 <th
                                     class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                     Aksi</th>
@@ -322,7 +323,7 @@
                                                 data-masa_berlaku="{{ $d->masa_berlaku }}"
                                                 data-km_sekarang="{{ $d->kilometer_sekarang }}"
                                                 data-limit_km="{{ $d->limit_km_service }}"
-                                                data-limit_bln="{{ $d->limit_bulan_service }}"
+                                                data-limit_bln="{{ $d->limit_biaya_bulanan_service }}"
                                                 data-km_svc="{{ $d->km_terakhir_service }}"
                                                 data-tgl_svc="{{ $d->tanggal_terakhir_service }}"
                                                 data-status_service="{{ $d->status_service }}"
@@ -353,7 +354,7 @@
                                                 data-masa_berlaku="{{ $d->masa_berlaku }}"
                                                 data-kilometer_sekarang="{{ $d->kilometer_sekarang }}"
                                                 data-limit_km_service="{{ $d->limit_km_service }}"
-                                                data-limit_bulan_service="{{ $d->limit_bulan_service }}"
+                                                data-limit_biaya_bulanan_service="{{ $d->limit_biaya_bulanan_service }}"
                                                 data-km_terakhir_service="{{ $d->km_terakhir_service }}"
                                                 data-tanggal_terakhir_service="{{ $d->tanggal_terakhir_service }}"
                                                 data-status_service="{{ $d->status_service }}"
@@ -906,7 +907,7 @@
                                 <i class="fa fa-tachometer-alt mr-1"></i> Servis & Kilometer
                             </p>
                             <div class="grid grid-cols-3 gap-3">
-                                @foreach ([['kilometer_sekarang', 'Kilometer Sekarang'], ['limit_km_service', 'Limit KM Service'], ['limit_bulan_service', 'Limit Bulan Service'], ['km_terakhir_service', 'KM Terakhir Service']] as [$name, $label])
+                                @foreach ([['kilometer_sekarang', 'Kilometer Sekarang'], ['limit_km_service', 'Limit KM Service'], ['limit_biaya_bulanan_service', 'Limit Biaya Bulanan Service'], ['limit_biaya_tahunan_service', 'Limit Biaya Tahunan Service'], ['km_terakhir_service', 'KM Terakhir Service']] as [$name, $label])
                                     <div>
                                         <label
                                             class="block text-xs font-semibold text-gray-600 mb-1.5">{{ $label }}
@@ -1156,7 +1157,7 @@
                                 <i class="fa fa-tachometer-alt mr-1"></i> Servis & Kilometer
                             </p>
                             <div class="grid grid-cols-3 gap-3">
-                                @foreach ([['kilometer_sekarang', 'Kilometer Sekarang'], ['limit_km_service', 'Limit KM Service'], ['limit_bulan_service', 'Limit Bulan Service'], ['km_terakhir_service', 'KM Terakhir Service']] as [$name, $label])
+                                @foreach ([['kilometer_sekarang', 'Kilometer Sekarang'], ['limit_km_service', 'Limit KM Service'], ['limit_biaya_bulanan_service', 'Limit Biaya Bulanan Service'], ['limit_biaya_tahunan_service', 'Limit Biaya Tahunan Service'], ['km_terakhir_service', 'KM Terakhir Service']] as [$name, $label])
                                     <div>
                                         <label
                                             class="block text-xs font-semibold text-gray-600 mb-1.5">{{ $label }}</label>
@@ -1510,8 +1511,8 @@
                         'tahun_pembuatan', 'tahun_perakitan', 'isi_silinder', 'warna',
                         'no_rangka', 'no_mesin', 'no_bpkb', 'warna_tnkb', 'bahan_bakar',
                         'kode_lokasi', 'no_urut_pendaftaran', 'batas_biaya', 'masa_berlaku',
-                        'kilometer_sekarang', 'limit_km_service', 'limit_bulan_service',
-                        'km_terakhir_service', 'tanggal_terakhir_service',
+                        'kilometer_sekarang', 'limit_km_service', 'limit_biaya_bulanan_service',
+                        'limit_biaya_tahunan_service', 'km_terakhir_service', 'tanggal_terakhir_service',
                         'status_service', 'status_kendaraan', 'member_id',
                         'harga_sewa_per_hari', 'harga_sewa_per_jam',
                     ];

@@ -29,12 +29,12 @@ class ServiceDetailController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'kendaraan_id' => 'required|exists:kendaraan,id',
+            'kendaraan_id'    => 'required|exists:kendaraan,id',
             'tanggal_service' => 'required|date',
-            'kilometer' => 'required|numeric',
-            'status' => 'required',
-            'biaya' => 'required|numeric',
-            'bukti' => 'nullable|file|max:2048',
+            'kilometer'       => 'required|numeric',
+            'status'          => 'required',
+            'biaya'           => 'required|numeric',
+            'bukti'           => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
         $bukti = null;
@@ -74,7 +74,7 @@ class ServiceDetailController extends Controller
 
         $request->validate([
             'biaya' => 'required|numeric',
-            'bukti' => 'nullable|file|max:2048',
+            'bukti' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
         // default pakai data lama
@@ -181,22 +181,31 @@ class ServiceDetailController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
+        $request->validate([
+            'status' => 'required|in:Layak,Tidak Layak',
+        ]);
+
         $data = ServiceDetail::findOrFail($id);
 
         $data->update([
-            'status' => $request->status
+            'status' => $request->status,
         ]);
 
-        if ($request->status == 'Tidak Layak') {
-
+        if ($request->status === 'Tidak Layak') {
             $data->kendaraan->update([
-                'status_kendaraan' => 'Bermasalah'
+                'status_kendaraan' => 'bermasalah',
             ]);
-        } elseif ($request->status == 'Layak') {
+        } elseif ($request->status === 'Layak') {
+            // Hanya set tersedia jika tidak sedang dalam proses service
+            $masihProses = \App\Models\ServiceHistory::where('kendaraan_id', $data->kendaraan_id)
+                ->where('status', 'proses')
+                ->exists();
 
-            $data->kendaraan->update([
-                'status_kendaraan' => 'Tersedia'
-            ]);
+            if (!$masihProses) {
+                $data->kendaraan->update([
+                    'status_kendaraan' => 'tersedia',
+                ]);
+            }
         }
 
         return back()->with('success', 'Status berhasil diubah');

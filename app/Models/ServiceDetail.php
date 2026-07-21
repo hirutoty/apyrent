@@ -12,20 +12,29 @@ class ServiceDetail extends Model
     protected $table = 'service_detail';
 
     protected $fillable = [
-    'kendaraan_id',
-    'tanggal_service',
-    'kilometer',
-    'status',
-    'biaya',
-    'keterangan',
-    'bukti',
-];
+        'kendaraan_id',
+        'service_history_id',
+        'tanggal_service',
+        'kilometer',
+        'status',
+        'biaya',
+        'keterangan',
+        'bukti',
+    ];
 
     /**
      * Relasi ke service history
      */
+    public function serviceHistory()
+    {
+        return $this->belongsTo(ServiceHistory::class, 'service_history_id');
+    }
+
+    /**
+     * Relasi ke kendaraan
+     */
     public function kendaraan()
-{
-    return $this->belongsTo(Kendaraan::class, 'kendaraan_id');
-}
+    {
+        return $this->belongsTo(Kendaraan::class, 'kendaraan_id');
+    }
 }

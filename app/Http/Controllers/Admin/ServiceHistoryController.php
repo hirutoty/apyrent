@@ -40,14 +40,16 @@ class ServiceHistoryController extends Controller
             ->latest()
             ->paginate(15)->withQueryString();
 
-        // Hanya kendaraan yang ada di service_detail dengan status 'Tidak Layak'
+        // Semua kendaraan untuk dropdown form tambah service history
+        // (bukan hanya yang Tidak Layak — kendaraan normal pun bisa di-service)
+        $kendaraan = Kendaraan::whereNotIn('status_kendaraan', ['disewa'])
+            ->orderBy('merk')
+            ->get();
+
+        // ID kendaraan yang punya service_detail Tidak Layak (untuk data akumulasi panel)
         $kendaraanIdsTidakLayak = ServiceDetail::where('status', 'Tidak Layak')
             ->pluck('kendaraan_id')
             ->unique();
-
-        $kendaraan = Kendaraan::whereIn('id', $kendaraanIdsTidakLayak)
-            ->orderBy('merk')
-            ->get();
 
         // Data akumulasi per kendaraan dari service_detail status 'Tidak Layak'
         $detailPerKendaraan = ServiceDetail::where('status', 'Tidak Layak')
@@ -116,161 +118,231 @@ class ServiceHistoryController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'kendaraan_id'    => 'required|exists:kendaraan,id',
-            'tanggal_service' => 'required|date',
-            'total_biaya'     => 'required|numeric|min:0',
-            'bukti_pembayaran' => 'nullable|file|max:5120',
+            'kendaraan_id'       => 'required|exists:kendaraan,id',
+            'tanggal_service'    => 'required|date',
+            'kilometer'          => 'required|integer|min:0',
+            'total_biaya'        => 'required|numeric|min:0',
+            'bukti_pembayaran'   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'bukti_attachment'   => 'nullable|array',
-            'bukti_attachment.*' => 'file|max:5120',
+            'bukti_attachment.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
-        $kendaraan    = Kendaraan::findOrFail($request->kendaraan_id);
-        $limitService = $kendaraan->limit_bulan_service ?? 0;
-        $bulan        = date('Y-m', strtotime($request->tanggal_service));
+        $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 
-        // Hitung total service bulan ini
+        // Cek: kendaraan tidak boleh sedang disewa
+        if ($kendaraan->status_kendaraan === 'disewa') {
+            return back()->withErrors([
+                'kendaraan_id' => 'Kendaraan sedang disewa, tidak bisa ditambahkan ke service.',
+            ])->withInput();
+        }
+
+        // Cek: tidak boleh ada service proses aktif untuk kendaraan ini
+        $serviceAktif = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
+            ->where('status', 'proses')
+            ->exists();
+        if ($serviceAktif) {
+            return back()->withErrors([
+                'kendaraan_id' => 'Kendaraan ini masih memiliki service yang sedang berjalan (proses). Selesaikan dulu sebelum tambah service baru.',
+            ])->withInput();
+        }
+
+        // Cek: kilometer harus >= km_terakhir_service kendaraan
+        $kmTerakhir = $kendaraan->km_terakhir_service ?? 0;
+        if ((int) $request->kilometer < $kmTerakhir) {
+            return back()->withErrors([
+                'kilometer' => "Kilometer tidak valid. Harus lebih besar atau sama dengan km terakhir service ({$kmTerakhir} km).",
+            ])->withInput();
+        }
+        $limitBulanan      = $kendaraan->limit_biaya_bulanan_service ?? 0;
+        $limitTahunan      = $kendaraan->limit_biaya_tahunan_service ?? 0;
+        $bulan             = date('Y-m', strtotime($request->tanggal_service));
+        $tahun             = date('Y', strtotime($request->tanggal_service));
+
+        // Hitung total biaya service bulan ini (exclude record baru)
         $totalBulanIni = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
             ->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [$bulan])
             ->sum('total_biaya');
 
-        $sisaLimit = $limitService - ($totalBulanIni + $request->total_biaya);
+        // Hitung total biaya service tahun ini (exclude record baru)
+        $totalTahunIni = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
+            ->whereYear('tanggal_service', $tahun)
+            ->sum('total_biaya');
 
-        // Hitung biaya tahunan otomatis
-        $biayaTahunan = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
-            ->whereYear('tanggal_service', date('Y', strtotime($request->tanggal_service)))
-            ->sum('total_biaya') + $request->total_biaya;
+        // Sisa limit bulanan: negatif artinya sudah over
+        $sisaLimit = $limitBulanan - ($totalBulanIni + $request->total_biaya);
 
-        // maks_bulanan otomatis dari kendaraan
-        $maksBulanan = $limitService;
+        // Total biaya tahunan termasuk record baru
+        $biayaTahunan = $totalTahunIni + $request->total_biaya;
 
-        // Tentukan status_pengeluaran otomatis
-        $limitTahunan      = $kendaraan->limit_tahun_service ?? 0;
-        $statusPengeluaran = ($limitService > 0 && ($totalBulanIni + $request->total_biaya) > $limitService)
-            ? 'overservice' : 'stabil';
+        // maks_bulanan dari kendaraan
+        $maksBulanan = $limitBulanan;
 
-        // Upload bukti pembayaran
-        $buktiBayar = null;
+        // Status overservice: cek bulanan dulu, lalu tahunan
+        $overBulanan       = $limitBulanan > 0 && ($totalBulanIni + $request->total_biaya) > $limitBulanan;
+        $overTahunan       = $limitTahunan > 0 && $biayaTahunan > $limitTahunan;
+        $statusPengeluaran = ($overBulanan || $overTahunan) ? 'overservice' : 'stabil';
+
+        // Siapkan metadata file (move dilakukan di dalam transaction)
+        $buktiBayarMeta    = null;
+        $attachmentsMeta   = [];
 
         if ($request->hasFile('bukti_pembayaran')) {
             $file = $request->file('bukti_pembayaran');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $destination = public_path('bukti_pembayaran');
-
-            if (!file_exists($destination)) {
-                mkdir($destination, 0777, true);
-            }
-            $file->move($destination, $filename);
-            $buktiBayar = 'bukti_pembayaran/' . $filename;
+            $buktiBayarMeta = [
+                'file'        => $file,
+                'filename'    => time() . '_' . $file->getClientOriginalName(),
+                'destination' => public_path('bukti_pembayaran'),
+                'path'        => 'bukti_pembayaran/' . time() . '_' . $file->getClientOriginalName(),
+            ];
         }
 
-        // Simpan file attachment jika ada
-        $attachments = [];
         if ($request->hasFile('bukti_attachment')) {
             $pathDir = public_path('service/attachments');
-            if (!file_exists($pathDir)) mkdir($pathDir, 0777, true);
-
             foreach ($request->file('bukti_attachment') as $file) {
                 $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $originalName = $file->getClientOriginalName();
-                $extension    = $file->getClientOriginalExtension();
-                $size         = $file->getSize();
-
-                $file->move($pathDir, $filename);
-
-                $attachments[] = [
-                    'file_name' => $originalName,
-                    'file_path' => 'service/attachments/' . $filename,
-                    'file_type' => $extension,
-                    'file_size' => $size,
+                $attachmentsMeta[] = [
+                    'file'          => $file,
+                    'filename'      => $filename,
+                    'destination'   => $pathDir,
+                    'file_name'     => $file->getClientOriginalName(),
+                    'file_path'     => 'service/attachments/' . $filename,
+                    'file_type'     => $file->getClientOriginalExtension(),
+                    'file_size'     => $file->getSize(),
                 ];
             }
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use (
-            $request, $sisaLimit, $maksBulanan, $biayaTahunan, $statusPengeluaran,
-            $buktiBayar, $kendaraan, $attachments
-        ) {
-            $service = ServiceHistory::create([
-                'kendaraan_id'      => $request->kendaraan_id,
-                'keluhan'           => $request->keluhan,
-                'kilometer'         => $request->kilometer,
-                'total_biaya'       => $request->total_biaya,
-                'status'            => $request->status,
-                'tanggal_service'   => $request->tanggal_service,
-                'sisa_limit'        => $sisaLimit,
-                'maks_bulanan'      => $maksBulanan,
-                'biaya_tahunan'     => $biayaTahunan,
-                'status_pengeluaran' => $statusPengeluaran,
-                'bukti_pembayaran'  => $buktiBayar,
-            ]);
+        $movedFiles = []; // track file yang sudah di-move untuk rollback
 
-            // Save attachments
-            foreach ($attachments as $att) {
-                \App\Models\Attachment::create([
-                    'relation_type' => 'service',
-                    'relation_id'   => $service->id,
-                    'file_name'     => $att['file_name'],
-                    'file_path'     => $att['file_path'],
-                    'file_type'     => $att['file_type'],
-                    'file_size'     => $att['file_size'],
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use (
+                $request, $sisaLimit, $maksBulanan, $biayaTahunan, $statusPengeluaran,
+                $buktiBayarMeta, $attachmentsMeta, $kendaraan, &$movedFiles
+            ) {
+                // ── Move bukti pembayaran di dalam transaction ──
+                $buktiBayar = null;
+                if ($buktiBayarMeta) {
+                    if (!file_exists($buktiBayarMeta['destination'])) {
+                        mkdir($buktiBayarMeta['destination'], 0777, true);
+                    }
+                    $buktiBayarMeta['file']->move($buktiBayarMeta['destination'], $buktiBayarMeta['filename']);
+                    $buktiBayar = $buktiBayarMeta['path'];
+                    $movedFiles[] = public_path($buktiBayar);
+                }
+
+                $service = ServiceHistory::create([
+                    'kendaraan_id'       => $request->kendaraan_id,
+                    'keluhan'            => $request->keluhan,
+                    'kilometer'          => $request->kilometer,
+                    'total_biaya'        => $request->total_biaya,
+                    'status'             => $request->status,
+                    'tanggal_service'    => $request->tanggal_service,
+                    'sisa_limit'         => $sisaLimit,
+                    'maks_bulanan'       => $maksBulanan,
+                    'biaya_tahunan'      => $biayaTahunan,
+                    'status_pengeluaran' => $statusPengeluaran,
+                    'bukti_pembayaran'   => $buktiBayar,
                 ]);
+
+                // ── Move attachments di dalam transaction ──
+                if (!empty($attachmentsMeta)) {
+                    if (!file_exists($attachmentsMeta[0]['destination'])) {
+                        mkdir($attachmentsMeta[0]['destination'], 0777, true);
+                    }
+                    foreach ($attachmentsMeta as $att) {
+                        $att['file']->move($att['destination'], $att['filename']);
+                        $movedFiles[] = public_path($att['file_path']);
+
+                        Attachment::create([
+                            'relation_type' => 'service',
+                            'relation_id'   => $service->id,
+                            'file_name'     => $att['file_name'],
+                            'file_path'     => $att['file_path'],
+                            'file_type'     => $att['file_type'],
+                            'file_size'     => $att['file_size'],
+                        ]);
+                    }
+                }
+
+                // Update status kendaraan + tanggal_terakhir_service dalam satu call
+                // agar tidak ada stale model instance yang menyebabkan update kedua ter-skip
+                $updateKendaraan = [
+                    'status_kendaraan' => $request->status === 'proses' ? 'service' : 'tersedia',
+                ];
+                if ($request->status === 'selesai') {
+                    $updateKendaraan['tanggal_terakhir_service'] = $request->tanggal_service;
+                    $updateKendaraan['km_terakhir_service']      = $request->kilometer;
+                    $updateKendaraan['kilometer_sekarang']       = $request->kilometer;
+                }
+                $kendaraan->update($updateKendaraan);
+                $kendaraan->refresh(); // sinkron instance lokal dengan DB
+
+                // Reset semua ServiceDetail Tidak Layak → Layak, isi service_history_id
+                ServiceDetail::where('kendaraan_id', $request->kendaraan_id)
+                    ->where('status', 'Tidak Layak')
+                    ->update([
+                        'status'             => 'Layak',
+                        'service_history_id' => $service->id,
+                    ]);
+
+                // 🔔 Jika status = selesai → reset ReminderService
+                if ($request->status === 'selesai') {
+                    $this->resetReminderService($kendaraan, $request->tanggal_service);
+                }
+
+                // ── Catat keuangan (lockForUpdate di dalam transaction) ──
+                $kodeJurnal = 'SRV-' . $service->id;
+
+                $lastSaldo = (float) (\Illuminate\Support\Facades\DB::table('keuangans')
+                    ->lockForUpdate()
+                    ->orderBy('id', 'desc')
+                    ->value('saldo') ?? 0);
+
+                if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
+                    Keuangan::create([
+                        'tanggal'     => $request->tanggal_service,
+                        'reference'   => $kodeJurnal,
+                        'user_id'     => auth()->id(),
+                        'kategori'    => 'Pengeluaran',
+                        'metode'      => 'Cash',
+                        'keterangan'  => 'Service Kendaraan',
+                        'pemasukan'   => 0,
+                        'pengeluaran' => $request->total_biaya,
+                        'saldo'       => $lastSaldo - $request->total_biaya,
+                        'source_type' => 'service_history',
+                        'source_id'   => $service->id,
+                    ]);
+                }
+
+                // ── Auto-posting ke Buku Besar (lockForUpdate di dalam transaction) ──
+                if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                    $saldoBBTerakhir = (float) (\Illuminate\Support\Facades\DB::table('bukubesars')
+                        ->lockForUpdate()
+                        ->orderBy('id', 'desc')
+                        ->value('saldo') ?? 0);
+
+                    Bukubesar::create([
+                        'kode_jurnal' => $kodeJurnal,
+                        'transaksi'   => 'Beban Service - ' . ($service->kendaraan->merk ?? '-') . ' ' . ($service->kendaraan->nopol ?? '-'),
+                        'kategori'    => 'Beban',
+                        'tanggal'     => $request->tanggal_service,
+                        'debit'       => $request->total_biaya,
+                        'kredit'      => 0,
+                        'saldo'       => $saldoBBTerakhir - $request->total_biaya,
+                        'aktivitas'   => 'Operasi',
+                        'keterangan'  => 'Auto-posting: Service kendaraan ' . ($service->kendaraan->nopol ?? '-'),
+                    ]);
+                }
+            });
+        } catch (\Throwable $e) {
+            // Rollback: hapus file yang sudah terlanjur di-move
+            foreach ($movedFiles as $filePath) {
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
             }
-
-            // Update status kendaraan
-            $kendaraan->update([
-                'status_kendaraan' => $request->status === 'proses' ? 'service' : 'tersedia',
-            ]);
-
-            // Ubah semua record service_detail kendaraan ini dari 'Tidak Layak' jadi 'Layak'
-            ServiceDetail::where('kendaraan_id', $request->kendaraan_id)
-                ->where('status', 'Tidak Layak')
-                ->update(['status' => 'Layak']);
-
-            // 🔔 Jika status = selesai → update tanggal_terakhir_service & reset ReminderService
-            if ($request->status === 'selesai') {
-                $kendaraan->update([
-                    'tanggal_terakhir_service' => $request->tanggal_service,
-                ]);
-                $this->resetReminderService($kendaraan, $request->tanggal_service);
-            }
-
-            // Catat keuangan
-            $lastSaldo = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            $kodeJurnal = 'SRV-' . $service->id;
-
-            if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
-                Keuangan::create([
-                    'tanggal'     => $request->tanggal_service,
-                    'reference'   => $kodeJurnal,
-                    'user_id'     => auth()->id(),
-                    'kategori'    => 'Pengeluaran',
-                    'metode'      => 'Cash',
-                    'keterangan'  => 'Service Kendaraan',
-                    'pemasukan'   => 0,
-                    'pengeluaran' => $request->total_biaya,
-                    'saldo'       => $lastSaldo - $request->total_biaya,
-                    'source_type' => 'service_history',
-                    'source_id'   => $service->id,
-                ]);
-            }
-
-            // Auto-posting ke Buku Besar
-            if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
-                $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-
-                Bukubesar::create([
-                    'kode_jurnal' => $kodeJurnal,
-                    'transaksi'   => 'Beban Service - ' . ($service->kendaraan->merk ?? '-') . ' ' . ($service->kendaraan->nopol ?? '-'),
-                    'kategori'    => 'Beban',
-                    'tanggal'     => $request->tanggal_service,
-                    'debit'       => $request->total_biaya,
-                    'kredit'      => 0,
-                    'saldo'       => $saldoBBTerakhir - $request->total_biaya, // Asumsi Beban mengurangi saldo BB
-                    'aktivitas'   => 'Operasi',
-                    'keterangan'  => 'Auto-posting: Service kendaraan ' . ($service->kendaraan->nopol ?? '-'),
-                ]);
-            }
-        });
+            throw $e;
+        }
 
         return back()->with('success', 'Data service berhasil ditambahkan.');
     }
@@ -278,90 +350,239 @@ class ServiceHistoryController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'kendaraan_id'    => 'required|exists:kendaraan,id',
-            'tanggal_service' => 'required|date',
-            'total_biaya'     => 'required|numeric|min:0',
-            'bukti_pembayaran' => 'nullable|file|max:5120',
+            'kendaraan_id'       => 'required|exists:kendaraan,id',
+            'tanggal_service'    => 'required|date',
+            'total_biaya'        => 'required|numeric|min:0',
+            'bukti_pembayaran'   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'bukti_attachment'   => 'nullable|array',
-            'bukti_attachment.*' => 'file|max:5120',
+            'bukti_attachment.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
-        $data         = ServiceHistory::findOrFail($id);
-        $kendaraan    = Kendaraan::findOrFail($request->kendaraan_id);
-        $limitService = $kendaraan->limit_bulan_service ?? 0;
-        $bulan        = date('Y-m', strtotime($request->tanggal_service));
+        $data              = ServiceHistory::findOrFail($id);
+        $kendaraan         = Kendaraan::findOrFail($request->kendaraan_id);
+        $limitBulanan      = $kendaraan->limit_biaya_bulanan_service ?? 0;
+        $limitTahunan      = $kendaraan->limit_biaya_tahunan_service ?? 0;
+        $bulan             = date('Y-m', strtotime($request->tanggal_service));
+        $tahun             = date('Y', strtotime($request->tanggal_service));
 
+        // Hitung total bulan ini (exclude record yang sedang diedit)
         $totalBulanIni = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
             ->where('id', '!=', $id)
             ->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [$bulan])
             ->sum('total_biaya');
 
-        $sisaLimit = $limitService - ($totalBulanIni + $request->total_biaya);
-
-        // Hitung biaya tahunan (exclude record ini)
-        $biayaTahunan = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
+        // Hitung total tahun ini (exclude record yang sedang diedit)
+        $totalTahunIni = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
             ->where('id', '!=', $id)
-            ->whereYear('tanggal_service', date('Y', strtotime($request->tanggal_service)))
-            ->sum('total_biaya') + $request->total_biaya;
+            ->whereYear('tanggal_service', $tahun)
+            ->sum('total_biaya');
 
-        $maksBulanan       = $limitService;
-        $limitTahunan      = $kendaraan->limit_tahun_service ?? 0;
-        $statusPengeluaran = ($limitService > 0 && ($totalBulanIni + $request->total_biaya) > $limitService)
-            ? 'overservice' : 'stabil';
+        // Sisa limit bulanan
+        $sisaLimit = $limitBulanan - ($totalBulanIni + $request->total_biaya);
 
-        // Upload bukti pembayaran jika ada file baru
-        $buktiBayar = $data->bukti_pembayaran;
+        // Total biaya tahunan termasuk record ini
+        $biayaTahunan = $totalTahunIni + $request->total_biaya;
+
+        $maksBulanan  = $limitBulanan;
+
+        // Status overservice: cek bulanan dulu, lalu tahunan
+        $overBulanan       = $limitBulanan > 0 && ($totalBulanIni + $request->total_biaya) > $limitBulanan;
+        $overTahunan       = $limitTahunan > 0 && $biayaTahunan > $limitTahunan;
+        $statusPengeluaran = ($overBulanan || $overTahunan) ? 'overservice' : 'stabil';
+
+        // Siapkan metadata file baru (move dilakukan di dalam transaction)
+        $buktiBayarMeta  = null;
+        $attachmentsMeta = [];
 
         if ($request->hasFile('bukti_pembayaran')) {
-
-            // hapus file lama
-            if ($data->bukti_pembayaran && file_exists(public_path($data->bukti_pembayaran))) {
-                unlink(public_path($data->bukti_pembayaran));
-            }
-
             $file = $request->file('bukti_pembayaran');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $destination = public_path('bukti_pembayaran');
-
-            if (!file_exists($destination)) {
-                mkdir($destination, 0777, true);
-            }
-
-            $file->move($destination, $filename);
-
-            $buktiBayar = 'bukti_pembayaran/' . $filename;
+            $buktiBayarMeta = [
+                'file'        => $file,
+                'filename'    => $filename,
+                'destination' => public_path('bukti_pembayaran'),
+                'path'        => 'bukti_pembayaran/' . $filename,
+                'old_path'    => $data->bukti_pembayaran,
+            ];
         }
 
-        $data->update([
-            'kendaraan_id'       => $request->kendaraan_id,
-            'keluhan'            => $request->keluhan,
-            'kilometer'          => $request->kilometer,
-            'total_biaya'        => $request->total_biaya,
-            'status'             => $request->status,
-            'tanggal_service'    => $request->tanggal_service,
-            'sisa_limit'         => $sisaLimit,
-            'maks_bulanan'       => $maksBulanan,
-            'biaya_tahunan'      => $biayaTahunan,
-            'status_pengeluaran' => $statusPengeluaran,
-            'bukti_pembayaran'   => $buktiBayar,
-        ]);
-
-        // upload attachment tambahan
         if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $data->id);
+            $pathDir = public_path('service/attachments');
+            foreach ($request->file('bukti_attachment') as $file) {
+                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $attachmentsMeta[] = [
+                    'file'        => $file,
+                    'filename'    => $filename,
+                    'destination' => $pathDir,
+                    'file_name'   => $file->getClientOriginalName(),
+                    'file_path'   => 'service/attachments/' . $filename,
+                    'file_type'   => $file->getClientOriginalExtension(),
+                    'file_size'   => $file->getSize(),
+                ];
+            }
         }
 
-        // Update status kendaraan
-        $kendaraan->update([
-            'status_kendaraan' => $request->status === 'proses' ? 'service' : 'tersedia',
-        ]);
+        $movedFiles  = [];
+        $deletedFiles = []; // track file lama yang dihapus untuk restore jika rollback
 
-        // 🔔 Jika status = selesai → update tanggal_terakhir_service & reset ReminderService
-        if ($request->status === 'selesai') {
-            $kendaraan->update([
-                'tanggal_terakhir_service' => $request->tanggal_service,
-            ]);
-            $this->resetReminderService($kendaraan, $request->tanggal_service);
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use (
+                $request, $id, $data, $kendaraan, $sisaLimit, $maksBulanan,
+                $biayaTahunan, $statusPengeluaran, $buktiBayarMeta, $attachmentsMeta,
+                &$movedFiles, &$deletedFiles
+            ) {
+                // ── Tangani bukti pembayaran ──
+                $buktiBayar = $data->bukti_pembayaran;
+
+                if ($buktiBayarMeta) {
+                    // Hapus file lama
+                    $oldPath = public_path($buktiBayarMeta['old_path'] ?? '');
+                    if ($buktiBayarMeta['old_path'] && file_exists($oldPath)) {
+                        // Simpan konten untuk restore jika rollback
+                        $deletedFiles[$oldPath] = file_get_contents($oldPath);
+                        unlink($oldPath);
+                    }
+
+                    if (!file_exists($buktiBayarMeta['destination'])) {
+                        mkdir($buktiBayarMeta['destination'], 0777, true);
+                    }
+                    $buktiBayarMeta['file']->move($buktiBayarMeta['destination'], $buktiBayarMeta['filename']);
+                    $buktiBayar = $buktiBayarMeta['path'];
+                    $movedFiles[] = public_path($buktiBayar);
+                }
+
+                $data->update([
+                    'kendaraan_id'       => $request->kendaraan_id,
+                    'keluhan'            => $request->keluhan,
+                    'kilometer'          => $request->kilometer,
+                    'total_biaya'        => $request->total_biaya,
+                    'status'             => $request->status,
+                    'tanggal_service'    => $request->tanggal_service,
+                    'sisa_limit'         => $sisaLimit,
+                    'maks_bulanan'       => $maksBulanan,
+                    'biaya_tahunan'      => $biayaTahunan,
+                    'status_pengeluaran' => $statusPengeluaran,
+                    'bukti_pembayaran'   => $buktiBayar,
+                ]);
+
+                // ── Move attachments baru di dalam transaction ──
+                if (!empty($attachmentsMeta)) {
+                    if (!file_exists($attachmentsMeta[0]['destination'])) {
+                        mkdir($attachmentsMeta[0]['destination'], 0777, true);
+                    }
+                    foreach ($attachmentsMeta as $att) {
+                        $att['file']->move($att['destination'], $att['filename']);
+                        $movedFiles[] = public_path($att['file_path']);
+
+                        Attachment::create([
+                            'relation_type' => 'service',
+                            'relation_id'   => $data->id,
+                            'file_name'     => $att['file_name'],
+                            'file_path'     => $att['file_path'],
+                            'file_type'     => $att['file_type'],
+                            'file_size'     => $att['file_size'],
+                        ]);
+                    }
+                }
+
+                // Update status kendaraan + tanggal_terakhir_service dalam satu call
+                $updateKendaraan = [
+                    'status_kendaraan' => $request->status === 'proses' ? 'service' : 'tersedia',
+                ];
+                if ($request->status === 'selesai') {
+                    $updateKendaraan['tanggal_terakhir_service'] = $request->tanggal_service;
+                    $updateKendaraan['km_terakhir_service']      = $request->kilometer;
+                    $updateKendaraan['kilometer_sekarang']       = $request->kilometer;
+                }
+                $kendaraan->update($updateKendaraan);
+                $kendaraan->refresh();
+
+                // 🔔 Jika status = selesai → reset ReminderService
+                if ($request->status === 'selesai') {
+                    $this->resetReminderService($kendaraan, $request->tanggal_service);
+                }
+
+                // ── Sync keuangan (update atau buat baru) ──
+                $kodeJurnal = 'SRV-' . $data->id;
+
+                $lastSaldo = (float) (\Illuminate\Support\Facades\DB::table('keuangans')
+                    ->lockForUpdate()
+                    ->orderBy('id', 'desc')
+                    ->value('saldo') ?? 0);
+
+                $keuangan = Keuangan::where('reference', $kodeJurnal)->first();
+
+                if ($keuangan) {
+                    // Hitung ulang saldo: kembalikan pengeluaran lama, kurangi pengeluaran baru
+                    $selisih      = $request->total_biaya - $keuangan->pengeluaran;
+                    $saldoBaru    = $lastSaldo - $selisih;
+
+                    $keuangan->update([
+                        'tanggal'     => $request->tanggal_service,
+                        'pengeluaran' => $request->total_biaya,
+                        'saldo'       => $saldoBaru,
+                        'keterangan'  => 'Service Kendaraan',
+                    ]);
+                } else {
+                    Keuangan::create([
+                        'tanggal'     => $request->tanggal_service,
+                        'reference'   => $kodeJurnal,
+                        'user_id'     => auth()->id(),
+                        'kategori'    => 'Pengeluaran',
+                        'metode'      => 'Cash',
+                        'keterangan'  => 'Service Kendaraan',
+                        'pemasukan'   => 0,
+                        'pengeluaran' => $request->total_biaya,
+                        'saldo'       => $lastSaldo - $request->total_biaya,
+                        'source_type' => 'service_history',
+                        'source_id'   => $data->id,
+                    ]);
+                }
+
+                // ── Sync Buku Besar ──
+                $saldoBBTerakhir = (float) (\Illuminate\Support\Facades\DB::table('bukubesars')
+                    ->lockForUpdate()
+                    ->orderBy('id', 'desc')
+                    ->value('saldo') ?? 0);
+
+                $bukubesar = Bukubesar::where('kode_jurnal', $kodeJurnal)->first();
+
+                if ($bukubesar) {
+                    $selisihBB   = $request->total_biaya - $bukubesar->debit;
+                    $saldoBBBaru = $saldoBBTerakhir - $selisihBB;
+
+                    $bukubesar->update([
+                        'tanggal'  => $request->tanggal_service,
+                        'debit'    => $request->total_biaya,
+                        'saldo'    => $saldoBBBaru,
+                        'transaksi' => 'Beban Service - ' . ($kendaraan->merk ?? '-') . ' ' . ($kendaraan->nopol ?? '-'),
+                    ]);
+                } else {
+                    Bukubesar::create([
+                        'kode_jurnal' => $kodeJurnal,
+                        'transaksi'   => 'Beban Service - ' . ($kendaraan->merk ?? '-') . ' ' . ($kendaraan->nopol ?? '-'),
+                        'kategori'    => 'Beban',
+                        'tanggal'     => $request->tanggal_service,
+                        'debit'       => $request->total_biaya,
+                        'kredit'      => 0,
+                        'saldo'       => $saldoBBTerakhir - $request->total_biaya,
+                        'aktivitas'   => 'Operasi',
+                        'keterangan'  => 'Auto-posting: Service kendaraan ' . ($kendaraan->nopol ?? '-'),
+                    ]);
+                }
+            });
+        } catch (\Throwable $e) {
+            // Rollback: hapus file baru yang sudah terlanjur di-move
+            foreach ($movedFiles as $filePath) {
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+            }
+            // Restore file lama yang sudah terhapus
+            foreach ($deletedFiles as $filePath => $content) {
+                file_put_contents($filePath, $content);
+            }
+            throw $e;
         }
 
         return back()->with('success', 'Data berhasil diupdate.');
@@ -379,20 +600,30 @@ class ServiceHistoryController extends Controller
             'status' => $request->status,
         ]);
 
-        // Sinkron status kendaraan
-        $service->kendaraan->update([
-            'status_kendaraan' => $request->status === 'proses'
-                ? 'service'
-                : 'tersedia',
-        ]);
+        // Sinkron status kendaraan + tanggal_terakhir_service dalam satu call
+        $tanggalSelesai  = $service->tanggal_service
+            ? Carbon::parse($service->tanggal_service)->toDateString()
+            : now()->toDateString();
 
-        // 🔔 Jika status berubah ke 'selesai' → update tanggal_terakhir_service & reset ReminderService
+        $updateKendaraan = [
+            'status_kendaraan' => $request->status === 'proses' ? 'service' : 'tersedia',
+        ];
         if ($request->status === 'selesai') {
-            $tanggalSelesai = $service->tanggal_service ?? now()->toDateString();
-            $service->kendaraan->update([
-                'tanggal_terakhir_service' => $tanggalSelesai,
-            ]);
-            $this->resetReminderService($service->kendaraan, $tanggalSelesai);
+            $updateKendaraan['tanggal_terakhir_service'] = $tanggalSelesai;
+            // Update km dari record service jika ada
+            if ($service->kilometer > 0) {
+                $updateKendaraan['km_terakhir_service'] = $service->kilometer;
+                $updateKendaraan['kilometer_sekarang']  = $service->kilometer;
+            }
+        }
+
+        $kendaraan = $service->kendaraan;
+        $kendaraan->update($updateKendaraan);
+        $kendaraan->refresh();
+
+        // 🔔 Jika status berubah ke 'selesai' → reset ReminderService
+        if ($request->status === 'selesai') {
+            $this->resetReminderService($kendaraan, $tanggalSelesai);
         }
 
         return back()->with('success', 'Status berhasil diperbarui.');
@@ -485,7 +716,8 @@ class ServiceHistoryController extends Controller
     /**
      * Reset ReminderService "Service Rutin" untuk kendaraan setelah service selesai.
      * - Tandai reminder lama (aktif/jatuh_tempo) sebagai 'selesai'.
-     * - Buat reminder baru +3 bulan dari tanggal selesai service.
+     * - Buat reminder baru berdasarkan interval dari kendaraan (limit_km_service atau
+     *   setting default), fallback ke config('service.reminder_interval_bulan', 3).
      */
     private function resetReminderService(Kendaraan $kendaraan, string $tanggalSelesai): void
     {
@@ -495,17 +727,39 @@ class ServiceHistoryController extends Controller
             ->whereIn('status', ['aktif', 'jatuh_tempo'])
             ->update(['status' => 'selesai']);
 
-        // Buat reminder baru +3 bulan dari tanggal selesai service
+        // Tentukan interval dari reminder aktif kendaraan (jika ada),
+        // fallback ke config, fallback ke 3 bulan
+        $reminderAktifTerakhir = ReminderService::where('kendaraan_id', $kendaraan->id)
+            ->where('nama_reminder', 'Service Rutin')
+            ->where('status', 'selesai')
+            ->latest()
+            ->first();
+
+        if ($reminderAktifTerakhir && $reminderAktifTerakhir->interval_nilai > 0) {
+            $intervalNilai  = $reminderAktifTerakhir->interval_nilai;
+            $intervalSatuan = $reminderAktifTerakhir->interval_satuan;
+        } else {
+            $intervalNilai  = (int) config('service.reminder_interval_bulan', 3);
+            $intervalSatuan = 'bulan';
+        }
+
         $tanggalMulai = Carbon::parse($tanggalSelesai);
-        $jatuhTempo   = (clone $tanggalMulai)->addMonths(3);
+
+        $jatuhTempo = match ($intervalSatuan) {
+            'hari'   => (clone $tanggalMulai)->addDays($intervalNilai),
+            'minggu' => (clone $tanggalMulai)->addWeeks($intervalNilai),
+            'tahun'  => (clone $tanggalMulai)->addYears($intervalNilai),
+            default  => (clone $tanggalMulai)->addMonths($intervalNilai),
+        };
+
         $statusReminder = Carbon::today()->gte($jatuhTempo) ? 'jatuh_tempo' : 'aktif';
 
         ReminderService::create([
             'kendaraan_id'         => $kendaraan->id,
             'nama_reminder'        => 'Service Rutin',
             'tanggal_mulai'        => $tanggalMulai->toDateString(),
-            'interval_nilai'       => 3,
-            'interval_satuan'      => 'bulan',
+            'interval_nilai'       => $intervalNilai,
+            'interval_satuan'      => $intervalSatuan,
             'tanggal_jatuh_tempo'  => $jatuhTempo->toDateString(),
             'keterangan'           => 'Auto-reset setelah service selesai pada ' . $tanggalMulai->format('d/m/Y'),
             'status'               => $statusReminder,

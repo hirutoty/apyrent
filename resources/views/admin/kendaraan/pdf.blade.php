@@ -319,7 +319,7 @@
                         <td class="text-center"><strong>Berlaku:</strong> {{ $d->masa_berlaku ?? '-' }}</td>
                         <td class="text-right"><strong>KM:</strong> {{ number_format($d->kilometer_sekarang ?? 0, 0, ',', '.') }}</td>
                         <td class="text-right"><strong>Limit KM:</strong> {{ number_format($d->limit_km_service ?? 0, 0, ',', '.') }}</td>
-                        <td class="text-center"><strong>Limit Bln:</strong> {{ $d->limit_bulan_service ?? '-' }}</td>
+                        <td class="text-center"><strong>Limit Bln:</strong> {{ $d->limit_biaya_bulanan_service ?? '-' }}</td>
                         <td class="text-right"><strong>KM Srv:</strong> {{ number_format($d->km_terakhir_service ?? 0, 0, ',', '.') }}</td>
                         <td class="text-center"><strong>Tgl Srv:</strong> {{ $d->tanggal_terakhir_service ? \Carbon\Carbon::parse($d->tanggal_terakhir_service)->format('d-m-Y') : '-' }}</td>
 
