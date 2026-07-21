@@ -135,7 +135,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -151,38 +151,38 @@
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Kasus <span class="text-red-500">*</span></label>
                 <input type="text" name="kasus" required
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('kasus') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Lawan <span class="text-red-500">*</span></label>
                 <input type="text" name="lawan" required
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('lawan') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Jenis Kasus <span class="text-red-500">*</span></label>
                 <input type="text" name="jenis_kasus" required
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('jenis_kasus') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Pengacara</label>
                 <input type="text" name="pengacara"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pengacara') }}">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal Sidang</label>
                     <input type="date" name="tanggal_sidang"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal_sidang') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                     <select name="status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">-- Pilih Status --</option>
-                        <option value="Proses">Proses</option>
-                        <option value="Mediasi">Mediasi</option>
-                        <option value="Selesai">Selesai</option>
-                        <option value="Menunggu">Menunggu</option>
+                        <option value="Proses" {{ old('status') == 'Proses' ? 'selected' : '' }}>Proses</option>
+                        <option value="Mediasi" {{ old('status') == 'Mediasi' ? 'selected' : '' }}>Mediasi</option>
+                        <option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
+                        <option value="Menunggu" {{ old('status') == 'Menunggu' ? 'selected' : '' }}>Menunggu</option>
                     </select>
                 </div>
             </div>
@@ -208,37 +208,37 @@
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Kasus</label>
                 <input type="text" name="kasus" id="edit_kasus" required
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('kasus') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Lawan</label>
                 <input type="text" name="lawan" id="edit_lawan" required
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('lawan') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Jenis Kasus</label>
                 <input type="text" name="jenis_kasus" id="edit_jenis_kasus" required
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('jenis_kasus') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Pengacara</label>
                 <input type="text" name="pengacara" id="edit_pengacara"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pengacara') }}">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal Sidang</label>
                     <input type="date" name="tanggal_sidang" id="edit_tanggal_sidang"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal_sidang') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
                     <select name="status" id="edit_status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Proses">Proses</option>
-                        <option value="Mediasi">Mediasi</option>
-                        <option value="Selesai">Selesai</option>
-                        <option value="Menunggu">Menunggu</option>
+                        <option value="Proses" {{ old('status') == 'Proses' ? 'selected' : '' }}>Proses</option>
+                        <option value="Mediasi" {{ old('status') == 'Mediasi' ? 'selected' : '' }}>Mediasi</option>
+                        <option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
+                        <option value="Menunggu" {{ old('status') == 'Menunggu' ? 'selected' : '' }}>Menunggu</option>
                     </select>
                 </div>
             </div>
@@ -253,7 +253,7 @@
 </div>
 
 @endsection
-<div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+<div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
 @push('scripts')
 <script>
 function openModal() { document.getElementById('modalCreate').classList.remove('hidden'); }
@@ -277,5 +277,13 @@ function openEdit(id) {
 
 );
 }
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endpush

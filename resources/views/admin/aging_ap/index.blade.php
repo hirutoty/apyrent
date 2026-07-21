@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Aging AP')
 
@@ -269,19 +269,19 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Vendor <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="vendor" id="add_vendor" required placeholder="Nama vendor"
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value="{{ old('vendor') }}">
                     </div>
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Jatuh Tempo <span
                                 class="text-red-500">*</span></label>
                         <input type="date" name="jatuh_tempo" id="add_jatuh_tempo" required
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value="{{ old('jatuh_tempo') }}">
                     </div>
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Jumlah <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="jumlah" id="add_jumlah" required placeholder="0"
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value="{{ old('jumlah') }}">
                     </div>
 
                 </div>
@@ -321,7 +321,7 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Vendor <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="vendor" id="vendor" required placeholder="Nama vendor"
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value="{{ old('vendor') }}">
                     </div>
 
                     {{-- Jatuh Tempo --}}
@@ -329,7 +329,7 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Tanggal Jatuh Tempo <span
                                 class="text-red-500">*</span></label>
                         <input type="date" name="jatuh_tempo" id="jatuh_tempo" required
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value="{{ old('jatuh_tempo') }}">
                     </div>
 
                     {{-- Jumlah --}}
@@ -337,7 +337,7 @@
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Jumlah <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="jumlah" id="jumlah" required placeholder="0"
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value="{{ old('jumlah') }}">
                     </div>
 
                 </div>
@@ -455,7 +455,15 @@
             }
             window.closeAlert = closeAlert;
         })();
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 
     {{-- STYLE --}}
     <style>

@@ -137,7 +137,7 @@
                             <tr class="border-t border-gray-50 {{ $p->isExpired ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50' }} transition-colors">
 
                             <td class="px-4 py-3.5 text-gray-400 text-xs">
-                                    {{ $loop->iteration + ($penawarans->firstItem() - 1) }}
+                                    {{ $penawarans->firstItem() + $loop->index }}
                                 </td>
                                 <td class="px-4 py-3.5" data-col="col-nopenawaran">
                                     <span class="font-mono text-xs font-semibold text-blue-700">{{ $p->no_penawaran }}</span>
@@ -306,17 +306,17 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
                         <div>
                             <label>Kepada</label>
-                            <input type="text" name="kepada" class="w-full border rounded-lg p-2 mt-1">
+                            <input type="text" name="kepada" value="{{ old('kepada') }}" class="w-full border rounded-lg p-2 mt-1">
                         </div>
                         <div>
                             <label>UP</label>
-                            <input type="text" name="up" class="w-full border rounded-lg p-2 mt-1">
+                            <input type="text" name="up" value="{{ old('up') }}" class="w-full border rounded-lg p-2 mt-1">
                         </div>
                     </div>
 
                     <div class="mt-4">
                         <label>Perihal</label>
-                        <input type="text" name="perihal" class="w-full border rounded-lg p-2 mt-1">
+                        <input type="text" name="perihal" value="{{ old('perihal') }}" class="w-full border rounded-lg p-2 mt-1">
                     </div>
 
                     <hr class="my-6">
@@ -324,31 +324,31 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label>Customer</label>
-                            <input type="text" name="customer_name" class="w-full border rounded-lg p-2 mt-1"
+                            <input type="text" name="customer_name" value="{{ old('customer_name') }}" class="w-full border rounded-lg p-2 mt-1"
                                 required>
                         </div>
 
                         <div>
                             <label>Contact Person</label>
-                            <input type="number" name="contact_person" class="w-full border rounded-lg p-2 mt-1">
+                            <input type="number" name="contact_person" value="{{ old('contact_person') }}" class="w-full border rounded-lg p-2 mt-1">
                         </div>
 
                         <div>
                             <label>Email Person</label>
-                            <input type="email" name="email_person" class="w-full border rounded-lg p-2 mt-1">
+                            <input type="email" name="email_person" value="{{ old('email_person') }}" class="w-full border rounded-lg p-2 mt-1">
                         </div>
 
                         <div>
                             <label>Alamat</label>
-                            <textarea name="alamat" rows="3" class="w-full border rounded-lg p-2 mt-1"></textarea>
+                            <textarea name="alamat" rows="3" class="w-full border rounded-lg p-2 mt-1">{{ old('alamat') }}</textarea>
                         </div>
 
                         <div>
                             <label>Jenis Pelanggan</label>
                             <select name="jenis_pelanggan" class="w-full border rounded-lg p-2 mt-1">
                                 <option value="">-- Pilih Jenis Pelanggan --</option>
-                                <option value="perorangan">Perorangan</option>
-                                <option value="perusahaan">Perusahaan</option>
+                                <option value="perorangan" {{ old('jenis_pelanggan') == 'perorangan' ? 'selected' : '' }}>Perorangan</option>
+                                <option value="perusahaan" {{ old('jenis_pelanggan') == 'perusahaan' ? 'selected' : '' }}>Perusahaan</option>
                             </select>
                         </div>
                     </div>
@@ -952,6 +952,14 @@
             modalTambah.addEventListener('click', e => {
                 if (e.target === modalTambah) closeTambah();
             });
+
+            // Auto-reopen modal tambah on validation error
+            @if ($errors->any() && !session('success'))
+            document.addEventListener('DOMContentLoaded', function() {
+                modalTambah.classList.remove('hidden');
+                modalTambah.classList.add('flex');
+            });
+            @endif
 
             function tambahBaris() {
                 itemContainer.appendChild(template.content.cloneNode(true));

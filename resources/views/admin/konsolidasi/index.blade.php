@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Laporan Keuangan')
 
@@ -266,7 +266,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Perusahaan <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_perusahaan" required placeholder="Masukkan nama perusahaan"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_perusahaan') }}">
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -274,13 +274,13 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pendapatan <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="pendapatan" required placeholder="0"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pendapatan') }}">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Beban <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="beban" required placeholder="0"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('beban') }}">
                     </div>
                 </div>
 
@@ -288,7 +288,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Periode <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="periode" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('periode') }}">
                 </div>
 
                 <div class="flex gap-3 pt-1">
@@ -334,7 +334,7 @@
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_perusahaan" id="edit_nama_perusahaan" required
                         placeholder="Masukkan nama perusahaan"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_perusahaan') }}">
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -342,13 +342,13 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pendapatan <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="pendapatan" id="edit_pendapatan" required placeholder="0"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pendapatan') }}">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Beban <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="beban" id="edit_beban" required placeholder="0"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('beban') }}">
                     </div>
                 </div>
 
@@ -356,7 +356,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Periode <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="periode" id="edit_periode" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('periode') }}">
                 </div>
 
                 <div class="flex gap-3 pt-1">
@@ -552,6 +552,14 @@ function filterTable(q) {
             }
             window.closeAlert = closeAlert;
         })();
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 
 @endsection

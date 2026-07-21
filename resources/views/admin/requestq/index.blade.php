@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Request for Quotation')
 
@@ -232,64 +232,64 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal RFQ <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_rfq" id="f_tanggal_rfq" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_rfq') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Vendor <span class="text-red-500">*</span></label>
                     <input type="text" name="vendor" id="f_vendor" required placeholder="Nama vendor"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('vendor') }}">
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Barang <span class="text-red-500">*</span></label>
                     <input type="text" name="kode_barang" id="f_kode_barang" required placeholder="BRG-001"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode_barang') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Barang <span class="text-red-500">*</span></label>
                     <input type="text" name="nama_barang" id="f_nama_barang" required placeholder="Nama barang"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_barang') }}">
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kuantitas <span class="text-red-500">*</span></label>
                     <input type="number" min="1" name="kuantitas" id="f_kuantitas" required placeholder="100"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kuantitas') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Satuan <span class="text-red-500">*</span></label>
                     <input type="text" name="satuan" id="f_satuan" required placeholder="pcs"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('satuan') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Estimasi <span class="text-red-500">*</span></label>
                     <input type="number" min="0" name="harga_estimasi" id="f_harga_estimasi" required placeholder="50000"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('harga_estimasi') }}">
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Kirim <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_kirim" id="f_tanggal_kirim" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_kirim') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
                     <select name="status_rfq" id="f_status_rfq" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih Status -</option>
-                        <option value="Open">Open</option>
-                        <option value="Sent">Sent</option>
-                        <option value="Closed">Closed</option>
+                        <option value="Open" {{ old('status_rfq') == 'Open' ? 'selected' : '' }}>Open</option>
+                        <option value="Sent" {{ old('status_rfq') == 'Sent' ? 'selected' : '' }}>Sent</option>
+                        <option value="Closed" {{ old('status_rfq') == 'Closed' ? 'selected' : '' }}>Closed</option>
                     </select>
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan</label>
                 <textarea name="catatan" id="f_catatan" rows="3" placeholder="Catatan tambahan..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('catatan') }}</textarea>
             </div>
             <button type="submit"
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
@@ -428,5 +428,13 @@ new Chart(document.getElementById('statusChart'), {
     function closeAlert(){ clearTimeout(t); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
     window.closeAlert=closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endsection

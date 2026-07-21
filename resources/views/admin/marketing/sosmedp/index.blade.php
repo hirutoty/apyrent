@@ -59,7 +59,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->id_kampanye }}</td>
                         <td class="px-4 py-3.5"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{{ $d->channel }}</span></td>
                         <td class="px-4 py-3.5 text-xs text-gray-600">{{ $d->utm_source }}</td>
@@ -91,7 +91,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 <div id="mainModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30" style="backdrop-filter:blur(2px)">
@@ -104,7 +104,7 @@
             @csrf<div id="methodContainer"></div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">ID Kampanye <span class="text-red-500">*</span></label>
-                <input type="text" name="id_kampanye" id="f_id_kampanye" required placeholder="SMP001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="id_kampanye" id="f_id_kampanye" required placeholder="SMP001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('id_kampanye') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Channel <span class="text-red-500">*</span></label>
                 <select name="channel" id="f_channel" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">- Pilih -</option><option>Instagram</option><option>Facebook</option><option>TikTok</option><option>Twitter/X</option><option>YouTube</option>
@@ -112,23 +112,23 @@
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">UTM Source <span class="text-red-500">*</span></label>
-                <input type="text" name="utm_source" id="f_utm_source" required placeholder="instagram" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="utm_source" id="f_utm_source" required placeholder="instagram" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('utm_source') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">UTM Campaign <span class="text-red-500">*</span></label>
-                <input type="text" name="utm_campaign" id="f_utm_campaign" required placeholder="promo_july_2026" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="utm_campaign" id="f_utm_campaign" required placeholder="promo_july_2026" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('utm_campaign') }}"</div>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Klik <span class="text-red-500">*</span></label>
-                <input type="number" name="klik" id="f_klik" required min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="klik" id="f_klik" required min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('klik') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Konversi <span class="text-red-500">*</span></label>
-                <input type="number" name="konversi" id="f_konversi" required min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="konversi" id="f_konversi" required min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('konversi') }}"</div>
             </div>
             <div class="grid grid-cols-3 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Total Biaya <span class="text-red-500">*</span></label>
-                <input type="number" name="total_biaya" id="f_total_biaya" required min="0" step="0.01" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="total_biaya" id="f_total_biaya" required min="0" step="0.01" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('total_biaya') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Total Penjualan <span class="text-red-500">*</span></label>
-                <input type="number" name="total_penjualan" id="f_total_penjualan" required min="0" step="0.01" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="total_penjualan" id="f_total_penjualan" required min="0" step="0.01" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('total_penjualan') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">ROI (%) <span class="text-red-500">*</span></label>
-                <input type="number" name="roi" id="f_roi" required step="0.01" placeholder="0.00" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="roi" id="f_roi" required step="0.01" placeholder="0.00" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('roi') }}"</div>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"><i class="fa fa-save"></i> Simpan</button>
         </form>
@@ -169,5 +169,16 @@ function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.clas
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
 
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endsection

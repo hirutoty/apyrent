@@ -57,7 +57,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->segment_code }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800">{{ $d->segment_name }}</td>
                         <td class="px-4 py-3.5 text-xs text-gray-600 max-w-xs">{{ Str::limit($d->segmentation_criteria, 50) }}</td>
@@ -88,7 +88,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -102,19 +102,19 @@
             @csrf<div id="methodContainer"></div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Segmen <span class="text-red-500">*</span></label>
-                <input type="text" name="segment_code" id="f_segment_code" required placeholder="SEG001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="segment_code" id="f_segment_code" required placeholder="SEG001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('segment_code') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Jumlah Pelanggan <span class="text-red-500">*</span></label>
-                <input type="number" name="customer_count" id="f_customer_count" required min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="customer_count" id="f_customer_count" required min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('customer_count') }}"</div>
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Segmen <span class="text-red-500">*</span></label>
-            <input type="text" name="segment_name" id="f_segment_name" required placeholder="Nama segmen" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+            <input type="text" name="segment_name" id="f_segment_name" required placeholder="Nama segmen" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('segment_name') }}"</div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Kriteria Segmentasi <span class="text-red-500">*</span></label>
-            <textarea name="segmentation_criteria" id="f_segmentation_criteria" rows="3" required placeholder="Jelaskan kriteria segmen..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea></div>
+            <textarea name="segmentation_criteria" id="f_segmentation_criteria" rows="3" required placeholder="Jelaskan kriteria segmen..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('segmentation_criteria') }}</textarea></div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Campaign Goal</label>
-            <input type="text" name="campaign_goal" id="f_campaign_goal" placeholder="Contoh: Retain & Upsell" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+            <input type="text" name="campaign_goal" id="f_campaign_goal" placeholder="Contoh: Retain & Upsell" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('campaign_goal') }}"</div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
             <select name="status" id="f_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                <option value="">- Pilih -</option><option value="Aktif">Aktif</option><option value="Tidak Aktif">Tidak Aktif</option>
+                <option value="">- Pilih -</option><option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option><option value="Tidak Aktif" {{ old('status') == 'Tidak Aktif' ? 'selected' : '' }}>Tidak Aktif</option>
             </select></div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                 <i class="fa fa-save"></i> Simpan Data</button>
@@ -163,5 +163,16 @@ function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.clas
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
 
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endsection

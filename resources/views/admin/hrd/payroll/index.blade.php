@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Payroll')
 @section('content')
 <div class="space-y-6">
@@ -118,48 +118,48 @@
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pegawai <span class="text-red-500">*</span></label>
                 <input type="text" name="nama_pegawai" id="f_nama_pegawai" required placeholder="Nama lengkap"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_pegawai') }}"
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Gaji Pokok <span class="text-red-500">*</span></label>
                     <input type="number" name="gaji_pokok" id="f_gaji_pokok" required min="0" step="0.01" placeholder="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('gaji_pokok') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tunjangan <span class="text-red-500">*</span></label>
                     <input type="number" name="tunjangan" id="f_tunjangan" required min="0" step="0.01" placeholder="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tunjangan') }}"
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">THR <span class="text-red-500">*</span></label>
                     <input type="number" name="thr" id="f_thr" required min="0" step="0.01" placeholder="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('thr') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">BPJS <span class="text-red-500">*</span></label>
                     <input type="number" name="bpjs" id="f_bpjs" required min="0" step="0.01" placeholder="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('bpjs') }}"
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPh21 <span class="text-red-500">*</span></label>
                     <input type="number" name="pph21" id="f_pph21" required min="0" step="0.01" placeholder="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pph21') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Total Gaji <span class="text-red-500">*</span></label>
                     <input type="number" name="total_gaji" id="f_total_gaji" required min="0" step="0.01" placeholder="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('total_gaji') }}"
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Slip Gaji</label>
                 <input type="text" name="slip_gaji" id="f_slip_gaji" placeholder="Keterangan slip (opsional)"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('slip_gaji') }}"
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                 <i class="fa fa-save text-sm"></i> Simpan Data
@@ -225,5 +225,16 @@ function onPerPageChange(v){cp=v==='all'?Infinity:parseInt(v);renderTable();}
 function renderTable(){if(!allRows.length)return;const m=allRows.filter(r=>r.dataset.search.includes(cs));let s=0;allRows.forEach(r=>r.style.display='none');m.forEach(r=>{if(s<cp){r.style.display='';s++;}});entriesInfo.innerText=m.length===0?'Tidak ada data':`Menampilkan ${s} dari ${m.length} entri`+(cs?' (hasil pencarian)':'');}
 document.addEventListener('DOMContentLoaded',renderTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endsection

@@ -304,6 +304,11 @@ class GpsKendaraanController extends Controller
 
         $gpsKendaraan = GpsKendaraan::findOrFail($id);
 
+        // Cek: masa berlaku masih > 30 hari ke depan, perpanjangan belum diperlukan
+        if ($gpsKendaraan->tanggal_habis && Carbon::parse($gpsKendaraan->tanggal_habis)->diffInDays(now(), false) < -30) {
+            return back()->with('error', 'Masa berlaku GPS masih panjang (> 30 hari), perpanjangan belum diperlukan.');
+        }
+
         // --- Hitung tanggal standar ---
         // tanggal_bayar (dari request, default hari ini) → tanggal_pasang baru
         $tanggalBayar  = $request->filled('tanggal_bayar')

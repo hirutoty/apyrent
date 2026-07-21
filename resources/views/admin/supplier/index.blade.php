@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Supplier')
 
@@ -234,14 +234,14 @@
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_supplier" id="f_nama_supplier" required
                         placeholder="Contoh: CV Maju Jaya"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_supplier') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Telp <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="no_telp" id="f_no_telp" required placeholder="08xx-xxxx-xxxx"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('no_telp') }}">
                 </div>
 
                 <div>
@@ -249,7 +249,7 @@
                             class="text-red-500">*</span></label>
                     <input type="text" name="nama_barang" id="f_nama_barang" required
                         placeholder="Contoh: Kabel HDMI 2m"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_barang') }}">
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -258,14 +258,14 @@
                                 class="text-red-500">*</span></label>
                         <input type="number" name="jumlah_barang" id="f_jumlah_barang" required min="1"
                             placeholder="0"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jumlah_barang') }}">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Barang <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="harga_barang" id="f_harga_barang" required min="0"
                             placeholder="0"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('harga_barang') }}">
                     </div>
                 </div>
 
@@ -416,6 +416,14 @@
             }
             window.closeAlert = closeAlert;
         })();
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 
 @endsection

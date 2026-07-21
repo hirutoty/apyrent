@@ -328,7 +328,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 
 </div>

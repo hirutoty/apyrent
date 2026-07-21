@@ -118,7 +118,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -135,33 +135,33 @@
                 <label class="block text-xs font-medium text-gray-700 mb-1">Jenis <span class="text-red-500">*</span></label>
                 <input type="text" name="jenis" required
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="Contoh: SIUP, TDP, Sertifikat ISO...">
+                    placeholder="Contoh: SIUP, TDP, Sertifikat ISO..." value="{{ old('jenis') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Nomor <span class="text-red-500">*</span></label>
                 <input type="text" name="nomor" required
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="Nomor sertifikat / izin">
+                    placeholder="Nomor sertifikat / izin" value="{{ old('nomor') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Instansi <span class="text-red-500">*</span></label>
                 <input type="text" name="instansi" required
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="Instansi penerbit">
+                    placeholder="Instansi penerbit" value="{{ old('instansi') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Berlaku Hingga</label>
                 <input type="text" name="berlaku_hingga"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="Contoh: 31/12/2025 atau Tidak Kadaluarsa">
+                    placeholder="Contoh: 31/12/2025 atau Tidak Kadaluarsa" value="{{ old('berlaku_hingga') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                 <select name="status" required
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                     <option value="">-- Pilih Status --</option>
-                    <option value="Aktif">Aktif</option>
-                    <option value="Kadaluarsa">Kadaluarsa</option>
+                    <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                    <option value="Kadaluarsa" {{ old('status') == 'Kadaluarsa' ? 'selected' : '' }}>Kadaluarsa</option>
                 </select>
             </div>
             <div class="flex justify-end gap-2 pt-2">
@@ -186,29 +186,29 @@
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Jenis</label>
                 <input type="text" name="jenis" id="edit_jenis" required
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('jenis') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Nomor</label>
                 <input type="text" name="nomor" id="edit_nomor" required
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nomor') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Instansi</label>
                 <input type="text" name="instansi" id="edit_instansi" required
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('instansi') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Berlaku Hingga</label>
                 <input type="text" name="berlaku_hingga" id="edit_berlaku_hingga"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('berlaku_hingga') }}">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
                 <select name="status" id="edit_status" required
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                    <option value="Aktif">Aktif</option>
-                    <option value="Kadaluarsa">Kadaluarsa</option>
+                    <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                    <option value="Kadaluarsa" {{ old('status') == 'Kadaluarsa' ? 'selected' : '' }}>Kadaluarsa</option>
                 </select>
             </div>
             <div class="flex justify-end gap-2 pt-2">
@@ -222,7 +222,7 @@
 </div>
 
 @endsection
-<div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+<div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
 @push('scripts')
 <script>
 function openModal() { document.getElementById('modalCreate').classList.remove('hidden'); }
@@ -245,5 +245,13 @@ function openEdit(id) {
 
 );
 }
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endpush

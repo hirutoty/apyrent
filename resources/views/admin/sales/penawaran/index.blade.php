@@ -92,7 +92,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->no_quotation }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->pelanggan }}</td>
                         <td class="px-4 py-3.5 text-gray-700 text-xs">{{ $d->produk_jasa }}</td>
@@ -141,7 +141,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -157,44 +157,44 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">No. Quotation <span class="text-red-500">*</span></label>
-                    <input type="text" name="no_quotation" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="QUO-001">
+                    <input type="text" name="no_quotation" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="QUO-001" value="{{ old('no_quotation') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Pelanggan <span class="text-red-500">*</span></label>
-                    <input type="text" name="pelanggan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="pelanggan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pelanggan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Produk/Jasa <span class="text-red-500">*</span></label>
-                    <input type="text" name="produk_jasa" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="produk_jasa" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('produk_jasa') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Jumlah <span class="text-red-500">*</span></label>
-                    <input type="number" name="jumlah" required min="1" oninput="calcTotal()" id="jumlah" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="jumlah" required min="1" oninput="calcTotal()" id="jumlah" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('jumlah') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Harga Satuan <span class="text-red-500">*</span></label>
-                    <input type="number" name="harga_satuan" required min="0" oninput="calcTotal()" id="harga_satuan" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="harga_satuan" required min="0" oninput="calcTotal()" id="harga_satuan" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('harga_satuan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Total Harga <span class="text-red-500">*</span></label>
-                    <input type="number" name="total_harga" required min="0" id="total_harga" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50">
+                    <input type="number" name="total_harga" required min="0" id="total_harga" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50" value="{{ old('total_harga') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Valid Sampai <span class="text-red-500">*</span></label>
-                    <input type="date" name="valid_sampai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="valid_sampai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('valid_sampai') }}"
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                     <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">-- Pilih --</option>
-                        <option value="Draft">Draft</option>
-                        <option value="Terkirim">Terkirim</option>
-                        <option value="Disetujui">Disetujui</option>
-                        <option value="Ditolak">Ditolak</option>
+                        <option value="Draft" {{ old('status') == 'Draft' ? 'selected' : '' }}>Draft</option>
+                        <option value="Terkirim" {{ old('status') == 'Terkirim' ? 'selected' : '' }}>Terkirim</option>
+                        <option value="Disetujui" {{ old('status') == 'Disetujui' ? 'selected' : '' }}>Disetujui</option>
+                        <option value="Ditolak" {{ old('status') == 'Ditolak' ? 'selected' : '' }}>Ditolak</option>
                     </select>
                 </div>
             </div>
@@ -218,43 +218,43 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">No. Quotation <span class="text-red-500">*</span></label>
-                    <input type="text" name="no_quotation" id="edit_no_quotation" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="no_quotation" id="edit_no_quotation" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('no_quotation') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" id="edit_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="tanggal" id="edit_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Pelanggan <span class="text-red-500">*</span></label>
-                    <input type="text" name="pelanggan" id="edit_pelanggan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="pelanggan" id="edit_pelanggan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pelanggan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Produk/Jasa <span class="text-red-500">*</span></label>
-                    <input type="text" name="produk_jasa" id="edit_produk_jasa" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="produk_jasa" id="edit_produk_jasa" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('produk_jasa') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Jumlah <span class="text-red-500">*</span></label>
-                    <input type="number" name="jumlah" id="edit_jumlah" required min="1" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="jumlah" id="edit_jumlah" required min="1" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('jumlah') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Harga Satuan <span class="text-red-500">*</span></label>
-                    <input type="number" name="harga_satuan" id="edit_harga_satuan" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="harga_satuan" id="edit_harga_satuan" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('harga_satuan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Total Harga <span class="text-red-500">*</span></label>
-                    <input type="number" name="total_harga" id="edit_total_harga" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="total_harga" id="edit_total_harga" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('total_harga') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Valid Sampai <span class="text-red-500">*</span></label>
-                    <input type="date" name="valid_sampai" id="edit_valid_sampai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="valid_sampai" id="edit_valid_sampai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('valid_sampai') }}"
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                     <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Draft">Draft</option>
-                        <option value="Terkirim">Terkirim</option>
-                        <option value="Disetujui">Disetujui</option>
-                        <option value="Ditolak">Ditolak</option>
+                        <option value="Draft" {{ old('status') == 'Draft' ? 'selected' : '' }}>Draft</option>
+                        <option value="Terkirim" {{ old('status') == 'Terkirim' ? 'selected' : '' }}>Terkirim</option>
+                        <option value="Disetujui" {{ old('status') == 'Disetujui' ? 'selected' : '' }}>Disetujui</option>
+                        <option value="Ditolak" {{ old('status') == 'Ditolak' ? 'selected' : '' }}>Ditolak</option>
                     </select>
                 </div>
             </div>
@@ -356,6 +356,17 @@ function closeEditModal() {
     function closeAlert(){ clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
     window.closeAlert = closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endif
 @endsection

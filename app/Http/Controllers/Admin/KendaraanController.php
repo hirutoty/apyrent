@@ -26,7 +26,8 @@ class KendaraanController extends Controller
     ")
             ->with('jenis')
             ->groupBy('merk', 'jenis_id')
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         $totalKendaraan  = Kendaraan::count();
         $totalTersedia   = Kendaraan::where('status_kendaraan', 'tersedia')->count();
@@ -34,9 +35,8 @@ class KendaraanController extends Controller
 
         $jenis = Jenis::all();
         $members = Member::orderBy('nama')->get();
-        $kendaraanDetail = Kendaraan::with(['user', 'jenis', 'member'])->latest()->paginate(15)->withQueryString();
 
-        return view('admin.kendaraan.index', compact('data', 'jenis', 'members', 'kendaraanDetail', 'totalKendaraan', 'totalTersedia', 'totalHabis'));
+        return view('admin.kendaraan.index', compact('data', 'jenis', 'members', 'totalKendaraan', 'totalTersedia', 'totalHabis'));
     }
 
 

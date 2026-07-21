@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Buku Besar')
 
@@ -665,14 +665,14 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Jurnal <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="kode_jurnal" required placeholder="Contoh: JU-001"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode_jurnal') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Transaksi <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="transaksi" required placeholder="Nama transaksi"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('transaksi') }}">
                 </div>
 
                 <div>
@@ -681,11 +681,11 @@
                     <select name="kategori" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Kategori --</option>
-                        <option value="Pendapatan">Pendapatan</option>
-                        <option value="Beban">Beban</option>
-                        <option value="Aktiva">Aktiva</option>
-                        <option value="Modal">Modal</option>
-                        <option value="Kewajiban">Kewajiban</option>
+                        <option value="Pendapatan" {{ old('kategori') == 'Pendapatan' ? 'selected' : '' }}>Pendapatan</option>
+                        <option value="Beban" {{ old('kategori') == 'Beban' ? 'selected' : '' }}>Beban</option>
+                        <option value="Aktiva" {{ old('kategori') == 'Aktiva' ? 'selected' : '' }}>Aktiva</option>
+                        <option value="Modal" {{ old('kategori') == 'Modal' ? 'selected' : '' }}>Modal</option>
+                        <option value="Kewajiban" {{ old('kategori') == 'Kewajiban' ? 'selected' : '' }}>Kewajiban</option>
                     </select>
                 </div>
 
@@ -693,7 +693,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="tanggal" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal') }}">
                 </div>
 
                 <div>
@@ -721,14 +721,14 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Aktivitas <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="aktivitas" required placeholder="Jenis aktivitas"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('aktivitas') }}">
                 </div>
 
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan <span
                             class="text-red-500">*</span></label>
                     <textarea name="keterangan" rows="3" required placeholder="Keterangan tambahan..."
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
                 </div>
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
@@ -774,14 +774,14 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Jurnal <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="kode_jurnal" id="edit_kode_jurnal" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode_jurnal') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Transaksi <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="transaksi" id="edit_transaksi" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('transaksi') }}">
                 </div>
 
                 <div>
@@ -790,11 +790,11 @@
                     <select name="kategori" id="edit_kategori" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Kategori --</option>
-                        <option value="Pendapatan">Pendapatan</option>
-                        <option value="Beban">Beban</option>
-                        <option value="Aktiva">Aktiva</option>
-                        <option value="Modal">Modal</option>
-                        <option value="Kewajiban">Kewajiban</option>
+                        <option value="Pendapatan" {{ old('kategori') == 'Pendapatan' ? 'selected' : '' }}>Pendapatan</option>
+                        <option value="Beban" {{ old('kategori') == 'Beban' ? 'selected' : '' }}>Beban</option>
+                        <option value="Aktiva" {{ old('kategori') == 'Aktiva' ? 'selected' : '' }}>Aktiva</option>
+                        <option value="Modal" {{ old('kategori') == 'Modal' ? 'selected' : '' }}>Modal</option>
+                        <option value="Kewajiban" {{ old('kategori') == 'Kewajiban' ? 'selected' : '' }}>Kewajiban</option>
                     </select>
                 </div>
 
@@ -802,42 +802,42 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="tanggal" id="edit_tanggal" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Debit <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="debit" id="edit_debit" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('debit') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kredit <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="kredit" id="edit_kredit" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kredit') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Saldo <span
                             class="text-red-500">*</span></label>
                     <input type="number" name="saldo" id="edit_saldo" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('saldo') }}">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Aktivitas <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="aktivitas" id="edit_aktivitas" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('aktivitas') }}">
                 </div>
 
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan <span
                             class="text-red-500">*</span></label>
                     <textarea name="keterangan" id="edit_keterangan" rows="3" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
                 </div>
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
@@ -1031,6 +1031,14 @@
             }
             window.closeAlert = closeAlert;
         })();
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 
 @endsection

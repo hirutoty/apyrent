@@ -356,7 +356,7 @@
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                             <option value="">Pilih Kendaraan</option>
                             @foreach ($kendaraan as $k)
-                                <option value="{{ $k->id }}">{{ $k->nopol }} - {{ $k->merk }}</option>
+                                <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }}>{{ $k->nopol }} - {{ $k->merk }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -364,25 +364,29 @@
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Nama Pemilik <span class="text-red-500">*</span></label>
                         <input type="text" name="nama_pemilik" required placeholder="Nama sesuai STNK"
+                            value="{{ old('nama_pemilik') }}"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Jenis Model <span class="text-red-500">*</span></label>
                         <input type="text" name="jenis_model" required placeholder="Contoh: Minibus"
+                            value="{{ old('jenis_model') }}"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Masa Berlaku <span class="text-red-500">*</span></label>
                         <input type="date" name="masa_berlaku" required
+                            value="{{ old('masa_berlaku') }}"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya <span class="text-red-500">*</span></label>
-                        <input type="text" inputmode="numeric" name="biaya" required placeholder="0" class="format-rupiah"
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="text" inputmode="numeric" name="biaya" required placeholder="0"
+                            value="{{ old('biaya') }}"
+                            class="format-rupiah w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
                     <div class="md:col-span-2">
@@ -673,6 +677,13 @@
 
     {{-- SCRIPT --}}
     <script>
+        // -- AUTO-REOPEN MODAL TAMBAH ON VALIDATION ERROR ---
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            openModalTambah();
+        });
+        @endif
+
         // -- MODAL TAMBAH --------------------------------------
         function openModalTambah() {
             document.getElementById('modalTambah').classList.remove('hidden');

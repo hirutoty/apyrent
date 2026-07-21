@@ -27,12 +27,16 @@ class KirController extends Controller
             $mime    = mime_content_type($logoPath) ?: 'image/png';
             $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
         }
-        $reminder = match ($setting->satuan_reminder) {
-            'hari'    => $setting->batas_reminder,
-            'minggu'  => $setting->batas_reminder * 7,
-            'bulan'   => $setting->batas_reminder * 30,
-            'tahun'   => $setting->batas_reminder * 365,
-            default   => $setting->batas_reminder,
+
+        $satuanReminder = $setting->satuan_reminder ?? 'hari';
+        $batasReminder  = $setting->batas_reminder  ?? 0;
+
+        $reminder = match ($satuanReminder) {
+            'hari'   => $batasReminder,
+            'minggu' => $batasReminder * 7,
+            'bulan'  => $batasReminder * 30,
+            'tahun'  => $batasReminder * 365,
+            default  => $batasReminder,
         };
 
         return view('admin.kir.index', [
@@ -277,6 +281,11 @@ class KirController extends Controller
      */
     public function perpanjangSemua(Request $request)
     {
+        // Hanya superadmin yang boleh melakukan bulk perpanjangan
+        if (auth()->user()->role !== 'superadmin') {
+            return back()->with('error', 'Anda tidak memiliki akses untuk fitur ini.');
+        }
+
         $request->validate([
             'tanggal_bayar' => 'nullable|date',
             'biaya_default' => 'nullable|numeric|min:0',
@@ -332,6 +341,11 @@ class KirController extends Controller
         ]);
 
         $kir = Kir::findOrFail($id);
+
+        // Cek: masa berlaku masih > 30 hari ke depan, perpanjangan belum diperlukan
+        if ($kir->masa_berlaku && Carbon::parse($kir->masa_berlaku)->diffInDays(now(), false) < -30) {
+            return back()->with('error', 'Masa berlaku KIR masih panjang (> 30 hari), perpanjangan belum diperlukan.');
+        }
 
         // --- Hitung tanggal standar ---
         $tanggalBayar    = $request->filled('tanggal_bayar')

@@ -120,21 +120,8 @@
                 </div>
             </div>
 
-            {{-- FILTER BAR: Show entries + Bulan & Tahun Berakhir --}}
+            {{-- FILTER BAR: Bulan & Tahun Berakhir --}}
             <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-                {{-- Show entries --}}
-                <div class="flex items-center gap-2">
-                    <span>Show</span>
-                    <select id="perPageSelect" onchange="applyFilter()"
-                        class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="5">5</option>
-                        <option value="10" selected>10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="all">All</option>
-                    </select>
-                    <span>entries</span>
-                </div>
 
                 <div class="w-px h-4 bg-gray-200"></div>
 
@@ -183,8 +170,6 @@
                     <i class="fa fa-rotate-left text-[10px]"></i> Reset
                 </button>
 
-                {{-- Entries info --}}
-                <div class="ml-auto text-xs text-gray-400" id="entriesInfo"></div>
             </div>
 
             <div class="overflow-x-auto">
@@ -232,7 +217,7 @@
                                 data-tgl-berakhir="{{ $d->tgl_berakhir ? \Carbon\Carbon::parse($d->tgl_berakhir)->format('Y-m') : '' }}">
 
                                 {{-- No --}}
-                                <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
+                                <td class="px-4 py-3.5 text-gray-400 row-number">{{ $data->firstItem() + $loop->index }}</td>
 
                                 {{-- Kendaraan --}}
                                 <td class="px-4 py-3.5">
@@ -410,11 +395,8 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 px-5 border-t border-gray-100 flex items-center gap-1.5" id="paginationControls"></div>
             </div>
-
-            {{-- Entries info bottom --}}
-            <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfoBottom"></div>
 
         </div>
 
@@ -443,6 +425,7 @@
             <form action="/admin/asuransi-kendaraan" method="POST" enctype="multipart/form-data"
                 class="px-6 py-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                 @csrf
+                <input type="hidden" name="_modal_open" value="tambah">
 
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan <span
@@ -485,6 +468,7 @@
                             class="text-red-500">*</span></label>
                     <input type="date" name="tgl_mulai" id="tgl_mulai" required
                         oninput="hitungTglBerakhirTambah()"
+                        value="{{ old('tgl_mulai') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -816,6 +800,16 @@
             <form id="formPerpanjang" method="POST" enctype="multipart/form-data"
                 class="px-6 py-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                 @csrf
+                <input type="hidden" name="_modal_open" value="perpanjang">
+                {{-- Hidden fields konteks perpanjang (untuk reopen saat validasi gagal) --}}
+                <input type="hidden" name="_perpanjang_id"              id="_perpanjang_id"              value="{{ old('_perpanjang_id') }}">
+                <input type="hidden" name="_perpanjang_asuransi_id"     id="_perpanjang_asuransi_id"     value="{{ old('_perpanjang_asuransi_id') }}">
+                <input type="hidden" name="_perpanjang_jenis_id"        id="_perpanjang_jenis_id"        value="{{ old('_perpanjang_jenis_id') }}">
+                <input type="hidden" name="_perpanjang_nopol"           id="_perpanjang_nopol"           value="{{ old('_perpanjang_nopol') }}">
+                <input type="hidden" name="_perpanjang_merk"            id="_perpanjang_merk"            value="{{ old('_perpanjang_merk') }}">
+                <input type="hidden" name="_perpanjang_durasi"          id="_perpanjang_durasi"          value="{{ old('_perpanjang_durasi') }}">
+                <input type="hidden" name="_perpanjang_biaya"           id="_perpanjang_biaya_ctx"       value="{{ old('_perpanjang_biaya') }}">
+                <input type="hidden" name="_perpanjang_tgl_berakhir_lama" id="_perpanjang_tgl_berakhir_lama" value="{{ old('_perpanjang_tgl_berakhir_lama') }}">
 
                 {{-- Kendaraan (readonly) --}}
                 <div class="md:col-span-2">
@@ -876,7 +870,7 @@
                 {{-- Tanggal Bayar --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar</label>
-                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar" value="{{ now()->format('Y-m-d') }}"
+                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar" value="{{ old('tanggal_bayar', now()->format('Y-m-d')) }}"
                         onchange="syncTanggalMulaiDariBayar()"
                         oninput="syncTanggalMulaiDariBayar()"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
@@ -1170,6 +1164,16 @@
             document.getElementById('perpanjang_biaya').value = biaya;
             document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
+            // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)
+            document.getElementById('_perpanjang_id').value                  = id;
+            document.getElementById('_perpanjang_asuransi_id').value         = asuransi_id;
+            document.getElementById('_perpanjang_jenis_id').value            = jenis_id;
+            document.getElementById('_perpanjang_nopol').value               = nopol;
+            document.getElementById('_perpanjang_merk').value                = merk;
+            document.getElementById('_perpanjang_durasi').value              = durasi;
+            document.getElementById('_perpanjang_biaya_ctx').value           = biaya;
+            document.getElementById('_perpanjang_tgl_berakhir_lama').value   = tglBerakhirLama;
+
             // Hitung tgl_berakhir baru = tgl_berakhir lama + 1 tahun
             if (tglBerakhirLama) {
                 const d = new Date(tglBerakhirLama);
@@ -1184,9 +1188,11 @@
                 document.getElementById('perpanjang_tgl_mulai').value = tglBerakhirLama;
             }
 
-            // Reset tanggal bayar ke hari ini (hanya untuk pencatatan, tidak mempengaruhi tgl_mulai)
-            const tanggalBayarDefault = new Date().toISOString().split('T')[0];
-            document.getElementById('perpanjang_tanggal_bayar').value = tanggalBayarDefault;
+            // tanggal_bayar: jika belum ada nilai dari old(), set ke hari ini
+            if (!document.getElementById('perpanjang_tanggal_bayar').value) {
+                document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
+            }
+
             document.getElementById('perpanjang_durasi').value = '12';
 
             // Reset lampiran & file input
@@ -1217,8 +1223,12 @@
 
         // -- SEARCH / FILTER --------------------------------
         function filterTable(q) {
+            currentAsuransiPage = 1;
             applyFilter(q);
         }
+
+        let currentAsuransiPage = 1;
+        const ASURANSI_PER_PAGE = 10;
 
         function applyFilter(keyword) {
             if (keyword === undefined) {
@@ -1228,12 +1238,10 @@
 
             const filterBulan = document.getElementById('filterBulan').value;
             const filterTahun = document.getElementById('filterTahun').value;
-            const perPageEl   = document.getElementById('perPageSelect');
-            const perPage     = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
+            const perPage     = ASURANSI_PER_PAGE;
 
             const allRows = Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
-            let matched   = [];
-            let nomor     = 1;
+            const matched = [];
 
             allRows.forEach(row => {
                 const matchSearch = row.dataset.search.includes(keyword);
@@ -1247,35 +1255,106 @@
                 if (matchSearch && matchBulan && matchTahun) matched.push(row);
             });
 
-            let shown = 0;
-            matched.forEach(row => {
-                if (shown < perPage) {
+            const total      = matched.length;
+            const totalPages = Math.ceil(total / perPage) || 1;
+            if (currentAsuransiPage > totalPages) currentAsuransiPage = 1;
+
+            const start = (currentAsuransiPage - 1) * perPage;
+            const end   = Math.min(start + perPage, total);
+
+            let num = start + 1;
+            matched.forEach((row, idx) => {
+                if (idx >= start && idx < end) {
                     row.style.display = '';
-                    row.querySelector('td:first-child').textContent = nomor++;
-                    shown++;
+                    const cell = row.querySelector('.row-number');
+                    if (cell) cell.textContent = num++;
                 }
             });
 
-            const infoText = matched.length === 0
-                ? 'Tidak ada data yang cocok'
-                : 'Menampilkan ' + shown + ' dari ' + matched.length + ' entri' +
-                  (keyword || filterBulan || filterTahun ? ' (difilter)' : '');
+            renderAsuransiPagination(totalPages);
+        }
 
-            const topInfo = document.getElementById('entriesInfo');
-            const botInfo = document.getElementById('entriesInfoBottom');
-            if (topInfo) topInfo.innerText = infoText;
-            if (botInfo) botInfo.innerText = infoText;
+        function renderAsuransiPagination(totalPages) {
+            const container = document.getElementById('paginationControls');
+            if (!container) return;
+            container.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const btnBase       = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
+            const activeClass   = 'bg-indigo-600 text-white border-indigo-600';
+            const normalClass   = 'border-gray-200 text-gray-600 hover:bg-gray-50';
+            const disabledClass = 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400';
+
+            const prev = document.createElement('button');
+            prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
+            prev.className = btnBase + ' ' + (currentAsuransiPage === 1 ? disabledClass : normalClass);
+            prev.disabled  = currentAsuransiPage === 1;
+            prev.onclick   = () => { currentAsuransiPage--; applyFilter(); };
+            container.appendChild(prev);
+
+            const range = 2;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentAsuransiPage - range && i <= currentAsuransiPage + range)) {
+                    const btn = document.createElement('button');
+                    btn.textContent = i;
+                    btn.className = btnBase + ' ' + (i === currentAsuransiPage ? activeClass : normalClass);
+                    btn.onclick = (function(page) { return () => { currentAsuransiPage = page; applyFilter(); }; })(i);
+                    container.appendChild(btn);
+                } else if (i === currentAsuransiPage - range - 1 || i === currentAsuransiPage + range + 1) {
+                    const dots = document.createElement('span');
+                    dots.textContent = '…';
+                    dots.className = 'px-1 text-xs text-gray-400';
+                    container.appendChild(dots);
+                }
+            }
+
+            const next = document.createElement('button');
+            next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
+            next.className = btnBase + ' ' + (currentAsuransiPage === totalPages ? disabledClass : normalClass);
+            next.disabled  = currentAsuransiPage === totalPages;
+            next.onclick   = () => { currentAsuransiPage++; applyFilter(); };
+            container.appendChild(next);
         }
 
         function resetFilter() {
             document.getElementById('searchInput').value   = '';
             document.getElementById('filterBulan').value  = '';
             document.getElementById('filterTahun').value  = '';
-            document.getElementById('perPageSelect').value = '10';
+            currentAsuransiPage = 1;
             applyFilter('');
         }
 
-        document.addEventListener('DOMContentLoaded', () => applyFilter(''));
+        document.addEventListener('DOMContentLoaded', () => {
+            applyFilter('');
+
+            // Re-trigger kalkulasi tgl_berakhir di modal Tambah jika tgl_mulai sudah terisi (old())
+            const tglMulaiEl = document.getElementById('tgl_mulai');
+            if (tglMulaiEl && tglMulaiEl.value) {
+                hitungTglBerakhirTambah();
+            }
+
+            @if ($errors->any() && !session('success'))
+                @if (old('_modal_open') === 'perpanjang')
+                    // Reopen modal perpanjang dengan data old()
+                    (function() {
+                        var id             = '{{ old('_perpanjang_id') }}';
+                        var asuransi_id    = '{{ old('_perpanjang_asuransi_id') }}';
+                        var jenis_id       = '{{ old('_perpanjang_jenis_id') }}';
+                        var nopol          = '{{ old('_perpanjang_nopol') }}';
+                        var merk           = '{{ old('_perpanjang_merk') }}';
+                        var durasi         = '{{ old('_perpanjang_durasi') }}';
+                        var biaya          = '{{ old('_perpanjang_biaya') }}';
+                        var tglBerakhirLama = '{{ old('_perpanjang_tgl_berakhir_lama') }}';
+
+                        if (typeof openModalPerpanjang === 'function') {
+                            openModalPerpanjang(id, asuransi_id, jenis_id, nopol, merk, durasi, biaya, tglBerakhirLama);
+                        }
+                    })();
+                @else
+                    openModalTambah();
+                @endif
+            @endif
+        });
 
         // -- POPUP ALERT ------------------------------------
         (function() {

@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Manajemen Vendor')
 
@@ -93,21 +93,8 @@
             </div>
         </div>
 
-        {{-- FILTER BAR: Show entries + Bulan & Tahun --}}
+        {{-- FILTER BAR: Bulan & Tahun --}}
         <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            {{-- Show entries --}}
-            <div class="flex items-center gap-2">
-                <span>Show</span>
-                <select id="perPageSelect" onchange="renderTable()"
-                    class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <option value="5">5</option>
-                    <option value="10" selected>10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="all">All</option>
-                </select>
-                <span>entries</span>
-            </div>
 
             <div class="w-px h-4 bg-gray-200"></div>
 
@@ -285,11 +272,8 @@
                     @endforelse
                 </tbody>
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+            <div class="py-3 px-5 border-t border-gray-100 flex items-center gap-1.5" id="paginationControls"></div>
         </div>
-
-        {{-- ENTRIES INFO --}}
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
 
     </div>
 
@@ -332,7 +316,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Vendor <span class="text-red-500">*</span></label>
                 <input type="text" name="nama_vendor" id="f_nama_vendor" required
                     placeholder="Contoh: PT Tekstil Nusantara"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_vendor') }}">
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -341,19 +325,19 @@
                     <select name="kategori" id="f_kategori" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih Kategori -</option>
-                        <option value="Bahan">Bahan</option>
-                        <option value="Aksesoris">Aksesoris</option>
-                        <option value="Jasa">Jasa</option>
-                        <option value="Mesin & Peralatan">Mesin & Peralatan</option>
-                        <option value="Packaging">Packaging</option>
-                        <option value="Lainnya">Lainnya</option>
+                        <option value="Bahan" {{ old('kategori') == 'Bahan' ? 'selected' : '' }}>Bahan</option>
+                        <option value="Aksesoris" {{ old('kategori') == 'Aksesoris' ? 'selected' : '' }}>Aksesoris</option>
+                        <option value="Jasa" {{ old('kategori') == 'Jasa' ? 'selected' : '' }}>Jasa</option>
+                        <option value="Mesin & Peralatan" {{ old('kategori') == 'Mesin & Peralatan' ? 'selected' : '' }}>Mesin & Peralatan</option>
+                        <option value="Packaging" {{ old('kategori') == 'Packaging' ? 'selected' : '' }}>Packaging</option>
+                        <option value="Lainnya" {{ old('kategori') == 'Lainnya' ? 'selected' : '' }}>Lainnya</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">PIC Vendor <span class="text-red-500">*</span></label>
                     <input type="text" name="pic_vendor" id="f_pic_vendor" required
                         placeholder="Contoh: Sari"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pic_vendor') }}">
                 </div>
             </div>
 
@@ -361,7 +345,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat <span class="text-red-500">*</span></label>
                 <input type="text" name="alamat" id="f_alamat" required
                     placeholder="Contoh: Jl. Industri No. 12, Bandung"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('alamat') }}">
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -369,18 +353,18 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Telp <span class="text-red-500">*</span></label>
                     <input type="number" name="no_telp" id="f_no_telp" required
                         placeholder="Contoh: 0812-3333-8888"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('no_telp') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Rating <span class="text-red-500">*</span></label>
                     <select name="rating" id="f_rating" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih Rating -</option>
-                        <option value="1">1 - Sangat Kurang</option>
-                        <option value="2">2 - Kurang</option>
-                        <option value="3">3 - Cukup</option>
-                        <option value="4">4 - Baik</option>
-                        <option value="5">5 - Sangat Baik</option>
+                        <option value="1" {{ old('rating') == '1' ? 'selected' : '' }}>1 - Sangat Kurang</option>
+                        <option value="2" {{ old('rating') == '2' ? 'selected' : '' }}>2 - Kurang</option>
+                        <option value="3" {{ old('rating') == '3' ? 'selected' : '' }}>3 - Cukup</option>
+                        <option value="4" {{ old('rating') == '4' ? 'selected' : '' }}>4 - Baik</option>
+                        <option value="5" {{ old('rating') == '5' ? 'selected' : '' }}>5 - Sangat Baik</option>
                     </select>
                 </div>
             </div>
@@ -389,7 +373,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Produk/Jasa <span class="text-red-500">*</span></label>
                 <input type="text" name="produk_jasa" id="f_produk_jasa" required
                     placeholder="Contoh: Kain, Furing"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('produk_jasa') }}">
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -398,14 +382,14 @@
                     <select name="status" id="f_status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih Status -</option>
-                        <option value="Aktif">Aktif</option>
-                        <option value="Tidak Aktif">Tidak Aktif</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                        <option value="Tidak Aktif" {{ old('status') == 'Tidak Aktif' ? 'selected' : '' }}>Tidak Aktif</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Terakhir Order</label>
                     <input type="date" name="tanggal_terakhir_order" id="f_tanggal_terakhir_order"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_terakhir_order') }}">
                     <p class="text-[11px] text-gray-400 mt-1">Opsional, kosongkan jika vendor belum pernah order</p>
                 </div>
             </div>
@@ -414,7 +398,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan</label>
                 <textarea name="catatan" id="f_catatan" rows="3"
                     placeholder="Catatan tambahan (opsional)..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('catatan') }}</textarea>
             </div>
 
             <button type="submit"
@@ -591,32 +575,29 @@ deleteModal.addEventListener('click', function (e) {
     if (e.target === deleteModal) closeDeleteModal();
 });
 
-// -- SEARCH + SHOW ENTRIES + FILTER BULAN/TAHUN ----------------
+// -- SEARCH + FILTER BULAN/TAHUN ----------------
 const allRows      = Array.from(document.querySelectorAll('#vendoreoTableBody tr[data-search]'));
-const entriesInfo  = document.getElementById('entriesInfo');
 let currentSearch  = '';
+let currentVendorPage = 1;
+const VENDOR_PER_PAGE = 10;
 
 function onSearchInput(value) {
     currentSearch = value.toLowerCase();
-    renderTable();
-}
-
-function onPerPageChange(value) {
+    currentVendorPage = 1;
     renderTable();
 }
 
 function renderTable() {
     if (allRows.length === 0) return;
 
-    const perPageEl   = document.getElementById('perPageSelect');
-    const perPage     = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
     const filterBulan = document.getElementById('filterBulan').value;
     const filterTahun = document.getElementById('filterTahun').value;
     const filterHari  = document.getElementById('filterHari').value;
+    const perPage     = VENDOR_PER_PAGE;
 
     const matched = allRows.filter(row => {
         const matchSearch = row.dataset.search.includes(currentSearch);
-        const tanggal     = row.dataset.tanggal || '';  // "YYYY-MM-DD"
+        const tanggal     = row.dataset.tanggal || '';
         const [rowYear, rowMonth, rowDay] = tanggal.split('-');
         const matchHari   = !filterHari  || rowDay   === filterHari;
         const matchBulan  = !filterBulan || rowMonth === filterBulan;
@@ -624,34 +605,91 @@ function renderTable() {
         return matchSearch && matchHari && matchBulan && matchTahun;
     });
 
-    let shownCount = 0;
-    allRows.forEach(row => row.style.display = 'none');
+    const total      = matched.length;
+    const totalPages = Math.ceil(total / perPage) || 1;
+    if (currentVendorPage > totalPages) currentVendorPage = 1;
 
-    matched.forEach(row => {
-        if (shownCount < perPage) {
+    const start = (currentVendorPage - 1) * perPage;
+    const end   = Math.min(start + perPage, total);
+
+    allRows.forEach(row => row.style.display = 'none');
+    matched.forEach((row, idx) => {
+        if (idx >= start && idx < end) {
             row.style.display = '';
-            shownCount++;
+            // Nomor baris lanjut dari offset
+            const cell = row.querySelector('td:first-child');
+            if (cell) cell.textContent = start + idx - start + 1 + (currentVendorPage - 1) * perPage;
         }
     });
 
-    const infoText = matched.length === 0
+    // Renumber yang benar
+    let num = start + 1;
+    matched.forEach((row, idx) => {
+        if (idx >= start && idx < end) {
+            const cell = row.querySelector('td:first-child');
+            if (cell) cell.textContent = num++;
+        }
+    });
+
+    const topInfo = document.getElementById('entriesInfoTop');
+    if (topInfo) topInfo.innerText = total === 0
         ? 'Tidak ada data yang cocok'
-        : `Menampilkan ${shownCount} dari ${matched.length} entri` +
+        : `Menampilkan ${start + 1}–${end} dari ${total} entri` +
           (currentSearch || filterHari || filterBulan || filterTahun ? ' (difilter)' : '');
 
-    if (entriesInfo) entriesInfo.innerText = infoText;
-    const topInfo = document.getElementById('entriesInfoTop');
-    if (topInfo) topInfo.innerText = infoText;
+    renderVendorPagination(totalPages);
+}
+
+function renderVendorPagination(totalPages) {
+    const container = document.getElementById('paginationControls');
+    if (!container) return;
+    container.innerHTML = '';
+    if (totalPages <= 1) return;
+
+    const btnBase       = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
+    const activeClass   = 'bg-indigo-600 text-white border-indigo-600';
+    const normalClass   = 'border-gray-200 text-gray-600 hover:bg-gray-50';
+    const disabledClass = 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400';
+
+    const prev = document.createElement('button');
+    prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
+    prev.className = btnBase + ' ' + (currentVendorPage === 1 ? disabledClass : normalClass);
+    prev.disabled  = currentVendorPage === 1;
+    prev.onclick   = () => { currentVendorPage--; renderTable(); };
+    container.appendChild(prev);
+
+    const range = 2;
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentVendorPage - range && i <= currentVendorPage + range)) {
+            const btn = document.createElement('button');
+            btn.textContent = i;
+            btn.className = btnBase + ' ' + (i === currentVendorPage ? activeClass : normalClass);
+            btn.onclick = (function(page) { return () => { currentVendorPage = page; renderTable(); }; })(i);
+            container.appendChild(btn);
+        } else if (i === currentVendorPage - range - 1 || i === currentVendorPage + range + 1) {
+            const dots = document.createElement('span');
+            dots.textContent = '…';
+            dots.className = 'px-1 text-xs text-gray-400';
+            container.appendChild(dots);
+        }
+    }
+
+    const next = document.createElement('button');
+    next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
+    next.className = btnBase + ' ' + (currentVendorPage === totalPages ? disabledClass : normalClass);
+    next.disabled  = currentVendorPage === totalPages;
+    next.onclick   = () => { currentVendorPage++; renderTable(); };
+    container.appendChild(next);
 }
 
 function resetFilter() {
     currentSearch = '';
+    currentVendorPage = 1;
     const searchEl = document.querySelector('input[oninput="onSearchInput(this.value)"]');
     if (searchEl) searchEl.value = '';
     document.getElementById('filterHari').value   = '';
     document.getElementById('filterBulan').value   = '';
     document.getElementById('filterTahun').value   = '';
-    document.getElementById('perPageSelect').value = '10';
     renderTable();
 }
 
@@ -705,6 +743,14 @@ new Chart(document.getElementById('statusChart'), {
     }
     window.closeAlert = closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 
 @endsection

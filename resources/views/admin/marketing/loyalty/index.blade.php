@@ -54,7 +54,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-yellow-600">{{ $d->id_program }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800">{{ $d->nama_program }}</td>
                         <td class="px-4 py-3.5"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">{{ $d->jenis_reward }}</span></td>
@@ -87,7 +87,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -101,27 +101,27 @@
             @csrf<div id="methodContainer"></div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">ID Program <span class="text-red-500">*</span></label>
-                <input type="text" name="id_program" id="f_id_program" required placeholder="LYL001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="id_program" id="f_id_program" required placeholder="LYL001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('id_program') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Reward <span class="text-red-500">*</span></label>
-                <input type="text" name="jenis_reward" id="f_jenis_reward" required placeholder="Poin / Voucher / dll" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="jenis_reward" id="f_jenis_reward" required placeholder="Poin / Voucher / dll" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jenis_reward') }}"</div>
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Program <span class="text-red-500">*</span></label>
-            <input type="text" name="nama_program" id="f_nama_program" required placeholder="Nama program loyalty" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+            <input type="text" name="nama_program" id="f_nama_program" required placeholder="Nama program loyalty" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_program') }}"</div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Akumulasi Poin <span class="text-red-500">*</span></label>
-                <input type="number" name="akumulasi_poin" id="f_akumulasi_poin" required min="0" placeholder="10000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="akumulasi_poin" id="f_akumulasi_poin" required min="0" placeholder="10000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('akumulasi_poin') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Konversi Poin <span class="text-red-500">*</span></label>
-                <input type="number" name="konversi_poin" id="f_konversi_poin" required min="0" placeholder="50000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="konversi_poin" id="f_konversi_poin" required min="0" placeholder="50000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('konversi_poin') }}"</div>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Periode Mulai <span class="text-red-500">*</span></label>
-                <input type="date" name="periode_mulai" id="f_periode_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="date" name="periode_mulai" id="f_periode_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('periode_mulai') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Periode Akhir <span class="text-red-500">*</span></label>
-                <input type="date" name="periode_akhir" id="f_periode_akhir" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="date" name="periode_akhir" id="f_periode_akhir" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('periode_akhir') }}"</div>
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
             <select name="status" id="f_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                <option value="">- Pilih -</option><option value="Aktif">Aktif</option><option value="Nonaktif">Nonaktif</option>
+                <option value="">- Pilih -</option><option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option><option value="Nonaktif" {{ old('status') == 'Nonaktif' ? 'selected' : '' }}>Nonaktif</option>
             </select></div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"><i class="fa fa-save"></i> Simpan</button>
         </form>
@@ -169,5 +169,16 @@ function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.clas
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
 
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endsection

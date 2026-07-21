@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'Data GPS')
 
@@ -172,14 +172,14 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama GPS <span class="text-red-500">*</span></label>
                 <input type="text" name="nama_gps" id="f_nama_gps" required
                     placeholder="Contoh: GT06N, Teltonika FMB920"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_gps') }}">
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat <span class="text-red-500">*</span></label>
                 <textarea name="alamat" id="f_alamat" rows="3" required
                     placeholder="Masukkan alamat lengkap..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('alamat') }}</textarea>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -187,25 +187,25 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Marketing <span class="text-red-500">*</span></label>
                     <input type="text" name="nama_marketing" id="f_nama_marketing" required
                         placeholder="Nama marketing"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_marketing') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Marketing <span class="text-red-500">*</span></label>
                     <input type="number" name="kontak_marketing" id="f_kontak_marketing" required
                         placeholder="08xx-xxxx-xxxx"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kontak_marketing') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bengkel <span class="text-red-500">*</span></label>
                     <input type="text" name="nama_bengkel" id="f_nama_bengkel" required
                         placeholder="Nama bengkel"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_bengkel') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Bengkel <span class="text-red-500">*</span></label>
                     <input type="number" name="kontak_bengkel" id="f_kontak_bengkel" required
                         placeholder="08xx-xxxx-xxxx"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kontak_bengkel') }}">
                 </div>
             </div>
 
@@ -226,7 +226,7 @@
 
 
 {{-- ======================================
-    POPUP ALERT (FIXED OVERLAY — seperti dashboard)
+    POPUP ALERT (FIXED OVERLAY ï¿½ seperti dashboard)
 ======================================--}}
 @if (session('success') || session('error') || $errors->any())
 <div id="alertOverlay"
@@ -348,6 +348,14 @@ function filterGpsTable(q) {
     }
     window.closeAlert = closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 
 @endsection

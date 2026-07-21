@@ -17,12 +17,12 @@ class PurchaseroController extends Controller
         $query = Purchasero::query();
 
         if ($role === 'superadmin') {
-            // Superadmin: tab Diajukan / Disetujui / Ditolak
+            // Superadmin: tab Pending / Diajukan / Disetujui / Ditolak
             $tab = $request->input('tab', 'Diajukan');
-            if (in_array($tab, ['Diajukan', 'Disetujui', 'Ditolak'])) {
+            if (in_array($tab, ['Pending', 'Diajukan', 'Disetujui', 'Ditolak'])) {
                 $query->where('status', $tab);
             } else {
-                $query->whereIn('status', ['Diajukan', 'Disetujui', 'Ditolak']);
+                $query->whereIn('status', ['Pending', 'Diajukan', 'Disetujui', 'Ditolak']);
             }
         } else {
             // Non-superadmin: filter per departemen sesuai role
@@ -125,6 +125,12 @@ class PurchaseroController extends Controller
 
     public function update(Request $request, Purchasero $purchasero)
     {
+        // Guard: PR yang sudah diajukan/disetujui tidak boleh diedit
+        if (in_array($purchasero->status, ['Disetujui', 'Diajukan'])) {
+            return redirect()->route('purchasero.index')
+                ->with('error', 'Pengadaan yang sudah diajukan/disetujui tidak dapat diedit.');
+        }
+
         // Update hanya field konten, departemen & status tidak berubah
         $validated = $this->validateDataStore($request);
         // Pertahankan departemen & status yang sudah ada
@@ -138,6 +144,12 @@ class PurchaseroController extends Controller
 
     public function destroy(Purchasero $purchasero)
     {
+        // Guard: PR yang sudah diajukan/disetujui tidak boleh dihapus
+        if (in_array($purchasero->status, ['Disetujui', 'Diajukan'])) {
+            return redirect()->route('purchasero.index')
+                ->with('error', 'Pengadaan yang sudah diajukan/disetujui tidak dapat dihapus.');
+        }
+
         $purchasero->delete();
 
         return redirect()->route('purchasero.index')

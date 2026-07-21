@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'IT Asset Management')
 @section('content')
 <div class="space-y-6">
@@ -107,26 +107,26 @@
             @csrf <div id="methodContainer"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Asset <span class="text-red-500">*</span></label>
-                    <input type="text" name="kode_aset" id="f_kode_aset" required placeholder="AST-001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="kode_aset" id="f_kode_aset" required placeholder="AST-001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode_aset') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Asset <span class="text-red-500">*</span></label>
-                    <input type="text" name="nama_aset" id="f_nama_aset" required placeholder="Laptop Dell XPS" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="nama_aset" id="f_nama_aset" required placeholder="Laptop Dell XPS" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_aset') }}"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis <span class="text-red-500">*</span></label>
-                    <input type="text" name="jenis" id="f_jenis" required placeholder="Laptop / Printer / Server" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="jenis" id="f_jenis" required placeholder="Laptop / Printer / Server" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jenis') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Lokasi <span class="text-red-500">*</span></label>
-                    <input type="text" name="lokasi" id="f_lokasi" required placeholder="Ruang IT Lt.2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="lokasi" id="f_lokasi" required placeholder="Ruang IT Lt.2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('lokasi') }}"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Pengguna <span class="text-red-500">*</span></label>
-                    <input type="text" name="pengguna" id="f_pengguna" required placeholder="Nama pengguna" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="pengguna" id="f_pengguna" required placeholder="Nama pengguna" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pengguna') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Merek <span class="text-red-500">*</span></label>
-                    <input type="text" name="merek" id="f_merek" required placeholder="Dell / HP / Lenovo" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="merek" id="f_merek" required placeholder="Dell / HP / Lenovo" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('merek') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Tahun Beli <span class="text-red-500">*</span></label>
                     <select name="tahun_beli" id="f_tahun_beli" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Tahun --</option>
                         @for ($y = date('Y'); $y >= 2000; $y--)
-                            <option value="{{ $y }}">{{ $y }}</option>
+                            <option value="{{ $y }}" {{ old('tahun_beli') == $y ? 'selected' : '' }}>{{ $y }}</option>
                         @endfor
                     </select></div>
             </div>
@@ -135,7 +135,7 @@
                     <option value="">- Pilih Status -</option><option>Aktif</option><option>Tidak Aktif</option><option>Rusak</option><option>Disposed</option>
                 </select></div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan</label>
-                <textarea name="catatan" id="f_catatan" rows="2" placeholder="Catatan tambahan..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea></div>
+                <textarea name="catatan" id="f_catatan" rows="2" placeholder="Catatan tambahan..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('catatan') }}</textarea></div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"><i class="fa fa-save"></i> Simpan Data</button>
         </form>
     </div>
@@ -198,6 +198,14 @@ document.addEventListener('DOMContentLoaded',renderTable);
 setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);
 var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});
 function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 </div>
 @endsection

@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'DevOps')
 @section('content')
 <div class="space-y-6">
@@ -100,16 +100,16 @@
             @csrf <div id="methodContainer"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Aplikasi <span class="text-red-500">*</span></label>
-                    <input type="text" name="aplikasi" id="f_aplikasi" required placeholder="API Backend / Frontend" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="aplikasi" id="f_aplikasi" required placeholder="API Backend / Frontend" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('aplikasi') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Tools <span class="text-red-500">*</span></label>
-                    <input type="text" name="tools" id="f_tools" required placeholder="Jenkins / GitHub Actions" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="tools" id="f_tools" required placeholder="Jenkins / GitHub Actions" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tools') }}"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Deployment Otomatis <span class="text-red-500">*</span></label>
                     <select name="deployment_otomatis" id="f_deployment_otomatis" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="">- Pilih -</option><option value="Ya">Ya</option><option value="Tidak">Tidak</option></select></div>
+                        <option value="">- Pilih -</option><option value="Ya" {{ old('deployment_otomatis') == 'Ya' ? 'selected' : '' }}>Ya</option><option value="Tidak" {{ old('deployment_otomatis') == 'Tidak' ? 'selected' : '' }}>Tidak</option></select></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Jadwal Build <span class="text-red-500">*</span></label>
-                    <input type="text" name="jadwal_build" id="f_jadwal_build" required placeholder="Setiap hari / Push" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="jadwal_build" id="f_jadwal_build" required placeholder="Setiap hari / Push" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jadwal_build') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
                     <select name="status" id="f_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih -</option><option>Aktif</option><option>Nonaktif</option></select></div>
@@ -161,6 +161,14 @@ function onSearch(v){currentSearch=v.toLowerCase();renderTable();}
 function renderTable(){const perPage=document.getElementById('perPage').value==='all'?Infinity:parseInt(document.getElementById('perPage').value);const fS=document.getElementById('filterStatus').value;const matched=allRows.filter(r=>r.dataset.search.includes(currentSearch)&&(!fS||r.dataset.status===fS));let shown=0;allRows.forEach(r=>r.style.display='none');matched.forEach(r=>{if(shown<perPage){r.style.display='';shown++;}});const info=matched.length===0?'Tidak ada data':`Menampilkan ${shown} dari ${matched.length} entri`;document.getElementById('entriesInfo').innerText=info;document.getElementById('entriesInfoTop').innerText=info;}
 document.addEventListener('DOMContentLoaded',renderTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 </div>
 @endsection

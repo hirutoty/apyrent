@@ -462,6 +462,7 @@
             <form action="/admin/kir" method="POST" enctype="multipart/form-data"
                 class="px-6 py-5 grid grid-cols-1 gap-4">
                 @csrf
+                <input type="hidden" name="_modal_open" value="tambah">
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan <span
@@ -469,7 +470,7 @@
                     <select name="kendaraan_id" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         @foreach ($kendaraan as $k)
-                            <option value="{{ $k->id }}">{{ $k->nopol }} - {{ $k->merk }}</option>
+                            <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }}>{{ $k->nopol }} - {{ $k->merk }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -478,6 +479,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Uji <span
                             class="text-red-500">*</span></label>
                     <input type="text" name="no_uji" required placeholder="Nomor uji kendaraan"
+                        value="{{ old('no_uji') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -485,6 +487,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Masa Berlaku <span
                             class="text-red-500">*</span></label>
                     <input type="date" name="masa_berlaku" id="tambah_masa_berlaku" required
+                        value="{{ old('masa_berlaku') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -494,6 +497,7 @@
 
                     <input type="text" inputmode="numeric" name="biaya"
                         placeholder="Tambahkan biaya kir"
+                        value="{{ old('biaya') }}"
                         class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                         required>
                 </div>
@@ -671,6 +675,14 @@
             <form id="formPerpanjang" method="POST" enctype="multipart/form-data"
                 class="px-6 py-5 grid grid-cols-1 gap-4">
                 @csrf
+                <input type="hidden" name="_modal_open" value="perpanjang">
+                {{-- Hidden fields konteks perpanjang (untuk reopen saat validasi gagal) --}}
+                <input type="hidden" name="_perpanjang_id"            id="_perpanjang_id"            value="{{ old('_perpanjang_id') }}">
+                <input type="hidden" name="_perpanjang_nopol"         id="_perpanjang_nopol"         value="{{ old('_perpanjang_nopol') }}">
+                <input type="hidden" name="_perpanjang_merk"          id="_perpanjang_merk"          value="{{ old('_perpanjang_merk') }}">
+                <input type="hidden" name="_perpanjang_no_uji"        id="_perpanjang_no_uji"        value="{{ old('_perpanjang_no_uji') }}">
+                <input type="hidden" name="_perpanjang_biaya"         id="_perpanjang_biaya"         value="{{ old('_perpanjang_biaya') }}">
+                <input type="hidden" name="_perpanjang_masa_berlaku_lama" id="_perpanjang_masa_berlaku_lama" value="{{ old('_perpanjang_masa_berlaku_lama') }}">
 
                 {{-- Kendaraan readonly --}}
                 <div>
@@ -702,7 +714,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar</label>
                     <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
-                        value="{{ now()->format('Y-m-d') }}"
+                        value="{{ old('tanggal_bayar', now()->format('Y-m-d')) }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -758,7 +770,7 @@
                         class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
-                    <button type="submit"
+                    <button type="submit" id="btnPerpanjangKir"
                         class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                         <i class="fa fa-rotate-right"></i> Perpanjang KIR
                     </button>
@@ -840,6 +852,29 @@
     </style>
 
     <script>
+        // -- AUTO-REOPEN MODAL PADA VALIDATION ERROR ---
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            @if (old('_modal_open') === 'perpanjang')
+                // Reopen modal perpanjang dengan data old()
+                (function() {
+                    var id               = '{{ old('_perpanjang_id') }}';
+                    var nopol            = '{{ old('_perpanjang_nopol') }}';
+                    var merk             = '{{ old('_perpanjang_merk') }}';
+                    var no_uji           = '{{ old('no_uji') }}';
+                    var biaya            = '{{ old('biaya') }}';
+                    var masaBerlakuLama  = '{{ old('_perpanjang_masa_berlaku_lama') }}';
+
+                    if (typeof openModalPerpanjang === 'function') {
+                        openModalPerpanjang(id, nopol, merk, no_uji, biaya, masaBerlakuLama);
+                    }
+                })();
+            @else
+                openModalTambah();
+            @endif
+        });
+        @endif
+
         // -- MODAL TAMBAH -----------------------------------
         function openModalTambah() {
             var m = document.getElementById('modalTambah');
@@ -960,8 +995,20 @@
             document.getElementById('perpanjang_biaya').value = biaya;
             document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
-            // Set tanggal_bayar = hari ini
-            document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
+            // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)
+            document.getElementById('_perpanjang_id').value                   = id;
+            document.getElementById('_perpanjang_nopol').value                = nopol;
+            document.getElementById('_perpanjang_merk').value                 = merk;
+            document.getElementById('_perpanjang_no_uji').value               = no_uji;
+            document.getElementById('_perpanjang_biaya').value                = biaya;
+            document.getElementById('_perpanjang_masa_berlaku_lama').value    = masaBerlakuLama;
+
+            // tanggal_bayar TIDAK di-reset di sini — sudah pakai old() di value blade
+            // (saat modal pertama kali dibuka dari tombol tabel, value dari old() tidak ada,
+            //  jadi jika tanggal_bayar sudah ada isinya dari old() biarkan, kalau tidak set hari ini)
+            if (!document.getElementById('perpanjang_tanggal_bayar').value) {
+                document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
+            }
 
             // masa_berlaku_baru = masaBerlakuLama + 1 tahun (dari data lama, tidak berubah saat tanggal_bayar berubah)
             if (masaBerlakuLama) {
@@ -1480,6 +1527,18 @@
         document.getElementById('modalPerpanjangSemua').addEventListener('click', function(e) {
             if (e.target === this) closeModalPerpanjangSemua();
         });
+
+        // ── Anti double-submit: disable tombol saat form perpanjang di-submit ──
+        (function () {
+            var form = document.getElementById('formPerpanjang');
+            var btn  = document.getElementById('btnPerpanjangKir');
+            if (!form || !btn) return;
+            form.addEventListener('submit', function () {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
+                btn.classList.add('opacity-60', 'cursor-not-allowed');
+            });
+        })();
     </script>
 
 @endsection

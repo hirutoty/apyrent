@@ -55,7 +55,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->kode_tracking }}</td>
                         <td class="px-4 py-3.5 text-xs text-blue-500 max-w-xs truncate"><a href="{{ $d->url_tujuan }}" target="_blank">{{ Str::limit($d->url_tujuan, 40) }}</a></td>
                         <td class="px-4 py-3.5 text-xs text-gray-600">{{ $d->utm_source }}</td>
@@ -89,7 +89,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 <div id="mainModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30" style="backdrop-filter:blur(2px)">
@@ -102,33 +102,33 @@
             @csrf<div id="methodContainer"></div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Tracking <span class="text-red-500">*</span></label>
-                <input type="text" name="kode_tracking" id="f_kode_tracking" required placeholder="UTM001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="kode_tracking" id="f_kode_tracking" required placeholder="UTM001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode_tracking') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
                 <select name="status" id="f_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <option value="">- Pilih -</option><option value="Aktif">Aktif</option><option value="Nonaktif">Nonaktif</option>
+                    <option value="">- Pilih -</option><option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option><option value="Nonaktif" {{ old('status') == 'Nonaktif' ? 'selected' : '' }}>Nonaktif</option>
                 </select></div>
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">URL Tujuan <span class="text-red-500">*</span></label>
-            <input type="url" name="url_tujuan" id="f_url_tujuan" required placeholder="https://apyrent.com/promo" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+            <input type="url" name="url_tujuan" id="f_url_tujuan" required placeholder="https://apyrent.com/promo" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('url_tujuan') }}"</div>
             <div class="grid grid-cols-3 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">UTM Source <span class="text-red-500">*</span></label>
-                <input type="text" name="utm_source" id="f_utm_source" required placeholder="google" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="utm_source" id="f_utm_source" required placeholder="google" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('utm_source') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">UTM Medium <span class="text-red-500">*</span></label>
-                <input type="text" name="utm_medium" id="f_utm_medium" required placeholder="cpc" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="utm_medium" id="f_utm_medium" required placeholder="cpc" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('utm_medium') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">UTM Campaign <span class="text-red-500">*</span></label>
-                <input type="text" name="utm_campaign" id="f_utm_campaign" required placeholder="promo_q3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="utm_campaign" id="f_utm_campaign" required placeholder="promo_q3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('utm_campaign') }}"</div>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">UTM Term</label>
-                <input type="text" name="utm_term" id="f_utm_term" placeholder="sewa mobil" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="utm_term" id="f_utm_term" placeholder="sewa mobil" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('utm_term') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">UTM Content</label>
-                <input type="text" name="utm_content" id="f_utm_content" placeholder="banner_top" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="text" name="utm_content" id="f_utm_content" placeholder="banner_top" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('utm_content') }}"</div>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Total Klik <span class="text-red-500">*</span></label>
-                <input type="number" name="total_klik" id="f_total_klik" required min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="total_klik" id="f_total_klik" required min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('total_klik') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Total Konversi <span class="text-red-500">*</span></label>
-                <input type="number" name="total_konversi" id="f_total_konversi" required min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                <input type="number" name="total_konversi" id="f_total_konversi" required min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('total_konversi') }}"</div>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"><i class="fa fa-save"></i> Simpan</button>
         </form>
@@ -169,5 +169,16 @@ function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.clas
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
 
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endsection

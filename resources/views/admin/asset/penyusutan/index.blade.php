@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Penyusutan Asset')
 @section('content')
 <div class="space-y-6">
@@ -115,32 +115,32 @@
             <div id="methodContainer"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Aset <span class="text-red-500">*</span></label>
-                    <input type="text" name="kode_aset" id="f_kode_aset" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="kode_aset" id="f_kode_aset" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode_aset') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Tahun <span class="text-red-500">*</span></label>
                     <select name="tahun" id="f_tahun" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Tahun --</option>
                         @for ($y = date('Y'); $y >= 2000; $y--)
-                            <option value="{{ $y }}">{{ $y }}</option>
+                            <option value="{{ $y }}" {{ old('tahun') == $y ? 'selected' : '' }}>{{ $y }}</option>
                         @endfor
                     </select></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Nilai Awal (Rp) <span class="text-red-500">*</span></label>
-                    <input type="number" min="0" step="0.01" name="nilai_awal" id="f_nilai_awal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="number" min="0" step="0.01" name="nilai_awal" id="f_nilai_awal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nilai_awal') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Akumulasi Penyusutan (Rp) <span class="text-red-500">*</span></label>
-                    <input type="number" min="0" step="0.01" name="akumulasi_penyusutan" id="f_akumulasi_penyusutan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="number" min="0" step="0.01" name="akumulasi_penyusutan" id="f_akumulasi_penyusutan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('akumulasi_penyusutan') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Nilai Buku (Rp) <span class="text-red-500">*</span></label>
-                    <input type="number" min="0" step="0.01" name="nilai_buku" id="f_nilai_buku" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="number" min="0" step="0.01" name="nilai_buku" id="f_nilai_buku" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nilai_buku') }}"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Metode <span class="text-red-500">*</span></label>
                     <select name="metode" id="f_metode" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="">- Pilih -</option><option value="Garis Lurus">Garis Lurus</option>
-                        <option value="Saldo Menurun">Saldo Menurun</option><option value="Unit Produksi">Unit Produksi</option>
+                        <option value="">- Pilih -</option><option value="Garis Lurus" {{ old('metode') == 'Garis Lurus' ? 'selected' : '' }}>Garis Lurus</option>
+                        <option value="Saldo Menurun" {{ old('metode') == 'Saldo Menurun' ? 'selected' : '' }}>Saldo Menurun</option><option value="Unit Produksi" {{ old('metode') == 'Unit Produksi' ? 'selected' : '' }}>Unit Produksi</option>
                     </select></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
                     <select name="status" id="f_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Aktif">Aktif</option><option value="Selesai">Selesai</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option><option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
                     </select></div>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
@@ -196,5 +196,13 @@ function onSearchInput(v){currentSearch=v.toLowerCase();renderTable();}
 function renderTable(){if(!allRows.length)return;const p=document.getElementById('perPageSelect').value==='all'?Infinity:parseInt(document.getElementById('perPageSelect').value);const m=allRows.filter(r=>r.dataset.search.includes(currentSearch));let s=0;allRows.forEach(r=>r.style.display='none');m.forEach(r=>{if(s<p){r.style.display='';s++;}});document.getElementById('entriesInfo').innerText=m.length?`Menampilkan ${s} dari ${m.length} entri`:'Tidak ada data';}
 document.addEventListener('DOMContentLoaded',renderTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endsection

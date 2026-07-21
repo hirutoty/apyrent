@@ -75,7 +75,7 @@
                         <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors"
                             data-search="{{ strtolower($d->nama . ' ' . $d->kontak . ' ' . $d->email . ' ' . $d->alamat) }}">
 
-                            <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $data->firstItem() + $loop->index }}</td>
 
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center gap-2">
@@ -196,7 +196,7 @@
             </table>
         </div>
 
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
         <div class="px-5 pb-3 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
 
@@ -224,16 +224,19 @@
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama <span class="text-red-500">*</span></label>
                     <input type="text" name="nama" id="f_nama" required placeholder="Nama lengkap / perusahaan"
+                        value="{{ old('nama') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak</label>
                     <input type="number" name="kontak" id="f_kontak" placeholder="08xx-xxxx-xxxx"
+                        value="{{ old('kontak') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email</label>
                     <input type="email" name="email" id="f_email" placeholder="contoh@email.com"
+                        value="{{ old('email') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
@@ -241,14 +244,14 @@
                     <select name="jenis_member" id="f_jenis_member" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Jenis --</option>
-                        <option value="perorangan">Perorangan</option>
-                        <option value="perusahaan">Perusahaan</option>
+                        <option value="perorangan" {{ old('jenis_member') == 'perorangan' ? 'selected' : '' }}>Perorangan</option>
+                        <option value="perusahaan" {{ old('jenis_member') == 'perusahaan' ? 'selected' : '' }}>Perusahaan</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat</label>
                     <textarea name="alamat" id="f_alamat" rows="2" placeholder="Alamat lengkap..."
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('alamat') }}</textarea>
                 </div>
             </div>
 
@@ -357,6 +360,13 @@ function openModal() {
     memberModal.classList.remove('hidden');
     memberModal.classList.add('flex');
 }
+
+// Auto-reopen modal tambah on validation error
+@if ($errors->any() && !session('success'))
+document.addEventListener('DOMContentLoaded', function() {
+    openModal();
+});
+@endif
 function closeModal() {
     memberModal.classList.add('hidden');
     memberModal.classList.remove('flex');

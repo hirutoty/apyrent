@@ -92,7 +92,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -105,17 +105,17 @@
         <form action="{{ route('review-legal.store') }}" method="POST" class="px-6 py-4 space-y-4">
             @csrf
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tanggal *</label><input type="date" name="tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tanggal *</label><input type="date" name="tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal') }}"></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Status Review *</label>
                     <select name="status_review" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Pending">Pending</option><option value="Proses">Proses</option><option value="Selesai">Selesai</option>
+                        <option value="Pending" {{ old('status_review') == 'Pending' ? 'selected' : '' }}>Pending</option><option value="Proses" {{ old('status_review') == 'Proses' ? 'selected' : '' }}>Proses</option><option value="Selesai" {{ old('status_review') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
                     </select>
                 </div>
             </div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Pemohon *</label><input type="text" name="pemohon" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Dokumen *</label><input type="text" name="dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">PIC Legal *</label><input type="text" name="pic_legal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Catatan</label><textarea name="catatan" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></textarea></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Pemohon *</label><input type="text" name="pemohon" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pemohon') }}"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Dokumen *</label><input type="text" name="dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('dokumen') }}"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">PIC Legal *</label><input type="text" name="pic_legal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pic_legal') }}"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Catatan</label><textarea name="catatan" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">{{ old('catatan') }}</textarea></div>
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>
                 <button type="submit" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700">Simpan</button>
@@ -133,17 +133,17 @@
         <form id="editForm" method="POST" class="px-6 py-4 space-y-4">
             @csrf @method('PUT')
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tanggal</label><input type="date" name="tanggal" id="edit_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tanggal</label><input type="date" name="tanggal" id="edit_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal') }}"></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Status Review</label>
                     <select name="status_review" id="edit_status_review" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Pending">Pending</option><option value="Proses">Proses</option><option value="Selesai">Selesai</option>
+                        <option value="Pending" {{ old('status_review') == 'Pending' ? 'selected' : '' }}>Pending</option><option value="Proses" {{ old('status_review') == 'Proses' ? 'selected' : '' }}>Proses</option><option value="Selesai" {{ old('status_review') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
                     </select>
                 </div>
             </div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Pemohon</label><input type="text" name="pemohon" id="edit_pemohon" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Dokumen</label><input type="text" name="dokumen" id="edit_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">PIC Legal</label><input type="text" name="pic_legal" id="edit_pic_legal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Catatan</label><textarea name="catatan" id="edit_catatan" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></textarea></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Pemohon</label><input type="text" name="pemohon" id="edit_pemohon" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pemohon') }}"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Dokumen</label><input type="text" name="dokumen" id="edit_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('dokumen') }}"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">PIC Legal</label><input type="text" name="pic_legal" id="edit_pic_legal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pic_legal') }}"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Catatan</label><textarea name="catatan" id="edit_catatan" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">{{ old('catatan') }}</textarea></div>
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>
                 <button type="submit" class="px-4 py-2 text-sm bg-yellow-500 text-white rounded-xl hover:bg-yellow-600">Update</button>
@@ -152,7 +152,7 @@
     </div>
 </div>
 @endsection
-<div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+<div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
 @push('scripts')
 <script>
 function openModal(){ document.getElementById('modalCreate').classList.remove('hidden'); }
@@ -171,5 +171,13 @@ function openEdit(id){
     });
 }
 
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endpush

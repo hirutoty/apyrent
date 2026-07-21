@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'Integrasi Bank')
 
@@ -441,19 +441,19 @@
             @csrf
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span class="text-red-500">*</span></label>
-                <input type="date" name="tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="date" name="tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Reference No <span class="text-red-500">*</span></label>
-                <input type="text" name="reference_no" required placeholder="Nomor referensi" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="text" name="reference_no" required placeholder="Nomor referensi" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('reference_no') }}">
             </div>
             <div class="md:col-span-2">
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Deskripsi <span class="text-red-500">*</span></label>
-                <textarea name="deskripsi" rows="3" required placeholder="Deskripsi transaksi..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                <textarea name="deskripsi" rows="3" required placeholder="Deskripsi transaksi..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('deskripsi') }}</textarea>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Amount <span class="text-red-500">*</span></label>
-                <input type="number" name="amount" required placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="number" name="amount" required placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('amount') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Currency</label>
@@ -462,18 +462,18 @@
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                 <select name="status_rekonsiliasi" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <option value="Pending">Pending</option>
-                    <option value="matched">Matched</option>
-                    <option value="unmatched">Unmatched</option>
+                    <option value="Pending" {{ old('status_rekonsiliasi') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                    <option value="matched" {{ old('status_rekonsiliasi') == 'matched' ? 'selected' : '' }}>Matched</option>
+                    <option value="unmatched" {{ old('status_rekonsiliasi') == 'unmatched' ? 'selected' : '' }}>Unmatched</option>
                 </select>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice ID</label>
-                <input type="text" name="invoice_id" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="text" name="invoice_id" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('invoice_id') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">VA</label>
-                <input type="text" name="va" placeholder="Virtual Account" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="text" name="va" placeholder="Virtual Account" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('va') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bukti Pembayaran <span class="text-red-500">*</span></label>
@@ -508,39 +508,39 @@
             @csrf @method('PUT')
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span class="text-red-500">*</span></label>
-                <input type="date" name="tanggal" id="er_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="date" name="tanggal" id="er_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Reference No <span class="text-red-500">*</span></label>
-                <input type="text" name="reference_no" id="er_reference_no" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="text" name="reference_no" id="er_reference_no" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('reference_no') }}">
             </div>
             <div class="md:col-span-2">
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Deskripsi <span class="text-red-500">*</span></label>
-                <textarea name="deskripsi" id="er_deskripsi" rows="3" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                <textarea name="deskripsi" id="er_deskripsi" rows="3" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('deskripsi') }}</textarea>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Amount <span class="text-red-500">*</span></label>
-                <input type="number" name="amount" id="er_amount" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="number" name="amount" id="er_amount" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('amount') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Currency</label>
-                <input type="text" name="currency" id="er_currency" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="text" name="currency" id="er_currency" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('currency') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                 <select name="status_rekonsiliasi" id="er_status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <option value="Pending">Pending</option>
-                    <option value="matched">Matched</option>
-                    <option value="unmatched">Unmatched</option>
+                    <option value="Pending" {{ old('status_rekonsiliasi') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                    <option value="matched" {{ old('status_rekonsiliasi') == 'matched' ? 'selected' : '' }}>Matched</option>
+                    <option value="unmatched" {{ old('status_rekonsiliasi') == 'unmatched' ? 'selected' : '' }}>Unmatched</option>
                 </select>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice ID</label>
-                <input type="text" name="invoice_id" id="er_invoice_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="text" name="invoice_id" id="er_invoice_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('invoice_id') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">VA</label>
-                <input type="text" name="va" id="er_va" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="text" name="va" id="er_va" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('va') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bukti Pembayaran (biarkan kosong jika tidak diubah)</label>
@@ -578,17 +578,17 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Member <span class="text-red-500">*</span></label>
                 <select name="member_id" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     @foreach ($members as $m)
-                        <option value="{{ $m->id }}">{{ $m->nama_pelanggan }}</option>
+                        <option value="{{ $m->id }}" {{ old('member_id') == $m->id ? 'selected' : '' }}>{{ $m->nama_pelanggan }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bank <span class="text-red-500">*</span></label>
-                <input type="text" name="bank" required placeholder="Nama bank" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="text" name="bank" required placeholder="Nama bank" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('bank') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Expected Amount <span class="text-red-500">*</span></label>
-                <input type="number" name="expected_amount" required placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="number" name="expected_amount" required placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('expected_amount') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Paid Amount</label>
@@ -597,8 +597,8 @@
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                 <select name="status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <option value="Pending">Pending</option>
-                    <option value="paid">Paid</option>
+                    <option value="Pending" {{ old('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                    <option value="paid" {{ old('status') == 'paid' ? 'selected' : '' }}>Paid</option>
                 </select>
             </div>
             <div>
@@ -606,13 +606,13 @@
                 <select name="invoice_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">-- Pilih Invoice --</option>
                     @foreach ($invoices as $inv)
-                        <option value="{{ $inv->id }}">{{ $inv->invoice_no }} — {{ $inv->customer_name }}</option>
+                        <option value="{{ $inv->id }}" {{ old('invoice_id') == $inv->id ? 'selected' : '' }}>{{ $inv->invoice_no }} ï¿½ {{ $inv->customer_name }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Expired At</label>
-                <input type="datetime-local" name="expired_at" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="datetime-local" name="expired_at" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('expired_at') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bukti Pembayaran</label>
@@ -647,13 +647,13 @@
             @csrf @method('PUT')
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">VA Number</label>
-                <input type="text" name="va_number" id="ev_va_number" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                <input type="text" name="va_number" id="ev_va_number" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500" value="{{ old('va_number') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Member <span class="text-red-500">*</span></label>
                 <select name="member_id" id="ev_member_id" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     @foreach ($members as $m)
-                        <option value="{{ $m->id }}">{{ $m->nama_pelanggan }}</option>
+                        <option value="{{ $m->id }}" {{ old('member_id') == $m->id ? 'selected' : '' }}>{{ $m->nama_pelanggan }}</option>
                     @endforeach
                 </select>
             </div>
@@ -662,32 +662,32 @@
                 <select name="invoice_id" id="ev_invoice_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">-- Pilih Invoice --</option>
                     @foreach ($invoices as $inv)
-                        <option value="{{ $inv->id }}">{{ $inv->invoice_no }} — {{ $inv->customer_name }}</option>
+                        <option value="{{ $inv->id }}" {{ old('invoice_id') == $inv->id ? 'selected' : '' }}>{{ $inv->invoice_no }} ï¿½ {{ $inv->customer_name }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bank <span class="text-red-500">*</span></label>
-                <input type="text" name="bank" id="ev_bank" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="text" name="bank" id="ev_bank" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('bank') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Expected Amount <span class="text-red-500">*</span></label>
-                <input type="number" name="expected_amount" id="ev_expected_amount" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="number" name="expected_amount" id="ev_expected_amount" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('expected_amount') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Paid Amount</label>
-                <input type="number" name="paid_amount" id="ev_paid_amount" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="number" name="paid_amount" id="ev_paid_amount" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('paid_amount') }}">
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                 <select name="status" id="ev_status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <option value="Pending">Pending</option>
-                    <option value="paid">Paid</option>
+                    <option value="Pending" {{ old('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                    <option value="paid" {{ old('status') == 'paid' ? 'selected' : '' }}>Paid</option>
                 </select>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Expired At</label>
-                <input type="datetime-local" name="expired_at" id="ev_expired_at" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <input type="datetime-local" name="expired_at" id="ev_expired_at" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('expired_at') }}">
             </div>
             <div class="md:col-span-2">
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bukti Pembayaran (biarkan kosong jika tidak diubah)</label>
@@ -852,6 +852,14 @@ function openEditVirtual(id, va_number, member_id, invoice_id, bank, expected, p
         if (e.target === this) this.classList.replace('flex', 'hidden');
     });
 });
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 
 <style>

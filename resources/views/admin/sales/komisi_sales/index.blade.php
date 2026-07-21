@@ -83,7 +83,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->nama_sales }}</td>
                         <td class="px-4 py-3.5 text-gray-600 text-xs">{{ $d->bulan }}</td>
                         <td class="px-4 py-3.5 text-right text-gray-700 text-xs">Rp {{ number_format($d->total_penjualan, 0, ',', '.') }}</td>
@@ -130,7 +130,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -146,32 +146,32 @@
             <div class="grid grid-cols-2 gap-4">
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nama Sales <span class="text-red-500">*</span></label>
-                    <input type="text" name="nama_sales" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="nama_sales" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nama_sales') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Bulan <span class="text-red-500">*</span></label>
-                    <input type="month" name="bulan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="month" name="bulan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('bulan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Total Penjualan <span class="text-red-500">*</span></label>
                     <input type="number" name="total_penjualan" id="total_penjualan" required min="0" oninput="calcKomisi()"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('total_penjualan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">% Komisi <span class="text-red-500">*</span></label>
                     <input type="number" name="persen_komisi" id="persen_komisi" required min="0" max="100" oninput="calcKomisi()"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('persen_komisi') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Total Komisi <span class="text-red-500">*</span></label>
                     <input type="number" name="total_komisi" id="total_komisi" required min="0"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50" value="{{ old('total_komisi') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status Bayar</label>
                     <select name="status_bayar" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Belum Dibayar">Belum Dibayar</option>
-                        <option value="Sudah Dibayar">Sudah Dibayar</option>
+                        <option value="Belum Dibayar" {{ old('status_bayar') == 'Belum Dibayar' ? 'selected' : '' }}>Belum Dibayar</option>
+                        <option value="Sudah Dibayar" {{ old('status_bayar') == 'Sudah Dibayar' ? 'selected' : '' }}>Sudah Dibayar</option>
                     </select>
                 </div>
             </div>
@@ -195,29 +195,29 @@
             <div class="grid grid-cols-2 gap-4">
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nama Sales <span class="text-red-500">*</span></label>
-                    <input type="text" name="nama_sales" id="edit_nama_sales" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="nama_sales" id="edit_nama_sales" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('nama_sales') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Bulan <span class="text-red-500">*</span></label>
-                    <input type="month" name="bulan" id="edit_bulan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="month" name="bulan" id="edit_bulan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('bulan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Total Penjualan <span class="text-red-500">*</span></label>
-                    <input type="number" name="total_penjualan" id="edit_total_penjualan" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="total_penjualan" id="edit_total_penjualan" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('total_penjualan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">% Komisi <span class="text-red-500">*</span></label>
-                    <input type="number" name="persen_komisi" id="edit_persen_komisi" required min="0" max="100" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="persen_komisi" id="edit_persen_komisi" required min="0" max="100" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('persen_komisi') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Total Komisi <span class="text-red-500">*</span></label>
-                    <input type="number" name="total_komisi" id="edit_total_komisi" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="total_komisi" id="edit_total_komisi" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('total_komisi') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status Bayar</label>
                     <select name="status_bayar" id="edit_status_bayar" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Belum Dibayar">Belum Dibayar</option>
-                        <option value="Sudah Dibayar">Sudah Dibayar</option>
+                        <option value="Belum Dibayar" {{ old('status_bayar') == 'Belum Dibayar' ? 'selected' : '' }}>Belum Dibayar</option>
+                        <option value="Sudah Dibayar" {{ old('status_bayar') == 'Sudah Dibayar' ? 'selected' : '' }}>Sudah Dibayar</option>
                     </select>
                 </div>
             </div>
@@ -308,6 +308,17 @@ function closeEditModal() { document.getElementById('modalEdit').classList.add('
     function closeAlert(){ clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
     window.closeAlert = closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endif
 @endsection

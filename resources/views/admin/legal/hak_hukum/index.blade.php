@@ -88,7 +88,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -102,17 +102,17 @@
         <form action="{{ route('hak-hukum.store') }}" method="POST" class="px-6 py-4 space-y-4">
             @csrf
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Jenis Akses *</label><input type="text" name="jenis_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kategori Dokumen *</label><input type="text" name="kategori_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Jenis Akses *</label><input type="text" name="jenis_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('jenis_akses') }}"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kategori Dokumen *</label><input type="text" name="kategori_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('kategori_dokumen') }}"></div>
             </div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Penerima Akses *</label><input type="text" name="penerima_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Level Hak *</label><input type="text" name="level_hak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Penerima Akses *</label><input type="text" name="penerima_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('penerima_akses') }}"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Level Hak *</label><input type="text" name="level_hak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('level_hak') }}"></div>
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tanggal Akses *</label><input type="date" name="tanggal_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tanggal Akses *</label><input type="date" name="tanggal_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal_akses') }}"></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Status *</label>
                     <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Aktif">Aktif</option>
-                        <option value="Non-Aktif">Non-Aktif</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                        <option value="Non-Aktif" {{ old('status') == 'Non-Aktif' ? 'selected' : '' }}>Non-Aktif</option>
                     </select>
                 </div>
             </div>
@@ -134,17 +134,17 @@
         <form id="editForm" method="POST" class="px-6 py-4 space-y-4">
             @csrf @method('PUT')
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Jenis Akses</label><input type="text" name="jenis_akses" id="edit_jenis_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kategori Dokumen</label><input type="text" name="kategori_dokumen" id="edit_kategori_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Jenis Akses</label><input type="text" name="jenis_akses" id="edit_jenis_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('jenis_akses') }}"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kategori Dokumen</label><input type="text" name="kategori_dokumen" id="edit_kategori_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('kategori_dokumen') }}"></div>
             </div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Penerima Akses</label><input type="text" name="penerima_akses" id="edit_penerima_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
-            <div><label class="block text-xs font-medium text-gray-700 mb-1">Level Hak</label><input type="text" name="level_hak" id="edit_level_hak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Penerima Akses</label><input type="text" name="penerima_akses" id="edit_penerima_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('penerima_akses') }}"></div>
+            <div><label class="block text-xs font-medium text-gray-700 mb-1">Level Hak</label><input type="text" name="level_hak" id="edit_level_hak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('level_hak') }}"></div>
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tanggal Akses</label><input type="date" name="tanggal_akses" id="edit_tanggal_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Tanggal Akses</label><input type="date" name="tanggal_akses" id="edit_tanggal_akses" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal_akses') }}"></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
                     <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Aktif">Aktif</option>
-                        <option value="Non-Aktif">Non-Aktif</option>
+                        <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                        <option value="Non-Aktif" {{ old('status') == 'Non-Aktif' ? 'selected' : '' }}>Non-Aktif</option>
                     </select>
                 </div>
             </div>
@@ -156,7 +156,7 @@
     </div>
 </div>
 @endsection
-<div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+<div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
 @push('scripts')
 <script>
 function openModal() { document.getElementById('modalCreate').classList.remove('hidden'); }
@@ -178,5 +178,13 @@ function openEdit(id) {
 }
 );
 }
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endpush

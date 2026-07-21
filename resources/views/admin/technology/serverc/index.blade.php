@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Server & Cloud')
 @section('content')
 <div class="space-y-6">
@@ -102,25 +102,25 @@
             @csrf <div id="methodContainer"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Server <span class="text-red-500">*</span></label>
-                    <input type="text" name="nama_server" id="f_nama_server" required placeholder="web-server-01" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="nama_server" id="f_nama_server" required placeholder="web-server-01" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_server') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Server <span class="text-red-500">*</span></label>
-                    <input type="text" name="jenis_server" id="f_jenis_server" required placeholder="Physical / VPS / Cloud" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="jenis_server" id="f_jenis_server" required placeholder="Physical / VPS / Cloud" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jenis_server') }}"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Lokasi <span class="text-red-500">*</span></label>
-                    <input type="text" name="lokasi" id="f_lokasi" required placeholder="Data Center / Ruang Server" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="lokasi" id="f_lokasi" required placeholder="Data Center / Ruang Server" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('lokasi') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">OS <span class="text-red-500">*</span></label>
-                    <input type="text" name="os" id="f_os" required placeholder="Ubuntu 22.04 / Windows Server" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="os" id="f_os" required placeholder="Ubuntu 22.04 / Windows Server" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('os') }}"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Provider Cloud</label>
-                    <input type="text" name="provider_cloud" id="f_provider_cloud" placeholder="AWS / GCP / Azure" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <input type="text" name="provider_cloud" id="f_provider_cloud" placeholder="AWS / GCP / Azure" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('provider_cloud') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
                     <select name="status" id="f_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih -</option><option>Aktif</option><option>Nonaktif</option><option>Maintenance</option></select></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Backup Aktif <span class="text-red-500">*</span></label>
                     <select name="backup_aktif" id="f_backup_aktif" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="">- Pilih -</option><option value="1">Ya</option><option value="0">Tidak</option></select></div>
+                        <option value="">- Pilih -</option><option value="1" {{ old('backup_aktif') == '1' ? 'selected' : '' }}>Ya</option><option value="0" {{ old('backup_aktif') == '0' ? 'selected' : '' }}>Tidak</option></select></div>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"><i class="fa fa-save"></i> Simpan Data</button>
         </form>
@@ -169,6 +169,14 @@ function onSearch(v){currentSearch=v.toLowerCase();renderTable();}
 function renderTable(){const perPage=document.getElementById('perPage').value==='all'?Infinity:parseInt(document.getElementById('perPage').value);const fS=document.getElementById('filterStatus').value;const matched=allRows.filter(r=>r.dataset.search.includes(currentSearch)&&(!fS||r.dataset.status===fS));let shown=0;allRows.forEach(r=>r.style.display='none');matched.forEach(r=>{if(shown<perPage){r.style.display='';shown++;}});const info=matched.length===0?'Tidak ada data':`Menampilkan ${shown} dari ${matched.length} entri`;document.getElementById('entriesInfo').innerText=info;document.getElementById('entriesInfoTop').innerText=info;}
 document.addEventListener('DOMContentLoaded',renderTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 </div>
 @endsection

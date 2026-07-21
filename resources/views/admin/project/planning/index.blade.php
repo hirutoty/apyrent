@@ -70,7 +70,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600 font-semibold">{{ $d->kode_proyek }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->tahapan }}</td>
                         <td class="px-4 py-3.5 text-xs text-gray-500">{{ \Carbon\Carbon::parse($d->tgl_mulai)->format('d M Y') }}</td>
@@ -97,7 +97,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -116,33 +116,33 @@
                     <select name="kode_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih --</option>
                         @foreach($proyeks as $kode => $nama)
-                        <option value="{{ $kode }}">{{ $kode }} - {{ $nama }}</option>
+                        <option value="{{ $kode }}" {{ old('kode_proyek') == $kode ? 'selected' : '' }}>{{ $kode }} - {{ $nama }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tahapan <span class="text-red-500">*</span></label>
-                    <input type="text" name="tahapan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="tahapan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tahapan') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tgl Mulai <span class="text-red-500">*</span></label>
-                    <input type="date" name="tgl_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="date" name="tgl_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tgl_mulai') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tgl Selesai <span class="text-red-500">*</span></label>
-                    <input type="date" name="tgl_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="date" name="tgl_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tgl_selesai') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">PIC <span class="text-red-500">*</span></label>
-                    <input type="text" name="pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pic') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                     <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih --</option>
-                        <option value="Plan">Plan</option>
-                        <option value="Berjalan">Berjalan</option>
-                        <option value="Selesai">Selesai</option>
+                        <option value="Plan" {{ old('status') == 'Plan' ? 'selected' : '' }}>Plan</option>
+                        <option value="Berjalan" {{ old('status') == 'Berjalan' ? 'selected' : '' }}>Berjalan</option>
+                        <option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
                     </select>
                 </div>
             </div>
@@ -168,32 +168,32 @@
                     <label class="block text-xs font-medium text-gray-700 mb-1">Kode Proyek <span class="text-red-500">*</span></label>
                     <select name="kode_proyek" id="edit_kode_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         @foreach($proyeks as $kode => $nama)
-                        <option value="{{ $kode }}">{{ $kode }} - {{ $nama }}</option>
+                        <option value="{{ $kode }}" {{ old('kode_proyek') == $kode ? 'selected' : '' }}>{{ $kode }} - {{ $nama }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tahapan <span class="text-red-500">*</span></label>
-                    <input type="text" name="tahapan" id="edit_tahapan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="tahapan" id="edit_tahapan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tahapan') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tgl Mulai <span class="text-red-500">*</span></label>
-                    <input type="date" name="tgl_mulai" id="edit_tgl_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="date" name="tgl_mulai" id="edit_tgl_mulai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tgl_mulai') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tgl Selesai <span class="text-red-500">*</span></label>
-                    <input type="date" name="tgl_selesai" id="edit_tgl_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="date" name="tgl_selesai" id="edit_tgl_selesai" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tgl_selesai') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">PIC <span class="text-red-500">*</span></label>
-                    <input type="text" name="pic" id="edit_pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="pic" id="edit_pic" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pic') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
                     <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="Plan">Plan</option>
-                        <option value="Berjalan">Berjalan</option>
-                        <option value="Selesai">Selesai</option>
+                        <option value="Plan" {{ old('status') == 'Plan' ? 'selected' : '' }}>Plan</option>
+                        <option value="Berjalan" {{ old('status') == 'Berjalan' ? 'selected' : '' }}>Berjalan</option>
+                        <option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
                     </select>
                 </div>
             </div>
@@ -223,5 +223,13 @@ function openEditModal(id) {
         });
 }
 function closeEditModal() { document.getElementById('modalEdit').classList.replace('flex','hidden'); }
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endsection

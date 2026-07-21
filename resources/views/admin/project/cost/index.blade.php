@@ -36,7 +36,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600 font-semibold">{{ $d->proyek }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->kategori_biaya }}</td>
                         <td class="px-4 py-3.5 text-xs text-right text-gray-700">Rp {{ number_format($d->estimasi,0,',','.') }}</td>
@@ -57,7 +57,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -68,12 +68,12 @@
         <form action="{{ route('project.cost.store') }}" method="POST" class="px-6 py-5 space-y-4">@csrf
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Proyek <span class="text-red-500">*</span></label>
-                    <select name="proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option>@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}">{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kategori Biaya <span class="text-red-500">*</span></label><input type="text" name="kategori_biaya" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Estimasi (Rp) <span class="text-red-500">*</span></label><input type="number" name="estimasi" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Realisasi (Rp) <span class="text-red-500">*</span></label><input type="number" name="realisasi" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <select name="proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option>@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}" {{ old('proyek') == $kode ? 'selected' : '' }}>{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kategori Biaya <span class="text-red-500">*</span></label><input type="text" name="kategori_biaya" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kategori_biaya') }}"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Estimasi (Rp) <span class="text-red-500">*</span></label><input type="number" name="estimasi" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('estimasi') }}"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Realisasi (Rp) <span class="text-red-500">*</span></label><input type="number" name="realisasi" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('realisasi') }}"></div>
                 <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
-                    <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option><option value="Efisien">Efisien</option><option value="Normal">Normal</option><option value="Over Budget">Over Budget</option></select></div>
+                    <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option><option value="Efisien" {{ old('status') == 'Efisien' ? 'selected' : '' }}>Efisien</option><option value="Normal" {{ old('status') == 'Normal' ? 'selected' : '' }}>Normal</option><option value="Over Budget" {{ old('status') == 'Over Budget' ? 'selected' : '' }}>Over Budget</option></select></div>
             </div>
             <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Batal</button><button type="submit" class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan</button></div>
         </form>
@@ -87,12 +87,12 @@
         <form id="editForm" method="POST" class="px-6 py-5 space-y-4">@csrf @method('PUT')
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Proyek <span class="text-red-500">*</span></label>
-                    <select name="proyek" id="edit_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}">{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kategori Biaya <span class="text-red-500">*</span></label><input type="text" name="kategori_biaya" id="edit_kategori_biaya" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Estimasi (Rp)</label><input type="number" name="estimasi" id="edit_estimasi" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Realisasi (Rp)</label><input type="number" name="realisasi" id="edit_realisasi" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <select name="proyek" id="edit_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}" {{ old('proyek') == $kode ? 'selected' : '' }}>{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Kategori Biaya <span class="text-red-500">*</span></label><input type="text" name="kategori_biaya" id="edit_kategori_biaya" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kategori_biaya') }}"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Estimasi (Rp)</label><input type="number" name="estimasi" id="edit_estimasi" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('estimasi') }}"></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Realisasi (Rp)</label><input type="number" name="realisasi" id="edit_realisasi" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('realisasi') }}"></div>
                 <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
-                    <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="Efisien">Efisien</option><option value="Normal">Normal</option><option value="Over Budget">Over Budget</option></select></div>
+                    <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="Efisien" {{ old('status') == 'Efisien' ? 'selected' : '' }}>Efisien</option><option value="Normal" {{ old('status') == 'Normal' ? 'selected' : '' }}>Normal</option><option value="Over Budget" {{ old('status') == 'Over Budget' ? 'selected' : '' }}>Over Budget</option></select></div>
             </div>
             <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeEditModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Batal</button><button type="submit" class="px-4 py-2 text-sm bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg">Update</button></div>
         </form>
@@ -114,5 +114,13 @@ function openEditModal(id){
 }
 function closeEditModal(){document.getElementById('modalEdit').classList.replace('flex','hidden');}
 let perPage=10;
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endsection

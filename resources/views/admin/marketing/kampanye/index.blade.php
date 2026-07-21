@@ -94,7 +94,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->id_kampanye }}</td>
                         <td class="px-4 py-3.5">
                             <div class="flex items-center gap-2">
@@ -185,7 +185,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -208,77 +208,77 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">ID Kampanye <span class="text-red-500">*</span></label>
                     <input type="text" name="id_kampanye" id="f_id_kampanye" required placeholder="Contoh: MKT001"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('id_kampanye') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">PIC <span class="text-red-500">*</span></label>
                     <input type="text" name="pic" id="f_pic" required placeholder="Nama PIC"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pic') }}"
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Kampanye <span class="text-red-500">*</span></label>
                 <input type="text" name="nama_kampanye" id="f_nama_kampanye" required placeholder="Contoh: Promo Akhir Tahun"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_kampanye') }}"
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe Kampanye <span class="text-red-500">*</span></label>
                     <select name="tipe_kampanye" id="f_tipe_kampanye" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih Tipe -</option>
-                        <option value="Promosi">Promosi</option>
-                        <option value="Retensi">Retensi</option>
-                        <option value="Awareness">Awareness</option>
-                        <option value="Engagement">Engagement</option>
+                        <option value="Promosi" {{ old('tipe_kampanye') == 'Promosi' ? 'selected' : '' }}>Promosi</option>
+                        <option value="Retensi" {{ old('tipe_kampanye') == 'Retensi' ? 'selected' : '' }}>Retensi</option>
+                        <option value="Awareness" {{ old('tipe_kampanye') == 'Awareness' ? 'selected' : '' }}>Awareness</option>
+                        <option value="Engagement" {{ old('tipe_kampanye') == 'Engagement' ? 'selected' : '' }}>Engagement</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Channel <span class="text-red-500">*</span></label>
                     <select name="channel" id="f_channel" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih Channel -</option>
-                        <option value="Email">Email</option>
-                        <option value="WhatsApp">WhatsApp</option>
-                        <option value="SMS">SMS</option>
-                        <option value="Social Media">Social Media</option>
-                        <option value="Website">Website</option>
+                        <option value="Email" {{ old('channel') == 'Email' ? 'selected' : '' }}>Email</option>
+                        <option value="WhatsApp" {{ old('channel') == 'WhatsApp' ? 'selected' : '' }}>WhatsApp</option>
+                        <option value="SMS" {{ old('channel') == 'SMS' ? 'selected' : '' }}>SMS</option>
+                        <option value="Social Media" {{ old('channel') == 'Social Media' ? 'selected' : '' }}>Social Media</option>
+                        <option value="Website" {{ old('channel') == 'Website' ? 'selected' : '' }}>Website</option>
                     </select>
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Target Segment <span class="text-red-500">*</span></label>
                 <input type="text" name="target_segment" id="f_target_segment" required placeholder="Contoh: Pelanggan Aktif"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('target_segment') }}"
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Mulai <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_mulai" id="f_tanggal_mulai" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_mulai') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Akhir <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_akhir" id="f_tanggal_akhir" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_akhir') }}"
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Subjek Pesan <span class="text-red-500">*</span></label>
                 <input type="text" name="subjek_pesan" id="f_subjek_pesan" required placeholder="Subject email/pesan"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('subjek_pesan') }}"
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Isi Pesan (Ringkas) <span class="text-red-500">*</span></label>
                 <textarea name="isi_pesan_ringkas" id="f_isi_pesan_ringkas" rows="3" required placeholder="Isi pesan singkat..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('isi_pesan_ringkas') }}</textarea>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
                 <select name="status" id="f_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">- Pilih Status -</option>
-                    <option value="Dijadwalkan">Dijadwalkan</option>
-                    <option value="Aktif">Aktif</option>
-                    <option value="Selesai">Selesai</option>
-                    <option value="Dibatalkan">Dibatalkan</option>
+                    <option value="Dijadwalkan" {{ old('status') == 'Dijadwalkan' ? 'selected' : '' }}>Dijadwalkan</option>
+                    <option value="Aktif" {{ old('status') == 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                    <option value="Selesai" {{ old('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
+                    <option value="Dibatalkan" {{ old('status') == 'Dibatalkan' ? 'selected' : '' }}>Dibatalkan</option>
                 </select>
             </div>
             <button type="submit"
@@ -464,5 +464,16 @@ function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.clas
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
 
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endpush

@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Pergerakan Asset')
 @section('content')
 <div class="space-y-6">
@@ -128,45 +128,45 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Aset <span class="text-red-500">*</span></label>
-                    <input type="text" name="kode_aset" id="f_kode_aset" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="kode_aset" id="f_kode_aset" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kode_aset') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" id="f_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="date" name="tanggal" id="f_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal') }}">
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pergerakan <span class="text-red-500">*</span></label>
                 <select name="jenis_pergerakan" id="f_jenis_pergerakan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">- Pilih Jenis -</option>
-                    <option value="Mutasi">Mutasi</option>
-                    <option value="Peminjaman">Peminjaman</option>
-                    <option value="Pengembalian">Pengembalian</option>
+                    <option value="Mutasi" {{ old('jenis_pergerakan') == 'Mutasi' ? 'selected' : '' }}>Mutasi</option>
+                    <option value="Peminjaman" {{ old('jenis_pergerakan') == 'Peminjaman' ? 'selected' : '' }}>Peminjaman</option>
+                    <option value="Pengembalian" {{ old('jenis_pergerakan') == 'Pengembalian' ? 'selected' : '' }}>Pengembalian</option>
                 </select>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Dari Lokasi <span class="text-red-500">*</span></label>
-                    <input type="text" name="dari_lokasi" id="f_dari_lokasi" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="dari_lokasi" id="f_dari_lokasi" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('dari_lokasi') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Ke Lokasi <span class="text-red-500">*</span></label>
-                    <input type="text" name="ke_lokasi" id="f_ke_lokasi" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="ke_lokasi" id="f_ke_lokasi" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('ke_lokasi') }}">
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Dilakukan Oleh <span class="text-red-500">*</span></label>
-                    <input type="text" name="dilakukan_oleh" id="f_dilakukan_oleh" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="dilakukan_oleh" id="f_dilakukan_oleh" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('dilakukan_oleh') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Disetujui Oleh <span class="text-red-500">*</span></label>
-                    <input type="text" name="disetujui_oleh" id="f_disetujui_oleh" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="text" name="disetujui_oleh" id="f_disetujui_oleh" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('disetujui_oleh') }}">
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan</label>
-                <textarea name="catatan" id="f_catatan" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                <textarea name="catatan" id="f_catatan" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('catatan') }}</textarea>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                 <i class="bi bi-floppy"></i> Simpan Data
@@ -224,5 +224,13 @@ function onSearchInput(v){currentSearch=v.toLowerCase();renderTable();}
 function renderTable(){if(!allRows.length)return;const p=document.getElementById('perPageSelect').value==='all'?Infinity:parseInt(document.getElementById('perPageSelect').value);const m=allRows.filter(r=>r.dataset.search.includes(currentSearch));let s=0;allRows.forEach(r=>r.style.display='none');m.forEach(r=>{if(s<p){r.style.display='';s++;}});document.getElementById('entriesInfo').innerText=m.length?`Menampilkan ${s} dari ${m.length} entri`:'Tidak ada data';}
 document.addEventListener('DOMContentLoaded',renderTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endsection

@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Cuti & Izin')
 @section('content')
 <div class="space-y-6">
@@ -123,18 +123,18 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pegawai <span class="text-red-500">*</span></label>
                     <input type="text" name="nama_pegawai" id="f_nama_pegawai" required placeholder="Nama lengkap"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_pegawai') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Cuti / Izin <span class="text-red-500">*</span></label>
                     <select name="jenis_cuti_izin" id="f_jenis_cuti_izin" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih -</option>
-                        <option value="Cuti Tahunan">Cuti Tahunan</option>
-                        <option value="Cuti Sakit">Cuti Sakit</option>
-                        <option value="Cuti Melahirkan">Cuti Melahirkan</option>
-                        <option value="Izin Pribadi">Izin Pribadi</option>
-                        <option value="Izin Keluarga">Izin Keluarga</option>
+                        <option value="Cuti Tahunan" {{ old('jenis_cuti_izin') == 'Cuti Tahunan' ? 'selected' : '' }}>Cuti Tahunan</option>
+                        <option value="Cuti Sakit" {{ old('jenis_cuti_izin') == 'Cuti Sakit' ? 'selected' : '' }}>Cuti Sakit</option>
+                        <option value="Cuti Melahirkan" {{ old('jenis_cuti_izin') == 'Cuti Melahirkan' ? 'selected' : '' }}>Cuti Melahirkan</option>
+                        <option value="Izin Pribadi" {{ old('jenis_cuti_izin') == 'Izin Pribadi' ? 'selected' : '' }}>Izin Pribadi</option>
+                        <option value="Izin Keluarga" {{ old('jenis_cuti_izin') == 'Izin Keluarga' ? 'selected' : '' }}>Izin Keluarga</option>
                     </select>
                 </div>
             </div>
@@ -142,35 +142,35 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Mulai <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_mulai" id="f_tanggal_mulai" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_mulai') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Selesai <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_selesai" id="f_tanggal_selesai" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_selesai') }}"
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Lama Hari <span class="text-red-500">*</span></label>
                     <input type="number" name="lama_hari" id="f_lama_hari" required min="1"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('lama_hari') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
                     <select name="status" id="f_status" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih Status -</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Disetujui">Disetujui</option>
-                        <option value="Ditolak">Ditolak</option>
+                        <option value="Pending" {{ old('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="Disetujui" {{ old('status') == 'Disetujui' ? 'selected' : '' }}>Disetujui</option>
+                        <option value="Ditolak" {{ old('status') == 'Ditolak' ? 'selected' : '' }}>Ditolak</option>
                     </select>
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alasan <span class="text-red-500">*</span></label>
                 <textarea name="alasan" id="f_alasan" rows="3" required placeholder="Alasan pengajuan..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('alasan') }}</textarea>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                 <i class="fa fa-save text-sm"></i> Simpan Data
@@ -236,5 +236,16 @@ function onPerPageChange(v){cp=v==='all'?Infinity:parseInt(v);renderTable();}
 function renderTable(){if(!allRows.length)return;const m=allRows.filter(r=>r.dataset.search.includes(cs));let s=0;allRows.forEach(r=>r.style.display='none');m.forEach(r=>{if(s<cp){r.style.display='';s++;}});entriesInfo.innerText=m.length===0?'Tidak ada data':`Menampilkan ${s} dari ${m.length} entri`+(cs?' (hasil pencarian)':'');}
 document.addEventListener('DOMContentLoaded',renderTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endsection

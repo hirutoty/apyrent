@@ -93,7 +93,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->order_no }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->pelanggan }}</td>
                         <td class="px-4 py-3.5 text-gray-700 text-xs">{{ $d->produk_jasa }}</td>
@@ -140,7 +140,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -156,49 +156,49 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">No. Order <span class="text-red-500">*</span></label>
-                    <input type="text" name="order_no" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="SO-001">
+                    <input type="text" name="order_no" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="SO-001" value="{{ old('order_no') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Pelanggan <span class="text-red-500">*</span></label>
-                    <input type="text" name="pelanggan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="pelanggan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pelanggan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Produk/Jasa <span class="text-red-500">*</span></label>
-                    <input type="text" name="produk_jasa" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="produk_jasa" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('produk_jasa') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Qty <span class="text-red-500">*</span></label>
-                    <input type="number" name="qty" required min="1" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="qty" required min="1" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('qty') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Total Harga <span class="text-red-500">*</span></label>
-                    <input type="number" name="total_harga" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="total_harga" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('total_harga') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Metode Pembayaran <span class="text-red-500">*</span></label>
                     <select name="metode_pembayaran" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">-- Pilih --</option>
-                        <option value="Transfer Bank">Transfer Bank</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Kredit">Kredit</option>
-                        <option value="Tempo">Tempo</option>
+                        <option value="Transfer Bank" {{ old('metode_pembayaran') == 'Transfer Bank' ? 'selected' : '' }}>Transfer Bank</option>
+                        <option value="Cash" {{ old('metode_pembayaran') == 'Cash' ? 'selected' : '' }}>Cash</option>
+                        <option value="Kredit" {{ old('metode_pembayaran') == 'Kredit' ? 'selected' : '' }}>Kredit</option>
+                        <option value="Tempo" {{ old('metode_pembayaran') == 'Tempo' ? 'selected' : '' }}>Tempo</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Sales <span class="text-red-500">*</span></label>
-                    <input type="text" name="sales" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="sales" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('sales') }}"
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status Order <span class="text-red-500">*</span></label>
                     <select name="status_order" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">-- Pilih --</option>
-                        <option value="Diproses">Diproses</option>
-                        <option value="Selesai">Selesai</option>
-                        <option value="Dibatalkan">Dibatalkan</option>
+                        <option value="Diproses" {{ old('status_order') == 'Diproses' ? 'selected' : '' }}>Diproses</option>
+                        <option value="Selesai" {{ old('status_order') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
+                        <option value="Dibatalkan" {{ old('status_order') == 'Dibatalkan' ? 'selected' : '' }}>Dibatalkan</option>
                     </select>
                 </div>
             </div>
@@ -222,47 +222,47 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">No. Order <span class="text-red-500">*</span></label>
-                    <input type="text" name="order_no" id="edit_order_no" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="order_no" id="edit_order_no" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('order_no') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" id="edit_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="tanggal" id="edit_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Pelanggan <span class="text-red-500">*</span></label>
-                    <input type="text" name="pelanggan" id="edit_pelanggan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="pelanggan" id="edit_pelanggan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pelanggan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Produk/Jasa <span class="text-red-500">*</span></label>
-                    <input type="text" name="produk_jasa" id="edit_produk_jasa" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="produk_jasa" id="edit_produk_jasa" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('produk_jasa') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Qty <span class="text-red-500">*</span></label>
-                    <input type="number" name="qty" id="edit_qty" required min="1" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="qty" id="edit_qty" required min="1" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('qty') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Total Harga <span class="text-red-500">*</span></label>
-                    <input type="number" name="total_harga" id="edit_total_harga" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="number" name="total_harga" id="edit_total_harga" required min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('total_harga') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Metode Pembayaran <span class="text-red-500">*</span></label>
                     <select name="metode_pembayaran" id="edit_metode_pembayaran" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Transfer Bank">Transfer Bank</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Kredit">Kredit</option>
-                        <option value="Tempo">Tempo</option>
+                        <option value="Transfer Bank" {{ old('metode_pembayaran') == 'Transfer Bank' ? 'selected' : '' }}>Transfer Bank</option>
+                        <option value="Cash" {{ old('metode_pembayaran') == 'Cash' ? 'selected' : '' }}>Cash</option>
+                        <option value="Kredit" {{ old('metode_pembayaran') == 'Kredit' ? 'selected' : '' }}>Kredit</option>
+                        <option value="Tempo" {{ old('metode_pembayaran') == 'Tempo' ? 'selected' : '' }}>Tempo</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Sales <span class="text-red-500">*</span></label>
-                    <input type="text" name="sales" id="edit_sales" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="sales" id="edit_sales" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('sales') }}"
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status Order <span class="text-red-500">*</span></label>
                     <select name="status_order" id="edit_status_order" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Diproses">Diproses</option>
-                        <option value="Selesai">Selesai</option>
-                        <option value="Dibatalkan">Dibatalkan</option>
+                        <option value="Diproses" {{ old('status_order') == 'Diproses' ? 'selected' : '' }}>Diproses</option>
+                        <option value="Selesai" {{ old('status_order') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
+                        <option value="Dibatalkan" {{ old('status_order') == 'Dibatalkan' ? 'selected' : '' }}>Dibatalkan</option>
                     </select>
                 </div>
             </div>
@@ -351,6 +351,17 @@ function closeEditModal() { document.getElementById('modalEdit').classList.add('
     function closeAlert(){ clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
     window.closeAlert = closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endif
 @endsection

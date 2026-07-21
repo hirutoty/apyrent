@@ -92,7 +92,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600">{{ $d->document_id }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->jenis_dokumen }}</td>
                         <td class="px-4 py-3.5 text-gray-500 text-xs">{{ \Carbon\Carbon::parse($d->tanggal)->format('d M Y') }}</td>
@@ -140,7 +140,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -156,50 +156,50 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Document ID <span class="text-red-500">*</span></label>
-                    <input type="text" name="document_id" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="DOC-001">
+                    <input type="text" name="document_id" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="DOC-001" value="{{ old('document_id') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Jenis Dokumen <span class="text-red-500">*</span></label>
                     <select name="jenis_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">-- Pilih --</option>
-                        <option value="Kontrak">Kontrak</option>
-                        <option value="Perjanjian">Perjanjian</option>
-                        <option value="Penawaran">Penawaran</option>
-                        <option value="MOU">MOU</option>
-                        <option value="Lainnya">Lainnya</option>
+                        <option value="Kontrak" {{ old('jenis_dokumen') == 'Kontrak' ? 'selected' : '' }}>Kontrak</option>
+                        <option value="Perjanjian" {{ old('jenis_dokumen') == 'Perjanjian' ? 'selected' : '' }}>Perjanjian</option>
+                        <option value="Penawaran" {{ old('jenis_dokumen') == 'Penawaran' ? 'selected' : '' }}>Penawaran</option>
+                        <option value="MOU" {{ old('jenis_dokumen') == 'MOU' ? 'selected' : '' }}>MOU</option>
+                        <option value="Lainnya" {{ old('jenis_dokumen') == 'Lainnya' ? 'selected' : '' }}>Lainnya</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Platform DigiSign <span class="text-red-500">*</span></label>
                     <select name="platform_digisign" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">-- Pilih --</option>
-                        <option value="PrivyID">PrivyID</option>
-                        <option value="DocuSign">DocuSign</option>
-                        <option value="Adobe Sign">Adobe Sign</option>
-                        <option value="Peruri">Peruri</option>
-                        <option value="Manual">Manual</option>
+                        <option value="PrivyID" {{ old('platform_digisign') == 'PrivyID' ? 'selected' : '' }}>PrivyID</option>
+                        <option value="DocuSign" {{ old('platform_digisign') == 'DocuSign' ? 'selected' : '' }}>DocuSign</option>
+                        <option value="Adobe Sign" {{ old('platform_digisign') == 'Adobe Sign' ? 'selected' : '' }}>Adobe Sign</option>
+                        <option value="Peruri" {{ old('platform_digisign') == 'Peruri' ? 'selected' : '' }}>Peruri</option>
+                        <option value="Manual" {{ old('platform_digisign') == 'Manual' ? 'selected' : '' }}>Manual</option>
                     </select>
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Pihak Terlibat <span class="text-red-500">*</span></label>
-                    <input type="text" name="pihak_terlibat" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Nama pihak yang terlibat">
+                    <input type="text" name="pihak_terlibat" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Nama pihak yang terlibat" value="{{ old('pihak_terlibat') }}"
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status TTD <span class="text-red-500">*</span></label>
                     <select name="status_ttd" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">-- Pilih --</option>
-                        <option value="Menunggu">Menunggu</option>
-                        <option value="Ditandatangani">Ditandatangani</option>
-                        <option value="Ditolak">Ditolak</option>
+                        <option value="Menunggu" {{ old('status_ttd') == 'Menunggu' ? 'selected' : '' }}>Menunggu</option>
+                        <option value="Ditandatangani" {{ old('status_ttd') == 'Ditandatangani' ? 'selected' : '' }}>Ditandatangani</option>
+                        <option value="Ditolak" {{ old('status_ttd') == 'Ditolak' ? 'selected' : '' }}>Ditolak</option>
                     </select>
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Catatan</label>
-                    <textarea name="catatan" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></textarea>
+                    <textarea name="catatan" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">{{ old('catatan') }}</textarea>
                 </div>
             </div>
             <div class="flex justify-end gap-2 pt-2">
@@ -222,47 +222,47 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Document ID <span class="text-red-500">*</span></label>
-                    <input type="text" name="document_id" id="edit_document_id" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="document_id" id="edit_document_id" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('document_id') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Jenis Dokumen <span class="text-red-500">*</span></label>
                     <select name="jenis_dokumen" id="edit_jenis_dokumen" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Kontrak">Kontrak</option>
-                        <option value="Perjanjian">Perjanjian</option>
-                        <option value="Penawaran">Penawaran</option>
-                        <option value="MOU">MOU</option>
-                        <option value="Lainnya">Lainnya</option>
+                        <option value="Kontrak" {{ old('jenis_dokumen') == 'Kontrak' ? 'selected' : '' }}>Kontrak</option>
+                        <option value="Perjanjian" {{ old('jenis_dokumen') == 'Perjanjian' ? 'selected' : '' }}>Perjanjian</option>
+                        <option value="Penawaran" {{ old('jenis_dokumen') == 'Penawaran' ? 'selected' : '' }}>Penawaran</option>
+                        <option value="MOU" {{ old('jenis_dokumen') == 'MOU' ? 'selected' : '' }}>MOU</option>
+                        <option value="Lainnya" {{ old('jenis_dokumen') == 'Lainnya' ? 'selected' : '' }}>Lainnya</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" id="edit_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="date" name="tanggal" id="edit_tanggal" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('tanggal') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Platform DigiSign <span class="text-red-500">*</span></label>
                     <select name="platform_digisign" id="edit_platform_digisign" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="PrivyID">PrivyID</option>
-                        <option value="DocuSign">DocuSign</option>
-                        <option value="Adobe Sign">Adobe Sign</option>
-                        <option value="Peruri">Peruri</option>
-                        <option value="Manual">Manual</option>
+                        <option value="PrivyID" {{ old('platform_digisign') == 'PrivyID' ? 'selected' : '' }}>PrivyID</option>
+                        <option value="DocuSign" {{ old('platform_digisign') == 'DocuSign' ? 'selected' : '' }}>DocuSign</option>
+                        <option value="Adobe Sign" {{ old('platform_digisign') == 'Adobe Sign' ? 'selected' : '' }}>Adobe Sign</option>
+                        <option value="Peruri" {{ old('platform_digisign') == 'Peruri' ? 'selected' : '' }}>Peruri</option>
+                        <option value="Manual" {{ old('platform_digisign') == 'Manual' ? 'selected' : '' }}>Manual</option>
                     </select>
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Pihak Terlibat <span class="text-red-500">*</span></label>
-                    <input type="text" name="pihak_terlibat" id="edit_pihak_terlibat" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <input type="text" name="pihak_terlibat" id="edit_pihak_terlibat" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('pihak_terlibat') }}"
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Status TTD <span class="text-red-500">*</span></label>
                     <select name="status_ttd" id="edit_status_ttd" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="Menunggu">Menunggu</option>
-                        <option value="Ditandatangani">Ditandatangani</option>
-                        <option value="Ditolak">Ditolak</option>
+                        <option value="Menunggu" {{ old('status_ttd') == 'Menunggu' ? 'selected' : '' }}>Menunggu</option>
+                        <option value="Ditandatangani" {{ old('status_ttd') == 'Ditandatangani' ? 'selected' : '' }}>Ditandatangani</option>
+                        <option value="Ditolak" {{ old('status_ttd') == 'Ditolak' ? 'selected' : '' }}>Ditolak</option>
                     </select>
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Catatan</label>
-                    <textarea name="catatan" id="edit_catatan" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"></textarea>
+                    <textarea name="catatan" id="edit_catatan" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">{{ old('catatan') }}</textarea>
                 </div>
             </div>
             <div class="flex justify-end gap-2 pt-2">
@@ -348,6 +348,17 @@ function closeEditModal() { document.getElementById('modalEdit').classList.add('
     function closeAlert(){ clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
     window.closeAlert = closeAlert;
 })();
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') {
+                openModalTambah();
+            } else if (typeof openModal === 'function') {
+                openModal();
+            }
+        });
+        @endif
 </script>
 @endif
 @endsection

@@ -36,7 +36,7 @@
                 <tbody id="tableBody">
                     @forelse($data as $d)
                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $loop->iteration + ($data->firstItem() - 1) }}</td>
+                        <td class="px-4 py-3.5 text-gray-400 text-xs">{{ $1->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3.5 text-xs font-mono text-blue-600 font-semibold">{{ $d->proyek }}</td>
                         <td class="px-4 py-3.5 font-semibold text-gray-800 text-xs">{{ $d->risiko }}</td>
                         <td class="px-4 py-3.5 text-xs">
@@ -58,7 +58,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
     </div>
 </div>
 
@@ -69,15 +69,15 @@
         <form action="{{ route('project.risk.store') }}" method="POST" class="px-6 py-5 space-y-4">@csrf
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Proyek <span class="text-red-500">*</span></label>
-                    <select name="proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option>@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}">{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Risiko <span class="text-red-500">*</span></label><input type="text" name="risiko" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <select name="proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option>@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}" {{ old('proyek') == $kode ? 'selected' : '' }}>{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Risiko <span class="text-red-500">*</span></label><input type="text" name="risiko" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('risiko') }}"></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Dampak <span class="text-red-500">*</span></label>
-                    <select name="dampak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option><option value="Rendah">Rendah</option><option value="Sedang">Sedang</option><option value="Tinggi">Tinggi</option></select></div>
+                    <select name="dampak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option><option value="Rendah" {{ old('dampak') == 'Rendah' ? 'selected' : '' }}>Rendah</option><option value="Sedang" {{ old('dampak') == 'Sedang' ? 'selected' : '' }}>Sedang</option><option value="Tinggi" {{ old('dampak') == 'Tinggi' ? 'selected' : '' }}>Tinggi</option></select></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Kemungkinan <span class="text-red-500">*</span></label>
-                    <select name="kemungkinan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option><option value="Rendah">Rendah</option><option value="Menengah">Menengah</option><option value="Tinggi">Tinggi</option></select></div>
-                <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Mitigasi</label><textarea name="mitigasi" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea></div>
+                    <select name="kemungkinan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option><option value="Rendah" {{ old('kemungkinan') == 'Rendah' ? 'selected' : '' }}>Rendah</option><option value="Menengah" {{ old('kemungkinan') == 'Menengah' ? 'selected' : '' }}>Menengah</option><option value="Tinggi" {{ old('kemungkinan') == 'Tinggi' ? 'selected' : '' }}>Tinggi</option></select></div>
+                <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Mitigasi</label><textarea name="mitigasi" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">{{ old('mitigasi') }}</textarea></div>
                 <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
-                    <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option><option value="Diajukan">Diajukan</option><option value="Terkendali">Terkendali</option><option value="Kritis">Kritis</option></select></div>
+                    <select name="status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="">-- Pilih --</option><option value="Diajukan" {{ old('status') == 'Diajukan' ? 'selected' : '' }}>Diajukan</option><option value="Terkendali" {{ old('status') == 'Terkendali' ? 'selected' : '' }}>Terkendali</option><option value="Kritis" {{ old('status') == 'Kritis' ? 'selected' : '' }}>Kritis</option></select></div>
             </div>
             <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Batal</button><button type="submit" class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan</button></div>
         </form>
@@ -91,15 +91,15 @@
         <form id="editForm" method="POST" class="px-6 py-5 space-y-4">@csrf @method('PUT')
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Proyek <span class="text-red-500">*</span></label>
-                    <select name="proyek" id="edit_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}">{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Risiko <span class="text-red-500">*</span></label><input type="text" name="risiko" id="edit_risiko" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></div>
+                    <select name="proyek" id="edit_proyek" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">@foreach($proyeks as $kode => $nama)<option value="{{ $kode }}" {{ old('proyek') == $kode ? 'selected' : '' }}>{{ $kode }} - {{ $nama }}</option>@endforeach</select></div>
+                <div><label class="block text-xs font-medium text-gray-700 mb-1">Risiko <span class="text-red-500">*</span></label><input type="text" name="risiko" id="edit_risiko" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('risiko') }}"></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Dampak <span class="text-red-500">*</span></label>
-                    <select name="dampak" id="edit_dampak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="Rendah">Rendah</option><option value="Sedang">Sedang</option><option value="Tinggi">Tinggi</option></select></div>
+                    <select name="dampak" id="edit_dampak" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="Rendah" {{ old('dampak') == 'Rendah' ? 'selected' : '' }}>Rendah</option><option value="Sedang" {{ old('dampak') == 'Sedang' ? 'selected' : '' }}>Sedang</option><option value="Tinggi" {{ old('dampak') == 'Tinggi' ? 'selected' : '' }}>Tinggi</option></select></div>
                 <div><label class="block text-xs font-medium text-gray-700 mb-1">Kemungkinan <span class="text-red-500">*</span></label>
-                    <select name="kemungkinan" id="edit_kemungkinan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="Rendah">Rendah</option><option value="Menengah">Menengah</option><option value="Tinggi">Tinggi</option></select></div>
-                <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Mitigasi</label><textarea name="mitigasi" id="edit_mitigasi" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea></div>
+                    <select name="kemungkinan" id="edit_kemungkinan" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="Rendah" {{ old('kemungkinan') == 'Rendah' ? 'selected' : '' }}>Rendah</option><option value="Menengah" {{ old('kemungkinan') == 'Menengah' ? 'selected' : '' }}>Menengah</option><option value="Tinggi" {{ old('kemungkinan') == 'Tinggi' ? 'selected' : '' }}>Tinggi</option></select></div>
+                <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Mitigasi</label><textarea name="mitigasi" id="edit_mitigasi" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">{{ old('mitigasi') }}</textarea></div>
                 <div class="col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
-                    <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="Diajukan">Diajukan</option><option value="Terkendali">Terkendali</option><option value="Kritis">Kritis</option></select></div>
+                    <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"><option value="Diajukan" {{ old('status') == 'Diajukan' ? 'selected' : '' }}>Diajukan</option><option value="Terkendali" {{ old('status') == 'Terkendali' ? 'selected' : '' }}>Terkendali</option><option value="Kritis" {{ old('status') == 'Kritis' ? 'selected' : '' }}>Kritis</option></select></div>
             </div>
             <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeEditModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Batal</button><button type="submit" class="px-4 py-2 text-sm bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg">Update</button></div>
         </form>
@@ -122,5 +122,13 @@ function openEditModal(id){
 }
 function closeEditModal(){document.getElementById('modalEdit').classList.replace('flex','hidden');}
 let perPage=10;
+
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
 </script>
 @endsection

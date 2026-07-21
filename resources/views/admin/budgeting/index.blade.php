@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Budgeting Proyek')
 
@@ -269,28 +269,28 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Proyek <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="proyek" required placeholder="Nama proyek"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('proyek') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kategori <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="kategori" required placeholder="Kategori proyek"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kategori') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Budget <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="budget" required placeholder="Nominal budget"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('budget') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Realisasi <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="realisasi" required placeholder="Nominal realisasi"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('realisasi') }}">
                     </div>
 
                 </div>
@@ -338,28 +338,28 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Proyek <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="proyek" id="edit_proyek" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('proyek') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kategori <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="kategori" id="edit_kategori" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kategori') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Budget <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="budget" id="edit_budget" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('budget') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Realisasi <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="realisasi" id="edit_realisasi" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('realisasi') }}">
                     </div>
 
                 </div>
@@ -536,6 +536,14 @@ updateExportLinks();
     }
     window.closeAlert = closeAlert;
 })();
-    </script>
+    
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
 
 @endsection

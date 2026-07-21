@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'User')
 
@@ -385,7 +385,7 @@
                                         class="font-mono text-[11px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md mt-0.5 inline-block">{{ $d->no_telp }}</span>
                                 </td>
 
-                                {{-- Role — independent color per row -- --}}
+                                {{-- Role ï¿½ independent color per row -- --}}
                                 <td class="px-4 py-3.5">
                                     <form action="/admin/user/{{ $d->id }}" method="POST">
                                         @csrf @method('PUT')
@@ -417,7 +417,7 @@
                                     </form>
                                 </td>
 
-                                {{-- Status — independent color per row -- --}}
+                                {{-- Status ï¿½ independent color per row -- --}}
                                 <td class="px-4 py-3.5">
                                     <form action="/admin/user/{{ $d->id }}" method="POST">
                                         @csrf @method('PUT')
@@ -513,21 +513,21 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="name" id="f_name" required placeholder="Nama lengkap"
-                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all">
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all" value="{{ old('name') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Username <span
                                 class="text-red-500">*</span></label>
                         <input type="text" name="username" id="f_username" required placeholder="Username unik"
-                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all">
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all" value="{{ old('username') }}">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email <span
                                 class="text-red-500">*</span></label>
                         <input type="email" name="email" id="f_email" required placeholder="email@domain.com"
-                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all">
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all" value="{{ old('email') }}">
                     </div>
 
                     <div>
@@ -536,7 +536,7 @@
                         <div class="relative">
                             <input type="password" name="password" id="f_password" required
                                 placeholder="Minimal 6 karakter"
-                                class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all pr-10">
+                                class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all pr-10" value="{{ old('password') }}">
                             <button type="button" onclick="togglePassword()"
                                 class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                                 <i id="eyeIcon" class="fa fa-eye text-xs"></i>
@@ -548,7 +548,7 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Telp <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="no_telp" id="f_no_telp" required placeholder="08xx-xxxx-xxxx"
-                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all">
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all" value="{{ old('no_telp') }}">
                     </div>
 
                     <div>
@@ -563,14 +563,14 @@
                                 class="text-red-500">*</span></label>
                         <select name="role" id="f_role" required
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all">
-                            <option value="superadmin">Superadmin</option>
-                            <option value="keuangan">Keuangan</option>
-                            <option value="produksi">Produksi</option>
-                            <option value="hrd">HRD</option>
-                            <option value="purchase">Purchase</option>
-                            <option value="sales">Sales</option>
-                            <option value="marketing">Marketing</option>
-                            <option value="it">IT</option>
+                            <option value="superadmin" {{ old('role') == 'superadmin' ? 'selected' : '' }}>Superadmin</option>
+                            <option value="keuangan" {{ old('role') == 'keuangan' ? 'selected' : '' }}>Keuangan</option>
+                            <option value="produksi" {{ old('role') == 'produksi' ? 'selected' : '' }}>Produksi</option>
+                            <option value="hrd" {{ old('role') == 'hrd' ? 'selected' : '' }}>HRD</option>
+                            <option value="purchase" {{ old('role') == 'purchase' ? 'selected' : '' }}>Purchase</option>
+                            <option value="sales" {{ old('role') == 'sales' ? 'selected' : '' }}>Sales</option>
+                            <option value="marketing" {{ old('role') == 'marketing' ? 'selected' : '' }}>Marketing</option>
+                            <option value="it" {{ old('role') == 'it' ? 'selected' : '' }}>IT</option>
                         </select>
                     </div>
 
@@ -579,8 +579,8 @@
                                 class="text-red-500">*</span></label>
                         <select name="status" id="f_status"
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all">
-                            <option value="aktif">Aktif</option>
-                            <option value="blokir">Blokir</option>
+                            <option value="aktif" {{ old('status') == 'aktif' ? 'selected' : '' }}>Aktif</option>
+                            <option value="blokir" {{ old('status') == 'blokir' ? 'selected' : '' }}>Blokir</option>
                         </select>
                     </div>
 
@@ -644,7 +644,7 @@
     @push('scripts')
         <script>
             // ----------------------------------------------
-            //  ROLE & STATUS COLOR — per row, independent
+            //  ROLE & STATUS COLOR ï¿½ per row, independent
             // ----------------------------------------------
 
             // Role color classes map
@@ -826,7 +826,15 @@
                 }
                 window.closeAlert = closeAlert;
             })();
-        </script>
+        
+        // Auto-reopen modal tambah on validation error
+        @if ($errors->any() && !session('success'))
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof openModalTambah === 'function') openModalTambah();
+            else if (typeof openModal === 'function') openModal();
+        });
+        @endif
+</script>
     @endpush
 
 @endsection

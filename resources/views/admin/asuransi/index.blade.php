@@ -171,6 +171,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Asuransi <span class="text-red-500">*</span></label>
                 <input type="text" name="nama_asuransi" id="f_nama_asuransi" required
                     placeholder="Contoh: Jasa Raharja, Astra Insurance"
+                    value="{{ old('nama_asuransi') }}"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
 
@@ -178,7 +179,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat <span class="text-red-500">*</span></label>
                 <textarea name="alamat" id="f_alamat" rows="3" required
                     placeholder="Masukkan alamat lengkap..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('alamat') }}</textarea>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -186,24 +187,28 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Marketing <span class="text-red-500">*</span></label>
                     <input type="text" name="nama_marketing" id="f_nama_marketing" required
                         placeholder="Nama marketing"
+                        value="{{ old('nama_marketing') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Marketing <span class="text-red-500">*</span></label>
                     <input type="number" name="kontak_marketing" id="f_kontak_marketing" required
                         placeholder="08xx-xxxx-xxxx"
+                        value="{{ old('kontak_marketing') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bengkel <span class="text-red-500">*</span></label>
                     <input type="text" name="nama_bengkel" id="f_nama_bengkel" required
                         placeholder="Nama bengkel rekanan"
+                        value="{{ old('nama_bengkel') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Bengkel <span class="text-red-500">*</span></label>
                     <input type="number" name="kontak_bengkel" id="f_kontak_bengkel" required
                         placeholder="08xx-xxxx-xxxx"
+                        value="{{ old('kontak_bengkel') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>
@@ -304,6 +309,13 @@ asuransiModal.addEventListener('click', function (e) {
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closeModal();
 });
+
+// Auto-reopen modal tambah on validation error
+@if ($errors->any() && !session('success'))
+document.addEventListener('DOMContentLoaded', function() {
+    openModal();
+});
+@endif
 
 document.querySelectorAll('.btn-edit').forEach(btn => {
     btn.addEventListener('click', function () {

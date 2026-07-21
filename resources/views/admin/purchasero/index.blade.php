@@ -60,11 +60,12 @@
             <nav class="flex gap-0 -mb-px overflow-x-auto">
 
                 @if ($role === 'superadmin')
-    {{-- Superadmin: lihat hasil keputusan (Diajukan, Disetujui & Ditolak) --}}
+    {{-- Superadmin: lihat semua status termasuk Pending --}}
     @foreach ([
-        ['key' => 'Diajukan',  'label' => 'Diajukan',  'icon' => 'bi bi-paper-plane',      'count' => $totalDiajukan, 'color' => 'indigo'],
-        ['key' => 'Disetujui', 'label' => 'Disetujui', 'icon' => 'bi bi-check-circle-fill', 'count' => $totalDisetujui, 'color' => 'green'],
-        ['key' => 'Ditolak',   'label' => 'Ditolak',   'icon' => 'bi bi-x-circle-fill',   'count' => $totalDitolak,   'color' => 'red'],
+        ['key' => 'Pending',   'label' => 'Pending',   'icon' => 'bi bi-hourglass-split',   'count' => $totalPending,   'color' => 'yellow'],
+        ['key' => 'Diajukan',  'label' => 'Diajukan',  'icon' => 'bi bi-paper-plane',        'count' => $totalDiajukan,  'color' => 'indigo'],
+        ['key' => 'Disetujui', 'label' => 'Disetujui', 'icon' => 'bi bi-check-circle-fill',  'count' => $totalDisetujui, 'color' => 'green'],
+        ['key' => 'Ditolak',   'label' => 'Ditolak',   'icon' => 'bi bi-x-circle-fill',      'count' => $totalDitolak,   'color' => 'red'],
     ] as $t)
         @php $isActive = $tab === $t['key']; @endphp
         <a href="{{ route('purchasero.index', ['tab' => $t['key'], 'sort' => $sort]) }}"
@@ -77,6 +78,7 @@
                     'green'  => 'bg-green-100 text-green-700',
                     'red'    => 'bg-red-100 text-red-700',
                     'indigo' => 'bg-indigo-100 text-indigo-700',
+                    'yellow' => 'bg-yellow-100 text-yellow-700',
                     default  => 'bg-gray-100 text-gray-700',
                 };
             @endphp
@@ -116,7 +118,7 @@
             <div class="flex-1 text-xs text-gray-500">
                 Menampilkan <span class="font-semibold text-gray-700">{{ $data->total() }}</span> data
                 @if ($role !== 'superadmin' && $tab !== 'semua')
-                    — tab: <span class="font-semibold text-gray-700">{{ $tab }}</span>
+                    ï¿½ tab: <span class="font-semibold text-gray-700">{{ $tab }}</span>
                 @endif
             </div>
             <div class="flex items-center gap-2">
@@ -260,11 +262,12 @@
                                                 <i class="fa fa-times"></i> Tolak
                                             </button>
                                         @else
-                                            <span class="text-xs text-gray-300 italic">—</span>
+                                            <span class="text-xs text-gray-300 italic">ï¿½</span>
                                         @endif
 
                                     @else
                                         {{-- Non-superadmin: Edit + Hapus + Ajukan --}}
+                                        @if(!in_array($d->status, ['Diajukan', 'Disetujui']))
                                         <button
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors"
                                             data-action="{{ route('purchasero.update', $d->id) }}"
@@ -288,6 +291,9 @@
                                             onclick="triggerDelete(this)">
                                             <i class="fa fa-trash"></i> Hapus
                                         </button>
+                                        @else
+                                        <span class="text-xs text-gray-400 italic">Terkunci</span>
+                                        @endif
 
                                         @if(in_array($d->status, ['Pending', 'Ditolak']))
                                             <form action="{{ route('purchasero.ajukan', $d->id) }}" method="POST" class="inline">
@@ -330,7 +336,7 @@
 
 
 {{-- ======================================================
-    MODAL TOLAK (superadmin — wajib isi catatan)
+    MODAL TOLAK (superadmin ï¿½ wajib isi catatan)
 ====================================================== --}}
 @if ($role === 'superadmin')
 <div id="tolakModal"
@@ -398,7 +404,7 @@
                 <h2 id="modalTitle" class="text-base font-bold text-gray-800">Tambah Pengadaan</h2>
                 <p class="text-xs text-gray-500 mt-0.5">
                     Departemen: <span class="font-semibold text-blue-600">{{ $deptLabel }}</span>
-                    &nbsp;·&nbsp; No PR dibuat otomatis
+                    &nbsp;ï¿½&nbsp; No PR dibuat otomatis
                 </p>
             </div>
             <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
@@ -419,12 +425,14 @@
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span class="text-red-500">*</span></label>
                 <input type="date" name="tanggal" id="f_tanggal" required
+                    value="{{ old('tanggal') }}"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pemohon <span class="text-red-500">*</span></label>
                 <input type="text" name="pemohon" id="f_pemohon" required placeholder="Nama pemohon"
+                    value="{{ old('pemohon') }}"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
 
@@ -432,11 +440,13 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Barang/Jasa <span class="text-red-500">*</span></label>
                     <input type="text" name="barang_jasa" id="f_barang_jasa" required placeholder="Contoh: Label Baju"
+                        value="{{ old('barang_jasa') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Barang <span class="text-red-500">*</span></label>
                     <input type="text" name="kode_barang" id="f_kode_barang" required placeholder="Contoh: BRG-001"
+                        value="{{ old('kode_barang') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>
@@ -445,11 +455,13 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Qty <span class="text-red-500">*</span></label>
                     <input type="number" min="1" name="qty" id="f_qty" required placeholder="Contoh: 500"
+                        value="{{ old('qty') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Satuan <span class="text-red-500">*</span></label>
                     <input type="text" name="satuan" id="f_satuan" required placeholder="Contoh: pcs"
+                        value="{{ old('satuan') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>
@@ -457,6 +469,7 @@
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alasan Permintaan <span class="text-red-500">*</span></label>
                 <input type="text" name="alasan_permintaan" id="f_alasan_permintaan" required placeholder="Contoh: Stok habis"
+                    value="{{ old('alasan_permintaan') }}"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
 
@@ -471,7 +484,7 @@
                         oninput="formatNominalInput(this)"
                         class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
-                <p class="text-xs text-gray-400 mt-1">Opsional — isi jika sudah ada estimasi harga.</p>
+                <p class="text-xs text-gray-400 mt-1">Opsional ï¿½ isi jika sudah ada estimasi harga.</p>
             </div>
 
             <button type="submit"
@@ -592,6 +605,13 @@ function closeModal() {
 }
 
 purchaseroModal.addEventListener('click', e => { if (e.target === purchaseroModal) closeModal(); });
+
+// Auto-reopen modal tambah on validation error
+@if ($errors->any() && !session('success'))
+document.addEventListener('DOMContentLoaded', function() {
+    openModal();
+});
+@endif
 
 function triggerEdit(btn) {
     document.getElementById('modalTitle').innerText = 'Edit Pengadaan';
