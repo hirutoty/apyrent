@@ -480,7 +480,7 @@
                 dropdownParent: $('#modal'),
                 placeholder: 'Cari customer...',
                 ajax: {
-                    url: '/admin/ajax/members',
+                    url: '/admin/ajax/member',
                     dataType: 'json',
                     delay: 250,
                     data: function(params) {
@@ -544,7 +544,7 @@
                 dropdownParent: $('#editModal'),
                 placeholder: 'Cari customer...',
                 ajax: {
-                    url: '/admin/ajax/members',
+                    url: '/admin/ajax/member',
                     dataType: 'json',
                     delay: 250,
                     data: function(params) {
