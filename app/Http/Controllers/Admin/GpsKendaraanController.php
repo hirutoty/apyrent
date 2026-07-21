@@ -317,7 +317,7 @@ class GpsKendaraanController extends Controller
         $buktiBayarLama = $gpsKendaraan->bukti_bayar;
 
         // --- Upload bukti BARU ---
-        $path = public_path('gps/bukti_bayar');
+      $path = public_path('gps/bukti_bayar');
         if (!file_exists($path)) {
             mkdir($path, 0777, true);
         }
