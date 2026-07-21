@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Service History')
 
@@ -19,7 +19,7 @@
         $habis = 0;
 
         foreach ($kendaraan as $k) {
-            $limit = $k->limit_bulan_service ?? 0;
+            $limit = $k->limit_biaya_bulanan_service ?? 0;
             if ($limit <= 0) {
                 continue;
             }
@@ -244,8 +244,8 @@
                                 $groupTotalBiaya = $rows->sum('total_biaya');
                                 $groupId         = 'group-' . $kendaraanId;
 
-                                $limitBulan  = $firstRow->kendaraan->limit_bulan_service ?? 0;
-                                $limitTahun  = $limitBulan * 12;
+                                $limitBulan  = $firstRow->kendaraan->limit_biaya_bulanan_service ?? 0;
+                                $limitTahun  = $firstRow->kendaraan->limit_biaya_tahunan_service ?? 0;
                                 $sisaBulan   = $rows->sortByDesc('tanggal_service')->first()->sisa_limit ?? 0;
                                 $pctSisa     = $limitBulan > 0 ? ($sisaBulan / $limitBulan) * 100 : 100;
                                 $sisaColor   = $pctSisa <= 0  ? 'text-red-600 bg-red-50 border-red-200'
@@ -281,7 +281,7 @@
                                                 </span>
                                             </span>
 
-                                            <span class="text-gray-300 text-xs flex-shrink-0">•</span>
+                                            <span class="text-gray-300 text-xs flex-shrink-0">â€¢</span>
 
                                             {{-- Sisa Bulanan --}}
                                             <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md border flex-shrink-0 whitespace-nowrap {{ $sisaColor }}">
@@ -318,7 +318,7 @@
                             {{-- -- DETAIL / CHILD ROWS -- --}}
                             @foreach ($rows as $loopIndex => $d)
                                 @php
-                                    $limit = $d->kendaraan->limit_bulan_service ?? 0;
+                                    $limit = $d->kendaraan->limit_biaya_bulanan_service ?? 0;
                                     $sisa  = $d->sisa_limit ?? 0;
 
                                     $rowClass = '';
@@ -353,21 +353,21 @@
 
                                     {{-- Maks Bulanan (hidden by default) --}}
                                     <td class="col-budget px-5 py-4 text-sm text-gray-500 whitespace-nowrap">
-                                        @if ($d->kendaraan->limit_bulan_service ?? false)
-                                            Rp {{ number_format($d->kendaraan->limit_bulan_service, 0, ',', '.') }}
+                                        @if ($d->kendaraan->limit_biaya_bulanan_service ?? false)
+                                            Rp {{ number_format($d->kendaraan->limit_biaya_bulanan_service, 0, ',', '.') }}
                                         @else
-                                            <span class="text-gray-300">—</span>
+                                            <span class="text-gray-300">â€”</span>
                                         @endif
                                     </td>
 
                                     {{-- Sisa Budget (hidden by default) --}}
                                     @php
-                                        $limit = $d->kendaraan->limit_bulan_service ?? 0;
+                                        $limit = $d->kendaraan->limit_biaya_bulanan_service ?? 0;
                                         $sisa  = $d->sisa_limit ?? 0;
                                     @endphp
                                     <td class="col-budget px-5 py-4 whitespace-nowrap">
                                         @if ($limit <= 0)
-                                            <span class="text-gray-300 text-sm">—</span>
+                                            <span class="text-gray-300 text-sm">â€”</span>
                                         @elseif ($sisa <= 0)
                                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Habis
@@ -523,9 +523,6 @@
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Kendaraan <span class="text-red-500">*</span>
-                        <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-600">
-                            <i class="fa fa-triangle-exclamation text-[9px]"></i> Tidak Layak
-                        </span>
                     </label>
                     <select name="kendaraan_id" id="kendaraan_id_tambah" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
@@ -536,7 +533,7 @@
                                 $totalSvc   = \App\Models\ServiceHistory::where('kendaraan_id', $k->id)
                                     ->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [$bulanAktif])
                                     ->sum('total_biaya');
-                                $limitK   = $k->limit_bulan_service ?? 0;
+                                $limitK   = $k->limit_biaya_bulanan_service ?? 0;
                                 $sisaK    = $limitK > 0 ? max($limitK - $totalSvc, 0) : 0;
                                 $persen10 = $limitK * 0.1;
 
@@ -571,7 +568,7 @@
                                 @endif
                             </option>
                         @empty
-                            <option value="" disabled>� Tidak ada kendaraan dengan status Tidak Layak �</option>
+                            <option value="" disabled>Tidak ada kendaraan tersedia</option>
                         @endforelse
                     </select>
 
@@ -698,7 +695,7 @@
                     </label>
 
                     <input type="file" name="bukti_pembayaran" id="bukti_pembayaran" class="hidden"
-                        onchange="previewFileGPS(this)" required>
+                        onchange="previewFileGPS(this)">
                 </div>
 
                 {{-- Lampiran Tambahan --}}
@@ -765,9 +762,6 @@
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Kendaraan <span class="text-red-500">*</span>
-                        <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-600">
-                            <i class="fa fa-triangle-exclamation text-[9px]"></i> Tidak Layak
-                        </span>
                     </label>
                     <select name="kendaraan_id" id="edit_kendaraan_id" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
@@ -779,7 +773,7 @@
                                 ->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [$bulanAktif])
                                 ->sum('total_biaya');
 
-                            $limitEdit   = $k->limit_bulan_service ?? 0;
+                            $limitEdit   = $k->limit_biaya_bulanan_service ?? 0;
                             $sisaEdit    = $limitEdit > 0 ? max($limitEdit - $totalSvcEdit, 0) : 0;
                             $detailEdit  = $detailPerKendaraan[$k->id] ?? null;
                             $keluhanEdit = $detailEdit['keluhan_gabungan'] ?? '';
@@ -1569,7 +1563,7 @@
             window.closeAlert = closeAlert;
         })();
 
-        // ── MODAL STATUS SERVICE ───────────────────────────────
+        // â”€â”€ MODAL STATUS SERVICE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var _msvcId = null;
 
         function ubahStatusService(id, currentStatus) {
@@ -1696,7 +1690,7 @@
             document.getElementById('previewFileLink').classList.add('hidden');
         }
 
-        // ── KILOMETER AUTO-FILL ────────────────────────────────
+        // â”€â”€ KILOMETER AUTO-FILL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const kmMap = {
             @foreach ($kendaraan as $k)
             {{ $k->id }}: {{ $k->kilometer_sekarang ?? 0 }},
@@ -1739,7 +1733,7 @@
         }
         document.getElementById('kendaraan_id_tambah').addEventListener('change', autoFillKmTambah);
 
-        // Modal Edit — tampilkan badge jika nilai sama dengan DB
+        // Modal Edit â€” tampilkan badge jika nilai sama dengan DB
         function checkKmEditBadge() {
             const id    = document.getElementById('edit_kendaraan_id').value;
             const input = document.getElementById('edit_kilometer');
@@ -1759,7 +1753,7 @@
                 false
             );
         }
-        // ── END KILOMETER AUTO-FILL ───────────────────────────
+        // â”€â”€ END KILOMETER AUTO-FILL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     </script>
 
 

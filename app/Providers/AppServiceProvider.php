@@ -30,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
 
     foreach ($kendaraanList as $k) {
 
-        $limit = $k->limit_bulan_service ?? 0;
+        $limit = $k->limit_biaya_bulanan_service ?? 0;
 
         $total = ServiceHistory::where('kendaraan_id', $k->id)
             ->whereMonth('tanggal_service', now()->month)

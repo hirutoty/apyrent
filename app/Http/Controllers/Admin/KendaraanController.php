@@ -187,7 +187,8 @@ class KendaraanController extends Controller
 
             'kilometer_sekarang' => $request->kilometer_sekarang,
             'limit_km_service' => $request->limit_km_service,
-            'limit_bulan_service' => $request->limit_bulan_service,
+            'limit_biaya_bulanan_service' => $request->limit_biaya_bulanan_service,
+            'limit_biaya_tahunan_service' => $request->limit_biaya_tahunan_service,
             'km_terakhir_service' => $request->km_terakhir_service,
             'tanggal_terakhir_service' => $request->tanggal_terakhir_service,
 
@@ -283,7 +284,8 @@ class KendaraanController extends Controller
 
             'kilometer_sekarang' => $request->kilometer_sekarang,
             'limit_km_service' => $request->limit_km_service,
-            'limit_bulan_service' => $request->limit_bulan_service,
+            'limit_biaya_bulanan_service' => $request->limit_biaya_bulanan_service,
+            'limit_biaya_tahunan_service' => $request->limit_biaya_tahunan_service,
             'km_terakhir_service' => $request->km_terakhir_service,
             'tanggal_terakhir_service' => $request->tanggal_terakhir_service,
 

@@ -267,9 +267,9 @@
 
                 @forelse($data as $i => $d)
                     @php
-                        $maksTahunan = ($d->kendaraan->limit_bulan_service ?? 0) * 12;
+                        $maksTahunan = $d->kendaraan->limit_biaya_tahunan_service ?? 0;
 
-                        $limitBulan = $d->kendaraan->limit_bulan_service ?? 0;
+                        $limitBulan = $d->kendaraan->limit_biaya_bulanan_service ?? 0;
 
                         $totalBulanIni = \App\Models\ServiceHistory::where('kendaraan_id', $d->kendaraan_id)
                             ->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [
