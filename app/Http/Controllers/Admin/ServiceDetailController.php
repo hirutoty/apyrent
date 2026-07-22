@@ -65,6 +65,12 @@ class ServiceDetailController extends Controller
             'bukti' => $bukti,
         ]);
 
+        // Update status kendaraan sesuai status service detail
+        $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
+        if ($request->status === 'Tidak Layak') {
+            $kendaraan->update(['status_kendaraan' => 'bermasalah']);
+        }
+
         return back()->with('success', 'Detail service berhasil ditambahkan');
     }
 
