@@ -702,8 +702,8 @@
 
         function applyFilters() {
             const keyword    = document.getElementById('searchInput').value.toLowerCase().trim();
-            const filterHari = document.getElementById('filterHari').value;
-            const showVal    = document.getElementById('showEntries').value;
+            const filterHari = document.getElementById('filterHari')?.value || '';
+            const showVal    = document.getElementById('showEntries')?.value || '15';
             const perPage    = showVal === 'all' ? Infinity : parseInt(showVal);
 
             // All child rows (have data-search attribute)
@@ -741,13 +741,40 @@
             // Build a Set of groups that have at least one matching row overall
             const visibleGroups = new Set(matched.map(r => r.dataset.groupChild));
 
+            // Jika ada filter aktif (bukan semua), otomatis buka accordion grup yang relevan
+            const filterAktif = activeStatus !== 'semua' || keyword || activeBulan !== 'semua' || activeTahun !== 'semua' || filterHari;
+            if (filterAktif) {
+                visibleGroups.forEach(gKey => {
+                    if (!groupState[gKey]) {
+                        groupState[gKey] = true;
+                        const chevron = document.querySelector(`.group-chevron[data-group="${gKey}"]`);
+                        if (chevron) chevron.style.transform = 'rotate(180deg)';
+                        const hdr = document.querySelector(`tr.group-header[data-group="${gKey}"]`);
+                        if (hdr) { hdr.classList.add('bg-blue-100'); hdr.classList.remove('bg-blue-50'); }
+                    }
+                });
+            } else {
+                // Filter tidak aktif → tutup semua accordion yang sebelumnya dibuka oleh filter
+                Object.keys(groupState).forEach(gKey => {
+                    if (groupState[gKey]) {
+                        groupState[gKey] = false;
+                        const chevron = document.querySelector(`.group-chevron[data-group="${gKey}"]`);
+                        if (chevron) chevron.style.transform = 'rotate(0deg)';
+                        const hdr = document.querySelector(`tr.group-header[data-group="${gKey}"]`);
+                        if (hdr) { hdr.classList.add('bg-blue-50'); hdr.classList.remove('bg-blue-100'); }
+                    }
+                });
+            }
+
             // Show/hide each child row
             childRows.forEach(row => {
                 if (pageSet.has(row)) {
-                    // Only show if its group is expanded
+                    // Paksa tampil (accordion sudah dibuka di atas jika filter aktif)
                     const gKey = row.dataset.groupChild;
-                    row.style.display = groupState[gKey] ? '' : 'none';
+                    const shouldShow = filterAktif ? true : (groupState[gKey] || false);
+                    row.style.display = shouldShow ? '' : 'none';
                     row.style.opacity = '1';
+                    row.style.transition = '';
                 } else {
                     row.style.display = 'none';
                 }
@@ -845,7 +872,7 @@
         // -- PDF LINK IKUT BAWA FILTER AKTIF -----------------
         function updatePdfLink() {
             const keyword  = document.getElementById('searchInput').value;
-            const filterHari = document.getElementById('filterHari').value;
+            const filterHari = document.getElementById('filterHari')?.value || '';
             const pdfBtn   = document.getElementById('pdfBtn');
 
             const params = new URLSearchParams();
