@@ -327,7 +327,7 @@
         </div>
 
         {{-- PAGINATION --}}
-        <div class="py-3 border-t border-gray-100 px-4">
+        <div class="py-3 border-t border-gray-100">
             {{ $data->links() }}
         </div>
 
@@ -477,11 +477,9 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal (Estimasi Harga)</label>
                 <div class="relative">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium select-none">Rp</span>
-                    <input type="text" name="nominal" id="f_nominal"
+                    <input type="number" min="0" name="nominal" id="f_nominal"
                         placeholder="0"
-                        inputmode="numeric"
                         autocomplete="off"
-                        oninput="formatNominalInput(this)"
                         class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <p class="text-xs text-gray-400 mt-1">Opsional � isi jika sudah ada estimasi harga.</p>
@@ -629,11 +627,11 @@ function triggerEdit(btn) {
     document.getElementById('f_satuan').value             = btn.dataset.satuan ?? '';
     document.getElementById('f_alasan_permintaan').value  = btn.dataset.alasan_permintaan ?? '';
 
-    // Nominal: tampilkan format ribuan di input
+    // Nominal: isi langsung sebagai angka
     const rawNominal = btn.dataset.nominal ?? '';
     const nominalEl = document.getElementById('f_nominal');
     if (rawNominal && rawNominal !== '0') {
-        nominalEl.value = parseInt(rawNominal, 10).toLocaleString('id-ID');
+        nominalEl.value = parseInt(rawNominal, 10) || '';
     } else {
         nominalEl.value = '';
     }
@@ -642,20 +640,10 @@ function triggerEdit(btn) {
     purchaseroModal.classList.add('flex');
 }
 
-// Format input nominal: 1000000 ? "1.000.000", strip non-digit sebelum submit
-function formatNominalInput(el) {
-    const raw = el.value.replace(/\D/g, '');
-    el.value  = raw ? parseInt(raw, 10).toLocaleString('id-ID') : '';
-}
-
 // Konversi nominal dari format ribuan ke angka murni sebelum form submit
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('purchaseroForm');
     if (!form) return;
-    form.addEventListener('submit', function () {
-        const el = document.getElementById('f_nominal');
-        if (el) el.value = el.value.replace(/\D/g, '') || '';
-    });
 });
 
 @endif

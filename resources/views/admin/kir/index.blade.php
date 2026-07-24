@@ -495,10 +495,10 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya <span
                             class="text-red-500">*</span></label>
 
-                    <input type="text" inputmode="numeric" name="biaya"
+                    <input type="number" min="0" name="biaya"
                         placeholder="Tambahkan biaya kir"
                         value="{{ old('biaya') }}"
-                        class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                         required>
                 </div>
 
@@ -609,8 +609,8 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya <span
                             class="text-red-500">*</span></label>
-                    <input type="text" inputmode="numeric" name="biaya" id="edit_biaya" required
-                        class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="number" min="0" name="biaya" id="edit_biaya" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
                 <div>
@@ -722,8 +722,8 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Biaya Baru <span
                             class="text-red-500">*</span></label>
-                    <input type="text" inputmode="numeric" name="biaya" id="perpanjang_biaya" required
-                        class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <input type="number" min="0" name="biaya" id="perpanjang_biaya" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
                 {{-- Upload Bukti --}}
@@ -901,7 +901,6 @@
             document.getElementById('edit_kendaraan_id').value = kendaraan_id;
             document.getElementById('edit_no_uji').value = no_uji;
             document.getElementById('edit_biaya').value = biaya;
-            document.getElementById('edit_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
             // Set masa berlaku dari data yang ada
             document.getElementById('edit_masa_berlaku').value = masa_berlaku;
@@ -993,7 +992,6 @@
             document.getElementById('perpanjang_kendaraan_text').innerText = nopol + ' - ' + merk;
             document.getElementById('perpanjang_no_uji').value = no_uji;
             document.getElementById('perpanjang_biaya').value = biaya;
-            document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
             // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)
             document.getElementById('_perpanjang_id').value                   = id;
@@ -1483,9 +1481,9 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Biaya Baru <span class="text-gray-400 font-normal">(opsional)</span>
                     </label>
-                    <input type="text" inputmode="numeric" name="biaya_default"
+                    <input type="number" min="0" name="biaya_default"
                         placeholder="Kosongkan untuk pakai biaya masing-masing"
-                        class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400">
                     <p class="text-xs text-gray-400 mt-1">Jika diisi, semua KIR akan diupdate dengan biaya ini.</p>
                 </div>
 

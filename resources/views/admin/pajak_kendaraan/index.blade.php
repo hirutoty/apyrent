@@ -482,8 +482,8 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal <span
                                 class="text-red-500">*</span></label>
-                        <input type="text" inputmode="numeric" name="nominal" required placeholder="Nominal pajak"
-                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
+                        <input type="number" min="0" name="nominal" required placeholder="Nominal pajak"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
                     </div>
 
                     <div>
@@ -650,8 +650,8 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal</label>
-                        <input type="text" inputmode="numeric" name="nominal" id="edit_nominal"
-                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
+                        <input type="number" min="0" name="nominal" id="edit_nominal"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
                     </div>
 
                     <div>
@@ -825,8 +825,8 @@ MODAL PERPANJANG
                             Nominal Baru
                         </label>
 
-                        <input id="perpanjang_nominal" type="text" inputmode="numeric" name="nominal"
-                            class="format-rupiah w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
+                        <input id="perpanjang_nominal" type="number" min="0" name="nominal"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
                     </div>
 
                     <div>
@@ -1015,7 +1015,6 @@ MODAL PERPANJANG
             document.getElementById('edit_kendaraan_id').value = kendaraan_id;
             document.getElementById('edit_jenis_pajak').value = jenis_pajak;
             document.getElementById('edit_nominal').value = nominal;
-            document.getElementById('edit_nominal').dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('edit_jatuh_tempo').value = formatDate(jatuh_tempo);
             document.getElementById('edit_tanggal_bayar').value = formatDate(tanggal_bayar);
             document.getElementById('edit_status').value = status;
@@ -1062,7 +1061,6 @@ MODAL PERPANJANG
 
             document.getElementById('perpanjang_jenis').value    = jenis;
             document.getElementById('perpanjang_nominal').value  = nominal;
-            document.getElementById('perpanjang_nominal').dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('perpanjang_keterangan').value = keterangan;
 
             // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)

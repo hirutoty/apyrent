@@ -491,8 +491,8 @@
                     </label>
 
                     <div class="relative">
-                        <input type="text" inputmode="numeric" name="biaya" required placeholder="0"
-                            class="format-rupiah w-full border border-gray-200 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <input type="number" min="0" name="biaya" required placeholder="0"
+                            class="w-full border border-gray-200 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
                 </div>
 
@@ -684,8 +684,8 @@
                     </label>
 
                     <div class="relative">
-                        <input type="text" inputmode="numeric" id="edit_biaya" name="biaya" required
-                            class="format-rupiah w-full border border-gray-200 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <input type="number" min="0" id="edit_biaya" name="biaya" required
+                            class="w-full border border-gray-200 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
                 </div>
 
@@ -881,8 +881,8 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Biaya Baru <span
                             class="text-red-500">*</span></label>
                     <div class="relative">
-                        <input type="text" inputmode="numeric" name="biaya" id="perpanjang_biaya" required readonly
-                            class="format-rupiah w-full border bg-gray-100 cursor-not-allowed rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <input type="number" min="0" name="biaya" id="perpanjang_biaya" required readonly
+                            class="w-full border bg-gray-100 cursor-not-allowed rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
                 </div>
 
@@ -1089,7 +1089,6 @@
             document.getElementById('edit_status_kendaraan').value = status_kendaraan;
             document.getElementById('edit_tgl_mulai').value = tgl_mulai;
             document.getElementById('edit_biaya').value = biaya;
-            document.getElementById('edit_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
             // Hitung tgl_berakhir = tgl_mulai + 1 tahun (tampil disabled, kirim via hidden)
             if (tgl_mulai) {
@@ -1162,7 +1161,6 @@
             document.getElementById('perpanjang_jenis_id').value = jenis_id;
 
             document.getElementById('perpanjang_biaya').value = biaya;
-            document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
             // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)
             document.getElementById('_perpanjang_id').value                  = id;

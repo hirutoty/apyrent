@@ -122,9 +122,9 @@ class ServiceHistoryController extends Controller
             'tanggal_service'    => 'required|date',
             'kilometer'          => 'required|integer|min:0',
             'total_biaya'        => 'required|numeric|min:0',
-            'bukti_pembayaran'   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'bukti_pembayaran'   => 'nullable|max:5120',
             'bukti_attachment'   => 'nullable|array',
-            'bukti_attachment.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
@@ -353,9 +353,9 @@ class ServiceHistoryController extends Controller
             'kendaraan_id'       => 'required|exists:kendaraan,id',
             'tanggal_service'    => 'required|date',
             'total_biaya'        => 'required|numeric|min:0',
-            'bukti_pembayaran'   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'bukti_pembayaran'   => 'nullable|file|max:5120',
             'bukti_attachment'   => 'nullable|array',
-            'bukti_attachment.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'bukti_attachment.*' => 'file|max:5120',
         ]);
 
         $data              = ServiceHistory::findOrFail($id);
