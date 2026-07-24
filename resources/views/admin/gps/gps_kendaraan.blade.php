@@ -511,9 +511,9 @@
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Sewa <span
                                 class="text-red-500">*</span></label>
-                        <input type="text" inputmode="numeric" name="biaya_sewa" id="biaya_sewa" required placeholder="0"
+                        <input type="number" min="0" name="biaya_sewa" id="biaya_sewa" required placeholder="0"
                             value="{{ old('biaya_sewa') }}"
-                            class="format-rupiah w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
                     {{-- Bukti Bayar --}}
@@ -659,8 +659,8 @@
                     {{-- Biaya readonly (dari data lama) --}}
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Sewa</label>
-                        <input id="perpanjang_biaya" type="text" inputmode="numeric" name="biaya_sewa" readonly
-                            class="format-rupiah w-full border border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed rounded-xl px-4 py-3 text-sm">
+                        <input id="perpanjang_biaya" type="number" min="0" name="biaya_sewa" readonly
+                            class="w-full border border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed rounded-xl px-4 py-3 text-sm">
                     </div>
 
                     {{-- Bukti Bayar Baru (required) --}}
@@ -843,7 +843,6 @@
                 document.getElementById('type').value = btn.dataset.type;
                 document.getElementById('status_gps').value = btn.dataset.status_gps;
                 document.getElementById('biaya_sewa').value = btn.dataset.biaya_sewa;
-                document.getElementById('biaya_sewa').dispatchEvent(new Event('input', { bubbles: true }));
 
                 // Set tanggal pasang, lalu hitung tanggal_habis = pasang + 1 tahun
                 const tglPasang = btn.dataset.tanggal_pasang;
@@ -924,7 +923,6 @@
                 document.getElementById('perpanjang_gps_text').innerText = btn.dataset.gps;
                 document.getElementById('perpanjang_type').value  = btn.dataset.type;
                 document.getElementById('perpanjang_biaya').value = btn.dataset.biaya;
-                document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
                 document.getElementById('listAttachmentPerpanjangGps').innerHTML = '';
 
                 // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)

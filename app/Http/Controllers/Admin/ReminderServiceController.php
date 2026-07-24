@@ -180,7 +180,7 @@ class ReminderServiceController extends Controller
             'tanggal_service' => Carbon::today()->toDateString(),
             'kilometer'       => 0,
             'status'          => 'Tidak Layak',
-            'biaya'           => 0,
+            'biaya'           => $reminder->biaya ?? 0,
             'keterangan'      => '[Reminder: ' . $reminder->nama_reminder . '] ' . ($reminder->keterangan ?? ''),
             'bukti'           => null,
         ]);

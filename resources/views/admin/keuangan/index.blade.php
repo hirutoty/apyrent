@@ -336,7 +336,7 @@
                             @endforelse
                         </tbody>
                     </table>
-                    <div class="py-4 border-t border-gray-100">
+                    <div class="py-3 border-t border-gray-100">
                         {{ $keuangans->links() }}
                     </div>
                 </div>

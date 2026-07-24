@@ -1,6 +1,6 @@
 ﻿@extends('admin.layouts.app')
 
-@section('title', 'Service History')
+@section('title', 'Service Kendaraan')
 
 @section('content')
 
@@ -903,7 +903,7 @@
                 {{-- Bukti Pembayaran --}}
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bukti Pembayaran</label>
-                    <input type="file" name="bukti_pembayaran" accept="image/*,.pdf,.doc,.docx"
+                    <input type="file" name="bukti_pembayaran"
                         onchange="previewEdit(event)" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
                     <!--<img id="previewEdit" class="mt-2 w-32 h-32 object-cover rounded-lg border hidden">-->
                     <!--<div id="previewLamaWrapper" class="mt-2 hidden">-->

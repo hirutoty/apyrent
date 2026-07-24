@@ -384,9 +384,9 @@
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya <span class="text-red-500">*</span></label>
-                        <input type="text" inputmode="numeric" name="biaya" required placeholder="0"
+                        <input type="number" min="0" name="biaya" required placeholder="0"
                             value="{{ old('biaya') }}"
-                            class="format-rupiah w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
                     <div class="md:col-span-2">
@@ -486,7 +486,7 @@
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya <span class="text-red-500">*</span></label>
-                        <input type="text" inputmode="numeric" name="biaya" id="edit_biaya" required class="format-rupiah"
+                        <input type="number" min="0" name="biaya" id="edit_biaya" required
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
@@ -567,7 +567,7 @@
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Baru <span class="text-red-500">*</span></label>
-                        <input type="text" inputmode="numeric" name="biaya" id="perpanjang_biaya" required placeholder="0" class="format-rupiah"
+                        <input type="number" min="0" name="biaya" id="perpanjang_biaya" required placeholder="0"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none">
                     </div>
 
@@ -703,7 +703,6 @@
             document.getElementById('edit_jenis_model').value   = jenis_model;
             document.getElementById('edit_masa_berlaku').value  = masa_berlaku.split(' ')[0];
             document.getElementById('edit_biaya').value         = biaya;
-            document.getElementById('edit_biaya').dispatchEvent(new Event('input', { bubbles: true }));
 
             const wrap = document.getElementById('editPreviewWrap');
             const img  = document.getElementById('editPreviewImg');
@@ -740,7 +739,6 @@
 
             // Prefill biaya pakai nilai lama supaya tinggal disesuaikan
             document.getElementById('perpanjang_biaya').value = biayaLama;
-            document.getElementById('perpanjang_biaya').dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('perpanjang_masa_berlaku').value = '';
 
             hapusPerpanjangPreview();
