@@ -9,9 +9,21 @@
 
     class AsuransiController extends Controller
     {
-        public function index()
+        public function index(Request $request)
         {
-            $data = Asuransi::with('user')->latest()->paginate(15)->withQueryString();
+            $query = Asuransi::with('user')->latest();
+
+            if ($request->filled('search')) {
+                $s = $request->search;
+                $query->where(function ($q) use ($s) {
+                    $q->where('nama_asuransi', 'like', "%{$s}%")
+                      ->orWhere('alamat', 'like', "%{$s}%")
+                      ->orWhere('nama_marketing', 'like', "%{$s}%")
+                      ->orWhere('nama_bengkel', 'like', "%{$s}%");
+                });
+            }
+
+            $data = $query->paginate(15)->withQueryString();
 
             return view('admin.asuransi.index', compact('data'));
         }

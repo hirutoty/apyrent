@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('tim')->nullable();
             $table->date('tanggal_mulai');
             $table->date('tanggal_selesai')->nullable();
-            $table->integer('progress')->default(0); // 0-100 persen
+            $table->bigInteger('progress')->default(0); // 0-100 persen
             $table->bigInteger('anggaran')->default(0);
             $table->bigInteger('realisasi')->default(0);
             $table->string('prioritas'); // Low / Medium / High

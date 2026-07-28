@@ -16,8 +16,8 @@ return new class extends Migration
             $table->bigInteger('harga_per_unit');
             $table->string('satuan');
             $table->decimal('diskon', 5, 2)->default(0);
-            $table->integer('minimal_order')->default(1);
-            $table->integer('lead_time')->default(0)->comment('dalam hari');
+            $table->bigInteger('minimal_order')->default(1);
+            $table->bigInteger('lead_time')->default(0)->comment('dalam hari');
             $table->date('tanggal_berlaku');
             $table->timestamps();
         });

@@ -245,6 +245,9 @@
                     <th>Durasi</th>
                     <th>Mulai</th>
                     <th>Selesai</th>
+                    <th>Tujuan</th>
+                    <th>Pengantaran</th>
+                    <th>Penjemputan</th>
                     <th>Status Rental</th>
                     <th>Status Bayar</th>
                     <th>Total</th>
@@ -310,6 +313,14 @@
                         <td>{{ $durasi }}</td>
                         <td>{{ \Carbon\Carbon::parse($r->tanggal_mulai)->format('d-m-Y') }}</td>
                         <td>{{ \Carbon\Carbon::parse($r->tanggal_selesai)->format('d-m-Y') }}</td>
+                        <td>
+                            @if ($r->tujuan_perjalanan === 'dalam_kota') Dalam Kota
+                            @elseif ($r->tujuan_perjalanan === 'luar_kota') Luar Kota
+                            @else -
+                            @endif
+                        </td>
+                        <td>{{ $r->alamat_pengantaran ?: '-' }}</td>
+                        <td>{{ $r->alamat_penjemputan ?: '-' }}</td>
                         <td><span class="badge {{ $statusClass }}">{{ ucfirst($r->status) }}</span></td>
                         <td><span class="badge {{ $bayarClass }}">{{ $bayarLabel }}</span></td>
                         <td class="total-cell">Rp {{ number_format($r->total_biaya, 0, ',', '.') }}</td>
@@ -317,11 +328,11 @@
                 @endforeach
 
                 <tr class="row-subtotal">
-                    <td colspan="9" class="text-right">Sub Total</td>
+                    <td colspan="12" class="text-right">Sub Total</td>
                     <td>Rp {{ number_format($rentals->sum('total_biaya'), 0, ',', '.') }}</td>
                 </tr>
                 <tr class="row-total">
-                    <td colspan="9" class="text-right" style="letter-spacing:0.5px;">TOTAL</td>
+                    <td colspan="12" class="text-right" style="letter-spacing:0.5px;">TOTAL</td>
                     <td>Rp {{ number_format($rentals->sum('total_biaya'), 0, ',', '.') }}</td>
                 </tr>
             </tbody>

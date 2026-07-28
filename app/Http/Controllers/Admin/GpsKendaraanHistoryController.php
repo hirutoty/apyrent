@@ -15,6 +15,20 @@ class GpsKendaraanHistoryController extends Controller
         $query = GpsKendaraanHistory::with(['kendaraan', 'gps', 'attachments'])
             ->latest('diperpanjang_pada');
 
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('type', 'like', "%{$s}%")
+                  ->orWhereHas('kendaraan', fn($k) =>
+                      $k->where('merk', 'like', "%{$s}%")
+                        ->orWhere('nopol', 'like', "%{$s}%")
+                  )
+                  ->orWhereHas('gps', fn($g) =>
+                      $g->where('nama_gps', 'like', "%{$s}%")
+                  );
+            });
+        }
+
         if ($request->filled('bulan')) {
             $query->whereMonth('diperpanjang_pada', $request->bulan);
         }
@@ -24,7 +38,15 @@ class GpsKendaraanHistoryController extends Controller
         }
 
         $data        = $query->paginate(15)->withQueryString();
-        $totalBiaya  = GpsKendaraanHistory::when($request->filled('bulan'), fn($q) => $q->whereMonth('diperpanjang_pada', $request->bulan))
+        $totalBiaya  = GpsKendaraanHistory::when($request->filled('search'), function ($q) use ($request) {
+                            $s = $request->search;
+                            $q->where(function ($qq) use ($s) {
+                                $qq->where('type', 'like', "%{$s}%")
+                                   ->orWhereHas('kendaraan', fn($k) => $k->where('merk', 'like', "%{$s}%")->orWhere('nopol', 'like', "%{$s}%"))
+                                   ->orWhereHas('gps', fn($g) => $g->where('nama_gps', 'like', "%{$s}%"));
+                            });
+                        })
+                        ->when($request->filled('bulan'), fn($q) => $q->whereMonth('diperpanjang_pada', $request->bulan))
                         ->when($request->filled('tahun'), fn($q) => $q->whereYear('diperpanjang_pada', $request->tahun))
                         ->sum('biaya_sewa');
 

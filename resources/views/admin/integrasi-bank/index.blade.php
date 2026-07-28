@@ -201,7 +201,7 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $rekonsiliasi->links() }}</div>
+                <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$rekonsiliasi" /></div>
             </div>
         </div>
     </div>{{-- end panel-rekonsiliasi --}}
@@ -413,7 +413,7 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $virtualAccounts->links() }}</div>
+                <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$virtualAccounts" /></div>
             </div>
         </div>
     </div>{{-- end panel-virtual --}}

@@ -34,7 +34,7 @@ return new class extends Migration
         });
 
         Schema::table('kendaraan', function (Blueprint $table) {
-            $table->integer('limit_bulan_service')->default(0)->change();
+            $table->bigInteger('limit_bulan_service')->default(0)->change();
         });
     }
 };

@@ -9,9 +9,19 @@ use Illuminate\Support\Facades\Auth;
 
 class ServiceController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Service::with('user')->latest()->paginate(15)->withQueryString();
+        $query = Service::with('user')->latest();
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('nama_service', 'like', "%{$s}%")
+                  ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$s}%"));
+            });
+        }
+
+        $data = $query->paginate(15)->withQueryString();
 
         return view('admin.service.index', compact('data'));
     }

@@ -46,11 +46,11 @@ return new class extends Migration {
             $table->string('dokumen')->nullable();
             $table->date('masa_berlaku')->nullable();
 
-            $table->integer('kilometer_sekarang')->default(0);
+            $table->bigInteger('kilometer_sekarang')->default(0);
 
-            $table->integer('limit_km_service')->default(0);
-            $table->integer('limit_bulan_service')->default(0);
-            $table->integer('km_terakhir_service')->default(0);
+            $table->bigInteger('limit_km_service')->default(0);
+            $table->bigInteger('limit_bulan_service')->default(0);
+            $table->bigInteger('km_terakhir_service')->default(0);
 
             $table->date('tanggal_terakhir_service')->nullable();
 

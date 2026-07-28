@@ -27,19 +27,22 @@
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
-            <div><h2 class="font-semibold text-gray-800 text-base">Daftar Dokumen</h2><p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total file</p></div>
-            <div class="relative">
-                <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                <input type="text" placeholder="Cari dokumen..." oninput="onSearchInput(this.value)"
-                    class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
-            </div>
-        </div>
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select onchange="onPerPageChange(this.value)" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
-                <option value="5">5</option><option value="10" selected>10</option><option value="25">25</option><option value="all">All</option>
-            </select>
-            <span>entries</span>
+            <div><h2 class="font-semibold text-gray-800 text-base">Daftar Dokumen</h2><p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total file</p></div>
+            <form method="GET" action="" class="flex items-center gap-2">
+                <div class="relative">
+                    <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input type="text" name="search" placeholder="Cari dokumen..." value="{{ request('search') }}"
+                        class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
+                </div>
+                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fa fa-search text-xs"></i> Cari
+                </button>
+                @if(request('search'))
+                    <a href="{{ request()->url() }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="fa fa-rotate-left text-xs"></i> Reset
+                    </a>
+                @endif
+            </form>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -56,8 +59,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors"
-                            data-search="{{ strtolower($d->nama_pegawai . ' ' . $d->nama_file . ' ' . $d->jenis_dokumen) }}">
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3.5 font-semibold text-gray-800">{{ $d->nama_pegawai }}</td>
                             <td class="px-4 py-3.5 text-gray-700">{{ $d->nama_file }}</td>
@@ -102,8 +104,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
+        <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
     </div>
 </div>
 
@@ -224,12 +225,7 @@ const deleteModal=document.getElementById('deleteModal'),deleteForm=document.get
 function triggerDelete(btn){deleteForm.action=btn.dataset.action;document.getElementById('deleteName').innerText=btn.dataset.name;deleteModal.classList.remove('hidden');deleteModal.classList.add('flex');}
 function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.classList.remove('flex');}
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
-const allRows=Array.from(document.querySelectorAll('#tableBody tr[data-search]')),entriesInfo=document.getElementById('entriesInfo');
-let cs='',cp=10;
-function onSearchInput(v){cs=v.toLowerCase();renderTable();}
-function onPerPageChange(v){cp=v==='all'?Infinity:parseInt(v);renderTable();}
-function renderTable(){if(!allRows.length)return;const m=allRows.filter(r=>r.dataset.search.includes(cs));let s=0;allRows.forEach(r=>r.style.display='none');m.forEach(r=>{if(s<cp){r.style.display='';s++;}});entriesInfo.innerText=m.length===0?'Tidak ada data':`Menampilkan ${s} dari ${m.length} entri`+(cs?' (hasil pencarian)':'');}
-document.addEventListener('DOMContentLoaded',renderTable);
+
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
 
         // Auto-reopen modal tambah on validation error

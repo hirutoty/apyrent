@@ -12,9 +12,9 @@ return new class extends Migration
             $table->id();
             $table->string('nama_pegawai');                  // Nama Pegawai
             $table->string('periode_evaluasi');              // Periode Evaluasi (misal: Q1 2026)
-            $table->integer('disiplin');                     // Nilai Disiplin (0-100)
-            $table->integer('kolaborasi');                   // Nilai Kolaborasi (0-100)
-            $table->integer('produktivitas');                // Nilai Produktivitas (0-100)
+            $table->bigInteger('disiplin');                     // Nilai Disiplin (0-100)
+            $table->bigInteger('kolaborasi');                   // Nilai Kolaborasi (0-100)
+            $table->bigInteger('produktivitas');                // Nilai Produktivitas (0-100)
             $table->decimal('nilai_akhir', 5, 2);            // Nilai Akhir rata-rata
             $table->string('evaluator');                     // Nama Evaluator
             $table->text('catatan')->nullable();              // Catatan Evaluator

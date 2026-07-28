@@ -20,7 +20,7 @@ return new class extends Migration
                 ->constrained('biaya_tambahans')
                 ->cascadeOnDelete();
 
-            $table->integer('jumlah')->default(1);
+            $table->bigInteger('jumlah')->default(1);
 
             $table->bigInteger('subtotal')->default(0);
 

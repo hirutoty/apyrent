@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Pelanggan Rental Kendaraan')
 
@@ -82,7 +82,7 @@
                 </tbody>
 
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+            <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
 
         </div>
     </div>
@@ -110,7 +110,7 @@
                 <input type="date" name="tanggal_sewa" id="tanggal_sewa" class="border p-2 w-full mb-2">
                 <input type="date" name="tanggal_kembali" id="tanggal_kembali" class="border p-2 w-full mb-2">
 
-                <input type="number" name="biaya_sewa" id="biaya_sewa" class="border p-2 w-full mb-2"
+                <input type="number" name="biaya_sewa" id="biaya_sewa" max="9999999999" class="border p-2 w-full mb-2"
                     placeholder="Biaya / Hari">
 
                 <button class="bg-blue-600 text-white px-4 py-2 rounded w-full">

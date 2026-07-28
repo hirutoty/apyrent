@@ -16,6 +16,13 @@ class StnkHistoryController extends Controller
 
         $data = StnkHistory::with('kendaraan')
             ->when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(diperpanjang_pada, '%Y-%m') = ?", [$bulan]))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $s = $request->search;
+                $q->whereHas('kendaraan', fn($k) =>
+                    $k->where('nopol', 'like', "%{$s}%")
+                      ->orWhere('merk', 'like', "%{$s}%")
+                );
+            })
             ->latest('diperpanjang_pada')
             ->paginate(15)->withQueryString();
 

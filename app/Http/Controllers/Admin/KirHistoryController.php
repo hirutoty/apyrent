@@ -15,10 +15,10 @@ class KirHistoryController extends Controller
     {
         $bulan = $request->input('bulan', 'semua');
         $tahun = $request->input('tahun', 'semua');
+        $search = $request->input('search');
 
-        $data = $this->filteredQuery($bulan, $tahun)->paginate(15)->withQueryString();
+        $data = $this->filteredQuery($bulan, $tahun, $search)->paginate(15)->withQueryString();
 
-        // daftar tahun untuk dropdown, diambil dari data yang ada
         $tahunList = KirHistory::selectRaw('YEAR(masa_berlaku) as tahun')
             ->whereNotNull('masa_berlaku')
             ->distinct()
@@ -66,15 +66,24 @@ class KirHistoryController extends Controller
         return $pdf->stream('history-kir-' . $namaBulan . '-' . $namaTahun . '.pdf');
     }
 
-    private function filteredQuery($bulan, $tahun)
+    private function filteredQuery($bulan, $tahun, $search = null)
     {
-$query = KirHistory::with(['kendaraan', 'attachments', 'kir']);
+        $query = KirHistory::with(['kendaraan', 'attachments', 'kir']);
+
         if ($bulan !== 'semua') {
             $query->whereMonth('masa_berlaku', $bulan);
         }
-
         if ($tahun !== 'semua') {
             $query->whereYear('masa_berlaku', $tahun);
+        }
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('no_uji', 'like', "%{$search}%")
+                  ->orWhereHas('kendaraan', fn($k) =>
+                      $k->where('nopol', 'like', "%{$search}%")
+                        ->orWhere('merk', 'like', "%{$search}%")
+                  );
+            });
         }
 
         return $query->latest();

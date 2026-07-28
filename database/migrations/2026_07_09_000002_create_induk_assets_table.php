@@ -18,7 +18,7 @@ return new class extends Migration
             $table->bigInteger('harga_perolehan');
             $table->string('status')->default('Aktif');
             $table->string('pic');
-            $table->integer('umur_ekonomis');
+            $table->bigInteger('umur_ekonomis');
             $table->string('metode_penyusutan');
             $table->timestamps();
         });

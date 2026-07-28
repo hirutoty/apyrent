@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+ï»¿@extends('admin.layouts.app')
 
 @section('title', 'History Rental - ' . $kendaraan->merk)
 
@@ -119,9 +119,13 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Tujuan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Pengantaran</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Penjemputan</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Total</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Bukti</th>
+                                Bukti Pembayaran</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Status Pembayaran</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -215,12 +219,38 @@
                                 </td>
 
                                 <td class="px-4 py-3.5">
-                                    @if ($r->tujuan)
-                                        <span class="text-sm text-gray-700">
-                                            {{ $r->tujuan }}
+                                    @if ($r->tujuan_perjalanan)
+                                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold
+                                            {{ $r->tujuan_perjalanan === 'luar_kota' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700' }}">
+                                            
+                                            {{ $r->tujuan_perjalanan === 'dalam_kota' ? 'Dalam Kota' : 'Luar Kota' }}
                                         </span>
                                     @else
                                         <span class="text-xs text-gray-300">-</span>
+                                    @endif
+                                </td>
+
+                                {{-- PENGANTARAN --}}
+                                <td class="px-4 py-3.5 text-xs text-gray-600 max-w-[150px]">
+                                    @if ($r->alamat_pengantaran)
+                                        <div class="flex items-start gap-1">
+                                            
+                                            <span>{{ $r->alamat_pengantaran }}</span>
+                                        </div>
+                                    @else
+                                        <span class="text-gray-300">-</span>
+                                    @endif
+                                </td>
+
+                                {{-- PENJEMPUTAN --}}
+                                <td class="px-4 py-3.5 text-xs text-gray-600 max-w-[150px]">
+                                    @if ($r->alamat_penjemputan)
+                                        <div class="flex items-start gap-1">
+                                        
+                                            <span>{{ $r->alamat_penjemputan }}</span>
+                                        </div>
+                                    @else
+                                        <span class="text-gray-300">-</span>
                                     @endif
                                 </td>
 
@@ -237,29 +267,33 @@
                                 </td>
 
                                 {{-- BUKTI --}}
-                                <td class="px-4 py-3.5 space-y-1">
-
-                                    {{-- Bukti DP --}}
-                                    @if ($r->bukti_dp)
-                                        <a href="{{ asset('bukti_dp/' . $r->bukti_dp) }}" target="_blank"
-                                            class="text-blue-600 hover:underline text-sm block">
-                                            Dp: {{ $r->bukti_dp }}
-                                        </a>
-                                    @endif
-
-                                    {{-- Bukti Pelunasan --}}
-                                    @if ($r->bukti_pelunasan)
-                                        <a href="{{ asset('bukti_pelunasan/' . $r->bukti_pelunasan) }}" target="_blank"
-                                            class="text-blue-600 hover:underline text-sm block">
-                                            Pelunasan: {{ $r->bukti_pelunasan }}
-                                        </a>
-                                    @endif
-
-                                    {{-- kalau kosong semua --}}
-                                    @if (!$r->bukti_dp && !$r->bukti_pelunasan)
-                                        <span class="text-xs text-gray-300">—</span>
-                                    @endif
-
+                                <td class="px-4 py-3.5">
+                                    <div class="flex flex-col gap-1.5">
+                                        @if ($r->bukti_lunas)
+                                            <a href="{{ asset($r->bukti_lunas) }}" target="_blank"
+                                                class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 hover:underline">
+                                                <i class="fa fa-paperclip text-[10px]"></i>
+                                                Lunas: {{ basename($r->bukti_lunas) }}
+                                            </a>
+                                        @endif
+                                        @if ($r->bukti_dp)
+                                            <a href="{{ asset($r->bukti_dp) }}" target="_blank"
+                                                class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 hover:underline">
+                                                <i class="fa fa-paperclip text-[10px]"></i>
+                                                DP: {{ basename($r->bukti_dp) }}
+                                            </a>
+                                        @endif
+                                        @if ($r->bukti_pelunasan)
+                                            <a href="{{ asset($r->bukti_pelunasan) }}" target="_blank"
+                                                class="inline-flex items-center gap-1 text-[11px] text-green-600 hover:text-green-800 hover:underline">
+                                                <i class="fa fa-paperclip text-[10px]"></i>
+                                                Pelunasan: {{ basename($r->bukti_pelunasan) }}
+                                            </a>
+                                        @endif
+                                        @if (!$r->bukti_lunas && !$r->bukti_dp && !$r->bukti_pelunasan)
+                                            <span class="text-xs text-gray-300">-</span>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 <td class="px-4 py-3.5">

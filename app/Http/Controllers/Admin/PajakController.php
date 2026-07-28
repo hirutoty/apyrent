@@ -20,6 +20,10 @@ class PajakController extends Controller
 {
     $query = PajakKendaraan::with(['kendaraan', 'attachments'])->latest();
 
+    if ($request->filled('status') && in_array($request->status, ['sudah_bayar', 'belum_bayar'])) {
+        $query->where('status', $request->status);
+    }
+
     if ($request->filled('hari')) {
         $query->whereDay('jatuh_tempo', $request->hari);
     }

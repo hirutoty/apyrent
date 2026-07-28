@@ -42,7 +42,7 @@ return new class extends Migration
             $table->id();
             $table->string('nama_software');
             $table->string('jenis_lisensi');
-            $table->integer('jumlah_lisensi');
+            $table->bigInteger('jumlah_lisensi');
             $table->string('provider');
             $table->date('masa_berlaku');
             $table->string('status');
@@ -107,7 +107,7 @@ return new class extends Migration
             $table->string('provider');
             $table->string('status');
             $table->date('expired_date')->nullable();
-            $table->integer('email_aktif')->default(0);
+            $table->bigInteger('email_aktif')->default(0);
             $table->boolean('dns_terkelola')->default(false);
             $table->timestamps();
         });
@@ -145,7 +145,7 @@ return new class extends Migration
             $table->text('tujuan');
             $table->string('estimasi_waktu');
             $table->string('status');
-            $table->integer('progres')->default(0);
+            $table->bigInteger('progres')->default(0);
             $table->timestamps();
         });
 

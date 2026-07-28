@@ -10,10 +10,22 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class MemberController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $query = Member::withCount('kendaraans')->latest();
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('nama', 'like', "%{$s}%")
+                  ->orWhere('kontak', 'like', "%{$s}%")
+                  ->orWhere('email', 'like', "%{$s}%")
+                  ->orWhere('alamat', 'like', "%{$s}%");
+            });
+        }
+
         return view('admin.members.index', [
-            'data' => Member::withCount('kendaraans')->latest()->paginate(15)->withQueryString(),
+            'data' => $query->paginate(15)->withQueryString(),
         ]);
     }
 

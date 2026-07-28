@@ -109,7 +109,7 @@
                     @endforelse
                 </tbody>
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+            <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
         <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
@@ -143,7 +143,7 @@
                         <option value="Leasing" {{ old('metode_pembelian') == 'Leasing' ? 'selected' : '' }}>Leasing</option><option value="Hibah" {{ old('metode_pembelian') == 'Hibah' ? 'selected' : '' }}>Hibah</option><option value="Tender" {{ old('metode_pembelian') == 'Tender' ? 'selected' : '' }}>Tender</option>
                     </select></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga (Rp) <span class="text-red-500">*</span></label>
-                    <input type="number" min="0" step="0.01" name="harga" id="f_harga" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('harga') }}"></div>
+                    <input type="number" max="9999999999" min="0" step="0.01" name="harga" id="f_harga" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('harga') }}"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>

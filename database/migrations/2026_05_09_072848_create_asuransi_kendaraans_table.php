@@ -32,7 +32,7 @@
                 $table->date('tgl_berakhir');
 
                 // Tambahan
-                $table->integer('durasi_bulan');
+                $table->bigInteger('durasi_bulan');
                 $table->decimal('biaya', 15, 2);
 
                 $table->string('bukti_bayar')->nullable();

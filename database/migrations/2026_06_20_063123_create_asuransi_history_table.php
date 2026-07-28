@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('jenis_asuransi_id')->constrained('jenis_asuransi')->onDelete('cascade');
             $table->date('tgl_mulai');
             $table->date('tgl_berakhir');
-            $table->integer('durasi_bulan');
+            $table->bigInteger('durasi_bulan');
             $table->decimal('biaya', 15, 2);
             $table->string('bukti_bayar')->nullable();
             $table->string('status_kendaraan')->default('aktif');

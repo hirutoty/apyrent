@@ -82,52 +82,74 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar Pajak Kendaraan</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total data pajak</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total data pajak</p>
                 </div>
-                <div class="flex items-center gap-2">
+
+                <form method="GET" action="{{ request()->url() }}" class="flex flex-wrap items-center gap-2">
+
                     <div class="relative">
                         <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input id="searchPajak" type="text" placeholder="Cari nopol, merk, status, jenis pajak..."
-                            oninput="filterPajakTable(this.value)"
+                        <input type="text" name="search" placeholder="Cari nopol, merk, jenis pajak..."
+                            value="{{ request('search') }}"
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-64">
                     </div>
-                    <button onclick="exportPdf()"
+
+                    {{-- Filter Status --}}
+                    @if(request('hari')) <input type="hidden" name="hari" value="{{ request('hari') }}"> @endif
+                    @if(request('bulan')) <input type="hidden" name="bulan" value="{{ request('bulan') }}"> @endif
+                    @if(request('tahun')) <input type="hidden" name="tahun" value="{{ request('tahun') }}"> @endif
+
+                    <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fa fa-search text-xs"></i> Cari
+                    </button>
+
+                    {{-- Status filter buttons --}}
+                    <div class="flex items-center gap-1 border border-gray-200 rounded-lg p-0.5 bg-gray-50">
+                        @foreach([''=>'Semua','sudah_bayar'=>'Lunas','belum_bayar'=>'Belum'] as $val => $label)
+                            <a href="{{ request()->fullUrlWithQuery(['status' => $val, 'page' => 1]) }}"
+                               class="px-3 py-1 text-xs font-medium rounded-md transition-colors
+                                   {{ request('status', '') === $val
+                                       ? ($val === 'sudah_bayar' ? 'bg-white text-green-700 shadow-sm border border-gray-200' : ($val === 'belum_bayar' ? 'bg-white text-red-600 shadow-sm border border-gray-200' : 'bg-white text-gray-700 shadow-sm border border-gray-200'))
+                                       : 'text-gray-500 hover:text-gray-700' }}">
+                                @if($val === 'sudah_bayar') <i class="fa fa-check text-[10px]"></i> @endif
+                                @if($val === 'belum_bayar') <i class="fa fa-times text-[10px]"></i> @endif
+                                {{ $label }}
+                            </a>
+                        @endforeach
+                    </div>
+
+                    <button onclick="exportPdf()" type="button"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-download text-xs"></i> Export
                     </button>
-                    <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <i class="fa fa-sync text-xs"></i> Refresh
-                    </button>
-                    {{-- FILTER STATUS --}}
-                    <div class="flex items-center gap-1 border border-gray-200 rounded-lg p-0.5 bg-gray-50">
-                        <button onclick="filterStatus('semua')" id="btnSemua"
-                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors bg-white text-gray-700 shadow-sm border border-gray-200">
-                            Semua
-                        </button>
-                        <button onclick="filterStatus('sudah_bayar')" id="btnLunas"
-                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors text-gray-500 hover:text-green-600">
-                            <i class="fa fa-check text-[10px]"></i> Lunas
-                        </button>
-                        <button onclick="filterStatus('belum_bayar')" id="btnBelum"
-                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors text-gray-500 hover:text-red-500">
-                            <i class="fa fa-times text-[10px]"></i> Belum
-                        </button>
-                    </div>
-                </div>
+
+                    @if(request()->hasAny(['search','status','hari','bulan','tahun']))
+                        <a href="{{ request()->url() }}"
+                           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <i class="fa fa-rotate-left text-xs"></i> Reset
+                        </a>
+                    @endif
+
+                </form>
             </div>
 
             {{-- FILTER BAR: Hari, Bulan & Tahun --}}
-            <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
+            <form method="GET" action="{{ request()->url() }}" id="formFilterPajak"
+                  class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
+
+                {{-- Preserve search & status --}}
+                @if(request('search')) <input type="hidden" name="search" value="{{ request('search') }}"> @endif
+                @if(request('status')) <input type="hidden" name="status" value="{{ request('status') }}"> @endif
 
                 {{-- Filter Hari --}}
                 <div class="flex items-center gap-2">
                     <i class="fa fa-calendar-day text-gray-400"></i>
-                    <select id="filterHari" onchange="applyFilter()"
+                    <select name="hari" onchange="this.form.submit()"
                         class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">Semua Hari</option>
                         @for ($d = 1; $d <= 31; $d++)
-                            <option value="{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}">{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}</option>
+                            <option value="{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}" {{ request('hari') == str_pad($d, 2, '0', STR_PAD_LEFT) ? 'selected' : '' }}>{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}</option>
                         @endfor
                     </select>
                 </div>
@@ -137,48 +159,33 @@
                 {{-- Filter Bulan --}}
                 <div class="flex items-center gap-2">
                     <i class="fa fa-calendar text-gray-400"></i>
-                    <select id="filterBulan" onchange="applyFilter()"
+                    <select name="bulan" onchange="this.form.submit()"
                         class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">Semua Bulan</option>
-                        <option value="01">Januari</option>
-                        <option value="02">Februari</option>
-                        <option value="03">Maret</option>
-                        <option value="04">April</option>
-                        <option value="05">Mei</option>
-                        <option value="06">Juni</option>
-                        <option value="07">Juli</option>
-                        <option value="08">Agustus</option>
-                        <option value="09">September</option>
-                        <option value="10">Oktober</option>
-                        <option value="11">November</option>
-                        <option value="12">Desember</option>
+                        @foreach(['01'=>'Januari','02'=>'Februari','03'=>'Maret','04'=>'April','05'=>'Mei','06'=>'Juni','07'=>'Juli','08'=>'Agustus','09'=>'September','10'=>'Oktober','11'=>'November','12'=>'Desember'] as $num => $nama)
+                            <option value="{{ $num }}" {{ request('bulan') == $num ? 'selected' : '' }}>{{ $nama }}</option>
+                        @endforeach
                     </select>
                 </div>
 
                 {{-- Filter Tahun --}}
                 <div class="flex items-center gap-2">
-                    <select id="filterTahun" onchange="applyFilter()"
+                    <select name="tahun" onchange="this.form.submit()"
                         class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">Semua Tahun</option>
-                        @php
-                            $years = $data->map(fn($d) => $d->jatuh_tempo ? \Carbon\Carbon::parse($d->jatuh_tempo)->year : null)
-                                         ->filter()->unique()->sortDesc();
-                        @endphp
-                        @foreach ($years as $year)
-                            <option value="{{ $year }}">{{ $year }}</option>
+                        @foreach(range(date('Y') + 1, date('Y') - 3) as $yr)
+                            <option value="{{ $yr }}" {{ request('tahun') == $yr ? 'selected' : '' }}>{{ $yr }}</option>
                         @endforeach
                     </select>
                 </div>
 
                 {{-- Reset filter --}}
-                <button onclick="resetFilter()"
-                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
+                <a href="{{ request()->url() }}"
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-rotate-left text-[10px]"></i> Reset
-                </button>
+                </a>
 
-                {{-- Entries info --}}
-                <div class="ml-auto text-xs text-gray-400" id="entriesInfo"></div>
-            </div>
+            </form>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -192,10 +199,10 @@
                                 Jenis Pajak</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Nominal</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl
+                                    Bayar</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Jatuh Tempo</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl
-                                Bayar</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Status</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -211,30 +218,12 @@
                     <tbody id="pajakTableBody">
                         @forelse($data as $item)
                             @php
-                                $today = \Carbon\Carbon::now();
-                                $jatuhTempo = \Carbon\Carbon::parse($item->jatuh_tempo);
-                                $selisihHari = (int) $today->diffInDays($jatuhTempo, false);
+                                $today       = \Carbon\Carbon::now();
+                                $jatuhTempo  = \Carbon\Carbon::parse($item->jatuh_tempo);
+                                $selisihHari = (int) $today->startOfDay()->diffInDays($jatuhTempo->startOfDay(), false);
+                                $sisaDetikPajak = (int) ($jatuhTempo->endOfDay()->timestamp - now()->timestamp);
                             @endphp
-                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
-                                data-search="{{ strtolower(
-                                    ($item->kendaraan->nopol ?? '') .
-                                        ' ' .
-                                        ($item->kendaraan->merk ?? '') .
-                                        ' ' .
-                                        ($item->jenis_pajak ?? '') .
-                                        ' ' .
-                                        ($item->nominal ?? '') .
-                                        ' ' .
-                                        ($item->jatuh_tempo ?? '') .
-                                        ' ' .
-                                        ($item->tanggal_bayar ?? '') .
-                                        ' ' .
-                                        ($item->status ?? '') .
-                                        ' ' .
-                                        ($item->keterangan ?? ''),
-                                ) }}"
-                                data-status="{{ $item->status }}"
-                                data-jatuh-tempo="{{ $item->jatuh_tempo ? \Carbon\Carbon::parse($item->jatuh_tempo)->format('Y-m-d') : '' }}">
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100">
 
                                 <td class="px-4 py-3.5 text-sm text-gray-500">{{ $data->firstItem() + $loop->index }}</td>
 
@@ -265,6 +254,10 @@
                                     </span>
                                 </td>
 
+                                <td class="px-4 py-3.5 text-sm text-gray-500">
+                                    {{ $item->tanggal_bayar ? \Carbon\Carbon::parse($item->tanggal_bayar)->translatedFormat('j F Y') : '-' }}
+                                </td>
+
                                 <td class="px-4 py-3.5">
                                     <div class="flex flex-col gap-1">
 
@@ -273,28 +266,28 @@
                                         </span>
 
                                         @if ($selisihHari < 0)
-                                            <span
-                                                class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full w-fit font-semibold">
-
-                                                ?? Terlambat {{ abs($selisihHari) }} hari
-
+                                            <span class="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full w-fit font-semibold">
+                                                <i class="fa fa-circle-exclamation text-[10px]"></i>
+                                                Terlambat {{ formatSisaWaktu(abs($sisaDetikPajak)) }}
                                             </span>
                                         @elseif ($selisihHari <= $reminder)
-                                            <span
-                                                class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full w-fit font-semibold">
-
-
-                                                ?? Jatuh tempo {{ $selisihHari }} hari lagi
-
+                                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full w-fit font-semibold
+                                                {{ $selisihHari == 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700' }}">
+                                                <i class="fa fa-triangle-exclamation text-[10px]"></i>
+                                                @if ($selisihHari == 0)
+                                                    Jatuh tempo {{ formatSisaWaktu($sisaDetikPajak) }} lagi
+                                                @elseif ($selisihHari == 1)
+                                                    Jatuh tempo besok
+                                                @else
+                                                    Jatuh tempo {{ $selisihHari }} hari lagi
+                                                @endif
                                             </span>
                                         @endif
 
                                     </div>
                                 </td>
 
-                                <td class="px-4 py-3.5 text-sm text-gray-500">
-                                    {{ $item->tanggal_bayar ? \Carbon\Carbon::parse($item->tanggal_bayar)->translatedFormat('j F Y') : '-' }}
-                                </td>
+                                
 
                                 <td class="px-4 py-3.5">
                                     @if ($item->status == 'sudah_bayar')
@@ -354,7 +347,8 @@
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
 
-                                        {{-- Perpanjangan --}}
+                                        {{-- Perpanjangan: hanya tampil jika sudah dalam batas reminder --}}
+                                        @if ($selisihHari <= $reminder)
                                         <button
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
                                             onclick="openModalPerpanjang(
@@ -365,7 +359,7 @@
                 '{{ $item->jenis_pajak }}',
                 '{{ $item->nominal }}',
                 '{{ $item->jatuh_tempo }}',
-                '{{ $item->tanggal_bayar }}',
+                '{{ $item->tanggal_bayar ? \Carbon\Carbon::parse($item->tanggal_bayar)->format('Y-m-d') : '' }}',
                 '{{ $item->status }}',
                 '{{ addslashes($item->keterangan) }}',
                 '{{ $item->bukti }}'
@@ -373,9 +367,10 @@
                                             <i class="fa fa-rotate-right text-xs"></i>
                                             Perpanjang
                                         </button>
+                                        @endif
 
                                         {{-- Edit --}}
-                                        <button
+                                        <!-- <button
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors"
                                             onclick="openModalEdit(
                 '{{ $item->id }}',
@@ -390,7 +385,7 @@
             )">
                                             <i class="fa fa-edit text-xs"></i>
                                             Edit
-                                        </button>
+                                        </button> -->
 
                                         {{-- Hapus --}}
                                         <form action="{{ route('pajak.destroy', $item->id) }}" method="POST"
@@ -428,7 +423,9 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 px-5 border-t border-gray-100 flex items-center gap-1.5" id="paginationControls"></div>
+                <div class="py-3 px-5 border-t border-gray-100">
+                    <x-pagination :paginator="$data" />
+                </div>
             </div>
 
         </div>
@@ -482,22 +479,25 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal <span
                                 class="text-red-500">*</span></label>
-                        <input type="number" min="0" name="nominal" required placeholder="Nominal pajak"
+                        <input type="number" min="0" max="9999999999" name="nominal" required placeholder="Nominal pajak"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
                     </div>
 
+                    
+
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jatuh Tempo <span
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Mulai <span
                                 class="text-red-500">*</span></label>
-                        <input type="date" name="jatuh_tempo" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jatuh_tempo') }}">
+                        <input type="date" name="tanggal_bayar" id="tambah_tanggal_bayar" required
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_bayar') }}">
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Bayar <span
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Jatuh Tempo <span
                                 class="text-red-500">*</span></label>
-                        <input type="date" name="tanggal_bayar" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_bayar') }}">
+                        <input type="date" name="jatuh_tempo" id="tambah_jatuh_tempo" readonly
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none" value="{{ old('jatuh_tempo') }}">
+                        <p class="text-xs text-gray-400 mt-1">Otomatis tanggal bayar + 1 tahun</p>
                     </div>
 
                     <div>
@@ -585,7 +585,7 @@
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan <span
                                 class="text-red-500">*</span></label>
-                        <textarea name="keterangan" rows="3" required placeholder="Tambahkan keterangan..."
+                        <textarea name="keterangan" rows="3" placeholder="Tambahkan keterangan..."
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
                     </div>
 
@@ -847,7 +847,6 @@ MODAL PERPANJANG
                         </label>
 
                         <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
-                            value="{{ old('tanggal_bayar', now()->format('Y-m-d')) }}"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
@@ -1002,6 +1001,27 @@ MODAL PERPANJANG
             document.getElementById('bukti_attachment').value = '';
         }
 
+        // -- AUTO JATUH TEMPO: tanggal bayar + 1 tahun (form tambah) --
+        (function () {
+            var tglBayar   = document.getElementById('tambah_tanggal_bayar');
+            var jatuhTempo = document.getElementById('tambah_jatuh_tempo');
+            if (!tglBayar || !jatuhTempo) return;
+
+            tglBayar.addEventListener('change', function () {
+                if (!this.value) {
+                    jatuhTempo.value = '';
+                    return;
+                }
+                var d = new Date(this.value);
+                d.setFullYear(d.getFullYear() + 1);
+                // Format Y-m-d
+                var y  = d.getFullYear();
+                var m  = String(d.getMonth() + 1).padStart(2, '0');
+                var dy = String(d.getDate()).padStart(2, '0');
+                jatuhTempo.value = y + '-' + m + '-' + dy;
+            });
+        })();
+
         modalTambah.addEventListener('click', function(e) {
             if (e.target === modalTambah) closeModalTambah();
         });
@@ -1082,6 +1102,22 @@ MODAL PERPANJANG
                 document.getElementById('perpanjang_jatuh_tempo').value = val;
             }
 
+            // tanggal_bayar: default = tanggal_bayar_lama + 1 tahun, min = nilai tersebut
+            var tglBayarElPajak = document.getElementById('perpanjang_tanggal_bayar');
+            var todayPajak = new Date().toISOString().split('T')[0];
+            var defaultTglPajak;
+            if (tanggalBayar) {
+                var dp = new Date(tanggalBayar);
+                dp.setFullYear(dp.getFullYear() + 1);
+                defaultTglPajak = dp.getFullYear() + '-'
+                    + String(dp.getMonth() + 1).padStart(2, '0') + '-'
+                    + String(dp.getDate()).padStart(2, '0');
+            } else {
+                defaultTglPajak = todayPajak;
+            }
+            tglBayarElPajak.value = defaultTglPajak;
+            tglBayarElPajak.min   = defaultTglPajak;
+
             modalPerpanjang.classList.remove('hidden');
             modalPerpanjang.classList.add('flex');
         }
@@ -1100,170 +1136,6 @@ MODAL PERPANJANG
             return dateString.split(' ')[0];
         }
 
-        // -- STATUS FILTER --------------------------------------
-        let activeStatus = 'semua';
-        let currentPage = 1;
-        const PER_PAGE = 10;
-
-        function filterStatus(status) {
-            activeStatus = status;
-            currentPage = 1;
-
-            // update tampilan tombol aktif
-            const buttons = {
-                semua: document.getElementById('btnSemua'),
-                sudah_bayar: document.getElementById('btnLunas'),
-                belum_bayar: document.getElementById('btnBelum'),
-            };
-
-            Object.entries(buttons).forEach(([key, btn]) => {
-                if (key === status) {
-                    btn.classList.add('bg-white', 'shadow-sm', 'border', 'border-gray-200');
-                    if (key === 'sudah_bayar') btn.classList.add('text-green-700');
-                    else if (key === 'belum_bayar') btn.classList.add('text-red-600');
-                    else btn.classList.add('text-gray-700');
-                    btn.classList.remove('text-gray-500');
-                } else {
-                    btn.classList.remove('bg-white', 'shadow-sm', 'border', 'border-gray-200', 'text-green-700',
-                        'text-red-600', 'text-gray-700');
-                    btn.classList.add('text-gray-500');
-                }
-            });
-
-            applyFilter();
-        }
-
-        function filterPajakTable(keyword) {
-            currentPage = 1;
-            applyFilter(keyword);
-        }
-
-        function applyFilter(keyword) {
-            if (keyword === undefined) {
-                keyword = document.getElementById('searchPajak').value;
-            }
-            keyword = keyword.toLowerCase();
-
-            const filterBulan  = document.getElementById('filterBulan').value;
-            const filterTahun  = document.getElementById('filterTahun').value;
-            const filterHari   = document.getElementById('filterHari').value;
-            const perPage      = PER_PAGE;
-
-            const allRows = Array.from(document.querySelectorAll('#pajakTableBody tr[data-search]'));
-            let matched   = [];
-
-            allRows.forEach(row => {
-                const matchSearch = row.dataset.search.includes(keyword);
-                const matchStatus = activeStatus === 'semua' || row.dataset.status === activeStatus;
-
-                const jatuhTempo  = row.dataset.jatuhTempo || '';
-                const [rowYear, rowMonth, rowDay] = jatuhTempo.split('-');
-                const matchHari   = !filterHari   || rowDay   === filterHari;
-                const matchBulan  = !filterBulan  || rowMonth === filterBulan;
-                const matchTahun  = !filterTahun  || rowYear  === filterTahun;
-
-                const tampil = matchSearch && matchStatus && matchHari && matchBulan && matchTahun;
-                row.style.display = 'none';
-
-                if (tampil) matched.push(row);
-            });
-
-            const total = matched.length;
-            const totalPages = Math.ceil(total / perPage) || 1;
-            if (currentPage > totalPages) currentPage = 1;
-            const start = (currentPage - 1) * perPage;
-            const end = Math.min(start + perPage, total);
-
-            let num = start + 1;
-            matched.forEach((row, index) => {
-                if (index >= start && index < end) {
-                    row.style.display = '';
-                    row.querySelector('td:first-child').textContent = num++;
-                }
-            });
-
-            const shown = end - start;
-            const infoText = total === 0
-                ? 'Tidak ada data yang cocok'
-                : 'Menampilkan ' + (start + 1) + '-' + end + ' dari ' + total + ' entri' +
-                  (keyword || filterHari || filterBulan || filterTahun || activeStatus !== 'semua' ? ' (difilter)' : '');
-
-            const topInfo = document.getElementById('entriesInfo');
-            if (topInfo) topInfo.innerText = infoText;
-
-            renderPagination(totalPages);
-        }
-
-        function renderPagination(totalPages) {
-            const container = document.getElementById('paginationControls');
-            if (!container) return;
-            container.innerHTML = '';
-            if (totalPages <= 1) return;
-
-            const btnBase       = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
-            const activeClass   = 'bg-indigo-600 text-white border-indigo-600';
-            const normalClass   = 'border-gray-200 text-gray-600 hover:bg-gray-50';
-            const disabledClass = 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400';
-
-            const prev = document.createElement('button');
-            prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
-            prev.className = btnBase + ' ' + (currentPage === 1 ? disabledClass : normalClass);
-            prev.disabled  = currentPage === 1;
-            prev.onclick   = () => { currentPage--; applyFilter(); };
-            container.appendChild(prev);
-
-            const range = 2;
-            for (let i = 1; i <= totalPages; i++) {
-                if (i === 1 || i === totalPages || (i >= currentPage - range && i <= currentPage + range)) {
-                    const btn = document.createElement('button');
-                    btn.textContent = i;
-                    btn.className = btnBase + ' ' + (i === currentPage ? activeClass : normalClass);
-                    btn.onclick = (function(page) { return () => { currentPage = page; applyFilter(); }; })(i);
-                    container.appendChild(btn);
-                } else if (i === currentPage - range - 1 || i === currentPage + range + 1) {
-                    const dots = document.createElement('span');
-                    dots.textContent = '…';
-                    dots.className = 'px-1 text-xs text-gray-400';
-                    container.appendChild(dots);
-                }
-            }
-
-            const next = document.createElement('button');
-            next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
-            next.className = btnBase + ' ' + (currentPage === totalPages ? disabledClass : normalClass);
-            next.disabled  = currentPage === totalPages;
-            next.onclick   = () => { currentPage++; applyFilter(); };
-            container.appendChild(next);
-        }
-
-        function resetFilter() {
-            document.getElementById('searchPajak').value  = '';
-            document.getElementById('filterHari').value   = '';
-            document.getElementById('filterBulan').value  = '';
-            document.getElementById('filterTahun').value  = '';
-            currentPage = 1;
-            activeStatus = 'semua';
-
-            // reset tombol status
-            const buttons = {
-                semua: document.getElementById('btnSemua'),
-                sudah_bayar: document.getElementById('btnLunas'),
-                belum_bayar: document.getElementById('btnBelum'),
-            };
-            Object.entries(buttons).forEach(([key, btn]) => {
-                if (key === 'semua') {
-                    btn.classList.add('bg-white', 'shadow-sm', 'border', 'border-gray-200', 'text-gray-700');
-                    btn.classList.remove('text-gray-500');
-                } else {
-                    btn.classList.remove('bg-white', 'shadow-sm', 'border', 'border-gray-200', 'text-green-700', 'text-red-600', 'text-gray-700');
-                    btn.classList.add('text-gray-500');
-                }
-            });
-
-            applyFilter('');
-        }
-
-        document.addEventListener('DOMContentLoaded', () => applyFilter(''));
         // -- POPUP ALERT ----------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
@@ -1294,21 +1166,8 @@ MODAL PERPANJANG
 
 
         function exportPdf() {
-            let search = document.getElementById('searchPajak').value;
-            let hari   = document.getElementById('filterHari').value;
-            let bulan  = document.getElementById('filterBulan').value;
-            let tahun  = document.getElementById('filterTahun').value;
-
-            let params = new URLSearchParams();
-            if (search) params.set('search', search);
-            if (hari)   params.set('hari', hari);
-            if (bulan)  params.set('bulan', bulan);
-            if (tahun)  params.set('tahun', tahun);
-
-            window.open(
-                "{{ route('pajak.export.pdf') }}?" + params.toString(),
-                '_blank'
-            );
+            const params = new URLSearchParams(window.location.search);
+            window.open("{{ route('pajak.export.pdf') }}?" + params.toString(), '_blank');
         }
 
 

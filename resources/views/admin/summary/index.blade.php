@@ -283,7 +283,7 @@
 
             {{-- PAGINATION --}}
             <div class="py-3 border-t border-gray-100">
-                {{ $summaries->links() }}
+                <x-pagination :paginator="$summaries" />
             </div>
 
         </div>

@@ -274,7 +274,9 @@
         </div>
 
         {{-- PAGINATION --}}
-        <div class="py-3 border-t border-gray-100">{{ $penawarans->links() }}</div>
+        <div class="py-3 border-t border-gray-100 px-5">
+            <x-pagination :paginator="$penawarans" />
+        </div>
 
         </div>{{-- end TABLE CARD --}}
     </div>{{-- end space-y-6 --}}

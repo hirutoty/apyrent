@@ -14,7 +14,7 @@ return new class extends Migration
             $table->date('tanggal_po');
             $table->string('vendor');
             $table->string('terkait_rfq')->nullable();
-            $table->integer('total_barang');
+            $table->bigInteger('total_barang');
             $table->bigInteger('total_harga');
             $table->string('status_po');
             $table->date('tanggal_kirim')->nullable();

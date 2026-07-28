@@ -44,7 +44,7 @@ class InvPenawaranController
         });
     }
 
-    $penawarans = $query->paginate(10);
+    $penawarans = $query->paginate(10)->withQueryString();
 
     $kendaraans = Kendaraan::whereIn('status_kendaraan', ['tersedia', 'disewa'])
         ->orderBy('nopol')

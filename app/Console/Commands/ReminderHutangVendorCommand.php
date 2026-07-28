@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use App\Models\HutangVendor;
 use App\Models\Setting;
 use App\Mail\ReminderHutangVendorMail;
@@ -12,92 +13,232 @@ use Carbon\Carbon;
 class ReminderHutangVendorCommand extends Command
 {
     protected $signature = 'hutang:reminder';
-    protected $description = 'Kirim reminder hutang vendor (GPS style)';
+
+    protected $description = 'Kirim reminder hutang vendor';
+
 
     public function handle()
     {
-        $this->info('Command Hutang Vendor dijalankan');
+        Log::info('=== HUTANG VENDOR REMINDER START ===');
+
 
         $setting = Setting::first();
 
+
         if (!$setting || !$setting->email) {
-            $this->error('Email setting belum diisi.');
-            return;
+
+            Log::warning('Email setting hutang vendor tidak ditemukan');
+
+            return self::FAILURE;
         }
 
-        // 🔥 CONVERT SETTING (sama seperti GPS)
+
+
+        // Konversi batas reminder
         $reminder = match ($setting->satuan_reminder) {
-            'hari'   => $setting->batas_reminder,
-            'minggu' => $setting->batas_reminder * 7,
-            'bulan'  => $setting->batas_reminder * 30,
-            'tahun'  => $setting->batas_reminder * 365,
-            default  => $setting->batas_reminder,
+
+            'hari'   => (int) $setting->batas_reminder,
+
+            'minggu' => (int) $setting->batas_reminder * 7,
+
+            'bulan'  => (int) $setting->batas_reminder * 30,
+
+            'tahun'  => (int) $setting->batas_reminder * 365,
+
+            default  => (int) $setting->batas_reminder,
         };
 
-        // 🔥 POLA REMINDER SAMA SEPERTI GPS
+
+
+        // pola reminder
         $hariReminder = array_unique([
             $reminder,
             14,
             7,
-            1,
+            3,
+            1
         ]);
 
-        $data = HutangVendor::where('status', 'belum_lunas')->get();
 
-        foreach ($data as $hutang) {
+
+        $hutangs = HutangVendor::where('status', 'belum_lunas')
+            ->get();
+
+
+
+        $emailTerkirim = 0;
+
+
+
+        foreach ($hutangs as $hutang) {
+
+
+            if (!$hutang->jatuh_tempo) {
+                continue;
+            }
+
+
 
             $sisaHari = Carbon::today()->diffInDays(
                 Carbon::parse($hutang->jatuh_tempo),
                 false
             );
 
-            $this->info("Vendor: {$hutang->nama_vendor}");
-            $this->info("Sisa Hari: {$sisaHari}");
 
-            // 🔥 AUTO EXPIRED (opsional status overdue)
-            if ($sisaHari < 0 && $hutang->status != 'lunas') {
-                $hutang->update([
-                    'status' => 'terlambat'
-                ]);
+
+            Log::info('Cek hutang vendor', [
+
+                'id' => $hutang->id,
+
+                'vendor' => $hutang->nama_vendor ?? '-',
+
+                'jatuh_tempo' => $hutang->jatuh_tempo,
+
+                'sisa_hari' => $sisaHari
+
+            ]);
+
+
+
+
+            // otomatis terlambat
+            if ($sisaHari < 0) {
+
+
+                if ($hutang->status != 'terlambat') {
+
+                    $hutang->update([
+                        'status' => 'terlambat'
+                    ]);
+
+                }
+
+
             }
 
-            // 🔥 REMINDER EMAIL (GPS STYLE)
+
+
+
+            // reminder sebelum jatuh tempo
             if (in_array($sisaHari, $hariReminder)) {
 
-                $this->info('Kirim email reminder hutang vendor');
 
-                Mail::to($setting->email)->send(
-                    new ReminderHutangVendorMail(
-                        $hutang,
-                        $sisaHari,
-                        'reminder'
-                    )
-                );
+                try {
 
-                $hutang->update([
-                    'last_reminder_at' => now()
-                ]);
+
+                    Mail::to($setting->email)
+                        ->send(
+                            new ReminderHutangVendorMail(
+                                $hutang,
+                                $sisaHari,
+                                'reminder'
+                            )
+                        );
+
+
+
+                    $hutang->update([
+                        'last_reminder_at' => now()
+                    ]);
+
+
+
+                    $emailTerkirim++;
+
+
+
+                    Log::info('Email reminder hutang terkirim', [
+
+                        'hutang_id' => $hutang->id,
+
+                        'sisa_hari' => $sisaHari
+
+                    ]);
+
+
+
+                } catch (\Throwable $e) {
+
+
+                    Log::error('Gagal kirim reminder hutang', [
+
+                        'hutang_id' => $hutang->id,
+
+                        'pesan' => $e->getMessage()
+
+                    ]);
+
+                }
+
             }
 
-            // 🔥 TERLAMBAT (H+1 style GPS)
+
+
+
+            // terlambat H+1
             if ($sisaHari == -1) {
 
-                $this->info('Kirim email terlambat hutang vendor');
 
-                Mail::to($setting->email)->send(
-                    new ReminderHutangVendorMail(
-                        $hutang,
-                        abs($sisaHari),
-                        'terlambat'
-                    )
-                );
+                try {
 
-                $hutang->update([
-                    'last_reminder_at' => now()
-                ]);
+
+                    Mail::to($setting->email)
+                        ->send(
+                            new ReminderHutangVendorMail(
+                                $hutang,
+                                1,
+                                'terlambat'
+                            )
+                        );
+
+
+
+                    $hutang->update([
+                        'last_reminder_at' => now()
+                    ]);
+
+
+
+                    $emailTerkirim++;
+
+
+
+                    Log::info('Email hutang terlambat terkirim', [
+
+                        'hutang_id' => $hutang->id
+
+                    ]);
+
+
+
+                } catch (\Throwable $e) {
+
+
+                    Log::error('Gagal kirim email terlambat hutang', [
+
+                        'hutang_id' => $hutang->id,
+
+                        'pesan' => $e->getMessage()
+
+                    ]);
+
+                }
+
             }
+
+
         }
 
-        $this->info('Selesai menjalankan reminder hutang vendor');
+
+
+        Log::info('=== HUTANG VENDOR REMINDER SELESAI ===', [
+
+            'email_terkirim' => $emailTerkirim
+
+        ]);
+
+
+
+        return self::SUCCESS;
     }
 }

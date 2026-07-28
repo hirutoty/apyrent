@@ -101,7 +101,7 @@
                     @endforelse
                 </tbody>
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+            <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
         <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
@@ -126,7 +126,7 @@
                 <input type="text" name="nama_barang" id="f_nama_barang" required placeholder="Nama barang" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_barang') }}"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga per Unit <span class="text-red-500">*</span></label>
-                    <input type="number" min="0" name="harga_per_unit" id="f_harga_per_unit" required placeholder="50000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('harga_per_unit') }}"></div>
+                    <input type="number" min="0" max="9999999999" name="harga_per_unit" id="f_harga_per_unit" required placeholder="50000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('harga_per_unit') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Satuan <span class="text-red-500">*</span></label>
                     <input type="text" name="satuan" id="f_satuan" required placeholder="pcs" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('satuan') }}"></div>
             </div>

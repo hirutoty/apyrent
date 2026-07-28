@@ -22,7 +22,7 @@ return new class extends Migration
             $table->date('tanggal_mulai');
 
             // Interval reminder
-            $table->integer('interval_nilai')->default(1);
+            $table->bigInteger('interval_nilai')->default(1);
             $table->enum('interval_satuan', ['hari', 'minggu', 'bulan', 'tahun'])->default('bulan');
 
             // Tanggal jatuh tempo (dihitung otomatis: tanggal_mulai + interval)

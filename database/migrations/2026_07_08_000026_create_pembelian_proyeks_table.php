@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('pr_no')->unique();
             $table->string('proyek');
             $table->string('item_diminta');
-            $table->integer('qty')->default(0);
+            $table->bigInteger('qty')->default(0);
             $table->string('vendor')->nullable();
             $table->bigInteger('estimasi_harga')->default(0);
             $table->string('status');

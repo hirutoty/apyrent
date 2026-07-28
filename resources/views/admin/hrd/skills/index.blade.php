@@ -31,19 +31,22 @@
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
-            <div><h2 class="font-semibold text-gray-800 text-base">Daftar Skill Matrix</h2><p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total data</p></div>
-            <div class="relative">
-                <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                <input type="text" placeholder="Cari pegawai / skill..." oninput="onSearchInput(this.value)"
-                    class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-48">
-            </div>
-        </div>
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select onchange="onPerPageChange(this.value)" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
-                <option value="5">5</option><option value="10" selected>10</option><option value="25">25</option><option value="all">All</option>
-            </select>
-            <span>entries</span>
+            <div><h2 class="font-semibold text-gray-800 text-base">Daftar Skill Matrix</h2><p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total data</p></div>
+            <form method="GET" action="" class="flex items-center gap-2">
+                <div class="relative">
+                    <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input type="text" name="search" placeholder="Cari pegawai / skill..." value="{{ request('search') }}"
+                        class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-48">
+                </div>
+                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fa fa-search text-xs"></i> Cari
+                </button>
+                @if(request('search'))
+                    <a href="{{ request()->url() }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="fa fa-rotate-left text-xs"></i> Reset
+                    </a>
+                @endif
+            </form>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -61,8 +64,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors"
-                            data-search="{{ strtolower($d->nama_pegawai . ' ' . $d->skill) }}">
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3.5 font-semibold text-gray-800">{{ $d->nama_pegawai }}</td>
                             <td class="px-4 py-3.5 text-gray-700">{{ $d->skill }}</td>
@@ -109,9 +111,8 @@
                     @endforelse
                 </tbody>
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+            <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
 </div>
 

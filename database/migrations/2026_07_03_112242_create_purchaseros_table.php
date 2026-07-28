@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('pemohon')->nullable();
             $table->string('barang_jasa')->nullable();
             $table->string('kode_barang')->nullable();
-            $table->integer('qty')->nullable();
+            $table->bigInteger('qty')->nullable();
             $table->string('satuan')->nullable();
             $table->string('alasan_permintaan')->nullable();
             $table->string('status')->nullable();

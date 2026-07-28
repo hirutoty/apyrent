@@ -1,59 +1,98 @@
-<?php
+
+text/x-generic console.php ( ASCII text, with CRLF line terminators )
+// <?php
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
+use App\Console\Commands\ReminderAsuransiCommand;
+use App\Console\Commands\ReminderPajakCommand;
+use App\Console\Commands\ReminderGpsCommand;
+use App\Console\Commands\ReminderKirCommand;
+use App\Console\Commands\ReminderRentalCommand;
+use App\Console\Commands\ReminderServiceCommand;
+use App\Console\Commands\ReminderHutangVendorCommand;
+use App\Console\Commands\ReminderPenawaranCommand;
+use App\Console\Commands\SendAgingReminder;
+use App\Console\Commands\CekJatuhTempoReminderService;
+
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
 
-
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
-
 // ======================================
-//  SCHEDULED TASKS
+//  SCHEDULED TASKS (cPanel no proc_open)
 // ======================================
 
-Schedule::command('app:reminder-pajak-command')
-    ->dailyAt('00.01');
-// ->everyMinute();
 
-Schedule::command('app:reminder-asuransi-command')
-    ->dailyAt('00.01');
-// ->everyMinute();
+// Pajak
+Schedule::call(function () {
+    app(ReminderPajakCommand::class)->handle();
+// })->dailyAt('20:37');
+})->everyMinute();
 
-Schedule::command('app:reminder-gps-command')
-    ->dailyAt('00.01');
-// ->everyMinute();
 
-Schedule::command('app:reminder-kir-command')
-    ->dailyAt('00.01');
-// ->everyMinute();
+// Asuransi
+Schedule::call(function () {
+    app(ReminderAsuransiCommand::class)->handle();
+// })->dailyAt('20:38');
+})->everyMinute();
 
-Schedule::command('app:reminder-rental-command')
-    ->dailyAt('00.01');
-// ->everyMinute();
 
-Schedule::command('service:reminder-overservice')
-    ->dailyAt('00.01');
-// ->everyMinute();
+// GPS
+Schedule::call(function () {
+    app(ReminderGpsCommand::class)->handle();
+// })->dailyAt('20:39');
+})->everyMinute();
 
-Schedule::command('hutang:reminder')
-    ->dailyAt('00.01');
-// ->everyMinute();
 
-Schedule::command('app:reminder-penawaran-command')
-    ->dailyAt('00.01');
-// ->everyMinute();
+// KIR
+Schedule::call(function () {
+    app(ReminderKirCommand::class)->handle();
+// })->dailyAt('20:40');
+})->everyMinute();
 
-Schedule::command('aging:reminder')
-    ->dailyAt('00.01');
-// ->everyMinute();
 
-Schedule::command('reminder-service:cek-jatuh-tempo')
-    // ->dailyAt('00.01');
-->everyMinute();
+// Rental
+Schedule::call(function () {
+    app(ReminderRentalCommand::class)->handle();
+// })->dailyAt('20:41');
+})->everyMinute();
+
+
+// Over Service
+Schedule::call(function () {
+    app(ReminderServiceCommand::class)->handle();
+// })->dailyAt('20:42');
+})->everyMinute();
+
+
+// Hutang
+Schedule::call(function () {
+    app(ReminderHutangVendorCommand::class)->handle();
+// })->dailyAt('20:43');
+})->everyMinute();
+
+
+// Penawaran
+Schedule::call(function () {
+    app(ReminderPenawaranCommand::class)->handle();
+// })->dailyAt('20:44');
+})->everyMinute();
+
+
+// Aging
+Schedule::call(function () {
+    app(SendAgingReminder::class)->handle();
+// })->dailyAt('20:45');
+})->everyMinute();
+
+
+// Service jatuh tempo
+Schedule::call(function () {
+    app(CekJatuhTempoReminderService::class)->handle();
+// })->dailyAt('20:46');
+})->everyMinute();

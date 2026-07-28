@@ -63,26 +63,23 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
             <div>
                 <h2 class="font-semibold text-gray-800 text-base">Daftar Departemen</h2>
-                <p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total data</p>
+                <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total data</p>
             </div>
-            <div class="flex items-center gap-2">
+            <form method="GET" action="" class="flex items-center gap-2">
                 <div class="relative">
                     <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                    <input type="text" placeholder="Cari departemen..." oninput="onSearchInput(this.value)"
+                    <input type="text" name="search" placeholder="Cari departemen..." value="{{ request('search') }}"
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                 </div>
-            </div>
-        </div>
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select onchange="onPerPageChange(this.value)"
-                class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="25">25</option>
-                <option value="all">All</option>
-            </select>
-            <span>entries</span>
+                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fa fa-search text-xs"></i> Cari
+                </button>
+                @if(request('search'))
+                    <a href="{{ request()->url() }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="fa fa-rotate-left text-xs"></i> Reset
+                    </a>
+                @endif
+            </form>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -99,8 +96,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse($data as $d)
-                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors"
-                            data-search="{{ strtolower($d->nama_departemen . ' ' . $d->kepala_departemen) }}">
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                             <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center gap-2">
@@ -164,13 +160,11 @@
                     @endforelse
                 </tbody>
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+            <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
         <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
 </div>
-
-{{-- MODAL TAMBAH / EDIT --}}
 <div id="mainModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30" style="backdrop-filter:blur(2px)">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" style="animation:slideUp .2s ease">
         <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white">
@@ -321,8 +315,7 @@ function triggerDelete(btn) {
 function closeDeleteModal() { deleteModal.classList.add('hidden'); deleteModal.classList.remove('flex'); }
 deleteModal.addEventListener('click', e => { if(e.target===deleteModal) closeDeleteModal(); });
 
-const allRows = Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
-const entriesInfo = document.getElementById('entriesInfo');
+const allRows=Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
 let currentSearch = '', currentPerPage = 10;
 function onSearchInput(v) { currentSearch = v.toLowerCase(); renderTable(); }
 function onPerPageChange(v) { currentPerPage = v==='all' ? Infinity : parseInt(v); renderTable(); }
@@ -332,8 +325,6 @@ function renderTable() {
     let shown = 0;
     allRows.forEach(r => r.style.display = 'none');
     matched.forEach(r => { if(shown < currentPerPage){ r.style.display=''; shown++; } });
-    entriesInfo.innerText = matched.length === 0 ? 'Tidak ada data yang cocok'
-        : `Menampilkan ${shown} dari ${matched.length} entri` + (currentSearch ? ' (hasil pencarian)' : '');
 }
 document.addEventListener('DOMContentLoaded', renderTable);
 

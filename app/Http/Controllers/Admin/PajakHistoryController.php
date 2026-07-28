@@ -12,12 +12,12 @@ class PajakHistoryController extends Controller
 {
     public function index(Request $request)
     {
-        $bulan = $request->input('bulan', 'semua');
-        $tahun = $request->input('tahun', 'semua');
+        $bulan  = $request->input('bulan', 'semua');
+        $tahun  = $request->input('tahun', 'semua');
+        $search = $request->input('search');
 
-        $data = $this->filteredQuery($bulan, $tahun)->paginate(15)->withQueryString();
+        $data = $this->filteredQuery($bulan, $tahun, $search)->paginate(15)->withQueryString();
 
-        // daftar tahun untuk dropdown, diambil dari data yang ada
         $tahunList = PajakHistory::selectRaw('YEAR(jatuh_tempo) as tahun')
             ->whereNotNull('jatuh_tempo')
             ->distinct()
@@ -65,16 +65,20 @@ class PajakHistoryController extends Controller
         return $pdf->stream('history-pajak-' . $namaBulan . '-' . $namaTahun . '.pdf');
     }
 
-    private function filteredQuery($bulan, $tahun)
+    private function filteredQuery($bulan, $tahun, $search = null)
     {
         $query = PajakHistory::with(['kendaraan', 'attachments']);
 
-        if ($bulan !== 'semua') {
-            $query->whereMonth('jatuh_tempo', $bulan);
-        }
-
-        if ($tahun !== 'semua') {
-            $query->whereYear('jatuh_tempo', $tahun);
+        if ($bulan !== 'semua') $query->whereMonth('jatuh_tempo', $bulan);
+        if ($tahun !== 'semua') $query->whereYear('jatuh_tempo', $tahun);
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('jenis_pajak', 'like', "%{$search}%")
+                  ->orWhereHas('kendaraan', fn($k) =>
+                      $k->where('nopol', 'like', "%{$search}%")
+                        ->orWhere('merk', 'like', "%{$search}%")
+                  );
+            });
         }
 
         return $query->latest();

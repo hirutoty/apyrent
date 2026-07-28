@@ -93,7 +93,7 @@
                     @endforelse
                 </tbody>
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+            <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
         <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
@@ -118,7 +118,7 @@
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Hapus <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_hapus" id="f_tanggal_hapus" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_hapus') }}"></div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Nilai Buku (Rp)</label>
-                    <input type="number" min="0" step="0.01" name="nilai_buku" id="f_nilai_buku" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nilai_buku') }}"></div>
+                    <input type="number" max="9999999999" min="0" step="0.01" name="nilai_buku" id="f_nilai_buku" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nilai_buku') }}"></div>
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Alasan <span class="text-red-500">*</span></label>
                 <textarea name="alasan" id="f_alasan" rows="2" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('alasan') }}</textarea></div>

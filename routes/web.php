@@ -192,6 +192,10 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get('/admin/history/{kendaraan}/export-pdf', [HistoryController::class, 'exportPdf'])
     ->name('history.export.pdf');
 
+  Route::post('gps-kendaraan/kendaraan/{kendaraanId}/perpanjang-semua', [GpsKendaraanController::class, 'perpanjangKendaraan'])
+    ->middleware('throttle:5,1')
+    ->name('gps-kendaraan.perpanjang-semua');
+
   Route::post('gps-kendaraan/{id}/perpanjang', [GpsKendaraanController::class, 'perpanjang'])
     ->middleware('throttle:5,1')
     ->name('gps-kendaraan.perpanjang');
@@ -206,7 +210,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get(
     'asuransi-kendaraan/export-pdf',
     [AsuransiKendaraanController::class, 'exportPdf']
-  );
+)->name('asuransi-kendaraan.export.pdf'); // ← tambahkan ini
+
 
   // Taruh SEBELUM Route::resource('asuransi-kendaraan', ...)
   Route::post('asuransi-kendaraan/{id}/perpanjang', [AsuransiKendaraanController::class, 'perpanjang'])

@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
     @php
-        $totalService = $data->count();
+        $totalService = $data->total();
         $totalBiaya = $data->sum('total_biaya');
         $totalProses = $data->where('status', 'proses')->count();
         $totalSelesai = $data->where('status', 'selesai')->count();
@@ -170,7 +170,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800">Riwayat Service</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $totalService }} data</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} data</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     {{-- Filter bulan + search digabung dalam satu form --}}
@@ -487,7 +487,9 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 border-t border-gray-100">
+                    <x-pagination :paginator="$data" />
+                </div>
             </div>
 
             <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfoBottom"></div>

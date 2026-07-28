@@ -327,8 +327,8 @@
         </div>
 
         {{-- PAGINATION --}}
-        <div class="py-3 border-t border-gray-100">
-            {{ $data->links() }}
+        <div class="py-3 border-t border-gray-100 px-5">
+            <x-pagination :paginator="$data" />
         </div>
 
     </div>
@@ -477,7 +477,7 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal (Estimasi Harga)</label>
                 <div class="relative">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium select-none">Rp</span>
-                    <input type="number" min="0" name="nominal" id="f_nominal"
+                    <input type="number" min="0" max="9999999999" name="nominal" id="f_nominal"
                         placeholder="0"
                         autocomplete="off"
                         class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">

@@ -340,6 +340,36 @@
         }
     </style>
 
+    {{-- ── GLOBAL: Sembunyikan tombol Edit HANYA di halaman history perpanjang ── --}}
+    <style>
+        /* Khusus halaman history — sembunyikan btn-edit dan editBtn */
+        html.page-history .btn-edit,
+        html.page-history .editBtn,
+        html.page-history [onclick*="triggerEdit"],
+        html.page-history [onclick*="openEdit("],
+        html.page-history [onclick*="openEditModal"],
+        html.page-history [onclick*="openModalEdit"],
+        html.page-history [onclick*="openEditRekonsiliasi"],
+        html.page-history [onclick*="openEditVirtual"],
+        html.page-history [onclick*="editData"] {
+            display: none !important;
+        }
+    </style>
+
+    <script>
+    (function () {
+        var historyPaths = [
+            'kir-history', 'pajak-history', 'asuransi-history',
+            'gps-kendaraan-history', 'stnk-history', 'service-history',
+        ];
+        var path = window.location.pathname;
+        var isHistory = historyPaths.some(function (p) { return path.indexOf(p) !== -1; });
+        if (isHistory) {
+            document.documentElement.classList.add('page-history');
+        }
+    })();
+    </script>
+
     @stack('styles')
 </head>
 
@@ -1620,6 +1650,37 @@
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-</body>
+    {{-- ── GLOBAL: Batasi input nominal max 9999999999 saat mengetik ── --}}
+    <script>
+    (function () {
+        var MAX = 9999999999;
+        document.addEventListener('input', function (e) {
+            var el = e.target;
+            if (el.tagName !== 'INPUT' || el.type !== 'number') return;
+            // Skip input kontak yang sudah pakai maxlength
+            if (el.getAttribute('maxlength')) return;
+            // Batasi nominal
+            var v = parseFloat(el.value);
+            if (!isNaN(v) && v > MAX) {
+                el.value = MAX;
+            }
+        }, true);
+    })();
+    </script>
+
+    {{-- ── GLOBAL: Enforce maxlength pada type=number (browser mengabaikan maxlength untuk number) ── --}}
+    <script>
+    (function () {
+        document.addEventListener('input', function (e) {
+            var el = e.target;
+            if (el.tagName !== 'INPUT' || el.type !== 'number') return;
+            var ml = parseInt(el.getAttribute('maxlength'));
+            if (!ml) return;
+            if (el.value.length > ml) {
+                el.value = el.value.slice(0, ml);
+            }
+        }, true);
+    })();
+    </script>
 
 </html>

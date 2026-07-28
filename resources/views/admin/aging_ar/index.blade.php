@@ -164,31 +164,27 @@
                                 {{-- Jatuh Tempo --}}
                                 <td class="px-5 py-4">
                                     @php
-                                        $jatuhTempo = \Carbon\Carbon::parse($d->jatuh_tempo)->startOfDay();
-                                        $hariIni = now()->startOfDay();
-
-                                        $sisaHari = $hariIni->diffInDays($jatuhTempo, false);
+                                        $jatuhTempo   = \Carbon\Carbon::parse($d->jatuh_tempo)->startOfDay();
+                                        $hariIni      = now()->startOfDay();
+                                        $sisaHari     = (int) $hariIni->diffInDays($jatuhTempo, false);
+                                        $sisaDetikAr  = (int) (\Carbon\Carbon::parse($d->jatuh_tempo)->endOfDay()->timestamp - now()->timestamp);
                                     @endphp
 
                                     <div class="flex flex-col gap-1">
-                                        <span class="text-slate-600 text-sm">
-                                            {{ $jatuhTempo->format('d M Y') }}
-                                        </span>
+                                        <span class="text-slate-600 text-sm">{{ $jatuhTempo->format('d M Y') }}</span>
 
                                         @if ($d->status != 'Bayar')
                                             @if ($sisaHari < 0)
-                                                <span
-                                                    class="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-full w-fit">
+                                                <span class="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-full w-fit">
                                                     <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
-                                                    Terlambat {{ abs($sisaHari) }} hari
+                                                    Terlambat {{ formatSisaWaktu(abs($sisaDetikAr)) }}
                                                 </span>
                                             @elseif ($sisaHari <= $reminder)
-                                                <span
-                                                    class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full w-fit">
+                                                <span class="inline-flex items-center gap-1 text-[11px] font-medium border px-2 py-1 rounded-full w-fit
+                                                    {{ $sisaHari == 0 ? 'text-red-600 bg-red-50 border-red-200' : 'text-amber-600 bg-amber-50 border-amber-200' }}">
                                                     <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
-
                                                     @if ($sisaHari == 0)
-                                                        Jatuh Tempo Hari Ini
+                                                        Jatuh Tempo {{ formatSisaWaktu($sisaDetikAr) }} lagi
                                                     @elseif ($sisaHari == 1)
                                                         Jatuh Tempo Besok
                                                     @else
@@ -255,7 +251,7 @@
 
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
             </div>
 
         </div>

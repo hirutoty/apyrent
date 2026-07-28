@@ -136,24 +136,30 @@
             <div class="flex items-center gap-1 px-5 pt-4 border-b border-gray-100 overflow-x-auto">
                 @php
                     $tabs = [
-                        ['key' => 'semua', 'label' => 'Semua', 'color' => 'blue'],
-                        ['key' => 'Pending', 'label' => 'Pending', 'color' => 'gray'],
-                        ['key' => 'booking', 'label' => 'Booking', 'color' => 'blue'],
-                        ['key' => 'aktif', 'label' => 'Aktif', 'color' => 'green'],
-                        ['key' => 'selesai', 'label' => 'Selesai', 'color' => 'slate'],
-                        ['key' => 'batal', 'label' => 'Batal', 'color' => 'red'],
+                        ['key' => '', 'label' => 'Semua'],
+                        ['key' => 'Pending', 'label' => 'Pending'],
+                        ['key' => 'booking', 'label' => 'Booking'],
+                        ['key' => 'aktif', 'label' => 'Aktif'],
+                        ['key' => 'selesai', 'label' => 'Selesai'],
+                        ['key' => 'batal', 'label' => 'Batal'],
                     ];
+                    $activeStatus = request('status', '');
                 @endphp
 
                 @foreach ($tabs as $tab)
-                    <button id="tab-btn-{{ $tab['key'] }}" onclick="switchTab('{{ $tab['key'] }}')"
-                        class="tab-btn flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-t-lg whitespace-nowrap transition-all duration-150 border-b-2 -mb-px
-                        {{ $tab['key'] === 'semua' ? 'border-blue-500 text-blue-600 bg-blue-50/60' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
+                    <a href="{{ request()->fullUrlWithQuery(['status' => $tab['key'], 'page' => 1]) }}"
+                        class="flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-t-lg whitespace-nowrap transition-all duration-150 border-b-2 -mb-px
+                        {{ $activeStatus === $tab['key']
+                            ? ($tab['key'] === '' ? 'border-blue-500 text-blue-600 bg-blue-50/60'
+                                : ($tab['key'] === 'aktif' ? 'border-green-500 text-green-600 bg-green-50/60'
+                                : ($tab['key'] === 'selesai' ? 'border-slate-800 text-slate-800 bg-slate-50/60'
+                                : ($tab['key'] === 'batal' ? 'border-red-500 text-red-600 bg-red-50/60'
+                                : 'border-blue-500 text-blue-600 bg-blue-50/60'))))
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
                         {{ $tab['label'] }}
-                        <span id="badge-{{ $tab['key'] }}"
-                            class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold
-                        {{ $tab['key'] === 'semua' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500' }}">
-                            @if ($tab['key'] === 'semua')
+                        <span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold
+                            {{ $activeStatus === $tab['key'] ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500' }}">
+                            @if ($tab['key'] === '')
                                 {{ $totalRental }}
                             @elseif ($tab['key'] === 'Pending')
                                 {{ $countPending }}
@@ -165,68 +171,44 @@
                                 {{ $countSelesai }}
                             @elseif ($tab['key'] === 'batal')
                                 {{ $countBatal }}
-                            @else
-                                0
                             @endif
                         </span>
-                    </button>
+                    </a>
                 @endforeach
             </div>
 
             {{-- FILTER BAR --}}
-            <div
+            <form method="GET" action="{{ request()->url() }}"
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3 bg-gray-50/50 border-b border-gray-100">
+
+                {{-- Preserve status --}}
+                @if(request('status')) <input type="hidden" name="status" value="{{ request('status') }}"> @endif
 
                 {{-- Search --}}
                 <div class="relative flex-1 max-w-xs">
                     <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                    <input type="text" id="searchInput" placeholder="Cari kendaraan / pelanggan..." oninput="applyFilters()"
+                    <input type="text" name="search" placeholder="Cari kendaraan / pelanggan..."
+                        value="{{ request('search') }}"
                         class="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
-                {{-- Date Filters --}}
                 <div class="flex flex-wrap items-center gap-2">
-
-                    {{-- Filter Tipe --}}
-                    <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg overflow-hidden">
-                        <button onclick="setFilterTipe('harian')" id="ftBtn-harian"
-                            class="ft-btn px-3 py-1.5 text-xs font-semibold transition-colors bg-white text-gray-500 hover:bg-gray-50">
-                            Per Hari
-                        </button>
-                        <button onclick="setFilterTipe('bulanan')" id="ftBtn-bulanan"
-                            class="ft-btn px-3 py-1.5 text-xs font-semibold transition-colors bg-white text-gray-500 hover:bg-gray-50">
-                            Per Bulan
-                        </button>
-                    </div>
-
-                    {{-- Filter Harian --}}
-                    <div id="filterHarian" class="hidden items-center gap-2">
-                        <input type="date" id="filterTanggal" onchange="applyFilters()"
-                            class="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <button onclick="clearFilterTanggal()"
-                            class="text-xs text-gray-400 hover:text-red-500 transition-colors">
-                            <i class="fa fa-times"></i>
-                        </button>
-                    </div>
-
-                    {{-- Filter Bulanan --}}
-                    <div id="filterBulanan" class="hidden items-center gap-2">
-                        <input type="month" id="filterBulan" onchange="applyFilters()"
-                            class="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <button onclick="clearFilterBulan()"
-                            class="text-xs text-gray-400 hover:text-red-500 transition-colors">
-                            <i class="fa fa-times"></i>
-                        </button>
-                    </div>
-
-                    {{-- Export --}}
-                    <button onclick="exportData()"
+                    <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fa fa-search text-xs"></i> Cari
+                    </button>
+                    @if(request()->hasAny(['search']))
+                        <a href="{{ request()->fullUrlWithQuery(['search' => null, 'page' => 1]) }}"
+                           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <i class="fa fa-rotate-left text-xs"></i> Reset
+                        </a>
+                    @endif
+                    <button type="button" onclick="exportData()"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf text-xs"></i> Export Rental
                     </button>
-
                 </div>
-            </div>
+            </form>
 
             {{-- TABLE --}}
             <div class="overflow-x-auto">
@@ -249,6 +231,10 @@
                                 Total</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Tipe Sewa</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Tujuan</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Pengantaran / Penjemputan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Pembayaran</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -280,12 +266,9 @@
                                     ? \Carbon\Carbon::parse($r->tanggal_mulai)->format('Y-m')
                                     : '';
                             @endphp
-                            <tr class="rental-row border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
-                                data-status="{{ $r->status }}"
-                                data-search="{{ strtolower(($r->kendaraan->merk ?? '') . ' ' . ($r->kendaraan->nopol ?? '') . ' ' . ($r->member->nama_pelanggan ?? '') . ' ' . $r->status) }}"
-                                data-tanggal="{{ $tanggalMulaiStr }}" data-bulan="{{ $tanggalBulan }}">
+                            <tr class="rental-row border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100">
 
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium row-num">{{ $i + 1 }}</td>
+                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium row-num">{{ $rentals->firstItem() + $loop->index }}</td>
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-2">
@@ -327,14 +310,19 @@
                                         @endif
 
                                         @if ($r->status === 'aktif')
-                                            {{-- STATUS --}}
                                             @if ($r->terlambat)
-                                                <div class="text-xs text-red-600 font-semibold mt-1">
-                                                    ?? Terlambat {{ $r->sisa }}
+                                                <div class="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1">
+                                                    <i class="fa fa-circle-exclamation text-[10px]"></i>
+                                                    Terlambat {{ $r->sisa }}
                                                 </div>
                                             @elseif ($r->reminder)
-                                                <div class="text-xs text-orange-500 mt-1">
-                                                    ? Reminder Sisa {{ $r->sisa }}
+                                                @php
+                                                    $diffSecRental = (int) (\Carbon\Carbon::parse($r->tanggal_selesai)->timestamp - now()->timestamp);
+                                                    $isUrgent = $diffSecRental > 0 && $diffSecRental < 86400;
+                                                @endphp
+                                                <div class="text-xs font-semibold mt-1 flex items-center gap-1 {{ $isUrgent ? 'text-red-500' : 'text-orange-500' }}">
+                                                    <i class="fa fa-triangle-exclamation text-[10px]"></i>
+                                                    Berakhir {{ $r->sisa }} lagi
                                                 </div>
                                             @endif
                                         @endif
@@ -354,23 +342,60 @@
                                         class="inline-flex w-fit px-2 py-1 rounded-full text-xs font-medium {{ $badge }}">{{ $jenisRental }}</span>
                                 </td>
 
+                                {{-- Tujuan Perjalanan --}}
                                 <td class="px-4 py-3.5">
-                                    @if ($r->bukti_pelunasan || $r->bukti_lunas)
-                                        <span
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                                            <i class="fa fa-check-circle"></i> LUNAS
-                                        </span>
-                                    @elseif ($r->bukti_dp)
-                                        <span
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                                            <i class="fa fa-credit-card"></i> DP
+                                    @if ($r->tujuan_perjalanan)
+                                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold
+                                            {{ $r->tujuan_perjalanan === 'luar_kota' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700' }}">
+                                            
+                                            {{ $r->tujuan_perjalanan === 'dalam_kota' ? 'Dalam Kota' : 'Luar Kota' }}
                                         </span>
                                     @else
-                                        <span
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                            <i class="fa fa-times-circle"></i> BELUM BAYAR
-                                        </span>
+                                        <span class="text-gray-400 text-xs">-</span>
                                     @endif
+                                </td>
+
+                                {{-- Pengantaran / Penjemputan --}}
+                                <td class="px-4 py-3.5 text-xs text-gray-600 max-w-[180px]">
+                                    @if ($r->alamat_pengantaran || $r->alamat_penjemputan)
+                                        <div class="space-y-1">
+                                            @if ($r->alamat_pengantaran)
+                                                <div class="flex items-start gap-1">
+                                                    <span class="text-green-500 mt-0.5 flex-shrink-0"><i class="fa fa-arrow-right text-[9px]"></i></span>
+                                                    <span class="truncate" title="{{ $r->alamat_pengantaran }}">{{ $r->alamat_pengantaran }}</span>
+                                                </div>
+                                            @endif
+                                            @if ($r->alamat_penjemputan)
+                                                <div class="flex items-start gap-1">
+                                                    <span class="text-orange-500 mt-0.5 flex-shrink-0"><i class="fa fa-arrow-left text-[9px]"></i></span>
+                                                    <span class="truncate" title="{{ $r->alamat_penjemputan }}">{{ $r->alamat_penjemputan }}</span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+
+                                <td class="px-4 py-3.5">
+                                    <div class="flex flex-col gap-1.5">
+                                        {{-- Badge status bayar --}}
+                                        @if ($r->bukti_pelunasan || $r->bukti_lunas)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 w-fit">
+                                                <i class="fa fa-check-circle"></i> LUNAS
+                                            </span>
+                                        @elseif ($r->bukti_dp)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 w-fit">
+                                                <i class="fa fa-credit-card"></i> DP
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 w-fit">
+                                                <i class="fa fa-times-circle"></i> BELUM BAYAR
+                                            </span>
+                                        @endif
+
+                                       
+                                    </div>
                                 </td>
 
                                 <td class="px-4 py-3.5">
@@ -410,7 +435,9 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 px-5 border-t border-gray-100 flex items-center gap-1.5" id="paginationControls"></div>
+                <div class="py-3 px-5 border-t border-gray-100">
+                    <x-pagination :paginator="$rentals" />
+                </div>
             </div>
 
             {{-- MODAL STATUS --}}
@@ -465,9 +492,8 @@
             </div>
 
             {{-- TABLE FOOTER --}}
-            <div class="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
-                <p class="text-xs text-gray-400">Menampilkan <span id="visibleCount"
-                        class="font-semibold text-gray-600">0</span> transaksi</p>
+            <div class="px-5 py-3 border-t border-gray-100">
+                <p class="text-xs text-gray-400">{{ $rentals->total() }} total transaksi</p>
             </div>
 
         </div>
@@ -517,7 +543,7 @@
                             </div>
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">Kontak</label>
-                                <input type="number" name="kontak_pelanggan" id="kontak_pelanggan"
+                                <input type="number" name="kontak_pelanggan" id="kontak_pelanggan" maxlength="15"
                                     placeholder="Ketik kontak pelanggan..." class="w-full border rounded-lg px-3 py-2"
                                     required value="{{ old('kontak_pelanggan') }}">
                             </div>
@@ -660,14 +686,17 @@
                                     Hari</span>
                             </div>
 
-                            <!-- Tujuan (wajib) -->
+                            <!-- Tujuan Perjalanan (wajib untuk harian) -->
                             <div class="mb-4">
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                                     Tujuan Perjalanan <span class="text-red-500">*</span>
                                 </label>
-                                <input type="text" name="tujuan" id="input_tujuan"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                                    placeholder="Contoh: Dalam Kota / Luar Kota." value="{{ old('tujuan') }}">
+                                <select name="tujuan_perjalanan" id="input_tujuan_perjalanan"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <option value="">-- Pilih Tujuan --</option>
+                                    <option value="dalam_kota" {{ old('tujuan_perjalanan') == 'dalam_kota' ? 'selected' : '' }}>Dalam Kota</option>
+                                    <option value="luar_kota"  {{ old('tujuan_perjalanan') == 'luar_kota'  ? 'selected' : '' }}>Luar Kota</option>
+                                </select>
                                 <p class="text-xs text-gray-400 mt-1">
                                     <i class="fa fa-info-circle text-blue-400"></i> Wajib diisi untuk rental harian
                                 </p>
@@ -687,24 +716,53 @@
                                             placeholder="Nama lengkap driver" value="{{ old('nama_driver') }}">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak
-                                            Driver</label>
-                                        <input type="number" name="kontak_driver"
+                                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Driver</label>
+                                        <input type="number" name="kontak_driver" maxlength="15"
                                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
                                             placeholder="Nomor HP / WhatsApp" value="{{ old('kontak_driver') }}">
                                     </div>
                                 </div>
-                                <div>
+                                <div class="mb-3">
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                                         Biaya Driver <span class="text-gray-400 font-normal">(per hari)</span>
                                     </label>
                                     <div class="relative">
-                                        <span
-                                            class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
+                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
                                         <input type="number" name="biaya_driver" id="biaya_driver" value="0"
-                                            min="0"
+                                            min="0" max="9999999999"
                                             class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm"
                                             oninput="hitungBiayaDasar()">
+                                    </div>
+                                </div>
+
+                                <!-- Pengantaran & Penjemputan (opsional) -->
+                                <div class="border-t border-gray-100 pt-3 mt-1">
+                                    <p class="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
+                                        <i class="fa fa-location-dot text-gray-400"></i>
+                                        Pengantaran &amp; Penjemputan
+                                        <span class="font-normal text-gray-400">(opsional)</span>
+                                    </p>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                                <i class="fa fa-arrow-right text-green-500 text-[10px]"></i>
+                                                Alamat Pengantaran
+                                            </label>
+                                            <input type="text" name="alamat_pengantaran"
+                                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                                placeholder="Contoh: Jl. Merdeka No. 10"
+                                                value="{{ old('alamat_pengantaran') }}">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                                <i class="fa fa-arrow-left text-orange-500 text-[10px]"></i>
+                                                Alamat Penjemputan
+                                            </label>
+                                            <input type="text" name="alamat_penjemputan"
+                                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                                placeholder="Contoh: Bandara Soekarno-Hatta"
+                                                value="{{ old('alamat_penjemputan') }}">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -781,7 +839,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1">Nominal DP</label>
-                                <input type="number" id="nominal_dp" name="nominal_dp"
+                                <input type="number" id="nominal_dp" name="nominal_dp" max="9999999999"
                                     class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Nominal DP"
                                     oninput="hitungPelunasan()" value="{{ old('nominal_dp') }}">
                             </div>
@@ -1379,10 +1437,8 @@
     {{-- SCRIPT --}}
     <script>
         /* -----------------------------
-                                                                                                                            STATE
-                                                                                                                        ---------------------------- */
-        let activeTab = 'semua';
-        let filterTipe = null;
+            STATE
+        ---------------------------- */
         let tipeRental = 'bulan';
         let hargaHari = 0;
         let biayaDasar = 0;
@@ -1578,185 +1634,11 @@
             },
         };
 
-        function switchTab(tab) {
-            activeTab = tab;
-            currentRentalPage = 1;
-            document.querySelectorAll('.tab-btn').forEach(function(btn) {
-                btn.style.borderColor = 'transparent';
-                btn.style.color = '#6b7280';
-                btn.style.background = 'transparent';
-                btn.style.fontWeight = '500';
-                const badge = btn.querySelector('span');
-                if (badge) badge.className =
-                    'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500';
-            });
-            const activeBtn = document.getElementById('tab-btn-' + tab);
-            if (activeBtn) {
-                const c = TAB_COLORS[tab] || TAB_COLORS.semua;
-                activeBtn.style.borderColor = c.border;
-                activeBtn.style.color = c.text;
-                activeBtn.style.background = c.bg;
-                activeBtn.style.fontWeight = '600';
-                const badge = activeBtn.querySelector('span');
-                if (badge) badge.className =
-                    'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold ' +
-                    c.badge;
-            }
-            applyFilters();
-        }
-
-        /* -----------------------------
-            FILTER TIPE
-        ---------------------------- */
-        function setFilterTipe(tipe) {
-            if (filterTipe === tipe) {
-                filterTipe = null;
-                currentRentalPage = 1;
-                document.getElementById('filterHarian').classList.add('hidden');
-                document.getElementById('filterHarian').classList.remove('flex');
-                document.getElementById('filterBulanan').classList.add('hidden');
-                document.getElementById('filterBulanan').classList.remove('flex');
-                document.querySelectorAll('.ft-btn').forEach(function(b) {
-                    b.classList.remove('ft-active');
-                });
-            } else {
-                filterTipe = tipe;
-                const showHarian = tipe === 'harian';
-                const showBulanan = tipe === 'bulanan';
-                const fh = document.getElementById('filterHarian');
-                const fb = document.getElementById('filterBulanan');
-                fh.classList.toggle('hidden', !showHarian);
-                fh.classList.toggle('flex', showHarian);
-                fb.classList.toggle('hidden', !showBulanan);
-                fb.classList.toggle('flex', showBulanan);
-                document.getElementById('ftBtn-harian').classList.toggle('ft-active', showHarian);
-                document.getElementById('ftBtn-bulanan').classList.toggle('ft-active', showBulanan);
-            }
-            applyFilters();
-        }
-
-        function clearFilterTanggal() {
-            document.getElementById('filterTanggal').value = '';
-            applyFilters();
-        }
-
-        function clearFilterBulan() {
-            document.getElementById('filterBulan').value = '';
-            applyFilters();
-        }
-
-        /* -----------------------------
-            APPLY FILTERS
-        ---------------------------- */
-        let currentRentalPage = 1;
-        const RENTAL_PER_PAGE = 10;
-
-        function applyFilters() {
-            const search     = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
-            const tanggalVal = document.getElementById('filterTanggal')?.value || '';
-            const bulanVal   = document.getElementById('filterBulan')?.value || '';
-            const perPage    = RENTAL_PER_PAGE;
-            const rows       = document.querySelectorAll('#rentalTableBody .rental-row');
-
-            // Kumpulkan baris yang lolos filter
-            const matched = [];
-            rows.forEach(function(row) {
-                const tabOk    = (activeTab === 'semua') || (row.dataset.status === activeTab);
-                const searchOk = !search || (row.dataset.search || '').includes(search);
-                let dateOk = true;
-                if (filterTipe === 'harian' && tanggalVal) dateOk = row.dataset.tanggal === tanggalVal;
-                if (filterTipe === 'bulanan' && bulanVal)  dateOk = row.dataset.bulan  === bulanVal;
-                if (tabOk && searchOk && dateOk) matched.push(row);
-            });
-
-            const total      = matched.length;
-            const totalPages = Math.ceil(total / perPage) || 1;
-            if (currentRentalPage > totalPages) currentRentalPage = 1;
-
-            const start = (currentRentalPage - 1) * perPage;
-            const end   = Math.min(start + perPage, total);
-
-            rows.forEach(row => row.style.display = 'none');
-            matched.forEach(function(row, idx) {
-                if (idx >= start && idx < end) row.style.display = '';
-            });
-
-            // Renumber — nomor lanjut dari offset
-            let n = start + 1;
-            matched.forEach(function(row, idx) {
-                if (idx >= start && idx < end) {
-                    const cell = row.querySelector('.row-num');
-                    if (cell) cell.textContent = n++;
-                }
-            });
-
-            const empty = document.getElementById('emptyState');
-            if (empty) empty.classList.toggle('hidden', (end - start) > 0);
-
-            const cnt = document.getElementById('visibleCount');
-            if (cnt) cnt.textContent =
-                total === 0 ? '0' : (start + 1) + '–' + end + ' dari ' + total;
-
-            renderRentalPagination(totalPages);
-        }
-
-        function renderRentalPagination(totalPages) {
-            const container = document.getElementById('paginationControls');
-            if (!container) return;
-            container.innerHTML = '';
-            if (totalPages <= 1) return;
-
-            const btnBase       = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
-            const activeClass   = 'bg-indigo-600 text-white border-indigo-600';
-            const normalClass   = 'border-gray-200 text-gray-600 hover:bg-gray-50';
-            const disabledClass = 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400';
-
-            const prev = document.createElement('button');
-            prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
-            prev.className = btnBase + ' ' + (currentRentalPage === 1 ? disabledClass : normalClass);
-            prev.disabled  = currentRentalPage === 1;
-            prev.onclick   = () => { currentRentalPage--; applyFilters(); };
-            container.appendChild(prev);
-
-            const range = 2;
-            for (let i = 1; i <= totalPages; i++) {
-                if (i === 1 || i === totalPages || (i >= currentRentalPage - range && i <= currentRentalPage + range)) {
-                    const btn = document.createElement('button');
-                    btn.textContent = i;
-                    btn.className = btnBase + ' ' + (i === currentRentalPage ? activeClass : normalClass);
-                    btn.onclick = (function(page) { return () => { currentRentalPage = page; applyFilters(); }; })(i);
-                    container.appendChild(btn);
-                } else if (i === currentRentalPage - range - 1 || i === currentRentalPage + range + 1) {
-                    const dots = document.createElement('span');
-                    dots.textContent = '…';
-                    dots.className = 'px-1 text-xs text-gray-400';
-                    container.appendChild(dots);
-                }
-            }
-
-            const next = document.createElement('button');
-            next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
-            next.className = btnBase + ' ' + (currentRentalPage === totalPages ? disabledClass : normalClass);
-            next.disabled  = currentRentalPage === totalPages;
-            next.onclick   = () => { currentRentalPage++; applyFilters(); };
-            container.appendChild(next);
-        }
-
         /* -----------------------------
             EXPORT PDF
         ---------------------------- */
         function exportData() {
-            const params = new URLSearchParams();
-            if (activeTab !== 'semua') params.set('status', activeTab);
-            const search = document.getElementById('searchInput')?.value || '';
-            if (search) params.set('search', search);
-            if (filterTipe === 'harian') {
-                const tgl = document.getElementById('filterTanggal')?.value || '';
-                if (tgl) params.set('tanggal', tgl);
-            } else if (filterTipe === 'bulanan') {
-                const bln = document.getElementById('filterBulan')?.value || '';
-                if (bln) params.set('bulan', bln);
-            }
+            const params = new URLSearchParams(window.location.search);
             window.open('{{ route('rental.pdf') }}?' + params.toString(), '_blank');
         }
 
@@ -1927,7 +1809,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('nominal_dp')?.addEventListener('input', hitungPelunasan);
             toggleJenisPembayaran();
-            switchTab('semua');
         });
     </script>
 

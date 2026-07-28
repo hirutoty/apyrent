@@ -26,9 +26,9 @@ return new class extends Migration {
             $table->dateTime('tanggal_selesai')->nullable();
             $table->string('tujuan')->nullable();
 
-            $table->integer('durasi_jam')->nullable();
-            $table->integer('durasi_hari')->nullable();
-            $table->integer('durasi_bulan')->nullable();
+            $table->bigInteger('durasi_jam')->nullable();
+            $table->bigInteger('durasi_hari')->nullable();
+            $table->bigInteger('durasi_bulan')->nullable();
 
             
 

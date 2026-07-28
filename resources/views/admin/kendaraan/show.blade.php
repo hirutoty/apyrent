@@ -185,47 +185,55 @@
                                     </td>
 
                                     @php
-                                        // ambil rental yang sedang berjalan, atau yang terbaru
-                                        $rental = $d->rentals->firstWhere('status', 'berjalan') ?? $d->rentals->first();
+                                        // hanya tampilkan data customer jika ada rental yang sedang berjalan
+                                        $rental = $d->rentals->firstWhere('status', 'aktif');
                                     @endphp
 
                                     <td class="px-4 py-3.5 text-sm text-gray-700">
-                                        {{ $rental->Pelanggan->nama_pelanggan ?? '-' }}
+                                        {{ $rental->member->nama_pelanggan ?? '-' }}
                                     </td>
 
                                     <td class="px-4 py-3.5">
-                                        {{ $rental->Pelanggan->jenis_pelanggan ?? '-' }}
+                                        {{ $rental->member->jenis_pelanggan ?? '-' }}
                                     </td>
 
                                     <td class="px-4 py-3.5">
 
                                         @php
-                                            $rental = $d->rentals->first();
+                                            $rentalBerjalan = $d->rentals->firstWhere('status', 'aktif');
                                         @endphp
 
-                                        @if ($rental)
+                                        @if ($rentalBerjalan)
                                             {{-- DURASI --}}
-                                            @if ($rental->durasi_jam)
-                                                {{ $rental->durasi_jam }} Jam
-                                            @elseif($rental->durasi_hari)
-                                                {{ $rental->durasi_hari }} Hari
-                                            @elseif($rental->durasi_bulan)
-                                                {{ $rental->durasi_bulan }} Bulan
-                                            @elseif($rental->durasi_tahun)
-                                                {{ $rental->durasi_tahun }} Tahun
+                                            @if ($rentalBerjalan->durasi_jam)
+                                                {{ $rentalBerjalan->durasi_jam }} Jam
+                                            @elseif($rentalBerjalan->durasi_hari)
+                                                {{ $rentalBerjalan->durasi_hari }} Hari
+                                            @elseif($rentalBerjalan->durasi_bulan)
+                                                {{ $rentalBerjalan->durasi_bulan }} Bulan
+                                            @elseif($rentalBerjalan->durasi_tahun)
+                                                {{ $rentalBerjalan->durasi_tahun }} Tahun
                                             @else
                                                 -
                                             @endif
 
-                                            {{-- TERLAMBAT --}}
+                                            {{-- TERLAMBAT / REMINDER --}}
                                             @if ($d->terlambat)
-                                                <div class="text-xs text-red-600 font-semibold mt-1">
-                                                    ?? Terlambat {{ $d->sisa }}
+                                                <div class="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1">
+                                                    <i class="fa fa-circle-exclamation text-[10px]"></i>
+                                                    Terlambat {{ $d->sisa }}
                                                 </div>
-                                                {{-- REMINDER --}}
                                             @elseif ($d->reminder)
-                                                <div class="text-xs text-orange-500 mt-1">
-                                                    ? Reminder Sisa {{ $d->sisa }}
+                                                @php
+                                                    $endRental = $d->rentals->firstWhere('status', 'aktif');
+                                                    $diffSecR  = $endRental
+                                                        ? ((int)(\Carbon\Carbon::parse($endRental->tanggal_selesai)->timestamp - now()->timestamp))
+                                                        : 0;
+                                                    $isUrgent  = $diffSecR > 0 && $diffSecR < 86400;
+                                                @endphp
+                                                <div class="text-xs font-semibold mt-1 flex items-center gap-1 {{ $isUrgent ? 'text-red-500' : 'text-orange-500' }}">
+                                                    <i class="fa fa-triangle-exclamation text-[10px]"></i>
+                                                    Berakhir {{ $d->sisa }} lagi
                                                 </div>
                                             @endif
                                         @else
@@ -236,14 +244,14 @@
 
                                     <td class="px-4 py-3.5 text-sm text-gray-700">
                                         @php
-                                            $rental = $d->rentals->first();
+                                            $rentalBerjalan = $d->rentals->firstWhere('status', 'aktif');
                                         @endphp
 
-                                        @if ($rental)
-                                            {{ \Carbon\Carbon::parse($rental->tanggal_mulai)->format('d-m-Y') }}
+                                        @if ($rentalBerjalan)
+                                            {{ \Carbon\Carbon::parse($rentalBerjalan->tanggal_mulai)->format('d-m-Y') }}
                                             /
                                             <span class="text-xs text-gray-400">
-                                                {{ \Carbon\Carbon::parse($rental->tanggal_selesai)->format('d-m-Y H:i') }}
+                                                {{ \Carbon\Carbon::parse($rentalBerjalan->tanggal_selesai)->format('d-m-Y H:i') }}
                                             </span>
                                         @else
                                             -
@@ -251,7 +259,9 @@
                                     </td>
 
                                     <td class="px-4 py-3.5">
-                                        @if (!empty($rental->bukti_lunas) || !empty($rental->bukti_pelunasan))
+                                        @if (!$rental)
+                                            <span class="text-gray-400 text-sm">-</span>
+                                        @elseif (!empty($rental->bukti_lunas) || !empty($rental->bukti_pelunasan))
                                             <span
                                                 class="px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-700">
                                                 Lunas
@@ -1465,7 +1475,7 @@
                     document.getElementById('d_km_svc').textContent = fmtKm(d.km_svc);
                     document.getElementById('d_tgl_svc').textContent = d.tgl_svc || '�';
 
-                    document.getElementById('d_status_service').innerHTML = badgeSvc(d.status_service);
+                    document.getElementById('d_status_service').innerHTML = badgeStatus(d.status_kendaraan);
                     document.getElementById('d_status_kendaraan').innerHTML = badgeStatus(d.status_kendaraan);
 
                     openModal('modalDetail');
@@ -1614,67 +1624,7 @@
             })();
         </script>
 
-        <div id="modalStatus" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
-
-            <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
-
-                <h3 class="text-lg font-bold mb-1">
-                    Ubah Status Kendaraan
-                </h3>
-
-                <p class="text-sm text-gray-500 mb-5">
-                    Pilih status kendaraan yang baru.
-                </p>
-
-                <form id="formStatus" method="POST">
-                    @csrf
-                    @method('PATCH')
-
-                    <input type="hidden" name="status_kendaraan" id="statusKendaraanInput">
-
-                    <div class="grid grid-cols-4 gap-3 mb-6">
-
-                        <button type="button" onclick="pilihStatus('tersedia', this)"
-                            class="status-btn px-3 py-3 rounded-xl bg-emerald-50 text-emerald-700 font-medium border border-emerald-200 transition-all duration-200 hover:bg-emerald-100 hover:scale-105 active:scale-95">
-                            <i class="fa fa-check-circle mb-1 block text-lg"></i>
-                            Tersedia
-                        </button>
-
-                        <button type="button" onclick="pilihStatus('disewa', this)"
-                            class="status-btn px-3 py-3 rounded-xl bg-blue-50 text-blue-700 font-medium border border-blue-200 transition-all duration-200 hover:bg-blue-100 hover:scale-105 active:scale-95">
-                            <i class="fa fa-key mb-1 block text-lg"></i>
-                            Disewa
-                        </button>
-
-                        <button type="button" onclick="showBermasalahInfo()"
-                            class="px-3 py-3 rounded-xl bg-gray-100 text-gray-400 font-medium border border-gray-200 cursor-not-allowed">
-                            <i class="fa fa-tools mb-1 block text-lg"></i>
-                            Service
-                        </button>
-
-                        <button type="button" onclick="showBermasalahInfo()"
-                            class="px-3 py-3 rounded-xl bg-gray-100 text-gray-400 font-medium border border-gray-200 cursor-not-allowed">
-                            <i class="fa fa-exclamation-triangle mb-1 block text-lg"></i>
-                            Bermasalah
-                        </button>
-
-                    </div>
-
-                    <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closeModalStatus()"
-                            class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition">
-                            Batal
-                        </button>
-
-                        <button type="submit"
-                            class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm">
-                            Simpan
-                        </button>
-                    </div>
-                </form>
-
-            </div>
-        </div>
+        
 
 
         <script>

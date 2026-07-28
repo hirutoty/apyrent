@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
     @php
-        $totalAsuransi = $data->count();
+        $totalAsuransi = $data->total();
         $totalAktif = $data->where('status_kendaraan', 'aktif')->count();
         $soon = $data
             ->filter(
@@ -100,77 +100,76 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar Asuransi Kendaraan</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $totalAsuransi }} total data asuransi</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total data asuransi</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="exportPdf()"
+                    <a href="{{ route('asuransi-kendaraan.export.pdf', request()->only(['search','bulan','tahun'])) }}"
+                        target="_blank"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf text-xs"></i> Export PDF
-                    </button>
-                    <div class="relative">
-                        <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input type="text" id="searchInput" placeholder="Cari nopol, asuransi, jenis..."
-                            oninput="filterTable(this.value)"
-                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-56">
-                    </div>
-                    <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <i class="fa fa-sync text-xs"></i> Refresh
-                    </button>
+                    </a>
+                    <form method="GET" action="{{ request()->url() }}" class="flex items-center gap-2">
+                        @if(request('bulan')) <input type="hidden" name="bulan" value="{{ request('bulan') }}"> @endif
+                        @if(request('tahun')) <input type="hidden" name="tahun" value="{{ request('tahun') }}"> @endif
+                        <div class="relative">
+                            <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <input type="text" name="search" value="{{ request('search') }}"
+                                placeholder="Cari nopol, asuransi, jenis..."
+                                class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-56">
+                        </div>
+                        <button type="submit"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fa fa-search text-xs"></i> Cari
+                        </button>
+                        @if(request()->hasAny(['search','bulan','tahun']))
+                            <a href="{{ request()->url() }}"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                <i class="fa fa-rotate-left text-xs"></i> Reset
+                            </a>
+                        @endif
+                    </form>
                 </div>
             </div>
 
             {{-- FILTER BAR: Bulan & Tahun Berakhir --}}
-            <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
+            <form method="GET" action="{{ request()->url() }}" id="formFilterAsuransi"
+                  class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-slate-500">
+
+                @if(request('search')) <input type="hidden" name="search" value="{{ request('search') }}"> @endif
 
                 <div class="w-px h-4 bg-gray-200"></div>
-
-                {{-- Label filter tanggal berakhir --}}
                 <span class="text-gray-400 font-medium">Tgl Berakhir:</span>
 
                 {{-- Filter Bulan --}}
                 <div class="flex items-center gap-2">
                     <i class="fa fa-calendar text-gray-400"></i>
-                    <select id="filterBulan" onchange="applyFilter()"
+                    <select name="bulan" onchange="this.form.submit()"
                         class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">Semua Bulan</option>
-                        <option value="01">Januari</option>
-                        <option value="02">Februari</option>
-                        <option value="03">Maret</option>
-                        <option value="04">April</option>
-                        <option value="05">Mei</option>
-                        <option value="06">Juni</option>
-                        <option value="07">Juli</option>
-                        <option value="08">Agustus</option>
-                        <option value="09">September</option>
-                        <option value="10">Oktober</option>
-                        <option value="11">November</option>
-                        <option value="12">Desember</option>
+                        @foreach(['01'=>'Januari','02'=>'Februari','03'=>'Maret','04'=>'April','05'=>'Mei','06'=>'Juni','07'=>'Juli','08'=>'Agustus','09'=>'September','10'=>'Oktober','11'=>'November','12'=>'Desember'] as $num => $nama)
+                            <option value="{{ $num }}" {{ request('bulan') == $num ? 'selected' : '' }}>{{ $nama }}</option>
+                        @endforeach
                     </select>
                 </div>
 
                 {{-- Filter Tahun --}}
                 <div class="flex items-center gap-2">
-                    <select id="filterTahun" onchange="applyFilter()"
+                    <select name="tahun" onchange="this.form.submit()"
                         class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">Semua Tahun</option>
-                        @php
-                            $years = $data->map(fn($d) => $d->tgl_berakhir ? \Carbon\Carbon::parse($d->tgl_berakhir)->year : null)
-                                         ->filter()->unique()->sortDesc();
-                        @endphp
-                        @foreach ($years as $year)
-                            <option value="{{ $year }}">{{ $year }}</option>
+                        @foreach(range(date('Y') + 1, date('Y') - 3) as $yr)
+                            <option value="{{ $yr }}" {{ request('tahun') == $yr ? 'selected' : '' }}>{{ $yr }}</option>
                         @endforeach
                     </select>
                 </div>
 
-                {{-- Reset --}}
-                <button onclick="resetFilter()"
-                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                    <i class="fa fa-rotate-left text-[10px]"></i> Reset
-                </button>
-
-            </div>
+                @if(request()->hasAny(['bulan','tahun','search']))
+                    <a href="{{ request()->url() }}"
+                        class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-blue-50/50 transition-colors">
+                        <i class="fa fa-rotate-left text-[10px]"></i> Reset
+                    </a>
+                @endif
+            </form>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -187,10 +186,10 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Status</th>
                             
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl
-                                Berakhir</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl
-                                Bayar</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl
+                                    Bayar</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jatuh
+                                Tempo</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Biaya</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -247,7 +246,9 @@
                                     @endif
                                 </td>
 
-                              
+                               <td class="px-4 py-3 text-center">
+                                    {{ \Carbon\Carbon::parse($d->tanggal_bayar)->format('d M Y') }}
+                                </td>
 
 
 
@@ -259,24 +260,27 @@
                                             <span class="font-medium text-red-600">
                                                 {{ \Carbon\Carbon::parse($d->tgl_berakhir)->format('d M Y') }}
                                             </span>
-
-                                            <span
-                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold w-fit">
-
-                                                ?? Terlambat {{ abs($d->sisaHari) }} hari
-
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold w-fit">
+                                                <i class="fa fa-circle-exclamation text-[10px]"></i>
+                                                Terlambat {{ formatSisaWaktu(abs($d->sisaDetik)) }}
+                                            </span>
                                         </div>
                                     @elseif ($d->isSoon)
                                         <div class="flex flex-col gap-1">
                                             <span class="font-medium text-gray-600">
                                                 {{ \Carbon\Carbon::parse($d->tgl_berakhir)->format('d M Y') }}
                                             </span>
-
-                                            <span
-                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold w-fit">
-
-                                                ?? Berakhir dalam {{ $d->sisaHari }} hari
-
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold w-fit
+                                                {{ $d->sisaHari == 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700' }}">
+                                                <i class="fa fa-triangle-exclamation text-[10px]"></i>
+                                                @if ($d->sisaHari == 0)
+                                                    Berakhir {{ formatSisaWaktu($d->sisaDetik) }} lagi
+                                                @elseif ($d->sisaHari == 1)
+                                                    Berakhir besok
+                                                @else
+                                                    Berakhir dalam {{ $d->sisaHari }} hari
+                                                @endif
+                                            </span>
                                         </div>
                                     @else
                                         <span class="text-gray-600">
@@ -286,9 +290,6 @@
 
                                 </td>
 
-                                <td class="px-4 py-3 text-center">
-                                    {{ \Carbon\Carbon::parse($d->tanggal_bayar)->format('d M Y') }}
-                                </td>
 
                                 <td class="px-4 py-3 text-sm text-gray-700">
                                     Rp {{ number_format($d->biaya, 0, ',', '.') }}
@@ -335,6 +336,8 @@
                                 {{-- Aksi --}}
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
+                                        {{-- Perpanjang: hanya tampil jika sudah dalam batas reminder --}}
+                                        @if ($d->sisaHari <= $reminder)
                                         <button
                                             onclick="openModalPerpanjang(
                                         '{{ $d->id }}',
@@ -344,14 +347,16 @@
                                         '{{ $d->kendaraan->merk ?? '-' }}',
                                         '{{ $d->durasi_bulan }}',
                                         '{{ $d->biaya }}',
-                                        '{{ \Carbon\Carbon::parse($d->tgl_berakhir)->format('Y-m-d') }}'
+                                        '{{ \Carbon\Carbon::parse($d->tgl_berakhir)->format('Y-m-d') }}',
+                                        '{{ $d->tanggal_bayar ? \Carbon\Carbon::parse($d->tanggal_bayar)->format('Y-m-d') : '' }}'
                                     )"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
                                             <i class="fa fa-rotate-right text-xs"></i> Perpanjang
                                         </button>
+                                        @endif
 
 
-                                        <button
+                                        <!-- <button
                                             onclick="openEditModal(
                                             '{{ $d->id }}',
                                             '{{ $d->kendaraan_id }}',
@@ -366,7 +371,7 @@
                                         )"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                             <i class="fa fa-edit text-xs"></i> Edit
-                                        </button>
+                                        </button> -->
                                         <form action="/admin/asuransi-kendaraan/{{ $d->id }}" method="POST"
                                             onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
                                             @csrf
@@ -395,7 +400,9 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 px-5 border-t border-gray-100 flex items-center gap-1.5" id="paginationControls"></div>
+                <div class="py-3 px-5 border-t border-gray-100">
+                    <x-pagination :paginator="$data" />
+                </div>
             </div>
 
         </div>
@@ -477,7 +484,7 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Tanggal Berakhir
+                        Jatuh Tempo
                     </label>
                     <input type="date" id="tgl_berakhir_display" disabled
                         class="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 cursor-not-allowed">
@@ -491,7 +498,7 @@
                     </label>
 
                     <div class="relative">
-                        <input type="number" min="0" name="biaya" required placeholder="0"
+                        <input type="number" min="0" max="9999999999" name="biaya" required placeholder="0"
                             class="w-full border border-gray-200 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
                 </div>
@@ -870,7 +877,7 @@
                 {{-- Tanggal Bayar --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar</label>
-                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar" value="{{ old('tanggal_bayar', now()->format('Y-m-d')) }}"
+                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar" value="{{ old('tanggal_bayar') }}"
                         onchange="syncTanggalMulaiDariBayar()"
                         oninput="syncTanggalMulaiDariBayar()"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
@@ -1146,7 +1153,7 @@
 
 
         // -- MODAL PERPANJANG -------------------------------
-        function openModalPerpanjang(id, asuransi_id, jenis_id, nopol, merk, durasi, biaya, tglBerakhirLama) {
+        function openModalPerpanjang(id, asuransi_id, jenis_id, nopol, merk, durasi, biaya, tglBerakhirLama, tanggalBayarLama) {
             document.getElementById('formPerpanjang').action =
                 '/admin/asuransi-kendaraan/' + id + '/perpanjang';
 
@@ -1186,10 +1193,21 @@
                 document.getElementById('perpanjang_tgl_mulai').value = tglBerakhirLama;
             }
 
-            // tanggal_bayar: jika belum ada nilai dari old(), set ke hari ini
-            if (!document.getElementById('perpanjang_tanggal_bayar').value) {
-                document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
+            // tanggal_bayar: default = tanggal_bayar_lama + 1 tahun, min = nilai tersebut
+            var tglBayarEl = document.getElementById('perpanjang_tanggal_bayar');
+            var today = new Date().toISOString().split('T')[0];
+            var defaultTgl;
+            if (tanggalBayarLama) {
+                var da = new Date(tanggalBayarLama);
+                da.setFullYear(da.getFullYear() + 1);
+                defaultTgl = da.getFullYear() + '-'
+                    + String(da.getMonth() + 1).padStart(2, '0') + '-'
+                    + String(da.getDate()).padStart(2, '0');
+            } else {
+                defaultTgl = today;
             }
+            tglBayarEl.value = defaultTgl;
+            tglBayarEl.min   = defaultTgl;
 
             document.getElementById('perpanjang_durasi').value = '12';
 
@@ -1220,111 +1238,9 @@
 
 
         // -- SEARCH / FILTER --------------------------------
-        function filterTable(q) {
-            currentAsuransiPage = 1;
-            applyFilter(q);
-        }
-
-        let currentAsuransiPage = 1;
-        const ASURANSI_PER_PAGE = 10;
-
-        function applyFilter(keyword) {
-            if (keyword === undefined) {
-                keyword = document.getElementById('searchInput').value;
-            }
-            keyword = keyword.toLowerCase();
-
-            const filterBulan = document.getElementById('filterBulan').value;
-            const filterTahun = document.getElementById('filterTahun').value;
-            const perPage     = ASURANSI_PER_PAGE;
-
-            const allRows = Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
-            const matched = [];
-
-            allRows.forEach(row => {
-                const matchSearch = row.dataset.search.includes(keyword);
-
-                const tglBerakhir  = row.dataset.tglBerakhir || '';  // "YYYY-MM"
-                const [rowYear, rowMonth] = tglBerakhir.split('-');
-                const matchBulan  = !filterBulan || rowMonth === filterBulan;
-                const matchTahun  = !filterTahun || rowYear  === filterTahun;
-
-                row.style.display = 'none';
-                if (matchSearch && matchBulan && matchTahun) matched.push(row);
-            });
-
-            const total      = matched.length;
-            const totalPages = Math.ceil(total / perPage) || 1;
-            if (currentAsuransiPage > totalPages) currentAsuransiPage = 1;
-
-            const start = (currentAsuransiPage - 1) * perPage;
-            const end   = Math.min(start + perPage, total);
-
-            let num = start + 1;
-            matched.forEach((row, idx) => {
-                if (idx >= start && idx < end) {
-                    row.style.display = '';
-                    const cell = row.querySelector('.row-number');
-                    if (cell) cell.textContent = num++;
-                }
-            });
-
-            renderAsuransiPagination(totalPages);
-        }
-
-        function renderAsuransiPagination(totalPages) {
-            const container = document.getElementById('paginationControls');
-            if (!container) return;
-            container.innerHTML = '';
-            if (totalPages <= 1) return;
-
-            const btnBase       = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
-            const activeClass   = 'bg-indigo-600 text-white border-indigo-600';
-            const normalClass   = 'border-gray-200 text-gray-600 hover:bg-gray-50';
-            const disabledClass = 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400';
-
-            const prev = document.createElement('button');
-            prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
-            prev.className = btnBase + ' ' + (currentAsuransiPage === 1 ? disabledClass : normalClass);
-            prev.disabled  = currentAsuransiPage === 1;
-            prev.onclick   = () => { currentAsuransiPage--; applyFilter(); };
-            container.appendChild(prev);
-
-            const range = 2;
-            for (let i = 1; i <= totalPages; i++) {
-                if (i === 1 || i === totalPages || (i >= currentAsuransiPage - range && i <= currentAsuransiPage + range)) {
-                    const btn = document.createElement('button');
-                    btn.textContent = i;
-                    btn.className = btnBase + ' ' + (i === currentAsuransiPage ? activeClass : normalClass);
-                    btn.onclick = (function(page) { return () => { currentAsuransiPage = page; applyFilter(); }; })(i);
-                    container.appendChild(btn);
-                } else if (i === currentAsuransiPage - range - 1 || i === currentAsuransiPage + range + 1) {
-                    const dots = document.createElement('span');
-                    dots.textContent = '…';
-                    dots.className = 'px-1 text-xs text-gray-400';
-                    container.appendChild(dots);
-                }
-            }
-
-            const next = document.createElement('button');
-            next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
-            next.className = btnBase + ' ' + (currentAsuransiPage === totalPages ? disabledClass : normalClass);
-            next.disabled  = currentAsuransiPage === totalPages;
-            next.onclick   = () => { currentAsuransiPage++; applyFilter(); };
-            container.appendChild(next);
-        }
-
-        function resetFilter() {
-            document.getElementById('searchInput').value   = '';
-            document.getElementById('filterBulan').value  = '';
-            document.getElementById('filterTahun').value  = '';
-            currentAsuransiPage = 1;
-            applyFilter('');
-        }
+        // Server-side search — no client-side filter needed
 
         document.addEventListener('DOMContentLoaded', () => {
-            applyFilter('');
-
             // Re-trigger kalkulasi tgl_berakhir di modal Tambah jika tgl_mulai sudah terisi (old())
             const tglMulaiEl = document.getElementById('tgl_mulai');
             if (tglMulaiEl && tglMulaiEl.value) {
@@ -1380,16 +1296,6 @@
             }
             window.closeAlert = closeAlert;
         })();
-
-        function exportPdf() {
-            let search = document.getElementById('searchInput').value;
-
-            window.open(
-                '/admin/asuransi-kendaraan/export-pdf?search=' +
-                encodeURIComponent(search),
-                '_blank'
-            );
-        }
 
 
 

@@ -216,7 +216,7 @@
                 @endforelse
             </tbody>
         </table>
-        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
 
         {{-- Empty state saat filter tidak cocok --}}
         <div id="noResultRow" class="hidden px-5 py-12 text-center">

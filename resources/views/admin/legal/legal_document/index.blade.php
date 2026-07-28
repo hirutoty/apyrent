@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Dokumen Legal')
 @section('content')
 <div class="space-y-6">
@@ -124,7 +124,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
     </div>
 </div>
 
@@ -257,7 +257,7 @@
 </div>
 
 @endsection
-<div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+<div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
 @push('scripts')
 <script>
 function openModal(){ document.getElementById('modalCreate').classList.remove('hidden'); }

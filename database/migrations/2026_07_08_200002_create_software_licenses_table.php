@@ -14,8 +14,8 @@ return new class extends Migration
             $table->string('vendor');
             $table->string('tipe_lisensi'); // Perpetual / Subscription / Open Source
             $table->string('license_key')->nullable();
-            $table->integer('jumlah_lisensi')->default(1);
-            $table->integer('lisensi_terpakai')->default(0);
+            $table->bigInteger('jumlah_lisensi')->default(1);
+            $table->bigInteger('lisensi_terpakai')->default(0);
             $table->date('tanggal_pembelian')->nullable();
             $table->date('tanggal_expired')->nullable();
             $table->bigInteger('harga')->default(0);

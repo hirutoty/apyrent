@@ -66,20 +66,26 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
             <div>
                 <h2 class="font-semibold text-gray-800 text-base">Daftar Service</h2>
-                <p class="text-xs text-gray-400 mt-0.5" id="totalCount">{{ $data->count() }} total data service</p>
+                <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total data service</p>
             </div>
-            <div class="flex items-center gap-2">
+            <form method="GET" action="{{ request()->url() }}" class="flex items-center gap-2">
                 <div class="relative">
                     <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-                    <input type="text" placeholder="Cari nama service, user..."
-                        oninput="filterTable(this.value)"
+                    <input type="text" name="search" placeholder="Cari nama service, user..."
+                        value="{{ request('search') }}"
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-56">
                 </div>
-                <button onclick="window.location.reload()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                    <i class="fa fa-sync text-xs"></i> Refresh
+                <button type="submit"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fa fa-search text-xs"></i> Cari
                 </button>
-            </div>
+                @if(request('search'))
+                    <a href="{{ request()->url() }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="fa fa-rotate-left text-xs"></i> Reset
+                    </a>
+                @endif
+            </form>
         </div>
 
         <div class="overflow-x-auto">
@@ -94,12 +100,11 @@
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    @forelse($data as $i => $d)
-                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
-                            data-search="{{ strtolower(($d->user->name ?? '') . ' ' . $d->nama_service) }}">
+                    @forelse($data as $d)
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100">
 
                             {{-- NO --}}
-                            <td class="px-4 py-3.5 text-xs text-gray-400 font-medium row-number">{{ $i + 1 }}</td>
+                            <td class="px-4 py-3.5 text-xs text-gray-400 font-medium row-number">{{ $data->firstItem() + $loop->index }}</td>
 
                             {{-- USER --}}
                             <td class="px-4 py-3.5">
@@ -164,17 +169,11 @@
                     @endforelse
                 </tbody>
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
-
-            <div id="noResultRow" class="hidden px-5 py-12 text-center">
-                <div class="flex flex-col items-center gap-3">
-                    <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
-                        <i class="fa fa-search text-2xl text-gray-300"></i>
-                    </div>
-                    <p class="text-sm font-medium text-gray-500">Tidak ada hasil yang cocok</p>
-                    <p class="text-xs text-gray-400">Coba ubah kata kunci pencarian</p>
-                </div>
+            <div class="py-3 border-t border-gray-100">
+                <x-pagination :paginator="$data" />
             </div>
+
+
 
         </div>
 
@@ -215,7 +214,7 @@
 
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya Default <span class="text-red-500">*</span></label>
-                <input type="number" name="biaya_default" id="biaya_default" required
+                <input type="number" name="biaya_default" id="biaya_default" required max="9999999999"
                     placeholder="Masukkan biaya"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('biaya_default') }}"
             </div>
@@ -325,31 +324,6 @@ document.querySelectorAll('.btn-edit').forEach(btn => {
         modal.classList.add('flex');
     });
 });
-
-// -- SEARCH / FILTER --------------------------------
-function filterTable(q) {
-    const rows = document.querySelectorAll('#tableBody tr[data-search]');
-    let visible = 0;
-
-    rows.forEach(row => {
-        const show = row.dataset.search.includes(q.toLowerCase());
-        row.style.display = show ? '' : 'none';
-        if (show) visible++;
-    });
-
-    document.getElementById('totalCount').textContent = visible + ' total data service';
-
-    const noResult = document.getElementById('noResultRow');
-    if (noResult) noResult.classList.toggle('hidden', visible > 0 || rows.length === 0);
-
-    let num = 1;
-    rows.forEach(row => {
-        if (row.style.display !== 'none') {
-            const cell = row.querySelector('.row-number');
-            if (cell) cell.textContent = num++;
-        }
-    });
-}
 
 // -- POPUP ALERT ------------------------------------
 (function () {

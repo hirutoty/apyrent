@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Hutang Vendor')
 
@@ -201,52 +201,37 @@
 
                                 {{-- JATUH TEMPO --}}
                                 <td class="px-4 py-3.5">
-
                                     @php
-                                        $jatuhTempo = \Carbon\Carbon::parse($item->jatuh_tempo)->startOfDay();
-                                        $hariIni = now()->startOfDay();
-                                        $selisih = (int) $hariIni->diffInDays($jatuhTempo, false);
-
-                                        $showReminder = $item->status != 'lunas';
+                                        $jatuhTempo     = \Carbon\Carbon::parse($item->jatuh_tempo)->startOfDay();
+                                        $hariIni        = now()->startOfDay();
+                                        $selisih        = (int) $hariIni->diffInDays($jatuhTempo, false);
+                                        $sisaDetikHv    = (int) (\Carbon\Carbon::parse($item->jatuh_tempo)->endOfDay()->timestamp - now()->timestamp);
+                                        $showReminder   = $item->status != 'lunas';
                                     @endphp
 
                                     <div class="flex flex-col gap-1">
-
-                                        <span
-                                            class="
-            @if ($item->status != 'Lunas' && $selisih < 0) font-medium text-gray-600
-            @elseif ($item->status != 'Lunas' && $selisih <= $reminder)
-                font-medium text-gray-600
-            @else
-                text-gray-600 @endif
-        ">
-                                            {{ $jatuhTempo->format('d M Y') }}
-                                        </span>
+                                        <span class="text-gray-600">{{ $jatuhTempo->format('d M Y') }}</span>
 
                                         @if ($item->status != 'lunas')
                                             @if ($selisih < 0)
-                                                <span
-                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold w-fit">
-
-                                                    Terlambat {{ abs($selisih) }} hari
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold w-fit">
+                                                    <i class="fa fa-circle-exclamation text-[10px]"></i>
+                                                    Terlambat {{ formatSisaWaktu(abs($sisaDetikHv)) }}
                                                 </span>
                                             @elseif ($selisih <= $reminder)
-                                                <span
-                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold w-fit animate-pulse">
-
-
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold w-fit animate-pulse
+                                                    {{ $selisih == 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700' }}">
+                                                    <i class="fa fa-triangle-exclamation text-[10px]"></i>
                                                     @if ($selisih == 0)
-                                                        Jatuh Tempo Hari Ini
+                                                        Jatuh Tempo {{ formatSisaWaktu($sisaDetikHv) }} lagi
                                                     @elseif ($selisih == 1)
                                                         Jatuh Tempo Besok
                                                     @else
                                                         Jatuh Tempo {{ $selisih }} hari lagi
                                                     @endif
-
                                                 </span>
                                             @endif
                                         @endif
-
                                     </div>
 
                                 </td>
@@ -302,7 +287,7 @@
                     </tbody>
                 </table>
 
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
 
                 {{-- Empty state saat filter tidak cocok --}}
                 <div id="noResultRow" class="hidden px-5 py-12 text-center">
@@ -361,7 +346,7 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal <span
                                 class="text-red-500">*</span></label>
-                        <input type="number" name="nominal" required placeholder="Nominal hutang"
+                        <input type="number" name="nominal" required max="9999999999" placeholder="Nominal hutang"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
                     </div>
 
@@ -392,7 +377,7 @@
                     <div class="md:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan <span
                                 class="text-red-500">*</span></label>
-                        <textarea name="keterangan" rows="3" required placeholder="Keterangan hutang..."
+                        <textarea name="keterangan" rows="3" placeholder="Keterangan hutang..."
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
                     </div>
 

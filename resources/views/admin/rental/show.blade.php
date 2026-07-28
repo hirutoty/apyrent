@@ -183,12 +183,12 @@
             $sisa = max(0, $rental->total_biaya - $sudahBayar);
 
             // Hitung sisa waktu / keterlambatan rental berdasarkan tanggal_selesai
-            $now = \Carbon\Carbon::now();
+            $now        = \Carbon\Carbon::now();
             $tglSelesai = \Carbon\Carbon::parse($rental->tanggal_selesai);
-            $isOverdue = $now->greaterThan($tglSelesai);
-            $totalDetik = $now->diffInSeconds($tglSelesai); // absolute
-            $sisaHari = intdiv($totalDetik, 86400);
-            $sisaJam = intdiv($totalDetik % 86400, 3600);
+            $isOverdue  = $now->greaterThan($tglSelesai);
+            $totalDetik = (int) $now->diffInSeconds($tglSelesai); // absolute
+            $sisaFmt    = formatSisaWaktu($totalDetik);
+            $sisaHari   = (int) floor($totalDetik / 86400); // hanya untuk cek hampirSeminggu
             $hampirSeminggu = $isOverdue && $sisaHari >= 6;
         @endphp
 
@@ -201,12 +201,7 @@
                     <i class="fa fa-exclamation-triangle text-lg mt-0.5"></i>
                     <div>
                         <p class="text-sm font-bold">
-                            Rental Terlambat
-                            @if ($sisaHari >= 1)
-                                {{ $sisaHari }} Hari {{ $sisaJam > 0 ? $sisaJam . ' Jam' : '' }}
-                            @else
-                                {{ $sisaJam }} Jam
-                            @endif
+                            Rental Terlambat {{ $sisaFmt }}
                         </p>
                         <p class="text-xs mt-0.5 leading-relaxed">
                             @if ($hampirSeminggu)
@@ -224,12 +219,7 @@
                 <div class="flex items-center gap-3 bg-blue-50 border border-blue-100 text-blue-700 px-4 py-3 rounded-2xl">
                     <i class="fa fa-clock text-lg"></i>
                     <p class="text-sm font-semibold">
-                        Sisa Waktu Rental:
-                        @if ($sisaHari >= 1)
-                            {{ $sisaHari }} Hari {{ $sisaJam > 0 ? $sisaJam . ' Jam' : '' }}
-                        @else
-                            {{ $sisaJam }} Jam
-                        @endif
+                        Sisa Waktu Rental: {{ $sisaFmt }}
                     </p>
                 </div>
             @endif
@@ -332,7 +322,7 @@
                 </div>
 
                 {{-- DATA DRIVER & TUJUAN --}}
-                @if ($rental->tujuan || $rental->nama_driver || $rental->kontak_driver || $rental->biaya_driver)
+                @if ($rental->tujuan_perjalanan || $rental->nama_driver || $rental->kontak_driver || $rental->biaya_driver || $rental->alamat_pengantaran || $rental->alamat_penjemputan)
                     <div class="section-card">
                         <div class="section-header">
                             <div class="flex items-center gap-3">
@@ -341,7 +331,7 @@
                                 </div>
                                 <div>
                                     <h2 class="font-bold text-gray-800 text-sm">Perjalanan & Driver</h2>
-                                    <p class="text-xs text-gray-400">Info tujuan dan driver harian</p>
+                                    <p class="text-xs text-gray-400">Info tujuan, driver, dan antar-jemput</p>
                                 </div>
                             </div>
                             <span class="text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700">Per
@@ -350,20 +340,24 @@
 
                         <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                            {{-- Tujuan --}}
+                            {{-- Tujuan Perjalanan --}}
+                            @if ($rental->tujuan_perjalanan)
                             <div class="sm:col-span-2 info-tile bg-amber-50 rounded-xl p-3.5">
                                 <p class="text-xs font-semibold text-amber-500 uppercase tracking-wide mb-1.5">
                                     <i class="fa fa-map-marker-alt mr-1"></i> Tujuan Perjalanan
                                 </p>
-                                <p class="text-sm font-bold text-gray-800">{{ $rental->tujuan ?? '-' }}</p>
+                                <p class="text-sm font-bold text-gray-800">
+                                    {{ $rental->tujuan_perjalanan === 'dalam_kota' ? 'Dalam Kota' : 'Luar Kota' }}
+                                </p>
                             </div>
+                            @endif
 
                             {{-- Nama Driver --}}
                             <div class="info-tile bg-gray-50 rounded-xl p-3.5">
                                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
                                     <i class="fa fa-user mr-1 text-gray-400"></i> Nama Driver
                                 </p>
-                                <p class="text-sm font-bold text-gray-800">{{ $rental->nama_driver ?? 'No Driver' }}</p>
+                                <p class="text-sm font-bold text-gray-800">{{ $rental->nama_driver ?: 'Tidak ada driver' }}</p>
                             </div>
 
                             {{-- Kontak Driver --}}
@@ -371,20 +365,39 @@
                                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
                                     <i class="fa fa-phone mr-1 text-gray-400"></i> Kontak Driver
                                 </p>
-                                <p class="text-sm font-bold text-gray-800">{{ $rental->kontak_driver ?? 'No Driver' }}</p>
+                                <p class="text-sm font-bold text-gray-800">{{ $rental->kontak_driver ?: '-' }}</p>
                             </div>
 
                             {{-- Biaya Driver --}}
-
                             <div class="sm:col-span-2 info-tile bg-blue-50 rounded-xl p-3.5">
                                 <p class="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1.5">
                                     <i class="fa fa-money-bill-wave mr-1"></i> Biaya Driver
                                 </p>
                                 <p class="text-sm font-bold text-blue-700">
-                                    Rp {{ number_format($rental->biaya_driver) }}
+                                    Rp {{ number_format($rental->biaya_driver ?? 0) }}
                                 </p>
                             </div>
 
+                            {{-- Pengantaran & Penjemputan --}}
+                            @if ($rental->alamat_pengantaran || $rental->alamat_penjemputan)
+                                <div class="info-tile bg-green-50 rounded-xl p-3.5">
+                                    <p class="text-xs font-semibold text-green-500 uppercase tracking-wide mb-1.5">
+                                        <i class="fa fa-arrow-right mr-1 text-green-500"></i> Pengantaran
+                                    </p>
+                                    <p class="text-sm font-bold text-gray-800">
+                                        {{ $rental->alamat_pengantaran ?: '-' }}
+                                    </p>
+                                </div>
+
+                                <div class="info-tile bg-orange-50 rounded-xl p-3.5">
+                                    <p class="text-xs font-semibold text-orange-500 uppercase tracking-wide mb-1.5">
+                                        <i class="fa fa-arrow-left mr-1 text-orange-500"></i> Penjemputan
+                                    </p>
+                                    <p class="text-sm font-bold text-gray-800">
+                                        {{ $rental->alamat_penjemputan ?: '-' }}
+                                    </p>
+                                </div>
+                            @endif
 
                         </div>
                     </div>

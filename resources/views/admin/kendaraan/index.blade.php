@@ -12,11 +12,19 @@
                 <h1 class="text-2xl font-bold text-gray-800">Data Kendaraan</h1>
                 <p class="text-sm text-gray-500 mt-0.5">Kelola data kendaraan armada</p>
             </div>
-            <button onclick="openModal('modalTambah')"
-                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
-                <i class="fa fa-plus text-sm"></i>
-                Tambah Kendaraan
-            </button>
+            @if($members->isEmpty())
+                <button type="button" onclick="document.getElementById('modalNoMember').classList.remove('hidden');document.getElementById('modalNoMember').classList.add('flex')"
+                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
+                    <i class="fa fa-plus text-sm"></i>
+                    Tambah Kendaraan
+                </button>
+            @else
+                <button onclick="openModal('modalTambah')"
+                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
+                    <i class="fa fa-plus text-sm"></i>
+                    Tambah Kendaraan
+                </button>
+            @endif
         </div>
 
         {{-- SUMMARY CARDS --}}
@@ -79,24 +87,30 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar Kendaraan</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $totalKendaraan }} total kendaraan</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total kendaraan</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <form method="GET" action="{{ request()->url() }}" class="flex items-center gap-2">
                     <div class="relative">
                         <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input type="text" placeholder="Cari kendaraan..." oninput="filterKendaraanTable(this.value)"
+                        <input type="text" name="search" placeholder="Cari kendaraan..." value="{{ request('search') }}"
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                     </div>
+                    <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fa fa-search text-xs"></i> Cari
+                    </button>
+                    @if(request('search'))
+                        <a href="{{ request()->url() }}"
+                           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <i class="fa fa-rotate-left text-xs"></i> Reset
+                        </a>
+                    @endif
                     <a href="{{ route('kendaraan.export.merk') }}" target="_blank"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf text-xs"></i>
                         Export PDF
                     </a>
-                    <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        <i class="fa fa-sync text-xs"></i> Refresh
-                    </button>
-                </div>
+                </form>
             </div>
 
         {{-- nomor baris sekarang dari server, $data->firstItem() --}}
@@ -122,8 +136,7 @@
                     </thead>
                     <tbody id="kendaraanTableBody">
                         @forelse($data as $i => $d)
-                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
-                                data-search="{{ strtolower($d->merk . ' ' . $d->nopol . ' ' . $d->nama_pemilik . ' ' . ($d->jenis->nama_jenis ?? '')) }}">
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100">
 
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-semibold">{{ $data->firstItem() + $loop->index }}</td>
 
@@ -196,7 +209,9 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 border-t border-gray-100">
+                    <x-pagination :paginator="$data" />
+                </div>
             </div>
 
         </div>
@@ -279,7 +294,7 @@
 
                 <div id="d_foto_wrap" class="hidden">
                     @if (!empty($d->foto))
-                        <img id="d_foto_img" src="{{ asset($d->foto) }}" alt="Foto"
+                        <img id="d_foto_img" src="{{ asset($d->foto) }}" alt="Foto" 
                             class="w-full max-h-52 object-cover rounded-xl border border-gray-200">
                     @else
                         <span class="text-xs text-gray-400">Tidak ada foto</span>
@@ -440,6 +455,52 @@
 
 
     {{-- ======================================
+    MODAL NO MEMBER
+====================================== --}}
+    <div id="modalNoMember" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/30"
+        style="backdrop-filter:blur(2px)">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md" style="animation:slideUp .2s ease">
+            <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center shrink-0">
+                        <i class="fa fa-exclamation-triangle"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-gray-800">Belum Ada Data Member</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">Kendaraan harus memiliki pemilik dari data member</p>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('modalNoMember').classList.add('hidden');document.getElementById('modalNoMember').classList.remove('flex')"
+                    class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            <div class="px-6 py-5">
+                <p class="text-sm text-gray-600 mb-4">
+                    Untuk menambahkan kendaraan, Anda harus memiliki minimal satu data <strong>Member</strong> sebagai pemilik kendaraan.
+                    Silakan tambahkan member terlebih dahulu.
+                </p>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2 mb-5">
+                    <i class="fa fa-lightbulb text-amber-400 mt-0.5 text-sm shrink-0"></i>
+                    <p class="text-xs text-amber-700">Buka menu <strong>Member</strong>, tambahkan data pemilik kendaraan, lalu kembali ke halaman ini untuk menambah kendaraan.</p>
+                </div>
+                <div class="flex items-center justify-end gap-2">
+                    <button type="button"
+                        onclick="document.getElementById('modalNoMember').classList.add('hidden');document.getElementById('modalNoMember').classList.remove('flex')"
+                        class="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                        Tutup
+                    </button>
+                    <a href="{{ route('members.index') }}"
+                        class="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+                        <i class="fa fa-users text-xs"></i> Ke Halaman Member
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    {{-- ======================================
     MODAL TAMBAH
 ====================================== --}}
     <div id="modalTambah" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/30"
@@ -491,14 +552,14 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Sewa / Hari <span
                                         class="text-red-500">*</span></label>
-                                <input name="harga_sewa_per_hari" required type="number" placeholder="0"
+                                <input name="harga_sewa_per_hari" required type="number" max="9999999999" placeholder="0"
                                     value="{{ old('harga_sewa_per_hari') }}"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Sewa / Bulan <span
                                         class="text-red-500">*</span></label>
-                                <input name="harga_sewa_per_jam" required type="number" placeholder="0"
+                                <input name="harga_sewa_per_jam" required type="number" max="9999999999" placeholder="0"
                                     value="{{ old('harga_sewa_per_jam') }}"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
@@ -548,7 +609,7 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Foto <span
                                         class="text-red-500">*</span></label>
-                                <input name="foto" type="file" required
+                                <input name="foto" type="file" accept=".jpg,.jpeg,.png" required
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                         </div>
@@ -1342,6 +1403,27 @@
         document.addEventListener('DOMContentLoaded', function() {
             initMemberAutocomplete('nama_pemilik',   'member-result-tambah', 'member_id',   'alamat',   'member_warning_tambah', 'alamat_edit_btn');
             initMemberAutocomplete('e_nama_pemilik', 'member-result-edit',   'e_member_id', 'e_alamat', 'member_warning_edit',   'e_alamat_edit_btn');
+
+            // Validasi: form tambah tidak bisa submit jika member_id kosong
+            var formTambah = document.querySelector('#modalTambah form');
+            if (formTambah) {
+                formTambah.addEventListener('submit', function(e) {
+                    var memberId = document.getElementById('member_id').value;
+                    if (!memberId) {
+                        e.preventDefault();
+                        var warning = document.getElementById('member_warning_tambah');
+                        warning.classList.remove('hidden');
+                        warning.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Wajib memilih pemilik dari daftar member';
+                        document.getElementById('nama_pemilik').focus();
+                        document.getElementById('nama_pemilik').classList.add('border-red-400', 'ring-1', 'ring-red-200');
+                    }
+                });
+            }
+
+            // Reset border merah saat member dipilih
+            document.getElementById('nama_pemilik').addEventListener('keydown', function() {
+                this.classList.remove('border-red-400', 'ring-1', 'ring-red-200');
+            });
         });
 
         // -- MODAL EDIT --------------------------------------
@@ -1392,14 +1474,6 @@
                 openModal('modalEdit');
             });
         });
-
-        // -- SEARCH (client-side, hanya filter baris yang ada di halaman ini) --
-        function filterKendaraanTable(q) {
-            const keyword = q.toLowerCase();
-            document.querySelectorAll('#kendaraanTableBody tr[data-search]').forEach(row => {
-                row.style.display = row.dataset.search.includes(keyword) ? '' : 'none';
-            });
-        }
 
         // -- POPUP ALERT --------------------------------------
         (function() {

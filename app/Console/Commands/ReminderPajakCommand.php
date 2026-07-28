@@ -6,71 +6,212 @@ use Illuminate\Console\Command;
 use App\Models\PajakKendaraan;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Mail\PajakReminderMail;
 
 class ReminderPajakCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'app:reminder-pajak-command';
+    protected $signature = 'pajak:reminder';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Command description';
+    protected $description = 'Kirim reminder pajak kendaraan';
 
-    /**
-     * Execute the console command.
-     */
+
     public function handle()
     {
-        $this->info('Command dijalankan');
+        Log::info('=== PAJAK REMINDER START ===');
+
+
         $setting = Setting::first();
 
+
+        if (!$setting || !$setting->email) {
+
+            Log::warning('Pajak reminder gagal: email setting tidak ditemukan');
+
+            return self::FAILURE;
+        }
+
+
+
+        // Konversi batas reminder
         $reminder = match ($setting->satuan_reminder) {
-            'hari'   => $setting->batas_reminder,
-            'minggu' => $setting->batas_reminder * 7,
-            'bulan'  => $setting->batas_reminder * 30,
-            'tahun'  => $setting->batas_reminder * 365,
-            default  => $setting->batas_reminder,
+
+            'hari'   => (int) $setting->batas_reminder,
+
+            'minggu' => (int) $setting->batas_reminder * 7,
+
+            'bulan'  => (int) $setting->batas_reminder * 30,
+
+            'tahun'  => (int) $setting->batas_reminder * 365,
+
+            default  => (int) $setting->batas_reminder,
+
         };
+
+
+
+        // Pola reminder
+        $hariReminder = [
+            $reminder,
+            14,
+            7,
+            3,
+            1
+        ];
+
+
 
         $data = PajakKendaraan::with('kendaraan')
             ->where('status', '!=', 'sudah_bayar')
             ->get();
 
-        foreach ($data as $pajak) {
-            $this->info('ID: ' . $pajak->id);
-            $this->info('Nopol: ' . $pajak->kendaraan->nopol);
 
-            $this->info('Jumlah data: ' . $data->count());
+
+        $emailTerkirim = 0;
+
+
+
+        foreach ($data as $pajak) {
+
+
+            if (!$pajak->jatuh_tempo) {
+                continue;
+            }
+
+
 
             $sisaHari = Carbon::today()->diffInDays(
                 Carbon::parse($pajak->jatuh_tempo),
                 false
             );
-            $this->info('Sisa Hari : ' . $sisaHari);
-            $this->info('Reminder : ' . $reminder);
 
 
-            // Reminder
-            if ($sisaHari == $reminder) {
-                $this->info('Mengirim email...');
-                Mail::to($setting->email)
-                    ->send(new PajakReminderMail($pajak, $sisaHari, 'reminder'));
+
+            Log::info('Cek Pajak', [
+
+                'id' => $pajak->id,
+
+                'nopol' => $pajak->kendaraan->nopol ?? '-',
+
+                'jatuh_tempo' => $pajak->jatuh_tempo,
+
+                'sisa_hari' => $sisaHari,
+
+                'reminder' => $reminder
+
+            ]);
+
+
+
+
+            // Reminder sebelum jatuh tempo
+            if (in_array($sisaHari, $hariReminder)) {
+
+
+                try {
+
+
+                    Mail::to($setting->email)
+                        ->send(
+                            new PajakReminderMail(
+                                $pajak,
+                                $sisaHari,
+                                'reminder'
+                            )
+                        );
+
+
+                    $emailTerkirim++;
+
+
+                    Log::info('Email pajak reminder terkirim', [
+
+                        'pajak_id' => $pajak->id,
+
+                        'sisa_hari' => $sisaHari
+
+                    ]);
+
+
+
+                } catch (\Throwable $e) {
+
+
+                    Log::error('Pajak reminder gagal', [
+
+                        'pajak_id' => $pajak->id,
+
+                        'pesan' => $e->getMessage()
+
+                    ]);
+
+                }
+
             }
 
-            // Tepat 1 hari terlambat
-            if ($sisaHari == 1) {
-                Mail::to($setting->email)
-                    ->send(new PajakReminderMail($pajak, 1, 'terlambat'));
+
+
+
+            // Terlambat H+1
+            if ($sisaHari == -1) {
+
+
+                try {
+
+
+                    Mail::to($setting->email)
+                        ->send(
+                            new PajakReminderMail(
+                                $pajak,
+                                1,
+                                'terlambat'
+                            )
+                        );
+
+
+
+                    $emailTerkirim++;
+
+
+
+                    Log::info('Email pajak terlambat terkirim', [
+
+                        'pajak_id' => $pajak->id
+
+                    ]);
+
+
+
+                } catch (\Throwable $e) {
+
+
+                    Log::error('Pajak terlambat gagal', [
+
+                        'pajak_id' => $pajak->id,
+
+                        'pesan' => $e->getMessage()
+
+                    ]);
+
+                }
+
             }
+
         }
+
+
+
+        Log::info('=== PAJAK REMINDER SELESAI ===', [
+
+            'jumlah_data' => $data->count(),
+
+            'email_terkirim' => $emailTerkirim
+
+        ]);
+
+
+
+        return self::SUCCESS;
     }
 }

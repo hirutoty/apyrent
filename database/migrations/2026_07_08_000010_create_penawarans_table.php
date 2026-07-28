@@ -14,7 +14,7 @@ return new class extends Migration
             $table->date('tanggal');
             $table->string('pelanggan');
             $table->string('produk_jasa');
-            $table->integer('jumlah');
+            $table->bigInteger('jumlah');
             $table->decimal('harga_satuan', 15, 2);
             $table->decimal('total_harga', 15, 2);
             $table->string('status');
