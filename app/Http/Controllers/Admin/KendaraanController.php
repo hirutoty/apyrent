@@ -16,18 +16,26 @@ use Carbon\Carbon;
 
 class KendaraanController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Kendaraan::selectRaw("
+        $query = Kendaraan::selectRaw("
         merk,
         jenis_id,
         COUNT(*) as total_unit,
         SUM(CASE WHEN status_kendaraan = 'tersedia' THEN 1 ELSE 0 END) as tersedia_unit
     ")
             ->with('jenis')
-            ->groupBy('merk', 'jenis_id')
-            ->paginate(10)
-            ->withQueryString();
+            ->groupBy('merk', 'jenis_id');
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('merk', 'like', "%{$s}%")
+                  ->orWhere('nopol', 'like', "%{$s}%");
+            });
+        }
+
+        $data = $query->paginate(10)->withQueryString();
 
         $totalKendaraan  = Kendaraan::count();
         $totalTersedia   = Kendaraan::where('status_kendaraan', 'tersedia')->count();
@@ -43,7 +51,7 @@ class KendaraanController extends Controller
 
     public function show($merk)
     {
-        $data = Kendaraan::with(['user', 'jenis', 'member', 'rentals'])
+        $data = Kendaraan::with(['user', 'jenis', 'member', 'rentals', 'rentals.member'])
             ->where('merk', $merk)
             ->latest()
             ->get();
@@ -69,7 +77,7 @@ class KendaraanController extends Controller
 
         foreach ($data as $d) {
 
-            $rental = $d->rentals->first();
+            $rental = $d->rentals->firstWhere('status', 'aktif');
 
             $d->reminder = false;
             $d->terlambat = false;
@@ -107,34 +115,31 @@ class KendaraanController extends Controller
 
 
     /**
-     * 🔥 FORMAT SISA WAKTU: HARI KALAU >= 1 HARI, JAM KALAU < 1 HARI
+     * Format sisa waktu: >= 1 hari → "X hari", < 1 hari → "X jam", < 1 jam → "< 1 jam"
      */
     private function formatSisa($seconds)
     {
-        if ($seconds >= 86400) {
-            return floor($seconds / 86400) . ' hari';
-        }
-
-        if ($seconds >= 3600) {
-            return floor($seconds / 3600) . ' jam';
-        }
-
-        if ($seconds >= 60) {
-            return floor($seconds / 60) . ' menit';
-        }
-
-        return $seconds . ' detik';
+        $seconds = (int) $seconds;
+        if ($seconds <= 0)  return '0 jam';
+        $hari = (int) floor($seconds / 86400);
+        if ($hari >= 1)     return $hari . ' hari';
+        $jam  = (int) floor($seconds / 3600);
+        if ($jam  >= 1)     return $jam  . ' jam';
+        return '< 1 jam';
     }
 
     public function store(Request $request)
     {
         $request->validate([
+            'member_id' => 'required|exists:members,id',
             'jenis_id' => 'required|exists:jenis,id',
             'nopol' => 'required|unique:kendaraan,nopol',
             'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
             'dokumen' => 'required|array',
             'dokumen.*' => 'file|max:4096',
         ], [
+            'member_id.required' => 'Pemilik kendaraan wajib dipilih dari data member',
+            'member_id.exists' => 'Member tidak ditemukan, silakan pilih dari daftar',
             'jenis_id.required' => 'Jenis kendaraan wajib dipilih',
             'nopol.required' => 'Nomor polisi wajib diisi',
             'nopol.unique' => 'Nomor polisi sudah digunakan, tidak boleh sama',

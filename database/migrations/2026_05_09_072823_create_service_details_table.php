@@ -20,7 +20,7 @@ return new class extends Migration
 
     $table->date('tanggal_service');
 
-    $table->integer('kilometer')->default(0);
+    $table->bigInteger('kilometer')->default(0);
 
     $table->enum('status', [
         'Layak',

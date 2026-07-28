@@ -285,7 +285,7 @@
                     </tbody>
                 </table>
 
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
                 <div id="noResultRow" class="hidden px-5 py-12 text-center">
                     <div class="flex flex-col items-center gap-3">
                         <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
@@ -384,7 +384,7 @@
                 {{-- BIAYA --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya</label>
-                    <input type="number" name="biaya" id="biaya" placeholder="Nominal biaya service"
+                    <input type="number" name="biaya" id="biaya" max="9999999999" placeholder="Nominal biaya service"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
                 </div>
 

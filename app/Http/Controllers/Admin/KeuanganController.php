@@ -55,7 +55,7 @@ class KeuanganController extends Controller
       $setting  = \App\Models\Setting::first();
       $reminderAp = $setting->satuan_reminder ?? 30;
 
-      $query_ap = \App\Models\Aging_aps::query();
+      $query_ap = \App\Models\aging_aps::query();
       if ($request->filled('hari_ap'))  $query_ap->whereDay('jatuh_tempo', $request->hari_ap);
       if ($request->filled('bulan_ap')) $query_ap->whereMonth('jatuh_tempo', $request->bulan_ap);
       if ($request->filled('tahun_ap')) $query_ap->whereYear('jatuh_tempo', $request->tahun_ap);

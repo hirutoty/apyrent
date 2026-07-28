@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'History STNK Kendaraan')
 
@@ -110,11 +110,27 @@
                     </a>
 
                     {{-- SEARCH --}}
-                    <div class="relative">
-                        <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input type="text" id="search" placeholder="Cari kendaraan, nopol, pemilik..."
-                            class="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 w-56">
-                    </div>
+                    <form method="GET" action="{{ route('stnk-history.index') }}" class="flex items-center gap-2">
+                        @if(request('bulan'))
+                            <input type="hidden" name="bulan" value="{{ request('bulan') }}">
+                        @endif
+                        <div class="relative">
+                            <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <input type="text" name="search" value="{{ request('search') }}"
+                                placeholder="Cari kendaraan, nopol..."
+                                class="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 w-56">
+                        </div>
+                        <button type="submit"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
+                            <i class="fa fa-search text-xs"></i> Cari
+                        </button>
+                        @if(request('search'))
+                            <a href="{{ route('stnk-history.index', request()->only('bulan')) }}"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-slate-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                <i class="fa fa-rotate-left text-xs"></i>
+                            </a>
+                        @endif
+                    </form>
 
                 </div>
             </div>
@@ -241,7 +257,7 @@
 
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
             </div>
 
         </div>
@@ -303,17 +319,6 @@
     @endif
 
     <script>
-        // -- SEARCH (client-side) ----------------------------
-        const search = document.getElementById('search');
-
-        search.addEventListener('keyup', function() {
-            let value = this.value.toLowerCase();
-
-            document.querySelectorAll('#tableBody tr').forEach(function(row) {
-                row.style.display = row.innerText.toLowerCase().includes(value) ? '' : 'none';
-            });
-        });
-
         // -- POPUP ALERT --------------------------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');

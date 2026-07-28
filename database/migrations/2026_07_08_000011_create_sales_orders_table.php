@@ -14,7 +14,7 @@ return new class extends Migration
             $table->date('tanggal');
             $table->string('pelanggan');
             $table->string('produk_jasa');
-            $table->integer('qty');
+            $table->bigInteger('qty');
             $table->decimal('total_harga', 15, 2);
             $table->string('status_order');
             $table->string('metode_pembayaran');

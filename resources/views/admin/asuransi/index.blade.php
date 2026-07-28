@@ -28,20 +28,25 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
             <div>
                 <h2 class="font-semibold text-gray-800 text-base">Daftar Asuransi</h2>
-                <p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total perusahaan asuransi</p>
+                <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total perusahaan asuransi</p>
             </div>
-            <div class="flex items-center gap-2">
+            <form method="GET" action="{{ request()->url() }}" class="flex items-center gap-2">
                 <div class="relative">
                     <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                    <input type="text" placeholder="Cari asuransi..."
-                        oninput="filterTable(this.value)"
+                    <input type="text" name="search" placeholder="Cari asuransi..." value="{{ request('search') }}"
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                 </div>
-                <button onclick="window.location.reload()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                    <i class="fa fa-sync text-xs"></i> Refresh
+                <button type="submit"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fa fa-search text-xs"></i> Cari
                 </button>
-            </div>
+                @if(request('search'))
+                    <a href="{{ request()->url() }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="fa fa-rotate-left text-xs"></i> Reset
+                    </a>
+                @endif
+            </form>
         </div>
 
         <div class="overflow-x-auto">
@@ -61,8 +66,7 @@
                 </thead>
                 <tbody id="tableBody">
                     @forelse ($data as $d)
-                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
-                            data-search="{{ strtolower($d->nama_asuransi . ' ' . $d->alamat . ' ' . $d->nama_marketing . ' ' . $d->nama_bengkel) }}">
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100">
 
                             {{-- No --}}
                             <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
@@ -136,7 +140,9 @@
                     @endforelse
                 </tbody>
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+            <div class="py-3 border-t border-gray-100">
+                <x-pagination :paginator="$data" />
+            </div>
         </div>
 
     </div>
@@ -192,7 +198,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Marketing <span class="text-red-500">*</span></label>
-                    <input type="number" name="kontak_marketing" id="f_kontak_marketing" required
+                    <input type="number" name="kontak_marketing" id="f_kontak_marketing" required maxlength="15"
                         placeholder="08xx-xxxx-xxxx"
                         value="{{ old('kontak_marketing') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
@@ -206,7 +212,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Bengkel <span class="text-red-500">*</span></label>
-                    <input type="number" name="kontak_bengkel" id="f_kontak_bengkel" required
+                    <input type="number" name="kontak_bengkel" id="f_kontak_bengkel" required maxlength="15"
                         placeholder="08xx-xxxx-xxxx"
                         value="{{ old('kontak_bengkel') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
@@ -334,12 +340,6 @@ document.querySelectorAll('.btn-edit').forEach(btn => {
         asuransiModal.classList.add('flex');
     });
 });
-
-function filterTable(q) {
-    document.querySelectorAll('#tableBody tr[data-search]').forEach(row => {
-        row.style.display = row.dataset.search.includes(q.toLowerCase()) ? '' : 'none';
-    });
-}
 
 // -- POPUP ALERT ------------------------------------
 (function () {

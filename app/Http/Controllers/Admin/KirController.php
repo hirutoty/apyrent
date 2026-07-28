@@ -17,7 +17,7 @@ use Carbon\Carbon;
 
 class KirController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $setting = Setting::first();
         // Base64 logo untuk DomPDF
@@ -39,8 +39,50 @@ class KirController extends Controller
             default  => $batasReminder,
         };
 
+        $query = Kir::with(['kendaraan', 'attachments'])->latest();
+
+        // Server-side search
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('no_uji', 'like', "%{$s}%")
+                  ->orWhereHas('kendaraan', fn($k) =>
+                      $k->where('nopol', 'like', "%{$s}%")
+                        ->orWhere('merk', 'like', "%{$s}%")
+                  );
+            });
+        }
+
+        // Filter status (aktif / nonaktif)
+        if ($request->filled('status') && in_array($request->status, ['aktif', 'nonaktif'])) {
+            if ($request->status === 'aktif') {
+                $query->where('masa_berlaku', '>=', now()->toDateString());
+            } else {
+                $query->where('masa_berlaku', '<', now()->toDateString());
+            }
+        }
+
+        // Filter tahun masa berlaku
+        if ($request->filled('tahun')) {
+            $query->whereYear('masa_berlaku', $request->tahun);
+        }
+
+        // Filter bulan masa berlaku (format Y-m dari input type="month")
+        if ($request->filled('bulan')) {
+            [$y, $m] = array_pad(explode('-', $request->bulan), 2, null);
+            if ($y) $query->whereYear('masa_berlaku', $y);
+            if ($m) $query->whereMonth('masa_berlaku', $m);
+        }
+
+        // Filter hari masa berlaku
+        if ($request->filled('hari')) {
+            $query->whereDay('masa_berlaku', $request->hari);
+        }
+
+        $data = $query->paginate(15)->withQueryString();
+
         return view('admin.kir.index', [
-            'data'      => Kir::with(['kendaraan', 'attachments'])->latest()->paginate(15)->withQueryString(),
+            'data'      => $data,
             'kendaraan' => Kendaraan::all(),
             'reminder'  => $reminder,
         ]);
@@ -95,6 +137,7 @@ class KirController extends Controller
         $request->validate([
             'kendaraan_id' => 'required|exists:kendaraan,id',
             'no_uji' => 'required',
+            'tanggal_bayar' => 'required|date',
             'masa_berlaku' => 'required|date',
             'biaya' => 'required|numeric|min:0',
             'image' => 'nullable|file|max:5120',
@@ -104,6 +147,7 @@ class KirController extends Controller
         ], [
             'kendaraan_id.required' => 'Kendaraan wajib dipilih',
             'no_uji.required' => 'Nomor uji wajib diisi',
+            'tanggal_bayar.required' => 'Tanggal bayar wajib diisi',
             'masa_berlaku.required' => 'Masa berlaku wajib diisi',
             'biaya.required' => 'Biaya KIR wajib diisi',
         ]);

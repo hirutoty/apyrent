@@ -20,7 +20,7 @@ return new class extends Migration
 
             $table->text('keluhan')->nullable();
 
-            $table->integer('kilometer')->default(0);
+            $table->bigInteger('kilometer')->default(0);
             $table->bigInteger('total_biaya')->default(0);
 
             $table->enum('status', [

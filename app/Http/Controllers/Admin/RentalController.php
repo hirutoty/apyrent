@@ -139,19 +139,13 @@ class RentalController extends Controller
 
     private function formatSisa($seconds)
     {
-        if ($seconds >= 86400) {
-            return floor($seconds / 86400) . ' hari';
-        }
-
-        if ($seconds >= 3600) {
-            return floor($seconds / 3600) . ' jam';
-        }
-
-        if ($seconds >= 60) {
-            return floor($seconds / 60) . ' menit';
-        }
-
-        return $seconds . ' detik';
+        $seconds = (int) $seconds;
+        if ($seconds <= 0)  return '0 jam';
+        $hari = (int) floor($seconds / 86400);
+        if ($hari >= 1)     return $hari . ' hari';
+        $jam  = (int) floor($seconds / 3600);
+        if ($jam  >= 1)     return $jam  . ' jam';
+        return '< 1 jam';
     }
 
     /*
@@ -169,9 +163,12 @@ class RentalController extends Controller
 
 
             'tujuan'         => 'nullable|string|max:255',
+            'tujuan_perjalanan'   => 'nullable|in:dalam_kota,luar_kota',
             'nama_driver'    => 'nullable|string|max:255',
             'kontak_driver'  => 'nullable|string|max:50',
             'biaya_driver'   => 'nullable|numeric|min:0',
+            'alamat_pengantaran'  => 'nullable|string|max:255',
+            'alamat_penjemputan'  => 'nullable|string|max:255',
 
             'nominal_dp'  => [
                 'nullable',
@@ -202,9 +199,9 @@ class RentalController extends Controller
                 $member = Pelanggan::firstOrCreate(
                     ['nama_pelanggan' => $request->nama_pelanggan],
                     [
-                        'email_pelanggan'  => $request->email,
+                        'email_pelanggan'  => $request->email_pelanggan,
                         'kontak_pelanggan' => $request->kontak_pelanggan,
-                        'alamat'        => $request->alamat,
+                        'alamat'           => $request->alamat_pelanggan,
                         'jenis_pelanggan'  => $request->jenis_pelanggan,
                     ]
                 );
@@ -223,11 +220,14 @@ class RentalController extends Controller
             $rental->tanggal_selesai      = $request->tanggal_selesai
                 ? Carbon::parse($request->tanggal_selesai)
                 : null;
-            // DRIVER
-            $rental->tujuan          = $request->tujuan;
-            $rental->nama_driver     = $request->nama_driver;
-            $rental->kontak_driver   = $request->kontak_driver;
-            $rental->biaya_driver    = $request->biaya_driver ?? 0;
+            // DRIVER & PERJALANAN
+            $rental->tujuan               = $request->tujuan;
+            $rental->tujuan_perjalanan    = $request->tujuan_perjalanan;
+            $rental->nama_driver          = $request->nama_driver;
+            $rental->kontak_driver        = $request->kontak_driver;
+            $rental->biaya_driver         = $request->biaya_driver ?? 0;
+            $rental->alamat_pengantaran   = $request->alamat_pengantaran;
+            $rental->alamat_penjemputan   = $request->alamat_penjemputan;
 
 
             // ── DURASI (bulan / hari / tahun) ──
@@ -653,7 +653,8 @@ class RentalController extends Controller
             $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
         }
 
-        $pdf = Pdf::loadView('admin.rental.pdf', compact('rentals', 'setting', 'logoSrc'));
+        $pdf = Pdf::loadView('admin.rental.pdf', compact('rentals', 'setting', 'logoSrc'))
+            ->setPaper('A4', 'landscape');
 
         return $pdf->stream('data-rental.pdf');
     }

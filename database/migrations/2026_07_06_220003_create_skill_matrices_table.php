@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('nama_pegawai');                  // Nama pegawai
             $table->string('skill');                         // Nama skill
-            $table->integer('level')->unsigned();            // Level skill (1-5)
+            $table->bigInteger('level')->unsigned();            // Level skill (1-5)
             $table->enum('sertifikasi', ['Y', 'T']);         // Bersertifikasi atau tidak
             $table->string('evaluator');                     // Nama evaluator
             $table->date('tanggal_evaluasi');                // Tanggal evaluasi

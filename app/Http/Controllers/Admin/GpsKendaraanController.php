@@ -19,13 +19,43 @@ use App\Models\User;
 
 class GpsKendaraanController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         GpsKendaraan::where('tanggal_habis', '<=', now())
             ->where('status_sewa', 'aktif')
             ->update(['status_sewa' => 'habis']);
 
-        $data = GpsKendaraan::with(['kendaraan', 'gps', 'attachments'])->latest()->paginate(15)->withQueryString();
+        $query = GpsKendaraan::with(['kendaraan', 'gps', 'attachments'])->latest();
+
+        // Server-side search
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('type', 'like', "%{$s}%")
+                  ->orWhere('status_gps', 'like', "%{$s}%")
+                  ->orWhereHas('kendaraan', fn($k) =>
+                      $k->where('merk', 'like', "%{$s}%")
+                        ->orWhere('nopol', 'like', "%{$s}%")
+                  )
+                  ->orWhereHas('gps', fn($g) =>
+                      $g->where('nama_gps', 'like', "%{$s}%")
+                  );
+            });
+        }
+
+        // Server-side filter hari/bulan/tahun berdasarkan tanggal_habis
+        if ($request->filled('hari')) {
+            $query->whereDay('tanggal_habis', $request->hari);
+        }
+        if ($request->filled('bulan')) {
+            $query->whereMonth('tanggal_habis', $request->bulan);
+        }
+        if ($request->filled('tahun')) {
+            $query->whereYear('tanggal_habis', $request->tahun);
+        }
+
+        $data = $query->paginate(15)->withQueryString();
+
         $setting = Setting::first();
         // Base64 logo untuk DomPDF
         $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
@@ -44,10 +74,27 @@ class GpsKendaraanController extends Controller
         };
 
         return view('admin.gps.gps_kendaraan', [
-            'data'      => $data,
-            'reminder'  => $reminder,
-            'gps'       => Gps::all(),
-            'kendaraan' => Kendaraan::all(),
+            'data'           => $data,
+            'reminder'       => $reminder,
+            'gps'            => Gps::all(),
+            'kendaraan'      => Kendaraan::all(),
+            // Semua GPS per kendaraan (tidak ter-paginate) untuk modal perpanjang
+            'gpsPerKendaraan'=> GpsKendaraan::with('gps')
+                ->get()
+                ->groupBy('kendaraan_id')
+                ->map(fn($items) => $items->map(fn($x) => [
+                    'id'               => $x->id,
+                    'nama_gps'         => $x->gps->nama_gps ?? '-',
+                    'type'             => $x->type,
+                    'status_gps'       => $x->status_gps,
+                    'biaya_sewa'       => $x->biaya_sewa,
+                    'tanggal_habis'    => $x->tanggal_habis
+                                            ? Carbon::parse($x->tanggal_habis)->format('Y-m-d')
+                                            : '',
+                    'tanggal_habis_baru' => $x->tanggal_habis
+                                            ? Carbon::parse($x->tanggal_habis)->addYear()->format('Y-m-d')
+                                            : '',
+                ])->values()),
         ]);
     }
 
@@ -97,58 +144,105 @@ class GpsKendaraanController extends Controller
 
     public function store(Request $request)
     {
+        // Validasi shared fields + gps_items array
         $request->validate([
-            'kendaraan_id'  => 'required|exists:kendaraan,id',
-            'gps_id'        => 'required|exists:gps,id',
-            'type'          => 'required',
-            'status_gps'    => 'required',
-            'tanggal_pasang' => 'required|date',
-            'tanggal_habis' => 'required|date',
-            'biaya_sewa'    => 'required|integer',
-            'durasi_bulan'  => 'required|integer',
-            'bukti_bayar' => 'nullable|file|max:5120',
-            'bukti_attachment'   => 'nullable|array',
-            'bukti_attachment.*' => 'file|max:5120',
-        ]);
-        $exists = GpsKendaraan::where('kendaraan_id', $request->kendaraan_id)
-            ->exists();
-
-        if ($exists) {
-            return back()->with('error', 'Kendaraan ini sudah terdaftar pada GPS Kendaraan');
-        }
-
-        $status = now()->lte($request->tanggal_habis) ? 'aktif' : 'habis';
-
-        // Upload bukti bayar
-        $buktiPath = null;
-
-        if ($request->hasFile('bukti_bayar')) {
-            $file = $request->file('bukti_bayar');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('gps/bukti_bayar'), $filename);
-
-            $buktiPath = 'gps/bukti_bayar/' . $filename;
-        }
-
-        $gpsKendaraan = GpsKendaraan::create([
-            'kendaraan_id'  => $request->kendaraan_id,
-            'gps_id'        => $request->gps_id,
-            'type'          => $request->type,
-            'status_gps'    => $request->status_gps,
-            'tanggal_pasang' => $request->tanggal_pasang,
-            'tanggal_habis' => $request->tanggal_habis,
-            'biaya_sewa'    => $request->biaya_sewa,
-            'durasi_bulan'  => $request->durasi_bulan,
-            'status_sewa'   => $status,
-            'bukti_bayar'   => $buktiPath,
+            'kendaraan_id'                    => 'required|exists:kendaraan,id',
+            'status_gps'                      => 'required|in:aktif,nonaktif',
+            'tanggal_bayar'                   => 'required|date',
+            'tanggal_habis'                   => 'required|date',
+            'keterangan'                      => 'nullable|string|max:1000',
+            'gps_items'                       => 'required|array|min:1',
+            'gps_items.*.gps_id'              => 'required|exists:gps,id',
+            'gps_items.*.type'                => 'required|string|max:100',
+            'gps_items.*.biaya_sewa'          => 'required|integer|min:0',
+            'gps_items.*.bukti_bayar'         => 'required|file|max:5120',
+            'gps_items.*.lampiran'            => 'nullable|array',
+            'gps_items.*.lampiran.*'          => 'file|max:5120',
+        ], [
+            'kendaraan_id.required'            => 'Kendaraan wajib dipilih.',
+            'tanggal_bayar.required'           => 'Tanggal bayar wajib diisi.',
+            'gps_items.required'               => 'Minimal satu GPS wajib ditambahkan.',
+            'gps_items.*.gps_id.required'      => 'GPS wajib dipilih di setiap baris.',
+            'gps_items.*.type.required'        => 'Type GPS wajib diisi di setiap baris.',
+            'gps_items.*.biaya_sewa.required'  => 'Biaya sewa wajib diisi di setiap baris.',
+            'gps_items.*.bukti_bayar.required' => 'Bukti bayar wajib diupload di setiap baris.',
         ]);
 
-        // upload attachment tambahan (bisa lebih dari satu, SETELAH ADA ID)
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $gpsKendaraan->id);
+        $gpsItems    = $request->input('gps_items');
+        $kendaraanId = $request->kendaraan_id;
+
+        // --- Cek duplikat type antar baris dalam satu form ---
+        $seenInForm = [];
+        foreach ($gpsItems as $idx => $item) {
+            $key = strtolower(trim($item['type']));
+            if (isset($seenInForm[$key])) {
+                return back()->withInput()
+                    ->with('error', 'Baris ' . ($idx + 1) . ': type "' . $item['type'] . '" sudah dipakai di baris ' . ($seenInForm[$key] + 1) . '. Type tidak boleh sama.');
+            }
+            $seenInForm[$key] = $idx;
         }
 
-        return back()->with('success', 'Data GPS kendaraan berhasil ditambahkan');
+        // --- Cek duplikat type vs database (kendaraan yang sama) ---
+        foreach ($gpsItems as $idx => $item) {
+            $exists = GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                ->whereRaw('LOWER(type) = ?', [strtolower(trim($item['type']))])
+                ->exists();
+
+            if ($exists) {
+                $kendaraan = Kendaraan::find($kendaraanId);
+                $nopol = $kendaraan ? $kendaraan->nopol : 'ID ' . $kendaraanId;
+                return back()->withInput()
+                    ->with('error', 'Baris ' . ($idx + 1) . ': Kendaraan ' . $nopol . ' sudah memiliki GPS dengan type "' . $item['type'] . '".');
+            }
+        }
+
+        // --- Simpan semua GPS dalam transaction ---
+        $tanggalBayar = $request->tanggal_bayar;
+        $tanggalHabis = $request->tanggal_habis;
+        $status       = now()->lte($tanggalHabis) ? 'aktif' : 'habis';
+        $berhasil     = 0;
+
+        $buktiDir = public_path('gps/bukti_bayar');
+        if (!file_exists($buktiDir)) mkdir($buktiDir, 0777, true);
+
+        \Illuminate\Support\Facades\DB::transaction(function () use (
+            $request, $gpsItems, $kendaraanId, $tanggalBayar, $tanggalHabis, $status, $buktiDir, &$berhasil
+        ) {
+            foreach ($gpsItems as $idx => $item) {
+                // Upload bukti bayar per-GPS
+                $buktiPath = null;
+                if ($request->hasFile("gps_items.{$idx}.bukti_bayar")) {
+                    $file     = $request->file("gps_items.{$idx}.bukti_bayar");
+                    $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $file->move($buktiDir, $filename);
+                    $buktiPath = 'gps/bukti_bayar/' . $filename;
+                }
+
+                $gpsKendaraan = GpsKendaraan::create([
+                    'kendaraan_id'   => $kendaraanId,
+                    'gps_id'         => $item['gps_id'],
+                    'type'           => trim($item['type']),
+                    'status_gps'     => $request->status_gps,
+                    'tanggal_pasang' => $tanggalBayar,
+                    'tanggal_bayar'  => $tanggalBayar,
+                    'tanggal_habis'  => $tanggalHabis,
+                    'biaya_sewa'     => $item['biaya_sewa'],
+                    'durasi_bulan'   => 12,
+                    'status_sewa'    => $status,
+                    'bukti_bayar'    => $buktiPath,
+                    'keterangan'     => $request->keterangan,
+                ]);
+
+                // Lampiran per-GPS
+                if ($request->hasFile("gps_items.{$idx}.lampiran")) {
+                    $this->simpanAttachments($request->file("gps_items.{$idx}.lampiran"), $gpsKendaraan->id);
+                }
+
+                $berhasil++;
+            }
+        });
+
+        return back()->with('success', $berhasil . ' data GPS kendaraan berhasil ditambahkan.');
     }
 
     public function update(Request $request, $id)
@@ -168,11 +262,12 @@ class GpsKendaraanController extends Controller
         ]);
 
         $exists = GpsKendaraan::where('kendaraan_id', $request->kendaraan_id)
+            ->where('type', $request->type)
             ->where('id', '!=', $id)
             ->exists();
 
         if ($exists) {
-            return back()->with('error', 'Kendaraan ini sudah terdaftar pada GPS Kendaraan');
+            return back()->with('error', 'Kendaraan ini sudah memiliki GPS dengan tipe yang sama');
         }
 
         $data   = GpsKendaraan::findOrFail($id);
@@ -423,5 +518,138 @@ class GpsKendaraanController extends Controller
         });
 
         return back()->with('success', 'GPS kendaraan berhasil diperpanjang');
+    }
+
+    /**
+     * Perpanjang SEMUA GPS yang dimiliki satu kendaraan sekaligus.
+     * Setiap GPS memiliki biaya & bukti bayar sendiri-sendiri.
+     */
+    public function perpanjangKendaraan(Request $request, $kendaraanId)
+    {
+        $request->validate([
+            'tanggal_bayar'                    => 'required|date',
+            'gps_items'                        => 'required|array|min:1',
+            'gps_items.*.gps_kendaraan_id'     => 'required|exists:gps_kendaraan,id',
+            'gps_items.*.biaya_sewa'           => 'required|integer|min:0',
+            'gps_items.*.bukti_bayar'          => 'required|file|max:5120',
+            'gps_items.*.lampiran'             => 'nullable|array',
+            'gps_items.*.lampiran.*'           => 'file|max:5120',
+        ], [
+            'tanggal_bayar.required'                => 'Tanggal bayar wajib diisi.',
+            'gps_items.required'                    => 'Data GPS tidak ditemukan.',
+            'gps_items.*.gps_kendaraan_id.required' => 'ID GPS kendaraan wajib ada.',
+            'gps_items.*.biaya_sewa.required'       => 'Biaya sewa wajib diisi untuk setiap GPS.',
+            'gps_items.*.bukti_bayar.required'      => 'Bukti bayar wajib diupload untuk setiap GPS.',        ]);
+
+        $tanggalBayar = Carbon::parse($request->tanggal_bayar)->toDateString();
+        $gpsItems     = $request->input('gps_items');
+
+        // Siapkan dir upload
+        $buktiDir = public_path('gps/bukti_bayar');
+        if (!file_exists($buktiDir)) mkdir($buktiDir, 0777, true);
+
+        \Illuminate\Support\Facades\DB::transaction(function () use (
+            $request, $gpsItems, $tanggalBayar, $buktiDir
+        ) {
+            foreach ($gpsItems as $idx => $item) {
+                $gpsKendaraan = GpsKendaraan::findOrFail($item['gps_kendaraan_id']);
+                $tanggalHabis = Carbon::parse($gpsKendaraan->tanggal_habis)->addYear()->toDateString();
+
+                // Upload bukti bayar per-GPS
+                $buktiBayarBaru = $gpsKendaraan->bukti_bayar; // fallback
+                if ($request->hasFile("gps_items.{$idx}.bukti_bayar")) {
+                    $file     = $request->file("gps_items.{$idx}.bukti_bayar");
+                    $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $file->move($buktiDir, $filename);
+                    $buktiBayarBaru = 'gps/bukti_bayar/' . $filename;
+                }
+
+                // Simpan ke history
+                $history = GpsKendaraanHistory::create([
+                    'gps_id'           => $gpsKendaraan->gps_id,
+                    'gps_kendaraan_id' => $gpsKendaraan->id,
+                    'kendaraan_id'     => $gpsKendaraan->kendaraan_id,
+                    'type'             => $gpsKendaraan->type,
+                    'tanggal_pasang'   => $tanggalBayar,
+                    'tanggal_habis'    => $tanggalHabis,
+                    'durasi_bulan'     => 12,
+                    'biaya_sewa'       => $item['biaya_sewa'],
+                    'status_sewa'      => 'aktif',
+                    'status_gps'       => $gpsKendaraan->status_gps,
+                    'bukti_bayar'      => $buktiBayarBaru,
+                    'tanggal_bayar'    => $tanggalBayar,
+                    'diperpanjang_pada'=> now(),
+                ]);
+
+                // Catat ke Keuangan
+                $lastSaldo   = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                $pengeluaran = (int) $item['biaya_sewa'];
+                $kodeJurnal  = 'GPS-' . $gpsKendaraan->id . '-' . now()->timestamp;
+
+                Keuangan::create([
+                    'tanggal'     => now(),
+                    'reference'   => $kodeJurnal,
+                    'user_id'     => auth()->id(),
+                    'kategori'    => 'Pengeluaran',
+                    'metode'      => '-',
+                    'keterangan'  => 'Perpanjangan GPS: ' . $gpsKendaraan->type . ' - ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
+                    'pemasukan'   => 0,
+                    'pengeluaran' => $pengeluaran,
+                    'saldo'       => $lastSaldo - $pengeluaran,
+                ]);
+
+                // Auto-posting Buku Besar
+                $saldoBB = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                Bukubesar::create([
+                    'kode_jurnal' => $kodeJurnal,
+                    'transaksi'   => 'Beban GPS - ' . $gpsKendaraan->type,
+                    'kategori'    => 'Beban',
+                    'tanggal'     => now()->toDateString(),
+                    'debit'       => $pengeluaran,
+                    'kredit'      => 0,
+                    'saldo'       => $saldoBB - $pengeluaran,
+                    'aktivitas'   => 'Operasi',
+                    'keterangan'  => 'Perpanjangan GPS ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
+                ]);
+
+                // Update record aktif
+                $gpsKendaraan->update([
+                    'status_gps'     => 'aktif',
+                    'tanggal_pasang' => $tanggalBayar,
+                    'tanggal_habis'  => $tanggalHabis,
+                    'durasi_bulan'   => 12,
+                    'biaya_sewa'     => $item['biaya_sewa'],
+                    'status_sewa'    => 'aktif',
+                    'bukti_bayar'    => $buktiBayarBaru,
+                    'tanggal_bayar'  => $tanggalBayar,
+                ]);
+
+                // Lampiran per-GPS
+                if ($request->hasFile("gps_items.{$idx}.lampiran")) {
+                    Attachment::where('relation_type', 'gps')->where('relation_id', $gpsKendaraan->id)->delete();
+                    $this->simpanAttachments(
+                        $request->file("gps_items.{$idx}.lampiran"),
+                        $gpsKendaraan->id,
+                        'gps',
+                        $history->id
+                    );
+                } else {
+                    // Salin lampiran lama ke history
+                    $oldAtts = Attachment::where('relation_type', 'gps')->where('relation_id', $gpsKendaraan->id)->get();
+                    foreach ($oldAtts as $att) {
+                        Attachment::create([
+                            'relation_type' => 'gps_history',
+                            'relation_id'   => $history->id,
+                            'file_name'     => $att->file_name,
+                            'file_path'     => $att->file_path,
+                            'file_type'     => $att->file_type,
+                            'file_size'     => $att->file_size,
+                        ]);
+                    }
+                }
+            }
+        });
+
+        return back()->with('success', count($gpsItems) . ' GPS kendaraan berhasil diperpanjang.');
     }
 }

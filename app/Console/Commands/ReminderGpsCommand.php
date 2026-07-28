@@ -8,98 +8,184 @@ use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class ReminderGpsCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'app:reminder-gps-command';
+    protected $signature = 'gps:reminder';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Command description';
+    protected $description = 'Kirim reminder GPS kendaraan';
 
-    /**
-     * Execute the console command.
-     */
-    
     public function handle()
     {
-        $this->info('Command GPS dijalankan');
+        Log::info('=== GPS REMINDER START ===');
+
 
         $setting = Setting::first();
 
+
+        if (!$setting || !$setting->email) {
+
+            Log::warning('GPS reminder gagal: email setting tidak ditemukan');
+
+            return self::FAILURE;
+        }
+
+
         $reminder = match ($setting->satuan_reminder) {
-            'hari'   => $setting->batas_reminder,
-            'minggu' => $setting->batas_reminder * 7,
-            'bulan'  => $setting->batas_reminder * 30,
-            'tahun'  => $setting->batas_reminder * 365,
-            default  => $setting->batas_reminder,
+
+            'hari'   => (int) $setting->batas_reminder,
+
+            'minggu' => (int) $setting->batas_reminder * 7,
+
+            'bulan'  => (int) $setting->batas_reminder * 30,
+
+            'tahun'  => (int) $setting->batas_reminder * 365,
+
+            default  => (int) $setting->batas_reminder,
         };
 
-        // konsisten reminder seperti sistem lain
+
+        // tanggal reminder
         $hariReminder = array_unique([
             $reminder,
             14,
             7,
+            3,
             1,
         ]);
 
-        $data = GpsKendaraan::with(['kendaraan', 'gps'])->get();
 
-        foreach ($data as $gps) {
+        $gpsList = GpsKendaraan::with('kendaraan')->get();
+
+
+        $emailTerkirim = 0;
+
+
+        foreach ($gpsList as $gps) {
+
+
+            if (!$gps->tanggal_habis) {
+                continue;
+            }
+
 
             $sisaHari = Carbon::today()->diffInDays(
                 Carbon::parse($gps->tanggal_habis),
                 false
             );
 
-            $this->info("ID: {$gps->id}");
-            $this->info("Nopol: " . ($gps->kendaraan->nopol ?? '-'));
-            $this->info("Sisa Hari: {$sisaHari}");
 
-            // 🔥 AUTO EXPIRED
-            if ($sisaHari < 0 && $gps->status_sewa) {
+            Log::info('Cek GPS', [
+                'id' => $gps->id,
+                'nopol' => $gps->kendaraan->nopol ?? '-',
+                'sisa_hari' => $sisaHari
+            ]);
+
+
+
+            // otomatis expired
+            if ($sisaHari < 0 && $gps->status_sewa != 'habis') {
+
+
                 $gps->update([
                     'status_sewa' => 'habis'
                 ]);
+
+
+                Log::info('GPS expired otomatis', [
+                    'id' => $gps->id
+                ]);
             }
 
-            // 🔥 REMINDER EMAIL
+
+
+            // reminder sebelum habis
             if (in_array($sisaHari, $hariReminder)) {
 
-                $this->info('Kirim email reminder GPS');
 
-                Mail::to($setting->email)->send(
-                    new GpsReminderMail(
-                        $gps,
-                        $sisaHari,
-                        'reminder'
-                    )
-                );
+                try {
+
+
+                    Mail::to($setting->email)
+                        ->send(
+                            new GpsReminderMail(
+                                $gps,
+                                $sisaHari,
+                                'reminder'
+                            )
+                        );
+
+
+                    $emailTerkirim++;
+
+
+                    Log::info('Email GPS reminder terkirim', [
+                        'gps_id' => $gps->id,
+                        'sisa_hari' => $sisaHari
+                    ]);
+
+
+                } catch (\Throwable $e) {
+
+
+                    Log::error('GPS reminder gagal', [
+                        'gps_id' => $gps->id,
+                        'pesan' => $e->getMessage()
+                    ]);
+
+                }
+
             }
 
-            // 🔥 TERLAMBAT (H+1)
+
+
+            // terlambat H+1
             if ($sisaHari == -1) {
 
-                $this->info('Kirim email terlambat GPS');
 
-                Mail::to($setting->email)->send(
-                    new GpsReminderMail(
-                        $gps,
-                        1,
-                        'terlambat'
-                    )
-                );
+                try {
+
+
+                    Mail::to($setting->email)
+                        ->send(
+                            new GpsReminderMail(
+                                $gps,
+                                1,
+                                'terlambat'
+                            )
+                        );
+
+
+                    $emailTerkirim++;
+
+
+                    Log::info('Email GPS terlambat terkirim', [
+                        'gps_id' => $gps->id
+                    ]);
+
+
+
+                } catch (\Throwable $e) {
+
+
+                    Log::error('GPS terlambat gagal', [
+                        'gps_id' => $gps->id,
+                        'pesan' => $e->getMessage()
+                    ]);
+
+                }
+
             }
+
         }
 
-        $this->info('Selesai menjalankan reminder GPS');
+
+        Log::info('=== GPS REMINDER SELESAI ===', [
+            'email_terkirim' => $emailTerkirim
+        ]);
+
+
+        return self::SUCCESS;
     }
 }

@@ -17,8 +17,8 @@ return new class extends Migration
             $table->string('utm_campaign');
             $table->string('utm_term')->nullable();
             $table->string('utm_content')->nullable();
-            $table->integer('total_klik')->default(0);
-            $table->integer('total_konversi')->default(0);
+            $table->bigInteger('total_klik')->default(0);
+            $table->bigInteger('total_konversi')->default(0);
             $table->string('status')->default('Aktif');
             $table->timestamps();
         });

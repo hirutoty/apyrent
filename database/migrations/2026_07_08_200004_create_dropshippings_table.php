@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('tipe');
             $table->string('vendor');
             $table->string('barang');
-            $table->integer('jumlah');
+            $table->bigInteger('jumlah');
             $table->string('satuan');
             $table->string('customer_akhir');
             $table->date('tanggal_kirim')->nullable();

@@ -13,10 +13,11 @@ class AsuransiHistoryController extends Controller
 {
     public function index(Request $request)
     {
-        $bulan = $request->input('bulan', 'semua');
-        $tahun = $request->input('tahun', 'semua');
+        $bulan  = $request->input('bulan', 'semua');
+        $tahun  = $request->input('tahun', 'semua');
+        $search = $request->input('search');
 
-        $data = $this->filteredQuery($bulan, $tahun)->paginate(15)->withQueryString();
+        $data = $this->filteredQuery($bulan, $tahun, $search)->paginate(15)->withQueryString();
 
         // daftar tahun untuk dropdown, diambil dari data yang ada
         $tahunList = AsuransiHistory::selectRaw('YEAR(tgl_mulai) as tahun')
@@ -66,7 +67,7 @@ class AsuransiHistoryController extends Controller
         return $pdf->stream('history-asuransi-' . $namaBulan . '-' . $namaTahun . '.pdf');
     }
 
-    private function filteredQuery($bulan, $tahun)
+    private function filteredQuery($bulan, $tahun, $search = null)
     {
         $query = AsuransiHistory::with(['kendaraan', 'asuransi', 'jenisAsuransi', 'attachments']);
 
@@ -76,6 +77,18 @@ class AsuransiHistoryController extends Controller
 
         if ($tahun !== 'semua') {
             $query->whereYear('tgl_mulai', $tahun);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('kendaraan', fn($k) =>
+                        $k->where('nopol', 'like', "%{$search}%")
+                          ->orWhere('merk', 'like', "%{$search}%")
+                  )
+                  ->orWhereHas('asuransi', fn($a) =>
+                        $a->where('nama_asuransi', 'like', "%{$search}%")
+                  );
+            });
         }
 
         return $query->latest();

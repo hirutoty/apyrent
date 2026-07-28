@@ -23,6 +23,7 @@ class GpsKendaraan extends Model
         'status_sewa',
         'bukti_bayar',
         'tanggal_bayar',
+        'keterangan',
     ];
 
     /**

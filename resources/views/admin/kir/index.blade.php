@@ -7,37 +7,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
     @php
-        $jumlahKir = $data->count();
-
-        $jumlahAktif = $data
-            ->filter(function ($item) {
-                return \Carbon\Carbon::parse($item->masa_berlaku)->isFuture();
-            })
-            ->count();
-
-        $jumlahNonaktif = $data
-            ->filter(function ($item) {
-                return \Carbon\Carbon::parse($item->masa_berlaku)->isPast();
-            })
-            ->count();
-
-        $jumlahSegera = $data
-            ->filter(function ($item) {
-                $masa = \Carbon\Carbon::parse($item->masa_berlaku);
-                $selisih = \Carbon\Carbon::today()->diffInDays($masa, false);
-                return $selisih >= 0 && $selisih <= 10;
-            })
-            ->count();
-
-        $jumlahKir = $data->count();
-        $jumlahAktif = $data->where('masa_berlaku', '>=', now())->count();
-        $jumlahSegera = $data
-            ->filter(fn($d) => \Carbon\Carbon::parse($d->masa_berlaku)->between(now(), now()->addDays(30)))
-            ->count();
-        $jumlahNonaktif = $data->where('masa_berlaku', '<', now())->count();
-
-        $totalBiayaKir = $data->sum('biaya');
-
+        $jumlahKir      = $data->total();
+        $jumlahAktif    = $data->where('masa_berlaku', '>=', now()->toDateString())->count();
+        $jumlahSegera   = $data->filter(fn($d) => \Carbon\Carbon::parse($d->masa_berlaku)->between(now(), now()->addDays(30)))->count();
+        $jumlahNonaktif = $data->where('masa_berlaku', '<', now()->toDateString())->count();
+        $totalBiayaKir  = $data->sum('biaya');
     @endphp
 
     <div class="space-y-6">
@@ -141,93 +115,93 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar KIR Kendaraan</h2>
-                    <p class="text-xs text-gray-400 mt-0.5" id="totalCount">{{ $jumlahKir }} total data KIR</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total data KIR</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
 
-                    {{-- SHOW ENTRIES --}}
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs text-gray-500">Tampilkan</span>
-                        <select id="showEntries" onchange="applyFilters()"
-                            class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                            <option value="all">Semua</option>
-                        </select>
-                        <span class="text-xs text-gray-500">data</span>
-                    </div>
+                    {{-- SERVER-SIDE FILTER FORM --}}
+                    <form method="GET" action="{{ request()->url() }}" id="filterFormKir" class="flex flex-wrap items-center gap-2">
 
-                    {{-- FILTER STATUS --}}
-                    <div class="flex items-center gap-1 border border-gray-200 rounded-lg p-0.5 bg-gray-50">
-                        <button type="button" onclick="setActiveStatus('semua')" id="btnSemua"
-                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors bg-white text-gray-700 shadow-sm border border-gray-200">
-                            Semua
-                        </button>
-                        <button type="button" onclick="setActiveStatus('aktif')" id="btnAktif"
-                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors text-gray-500 hover:text-green-600">
-                            <i class="fa fa-check text-[10px]"></i> Aktif
-                        </button>
-                        <button type="button" onclick="setActiveStatus('nonaktif')" id="btnNonaktif"
-                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors text-gray-500 hover:text-red-500">
-                            <i class="fa fa-times text-[10px]"></i> Nonaktif
-                        </button>
-                    </div>
+                        {{-- FILTER STATUS --}}
+                        <div class="flex items-center gap-1 border border-gray-200 rounded-lg p-0.5 bg-gray-50">
+                            @foreach([''=>'Semua','aktif'=>'Aktif','nonaktif'=>'Nonaktif'] as $val => $label)
+                                <a href="{{ request()->fullUrlWithQuery(['status' => $val, 'page' => 1]) }}"
+                                   class="px-3 py-1 text-xs font-medium rounded-md transition-colors
+                                       {{ request('status', '') === $val
+                                           ? ($val === 'aktif' ? 'bg-white text-green-700 shadow-sm border border-gray-200' : ($val === 'nonaktif' ? 'bg-white text-red-600 shadow-sm border border-gray-200' : 'bg-white text-gray-700 shadow-sm border border-gray-200'))
+                                           : 'text-gray-500 hover:text-gray-700' }}">
+                                    @if($val === 'aktif') <i class="fa fa-check text-[10px]"></i> @endif
+                                    @if($val === 'nonaktif') <i class="fa fa-times text-[10px]"></i> @endif
+                                    {{ $label }}
+                                </a>
+                            @endforeach
+                        </div>
 
-                    {{-- FILTER TAHUN --}}
-                    <div class="flex items-center gap-1">
-                        <select id="filterTahun" onchange="setActiveTahun(this.value)"
+                        {{-- FILTER TAHUN --}}
+                        <select name="tahun" onchange="this.form.submit()"
                             class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
-                            <option value="semua">Semua Tahun</option>
-                            @php
-                                $tahunList = $data->map(fn($d) => $d->masa_berlaku ? \Carbon\Carbon::parse($d->masa_berlaku)->year : null)
-                                    ->filter()
-                                    ->unique()
-                                    ->sortDesc()
-                                    ->values();
-                            @endphp
-                            @foreach ($tahunList as $tahun)
-                                <option value="{{ $tahun }}">{{ $tahun }}</option>
+                            <option value="">Semua Tahun</option>
+                            @foreach(range(date('Y') + 1, date('Y') - 3) as $yr)
+                                <option value="{{ $yr }}" {{ request('tahun') == $yr ? 'selected' : '' }}>{{ $yr }}</option>
                             @endforeach
                         </select>
-                    </div>
 
-                    {{-- FILTER HARI --}}
-                    <div class="flex items-center gap-1">
-                        <select id="filterHari" onchange="applyFilters()"
+                        {{-- FILTER HARI --}}
+                        <select name="hari" onchange="this.form.submit()"
                             class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
                             <option value="">Semua Hari</option>
                             @for ($d = 1; $d <= 31; $d++)
-                                <option value="{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}">{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}</option>
+                                <option value="{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}" {{ request('hari') == str_pad($d, 2, '0', STR_PAD_LEFT) ? 'selected' : '' }}>{{ str_pad($d, 2, '0', STR_PAD_LEFT) }}</option>
                             @endfor
                         </select>
-                    </div>
 
-                    {{-- FILTER BULAN --}}
-                    <div class="flex items-center gap-1">
-                        <input type="month" id="filterBulan" onchange="setActiveBulan(this.value)"
-                            class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <button type="button" onclick="resetBulan()" title="Hapus filter bulan"
-                            class="px-2 py-1.5 text-xs text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg hover:bg-gray-50">
-                            <i class="fa fa-times"></i>
+                        {{-- FILTER BULAN --}}
+                        <div class="flex items-center gap-1">
+                            <input type="month" name="bulan" value="{{ request('bulan') }}"
+                                onchange="this.form.submit()"
+                                class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            @if(request('bulan'))
+                                <a href="{{ request()->fullUrlWithQuery(['bulan' => null, 'page' => 1]) }}"
+                                   class="px-2 py-1.5 text-xs text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                    <i class="fa fa-times"></i>
+                                </a>
+                            @endif
+                        </div>
+
+                        {{-- Preserve status in form if using link-based status filter --}}
+                        @if(request('status')) <input type="hidden" name="status" value="{{ request('status') }}"> @endif
+
+                        {{-- SEARCH INPUT --}}
+                        <div class="relative">
+                            <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <input type="text" name="search" placeholder="Cari nopol, no uji..." value="{{ request('search') }}"
+                                class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
+                        </div>
+
+                        <button type="submit"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fa fa-search text-xs"></i> Cari
                         </button>
-                    </div>
 
-                    <a id="pdfBtn" href="{{ route('kir.pdf', ['search' => request('search')]) }}" target="_blank"
+                        @if(request()->hasAny(['search','status','tahun','bulan','hari']))
+                            <a href="{{ request()->url() }}"
+                               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                <i class="fa fa-rotate-left text-xs"></i> Reset
+                            </a>
+                        @endif
+
+                    </form>
+
+                    <a href="{{ route('kir.pdf', request()->only(['search','status','tahun','bulan','hari'])) }}" target="_blank"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf"></i> PDF
                     </a>
-                    <div class="relative">
-                        <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input type="text" id="searchInput" placeholder="Cari nopol, no uji..." value="{{ request('search') }}"
-                            oninput="applyFilters()"
-                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
-                    </div>
-                    <button onclick="window.location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
+
+                    <a href="{{ request()->fullUrlWithQuery([]) }}"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
-                    </button>
+                    </a>
+
                 </div>
             </div>
 
@@ -241,10 +215,10 @@
                                 Kendaraan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No
                                 Uji</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Masa
-                                Berlaku</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Tanggal Bayar</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Tanggal Bayar</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jatuh
+                                Tempo</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Biaya</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -263,10 +237,7 @@
                                 $selisih = (int) $today->diffInDays($masa, false);
                                 $rowStatus = $selisih < 0 ? 'nonaktif' : 'aktif';
                             @endphp
-                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
-                                data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . $d->no_uji . ' ' . $d->masa_berlaku) }}"
-                                data-status="{{ $rowStatus }}"
-                                data-bulan="{{ $d->masa_berlaku ? \Carbon\Carbon::parse($d->masa_berlaku)->format('Y-m-d') : '' }}">
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100">
 
                                 {{-- No --}}
                                 <td class="px-4 py-3.5 text-gray-400 row-number">{{ $data->firstItem() + $loop->index }}</td>
@@ -285,43 +256,44 @@
                                         class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->no_uji }}</span>
                                 </td>
 
+                                <td class="px-4 py-3">
+                                    {{ $d->tanggal_bayar ? \Carbon\Carbon::parse($d->tanggal_bayar)->format('d M Y') : '-' }}
+                                </td>
+
                                 {{-- Masa Berlaku --}}
                                 <td class="px-4 py-3.5">
+                                    @php
+                                        $today    = now()->startOfDay();
+                                        $masa     = \Carbon\Carbon::parse($d->masa_berlaku)->startOfDay();
+                                        $selisih  = (int) $today->diffInDays($masa, false);
+                                        $sisaDetikKir = (int) (\Carbon\Carbon::parse($d->masa_berlaku)->endOfDay()->timestamp - now()->timestamp);
+                                    @endphp
                                     <div class="flex flex-col gap-1">
                                         <span class="text-sm font-medium text-gray-700">{{ $masa->format('d M Y') }}</span>
                                         @if ($selisih < 0)
-                                            <span
-                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold w-fit">
+                                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold w-fit">
                                                 <span class="w-2 h-2 rounded-full bg-red-500"></span>
-                                                Terlambat {{ abs($selisih) }} hari
+                                                Terlambat {{ formatSisaWaktu(abs($sisaDetikKir)) }}
                                             </span>
                                         @elseif ($selisih <= $reminder)
-                                            <span
-                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold w-fit animate-pulse">
-                                                <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
-
+                                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold w-fit animate-pulse
+                                                {{ $selisih == 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700' }}">
+                                                <span class="w-2 h-2 rounded-full {{ $selisih == 0 ? 'bg-red-500' : 'bg-yellow-500' }}"></span>
                                                 @if ($selisih == 0)
-                                                    Berakhir Hari Ini
+                                                    Berakhir {{ formatSisaWaktu($sisaDetikKir) }} lagi
                                                 @elseif ($selisih == 1)
                                                     Berakhir Besok
                                                 @else
                                                     Berakhir dalam {{ $selisih }} hari
                                                 @endif
-
                                             </span>
                                         @else
-                                            <span
-                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold w-fit">
+                                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold w-fit">
                                                 <span class="w-2 h-2 rounded-full bg-green-500"></span>
                                                 Aktif
                                             </span>
                                         @endif
-
                                     </div>
-                                </td>
-
-                                <td class="px-4 py-3">
-                                    {{ $d->tanggal_bayar ? \Carbon\Carbon::parse($d->tanggal_bayar)->format('d M Y') : '-' }}
                                 </td>
 
                                 <td class="px-4 py-3">
@@ -371,7 +343,8 @@
                                 {{-- Aksi --}}
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
-                                        {{-- Perpanjang --}}
+                                        {{-- Perpanjang: hanya tampil jika sudah dalam batas reminder --}}
+                                        @if ($selisih <= $reminder)
                                         <button
                                             onclick="openModalPerpanjang(
         '{{ $d->id }}',
@@ -379,13 +352,15 @@
         '{{ $d->kendaraan->merk ?? '-' }}',
         '{{ $d->no_uji }}',
         '{{ $d->biaya }}',
-        '{{ \Carbon\Carbon::parse($d->masa_berlaku)->format('Y-m-d') }}'
+        '{{ \Carbon\Carbon::parse($d->masa_berlaku)->format('Y-m-d') }}',
+        '{{ $d->tanggal_bayar ? \Carbon\Carbon::parse($d->tanggal_bayar)->format('Y-m-d') : '' }}'
     )"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
                                             <i class="fa fa-rotate-right text-xs"></i> Perpanjang
                                         </button>
+                                        @endif
 
-                                        <button
+                                        <!-- <button
                                             onclick="openEditModal(
         '{{ $d->id }}',
         '{{ $d->kendaraan_id }}',
@@ -397,7 +372,7 @@
     )"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                             <i class="fa fa-edit text-xs"></i> Edit
-                                        </button>
+                                        </button> -->
 
 
                                         <form action="/admin/kir/{{ $d->id }}" method="POST"
@@ -431,8 +406,8 @@
             </div>
 
             {{-- FOOTER: SHOWING INFO + PAGINATION --}}
-            <div id="tableFooter" class="border-t border-gray-100 bg-gray-50/50">
-                <div class="py-3">{{ $data->links() }}</div>
+            <div class="border-t border-gray-100 bg-gray-50/50">
+                <x-pagination :paginator="$data" />
             </div>
 
         </div>
@@ -484,18 +459,28 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Masa Berlaku <span
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Mulai <span
                             class="text-red-500">*</span></label>
-                    <input type="date" name="masa_berlaku" id="tambah_masa_berlaku" required
-                        value="{{ old('masa_berlaku') }}"
+                    <input type="date" name="tanggal_bayar" id="tambah_tanggal_bayar" required
+                        value="{{ old('tanggal_bayar') }}"
+                        oninput="hitungMasaBerlaku()"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jatuh Tempo</label>
+                    <input type="date" id="tambah_masa_berlaku_display" disabled
+                        value="{{ old('masa_berlaku') }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed">
+                    <input type="hidden" name="masa_berlaku" id="tambah_masa_berlaku" value="{{ old('masa_berlaku') }}">
+                    <p class="text-xs text-gray-400 mt-1">Otomatis tanggal bayar + 1 tahun</p>
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya <span
                             class="text-red-500">*</span></label>
 
-                    <input type="number" min="0" name="biaya"
+                    <input type="number" min="0" max="9999999999" name="biaya"
                         placeholder="Tambahkan biaya kir"
                         value="{{ old('biaya') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
@@ -714,7 +699,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar</label>
                     <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
-                        value="{{ old('tanggal_bayar', now()->format('Y-m-d')) }}"
+                        value="{{ old('tanggal_bayar') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
@@ -852,6 +837,19 @@
     </style>
 
     <script>
+        // Fungsi hitung masa berlaku otomatis dari tanggal bayar + 1 tahun
+        function hitungMasaBerlaku() {
+            const tglBayar = document.getElementById('tambah_tanggal_bayar').value;
+            if (!tglBayar) return;
+            
+            const d = new Date(tglBayar);
+            d.setFullYear(d.getFullYear() + 1);
+            const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            
+            document.getElementById('tambah_masa_berlaku_display').value = val;
+            document.getElementById('tambah_masa_berlaku').value = val;
+        }
+
         // -- AUTO-REOPEN MODAL PADA VALIDATION ERROR ---
         @if ($errors->any() && !session('success'))
         document.addEventListener('DOMContentLoaded', function() {
@@ -871,21 +869,24 @@
                 })();
             @else
                 openModalTambah();
+                // Re-trigger hitungMasaBerlaku jika tanggal_bayar sudah terisi (old())
+                if (document.getElementById('tambah_tanggal_bayar').value) {
+                    hitungMasaBerlaku();
+                }
             @endif
         });
         @endif
-
-        // -- MODAL TAMBAH -----------------------------------
-        function openModalTambah() {
-            var m = document.getElementById('modalTambah');
-            m.classList.remove('hidden');
-            m.classList.add('flex');
-        }
 
         function closeModalTambah() {
             var m = document.getElementById('modalTambah');
             m.classList.add('hidden');
             m.classList.remove('flex');
+        }
+
+        function openModalTambah() {
+            var m = document.getElementById('modalTambah');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
         }
         document.getElementById('modalTambah').addEventListener('click', function(e) {
             if (e.target === this) closeModalTambah();
@@ -987,7 +988,7 @@
         }
 
         // -- MODAL PERPANJANG -------------------------------
-        function openModalPerpanjang(id, nopol, merk, no_uji, biaya, masaBerlakuLama) {
+        function openModalPerpanjang(id, nopol, merk, no_uji, biaya, masaBerlakuLama, tanggalBayarLama) {
             document.getElementById('formPerpanjang').action = '/admin/kir/' + id + '/perpanjang';
             document.getElementById('perpanjang_kendaraan_text').innerText = nopol + ' - ' + merk;
             document.getElementById('perpanjang_no_uji').value = no_uji;
@@ -1001,11 +1002,20 @@
             document.getElementById('_perpanjang_biaya').value                = biaya;
             document.getElementById('_perpanjang_masa_berlaku_lama').value    = masaBerlakuLama;
 
-            // tanggal_bayar TIDAK di-reset di sini — sudah pakai old() di value blade
-            // (saat modal pertama kali dibuka dari tombol tabel, value dari old() tidak ada,
-            //  jadi jika tanggal_bayar sudah ada isinya dari old() biarkan, kalau tidak set hari ini)
-            if (!document.getElementById('perpanjang_tanggal_bayar').value) {
-                document.getElementById('perpanjang_tanggal_bayar').value = new Date().toISOString().split('T')[0];
+            // tanggal_bayar: default = tanggal_bayar_lama + 1 tahun, min = nilai tersebut
+            var tglBayarEl = document.getElementById('perpanjang_tanggal_bayar');
+            var today = new Date().toISOString().split('T')[0];
+            if (tanggalBayarLama) {
+                var dk = new Date(tanggalBayarLama);
+                dk.setFullYear(dk.getFullYear() + 1);
+                var defaultTglKir = dk.getFullYear() + '-'
+                    + String(dk.getMonth() + 1).padStart(2, '0') + '-'
+                    + String(dk.getDate()).padStart(2, '0');
+                tglBayarEl.value = defaultTglKir;
+                tglBayarEl.min   = defaultTglKir;
+            } else {
+                tglBayarEl.value = today;
+                tglBayarEl.min   = today;
             }
 
             // masa_berlaku_baru = masaBerlakuLama + 1 tahun (dari data lama, tidak berubah saat tanggal_bayar berubah)
@@ -1037,190 +1047,6 @@
         document.getElementById('modalPerpanjang').addEventListener('click', function(e) {
             if (e.target === this) closeModalPerpanjang();
         });
-
-        // -- SEARCH / FILTER --------------------------------
-        let activeStatus = 'semua';
-        let activeBulan  = 'semua';
-        let activeTahun  = 'semua';
-        let currentPage  = 1;
-
-        function setActiveStatus(status) {
-            activeStatus = status;
-            currentPage = 1;
-
-            const buttons = {
-                semua:    document.getElementById('btnSemua'),
-                aktif:    document.getElementById('btnAktif'),
-                nonaktif: document.getElementById('btnNonaktif'),
-            };
-
-            Object.entries(buttons).forEach(([key, btn]) => {
-                if (!btn) return;
-                if (key === status) {
-                    btn.classList.add('bg-white', 'shadow-sm', 'border', 'border-gray-200');
-                    if (key === 'aktif')    btn.classList.add('text-green-700');
-                    else if (key === 'nonaktif') btn.classList.add('text-red-600');
-                    else btn.classList.add('text-gray-700');
-                    btn.classList.remove('text-gray-500');
-                } else {
-                    btn.classList.remove('bg-white', 'shadow-sm', 'border', 'border-gray-200',
-                        'text-green-700', 'text-red-600', 'text-gray-700');
-                    btn.classList.add('text-gray-500');
-                }
-            });
-
-            applyFilters();
-        }
-
-        function setActiveTahun(tahun) {
-            activeTahun = tahun;
-            document.getElementById('filterBulan').value = '';
-            activeBulan = 'semua';
-            currentPage = 1;
-            applyFilters();
-        }
-
-        function setActiveBulan(bulan) {
-            activeBulan = (bulan && bulan.trim() !== '') ? bulan : 'semua';
-            currentPage = 1;
-            applyFilters();
-        }
-
-        function resetBulan() {
-            document.getElementById('filterBulan').value = '';
-            activeBulan = 'semua';
-            currentPage = 1;
-            applyFilters();
-        }
-
-        function applyFilters() {
-            const keyword    = document.getElementById('searchInput').value.toLowerCase().trim();
-            const filterHari = document.getElementById('filterHari').value;
-            const showVal    = document.getElementById('showEntries').value;
-            const perPage    = showVal === 'all' ? Infinity : parseInt(showVal);
-            const rows       = document.querySelectorAll('#tableBody tr[data-search]');
-
-            // Kumpulkan baris yang lolos filter
-            const matched = [];
-            rows.forEach(row => {
-                const matchSearch  = !keyword || row.dataset.search.includes(keyword);
-                const matchStatus  = activeStatus === 'semua' || row.dataset.status === activeStatus;
-
-                // data-bulan sekarang format Y-m-d
-                const tgl      = row.dataset.bulan || '';  // "YYYY-MM-DD"
-                const [rowYear, rowMonth, rowDay] = tgl.split('-');
-                const rowYM    = rowYear && rowMonth ? `${rowYear}-${rowMonth}` : '';
-
-                const matchHari  = !filterHari   || rowDay  === filterHari;
-                const matchBulan = activeBulan === 'semua' || rowYM === activeBulan;
-                const matchTahun = activeTahun === 'semua' || rowYear === activeTahun;
-
-                if (matchSearch && matchStatus && matchHari && matchBulan && matchTahun) matched.push(row);
-            });
-
-            const total      = matched.length;
-            const totalPages = perPage === Infinity ? 1 : Math.ceil(total / perPage);
-            if (currentPage > totalPages) currentPage = 1;
-
-            const start = perPage === Infinity ? 0 : (currentPage - 1) * perPage;
-            const end   = perPage === Infinity ? total : Math.min(start + perPage, total);
-
-            // Tampilkan / sembunyikan baris
-            rows.forEach(row => row.style.display = 'none');
-            matched.forEach((row, idx) => {
-                row.style.display = (idx >= start && idx < end) ? '' : 'none';
-            });
-
-            // Nomor urut
-            let num = start + 1;
-            matched.forEach((row, idx) => {
-                if (idx >= start && idx < end) {
-                    const cell = row.querySelector('.row-number');
-                    if (cell) cell.textContent = num++;
-                }
-            });
-
-            // Info "Menampilkan X sampai Y dari Z data"
-            const showingInfo = document.getElementById('showingInfo');
-            if (showingInfo) {
-                showingInfo.textContent = total === 0
-                    ? 'Tidak ada data yang ditampilkan'
-                    : `Menampilkan ${start + 1} sampai ${end} dari ${total} data`;
-            }
-
-            // Pagination
-            renderPagination(totalPages);
-
-            // Update total count header
-            document.getElementById('totalCount').textContent = total + ' total data KIR';
-
-            // Update PDF link
-            updatePdfLink();
-        }
-
-        function renderPagination(totalPages) {
-            const container = document.getElementById('paginationControls');
-            if (!container) return;
-            container.innerHTML = '';
-            if (totalPages <= 1) return;
-
-            const btnClass    = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
-            const activeClass = 'bg-blue-600 text-white border-blue-600';
-            const normalClass = 'border-gray-200 text-gray-600 hover:bg-gray-50';
-
-            // Prev
-            const prev = document.createElement('button');
-            prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
-            prev.className = `${btnClass} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
-            prev.disabled = currentPage === 1;
-            prev.onclick = () => { currentPage--; applyFilters(); };
-            container.appendChild(prev);
-
-            const range = 2;
-            for (let i = 1; i <= totalPages; i++) {
-                if (i === 1 || i === totalPages || (i >= currentPage - range && i <= currentPage + range)) {
-                    const btn = document.createElement('button');
-                    btn.textContent = i;
-                    btn.className = `${btnClass} ${i === currentPage ? activeClass : normalClass}`;
-                    btn.onclick = (function(page) {
-                        return function() { currentPage = page; applyFilters(); };
-                    })(i);
-                    container.appendChild(btn);
-                } else if (i === currentPage - range - 1 || i === currentPage + range + 1) {
-                    const dots = document.createElement('span');
-                    dots.textContent = '...';
-                    dots.className = 'px-1 text-xs text-gray-400';
-                    container.appendChild(dots);
-                }
-            }
-
-            // Next
-            const next = document.createElement('button');
-            next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
-            next.className = `${btnClass} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
-            next.disabled = currentPage === totalPages;
-            next.onclick = () => { currentPage++; applyFilters(); };
-            container.appendChild(next);
-        }
-
-        function updatePdfLink() {
-            const keyword = document.getElementById('searchInput').value;
-            const filterHari = document.getElementById('filterHari').value;
-            const pdfBtn  = document.getElementById('pdfBtn');
-            const params  = new URLSearchParams();
-
-            if (keyword)               params.set('search', keyword);
-            if (filterHari)            params.set('hari', filterHari);
-            if (activeStatus !== 'semua') params.set('status', activeStatus);
-            if (activeBulan  !== 'semua') params.set('bulan', activeBulan);
-            if (activeTahun  !== 'semua') params.set('tahun', activeTahun);
-
-            const qs = params.toString();
-            pdfBtn.href = "{{ route('kir.pdf') }}" + (qs ? '?' + qs : '');
-        }
-
-        // Inisialisasi
-        applyFilters();
 
         // -- POPUP ALERT ------------------------------------
         (function() {
@@ -1481,7 +1307,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Biaya Baru <span class="text-gray-400 font-normal">(opsional)</span>
                     </label>
-                    <input type="number" min="0" name="biaya_default"
+                    <input type="number" min="0" max="9999999999" name="biaya_default"
                         placeholder="Kosongkan untuk pakai biaya masing-masing"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400">
                     <p class="text-xs text-gray-400 mt-1">Jika diisi, semua KIR akan diupdate dengan biaya ini.</p>
@@ -1537,6 +1363,19 @@
                 btn.classList.add('opacity-60', 'cursor-not-allowed');
             });
         })();
+
+        // Fungsi render list attachment
+        window.renderListAttachment = function(input, listId) {
+            const list = document.getElementById(listId);
+            list.innerHTML = '';
+
+            Array.from(input.files).forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-1.5';
+                li.innerHTML = `<i class="fa-solid fa-paperclip text-slate-400"></i> ${file.name}`;
+                list.appendChild(li);
+            });
+        };
     </script>
 
 @endsection

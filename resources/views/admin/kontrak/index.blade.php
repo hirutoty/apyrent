@@ -258,7 +258,7 @@
             </div>
 
             {{-- PAGINATION --}}
-            <div class="py-3 border-t border-gray-100">{{ $kontraks->links() }}</div>
+            <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$kontraks" /></div>
 
         </div>{{-- end TABLE CARD --}}
     </div>{{-- end space-y-6 --}}

@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Penawaran Sales')
 @section('content')
 <div class="space-y-6">
@@ -141,7 +141,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
     </div>
 </div>
 
@@ -177,7 +177,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Harga Satuan <span class="text-red-500">*</span></label>
-                    <input type="number" name="harga_satuan" required min="0" oninput="calcTotal()" id="harga_satuan" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('harga_satuan') }}"
+                    <input type="number" name="harga_satuan" required min="0" max="9999999999" oninput="calcTotal()" id="harga_satuan" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value="{{ old('harga_satuan') }}"
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Total Harga <span class="text-red-500">*</span></label>

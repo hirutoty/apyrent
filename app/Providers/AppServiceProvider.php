@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Pagination\Paginator;
 use App\Models\Kendaraan;
 use App\Models\ServiceHistory;
@@ -19,38 +20,41 @@ class AppServiceProvider extends ServiceProvider
     }
 
     public function boot(): void
-{
-    Paginator::defaultView('vendor.pagination.custom-purple');
+    {
+        Paginator::defaultView('vendor.pagination.custom-purple');
 
-    View::composer('*', function ($view) {
+        // Daftarkan sebagai Blade directive supaya bisa @formatSisaWaktu($detik)
+        Blade::directive('formatSisaWaktu', function ($expression) {
+            return "<?php echo formatSisaWaktu((int)($expression)); ?>";
+        });
 
-    $warningIds = [];
+        View::composer('*', function ($view) {
 
-    $kendaraanList = Kendaraan::all();
+            $warningIds = [];
 
-    foreach ($kendaraanList as $k) {
+            $kendaraanList = Kendaraan::all();
 
-        $limit = $k->limit_biaya_bulanan_service ?? 0;
+            foreach ($kendaraanList as $k) {
 
-        $total = ServiceHistory::where('kendaraan_id', $k->id)
-            ->whereMonth('tanggal_service', now()->month)
-            ->whereYear('tanggal_service', now()->year)
-            ->sum('total_biaya');
+                $limit = $k->limit_biaya_bulanan_service ?? 0;
 
-        $sisa = $limit - $total;
+                $total = ServiceHistory::where('kendaraan_id', $k->id)
+                    ->whereMonth('tanggal_service', now()->month)
+                    ->whereYear('tanggal_service', now()->year)
+                    ->sum('total_biaya');
 
-        if ($sisa <= 0 || ($limit > 0 && $sisa <= ($limit * 0.1))) {
-            $warningIds[] = $k->id;
-        }
+                $sisa = $limit - $total;
+
+                if ($sisa <= 0 || ($limit > 0 && $sisa <= ($limit * 0.1))) {
+                    $warningIds[] = $k->id;
+                }
+            }
+
+            $setting = Setting::first();
+
+            View::share('globalSetting', $setting);
+
+            $view->with('serviceWarning', $warningIds);
+        });
     }
-
-    $setting = Setting::first();
-
-    View::share('globalSetting', $setting);
-
-    $view->with('serviceWarning', $warningIds);
-});
-
-
-}
 }

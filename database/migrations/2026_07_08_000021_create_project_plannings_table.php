@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('tahapan');
             $table->date('tgl_mulai');
             $table->date('tgl_selesai');
-            $table->integer('durasi')->default(0);
+            $table->bigInteger('durasi')->default(0);
             $table->string('pic');
             $table->string('status');
             $table->timestamps();

@@ -1,0 +1,171 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration test": {
+      "status": "passed",
+      "failingExample": "Both test methods failed with: \"Bug confirmed: formatSisaWaktu() is not declared in the global namespace. AppServiceProvider::boot() has not run, and there is no Composer files autoload entry.\"\n\nCounterexample 1: formatSisaWaktu(3600) — function_exists('formatSisaWaktu') returns FALSE. Failed asserting that false is true. (tests\\Unit\\FormatSisaWaktuBugConditionTest.php:61)\n\nCounterexample 2: formatSisaWaktu(0) — same root cause. function_exists('formatSisaWaktu') returns FALSE. Failed asserting that false is true. (tests\\Unit\\FormatSisaWaktuBugConditionTest.php:90)\n\nRoot cause confirmed: The function is defined inside AppServiceProvider::boot() (a class method), not in a Composer-autoloaded file. Without boot() running, the function does not exist in PHP's global namespace.",
+      "lastRunTimestamp": 1785222311953
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test": [
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222199443
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222211957
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222329209
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222199626
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222334425
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222831456
+      }
+    ],
+    "3.1 Create `app/helpers.php` with the global function definition": [
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222199773
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222843511
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222896742
+      }
+    ],
+    "3.2 Update `composer.json` to add `files` autoload entry": [
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222199932
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222901993
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222943931
+      }
+    ],
+    "3.3 Remove the inline function definition from `AppServiceProvider::boot()`": [
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222200222
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222950749
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222999930
+      }
+    ],
+    "3.4 Run `composer dump-autoload`": [
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222200344
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785223005702
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785223471019
+      }
+    ],
+    "3.5 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222200474
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785223476435
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785223515333
+      }
+    ],
+    "3.6 Verify preservation tests still pass": [
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222200585
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785223521001
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785223571392
+      }
+    ],
+    "4. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785222200703
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785223576671
+      },
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785223697503
+      }
+    ],
+    "3. Fix: extract formatSisaWaktu to autoloaded helpers file": [
+      {
+        "executionId": "b7616cc8-b74b-4274-8693-79c407413dba",
+        "chatSessionId": "sess_6c898f53-69c5-41e3-b1b0-4556cb950fc0",
+        "timestamp": 1785223571672
+      }
+    ]
+  }
+}

@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('nama_departemen');                         // Nama departemen
             $table->string('kepala_departemen');                       // Kepala departemen
             $table->date('tanggal_dibentuk');                          // Tanggal departemen dibentuk
-            $table->integer('jumlah_posisi');                          // Jumlah posisi jabatan
+            $table->bigInteger('jumlah_posisi');                          // Jumlah posisi jabatan
             $table->text('keterangan')->nullable();                    // Keterangan tambahan
             $table->enum('status_aktif', ['Aktif', 'Non-Aktif']);      // Status aktif
             $table->timestamps();

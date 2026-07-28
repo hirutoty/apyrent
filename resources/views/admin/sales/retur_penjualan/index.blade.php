@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Retur Penjualan')
 @section('content')
 <div class="space-y-6">
@@ -142,7 +142,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
     </div>
 </div>
 
@@ -192,7 +192,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Nilai Retur <span class="text-red-500">*</span></label>
-                    <input type="number" name="nilai_retur" required min="0"
+                    <input type="number" name="nilai_retur" required min="0" max="9999999999"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nilai_retur') }}"
                 </div>
                 <div>

@@ -13,14 +13,21 @@
                     <h1 class="text-xl font-bold text-gray-800">History Perpanjangan KIR</h1>
                     <p class="text-sm text-gray-500 mt-1">Riwayat seluruh data KIR kendaraan yang telah diperpanjang.</p>
                 </div>
-                <div class="w-80">
-                    <input type="text" id="search" placeholder="Cari kendaraan, no uji..."
-                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500">
-                </div>
             </div>
 
-            {{-- Filter bulan & tahun + export PDF --}}
-            <form method="GET" action="{{ route('history.kir.index') }}" class="flex flex-wrap items-center gap-3">
+            {{-- Filter bulan & tahun + search + export PDF --}}
+            <form method="GET" action="{{ route('history.kir.index') }}" class="flex flex-wrap items-end gap-3">
+                {{-- Search --}}
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-medium text-gray-500 uppercase">Cari</label>
+                    <div class="relative">
+                        <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" name="search" value="{{ request('search') }}"
+                            placeholder="Kendaraan, no uji..."
+                            class="pl-8 pr-3 py-2 w-56 rounded-lg border border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+
                 <select name="bulan" onchange="this.form.submit()"
                     class="rounded-lg border border-gray-300 text-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="semua" {{ $bulan == 'semua' ? 'selected' : '' }}>Semua Bulan</option>
@@ -43,6 +50,18 @@
                         <option value="{{ $thn }}" {{ (string) $tahun === (string) $thn ? 'selected' : '' }}>{{ $thn }}</option>
                     @endforeach
                 </select>
+
+                <button type="submit"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <i class="fa fa-search text-xs"></i> Cari
+                </button>
+
+                @if(request('search') || ($bulan != 'semua') || ($tahun != 'semua'))
+                    <a href="{{ route('history.kir.index') }}"
+                        class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                        <i class="fa fa-rotate-left text-xs"></i> Reset
+                    </a>
+                @endif
 
                 <a href="{{ route('history.kir.export', ['bulan' => $bulan, 'tahun' => $tahun]) }}" target="_blank"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
@@ -150,18 +169,11 @@
                     @endforelse
                 </tbody>
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+            <div class="py-3 border-t border-gray-100 px-5">
+                <x-pagination :paginator="$data" />
+            </div>
         </div>
 
     </div>
-
-    <script>
-        document.getElementById('search').addEventListener('keyup', function() {
-            const value = this.value.toLowerCase();
-            document.querySelectorAll('#tableBody tr').forEach(function(row) {
-                row.style.display = row.innerText.toLowerCase().includes(value) ? '' : 'none';
-            });
-        });
-    </script>
 
 @endsection

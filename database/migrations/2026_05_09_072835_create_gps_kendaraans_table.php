@@ -33,7 +33,7 @@ return new class extends Migration
             $table->date('tanggal_habis');
 
             $table->bigInteger('biaya_sewa')->default(0);
-            $table->integer('durasi_bulan')->default(0);
+            $table->bigInteger('durasi_bulan')->default(0);
 
             $table->enum('status_sewa', [
                 'aktif',

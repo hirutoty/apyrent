@@ -20,6 +20,9 @@ class Rental extends Model
         'tanggal_mulai',
         'tanggal_selesai',
         'tujuan',
+        'tujuan_perjalanan',
+        'alamat_pengantaran',
+        'alamat_penjemputan',
 
         'durasi_bulan',
         'durasi_jam',
@@ -42,6 +45,7 @@ class Rental extends Model
         'bukti_lunas',
         'bukti_dp',
         'bukti_pelunasan',
+        'nominal_pelunasan',
 
         'kelayakan',
         'invoice',

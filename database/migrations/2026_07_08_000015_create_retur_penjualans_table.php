@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('no_order');
             $table->string('pelanggan');
             $table->string('produk');
-            $table->integer('qty');
+            $table->bigInteger('qty');
             $table->string('alasan');
             $table->decimal('nilai_retur', 15, 2);
             $table->string('status');

@@ -7,6 +7,7 @@ use App\Models\AgingAr;
 use App\Models\Setting;
 use App\Mail\AgingArReminderMail;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class SendAgingReminder extends Command
@@ -15,44 +16,242 @@ class SendAgingReminder extends Command
 
     protected $description = 'Mengirim reminder Aging AR';
 
+
     public function handle()
-{
-    $setting = Setting::first();
+    {
+        Log::info('=== AGING AR REMINDER START ===');
 
-    if (!$setting) {
-        $this->error('Setting tidak ditemukan.');
-        return;
-    }
 
-    $batas = $setting->batas_reminder;
+        $setting = Setting::first();
 
-    $hari = match ($setting->satuan_reminder) {
-        'hari'    => $batas,
-        'minggu'  => $batas * 7,
-        'bulan'   => $batas * 30,
-        'tahun'   => $batas * 365,
-        default   => $batas,
-    };
 
-    $targetTanggal = Carbon::today()->addDays($hari);
+        if (!$setting || !$setting->email) {
 
-    $agings = AgingAr::with(['member', 'invoice'])
-        ->whereDate('jatuh_tempo', $targetTanggal)
+            Log::warning('Aging AR gagal: email setting tidak ditemukan');
+
+            return self::FAILURE;
+        }
+
+
+
+        // Konversi reminder
+        $reminder = match ($setting->satuan_reminder) {
+
+            'hari'   => (int) $setting->batas_reminder,
+
+            'minggu' => (int) $setting->batas_reminder * 7,
+
+            'bulan'  => (int) $setting->batas_reminder * 30,
+
+            'tahun'  => (int) $setting->batas_reminder * 365,
+
+            default  => (int) $setting->batas_reminder,
+
+        };
+
+
+
+        // Pola reminder
+        $hariReminder = array_unique([
+            $reminder,
+            14,
+            7,
+            3,
+            1
+        ]);
+
+
+
+        $agingList = AgingAr::with([
+            'member',
+            'invoice'
+        ])
         ->where('status', 'Belum Bayar')
         ->get();
 
-    $this->info('Tanggal target : ' . $targetTanggal->format('Y-m-d'));
-    $this->info('Jumlah data : ' . $agings->count());
 
-    foreach ($agings as $aging) {
 
-        $this->info('Invoice : ' . $aging->invoice->invoice_no);
-        $this->info('Email : ' . $aging->member->email_pelanggan);
+        $emailTerkirim = 0;
 
-        Mail::to($aging->member->email_pelanggan)
-            ->send(new AgingArReminderMail($aging));
 
-        $this->info('Email berhasil dikirim');
+
+        foreach ($agingList as $aging) {
+
+
+            if (!$aging->jatuh_tempo) {
+                continue;
+            }
+
+
+
+            $sisaHari = Carbon::today()->diffInDays(
+                Carbon::parse($aging->jatuh_tempo),
+                false
+            );
+
+
+
+            Log::info('Cek Aging AR', [
+
+                'id' => $aging->id,
+
+                'invoice' => $aging->invoice->invoice_no ?? '-',
+
+                'customer' => $aging->member->nama_pelanggan ?? '-',
+
+                'jatuh_tempo' => $aging->jatuh_tempo,
+
+                'sisa_hari' => $sisaHari
+
+            ]);
+
+
+
+
+
+            // ==========================
+            // REMINDER SEBELUM JATUH TEMPO
+            // ==========================
+
+            if (in_array($sisaHari, $hariReminder)) {
+
+
+                try {
+
+
+                    $email = $aging->member->email_pelanggan ?? null;
+
+
+                    if (!$email) {
+
+                        Log::warning('Email customer kosong', [
+                            'aging_id' => $aging->id
+                        ]);
+
+                        continue;
+                    }
+
+
+
+                    Mail::to($email)
+                        ->send(
+                            new AgingArReminderMail(
+                                $aging,
+                                $sisaHari,
+                                'reminder'
+                            )
+                        );
+
+
+
+                    $emailTerkirim++;
+
+
+
+                    Log::info('Email Aging AR reminder terkirim', [
+
+                        'aging_id' => $aging->id,
+
+                        'email' => $email,
+
+                        'sisa_hari' => $sisaHari
+
+                    ]);
+
+
+
+                } catch (\Throwable $e) {
+
+
+                    Log::error('Aging AR reminder gagal', [
+
+                        'aging_id' => $aging->id,
+
+                        'pesan' => $e->getMessage()
+
+                    ]);
+
+                }
+
+            }
+
+
+
+
+
+            // ==========================
+            // TERLAMBAT H+1
+            // ==========================
+
+            if ($sisaHari == -1) {
+
+
+                try {
+
+
+                    $email = $aging->member->email_pelanggan ?? null;
+
+
+
+                    if (!$email) {
+                        continue;
+                    }
+
+
+
+                    Mail::to($email)
+                        ->send(
+                            new AgingArReminderMail(
+                                $aging,
+                                1,
+                                'terlambat'
+                            )
+                        );
+
+
+
+                    $emailTerkirim++;
+
+
+
+                    Log::info('Email Aging AR terlambat terkirim', [
+
+                        'aging_id' => $aging->id,
+
+                        'email' => $email
+
+                    ]);
+
+
+
+                } catch (\Throwable $e) {
+
+
+                    Log::error('Aging AR terlambat gagal', [
+
+                        'aging_id' => $aging->id,
+
+                        'pesan' => $e->getMessage()
+
+                    ]);
+
+                }
+
+            }
+
+
+        }
+
+
+
+        Log::info('=== AGING AR REMINDER SELESAI ===', [
+
+            'email_terkirim' => $emailTerkirim
+
+        ]);
+
+
+
+        return self::SUCCESS;
     }
-}
 }

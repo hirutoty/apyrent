@@ -27,8 +27,8 @@ return new class extends Migration
             $table->string('status_gps');
             $table->date('tanggal_pasang');
             $table->date('tanggal_habis');
-            $table->integer('biaya_sewa');
-            $table->integer('durasi_bulan');
+            $table->bigInteger('biaya_sewa');
+            $table->bigInteger('durasi_bulan');
             $table->string('status_sewa');
             $table->string('bukti_bayar')->nullable();
             $table->timestamp('diperpanjang_pada')->nullable();

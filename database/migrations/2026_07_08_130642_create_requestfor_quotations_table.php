@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('vendor');
             $table->string('kode_barang');
             $table->string('nama_barang');
-            $table->integer('kuantitas');
+            $table->bigInteger('kuantitas');
             $table->string('satuan');
             $table->bigInteger('harga_estimasi');
             $table->date('tanggal_kirim');

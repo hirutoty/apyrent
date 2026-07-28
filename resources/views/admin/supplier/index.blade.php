@@ -199,7 +199,7 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
             </div>
 
         </div>
@@ -263,7 +263,7 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Barang <span
                                 class="text-red-500">*</span></label>
-                        <input type="number" name="harga_barang" id="f_harga_barang" required min="0"
+                        <input type="number" name="harga_barang" id="f_harga_barang" required min="0" max="9999999999"
                             placeholder="0"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('harga_barang') }}">
                     </div>

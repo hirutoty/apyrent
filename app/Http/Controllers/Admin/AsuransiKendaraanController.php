@@ -19,19 +19,45 @@ use Carbon\Carbon;
 
 class AsuransiKendaraanController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         // update otomatis status expired
         AsuransiKendaraan::where('tgl_berakhir', '<', now())
             ->where('status_kendaraan', 'aktif')
             ->update(['status_kendaraan' => 'expired']);
 
-        $data = AsuransiKendaraan::with([
+        $query = AsuransiKendaraan::with([
             'kendaraan',
             'asuransi',
             'jenisAsuransi',
             'attachments'
-        ])->latest()->paginate(15)->withQueryString();
+        ])->latest();
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->whereHas('kendaraan', fn($k) =>
+                        $k->where('nopol', 'like', "%{$s}%")
+                          ->orWhere('merk', 'like', "%{$s}%")
+                  )
+                  ->orWhereHas('asuransi', fn($a) =>
+                        $a->where('nama_asuransi', 'like', "%{$s}%")
+                  )
+                  ->orWhereHas('jenisAsuransi', fn($j) =>
+                        $j->where('nama_jenis', 'like', "%{$s}%")
+                  )
+                  ->orWhere('status_kendaraan', 'like', "%{$s}%");
+            });
+        }
+
+        if ($request->filled('bulan')) {
+            $query->whereMonth('tgl_berakhir', $request->bulan);
+        }
+        if ($request->filled('tahun')) {
+            $query->whereYear('tgl_berakhir', $request->tahun);
+        }
+
+        $data = $query->paginate(15)->withQueryString();
 
         $setting = Setting::first();
         // Base64 logo untuk DomPDF
@@ -64,13 +90,13 @@ class AsuransiKendaraanController extends Controller
         foreach ($data->getCollection() as $d) {
 
             $tglBerakhir = \Carbon\Carbon::parse($d->tgl_berakhir)->startOfDay();
-            $hariIni = now()->startOfDay();
+            $hariIni     = now()->startOfDay();
 
-            $d->sisaHari = (int) $hariIni->diffInDays($tglBerakhir, false);
+            $d->sisaHari   = (int) $hariIni->diffInDays($tglBerakhir, false);
+            $d->sisaDetik  = (int) (\Carbon\Carbon::parse($d->tgl_berakhir)->endOfDay()->timestamp - now()->timestamp);
 
             $d->isExpired = $d->sisaHari <= 0;
-
-            $d->isSoon = !$d->isExpired && $d->sisaHari <= $reminder;
+            $d->isSoon    = !$d->isExpired && $d->sisaHari <= $reminder;
         }
 
         return view('admin.asuransi.asuransi_kendaraan', compact(

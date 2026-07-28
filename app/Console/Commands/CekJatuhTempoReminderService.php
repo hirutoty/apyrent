@@ -8,6 +8,7 @@ use App\Models\Setting;
 use App\Http\Controllers\Admin\ReminderServiceController;
 use App\Mail\ReminderServiceMail;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class CekJatuhTempoReminderService extends Command
@@ -16,69 +17,252 @@ class CekJatuhTempoReminderService extends Command
 
     protected $description = 'Cek reminder service yang jatuh tempo, kirim email, dan auto-create ke Mobil Bermasalah';
 
+
     public function handle()
     {
-        $this->info('Mengecek jatuh tempo reminder service...');
+        Log::info('=== REMINDER SERVICE START ===', [
+            'waktu' => now()->toDateTimeString()
+        ]);
 
-        $setting = Setting::first();
 
-        if (!$setting || !$setting->email) {
-            $this->error('Email setting tidak ditemukan.');
-            return;
-        }
+        try {
 
-        $reminders = ReminderService::with('kendaraan')
-            ->where('status', '!=', 'selesai')
-            ->get();
 
-        // Hari-hari yang akan dikirim reminder (sebelum jatuh tempo)
-        $hariReminder = [7, 3, 1];
+            $setting = Setting::first();
 
-        $count = 0;
 
-        foreach ($reminders as $reminder) {
-            if (!$reminder->tanggal_jatuh_tempo) continue;
+            if (!$setting || !$setting->email) {
 
-            $sisaHari   = $reminder->sisaHari();
-            $sudahJatuh = Carbon::today()->gte(Carbon::parse($reminder->tanggal_jatuh_tempo));
+                Log::warning('Email setting tidak ditemukan');
 
-            // ── KIRIM REMINDER sebelum jatuh tempo ───────────
-            if (!$sudahJatuh && in_array($sisaHari, $hariReminder)) {
-                Mail::to($setting->email)->send(
-                    new ReminderServiceMail($reminder, $sisaHari, 'reminder')
-                );
-                $nopolReminder = $reminder->kendaraan->nopol ?? '-';
-                $this->info("Email reminder H-{$sisaHari} terkirim: {$reminder->nama_reminder} ({$nopolReminder})");
+                return self::FAILURE;
             }
 
-            // ── JATUH TEMPO ───────────────────────────────────
-            if ($sudahJatuh) {
 
-                // Update status jadi jatuh_tempo jika belum
-                if ($reminder->status !== 'jatuh_tempo') {
-                    $reminder->update(['status' => 'jatuh_tempo']);
-                    $this->info("Reminder ID {$reminder->id} ({$reminder->nama_reminder}) jatuh tempo.");
+
+            $reminders = ReminderService::with('kendaraan')
+                ->where('status', '!=', 'selesai')
+                ->get();
+
+
+
+            Log::info('Jumlah reminder service ditemukan', [
+                'jumlah'=>$reminders->count()
+            ]);
+
+
+
+            // hari reminder sebelum jatuh tempo
+
+            $hariReminder = [
+                7,
+                3,
+                1
+            ];
+
+
+
+            $count = 0;
+
+
+
+            foreach ($reminders as $reminder) {
+
+
+                if (!$reminder->tanggal_jatuh_tempo) {
+                    continue;
                 }
 
-                // Kirim email jatuh tempo (hanya saat pertama kali jatuh tempo, sisaHari == 0)
-                if ($sisaHari === 0) {
-                    Mail::to($setting->email)->send(
-                        new ReminderServiceMail($reminder, $sisaHari, 'jatuh_tempo')
+
+
+                $sisaHari = $reminder->sisaHari();
+
+
+
+                $sudahJatuh = Carbon::today()
+                    ->gte(
+                        Carbon::parse(
+                            $reminder->tanggal_jatuh_tempo
+                        )
                     );
-                    $nopolJatuh = $reminder->kendaraan->nopol ?? '-';
-                    $this->info("Email jatuh tempo terkirim: {$reminder->nama_reminder} ({$nopolJatuh})");
+
+
+
+
+                Log::info('Cek reminder service', [
+
+                    'id'=>$reminder->id,
+
+                    'nama'=>$reminder->nama_reminder,
+
+                    'kendaraan'=>$reminder->kendaraan->nopol ?? '-',
+
+                    'tanggal'=>$reminder->tanggal_jatuh_tempo,
+
+                    'sisa_hari'=>$sisaHari
+
+                ]);
+
+
+
+
+                // =============================
+                // REMINDER SEBELUM JATUH TEMPO
+                // =============================
+
+                if (
+                    !$sudahJatuh &&
+                    in_array($sisaHari,$hariReminder)
+                ) {
+
+
+                    Mail::to($setting->email)
+                        ->send(
+                            new ReminderServiceMail(
+                                $reminder,
+                                $sisaHari,
+                                'reminder'
+                            )
+                        );
+
+
+
+                    Log::info('Email reminder service terkirim', [
+
+                        'id'=>$reminder->id,
+
+                        'hari'=>$sisaHari
+
+                    ]);
+
                 }
 
-                // Auto-create ke service_detail jika belum dibuat
-                if (!$reminder->sudah_dibuat_masalah) {
-                    ReminderServiceController::buatServiceDetail($reminder);
-                    $count++;
-                    $nopol = $reminder->kendaraan->nopol ?? '-';
-                    $this->info("  -> Otomatis ditambahkan ke Mobil Bermasalah: {$nopol}");
+
+
+
+
+                // =============================
+                // JATUH TEMPO
+                // =============================
+
+                if ($sudahJatuh) {
+
+
+
+                    if ($reminder->status !== 'jatuh_tempo') {
+
+
+                        $reminder->update([
+
+                            'status'=>'jatuh_tempo'
+
+                        ]);
+
+
+
+                        Log::info('Status reminder berubah jatuh tempo', [
+
+                            'id'=>$reminder->id
+
+                        ]);
+
+                    }
+
+
+
+
+
+                    // email saat hari H
+
+                    if ($sisaHari == 0) {
+
+
+                        Mail::to($setting->email)
+                            ->send(
+                                new ReminderServiceMail(
+                                    $reminder,
+                                    $sisaHari,
+                                    'jatuh_tempo'
+                                )
+                            );
+
+
+
+                        Log::info('Email jatuh tempo terkirim', [
+
+                            'id'=>$reminder->id
+
+                        ]);
+
+                    }
+
+
+
+
+
+
+                    // auto masuk mobil bermasalah
+
+                    if (!$reminder->sudah_dibuat_masalah) {
+
+
+                        ReminderServiceController::buatServiceDetail($reminder);
+
+
+
+                        $count++;
+
+
+
+                        Log::info('Auto create mobil bermasalah', [
+
+                            'id'=>$reminder->id,
+
+                            'kendaraan'=>$reminder->kendaraan->nopol ?? '-'
+
+                        ]);
+
+                    }
+
+
                 }
+
             }
-        }
 
-        $this->info("Selesai. {$count} reminder diproses ke Mobil Bermasalah.");
+
+
+
+
+            Log::info('=== REMINDER SERVICE SELESAI ===', [
+
+                'diproses'=>$count
+
+            ]);
+
+
+
+            return self::SUCCESS;
+
+
+
+        } catch(\Throwable $e) {
+
+
+
+            Log::error('REMINDER SERVICE ERROR', [
+
+                'pesan'=>$e->getMessage(),
+
+                'file'=>$e->getFile(),
+
+                'line'=>$e->getLine()
+
+            ]);
+
+
+
+            return self::FAILURE;
+
+        }
     }
 }

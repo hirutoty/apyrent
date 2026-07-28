@@ -7,100 +7,206 @@ use App\Models\Kir;
 use App\Models\Setting;
 use App\Mail\KirReminderMail;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-
 
 class ReminderKirCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'app:reminder-kir-command';
+    protected $signature = 'kir:reminder';
+
+    protected $description = 'Kirim reminder KIR kendaraan';
 
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Command description';
-
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
-        $this->info('Command KIR dijalankan');
+        Log::info('=== KIR REMINDER START ===');
+
 
         $setting = Setting::first();
 
-        // konversi setting seperti sistem lain
+
+        if (!$setting || !$setting->email) {
+
+            Log::warning('KIR reminder gagal: email setting tidak ditemukan');
+
+            return self::FAILURE;
+        }
+
+
+
+        // Konversi batas reminder
         $reminder = match ($setting->satuan_reminder) {
-            'hari'   => $setting->batas_reminder,
-            'minggu' => $setting->batas_reminder * 7,
-            'bulan'  => $setting->batas_reminder * 30,
-            'tahun'  => $setting->batas_reminder * 365,
-            default  => $setting->batas_reminder,
+
+            'hari'   => (int) $setting->batas_reminder,
+
+            'minggu' => (int) $setting->batas_reminder * 7,
+
+            'bulan'  => (int) $setting->batas_reminder * 30,
+
+            'tahun'  => (int) $setting->batas_reminder * 365,
+
+            default  => (int) $setting->batas_reminder,
+
         };
 
-        // konsisten seperti GPS / Pajak
+
+
+        // Pola reminder
         $hariReminder = array_unique([
             $reminder,
             14,
             7,
-            1,
+            3,
+            1
         ]);
 
-        $data = Kir::with('kendaraan')->get();
 
-        foreach ($data as $kir) {
+
+        $kirList = Kir::with('kendaraan')->get();
+
+
+        $emailTerkirim = 0;
+
+
+
+        foreach ($kirList as $kir) {
+
+
+            if (!$kir->masa_berlaku) {
+                continue;
+            }
+
+
 
             $sisaHari = Carbon::today()->diffInDays(
                 Carbon::parse($kir->masa_berlaku),
                 false
             );
 
-            $this->info("ID: {$kir->id}");
-            $this->info("Nopol: " . ($kir->kendaraan->nopol ?? '-'));
-            $this->info("Sisa Hari: {$sisaHari}");
 
-            // OPTIONAL: auto expired logic (kalau mau)
-            if ($sisaHari < 0) {
-                // bisa tambah status kalau ada kolom status
-                // $kir->update(['status' => 'expired']);
-            }
 
-            // 🔔 REMINDER
+            Log::info('Cek KIR', [
+
+                'id' => $kir->id,
+
+                'nopol' => $kir->kendaraan->nopol ?? '-',
+
+                'masa_berlaku' => $kir->masa_berlaku,
+
+                'sisa_hari' => $sisaHari
+
+            ]);
+
+
+
+
+            // Reminder sebelum jatuh tempo
             if (in_array($sisaHari, $hariReminder)) {
 
-                $this->info("Kirim email reminder KIR");
 
-                Mail::to($setting->email)->send(
-                    new KirReminderMail(
-                        $kir,
-                        $sisaHari,
-                        'reminder'
-                    )
-                );
+                try {
+
+
+                    Mail::to($setting->email)
+                        ->send(
+                            new KirReminderMail(
+                                $kir,
+                                $sisaHari,
+                                'reminder'
+                            )
+                        );
+
+
+
+                    $emailTerkirim++;
+
+
+
+                    Log::info('Email reminder KIR terkirim', [
+
+                        'kir_id' => $kir->id,
+
+                        'sisa_hari' => $sisaHari
+
+                    ]);
+
+
+
+                } catch (\Throwable $e) {
+
+
+                    Log::error('KIR reminder gagal', [
+
+                        'kir_id' => $kir->id,
+
+                        'pesan' => $e->getMessage()
+
+                    ]);
+
+                }
+
             }
 
-            // ⚠️ TERLAMBAT (H+1)
+
+
+
+            // Terlambat H+1
             if ($sisaHari == -1) {
 
-                $this->info("Kirim email terlambat KIR");
 
-                Mail::to($setting->email)->send(
-                    new KirReminderMail(
-                        $kir,
-                        1,
-                        'terlambat'
-                    )
-                );
+                try {
+
+
+                    Mail::to($setting->email)
+                        ->send(
+                            new KirReminderMail(
+                                $kir,
+                                1,
+                                'terlambat'
+                            )
+                        );
+
+
+
+                    $emailTerkirim++;
+
+
+
+                    Log::info('Email KIR terlambat terkirim', [
+
+                        'kir_id' => $kir->id
+
+                    ]);
+
+
+
+                } catch (\Throwable $e) {
+
+
+                    Log::error('KIR terlambat gagal', [
+
+                        'kir_id' => $kir->id,
+
+                        'pesan' => $e->getMessage()
+
+                    ]);
+
+                }
+
             }
+
         }
 
-        $this->info('Selesai reminder KIR');
+
+
+        Log::info('=== KIR REMINDER SELESAI ===', [
+
+            'email_terkirim' => $emailTerkirim
+
+        ]);
+
+
+
+        return self::SUCCESS;
     }
 }

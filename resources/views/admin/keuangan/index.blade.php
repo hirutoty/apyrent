@@ -337,7 +337,7 @@
                         </tbody>
                     </table>
                     <div class="py-3 border-t border-gray-100">
-                        {{ $keuangans->links() }}
+                        <x-pagination :paginator="$keuangans" />
                     </div>
                 </div>
             </div>
@@ -531,26 +531,24 @@
                                     <td class="px-5 py-4 text-slate-700">{{ $d->vendor }}</td>
                                     <td class="px-5 py-4">
                                         @php
-                                            $jatuhTempo = \Carbon\Carbon::parse($d->jatuh_tempo)->startOfDay();
-                                            $hariIni = now()->startOfDay();
-                                            $sisaHari = (int) $hariIni->diffInDays($jatuhTempo, false);
+                                            $jatuhTempo    = \Carbon\Carbon::parse($d->jatuh_tempo)->startOfDay();
+                                            $hariIni       = now()->startOfDay();
+                                            $sisaHari      = (int) $hariIni->diffInDays($jatuhTempo, false);
+                                            $sisaDetikKeuAp = (int) (\Carbon\Carbon::parse($d->jatuh_tempo)->endOfDay()->timestamp - now()->timestamp);
                                         @endphp
                                         <div class="flex flex-col gap-1">
                                             <span class="text-slate-600 text-sm">{{ $jatuhTempo->format('d M Y') }}</span>
                                             @if ($sisaHari < 0)
-                                                <span
-                                                    class="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-1
-  rounded-full w-fit">
+                                                <span class="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-full w-fit">
                                                     <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
-                                                    Terlambat {{ abs($sisaHari) }} hari
+                                                    Terlambat {{ formatSisaWaktu(abs($sisaDetikKeuAp)) }}
                                                 </span>
                                             @elseif ($sisaHari <= $reminderAp)
-                                                <span
-                                                    class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1
-  rounded-full w-fit">
+                                                <span class="inline-flex items-center gap-1 text-[11px] font-medium border px-2 py-1 rounded-full w-fit
+                                                    {{ $sisaHari == 0 ? 'text-red-600 bg-red-50 border-red-200' : 'text-amber-600 bg-amber-50 border-amber-200' }}">
                                                     <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
                                                     @if ($sisaHari == 0)
-                                                        Jatuh Tempo Hari Ini
+                                                        Jatuh Tempo {{ formatSisaWaktu($sisaDetikKeuAp) }} lagi
                                                     @elseif ($sisaHari == 1)
                                                         Jatuh Tempo Besok
                                                     @else
@@ -558,9 +556,7 @@
                                                     @endif
                                                 </span>
                                             @else
-                                                <span
-                                                    class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2
-  py-1 rounded-full w-fit">
+                                                <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full w-fit">
                                                     <i class="fa-solid fa-circle-check text-[10px]"></i>
                                                     Belum Jatuh Tempo
                                                 </span>
@@ -788,27 +784,24 @@
                                     </td>
                                     <td class="px-5 py-4">
                                         @php
-                                            $jatuhTempoAr = \Carbon\Carbon::parse($d->jatuh_tempo)->startOfDay();
-                                            $sisaHariAr = now()->startOfDay()->diffInDays($jatuhTempoAr, false);
+                                            $jatuhTempoAr    = \Carbon\Carbon::parse($d->jatuh_tempo)->startOfDay();
+                                            $sisaHariAr      = (int) now()->startOfDay()->diffInDays($jatuhTempoAr, false);
+                                            $sisaDetikKeuAr  = (int) (\Carbon\Carbon::parse($d->jatuh_tempo)->endOfDay()->timestamp - now()->timestamp);
                                         @endphp
                                         <div class="flex flex-col gap-1">
-                                            <span
-                                                class="text-slate-600 text-sm">{{ $jatuhTempoAr->format('d M Y') }}</span>
+                                            <span class="text-slate-600 text-sm">{{ $jatuhTempoAr->format('d M Y') }}</span>
                                             @if ($d->status != 'Bayar')
                                                 @if ($sisaHariAr < 0)
-                                                    <span
-                                                        class="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-1
-  rounded-full w-fit">
+                                                    <span class="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-full w-fit">
                                                         <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
-                                                        Terlambat {{ abs($sisaHariAr) }} hari
+                                                        Terlambat {{ formatSisaWaktu(abs($sisaDetikKeuAr)) }}
                                                     </span>
                                                 @elseif ($sisaHariAr <= $reminderAr)
-                                                    <span
-                                                        class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1
-  rounded-full w-fit">
+                                                    <span class="inline-flex items-center gap-1 text-[11px] font-medium border px-2 py-1 rounded-full w-fit
+                                                        {{ $sisaHariAr == 0 ? 'text-red-600 bg-red-50 border-red-200' : 'text-amber-600 bg-amber-50 border-amber-200' }}">
                                                         <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
                                                         @if ($sisaHariAr == 0)
-                                                            Jatuh Tempo Hari Ini
+                                                            Jatuh Tempo {{ formatSisaWaktu($sisaDetikKeuAr) }} lagi
                                                         @elseif ($sisaHariAr == 1)
                                                             Jatuh Tempo Besok
                                                         @else
@@ -1125,7 +1118,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal Transaksi <span
                             class="text-blue-500">*</span></label>
-                    <input type="number" name="nominal" required placeholder="Contoh: 150000"
+                    <input type="number" name="nominal" required max="9999999999" placeholder="Contoh: 150000"
                         value="{{ old('nominal') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100
   focus:border-blue-400">
@@ -1133,7 +1126,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan <span
                             class="text-blue-500">*</span></label>
-                    <input type="text" name="keterangan" required placeholder="Keterangan singkat transaksi"
+                    <input type="text" name="keterangan" placeholder="Keterangan singkat transaksi"
                         value="{{ old('keterangan') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100
   focus:border-blue-400">

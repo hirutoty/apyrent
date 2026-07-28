@@ -31,6 +31,17 @@
         <form method="GET" action="{{ route('gps-kendaraan-history.index') }}"
               class="flex flex-wrap items-end gap-3">
 
+            {{-- Search --}}
+            <div class="flex flex-col gap-1 w-64">
+                <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Cari</label>
+                <div class="relative">
+                    <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input type="text" name="search" value="{{ request('search') }}"
+                           placeholder="Kendaraan, GPS, type..."
+                           class="w-full pl-8 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                </div>
+            </div>
+
             {{-- Bulan --}}
             <div class="flex flex-col gap-1">
                 <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Bulan</label>
@@ -67,25 +78,14 @@
             <div class="flex items-end gap-2">
                 <button type="submit"
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition">
-                    <i class="fa fa-filter"></i> Filter
+                    <i class="fa fa-filter"></i> Cari / Filter
                 </button>
-                @if(request('bulan') || request('tahun'))
+                @if(request('search') || request('bulan') || request('tahun'))
                     <a href="{{ route('gps-kendaraan-history.index') }}"
                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-medium transition">
                         <i class="fa fa-times"></i> Reset
                     </a>
                 @endif
-            </div>
-
-            {{-- Spacer --}}
-            <div class="flex-1"></div>
-
-            {{-- Search --}}
-            <div class="flex flex-col gap-1 w-72">
-                <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Cari</label>
-                <input type="text" id="search"
-                       placeholder="Kendaraan, GPS, type..."
-                       class="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-sm">
             </div>
 
         </form>
@@ -240,7 +240,9 @@
                 </tbody>
 
             </table>
-            <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+            <div class="py-3 border-t border-gray-100 px-5">
+                <x-pagination :paginator="$data" />
+            </div>
         </div>
 
         {{-- Table Footer --}}
@@ -254,14 +256,5 @@
     </div>
 
 </div>
-
-<script>
-    document.getElementById('search').addEventListener('keyup', function () {
-        const value = this.value.toLowerCase();
-        document.querySelectorAll('#tableBody tr').forEach(function (row) {
-            row.style.display = row.innerText.toLowerCase().includes(value) ? '' : 'none';
-        });
-    });
-</script>
 
 @endsection

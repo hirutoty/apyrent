@@ -26,33 +26,29 @@
                 <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total member</p>
             </div>
             <div class="flex items-center gap-2">
-                <a id="pdfBtn" target="_blank" href="{{ route('members.pdf') }}"
+                <a target="_blank" href="{{ route('members.pdf', request()->only('search')) }}"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                     <i class="fa fa-file-pdf text-xs"></i> Export PDF
                 </a>
-                <div class="relative">
-                    <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                    <input type="text" placeholder="Cari member..." oninput="filterTable(this.value)"
-                        class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
-                </div>
-                <button onclick="window.location.reload()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                    <i class="fa fa-sync text-xs"></i>
-                </button>
+                <form method="GET" action="{{ route('members.index') }}" class="flex items-center gap-2">
+                    <div class="relative">
+                        <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" name="search" value="{{ request('search') }}"
+                            placeholder="Cari nama, kontak..."
+                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
+                    </div>
+                    <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fa fa-search text-xs"></i> Cari
+                    </button>
+                    @if(request('search'))
+                        <a href="{{ route('members.index') }}"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <i class="fa fa-rotate-left text-xs"></i> Reset
+                        </a>
+                    @endif
+                </form>
             </div>
-        </div>
-
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select id="perPageSelect" onchange="renderTable()"
-                class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
-                <option value="10" selected>10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="all">All</option>
-            </select>
-            <span>entries</span>
-            <div class="ml-auto text-xs text-gray-400" id="entriesInfoTop"></div>
         </div>
 
         <div class="overflow-x-auto">
@@ -196,8 +192,9 @@
             </table>
         </div>
 
-        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
-        <div class="px-5 pb-3 text-xs text-gray-400" id="entriesInfo"></div>
+        <div class="py-3 border-t border-gray-100 px-5">
+            <x-pagination :paginator="$data" />
+        </div>
     </div>
 
 </div>
@@ -229,7 +226,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak</label>
-                    <input type="number" name="kontak" id="f_kontak" placeholder="08xx-xxxx-xxxx"
+                    <input type="number" name="kontak" id="f_kontak" maxlength="15" placeholder="08xx-xxxx-xxxx"
                         value="{{ old('kontak') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
@@ -459,23 +456,6 @@ function previewMultipleFiles(input, listId, countId, color) {
     });
 }
 
-const allRows = Array.from(document.querySelectorAll('#memberTableBody tr[data-search]'));
-let currentSearch = '';
-function filterTable(q) {
-    currentSearch = q.toLowerCase();
-    document.getElementById('pdfBtn').href = '{{ route("members.pdf") }}?search=' + encodeURIComponent(q);
-    renderTable();
-}
-function renderTable() {
-    const perPage = document.getElementById('perPageSelect').value === 'all' ? Infinity : parseInt(document.getElementById('perPageSelect').value, 10);
-    const matched = allRows.filter(r => r.dataset.search.includes(currentSearch));
-    let shown = 0;
-    allRows.forEach(r => r.style.display = 'none');
-    matched.forEach(r => { if (shown < perPage) { r.style.display = ''; shown++; } });
-    const info = matched.length === 0 ? 'Tidak ada data' : `Menampilkan ${shown} dari ${matched.length} entri` + (currentSearch ? ' (pencarian)' : '');
-    ['entriesInfoTop','entriesInfo'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = info; });
-}
-document.addEventListener('DOMContentLoaded', renderTable);
 
 (function() {
     const overlay = document.getElementById('alertOverlay');

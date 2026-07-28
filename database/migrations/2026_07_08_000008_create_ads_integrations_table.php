@@ -15,8 +15,8 @@ return new class extends Migration
             $table->string('platform');
             $table->date('tanggal_aktif');
             $table->decimal('budget_harian', 15, 2);
-            $table->integer('klik')->default(0);
-            $table->integer('konversi')->default(0);
+            $table->bigInteger('klik')->default(0);
+            $table->bigInteger('konversi')->default(0);
             $table->decimal('biaya_total', 15, 2)->default(0);
             $table->decimal('penjualan', 15, 2)->default(0);
             $table->string('roi')->default('0%');

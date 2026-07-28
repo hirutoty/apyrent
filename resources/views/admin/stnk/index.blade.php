@@ -319,7 +319,7 @@
 
                     </tbody>
                 </table>
-                <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+                <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
             </div>
 
         </div>
@@ -384,7 +384,7 @@
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya <span class="text-red-500">*</span></label>
-                        <input type="number" min="0" name="biaya" required placeholder="0"
+                        <input type="number" min="0" max="9999999999" name="biaya" required placeholder="0"
                             value="{{ old('biaya') }}"
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>

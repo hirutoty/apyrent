@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Reminder Service')
 
@@ -328,7 +328,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
     </div>
 
 </div>
@@ -422,7 +422,7 @@
                     {{-- Biaya --}}
                     <div class="w-full md:flex-[2_2_0%] min-w-0">
                         <label class="md:hidden text-[11px] font-semibold text-gray-500 mb-1 block">Biaya</label>
-                        <input type="number" name="items[0][biaya]" min="0" step="1000"
+                        <input type="number" name="items[0][biaya]" min="0" max="9999999999" step="1000"
                             placeholder="0"
                             class="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                     </div>

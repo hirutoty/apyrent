@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('segment_code')->unique();
             $table->string('segment_name');
             $table->text('segmentation_criteria');
-            $table->integer('customer_count')->default(0);
+            $table->bigInteger('customer_count')->default(0);
             $table->string('campaign_goal')->nullable();
             $table->string('status')->default('Aktif');
             $table->timestamps();

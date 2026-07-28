@@ -221,7 +221,7 @@
         </div>
 
         {{-- PAGINATION --}}
-        <div class="py-3 border-t border-gray-100">{{ $invoices->links() }}</div>
+        <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$invoices" /></div>
 
         </div>{{-- end TABLE CARD --}}
     </div>{{-- end space-y-6 --}}

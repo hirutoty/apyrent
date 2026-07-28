@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Ads Integration')
 @section('content')
 <div class="space-y-6">
@@ -88,7 +88,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="py-3 border-t border-gray-100">{{ $data->links() }}</div>
+        <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
     </div>
 </div>
 <div id="mainModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30" style="backdrop-filter:blur(2px)">
@@ -115,7 +115,7 @@
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Aktif <span class="text-red-500">*</span></label>
                 <input type="date" name="tanggal_aktif" id="f_tanggal_aktif" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_aktif') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Budget Harian (Rp) <span class="text-red-500">*</span></label>
-                <input type="number" name="budget_harian" id="f_budget_harian" required min="0" placeholder="500000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('budget_harian') }}"</div>
+                <input type="number" name="budget_harian" id="f_budget_harian" required min="0" max="9999999999" placeholder="500000" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('budget_harian') }}"</div>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Total Klik <span class="text-red-500">*</span></label>
@@ -125,7 +125,7 @@
             </div>
             <div class="grid grid-cols-3 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya Total (Rp) <span class="text-red-500">*</span></label>
-                <input type="number" name="biaya_total" id="f_biaya_total" required min="0" step="0.01" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('biaya_total') }}"</div>
+                <input type="number" name="biaya_total" id="f_biaya_total" required min="0" max="9999999999" step="0.01" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('biaya_total') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Total Penjualan (Rp) <span class="text-red-500">*</span></label>
                 <input type="number" name="penjualan" id="f_penjualan" required min="0" step="0.01" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('penjualan') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">ROI <span class="text-red-500">*</span></label>

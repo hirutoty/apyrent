@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('approval_workflows', function (Blueprint $table) {
             $table->id();
             $table->string('id_po');
-            $table->integer('urutan_approval');
+            $table->bigInteger('urutan_approval');
             $table->string('jabatan');
             $table->string('nama_approver');
             $table->date('tanggal')->nullable();

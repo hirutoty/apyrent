@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('pic_vendor')->nullable();
             $table->string('no_telp')->nullable();
             $table->string('produk_jasa')->nullable();
-            $table->integer('rating')->nullable(); // Skala 1-5
+            $table->bigInteger('rating')->nullable(); // Skala 1-5
             $table->string('status')->nullable(); // Aktif / Tidak Aktif
             $table->date('tanggal_terakhir_order')->nullable();
             $table->text('catatan')->nullable();
