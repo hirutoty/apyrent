@@ -13,6 +13,11 @@ class Kir extends Model
 
     protected $fillable = [
         'kendaraan_id',
+        'no_ktp',
+        'nama_ktp',
+        'lokasi_uji',
+        'penguji',
+        'status_uji',
         'no_uji',
         'masa_berlaku',
         'biaya',

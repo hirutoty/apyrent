@@ -17,8 +17,20 @@ use Carbon\Carbon;
 
 class KirController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * AJAX: Ambil data pemilik & jenis kendaraan berdasarkan kendaraan_id
+     */
+    public function getKendaraanDetail($id)
     {
+        $kendaraan = Kendaraan::with(['member', 'jenis'])->findOrFail($id);
+
+        return response()->json([
+            'nama_pemilik'    => $kendaraan->member->nama ?? '-',
+            'jenis_kendaraan' => $kendaraan->jenis->nama_jenis ?? '-',
+        ]);
+    }
+
+    public function index(Request $request)    {
         $setting = Setting::first();
         // Base64 logo untuk DomPDF
         $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
@@ -135,59 +147,76 @@ class KirController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'kendaraan_id' => 'required|exists:kendaraan,id',
-            'no_uji' => 'required',
+            'kendaraan_id'  => 'required|exists:kendaraan,id',
+            'no_ktp'        => 'required|string|max:255',
+            'nama_ktp'      => 'required|string|max:255',
+            'lokasi_uji'    => 'required|string|max:255',
+            'penguji'       => 'nullable|string|max:255',
+            'status_uji'    => 'required|in:uji berkala,uji pertama',
+            'no_uji'        => 'required|string|max:255',
             'tanggal_bayar' => 'required|date',
-            'masa_berlaku' => 'required|date',
-            'biaya' => 'required|numeric|min:0',
-            'image' => 'nullable|file|max:5120',
+            'masa_berlaku'  => 'required|date',
+            'biaya'         => 'required|numeric|min:0',
+            'image'         => 'nullable|file|max:5120',
             'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
-
         ], [
             'kendaraan_id.required' => 'Kendaraan wajib dipilih',
-            'no_uji.required' => 'Nomor uji wajib diisi',
-            'tanggal_bayar.required' => 'Tanggal bayar wajib diisi',
+            'no_ktp.required'       => 'No KTP wajib diisi',
+            'nama_ktp.required'     => 'Nama KTP wajib diisi',
+            'lokasi_uji.required'   => 'Lokasi uji wajib diisi',
+            'status_uji.required'   => 'Status uji wajib dipilih',
+            'status_uji.in'         => 'Status uji tidak valid',
+            'no_uji.required'       => 'Nomor uji wajib diisi',
+            'tanggal_bayar.required'=> 'Tanggal bayar wajib diisi',
             'masa_berlaku.required' => 'Masa berlaku wajib diisi',
-            'biaya.required' => 'Biaya KIR wajib diisi',
+            'biaya.required'        => 'Biaya KIR wajib diisi',
         ]);
 
-        // 🔥 CEK DUPLIKAT BERDASARKAN NOPOL (RELASI)
-        $kendaraan = \App\Models\Kendaraan::findOrFail($request->kendaraan_id);
+        $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 
-        $exists = Kir::whereHas('kendaraan', function ($q) use ($kendaraan) {
-            $q->where('nopol', $kendaraan->nopol);
-        })->exists();
-
+        $exists = Kir::where('kendaraan_id', $kendaraan->id)->exists();
         if ($exists) {
-            return back()->with('error', 'Kendaraan dengan nopol ini sudah memiliki data KIR');
+            return back()->with('error', 'Kendaraan ' . $kendaraan->nopol . ' sudah memiliki data KIR');
         }
 
-        $data = $request->except(['bukti_attachment', '_token']); // ✅ jangan ikut masuk mass-assign
+        $data = $request->except(['bukti_attachment', '_token']);
 
         if ($request->hasFile('image')) {
-            $file = $request->file('image');
-
-            $filename = time() . '_' . $file->getClientOriginalName();
+            $file        = $request->file('image');
+            $filename    = time() . '_' . $file->getClientOriginalName();
             $destination = public_path('kir/dokumen');
-
-            if (!file_exists($destination)) {
-                mkdir($destination, 0777, true);
-            }
-
+            if (!file_exists($destination)) mkdir($destination, 0777, true);
             $file->move($destination, $filename);
-
             $data['image'] = 'kir/dokumen/' . $filename;
         }
 
         $kir = Kir::create($data);
 
-        // upload attachment tambahan (SETELAH ADA ID)
         if ($request->hasFile('bukti_attachment')) {
             $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
         }
 
         return back()->with('success', 'Data KIR berhasil ditambahkan');
+    }
+
+
+    /**
+     * Update hanya status_uji
+     */
+    public function updateStatusUji(Request $request, $id)
+    {
+        $request->validate([
+            'status_uji' => 'required|in:uji berkala,uji pertama',
+        ], [
+            'status_uji.required' => 'Status uji wajib dipilih',
+            'status_uji.in'       => 'Status uji tidak valid',
+        ]);
+
+        $kir = Kir::findOrFail($id);
+        $kir->update(['status_uji' => $request->status_uji]);
+
+        return back()->with('success', 'Status uji berhasil diperbarui');
     }
 
     public function update(Request $request, $id)
@@ -196,7 +225,12 @@ class KirController extends Controller
 
         $request->validate([
             'kendaraan_id' => 'required|exists:kendaraan,id',
-            'no_uji' => 'required',
+            'no_ktp'       => 'required|string|max:255',
+            'nama_ktp'     => 'required|string|max:255',
+            'lokasi_uji'   => 'required|string|max:255',
+            'penguji'      => 'nullable|string|max:255',
+            'status_uji'   => 'required|in:uji berkala,uji pertama',
+            'no_uji'       => 'required',
             'masa_berlaku' => 'required|date',
             'biaya' => 'required|numeric|min:0',
             'image' => 'nullable|file|max:5120',
@@ -441,11 +475,12 @@ class KirController extends Controller
                 'reference'   => $kodeJurnal,
                 'user_id'     => auth()->id(),
                 'kategori'    => 'Pengeluaran',
-                'metode'      => '-',
+                'metode'      => 'Cash',
                 'keterangan'  => 'Pembayaran KIR kendaraan: ' . ($kir->kendaraan->nopol ?? '-'),
                 'pemasukan'   => 0,
                 'pengeluaran' => $pengeluaran,
                 'saldo'       => $lastSaldo - $pengeluaran,
+                'sumber'      => 'auto',
             ]);
 
             // --- Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat) ---

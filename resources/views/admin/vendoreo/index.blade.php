@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Manajemen Vendor')
 
@@ -104,7 +104,7 @@
             {{-- Filter Hari --}}
             <div class="flex items-center gap-2">
                 <i class="fa fa-calendar-day text-gray-400"></i>
-                <select id="filterHari" onchange="renderTable()"
+                <select id="filterHari" onchange="filterTable()"
                     class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">Semua Hari</option>
                     @for ($d = 1; $d <= 31; $d++)
@@ -116,7 +116,7 @@
             {{-- Filter Bulan --}}
             <div class="flex items-center gap-2">
                 <i class="fa fa-calendar text-gray-400"></i>
-                <select id="filterBulan" onchange="renderTable()"
+                <select id="filterBulan" onchange="filterTable()"
                     class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">Semua Bulan</option>
                     <option value="01">Januari</option>
@@ -136,7 +136,7 @@
 
             {{-- Filter Tahun --}}
             <div class="flex items-center gap-2">
-                <select id="filterTahun" onchange="renderTable()"
+                <select id="filterTahun" onchange="filterTable()"
                     class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="">Semua Tahun</option>
                     @php
@@ -156,7 +156,6 @@
             </button>
 
             {{-- Entries info inline --}}
-            <div class="ml-auto text-xs text-gray-400" id="entriesInfoTop"></div>
         </div>
 
         <div class="overflow-x-auto">

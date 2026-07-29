@@ -162,7 +162,6 @@
             </table>
             <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
 </div>
 <div id="mainModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30" style="backdrop-filter:blur(2px)">
@@ -314,19 +313,6 @@ function triggerDelete(btn) {
 }
 function closeDeleteModal() { deleteModal.classList.add('hidden'); deleteModal.classList.remove('flex'); }
 deleteModal.addEventListener('click', e => { if(e.target===deleteModal) closeDeleteModal(); });
-
-const allRows=Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
-let currentSearch = '', currentPerPage = 10;
-function onSearchInput(v) { currentSearch = v.toLowerCase(); renderTable(); }
-function onPerPageChange(v) { currentPerPage = v==='all' ? Infinity : parseInt(v); renderTable(); }
-function renderTable() {
-    if(!allRows.length) return;
-    const matched = allRows.filter(r => r.dataset.search.includes(currentSearch));
-    let shown = 0;
-    allRows.forEach(r => r.style.display = 'none');
-    matched.forEach(r => { if(shown < currentPerPage){ r.style.display=''; shown++; } });
-}
-document.addEventListener('DOMContentLoaded', renderTable);
 
 (function(){
     var o = document.getElementById('alertOverlay'), b = document.getElementById('alertBox');

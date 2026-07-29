@@ -182,11 +182,12 @@ class StnkController extends Controller
                 'reference'   => $kodeJurnal,
                 'user_id'     => auth()->id(),
                 'kategori'    => 'Pengeluaran',
-                'metode'      => 'cash',
+                'metode'      => 'Cash',
                 'keterangan'  => 'Perpanjangan STNK kendaraan: ' . $stnk->nopol . ' - ' . $stnk->merk,
                 'pemasukan'   => 0,
                 'pengeluaran' => $pengeluaran,
                 'saldo'       => $lastSaldo - $pengeluaran,
+                'sumber'      => 'auto',
             ]);
 
             // Auto-posting ke Buku Besar

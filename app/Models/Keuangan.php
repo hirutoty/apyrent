@@ -21,6 +21,7 @@ class Keuangan extends Model
         'pemasukan',
         'pengeluaran',
         'saldo',
+        'sumber',
     ];
 
     protected $casts = [

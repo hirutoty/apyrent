@@ -253,11 +253,12 @@ class PajakController extends Controller
                 'reference'   => $kodeJurnal,
                 'user_id'     => auth()->id(),
                 'kategori'    => 'Pengeluaran',
-                'metode'      => 'cash',
+                'metode'      => 'Cash',
                 'keterangan'  => 'Pembayaran pajak kendaraan: ' . $pajak->jenis_pajak . ' - ' . $request->keterangan,
                 'pemasukan'   => 0,
                 'pengeluaran' => $request->nominal,
                 'saldo'       => $lastSaldo - $pengeluaran,
+                'sumber'      => 'auto',
             ]);
 
             // --- Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat) ---

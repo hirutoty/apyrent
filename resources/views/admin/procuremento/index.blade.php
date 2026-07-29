@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Workflow Procurement')
 
@@ -213,7 +213,6 @@
         </div>
 
         {{-- ENTRIES INFO --}}
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
 
     </div>
 

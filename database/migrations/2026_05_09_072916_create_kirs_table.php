@@ -12,21 +12,27 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('kir', function (Blueprint $table) {
-    $table->id();
+            $table->id();
 
-    $table->foreignId('kendaraan_id')
-        ->constrained('kendaraan')
-        ->cascadeOnDelete();
+            $table->foreignId('kendaraan_id')
+                ->constrained('kendaraan')
+                ->cascadeOnDelete();
 
-    $table->string('no_uji');
-    $table->date('masa_berlaku');
-     
-    $table->decimal('biaya', 15, 2)->default(0);
+            $table->string('no_ktp');
+            $table->string('nama_ktp');
+            $table->string('lokasi_uji');
+            $table->string('penguji')->nullable();
+            $table->enum('status_uji', ['uji berkala', 'uji pertama']);
 
-    $table->string('image')->nullable();
+            $table->string('no_uji');
+            $table->date('masa_berlaku');
 
-    $table->timestamps();
-});
+            $table->decimal('biaya', 15, 2)->default(0);
+
+            $table->string('image')->nullable();
+
+            $table->timestamps();
+        });
     }
 
     /**

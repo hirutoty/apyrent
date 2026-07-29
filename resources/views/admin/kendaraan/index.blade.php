@@ -434,10 +434,8 @@
                     <div class="flex items-center gap-6">
                         <div class="flex flex-col gap-1"><span
                                 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Status
-                                Service</span><span id="d_status_service"></span></div>
-                        <div class="flex flex-col gap-1"><span
-                                class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Status
-                                Kendaraan</span><span id="d_status_kendaraan"></span></div>
+                                Kendaraan</span><span id="d_status_service"></span></div>
+                     
                     </div>
                 </div>
 
@@ -775,18 +773,17 @@
 
                     {{-- Status --}}
                     <div>
-                        <p
+                        {{-- <p
                             class="text-xs font-bold uppercase tracking-widest text-gray-400 pb-2 border-b border-gray-100 mb-3">
                             <i class="fa fa-toggle-on mr-1"></i> Status
-                        </p>
+                        </p> --}}
                         <div class="grid grid-cols-3 gap-3">
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Service <span
-                                        class="text-red-500">*</span></label>
-                                <select name="status_service" required
+                                {{-- <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Service <span --}}
+                                        {{-- class="text-red-500">*</span></label> --}}
+                                <select hidden name="status_service" required
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <option value="aman">Aman</option>
-                                    <option value="service">Service</option>
                                 </select>
                             </div>
                             <div>

@@ -47,9 +47,44 @@ class KeuanganController extends Controller
   
       $keuangans = $query->paginate(15)->withQueryString();
   
-      $totalPemasukan  = Keuangan::sum('pemasukan');
+      // ── TOTAL ALL-TIME ─────────────────────────────────
+      $totalPemasukan   = Keuangan::sum('pemasukan');
       $totalPengeluaran = Keuangan::sum('pengeluaran');
-      $saldo = $totalPemasukan - $totalPengeluaran;
+      $saldo            = $totalPemasukan - $totalPengeluaran;
+
+      // ── TOTAL FILTERED (mengikuti filter aktif) ────────
+      $filteredQuery = Keuangan::query();
+
+      if ($request->filled('jenis')) {
+          if ($request->jenis == 'Pemasukan') {
+              $filteredQuery->where('pemasukan', '>', 0);
+          } elseif ($request->jenis == 'Pengeluaran') {
+              $filteredQuery->where('pengeluaran', '>', 0);
+          }
+      }
+      if ($request->filled('hari'))   $filteredQuery->whereDay('tanggal', $request->hari);
+      if ($request->filled('bulan'))  $filteredQuery->whereMonth('tanggal', $request->bulan);
+      if ($request->filled('tahun'))  $filteredQuery->whereYear('tanggal', $request->tahun);
+      if ($request->filled('search')) {
+          $keyword = $request->search;
+          $filteredQuery->where(function ($q) use ($keyword) {
+              $q->where('kategori',   'like', "%$keyword%")
+                ->orWhere('keterangan', 'like', "%$keyword%")
+                ->orWhere('reference',  'like', "%$keyword%")
+                ->orWhereHas('user', function ($u) use ($keyword) {
+                    $u->where('name', 'like', "%$keyword%");
+                });
+          });
+      }
+
+      $filteredPemasukan   = (clone $filteredQuery)->sum('pemasukan');
+      $filteredPengeluaran = (clone $filteredQuery)->sum('pengeluaran');
+      $filteredSaldo       = $filteredPemasukan - $filteredPengeluaran;
+
+      // Tandai apakah filter sedang aktif
+      $hasFilter = $request->filled('jenis') || $request->filled('hari')
+                || $request->filled('bulan') || $request->filled('tahun')
+                || $request->filled('search');
   
       // ── AGING AP ──────────────────────────────────────
       $setting  = \App\Models\Setting::first();
@@ -92,6 +127,7 @@ class KeuanganController extends Controller
   
       return view('admin.keuangan.index', compact(
           'keuangans', 'totalPemasukan', 'totalPengeluaran', 'saldo',
+          'filteredPemasukan', 'filteredPengeluaran', 'filteredSaldo', 'hasFilter',
           'dataAp', 'reminderAp',
           'dataAr', 'reminderAr',
           'setting',
@@ -154,7 +190,23 @@ class KeuanganController extends Controller
      */
     public function destroy($id)
     {
-        Keuangan::findOrFail($id)->delete();
+        $keuangan = Keuangan::findOrFail($id);
+
+        // SOFT GUARD: entri dengan sumber='auto' dibuat oleh sistem (STNK, GPS,
+        // Asuransi, Service, HutangVendor, dsb.) dan TIDAK boleh dihapus secara
+        // manual — hapus dari sumber asalnya agar saldo tetap konsisten.
+        if ($keuangan->sumber === 'auto') {
+            return back()->with('error',
+                'Entri ini dibuat otomatis oleh sistem dan tidak dapat dihapus secara manual. '
+                . 'Hapus atau batalkan dari sumber asalnya (Service / GPS / STNK / Asuransi / Hutang Vendor / dll).'
+            );
+        }
+
+        $keuanganId = $keuangan->id;
+        $keuangan->delete();
+
+        // Recalculate saldo semua baris setelah baris yang dihapus
+        PaymentsController::recalculateKeuanganSaldo($keuanganId);
 
         return back()->with('success', 'Data berhasil dihapus');
     }

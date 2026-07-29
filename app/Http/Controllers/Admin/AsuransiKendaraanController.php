@@ -429,11 +429,12 @@ class AsuransiKendaraanController extends Controller
                 'reference'   => $kodeJurnal,
                 'user_id'     => auth()->id(),
                 'kategori'    => 'Pengeluaran',
-                'metode'      => '-',
+                'metode'      => 'Cash',
                 'keterangan'  => 'Pembayaran asuransi kendaraan: ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-') . ' - ' . $request->keterangan,
                 'pemasukan'   => 0,
                 'pengeluaran' => $request->biaya,
                 'saldo'       => $lastSaldo - $pengeluaran,
+                'sumber'      => 'auto',
             ]);
 
             // Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat)

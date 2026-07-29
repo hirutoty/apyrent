@@ -31,13 +31,8 @@
             <input type="text" placeholder="Cari asset..." oninput="onSearch(this.value)" class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44"></div>
     </div>
     <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs">
-        <div class="flex items-center gap-2"><span class="text-gray-500">Show</span>
-            <select id="perPage" onchange="renderTable()" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
-                <option value="10" selected>10</option><option value="25">25</option><option value="50">50</option><option value="all">All</option></select>
-            <span class="text-gray-500">entries</span></div>
-        <select id="filterStatus" onchange="renderTable()" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
+        <select id="filterStatus" onchange="filterTable()" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
             <option value="">Semua Status</option><option>Aktif</option><option>Rusak</option><option>Disposed</option><option>Tidak Aktif</option></select>
-        <div class="ml-auto text-xs text-gray-400" id="entriesInfoTop"></div>
     </div>
     <div class="overflow-x-auto"><table class="w-full text-sm">
         <thead><tr class="bg-gray-50 border-b border-gray-100">
@@ -93,7 +88,6 @@
         </tbody>
     </table>
     <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div></div>
-    <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
 </div>
 
 {{-- MODAL TAMBAH/EDIT --}}
@@ -184,16 +178,16 @@ function triggerDelete(btn){document.getElementById('deleteForm').action=btn.dat
 function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.classList.remove('flex');}
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
 const allRows=Array.from(document.querySelectorAll('#tableBody tr[data-search]'));let currentSearch='';
-function onSearch(v){currentSearch=v.toLowerCase();renderTable();}
-function renderTable(){
-    const perPage=document.getElementById('perPage').value==='all'?Infinity:parseInt(document.getElementById('perPage').value);
+function onSearch(v){currentSearch=v.toLowerCase();filterTable();}
+function filterTable(){
     const fS=document.getElementById('filterStatus').value;
-    const matched=allRows.filter(r=>r.dataset.search.includes(currentSearch)&&(!fS||r.dataset.status===fS));
-    let shown=0;allRows.forEach(r=>r.style.display='none');
-    matched.forEach(r=>{if(shown<perPage){r.style.display='';shown++;}});
-    const info=matched.length===0?'Tidak ada data':`Menampilkan ${shown} dari ${matched.length} entri`;
-    document.getElementById('entriesInfo').innerText=info;document.getElementById('entriesInfoTop').innerText=info;}
-document.addEventListener('DOMContentLoaded',renderTable);
+    allRows.forEach(r=>{
+        const matchSearch=r.dataset.search.includes(currentSearch);
+        const matchStatus=!fS||r.dataset.status===fS;
+        r.style.display=(matchSearch&&matchStatus)?'':'none';
+    });
+}
+document.addEventListener('DOMContentLoaded',filterTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;
 setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);
 var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});

@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 @section('title', 'Pergerakan Asset')
 @section('content')
 <div class="space-y-6">
@@ -41,10 +41,6 @@
                     <input type="text" placeholder="Cari..." oninput="onSearchInput(this.value)"
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                 </div>
-                <select id="perPageSelect" onchange="renderTable()"
-                    class="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100">
-                    <option value="10" selected>10</option><option value="25">25</option><option value="50">50</option><option value="all">All</option>
-                </select>
             </div>
         </div>
         <div class="overflow-x-auto">
@@ -111,7 +107,6 @@
             </table>
             <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
 </div>
 
@@ -220,9 +215,9 @@ function triggerDelete(b){document.getElementById('deleteForm').action=b.dataset
 function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.classList.remove('flex');}
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
 const allRows=Array.from(document.querySelectorAll('#tableBody tr[data-search]'));let currentSearch='';
-function onSearchInput(v){currentSearch=v.toLowerCase();renderTable();}
-function renderTable(){if(!allRows.length)return;const p=document.getElementById('perPageSelect').value==='all'?Infinity:parseInt(document.getElementById('perPageSelect').value);const m=allRows.filter(r=>r.dataset.search.includes(currentSearch));let s=0;allRows.forEach(r=>r.style.display='none');m.forEach(r=>{if(s<p){r.style.display='';s++;}});document.getElementById('entriesInfo').innerText=m.length?`Menampilkan ${s} dari ${m.length} entri`:'Tidak ada data';}
-document.addEventListener('DOMContentLoaded',renderTable);
+function onSearchInput(v){currentSearch=v.toLowerCase();filterTable();}
+function filterTable(){if(!allRows.length)return;allRows.forEach(r=>r.style.display=r.dataset.search.includes(currentSearch)?'':'none');}
+document.addEventListener('DOMContentLoaded',filterTable);
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
 
         // Auto-reopen modal tambah on validation error

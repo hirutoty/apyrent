@@ -63,8 +63,8 @@ class HutangVendorController extends Controller
         $request->validate([
             'nama_vendor' => 'required',
             'kategori'    => 'required',
-            'nominal'     => 'required|numeric',
-            'dibayar'     => 'nullable|numeric',
+            'nominal'     => 'required|numeric|min:1',
+            'dibayar'     => 'nullable|numeric|min:0|lte:nominal',
             'jatuh_tempo' => 'required|date',
             'status'      => 'required',
         ]);
@@ -125,7 +125,7 @@ class HutangVendorController extends Controller
                         'tanggal'     => now()->toDateString(),
                         'debit'       => $request->nominal,
                         'kredit'      => 0,
-                        'saldo'       => $saldoBBTerakhir + $request->nominal, // P1 #2: accumulative
+                        'saldo'       => $saldoBBTerakhir - $request->nominal, // FIX: debit/beban mengurangi saldo BB
                         'aktivitas'   => 'Operasi',
                         'keterangan'  => 'Auto-posting: Pelunasan hutang kepada '
                                          . $request->nama_vendor
@@ -208,7 +208,7 @@ class HutangVendorController extends Controller
                             'tanggal'     => now()->toDateString(),
                             'debit'       => $data->nominal,
                             'kredit'      => 0,
-                            'saldo'       => $saldoBBTerakhir + $data->nominal, // P1 #2: accumulative
+                            'saldo'       => $saldoBBTerakhir - $data->nominal, // FIX: debit/beban mengurangi saldo BB
                             'aktivitas'   => 'Operasi',
                             'keterangan'  => 'Auto-posting: Pelunasan hutang kepada '
                                              . $data->nama_vendor
@@ -262,8 +262,8 @@ class HutangVendorController extends Controller
         $request->validate([
             'nama_vendor' => 'required',
             'kategori'    => 'required',
-            'nominal'     => 'required|numeric',
-            'dibayar'     => 'nullable|numeric',
+            'nominal'     => 'required|numeric|min:1',
+            'dibayar'     => 'nullable|numeric|min:0|lte:nominal',
             'jatuh_tempo' => 'required|date',
             'status'      => 'required',
         ]);
@@ -354,7 +354,7 @@ class HutangVendorController extends Controller
                         'tanggal'     => now()->toDateString(),
                         'debit'       => $request->nominal,
                         'kredit'      => 0,
-                        'saldo'       => $saldoBBTerakhir + $request->nominal, // P1 #2: accumulative
+                        'saldo'       => $saldoBBTerakhir - $request->nominal, // FIX: debit/beban mengurangi saldo BB
                         'aktivitas'   => 'Operasi',
                         'keterangan'  => 'Auto-posting: Pelunasan hutang kepada '
                                          . $request->nama_vendor

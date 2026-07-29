@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bukubesar;
+use App\Models\Keuangan;
 use App\Models\Purchasero;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseroController extends Controller
 {
@@ -100,7 +102,6 @@ class PurchaseroController extends Controller
     {
         $role = auth()->user()->role;
 
-        // Departemen otomatis dari role
         $deptMap = [
             'keuangan'   => 'Keuangan',
             'produksi'   => 'Produksi',
@@ -113,14 +114,52 @@ class PurchaseroController extends Controller
         ];
         $departemen = $deptMap[$role] ?? ucfirst($role);
 
-        $validated = $this->validateDataStore($request);
-        $validated['departemen'] = $departemen;
-        $validated['status']     = 'Pending';
+        $request->validate([
+            'tanggal'                        => 'required|date',
+            'pemohon'                        => 'required|string|max:255',
+            'items'                          => 'required|array|min:1',
+            'items.*.barang_jasa'            => 'required|string|max:255',
+            'items.*.kode_barang'            => 'required|string|max:255',
+            'items.*.qty'                    => 'required|integer|min:1',
+            'items.*.satuan'                 => 'required|string|max:255',
+            'items.*.alasan_permintaan'      => 'required|string|max:255',
+            'items.*.nominal'                => 'nullable|integer|min:0',
+        ], [
+            'tanggal.required'                   => 'Tanggal wajib diisi',
+            'pemohon.required'                   => 'Pemohon wajib diisi',
+            'items.required'                     => 'Minimal 1 item harus diisi',
+            'items.*.barang_jasa.required'        => 'Barang/Jasa wajib diisi',
+            'items.*.kode_barang.required'        => 'Kode Barang wajib diisi',
+            'items.*.qty.required'               => 'Qty wajib diisi',
+            'items.*.satuan.required'            => 'Satuan wajib diisi',
+            'items.*.alasan_permintaan.required' => 'Alasan wajib diisi',
+        ]);
 
-        Purchasero::create($validated);
+        // Generate 1 No PR untuk semua item dalam 1 submit
+        $last      = Purchasero::orderBy('id', 'desc')->first();
+        $lastNum   = $last && preg_match('/(\d+)$/', $last->no_pr, $m) ? (int) $m[1] : 0;
+        $noPr      = 'PR-' . str_pad($lastNum + 1, 3, '0', STR_PAD_LEFT);
+
+        $count = 0;
+        foreach ($request->items as $item) {
+            Purchasero::create([
+                'no_pr'             => $noPr,
+                'tanggal'           => $request->tanggal,
+                'pemohon'           => $request->pemohon,
+                'departemen'        => $departemen,
+                'barang_jasa'       => $item['barang_jasa'],
+                'kode_barang'       => $item['kode_barang'],
+                'qty'               => $item['qty'],
+                'satuan'            => $item['satuan'],
+                'alasan_permintaan' => $item['alasan_permintaan'],
+                'nominal'           => $item['nominal'] ?? null,
+                'status'            => 'Pending',
+            ]);
+            $count++;
+        }
 
         return redirect()->route('purchasero.index')
-            ->with('success', 'Pengadaan berhasil ditambahkan.');
+            ->with('success', "Pengadaan {$noPr} berhasil ditambahkan ({$count} item).");
     }
 
     public function update(Request $request, Purchasero $purchasero)
@@ -215,30 +254,79 @@ class PurchaseroController extends Controller
 
         $purchasero->update($updateData);
 
-        // ── Task 3: Hapus jurnal lama jika sebelumnya Disetujui lalu di-Tolak ──
+        // ── Hapus jurnal lama jika sebelumnya Disetujui lalu di-Tolak ──
         if ($statusLama === 'Disetujui' && $request->status === 'Ditolak') {
-            Bukubesar::where('referensi', $purchasero->no_pr)->delete();
+            DB::transaction(function () use ($purchasero) {
+                $kodeJurnal = 'PR-JRN-' . $purchasero->no_pr;
+
+                // Hapus dari keuangans + recalculate saldo
+                $keuangan = Keuangan::where('reference', $kodeJurnal)->first();
+                if ($keuangan) {
+                    $keuanganId = $keuangan->id;
+                    $keuangan->delete();
+                    PaymentsController::recalculateKeuanganSaldo($keuanganId);
+                }
+
+                // Hapus dari bukubesars + recalculate saldo
+                $jurnal = Bukubesar::where('kode_jurnal', $kodeJurnal)
+                    ->orWhere('referensi', $purchasero->no_pr)
+                    ->first();
+                if ($jurnal) {
+                    $jurnalId = $jurnal->id;
+                    $jurnal->delete();
+                    PaymentsController::recalculateBukubesarSaldo($jurnalId);
+                }
+            });
         }
 
-        // ── Task 2: Buat jurnal otomatis saat status berubah ke Disetujui ──
+        // ── Buat jurnal otomatis saat status berubah ke Disetujui ──
         if ($request->status === 'Disetujui') {
-            // Ambil saldo terakhir dari buku besar (0 jika belum ada data)
-            $saldoTerakhir = Bukubesar::latest('id')->value('saldo') ?? 0;
-            $nominal       = (int) ($purchasero->nominal ?? 0);
-            $saldoBaru     = $saldoTerakhir - $nominal;
+            DB::transaction(function () use ($purchasero) {
+                $kodeJurnal = 'PR-JRN-' . $purchasero->no_pr;
+                $nominal    = (int) ($purchasero->nominal ?? 0);
 
-            Bukubesar::create([
-                'kode_jurnal' => 'PR-JRN-' . $purchasero->no_pr,
-                'transaksi'   => 'Pengadaan: ' . $purchasero->barang_jasa,
-                'kategori'    => 'Beban',
-                'tanggal'     => $purchasero->tanggal_persetujuan,
-                'debit'       => $nominal,   // Beban/pengeluaran = sisi DEBIT
-                'kredit'      => 0,
-                'saldo'       => $saldoBaru,
-                'aktivitas'   => 'pengadaan',
-                'keterangan'  => 'PR #' . $purchasero->no_pr . ' disetujui oleh ' . $purchasero->disetujui_oleh,
-                'referensi'   => $purchasero->no_pr,
-            ]);
+                // ── Catat ke Keuangan (sebelumnya tidak ada) ──
+                if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
+                    $lastSaldo = (float) DB::table('keuangans')
+                        ->lockForUpdate()
+                        ->orderBy('id', 'desc')
+                        ->value('saldo') ?? 0;
+
+                    Keuangan::create([
+                        'tanggal'     => $purchasero->tanggal_persetujuan ?? now()->toDateString(),
+                        'reference'   => $kodeJurnal,
+                        'user_id'     => auth()->id(),
+                        'kategori'    => 'Pengeluaran',
+                        'metode'      => 'Cash',
+                        'keterangan'  => 'PR #' . $purchasero->no_pr . ' - ' . $purchasero->barang_jasa,
+                        'pemasukan'   => 0,
+                        'pengeluaran' => $nominal,
+                        'saldo'       => $lastSaldo - $nominal,
+                        'sumber'      => 'auto',
+                    ]);
+                }
+
+                // ── Catat ke Buku Besar (pakai lockForUpdate, cegah duplikat) ──
+                if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                    $saldoBB = (float) DB::table('bukubesars')
+                        ->lockForUpdate()
+                        ->orderBy('id', 'desc')
+                        ->value('saldo') ?? 0;
+
+                    Bukubesar::create([
+                        'kode_jurnal' => $kodeJurnal,
+                        'transaksi'   => 'Pengadaan: ' . $purchasero->barang_jasa,
+                        'kategori'    => 'Beban',
+                        'tanggal'     => $purchasero->tanggal_persetujuan ?? now()->toDateString(),
+                        'debit'       => $nominal,
+                        'kredit'      => 0,
+                        'saldo'       => $saldoBB - $nominal,
+                        'aktivitas'   => 'pengadaan',
+                        'keterangan'  => 'PR #' . $purchasero->no_pr . ' disetujui oleh ' . $purchasero->disetujui_oleh,
+                        'referensi'   => $purchasero->no_pr,
+                    ]);
+                }
+            });
         }
 
         $label = $request->status === 'Disetujui' ? 'disetujui' : 'ditolak';

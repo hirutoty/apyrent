@@ -125,7 +125,6 @@
             </table>
             <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
 </div>
 
@@ -249,12 +248,7 @@ const deleteModal=document.getElementById('deleteModal'),deleteForm=document.get
 function triggerDelete(btn){deleteForm.action=btn.dataset.action;document.getElementById('deleteName').innerText=btn.dataset.name;deleteModal.classList.remove('hidden');deleteModal.classList.add('flex');}
 function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.classList.remove('flex');}
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
-const allRows=Array.from(document.querySelectorAll('#tableBody tr[data-search]')),entriesInfo=document.getElementById('entriesInfo');
-let cs='',cp=10;
-function onSearchInput(v){cs=v.toLowerCase();renderTable();}
-function onPerPageChange(v){cp=v==='all'?Infinity:parseInt(v);renderTable();}
-function renderTable(){if(!allRows.length)return;const m=allRows.filter(r=>r.dataset.search.includes(cs));let s=0;allRows.forEach(r=>r.style.display='none');m.forEach(r=>{if(s<cp){r.style.display='';s++;}});entriesInfo.innerText=m.length===0?'Tidak ada data':`Menampilkan ${s} dari ${m.length} entri`+(cs?' (hasil pencarian)':'');}
-document.addEventListener('DOMContentLoaded',renderTable);
+
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();
 
         // Auto-reopen modal tambah on validation error

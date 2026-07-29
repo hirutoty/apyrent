@@ -37,19 +37,7 @@ class Purchasero extends Model
     {
         parent::boot();
 
-        // Generate no_pr otomatis & berurutan setiap kali data baru dibuat
-        static::creating(function ($model) {
-            if (empty($model->no_pr)) {
-                $last = self::orderBy('id', 'desc')->first();
-
-                $lastNumber = $last && preg_match('/(\d+)$/', $last->no_pr, $m)
-                    ? (int) $m[1]
-                    : 0;
-
-                $nextNumber = $lastNumber + 1;
-
-                $model->no_pr = 'PR-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-            }
-        });
+        // no_pr di-generate manual di store() untuk multi-item
+        // agar semua item dalam 1 submit mendapat No PR yang sama
     }
 }

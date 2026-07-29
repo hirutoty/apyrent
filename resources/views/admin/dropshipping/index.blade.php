@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 @section('title', 'Dropshipping')
 @section('content')
 <div class="space-y-6">
@@ -55,27 +55,21 @@
             </div>
         </div>
         <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <div class="flex items-center gap-2"><span>Show</span>
-                <select id="perPageSelect" onchange="renderTable()" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
-                    <option value="5">5</option><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option><option value="all">All</option>
-                </select><span>entries</span>
-            </div>
             <div class="w-px h-4 bg-gray-200"></div>
             <span class="text-gray-400 font-medium">Tgl Kirim:</span>
-            <select id="filterBulan" onchange="renderTable()" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
+            <select id="filterBulan" onchange="filterTable()" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
                 <option value="">Semua Bulan</option>
                 <option value="01">Januari</option><option value="02">Februari</option><option value="03">Maret</option><option value="04">April</option>
                 <option value="05">Mei</option><option value="06">Juni</option><option value="07">Juli</option><option value="08">Agustus</option>
                 <option value="09">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
             </select>
-            <select id="filterTahun" onchange="renderTable()" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
+            <select id="filterTahun" onchange="filterTable()" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
                 <option value="">Semua Tahun</option>
                 @foreach($data->map(fn($d)=>$d->tanggal_kirim?\Carbon\Carbon::parse($d->tanggal_kirim)->year:null)->filter()->unique()->sortDesc() as $yr)
                     <option value="{{ $yr }}">{{ $yr }}</option>
                 @endforeach
             </select>
             <button onclick="resetFilter()" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50"><i class="fa fa-rotate-left text-[10px]"></i> Reset</button>
-            <div class="ml-auto text-xs text-gray-400" id="entriesInfoTop"></div>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -139,7 +133,6 @@
             </table>
             <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
 </div>
 
@@ -272,19 +265,9 @@ function closeDeleteModal(){deleteModal.classList.add('hidden');deleteModal.clas
 deleteModal.addEventListener('click',e=>{if(e.target===deleteModal)closeDeleteModal();});
 const allRows=Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
 let currentSearch='';
-function onSearchInput(v){currentSearch=v.toLowerCase();renderTable();}
-function renderTable(){
-    if(!allRows.length)return;
-    const perPage=document.getElementById('perPageSelect').value==='all'?Infinity:parseInt(document.getElementById('perPageSelect').value);
-    const fB=document.getElementById('filterBulan').value,fT=document.getElementById('filterTahun').value;
-    const matched=allRows.filter(r=>{const[y,m]=(r.dataset.tanggal||'').split('-');return r.dataset.search.includes(currentSearch)&&(!fB||m===fB)&&(!fT||y===fT);});
-    let shown=0;allRows.forEach(r=>r.style.display='none');
-    matched.forEach(r=>{if(shown<perPage){r.style.display='';shown++;}});
-    const info=matched.length===0?'Tidak ada data':`Menampilkan ${shown} dari ${matched.length} entri`+(currentSearch||fB||fT?' (difilter)':'');
-    document.getElementById('entriesInfo').innerText=info;document.getElementById('entriesInfoTop').innerText=info;
-}
-function resetFilter(){currentSearch='';document.querySelector('input[oninput="onSearchInput(this.value)"]').value='';document.getElementById('filterBulan').value='';document.getElementById('filterTahun').value='';document.getElementById('perPageSelect').value='10';renderTable();}
-document.addEventListener('DOMContentLoaded',renderTable);
+function onSearchInput(v){currentSearch=v.toLowerCase();filterTable();}
+function filterTable(){if(!allRows.length)return;allRows.forEach(r=>r.style.display=r.dataset.search.includes(currentSearch)?'':'none');}
+document.addEventListener('DOMContentLoaded',filterTable);
 const sL={!! json_encode($statusStats->keys()) !!},sD={!! json_encode($statusStats->values()) !!},cM={Proses:'#eab308',Dikirim:'#3b82f6',Selesai:'#22c55e'};
 new Chart(document.getElementById('statusChart'),{type:'doughnut',data:{labels:sL,datasets:[{data:sD,backgroundColor:sL.map(l=>cM[l]||'#9ca3af'),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'68%'}});
 (function(){var o=document.getElementById('alertOverlay'),b=document.getElementById('alertBox');if(!o)return;setTimeout(()=>{o.style.opacity='1';o.style.pointerEvents='auto';b.style.transform='translateY(0)';},80);var t=setTimeout(closeAlert,4500);o.addEventListener('click',e=>{if(e.target===o)closeAlert();});function closeAlert(){clearTimeout(t);o.style.opacity='0';o.style.pointerEvents='none';b.style.transform='translateY(-16px)';}window.closeAlert=closeAlert;})();

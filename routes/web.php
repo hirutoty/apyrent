@@ -338,6 +338,12 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get('/kir/pdf', [KirController::class, 'pdf'])
     ->name('kir.pdf');
 
+  Route::get('/kir/kendaraan/{id}/detail', [KirController::class, 'getKendaraanDetail'])
+    ->name('kir.kendaraan.detail');
+
+  Route::patch('kir/{id}/status', [KirController::class, 'updateStatusUji'])
+    ->name('kir.update-status');
+
   Route::get('/admin/history-kir/export-pdf', [KirHistoryController::class, 'exportPdf'])
     ->name('history.kir.export');
 

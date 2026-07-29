@@ -311,6 +311,7 @@ class ServiceHistoryController extends Controller
                         'saldo'       => $lastSaldo - $request->total_biaya,
                         'source_type' => 'service_history',
                         'source_id'   => $service->id,
+                        'sumber'      => 'auto',
                     ]);
                 }
 
@@ -536,6 +537,7 @@ class ServiceHistoryController extends Controller
                         'saldo'       => $lastSaldo - $request->total_biaya,
                         'source_type' => 'service_history',
                         'source_id'   => $data->id,
+                        'sumber'      => 'auto',
                     ]);
                 }
 
