@@ -23,6 +23,7 @@ class InvPenawaran extends Model
         'contact_person',
         'email_person',
         'alamat',
+        'no_ktp',
         'jenis_pelanggan',
 
         // Pengirim & Penandatangan

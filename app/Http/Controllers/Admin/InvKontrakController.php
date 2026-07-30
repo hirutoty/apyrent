@@ -195,7 +195,7 @@ class InvKontrakController extends Controller
         }
 
         $request->validate([
-            'file_kontrak' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'file_kontrak' => 'required|file|mimes:pdf|max:10240',
         ]);
 
         // Simpan file hasil TTD

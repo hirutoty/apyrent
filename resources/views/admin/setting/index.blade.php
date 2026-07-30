@@ -100,6 +100,14 @@
             </div>
 
             <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-gray-500">Fax</label>
+                <input type="text" name="fax"
+                    value="{{ old('fax', $setting?->fax) }}"
+                    placeholder="021 - 1234 5678"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition">
+            </div>
+
+            <div class="space-y-1.5">
                 <label class="block text-xs font-medium text-gray-500">Email</label>
                 <input type="email" name="email"
                     value="{{ old('email', $setting?->email) }}"

@@ -555,16 +555,21 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::resource('reminders', ReminderController::class);
 
 
-  Route::resource('penawaran', InvPenawaranController::class)
-    ->except(['create', 'show']);
-  Route::post('penawaran/{id}/approve', [InvPenawaranController::class, 'approve'])
-    ->name('penawaran.approve');
-  Route::post('/penawaran/{id}/reject', [InvPenawaranController::class, 'reject'])
-    ->name('penawaran.reject');
+  // ── PENAWARAN ─── custom routes HARUS sebelum resource ──────────────
+  Route::get('/penawaran/customer-search', [InvPenawaranController::class, 'customerSearch'])
+    ->name('penawaran.customer-search');
   Route::get('/admin/penawaran/pdf', [InvPenawaranController::class, 'exportPdf'])
     ->name('penawaran.pdf');
   Route::get('/penawaran/export/excel', [InvPenawaranController::class, 'exportExcel'])
     ->name('penawaran.export.excel');
+  Route::post('penawaran/{id}/approve', [InvPenawaranController::class, 'approve'])
+    ->name('penawaran.approve');
+  Route::get('penawaran/{id}/download-draft', [InvPenawaranController::class, 'downloadDraft'])
+    ->name('penawaran.download-draft');
+  Route::post('/penawaran/{id}/reject', [InvPenawaranController::class, 'reject'])
+    ->name('penawaran.reject');
+  Route::resource('penawaran', InvPenawaranController::class)
+    ->except(['create', 'show']);
 
   Route::get('/kontrak/pdf', [InvKontrakController::class, 'pdf'])
     ->name('kontrak.pdf');

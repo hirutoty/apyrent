@@ -23,6 +23,7 @@ class SettingController extends Controller
             'nama_perusahaan'     => 'required',
             'alamat'              => 'required',
             'telepon'             => 'required',
+            'fax'                 => 'nullable|string|max:50',
             'email'               => 'required|email',
             'website'             => 'required',
             'nama_bank'           => 'required',

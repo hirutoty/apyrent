@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\DB;
 use App\Models\InvPenawaran;
 use App\Models\InvPenawaranItem;
 use App\Models\Kendaraan;
+use App\Models\Pelanggan;
 use App\Models\Setting;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 
 class InvPenawaranController
@@ -105,9 +107,25 @@ class InvPenawaranController
     ));
 }
 
+    /**
+     * AJAX endpoint: cari member berdasarkan nama (autosuggest)
+     */
+    public function customerSearch(Request $request)
+    {
+        $q = $request->input('q', '');
+
+        $results = Pelanggan::when($q, fn($query) =>
+                $query->where('nama_pelanggan', 'like', '%' . $q . '%')
+            )
+            ->orderBy('nama_pelanggan')
+            ->limit(20)
+            ->get(['id', 'nama_pelanggan', 'alamat', 'no_ktp', 'jenis_pelanggan', 'email_pelanggan', 'kontak_pelanggan']);
+
+        return response()->json($results);
+    }
+
     public function store(Request $request)
     {
-        // BUG FIX: no_penawaran di-generate, bukan dijadikan rule validasi
         $noPenawaran = $this->generateNoPenawaran();
 
         $request->validate([
@@ -128,6 +146,18 @@ class InvPenawaranController
 
         DB::transaction(function () use ($request, $total, $noPenawaran) {
 
+            // Jika customer belum ada di tabel member, simpan otomatis
+            Pelanggan::firstOrCreate(
+                ['nama_pelanggan' => $request->customer_name],
+                [
+                    'kontak_pelanggan' => $request->contact_person,
+                    'email_pelanggan'  => $request->email_person,
+                    'alamat'           => $request->alamat,
+                    'no_ktp'           => $request->no_ktp,
+                    'jenis_pelanggan'  => $request->jenis_pelanggan ?: 'perorangan',
+                ]
+            );
+
             $penawaran = InvPenawaran::create([
                 'no_penawaran'      => $noPenawaran,
                 'tanggal_penawaran' => $request->tanggal_penawaran,
@@ -138,6 +168,7 @@ class InvPenawaranController
                 'contact_person'    => $request->contact_person,
                 'email_person'      => $request->email_person,
                 'alamat'            => $request->alamat,
+                'no_ktp'            => $request->no_ktp,
                 'jenis_pelanggan'   => $request->jenis_pelanggan,
                 'pengirim'          => $request->pengirim,
                 'periode'           => $request->periode,
@@ -145,7 +176,6 @@ class InvPenawaranController
                 'name_staff'        => $request->name_staff,
                 'direktur'          => $request->direktur,
                 'name_direktur'     => $request->name_direktur,
-
                 'total'             => $total,
             ]);
 
@@ -162,7 +192,18 @@ class InvPenawaranController
             }
         });
 
-        return back()->with('success', 'Penawaran berhasil ditambahkan.');
+        // Set status pending dan generate draft PDF setelah transaksi commit
+        $created = InvPenawaran::with('items.kendaraan')
+            ->where('no_penawaran', $noPenawaran)->firstOrFail();
+        $created->update(['status' => 'pending']);
+        try {
+            $pdfPath = $this->generatePenawaranPdf($created);
+            $created->update(['file_penawaran' => $pdfPath]);
+        } catch (\Exception $e) {
+            \Log::warning('PDF generation failed: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Penawaran berhasil ditambahkan. Draft PDF sudah digenerate.');
     }
 
     public function edit($id)
@@ -180,6 +221,7 @@ class InvPenawaranController
             'contact_person' => $penawaran->contact_person,
             'email_person' => $penawaran->email_person,
             'alamat' => $penawaran->alamat,
+            'no_ktp' => $penawaran->no_ktp,
             'jenis_pelanggan' => $penawaran->jenis_pelanggan,
             'pengirim' => $penawaran->pengirim,
             'staff' => $penawaran->staff,
@@ -213,6 +255,18 @@ class InvPenawaranController
 
             $penawaran = InvPenawaran::findOrFail($id);
 
+            // Jika customer belum ada di tabel member, simpan otomatis
+            Pelanggan::firstOrCreate(
+                ['nama_pelanggan' => $request->customer_name],
+                [
+                    'kontak_pelanggan' => $request->contact_person,
+                    'email_pelanggan'  => $request->email_person,
+                    'alamat'           => $request->alamat,
+                    'no_ktp'           => $request->no_ktp,
+                    'jenis_pelanggan'  => $request->jenis_pelanggan ?: 'perorangan',
+                ]
+            );
+
             // Update data penawaran
             $penawaran->update([
                 'no_penawaran'      => $request->no_penawaran,
@@ -224,6 +278,7 @@ class InvPenawaranController
                 'contact_person'    => $request->contact_person,
                 'email_person'      => $request->email_person,
                 'alamat'            => $request->alamat,
+                'no_ktp'            => $request->no_ktp,
                 'jenis_pelanggan'   => $request->jenis_pelanggan,
                 'pengirim'          => $request->pengirim,
                 'periode'           => $request->periode,
@@ -263,7 +318,16 @@ class InvPenawaranController
             }
         });
 
-        return back()->with('success', 'Data berhasil diperbarui.');
+        // Regenerate draft PDF setelah update
+        $updated = InvPenawaran::with('items.kendaraan')->findOrFail($id);
+        try {
+            $pdfPath = $this->generatePenawaranPdf($updated);
+            $updated->update(['file_penawaran' => $pdfPath]);
+        } catch (\Exception $e) {
+            \Log::warning('PDF regeneration failed: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Data berhasil diperbarui. Draft PDF sudah diperbarui.');
     }
 
     public function destroy($id)
@@ -272,6 +336,59 @@ class InvPenawaranController
         $penawaran->delete();
 
         return back()->with('success', 'Data berhasil dihapus.');
+    }
+
+    public function downloadDraft($id)
+    {
+        $penawaran = InvPenawaran::with('items.kendaraan')->findOrFail($id);
+
+        // Regenerate on demand if file missing
+        if (!$penawaran->file_penawaran || !file_exists(public_path($penawaran->file_penawaran))) {
+            try {
+                $path = $this->generatePenawaranPdf($penawaran);
+                $penawaran->update(['file_penawaran' => $path]);
+                $penawaran->refresh();
+            } catch (\Exception $e) {
+                return back()->with('error', 'Gagal generate PDF: ' . $e->getMessage());
+            }
+        }
+
+        return response()->file(public_path($penawaran->file_penawaran));
+    }
+
+    private function generatePenawaranPdf(InvPenawaran $penawaran): string
+    {
+        $penawaran->loadMissing('items.kendaraan');
+        $setting  = Setting::first();
+        $logoSrc  = '';
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
+        $dir = public_path('uploads/penawaran');
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+        $filename = 'draft_' . $penawaran->no_penawaran . '.pdf';
+        $path     = $dir . '/' . $filename;
+
+        Pdf::loadView('admin.penawaran.penawaran_letter', compact('penawaran', 'setting', 'logoSrc'))
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'dpi'                  => 96,
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled'         => true,
+                'isRemoteEnabled'      => true,
+                'defaultFont'          => 'Times New Roman',
+                'margin_top'           => 0,
+                'margin_bottom'        => 0,
+                'margin_left'          => 0,
+                'margin_right'         => 0,
+            ])
+            ->save($path);
+
+        return 'uploads/penawaran/' . $filename;
     }
 
     private function generateNoPenawaran(): string
@@ -291,8 +408,15 @@ class InvPenawaranController
         return $prefix . str_pad($number + 1, 4, '0', STR_PAD_LEFT);
     }
 
-    public function approve($id)
+    public function approve(Request $request, $id)
     {
+        $request->validate([
+            'file_penawaran' => 'required|file|mimes:pdf|max:10240',
+        ], [
+            'file_penawaran.required' => 'File penawaran yang sudah ditandatangani wajib diupload.',
+            'file_penawaran.mimes'    => 'File harus berformat PDF.',
+        ]);
+
         DB::beginTransaction();
 
         try {
@@ -302,21 +426,24 @@ class InvPenawaranController
                 return back()->with('error', 'Item penawaran kosong');
             }
 
-            // Cukup update status penawaran menjadi approved.
-            // Rental akan dibuat otomatis saat Kontrak disimpan (lihat InvKontrakController@store).
-            $penawaran->update(['status' => 'approved']);
+            // Simpan file yang sudah ditandatangani
+            $file     = $request->file('file_penawaran');
+            $filename = time() . '_signed_' . $penawaran->no_penawaran . '.' . $file->getClientOriginalExtension();
+            $dir      = public_path('uploads/penawaran');
+            if (!is_dir($dir)) mkdir($dir, 0755, true);
+            $file->move($dir, $filename);
+
+            $penawaran->update([
+                'status'          => 'approved',
+                'file_penawaran'  => 'uploads/penawaran/' . $filename,
+            ]);
 
             DB::commit();
 
-            return back()->with('success', 'Penawaran berhasil di-approve.');
+            return back()->with('success', 'Penawaran berhasil di-approve. File tersimpan.');
         } catch (\Exception $e) {
             DB::rollBack();
-
-            \Log::error('APPROVE ERROR', [
-                'msg'   => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
+            \Log::error('APPROVE ERROR', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return back()->with('error', $e->getMessage());
         }
     }

@@ -76,6 +76,8 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Jenis Pelanggan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                No KTP</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Alamat</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>
@@ -116,6 +118,10 @@
                                     </span>
                                 </td>
 
+                                <td class="px-4 py-3.5 text-xs text-gray-600 font-mono">
+                                    {{ $d->no_ktp ?? '-' }}
+                                </td>
+
                                 <td class="px-4 py-3.5 text-sm text-gray-500 max-w-[200px] truncate">{{ $d->alamat ?? '-' }}
                                 </td>
 
@@ -126,7 +132,8 @@
                                             data-id="{{ $d->id }}" data-nama_pelanggan="{{ $d->nama_pelanggan }}"
                                             data-kontak_pelanggan="{{ $d->kontak_pelanggan }}"
                                             data-email_pelanggan="{{ $d->email_pelanggan }}" data-alamat="{{ $d->alamat }}"
-                                            data-jenis_pelanggan="{{ $d->jenis_pelanggan }}" onclick="triggerEdit(this)">
+                                            data-jenis_pelanggan="{{ $d->jenis_pelanggan }}"
+                                            data-no_ktp="{{ $d->no_ktp }}" onclick="triggerEdit(this)">
                                             <i class="fa fa-edit text-xs"></i> Edit
                                         </button>
                                         <form action="/admin/pelanggan/{{ $d->id }}" method="POST"
@@ -200,6 +207,12 @@
                             class="text-red-500">*</span></label>
                     <input type="number" name="kontak_pelanggan" id="f_kontak_pelanggan" maxlength="15" placeholder="08xx-xxxx-xxxx"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kontak_pelanggan') }}">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP</label>
+                    <input type="text" name="no_ktp" id="f_no_ktp" maxlength="20" placeholder="16 digit No KTP"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('no_ktp') }}">
                 </div>
 
                 <div>
@@ -335,6 +348,7 @@
             methodContainer.innerHTML = '<input type="hidden" name="_method" value="PUT">';
             document.getElementById('f_nama_pelanggan').value = btn.dataset.nama_pelanggan;
             document.getElementById('f_kontak_pelanggan').value = btn.dataset.kontak_pelanggan;
+            document.getElementById('f_no_ktp').value = btn.dataset.no_ktp ?? '';
             document.getElementById('f_email_pelanggan').value = btn.dataset.email_pelanggan;
             document.getElementById('f_jenis_pelanggan').value = btn.dataset.jenis_pelanggan;
             document.getElementById('f_alamat').value = btn.dataset.alamat;
