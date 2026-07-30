@@ -570,6 +570,17 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('kontrak.pdf');
   Route::get('/kontrak/export/excel', [InvKontrakController::class, 'exportExcel'])
     ->name('kontrak.export.excel');
+
+  // Approve & Selesai workflow
+  Route::post('/kontrak/{id}/approve', [InvKontrakController::class, 'approve'])
+    ->name('kontrak.approve');
+  Route::post('/kontrak/{id}/selesai', [InvKontrakController::class, 'selesai'])
+    ->name('kontrak.selesai');
+
+  // AJAX: get penawaran detail untuk auto-fill form
+  Route::get('/kontrak/penawaran/{id}/detail', [InvKontrakController::class, 'getPenawaranDetail'])
+    ->name('kontrak.penawaran.detail');
+
   Route::resource('kontrak', InvKontrakController::class);
 
   Route::get('/setting', [SettingController::class, 'index'])
