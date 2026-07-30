@@ -252,6 +252,9 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('rental.pdf');
   Route::get('/rental/{id}/invoice', [RentalController::class, 'invoice'])
     ->name('rental.invoice');
+  // Task 8: Cetak invoice PDF dari halaman rental (same style as invoices.print)
+  Route::get('/rental/{id}/invoice-pdf', [RentalController::class, 'invoicePdf'])
+    ->name('rental.invoice-pdf');
 
   Route::get('/hutang-vendor/pdf', [HutangVendorController::class, 'pdf'])
     ->name('hutang-vendor.pdf');
@@ -507,7 +510,13 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('invoices.ttd-library');
   Route::get('invoices/export/excel', [InvoicesController::class, 'exportExcel'])
     ->name('invoices.export.excel');
+  Route::get('invoices/lookup-kontrak', [InvoicesController::class, 'lookupKontrak'])
+    ->name('invoices.lookup-kontrak');
   Route::resource('invoices', InvoicesController::class);
+
+  // Task 5: Tambah pembayaran cicilan langsung dari detail invoice
+  Route::post('invoices/{invoice}/payments', [InvoicesController::class, 'addPayment'])
+    ->name('invoices.payments.store');
 
   // ── PERIODE & REMAKS (nested, AJAX) ────────────────────────
   Route::prefix('invoices/{invoice}/periodes')->group(function () {

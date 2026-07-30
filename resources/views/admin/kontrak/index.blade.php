@@ -106,16 +106,13 @@
                         class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
                         <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
                         @foreach([
-                            'col-nokontrak'       => 'No Kontrak',
-                            'col-penawaran'       => 'Penawaran',
-                            'col-tanggal'         => 'Tanggal',
-                            'col-perjanjian'      => 'Perjanjian',
-                            'col-pihak1'          => 'Pihak 1',
-                            'col-pihak2'          => 'Pihak 2',
-                            'col-filekontrak'     => 'File Kontrak',
-                            'col-filepersyaratan' => 'File Persyaratan',
-                            'col-status'          => 'Status',
-                            'col-aksi'            => 'Aksi',
+                            'col-nokontrak'  => 'No Kontrak',
+                            'col-penawaran'  => 'Penawaran',
+                            'col-kendaraan'  => 'Kendaraan',
+                            'col-tanggal'    => 'Tanggal',
+                            'col-perjanjian' => 'Perjanjian',
+                            'col-status'     => 'Status',
+                            'col-aksi'       => 'Aksi',
                         ] as $cid => $clabel)
                         <label class="flex items-center gap-2 py-1 cursor-pointer hover:text-blue-600 text-xs text-gray-700">
                             <input type="checkbox" checked onchange="toggleCol('{{ $cid }}', this.checked)" class="rounded">
@@ -132,16 +129,14 @@
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100">
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No</th>
-                            <th data-col="col-nokontrak"       class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No Kontrak</th>
-                            <th data-col="col-penawaran"       class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Penawaran</th>
-                            <th data-col="col-tanggal"         class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
-                            <th data-col="col-perjanjian"      class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Perjanjian Pembayaran</th>
-                            <th data-col="col-pihak1"          class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Pihak 1</th>
-                            <th data-col="col-pihak2"          class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Pihak 2</th>
-                            <th data-col="col-filekontrak"     class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">File Kontrak</th>
-                            <th data-col="col-filepersyaratan" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">File Persyaratan</th>
-                            <th data-col="col-status"          class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
-                            <th data-col="col-aksi"            class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
+                            <th data-col="col-nokontrak"  class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No Kontrak</th>
+                            <th data-col="col-penawaran"  class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Penawaran</th>
+                            <th data-col="col-kendaraan"  class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Kendaraan</th>
+                            <th data-col="col-kendaraan"  class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
+                            <th data-col="col-tanggal"    class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
+                            <th data-col="col-perjanjian" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Perjanjian Pembayaran</th>
+                            <th data-col="col-status"     class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
+                            <th data-col="col-aksi"       class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -157,6 +152,53 @@
                                     {{ $k->penawaran->no_penawaran ?? '�' }}
                                 </td>
 
+                                {{-- Task 3: Kolom Kendaraan --}}
+                                <td class="px-4 py-3.5" data-col="col-kendaraan">
+                                    @if ($k->penawaran && $k->penawaran->items->isNotEmpty())
+                                        <div class="flex flex-col gap-1">
+                                            @foreach ($k->penawaran->items as $item)
+                                                @if ($item->kendaraan)
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="text-xs font-semibold text-gray-800">{{ $item->kendaraan->merk }} -
+                                                        {{ $item->kendaraan->nopol }}</span>
+                                                        
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
+                                </td>
+
+                                <td>
+                                                             @if ($k->penawaran && $k->penawaran->items->isNotEmpty())
+                                        <div class="flex flex-col gap-1">
+                                            @foreach ($k->penawaran->items as $item)
+                                                @if ($item->kendaraan)
+                                                    <div class="flex items-center gap-1.5">
+                                                        
+                                                        @php
+                                                            $stKend = $item->kendaraan->status_kendaraan ?? '';
+                                                            $stColor = match($stKend) {
+                                                                'tersedia' => 'bg-green-100 text-green-700',
+                                                                'disewa'   => 'bg-blue-100 text-blue-700',
+                                                                default    => 'bg-gray-100 text-gray-600',
+                                                            };
+                                                        @endphp
+                                                        <span class="inline-flex items-center justify-center text-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold {{ $stColor }}">
+                                                            {{ ucfirst($stKend) ?: '-' }}
+                                                        </span>
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
+
+                                </td>
+
                                 <td class="px-4 py-3.5 text-sm text-gray-600" data-col="col-tanggal">
                                     {{ $k->tanggal_kontrak?->format('d M Y') }}
                                 </td>
@@ -164,46 +206,21 @@
                                 <td class="px-4 py-3.5" data-col="col-perjanjian">
                                     <div class="flex flex-col gap-1">
                                         <span class="text-sm text-gray-700">{{ $k->perjanjian_pembayaran?->format('d M Y') }}</span>
-                                        @if ($k->showReminder)
+                                        @if ($k->showReminder && $k->isExpired)
                                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold w-fit">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                                 Terlambat {{ abs($k->sisaHari) }} hari
                                             </span>
-                                        @elseif ($k->isExpired)
+                                        @elseif ($k->showReminder && $k->isSoon)
                                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold w-fit animate-pulse">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
                                                 @if ($k->sisaHari == 0) Jatuh Tempo Hari Ini
                                                 @elseif ($k->sisaHari == 1) Jatuh Tempo Besok
-                                                @else Jatuh Tempo {{ $k->sisaHari }} hari lagi
+                                                @else Berakhir {{ $k->sisaHari }} hari lagi
                                                 @endif
                                             </span>
                                         @endif
                                     </div>
-                                </td>
-
-                                <td class="px-4 py-3.5 text-sm text-gray-700" data-col="col-pihak1">{{ $k->pihak_pertama }}</td>
-                                <td class="px-4 py-3.5 text-sm text-gray-700" data-col="col-pihak2">{{ $k->pihak_kedua }}</td>
-
-                                <td class="px-4 py-3.5 text-center" data-col="col-filekontrak">
-                                    @if ($k->file_kontrak)
-                                        <a href="{{ asset($k->file_kontrak) }}" target="_blank"
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
-                                            <i class="fa fa-file text-xs"></i> Lihat
-                                        </a>
-                                    @else
-                                        <span class="text-gray-400 text-xs">�</span>
-                                    @endif
-                                </td>
-
-                                <td class="px-4 py-3.5 text-center" data-col="col-filepersyaratan">
-                                    @if ($k->file_persyaratan)
-                                        <a href="{{ asset($k->file_persyaratan) }}" target="_blank"
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
-                                            <i class="fa fa-file text-xs"></i> Lihat
-                                        </a>
-                                    @else
-                                        <span class="text-gray-400 text-xs">�</span>
-                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3.5 text-center" data-col="col-status">
@@ -226,7 +243,7 @@
 
                                 <td class="px-4 py-3.5" data-col="col-aksi">
                                     <div class="flex items-center justify-center gap-1.5">
-                                        <button onclick="openDetailModal({{ $k }})"
+                                        <button onclick='openDetailModal(@json($k->load("penawaran.items.kendaraan")))'
                                             class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors">
                                             <i class="fa fa-eye text-xs"></i>
                                         </button>
@@ -247,7 +264,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="text-center py-12 text-gray-400 text-sm">
+                                <td colspan="8" class="text-center py-12 text-gray-400 text-sm">
                                     <i class="fa fa-inbox text-3xl mb-3 block text-gray-300"></i>
                                     Belum ada data kontrak
                                 </td>
@@ -299,7 +316,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 1</label>
-                                <input type="number" name="contact_pertama" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_pertama') }}">
+                                <input type="text" inputmode="numeric" name="contact_pertama" maxlength="15" oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_pertama') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Kedua</label>
@@ -307,7 +324,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 2</label>
-                                <input type="number" name="contact_kedua" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_kedua') }}">
+                                <input type="text" inputmode="numeric" name="contact_kedua" maxlength="15" oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_kedua') }}">
                             </div>
                         </div>
                         <div>
@@ -317,17 +334,6 @@
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">File Persyaratan</label>
                             <input type="file" name="file_persyaratan" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
-                            <select name="status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
-                                <option value="pending" {{ old('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="approved" {{ old('status') == 'approved' ? 'selected' : '' }}>Approved</option>
-                                <option value="active" {{ old('status') == 'active' ? 'selected' : '' }}>Active</option>
-                                <option value="rejected" {{ old('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
-                                <option value="expired" {{ old('status') == 'expired' ? 'selected' : '' }}>Expired</option>
-                                <option value="completed" {{ old('status') == 'completed' ? 'selected' : '' }}>Completed</option>
-                            </select>
                         </div>
                         <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
                             <button type="button" onclick="closeModal('modalCreate')" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>
@@ -376,7 +382,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 1</label>
-                                <input type="number" name="contact_pertama" id="edit_contact_pertama" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_pertama') }}">
+                                <input type="text" inputmode="numeric" name="contact_pertama" id="edit_contact_pertama" maxlength="15" oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_pertama') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Kedua</label>
@@ -384,7 +390,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 2</label>
-                                <input type="number" name="contact_kedua" id="edit_contact_kedua" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_kedua') }}">
+                                <input type="text" inputmode="numeric" name="contact_kedua" id="edit_contact_kedua" maxlength="15" oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('contact_kedua') }}">
                             </div>
                         </div>
                         <div>
@@ -417,7 +423,7 @@
 
             {{-- ================= MODAL DETAIL KONTRAK ================= --}}
             <div id="modalDetail" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-                <div class="bg-white w-full max-w-xl rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+                <div class="bg-white w-full max-w-2xl rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
                     <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                         <div>
                             <h2 class="text-base font-bold text-gray-800">Detail Kontrak</h2>
@@ -425,21 +431,43 @@
                         </div>
                         <button onclick="closeModal('modalDetail')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50">&times;</button>
                     </div>
-                    <div class="px-6 py-5 space-y-3 text-sm">
+                    <div class="px-6 py-5 space-y-4 text-sm">
+
+                        {{-- Info Utama --}}
                         <div class="grid grid-cols-2 gap-x-4 gap-y-3">
-                            <div><p class="text-xs text-gray-400">No Kontrak</p><p id="d_no_kontrak" class="font-semibold text-gray-800 mt-0.5">�</p></div>
-                            <div><p class="text-xs text-gray-400">Penawaran</p><p id="d_penawaran" class="text-gray-700 mt-0.5">�</p></div>
-                            <div><p class="text-xs text-gray-400">Tanggal Kontrak</p><p id="d_tanggal" class="text-gray-700 mt-0.5">�</p></div>
-                            <div><p class="text-xs text-gray-400">Status</p><p id="d_status" class="text-gray-700 mt-0.5">�</p></div>
-                            <div><p class="text-xs text-gray-400">Pihak 1</p><p id="d_pihak1" class="text-gray-700 mt-0.5">�</p></div>
-                            <div><p class="text-xs text-gray-400">Kontak 1</p><p id="d_contact1" class="text-gray-700 mt-0.5">�</p></div>
-                            <div><p class="text-xs text-gray-400">Pihak 2</p><p id="d_pihak2" class="text-gray-700 mt-0.5">�</p></div>
-                            <div><p class="text-xs text-gray-400">Kontak 2</p><p id="d_contact2" class="text-gray-700 mt-0.5">�</p></div>
+                            <div><p class="text-xs text-gray-400">No Kontrak</p><p id="d_no_kontrak" class="font-semibold text-gray-800 mt-0.5">-</p></div>
+                            <div><p class="text-xs text-gray-400">Penawaran</p><p id="d_penawaran" class="text-gray-700 mt-0.5">-</p></div>
+                            <div><p class="text-xs text-gray-400">Tanggal Kontrak</p><p id="d_tanggal" class="text-gray-700 mt-0.5">-</p></div>
+                            <div><p class="text-xs text-gray-400">Status</p><p id="d_status" class="mt-0.5">-</p></div>
+                            <div><p class="text-xs text-gray-400">Pihak 1</p><p id="d_pihak1" class="text-gray-700 mt-0.5">-</p></div>
+                            <div><p class="text-xs text-gray-400">Kontak 1</p><p id="d_contact1" class="text-gray-700 mt-0.5">-</p></div>
+                            <div><p class="text-xs text-gray-400">Pihak 2</p><p id="d_pihak2" class="text-gray-700 mt-0.5">-</p></div>
+                            <div><p class="text-xs text-gray-400">Kontak 2</p><p id="d_contact2" class="text-gray-700 mt-0.5">-</p></div>
                         </div>
-                        <div class="border-t border-gray-100 pt-3 flex gap-4">
-                            <div><p class="text-xs text-gray-400 mb-1">File Kontrak</p><a id="d_file_kontrak" href="#" target="_blank" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"><i class="fa fa-file text-xs"></i> Lihat</a></div>
-                            <div><p class="text-xs text-gray-400 mb-1">File Persyaratan</p><a id="d_file_persyaratan" href="#" target="_blank" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"><i class="fa fa-file text-xs"></i> Lihat</a></div>
+
+                        {{-- Kendaraan --}}
+                        <div class="border-t border-gray-100 pt-4">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Kendaraan</p>
+                            <div id="d_kendaraan_list" class="flex flex-col gap-2">
+                                <p class="text-xs text-gray-400">-</p>
+                            </div>
                         </div>
+
+                        {{-- File --}}
+                        <div class="border-t border-gray-100 pt-4">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">File Dokumen</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div id="d_file_kontrak_wrap">
+                                    <p class="text-xs text-gray-400 mb-1">File Kontrak</p>
+                                    <span class="text-xs text-gray-400">Tidak ada file</span>
+                                </div>
+                                <div id="d_file_persyaratan_wrap">
+                                    <p class="text-xs text-gray-400 mb-1">File Persyaratan</p>
+                                    <span class="text-xs text-gray-400">Tidak ada file</span>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                     <div class="border-t border-gray-100 px-6 py-4 flex justify-end">
                         <button onclick="closeModal('modalDetail')" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Tutup</button>
@@ -520,22 +548,84 @@
             document.getElementById('d_contact1').innerText = data.contact_pertama ?? '-';
             document.getElementById('d_pihak2').innerText = data.pihak_kedua ?? '-';
             document.getElementById('d_contact2').innerText = data.contact_kedua ?? '-';
-            document.getElementById('d_status').innerText = data.status ?? '-';
 
-            // file kontrak
-            if (data.file_kontrak) {
-                document.getElementById('d_file_kontrak').href = '/' + data.file_kontrak;
+            // Status badge
+            const statusColors = {
+                active:     'bg-green-100 text-green-700',
+                approved:   'bg-indigo-100 text-indigo-700',
+                completed:  'bg-blue-100 text-blue-700',
+                pending:    'bg-yellow-100 text-yellow-700',
+                rejected:   'bg-red-100 text-red-600',
+                expired:    'bg-gray-100 text-gray-600',
+                terminated: 'bg-gray-800 text-white',
+            };
+            const st = data.status ?? '-';
+            const stClass = statusColors[st] ?? 'bg-gray-100 text-gray-600';
+            document.getElementById('d_status').innerHTML =
+                `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${stClass}">${st.charAt(0).toUpperCase() + st.slice(1)}</span>`;
+
+            // Kendaraan list
+            const kList = document.getElementById('d_kendaraan_list');
+            const items = data.penawaran?.items ?? [];
+            if (items.length === 0) {
+                kList.innerHTML = '<p class="text-xs text-gray-400">Tidak ada kendaraan</p>';
             } else {
-                document.getElementById('d_file_kontrak').innerText = 'Tidak ada file';
-                document.getElementById('d_file_kontrak').removeAttribute('href');
+                const stKendColors = {
+                    tersedia: 'bg-green-100 text-green-700',
+                    disewa:   'bg-blue-100 text-blue-700',
+                };
+                kList.innerHTML = items.map(item => {
+                    const k = item.kendaraan;
+                    if (!k) return '';
+                    const kSt = k.status_kendaraan ?? '';
+                    const kStClass = stKendColors[kSt] ?? 'bg-gray-100 text-gray-600';
+                    const kStLabel = kSt ? kSt.charAt(0).toUpperCase() + kSt.slice(1) : '-';
+                    return `<div class="flex items-center gap-2 p-2 rounded-lg bg-gray-50 border border-gray-100">
+                        <i class="fa fa-car text-gray-400 text-xs"></i>
+                        <span class="text-xs font-semibold text-gray-800">${k.merk ?? '-'}</span>
+                        <span class="font-mono text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">${k.nopol ?? '-'}</span>
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${kStClass}">${kStLabel}</span>
+                    </div>`;
+                }).join('');
             }
 
-            // file persyaratan
-            if (data.file_persyaratan) {
-                document.getElementById('d_file_persyaratan').href = '/' + data.file_persyaratan;
+            // Helper: ambil nama file asli (hapus prefix timestamp_ di depan)
+            function getOriginalName(path) {
+                if (!path) return null;
+                const parts = path.split('/');
+                const raw = parts[parts.length - 1];           // e.g. "1234567890_dokumen.pdf"
+                const idx = raw.indexOf('_');
+                return idx !== -1 ? raw.substring(idx + 1) : raw;
+            }
+
+            // File Kontrak
+            const fkWrap = document.getElementById('d_file_kontrak_wrap');
+            if (data.file_kontrak) {
+                const fname = getOriginalName(data.file_kontrak);
+                fkWrap.innerHTML = `<p class="text-xs text-gray-400 mb-1">File Kontrak</p>
+                    <a href="/${data.file_kontrak}" target="_blank"
+                       class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors max-w-full">
+                        <i class="fa fa-file-alt text-xs flex-shrink-0"></i>
+                        <span class="truncate">${fname}</span>
+                    </a>`;
             } else {
-                document.getElementById('d_file_persyaratan').innerText = 'Tidak ada file';
-                document.getElementById('d_file_persyaratan').removeAttribute('href');
+                fkWrap.innerHTML = `<p class="text-xs text-gray-400 mb-1">File Kontrak</p>
+                    <span class="text-xs text-gray-400">Tidak ada file</span>`;
+            }
+
+            // File Persyaratan
+            const fpWrap = document.getElementById('d_file_persyaratan_wrap');
+            if (data.file_persyaratan) {
+                const fname = getOriginalName(data.file_persyaratan);
+                fpWrap.innerHTML = `<p class="text-xs text-gray-400 mb-1">File Persyaratan</p>
+                    <a href="/${data.file_persyaratan}" target="_blank"
+                       class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors max-w-full">
+                        <i class="fa fa-file-alt text-xs flex-shrink-0"></i>
+                        <span class="truncate">${fname}</span>
+                    </a>`;
+            } else {
+                fpWrap.innerHTML = `<p class="text-xs text-gray-400 mb-1">File Persyaratan</p>
+                    <span class="text-xs text-gray-400">Tidak ada file</span>`;
             }
         }
     

@@ -19,5 +19,7 @@ class Setting extends Model
         'kode_pos',
         'batas_reminder',
         'satuan_reminder',
+        'ppn_default',
+        'pph_default',
     ];
 }

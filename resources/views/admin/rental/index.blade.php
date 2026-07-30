@@ -418,6 +418,12 @@
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                             <i class="fa fa-eye text-xs"></i> Detail
                                         </a>
+                                        {{-- Task 8: Tombol cetak Invoice PDF --}}
+                                        <a href="{{ route('rental.invoice-pdf', $r->id) }}" target="_blank"
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                                            title="Cetak Invoice PDF">
+                                            <i class="fa fa-file-pdf text-xs"></i> Invoice
+                                        </a>
                                         <form action="{{ route('rental.destroy', $r->id) }}" method="POST"
                                             onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
                                             @csrf

@@ -194,8 +194,198 @@
     </div>
 </div>
 
+{{-- ================================================================
+     Task 5: SECTION PEMBAYARAN CICILAN
+================================================================ --}}
+<div class="bg-white rounded-xl shadow mt-5 mx-5">
+    <div class="flex items-center justify-between px-5 py-4 border-b">
+        <div>
+            <h3 class="text-base font-bold text-gray-800">Riwayat Pembayaran</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Cicilan pembayaran untuk invoice ini</p>
+        </div>
+        @if(!$isLunas)
+            <button onclick="openModalBayar()"
+                class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+                <i class="fa fa-plus"></i> Tambah Pembayaran
+            </button>
+        @else
+            <span class="inline-flex items-center gap-2 bg-green-100 text-green-700 text-sm font-semibold px-4 py-2 rounded-lg">
+                <i class="fa fa-check-circle"></i> Sudah Lunas
+            </span>
+        @endif
+    </div>
+
+    {{-- Ringkasan total --}}
+    <div class="grid grid-cols-3 divide-x border-b">
+        <div class="px-5 py-4">
+            <p class="text-xs text-gray-400 mb-0.5">Total Invoice</p>
+            <p class="text-sm font-bold text-gray-800">Rp {{ number_format($invoiceTotal, 0, ',', '.') }}</p>
+        </div>
+        <div class="px-5 py-4">
+            <p class="text-xs text-gray-400 mb-0.5">Total Terbayar</p>
+            <p class="text-sm font-bold text-green-600">Rp {{ number_format($totalPaid, 0, ',', '.') }}</p>
+        </div>
+        <div class="px-5 py-4">
+            <p class="text-xs text-gray-400 mb-0.5">Sisa Tagihan</p>
+            <p class="text-sm font-bold {{ $remaining > 0 ? 'text-red-600' : 'text-green-600' }}">
+                Rp {{ number_format($remaining, 0, ',', '.') }}
+            </p>
+        </div>
+    </div>
+
+    {{-- Tabel daftar cicilan --}}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-100">
+                    <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No</th>
+                    <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Transaction ID</th>
+                    <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
+                    <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Metode</th>
+                    <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jumlah</th>
+                    <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Bukti</th>
+                    <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($payments as $i => $pay)
+                    @php
+                        $sc = match($pay->status) {
+                            'Verified' => 'bg-green-100 text-green-700',
+                            'Pending'  => 'bg-yellow-100 text-yellow-700',
+                            'Rejected' => 'bg-red-100 text-red-700',
+                            default    => 'bg-gray-100 text-gray-600',
+                        };
+                    @endphp
+                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50 hover:bg-blue-50/40 transition-colors">
+                        <td class="px-4 py-3 text-xs text-gray-400">{{ $i + 1 }}</td>
+                        <td class="px-4 py-3">
+                            <span class="font-mono text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded">{{ $pay->transaction_id }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-600">
+                            {{ \Carbon\Carbon::parse($pay->payment_date)->format('d M Y') }}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ $pay->method }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-green-700">
+                            Rp {{ number_format($pay->amount, 0, ',', '.') }}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            @if($pay->file_pembayaran)
+                                <a href="{{ asset($pay->file_pembayaran) }}" target="_blank"
+                                    class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors">
+                                    <i class="fa fa-file text-xs"></i> Lihat
+                                </a>
+                            @else
+                                <span class="text-gray-400 text-xs">-</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $sc }}">
+                                {{ $pay->status }}
+                            </span>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="text-center py-10 text-gray-400 text-sm">
+                            <i class="fa fa-inbox text-3xl mb-2 block text-gray-300"></i>
+                            Belum ada pembayaran. Klik "Tambah Pembayaran" untuk memulai.
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{-- Modal Tambah Pembayaran --}}
+<div id="modalBayar" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl max-h-[95vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+                <h3 class="text-base font-bold text-gray-800">Tambah Pembayaran</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Cicilan untuk {{ $invoice->invoice_no }}</p>
+            </div>
+            <button onclick="closeModalBayar()" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 text-lg leading-none">&times;</button>
+        </div>
+        <form action="{{ route('invoices.payments.store', $invoice->id) }}" method="POST" enctype="multipart/form-data"
+              class="px-6 py-5 space-y-4">
+            @csrf
+            <div class="bg-blue-50 rounded-xl px-4 py-3 flex justify-between items-center">
+                <span class="text-xs text-blue-600 font-semibold">Sisa Tagihan</span>
+                <span class="text-sm font-bold text-blue-700">Rp {{ number_format($remaining, 0, ',', '.') }}</span>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Jumlah Pembayaran (Rp) <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
+                    <input type="number" name="amount" required min="1"
+                        placeholder="0" value="{{ old('amount') }}"
+                        class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Tanggal <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" name="payment_date" required
+                        value="{{ old('payment_date', date('Y-m-d')) }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Metode <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="method" required placeholder="Transfer, Tunai, QRIS"
+                        value="{{ old('method') }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Bukti Pembayaran <span class="text-gray-400 font-normal">(opsional)</span>
+                </label>
+                <input type="file" name="file_pembayaran" accept=".pdf,.jpg,.jpeg,.png"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <button type="button" onclick="closeModalBayar()"
+                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                    Batal
+                </button>
+                <button type="submit"
+                    class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
+                    <i class="fa fa-save text-xs"></i> Simpan Pembayaran
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 @push('scripts')
 <script>
+// ── Task 5: Modal Pembayaran ──────────────────────────────────
+function openModalBayar() {
+    const m = document.getElementById('modalBayar');
+    if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+}
+function closeModalBayar() {
+    const m = document.getElementById('modalBayar');
+    if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+}
+document.addEventListener('DOMContentLoaded', function () {
+    const m = document.getElementById('modalBayar');
+    if (m) m.addEventListener('click', function(e) { if (e.target === m) closeModalBayar(); });
+    // Auto-buka jika ada error dari form pembayaran
+    @if ($errors->any() && old('amount'))
+    openModalBayar();
+    @endif
+});
+// ─────────────────────────────────────────────────────────────
+
 const INVOICE_ID = {{ $invoice->id }};
 const PPN_PCT    = {{ floatval($invoice->ppn ?? 0) }};
 const PPH_PCT    = {{ floatval($invoice->pph ?? 0) }};

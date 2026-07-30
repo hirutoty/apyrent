@@ -661,7 +661,7 @@ class RentalController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | INVOICE
+    | INVOICE (PDF rental lama — cetak dari view rental.invoice)
     |--------------------------------------------------------------------------
     */
     public function invoice($id)
@@ -680,6 +680,89 @@ class RentalController extends Controller
             ->setPaper('A4', 'portrait');
 
         return $pdf->stream('invoice.pdf');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Task 8: INVOICE PDF — style sama persis dengan admin.invoice.print
+    |--------------------------------------------------------------------------
+    */
+    public function invoicePdf($id)
+    {
+        $rental = Rental::with(['member', 'kendaraan'])->findOrFail($id);
+
+        // 1. Cek apakah rental punya file invoice langsung (upload manual)
+        if ($rental->invoice && file_exists(public_path($rental->invoice))) {
+            return response()->file(public_path($rental->invoice));
+        }
+
+        // 2. Cari Invoice record yang terhubung ke rental via customer_name
+        $invoice = null;
+        if ($rental->member) {
+            $invoice = \App\Models\Invoice::with([
+                'periodes.remaks', 'kendaraan', 'kendaraans',
+                'penawaran', 'kontrak', 'penawarans', 'kontraks',
+            ])
+            ->where('customer_name', $rental->member->nama_pelanggan)
+            ->latest()
+            ->first();
+        }
+
+        if ($invoice) {
+            // Delegate ke InvoicesController@print agar output identik
+            $ctrl = new \App\Http\Controllers\Admin\InvoicesController();
+            return $ctrl->print($invoice->id);
+        }
+
+        // 3. Generate PDF invoice langsung dari data rental
+        $setting = \App\Models\Setting::first();
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
+        // Hitung terbilang
+        $grandTotal = (int) ($rental->total_biaya ?? 0);
+        $terbilang  = ucwords(trim($this->penyebutRental($grandTotal))) . ' Rupiah';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.rental.invoice-pdf', [
+            'rental'    => $rental,
+            'setting'   => $setting,
+            'logoSrc'   => $logoSrc,
+            'terbilang' => $terbilang,
+        ])
+        ->setPaper('a4', 'portrait')
+        ->setOptions([
+            'dpi'                  => 96,
+            'isHtml5ParserEnabled' => true,
+            'defaultFont'          => 'Times New Roman',
+            'isPhpEnabled'         => true,
+            'margin_top'           => 0,
+            'margin_bottom'        => 0,
+            'margin_left'          => 0,
+            'margin_right'         => 0,
+            'isRemoteEnabled'      => true,
+        ]);
+
+        return $pdf->stream('Invoice-Rental-' . $rental->id . '.pdf');
+    }
+
+    private function penyebutRental(int $n): string
+    {
+        $n = abs($n);
+        $h = ['','Satu','Dua','Tiga','Empat','Lima','Enam','Tujuh','Delapan','Sembilan','Sepuluh','Sebelas'];
+        if ($n < 12)                return ' ' . $h[$n];
+        elseif ($n < 20)            return $this->penyebutRental($n - 10) . ' Belas';
+        elseif ($n < 100)           return $this->penyebutRental(intdiv($n, 10)) . ' Puluh' . $this->penyebutRental($n % 10);
+        elseif ($n < 200)           return ' Seratus' . $this->penyebutRental($n - 100);
+        elseif ($n < 1000)          return $this->penyebutRental(intdiv($n, 100)) . ' Ratus' . $this->penyebutRental($n % 100);
+        elseif ($n < 2000)          return ' Seribu' . $this->penyebutRental($n - 1000);
+        elseif ($n < 1000000)       return $this->penyebutRental(intdiv($n, 1000)) . ' Ribu' . $this->penyebutRental($n % 1000);
+        elseif ($n < 1000000000)    return $this->penyebutRental(intdiv($n, 1000000)) . ' Juta' . $this->penyebutRental($n % 1000000);
+        elseif ($n < 1000000000000) return $this->penyebutRental(intdiv($n, 1000000000)) . ' Miliar' . $this->penyebutRental($n % 1000000000);
+        return '';
     }
 
     public function toogletatus(Request $request, $id)

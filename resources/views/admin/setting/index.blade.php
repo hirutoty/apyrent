@@ -230,6 +230,45 @@
         </div>
     </div>
 
+    {{-- PPN & PPH Default --}}
+    <div class="p-6 space-y-5 border-t border-gray-100">
+        <div class="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-widest">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
+            </svg>
+            Pajak Invoice (PPN &amp; PPH)
+        </div>
+        <p class="text-xs text-gray-400 -mt-3">Nilai ini akan otomatis terisi saat membuat invoice baru. Bisa diubah per invoice jika diperlukan.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-gray-500">PPN Default (%)</label>
+                <div class="relative">
+                    <input type="number" name="ppn_default" min="0" max="100" step="0.01"
+                        value="{{ old('ppn_default', $setting->ppn_default ?? 0) }}"
+                        placeholder="Contoh: 11"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition">
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold">%</span>
+                </div>
+                @error('ppn_default')
+                    <p class="text-xs text-red-500">{{ $message }}</p>
+                @enderror
+            </div>
+            <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-gray-500">PPH Default (%)</label>
+                <div class="relative">
+                    <input type="number" name="pph_default" min="0" max="100" step="0.01"
+                        value="{{ old('pph_default', $setting->pph_default ?? 0) }}"
+                        placeholder="Contoh: 2"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition">
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold">%</span>
+                </div>
+                @error('pph_default')
+                    <p class="text-xs text-red-500">{{ $message }}</p>
+                @enderror
+            </div>
+        </div>
+    </div>
+
     {{-- Submit --}}
     <div class="px-6 py-4 flex justify-end bg-gray-50 rounded-b-xl">
         <button type="submit"

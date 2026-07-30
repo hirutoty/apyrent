@@ -24,10 +24,8 @@
             <h1 class="text-2xl font-bold text-gray-800">Data Pembayaran</h1>
             <p class="text-sm text-gray-500 mt-0.5">Kelola seluruh transaksi pembayaran invoice</p>
         </div>
-        <button onclick="openModalTambah()"
-            class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
-            <i class="fa fa-plus text-sm"></i> Tambah Pembayaran
-        </button>
+        {{-- Task 6: Tombol Tambah Pembayaran dihilangkan.
+             Pembayaran hanya bisa ditambah melalui detail Invoice (/admin/invoices/{id}). --}}
     </div>
 
     {{-- EXPORT --}}
@@ -257,145 +255,6 @@
 </div>
 
 {{-- ================================================================
-     MODAL TAMBAH
-================================================================ --}}
-<div id="modalTambah" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 overflow-auto"
-    style="backdrop-filter:blur(2px)">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 my-auto" style="animation:slideUp .2s ease">
-
-        <form action="{{ route('payments.store') }}" method="POST" enctype="multipart/form-data">
-            @csrf
-
-            {{-- HEADER --}}
-            <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
-                <div>
-                    <h2 class="text-base font-bold text-gray-800">Tambah Pembayaran</h2>
-                    <p class="text-xs text-gray-500 mt-0.5">Isi data transaksi pembayaran invoice</p>
-                </div>
-                <button type="button" onclick="closeModalTambah()"
-                    class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
-                    <i class="fa fa-times"></i>
-                </button>
-            </div>
-
-            <div class="px-6 py-5 space-y-6">
-
-                {{-- SEKSI 1: INFO DASAR --}}
-                <div>
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <span class="text-blue-600 text-[10px] font-bold">1</span>
-                        </div>
-                        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Informasi dasar</h3>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice <span class="text-red-500">*</span></label>
-                            <select name="invoice_id" required
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="">� Pilih Invoice �</option>
-                                @foreach ($invoices as $inv)
-                                    <option value="{{ $inv->id }}">
-                                        {{ $inv->invoice_no }} � {{ $inv->customer_name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Pembayaran <span class="text-red-500">*</span></label>
-                            <input type="date" name="payment_date" value="{{ old('payment_date', date('Y-m-d')) }}" required
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Metode Pembayaran <span class="text-red-500">*</span></label>
-                            <input type="text" name="method" required placeholder="Contoh: Transfer, Tunai, QRIS"
- value="{{ old('method') }}"
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="border-t border-gray-100"></div>
-
-                {{-- SEKSI 2: NOMINAL & STATUS --}}
-                <div>
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <span class="text-blue-600 text-[10px] font-bold">2</span>
-                        </div>
-                        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nominal & status</h3>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jumlah Pembayaran (Rp) <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
-                                <input type="number" name="amount" required min="1" max="9999999999" placeholder="0"
-                                    value="{{ old('amount') }}"
-                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
-                            <select name="status" required
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="Pending" {{ old('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="Verified" {{ old('status') == 'Verified' ? 'selected' : '' }}>Verified</option>
-                                <option value="Rejected" {{ old('status') == 'Rejected' ? 'selected' : '' }}>Rejected</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="border-t border-gray-100"></div>
-
-                {{-- SEKSI 3: BUKTI PEMBAYARAN --}}
-                <div>
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <span class="text-blue-600 text-[10px] font-bold">3</span>
-                        </div>
-                        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bukti pembayaran</h3>
-                        <span class="text-xs text-gray-400">(opsional)</span>
-                    </div>
-                    <div id="dropZoneTambah"
-                        class="w-full border-2 border-dashed border-blue-300 bg-blue-50 rounded-xl p-6
-                               flex flex-col items-center justify-center text-center cursor-pointer
-                               hover:bg-blue-100 transition-colors">
-                        <input type="file" name="file_pembayaran" id="fileTambah" class="hidden"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onchange="previewFilePembayaran(event,'previewTambah','dropZoneTambah')">
-                        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">
-                            <i class="fa fa-cloud-upload-alt text-2xl text-blue-500"></i>
-                        </div>
-                        <p class="text-sm font-semibold text-blue-700">Drag & Drop File</p>
-                        <p class="text-xs text-gray-500 mt-1">atau <span class="font-semibold text-blue-600">klik di sini</span></p>
-                        <p class="text-xs text-gray-400 mt-1">PDF, JPG, PNG (Maks 4MB)</p>
-                    </div>
-                    <div class="mt-3 flex justify-center">
-                        <img id="previewTambah" class="hidden w-32 h-32 object-cover rounded-lg border border-blue-300" alt="Preview">
-                    </div>
-                </div>
-
-            </div>
-
-            {{-- FOOTER --}}
-            <div class="border-t border-gray-100 px-6 py-4 flex justify-end gap-2">
-                <button type="button" onclick="closeModalTambah()"
-                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                    Batal
-                </button>
-                <button type="submit"
-                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
-                    <i class="fa fa-save text-sm"></i> Simpan Pembayaran
-                </button>
-            </div>
-
-        </form>
-    </div>
-</div>
-
-{{-- ================================================================
      MODAL EDIT
 ================================================================ --}}
 <div id="modalEdit" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 overflow-auto"
@@ -576,25 +435,7 @@
         });
     }
 
-    /* -- MODAL TAMBAH -- */
-    const modalTambah = document.getElementById('modalTambah');
-
-    function openModalTambah() {
-        modalTambah.classList.remove('hidden');
-        modalTambah.classList.add('flex');
-    }
-    function closeModalTambah() {
-        modalTambah.classList.add('hidden');
-        modalTambah.classList.remove('flex');
-    }
-    modalTambah.addEventListener('click', e => { if (e.target === modalTambah) closeModalTambah(); });
-
-    // Auto-reopen modal tambah on validation error
-    @if ($errors->any() && !session('success'))
-    document.addEventListener('DOMContentLoaded', function() {
-        openModalTambah();
-    });
-    @endif
+    /* -- Task 6: Modal Tambah dihapus — pembayaran hanya via detail Invoice -- */
 
     /* -- MODAL EDIT -- */
     const modalEdit = document.getElementById('modalEdit');

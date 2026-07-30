@@ -258,133 +258,109 @@
 
                 <div class="px-6 py-5 space-y-6">
 
-                    {{-- SEKSI 1 --}}
+                    {{-- ===== SEKSI 0: NO KONTRAK ===== --}}
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                                <i class="fa fa-file-contract text-white text-[9px]"></i>
+                            </div>
+                            <h3 class="text-xs font-semibold text-blue-700 uppercase tracking-wide">No Kontrak</h3>
+                            <span class="text-xs text-blue-400">— semua data terisi otomatis</span>
+                        </div>
+
+                        {{-- Dropdown pilih kontrak --}}
+                        <select id="tambah_no_kontrak_input"
+                            class="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500 bg-white">
+                            <option value="">-- Pilih No Kontrak --</option>
+                            @foreach($kontraks as $ktk)
+                                <option value="{{ $ktk->no_kontrak }}">
+                                    {{ $ktk->no_kontrak }}
+                                    @if($ktk->penawaran)— {{ $ktk->penawaran->customer_name ?? $ktk->pihak_kedua }}@endif
+                                </option>
+                            @endforeach
+                        </select>
+
+                        {{-- Info rental + sisa pembayaran --}}
+                        <div id="tambah_kontrak_info" class="mt-3 hidden">
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="bg-white rounded-lg border border-blue-100 px-3 py-2 text-center">
+                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Jumlah Rental</p>
+                                    <p id="tambah_info_rental_count" class="text-lg font-bold text-blue-600 mt-0.5">0</p>
+                                </div>
+                                <div class="bg-white rounded-lg border border-blue-100 px-3 py-2 text-center">
+                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Total Tagihan</p>
+                                    <p id="tambah_info_total_biaya" class="text-sm font-semibold text-gray-700 mt-0.5">Rp 0</p>
+                                </div>
+                                <div class="bg-white rounded-lg border border-blue-100 px-3 py-2 text-center">
+                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Sisa Pembayaran</p>
+                                    <p id="tambah_info_sisa" class="text-sm font-semibold mt-0.5">Rp 0</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Status badge --}}
+                        <div id="tambah_kontrak_status" class="mt-2 hidden">
+                            <span id="tambah_kontrak_status_badge" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"></span>
+                        </div>
+
+                        {{-- Hidden relasi — diisi dari lookup --}}
+                        <input type="hidden" name="kontrak_ids[]"   id="tambah_hidden_kontrak_id">
+                        <input type="hidden" name="penawaran_ids[]" id="tambah_hidden_penawaran_id">
+                        <div id="tambah_hidden_kendaraan_container"></div>
+                    </div>{{-- end SEKSI 0 --}}
+                    {{-- SEKSI 1: INFO DASAR (readonly, auto-fill dari kontrak) --}}
                     <div>
                         <div class="flex items-center gap-2 mb-3">
                             <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                                 <span class="text-blue-600 text-[10px] font-bold">1</span>
                             </div>
                             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Informasi dasar</h3>
+                            <span class="text-xs text-gray-400 italic">— terisi otomatis dari kontrak</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">No invoice</label>
-                                <input type="text" value="(otomatis dibuat sistem)" disabled
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-400 cursor-not-allowed">
+                                <input type="text" value="(otomatis dibuat sistem)" disabled class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-400 cursor-not-allowed">
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal invoice <span
-                                        class="text-red-500">*</span></label>
-                                <input type="date" name="invoice_date" value="{{ date('Y-m-d') }}" required
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal invoice <span class="text-red-500">*</span></label>
+                                <input type="date" name="invoice_date" value="{{ date('Y-m-d') }}" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama customer <span
-                                        class="text-red-500">*</span></label>
-                                <input type="text" name="customer_name" required
-                                    placeholder="Nama customer atau perusahaan"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('customer_name') }}">
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama customer <span class="text-red-500">*</span></label>
+                                <input type="text" name="customer_name" id="tambah_customer_name" required readonly placeholder="Otomatis dari kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe customer</label>
-                                <select name="type"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="perorangan" {{ old('type') == 'perorangan' ? 'selected' : '' }}>Perorangan</option>
-                                    <option value="perusahaan" {{ old('type') == 'perusahaan' ? 'selected' : '' }}>Perusahaan</option>
-                                </select>
+                                <input type="text" id="tambah_type_display" readonly placeholder="Otomatis dari kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
+                                <input type="hidden" name="type" id="tambah_type_hidden" value="perorangan">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat customer</label>
-                                <textarea name="customer_address" rows="2" placeholder="Alamat lengkap customer"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">{{ old('customer_address') }}</textarea>
+                                <textarea name="customer_address" id="tambah_customer_address" rows="2" readonly placeholder="Otomatis dari kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"></textarea>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Telepon</label>
-                                <input type="number" name="telephone" placeholder="Nomor telepon customer"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('telephone') }}">
+                                <input type="text" name="telephone" id="tambah_telephone" readonly placeholder="Otomatis dari kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5 mt-3">Email</label>
-                                <input type="email" name="email" placeholder="Email Customer"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('email') }}">
+                                <input type="email" name="email" id="tambah_email" readonly placeholder="Otomatis dari kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
                             </div>
                         </div>
                     </div>
 
                     <div class="border-t border-gray-100"></div>
 
-                    {{-- SEKSI 2 --}}
+                    {{-- SEKSI 2: KENDARAAN (auto dari penawaran) --}}
                     <div>
                         <div class="flex items-center gap-2 mb-3">
                             <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                                 <span class="text-blue-600 text-[10px] font-bold">2</span>
                             </div>
-                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Relasi dokumen</h3>
-                            <span class="text-xs text-gray-400">(opsional, bisa lebih dari satu)</span>
+                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Kendaraan</h3>
+                            <span class="text-xs text-gray-400 italic">— dari penawaran terkait</span>
                         </div>
-
-                        {{-- Penawaran rows --}}
-                        <div class="mb-3">
-                            <div class="flex items-center justify-between mb-1.5">
-                                <label class="text-xs font-semibold text-gray-600">Penawaran</label>
-                                <button type="button" onclick="addRelRow('tambah','penawaran')"
-                                    class="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                                    <i class="fa fa-plus text-[10px]"></i> Tambah
-                                </button>
-                            </div>
-                            <div id="tambah_penawaran_rows" class="space-y-2">
-                                <div class="flex gap-2 items-center rel-row">
-                                    <select name="penawaran_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">� Tidak ada �</option>
-                                        @foreach ($penawarans as $p)
-                                            <option value="{{ $p->id }}" {{ old('penawaran_ids[]') == $p->id ? 'selected' : '' }}>{{ $p->no_penawaran }} � {{ $p->customer_name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Kontrak rows --}}
-                        <div class="mb-3">
-                            <div class="flex items-center justify-between mb-1.5">
-                                <label class="text-xs font-semibold text-gray-600">Kontrak</label>
-                                <button type="button" onclick="addRelRow('tambah','kontrak')"
-                                    class="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                                    <i class="fa fa-plus text-[10px]"></i> Tambah
-                                </button>
-                            </div>
-                            <div id="tambah_kontrak_rows" class="space-y-2">
-                                <div class="flex gap-2 items-center rel-row">
-                                    <select name="kontrak_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">� Tidak ada �</option>
-                                        @foreach ($kontraks as $k)
-                                            <option value="{{ $k->id }}" {{ old('kontrak_ids[]') == $k->id ? 'selected' : '' }}>{{ $k->no_kontrak ?? '#' . $k->id }}</option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Kendaraan rows --}}
-                        <div>
-                            <div class="flex items-center justify-between mb-1.5">
-                                <label class="text-xs font-semibold text-gray-600">Kendaraan</label>
-                                <button type="button" onclick="addRelRow('tambah','kendaraan')"
-                                    class="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                                    <i class="fa fa-plus text-[10px]"></i> Tambah
-                                </button>
-                            </div>
-                            <div id="tambah_kendaraan_rows" class="space-y-2">
-                                <div class="flex gap-2 items-center rel-row">
-                                    <select name="kendaraan_ids[]" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                        <option value="">� Tidak ada �</option>
-                                        @foreach ($kendaraans as $kd)
-                                            <option value="{{ $kd->id }}" {{ old('kendaraan_ids[]') == $kd->id ? 'selected' : '' }}>{{ $kd->merk }} � {{ $kd->nopol }}</option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" onclick="removeRelRow(this)" class="text-red-400 hover:text-red-600 text-sm px-1"><i class="fa fa-times"></i></button>
-                                </div>
-                            </div>
+                        <div id="tambah_kendaraan_display" class="text-xs text-gray-400 italic px-3 py-2 border border-dashed border-gray-200 rounded-lg">
+                            Masukkan No Kontrak terlebih dahulu.
                         </div>
                     </div>
 
@@ -401,8 +377,8 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Satuan</label>
-                                <input type="text" name="satuan" placeholder="Contoh: Unit, Pcs"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('satuan') }}">
+                                <input type="text" name="satuan" placeholder="Contoh: Car Rent/Day"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('satuan', 'Car Rent/Day') }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pengirim</label>
@@ -412,14 +388,32 @@
                         </div>
                         <div class="grid grid-cols-3 gap-4 mt-4">
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPN (%)</label>
-                                <input type="number" step="0.01" name="ppn" value="0" min="0"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                    PPN (%)
+                                    @if(($setting->ppn_default ?? 0) > 0)
+                                        <span class="text-blue-400 font-normal">— dari setting</span>
+                                    @endif
+                                </label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="ppn" min="0"
+                                        value="{{ old('ppn', $setting->ppn_default ?? 0) }}"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                                </div>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPH (%)</label>
-                                <input type="number" step="0.01" name="pph" value="0" min="0"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                    PPH (%)
+                                    @if(($setting->pph_default ?? 0) > 0)
+                                        <span class="text-blue-400 font-normal">— dari setting</span>
+                                    @endif
+                                </label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="pph" min="0"
+                                        value="{{ old('pph', $setting->pph_default ?? 0) }}"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Total (Rp)</label>
@@ -437,26 +431,44 @@
                             <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                                 <span class="text-blue-600 text-[10px] font-bold">4</span>
                             </div>
-                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</h3>
+                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Pembayaran & Status</h3>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                            {{-- Jumlah dibayar (input manual cicilan) --}}
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                    Jumlah Dibayar <span class="text-gray-400 font-normal">(isi 0 jika belum ada pembayaran)</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-semibold">Rp</span>
+                                    <input type="number" id="tambah_jumlah_bayar" name="jumlah_dibayar"
+                                        value="0" min="0" step="1000"
+                                        oninput="onTambahJumlahBayarChange(this)"
+                                        class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                </div>
+                                <div class="mt-1.5 flex flex-wrap gap-4 text-xs text-gray-500">
+                                    <span>Total tagihan: <span id="tambah_lbl_total" class="font-semibold text-gray-700">Rp 0</span></span>
+                                    <span>Sudah dibayar: <span id="tambah_lbl_prev_paid" class="font-semibold text-blue-600">Rp 0</span></span>
+                                    <span>Sisa: <span id="tambah_lbl_sisa" class="font-semibold text-red-600">Rp 0</span></span>
+                                </div>
+                            </div>
+
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status invoice</label>
-                                <select name="status"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="draft" {{ old('status') == 'draft' ? 'selected' : '' }}>Draft</option>
-                                    <option value="partial" {{ old('status') == 'partial' ? 'selected' : '' }}>Partial</option>
-                                    <option value="overdue" {{ old('status') == 'overdue' ? 'selected' : '' }}>Overdue</option>
-                                    <option value="lunas" {{ old('status') == 'lunas' ? 'selected' : '' }}>Lunas</option>
-                                </select>
+                                <div id="tambah_status_display"
+                                    class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-500 w-full">
+                                    Draft (belum ada pembayaran)
+                                </div>
+                                <input type="hidden" name="status" id="tambah_status_hidden" value="draft">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status pembayaran</label>
-                                <select name="payment_status"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="unpaid" {{ old('payment_status') == 'unpaid' ? 'selected' : '' }}>Unpaid</option>
-                                    <option value="paid" {{ old('payment_status') == 'paid' ? 'selected' : '' }}>Paid</option>
-                                </select>
+                                <div id="tambah_payment_status_display"
+                                    class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-red-100 text-red-700 w-full">
+                                    Unpaid
+                                </div>
+                                <input type="hidden" name="payment_status" id="tambah_payment_status_hidden" value="unpaid">
                             </div>
                         </div>
                     </div>
@@ -574,10 +586,7 @@
                             <h3 class="text-sm font-bold text-gray-800">Periode & Remaks</h3>
                             <p class="text-xs text-gray-400 mt-0.5">Invoice: <span id="tambah_invoice_no_label" class="font-semibold text-blue-600">-</span></p>
                         </div>
-                        <button type="button" id="btnTambahPeriodeTambah"
-                            class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
-                            <i class="fa fa-plus"></i> Tambah Periode
-                        </button>
+                       
                     </div>
                     <div id="periodeListTambah" class="divide-y border rounded-xl min-h-[120px]">
                         <div class="py-10 text-center text-gray-400 text-xs">
@@ -1143,10 +1152,7 @@
     {{-- ===== MODAL TAMBAH PERIODE (Tab 2) ===== --}}
     <div id="modalTambahPeriode" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
-            <div class="flex items-center justify-between px-6 py-4 border-b">
-                <h3 class="text-sm font-bold text-gray-800">Tambah Periode</h3>
-                <button type="button" id="closeTambahPeriode" class="text-gray-400 hover:text-red-500"><i class="fa fa-times"></i></button>
-            </div>
+            
             <div class="px-6 py-5 space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Awal <span class="text-red-500">*</span></label>
@@ -1168,8 +1174,7 @@
     <div id="modalTambahRemak" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
             <div class="flex items-center justify-between px-6 py-4 border-b">
-                <h3 class="text-sm font-bold text-gray-800">Tambah Remaks</h3>
-                <button type="button" id="closeTambahRemak" class="text-gray-400 hover:text-red-500"><i class="fa fa-times"></i></button>
+                
             </div>
             <div class="px-6 py-5 space-y-4">
                 <div>
@@ -1429,6 +1434,246 @@
                 if (e.target === modalTambah) closeModal(modalTambah);
             });
 
+            // ===================== LOOKUP NO KONTRAK (dropdown) =====================
+            const fmtRp = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+
+            // Total tagihan dari lookup — dipakai oleh onTambahJumlahBayarChange
+            let _tambahTotalTagihan  = 0;
+            // Total yang sudah dibayar di invoice-invoice sebelumnya
+            let _tambahPrevPaid      = 0;
+            // Rental details untuk auto-populate tab 2
+            let _tambahRentalDetails = [];
+
+            function resetTambahForm() {
+                ['tambah_customer_name','tambah_telephone','tambah_email'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+                const addr = document.getElementById('tambah_customer_address');
+                if (addr) addr.value = '';
+                const td = document.getElementById('tambah_type_display');
+                if (td) td.value = '';
+                document.getElementById('tambah_type_hidden').value = 'perorangan';
+                document.getElementById('tambah_hidden_kontrak_id').value = '';
+                document.getElementById('tambah_hidden_penawaran_id').value = '';
+                document.getElementById('tambah_hidden_kendaraan_container').innerHTML = '';
+                document.getElementById('tambah_kendaraan_display').innerHTML =
+                    '<span class="text-gray-400 italic">Pilih No Kontrak terlebih dahulu.</span>';
+                document.getElementById('tambah_kontrak_info').classList.add('hidden');
+                document.getElementById('tambah_kontrak_status').classList.add('hidden');
+                // Reset jumlah bayar & label
+                _tambahTotalTagihan = 0;
+                _tambahPrevPaid     = 0;
+                _tambahRentalDetails = [];
+                const jb = document.getElementById('tambah_jumlah_bayar');
+                if (jb) jb.value = 0;
+                const lt = document.getElementById('tambah_lbl_total');
+                if (lt) lt.textContent = 'Rp 0';
+                const lp = document.getElementById('tambah_lbl_prev_paid');
+                if (lp) lp.textContent = 'Rp 0';
+                const sl = document.getElementById('tambah_lbl_sisa');
+                if (sl) { sl.textContent = 'Rp 0'; sl.className = 'font-semibold text-red-600'; }
+                // Reset status display
+                setTambahStatus(0, 0);
+            }
+
+            function setTambahStatus(dibayar, total) {
+                const statusEl  = document.getElementById('tambah_status_display');
+                const payEl     = document.getElementById('tambah_payment_status_display');
+                const statusHid = document.getElementById('tambah_status_hidden');
+                const payHid    = document.getElementById('tambah_payment_status_hidden');
+                const sisaLbl   = document.getElementById('tambah_lbl_sisa');
+
+                const sisa = Math.max(0, total - dibayar);
+                if (sisaLbl) {
+                    sisaLbl.textContent = fmtRp(sisa);
+                    sisaLbl.className   = 'font-semibold ' + (sisa > 0 ? 'text-red-600' : 'text-green-600');
+                }
+
+                if (total <= 0 || dibayar <= 0) {
+                    statusHid.value = 'draft';
+                    payHid.value    = 'unpaid';
+                    statusEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-500 w-full';
+                    statusEl.textContent = 'Draft (belum ada pembayaran)';
+                    payEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-red-100 text-red-700 w-full';
+                    payEl.textContent = 'Unpaid';
+                } else if (sisa <= 0) {
+                    statusHid.value = 'lunas';
+                    payHid.value    = 'paid';
+                    statusEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-green-100 text-green-700 w-full';
+                    statusEl.textContent = 'Lunas';
+                    payEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-green-100 text-green-700 w-full';
+                    payEl.textContent = 'Paid';
+                } else {
+                    statusHid.value = 'partial';
+                    payHid.value    = 'unpaid';
+                    statusEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-yellow-100 text-yellow-700 w-full';
+                    statusEl.textContent = 'Partial (' + fmtRp(sisa) + ' belum terbayar)';
+                    payEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-yellow-100 text-yellow-700 w-full';
+                    payEl.textContent = 'Unpaid';
+                }
+            }
+
+            function onTambahJumlahBayarChange(input) {
+                const dibayar     = parseFloat(input.value) || 0;
+                // Sisa yang masih harus dibayar setelah invoice sebelumnya
+                const sisaAktual  = Math.max(0, _tambahTotalTagihan - _tambahPrevPaid);
+                // Update sisa label: sisa aktual dikurangi cicilan yang sekarang diinput
+                const sisaSetelah = Math.max(0, sisaAktual - dibayar);
+                const sisaLbl = document.getElementById('tambah_lbl_sisa');
+                if (sisaLbl) {
+                    sisaLbl.textContent = fmtRp(sisaSetelah);
+                    sisaLbl.className   = 'font-semibold ' + (sisaSetelah > 0 ? 'text-red-600' : 'text-green-600');
+                }
+                // Gunakan total tagihan penuh agar setTambahStatus menghitung dengan benar
+                setTambahStatus(_tambahPrevPaid + dibayar, _tambahTotalTagihan);
+            }
+
+            function doLookupKontrak(no) {
+                const statusWrap  = document.getElementById('tambah_kontrak_status');
+                const statusBadge = document.getElementById('tambah_kontrak_status_badge');
+
+                if (!no) { resetTambahForm(); return; }
+
+                statusWrap.classList.remove('hidden');
+                statusBadge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-gray-100 text-gray-500';
+                statusBadge.innerHTML = '<i class="fa fa-spinner fa-spin text-[10px]"></i> Memuat...';
+
+                fetch(`{{ route('invoices.lookup-kontrak') }}?no=${encodeURIComponent(no)}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.found) {
+                        resetTambahForm();
+                        statusWrap.classList.remove('hidden');
+                        statusBadge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-700';
+                        statusBadge.innerHTML = '<i class="fa fa-times-circle text-[10px]"></i> Kontrak tidak ditemukan';
+                        return;
+                    }
+
+                    statusBadge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-green-100 text-green-700';
+                    statusBadge.innerHTML = `<i class="fa fa-check-circle text-[10px]"></i> ${data.no_kontrak} &mdash; ${data.customer_name}`;
+
+                    // Fill info dasar
+                    document.getElementById('tambah_customer_name').value    = data.customer_name    ?? '';
+                    document.getElementById('tambah_type_display').value     = data.type ? (data.type.charAt(0).toUpperCase() + data.type.slice(1)) : '';
+                    document.getElementById('tambah_type_hidden').value      = data.type             ?? 'perorangan';
+                    document.getElementById('tambah_customer_address').value = data.customer_address ?? '';
+                    document.getElementById('tambah_telephone').value        = data.telephone        ?? '';
+                    document.getElementById('tambah_email').value            = data.email            ?? '';
+
+                    // Hidden relasi
+                    document.getElementById('tambah_hidden_kontrak_id').value   = data.kontrak_id   ?? '';
+                    document.getElementById('tambah_hidden_penawaran_id').value = data.penawaran_id ?? '';
+
+                    // Kendaraan
+                    const kCont = document.getElementById('tambah_hidden_kendaraan_container');
+                    const kDisp = document.getElementById('tambah_kendaraan_display');
+                    kCont.innerHTML = '';
+                    if (data.kendaraans && data.kendaraans.length > 0) {
+                        kDisp.innerHTML = data.kendaraans.map(k =>
+                            `<div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100 mb-1">
+                                <i class="fa fa-car text-gray-400 text-xs"></i>
+                                <span class="text-xs font-medium text-gray-700">${k.label}</span>
+                            </div>`
+                        ).join('');
+                        data.kendaraans.forEach(k => {
+                            const inp = document.createElement('input');
+                            inp.type = 'hidden'; inp.name = 'kendaraan_ids[]'; inp.value = k.id;
+                            kCont.appendChild(inp);
+                        });
+                    } else {
+                        kDisp.innerHTML = '<span class="text-gray-400 italic">Tidak ada kendaraan terkait.</span>';
+                    }
+
+                    // Info cards
+                    const infoBox = document.getElementById('tambah_kontrak_info');
+                    infoBox.classList.remove('hidden');
+                    document.getElementById('tambah_info_rental_count').textContent = data.rental_count ?? 0;
+                    document.getElementById('tambah_info_total_biaya').textContent  = fmtRp(data.total_biaya ?? 0);
+                    const sisaEl = document.getElementById('tambah_info_sisa');
+                    const sisa   = data.sisa ?? 0;
+                    sisaEl.textContent = fmtRp(sisa);
+                    sisaEl.className   = 'text-sm font-semibold mt-0.5 ' + (sisa > 0 ? 'text-red-600' : 'text-green-600');
+
+                    // Set total tagihan variable & update labels
+                    _tambahTotalTagihan = parseFloat(data.total_biaya) || 0;
+                    _tambahRentalDetails = data.rental_details || [];
+
+                    // Sisa setelah invoice sebelumnya (dari server)
+                    const sisaSetelahInv = parseFloat(data.sisa) || 0;
+                    const totalPaidPrev  = parseFloat(data.total_paid) || 0;
+
+                    // Simpan prev paid untuk dipakai oleh onTambahJumlahBayarChange
+                    _tambahPrevPaid = totalPaidPrev;
+
+                    // Update semua label tagihan
+                    const lt = document.getElementById('tambah_lbl_total');
+                    if (lt) lt.textContent = fmtRp(_tambahTotalTagihan);
+                    const lp = document.getElementById('tambah_lbl_prev_paid');
+                    if (lp) lp.textContent = fmtRp(totalPaidPrev);
+
+                    // Jika ada sisa dari invoice sebelumnya, pre-fill jumlah_bayar = 0
+                    // dan set status dari server (partial jika sudah ada cicilan sebelumnya)
+                    const jbInput = document.getElementById('tambah_jumlah_bayar');
+                    jbInput.value = 0;
+
+                    // Tampilkan sisa dari invoice sebelumnya di label
+                    const sisaLbl = document.getElementById('tambah_lbl_sisa');
+                    if (sisaLbl) {
+                        sisaLbl.textContent = fmtRp(sisaSetelahInv);
+                        sisaLbl.className   = 'font-semibold ' + (sisaSetelahInv > 0 ? 'text-red-600' : 'text-green-600');
+                    }
+
+                    // Status awal: jika sudah ada cicilan sebelumnya → partial,
+                    // jika belum ada invoice sebelumnya → draft
+                    if (totalPaidPrev > 0 && sisaSetelahInv > 0) {
+                        // Sudah pernah bayar sebagian — invoice ini adalah cicilan lanjutan
+                        document.getElementById('tambah_status_hidden').value       = 'partial';
+                        document.getElementById('tambah_payment_status_hidden').value = 'unpaid';
+                        const stEl = document.getElementById('tambah_status_display');
+                        stEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-yellow-100 text-yellow-700 w-full';
+                        stEl.textContent = 'Partial — sisa ' + fmtRp(sisaSetelahInv);
+                        const pyEl = document.getElementById('tambah_payment_status_display');
+                        pyEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-yellow-100 text-yellow-700 w-full';
+                        pyEl.textContent = 'Unpaid';
+                    } else if (sisaSetelahInv <= 0 && _tambahTotalTagihan > 0) {
+                        // Sudah lunas semua
+                        document.getElementById('tambah_status_hidden').value       = 'lunas';
+                        document.getElementById('tambah_payment_status_hidden').value = 'paid';
+                        const stEl = document.getElementById('tambah_status_display');
+                        stEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-green-100 text-green-700 w-full';
+                        stEl.textContent = 'Lunas';
+                        const pyEl = document.getElementById('tambah_payment_status_display');
+                        pyEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-green-100 text-green-700 w-full';
+                        pyEl.textContent = 'Paid';
+                    } else {
+                        setTambahStatus(0, _tambahTotalTagihan);
+                    }
+                })
+                .catch(() => {
+                    statusBadge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-700';
+                    statusBadge.innerHTML = '<i class="fa fa-exclamation-circle text-[10px]"></i> Gagal menghubungi server';
+                });
+            }
+
+            // Trigger on dropdown change
+            document.getElementById('tambah_no_kontrak_input').addEventListener('change', function() {
+                doLookupKontrak(this.value);
+            });
+
+            // Reset form saat modal ditutup
+            const _origClose = window.closeModal;
+            window.closeModal = function(el) {
+                _origClose(el);
+                if (el === modalTambah) {
+                    resetTambahForm();
+                    document.getElementById('tambah_no_kontrak_input').value = '';
+                }
+            };
+            // ===================== END LOOKUP =====================
+
             // ===================== MODAL SHOW =====================
             const modalShow = document.getElementById('modalShow');
             document.getElementById('closeShow').onclick = () => closeModal(modalShow);
@@ -1670,6 +1915,50 @@
             document.getElementById('tambah_invoice_no_label').textContent = invoiceNo;
         }
 
+        // Auto-populate periode & remak dari data rental kontrak
+        async function autoPopulatePeriodeRemak(invoiceId) {
+            if (!_tambahRentalDetails || _tambahRentalDetails.length === 0) return;
+            const csrf = '{{ csrf_token() }}';
+            for (const rental of _tambahRentalDetails) {
+                if (!rental.tanggal_mulai) continue;
+                // 1. Buat periode
+                const periodeResp = await fetch('/admin/invoices/' + invoiceId + '/periodes', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        periode_awal:  rental.tanggal_mulai,
+                        periode_akhir: rental.tanggal_selesai || rental.tanggal_mulai,
+                    })
+                });
+                const periodeJson = await periodeResp.json();
+                const periodeId = periodeJson.id ?? periodeJson.periode?.id ?? null;
+                if (!periodeId) continue;
+
+                // 2. Buat remak dari data kendaraan
+                const durasiLabel = rental.durasi ? rental.durasi + ' ' + rental.satuan : '';
+                const remaksText  = 'Sewa Kendaraan: ' + rental.kendaraan
+                    + (durasiLabel ? ' | Durasi: ' + durasiLabel : '');
+
+                await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        remaks: remaksText,
+                        qty:    1,
+                        price:  rental.biaya_dasar,
+                    })
+                });
+            }
+        }
+
         // ====== AJAX STORE FORM TAMBAH ======
         document.getElementById('formTambah').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -1687,6 +1976,7 @@
                 const json = await resp.json();
                 if (json.success) {
                     unlockTab2(json.invoice_id, json.invoice_no);
+                    await autoPopulatePeriodeRemak(json.invoice_id);
                     switchTambahTab(2);
                 } else {
                     alert(json.message || 'Gagal menyimpan invoice.');
