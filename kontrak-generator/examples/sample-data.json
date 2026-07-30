@@ -1,0 +1,28 @@
+{
+  "_comment": "Contoh data untuk testing generateContract.js. Jalankan: node src/generateContract.js \"$(cat examples/sample-data.json)\" output/sample-output.pdf",
+  "contractDay": "Kamis",
+  "contractDayEn": "Thursday",
+  "contractDate": "30",
+  "contractMonth": "Juli",
+  "contractMonthEn": "July",
+  "contractYear": "2026",
+  "contractNumber": "KTR-202607-0001",
+  "secondPartyName": "PT. Waste4Change Alam Indonesia",
+  "secondPartyKtp": "Jl. Boulevard Barat Raya No. 1, Kelapa Gading, Jakarta Utara 14240",
+  "secondPartyRepresentative": "Mohamad Bijaksana Junerosano",
+  "rentalPeriod": "12 bulan",
+  "rentalStart": "30 Juli 2026",
+  "rentalEnd": "30 Juli 2027",
+  "rentalStartEn": "30 July 2026",
+  "rentalEndEn": "30 July 2027",
+  "secondPartyNoticeLines": [
+    "PT. WASTE4CHANGE ALAM INDONESIA",
+    "Jl. Boulevard Barat Raya No. 1",
+    "Kelapa Gading, Jakarta Utara 14240",
+    ""
+  ],
+  "secondPartyPhone": "081234567890",
+  "signingDateId": "30 Juli 2026",
+  "signingDateEn": "30 July 2026",
+  "secondPartySignerName": "Mohamad Bijaksana Junerosano"
+}

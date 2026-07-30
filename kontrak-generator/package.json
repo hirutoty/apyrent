@@ -1,0 +1,20 @@
+{
+  "name": "kontrak-generator",
+  "version": "1.0.0",
+  "description": "PDF overlay generator for Perjanjian Sewa Menyewa Kendaraan — overlays dynamic data onto the original PDF template without rebuilding layout",
+  "type": "module",
+  "main": "src/generateContract.js",
+  "scripts": {
+    "generate": "node src/generateContract.js",
+    "render-test": "node scripts/renderTest.js",
+    "visual-diff": "node scripts/visualDiff.js"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "pixelmatch": "^6.0.0",
+    "pngjs": "^7.0.0"
+  }
+}

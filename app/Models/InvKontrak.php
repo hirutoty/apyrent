@@ -16,6 +16,9 @@ class InvKontrak extends Model
         'no_kontrak',
         'tanggal_kontrak',
         'perjanjian_pembayaran',
+        'durasi_value',
+        'durasi_satuan',
+        'tanggal_selesai',
 
         'pihak_pertama',
         'contact_pertama',
@@ -25,13 +28,16 @@ class InvKontrak extends Model
 
         'file_kontrak',
         'file_persyaratan',
+        'file_draft',
 
         'status',
     ];
 
     protected $casts = [
-        'tanggal_kontrak' => 'date',
-        'perjanjian_pembayaran' => 'date',
+        'tanggal_kontrak'      => 'date',
+        'perjanjian_pembayaran'=> 'date',
+        'tanggal_selesai'      => 'date',
+        'durasi_value'         => 'integer',
     ];
 
     public function penawaran()
