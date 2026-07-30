@@ -44,12 +44,7 @@
                     Export Excel
                 </a>
 
-                <button onclick="openModalTambah()"
-                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700
-            text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
-                    <i class="fa fa-plus text-sm"></i>
-                    Tambah Summary
-                </button>
+                {{-- Task 4: Tombol Tambah Summary dihilangkan — summary dibuat otomatis dari Invoice --}}
 
             </div>
 
@@ -290,159 +285,6 @@
     </div>
 
     {{-- ================================================================
-     MODAL TAMBAH
-================================================================ --}}
-    <div id="modalTambah" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40"
-        style="backdrop-filter:blur(2px)">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 my-auto" style="animation:slideUp .2s ease">
-
-            <form action="{{ route('summary.store') }}" method="POST">
-                @csrf
-
-                {{-- HEADER --}}
-                <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
-                    <div>
-                        <h2 class="text-base font-bold text-gray-800">Tambah Summary</h2>
-                        <p class="text-xs text-gray-500 mt-0.5">Isi data ringkasan pembayaran invoice</p>
-                    </div>
-                    <button type="button" onclick="closeModalTambah()"
-                        class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
-                        <i class="fa fa-times"></i>
-                    </button>
-                </div>
-
-                <div class="px-6 py-5 space-y-6">
-
-                    {{-- SEKSI 1: RELASI DOKUMEN --}}
-                    <div>
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <span class="text-blue-600 text-[10px] font-bold">1</span>
-                            </div>
-                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Relasi dokumen</h3>
-                            <span class="text-xs text-gray-400">(opsional)</span>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice</label>
-                                <select name="invoice_id"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">� Tidak ada �</option>
-                                    @foreach ($invoices as $inv)
-                                        <option value="{{ $inv->id }}" {{ old('invoice_id') == $inv->id ? 'selected' : '' }}>{{ $inv->invoice_no }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Penawaran</label>
-                                <select name="penawaran_id"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">� Tidak ada �</option>
-                                    @foreach ($penawarans as $p)
-                                        <option value="{{ $p->id }}" {{ old('penawaran_id') == $p->id ? 'selected' : '' }}>{{ $p->no_penawaran }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontrak</label>
-                                <select name="kontrak_id"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">� Tidak ada �</option>
-                                    @foreach ($kontraks as $k)
-                                        <option value="{{ $k->id }}" {{ old('kontrak_id') == $k->id ? 'selected' : '' }}>{{ $k->no_kontrak ?? '#' . $k->id }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="border-t border-gray-100"></div>
-
-                    {{-- SEKSI 2: TIPE --}}
-                    <div>
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <span class="text-blue-600 text-[10px] font-bold">2</span>
-                            </div>
-                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipe & nominal</h3>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tipe <span
-                                    class="text-red-500">*</span></label>
-                            <select name="type" required
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="">-- Pilih Tipe --</option>
-                                <option value="Rental" {{ old('type') == 'Rental' ? 'selected' : '' }}>Rental</option>
-                                <option value="Service" {{ old('type') == 'Service' ? 'selected' : '' }}>Service</option>
-                                <option value="Leasing" {{ old('type') == 'Leasing' ? 'selected' : '' }}>Leasing</option>
-                                <option value="Lainnya" {{ old('type') == 'Lainnya' ? 'selected' : '' }}>Lainnya</option>
-                            </select>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Total Amount (Rp) <span
-                                        class="text-red-500">*</span></label>
-                                <div class="relative">
-                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
-                                    <input type="number" name="total_amount" id="tambah_total" required min="0"
-                                        value="0" oninput="hitungSisaTambah()"
-                                        class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Sudah Dibayar (Rp) <span
-                                        class="text-red-500">*</span></label>
-                                <div class="relative">
-                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
-                                    <input type="number" name="paid_amount" id="tambah_paid" required min="0"
-                                        value="0" oninput="hitungSisaTambah()"
-                                        class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- SISA OTOMATIS --}}
-                        <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <i class="fa fa-calculator text-gray-400 text-xs"></i>
-                                    <span class="text-xs font-semibold text-gray-500">Sisa tagihan (otomatis)</span>
-                                    <span class="text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded">read
-                                        only</span>
-                                </div>
-                                <span id="tambah_status_badge"
-                                    class="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
-                                    �
-                                </span>
-                            </div>
-                            <div class="mt-2 flex items-baseline gap-1">
-                                <span class="text-xs text-gray-400">Rp</span>
-                                <span id="tambah_sisa_display" class="text-2xl font-bold text-gray-800">0</span>
-                            </div>
-                            <p class="text-xs text-gray-400 mt-1">= Total Amount - Sudah Dibayar</p>
-                        </div>
-                    </div>
-
-                </div>
-
-                {{-- FOOTER --}}
-                <div class="border-t border-gray-100 px-6 py-4 flex justify-end gap-2">
-                    <button type="button" onclick="closeModalTambah()"
-                        class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                        Batal
-                    </button>
-                    <button type="submit"
-                        class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
-                        <i class="fa fa-save text-sm"></i> Simpan Summary
-                    </button>
-                </div>
-
-            </form>
-        </div>
-    </div>
-
-    {{-- ================================================================
      MODAL EDIT
 ================================================================ --}}
     <div id="modalEdit" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40"
@@ -663,22 +505,7 @@
                 updateSisaUI(sisa, paid, 'edit_sisa_display', 'edit_status_badge');
             }
 
-            /* --- MODAL TAMBAH --- */
-            const modalTambah = document.getElementById('modalTambah');
-
-            function openModalTambah() {
-                modalTambah.classList.remove('hidden');
-                modalTambah.classList.add('flex');
-                hitungSisaTambah();
-            }
-
-            function closeModalTambah() {
-                modalTambah.classList.add('hidden');
-                modalTambah.classList.remove('flex');
-            }
-            modalTambah.addEventListener('click', e => {
-                if (e.target === modalTambah) closeModalTambah();
-            });
+            /* --- Task 4: Modal Tambah dihapus — summary dibuat otomatis dari Invoice --- */
 
             /* --- MODAL EDIT --- */
             const modalEdit = document.getElementById('modalEdit');
@@ -747,11 +574,10 @@
                 });
             }
         
-        // Auto-reopen modal tambah on validation error
+        // Auto-reopen modal tambah on validation error — tidak diperlukan (Task 4)
         @if ($errors->any() && !session('success'))
         document.addEventListener('DOMContentLoaded', function() {
-            if (typeof openModalTambah === 'function') openModalTambah();
-            else if (typeof openModal === 'function') openModal();
+            // modal tambah sudah dihapus, tidak ada aksi
         });
         @endif
 </script>

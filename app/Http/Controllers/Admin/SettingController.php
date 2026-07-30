@@ -30,6 +30,8 @@ class SettingController extends Controller
             'atas_nama_rekening'  => 'required',
             'batas_reminder'              => 'required|integer|min:1',
             'satuan_reminder'        => 'required|in:hari,minggu,bulan,tahun',
+            'ppn_default'            => 'nullable|numeric|min:0|max:100',
+            'pph_default'            => 'nullable|numeric|min:0|max:100',
         ];
 
         if (!$setting || !$setting->logo) {

@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\Invoice;
 use App\Models\InvPenawaran;
 use App\Models\InvKontrak;
+use App\Models\InvSummary;
 use App\Models\Kendaraan;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
@@ -17,6 +18,121 @@ use App\Services\RemoveBgService;
 
 class InvoicesController extends Controller
 {
+    /**
+     * Lookup kontrak by no_kontrak and return customer + relasi data for auto-fill.
+     * GET /admin/invoices/lookup-kontrak?no={no_kontrak}
+     */
+    public function lookupKontrak(Request $request)
+    {
+        $no = trim($request->input('no', ''));
+
+        if (!$no) {
+            return response()->json(['found' => false]);
+        }
+
+        $kontrak = InvKontrak::with('penawaran.items.kendaraan')
+            ->where('no_kontrak', $no)
+            ->first();
+
+        if (!$kontrak) {
+            return response()->json(['found' => false]);
+        }
+
+        $penawaran = $kontrak->penawaran;
+
+        // Kendaraan dari item penawaran
+        $kendaraans = [];
+        if ($penawaran) {
+            foreach ($penawaran->items as $item) {
+                if ($item->kendaraan) {
+                    $kendaraans[] = [
+                        'id'    => $item->kendaraan->id,
+                        'label' => $item->kendaraan->merk . ' - ' . $item->kendaraan->nopol,
+                    ];
+                }
+            }
+        }
+
+        // Rental data dari member terkait penawaran
+        $rentalCount = 0;
+        $totalBiaya  = 0;
+        $customerName = $penawaran?->customer_name ?? $kontrak->pihak_kedua;
+        $member = null;
+
+        if ($customerName) {
+            $member = \App\Models\Pelanggan::where('nama_pelanggan', $customerName)->first();
+            if ($member) {
+                $rentals     = \App\Models\Rental::where('member_id', $member->id)->get();
+                $rentalCount = $rentals->count();
+                $totalBiaya  = $rentals->sum('total_biaya');
+            }
+        }
+
+        // Sisa pembayaran = total tagihan - semua paid_amount dari invoice sebelumnya (kontrak yang sama)
+        $totalPaidInvoices = \App\Models\InvSummary::where('kontrak_id', $kontrak->id)
+            ->sum('paid_amount');
+
+        $sisa = max(0, $totalBiaya - $totalPaidInvoices);
+
+        // Status otomatis berdasarkan sisa
+        // (dipakai oleh JS untuk menentukan status awal di form)
+        if ($totalBiaya <= 0 || $totalPaidInvoices <= 0) {
+            $autoStatus = 'draft';
+        } elseif ($sisa <= 0) {
+            $autoStatus = 'lunas';
+        } else {
+            $autoStatus = 'partial';
+        }
+
+        // Rental detail untuk auto-populate periode & remak
+        $rentalDetails = [];
+        if (isset($member)) {
+            $rentals = \App\Models\Rental::with('kendaraan')
+                ->where('member_id', $member->id)
+                ->get();
+            foreach ($rentals as $r) {
+                $durasi = null;
+                $satuanLabel = '';
+                if ($r->durasi_tahun)       { $durasi = $r->durasi_tahun;  $satuanLabel = 'Tahun'; }
+                elseif ($r->durasi_bulan)   { $durasi = $r->durasi_bulan;  $satuanLabel = 'Bulan'; }
+                elseif ($r->durasi_hari)    { $durasi = $r->durasi_hari;   $satuanLabel = 'Hari'; }
+
+                $rentalDetails[] = [
+                    'id'             => $r->id,
+                    'tanggal_mulai'  => $r->tanggal_mulai  ? \Carbon\Carbon::parse($r->tanggal_mulai)->format('Y-m-d')  : null,
+                    'tanggal_selesai'=> $r->tanggal_selesai ? \Carbon\Carbon::parse($r->tanggal_selesai)->format('Y-m-d') : null,
+                    'kendaraan'      => $r->kendaraan ? ($r->kendaraan->merk . ' - ' . $r->kendaraan->nopol) : '-',
+                    'harga_per_hari' => (int) ($r->kendaraan->harga_sewa_per_hari ?? 0),
+                    'biaya_dasar'    => (float) ($r->biaya_dasar ?? 0),
+                    'total_biaya'    => (float) ($r->total_biaya ?? 0),
+                    'durasi'         => $durasi,
+                    'satuan'         => $satuanLabel,
+                ];
+            }
+        }
+
+        return response()->json([
+            'found'            => true,
+            'kontrak_id'       => $kontrak->id,
+            'no_kontrak'       => $kontrak->no_kontrak,
+            'penawaran_id'     => $penawaran?->id,
+            'no_penawaran'     => $penawaran?->no_penawaran,
+            'customer_name'    => $customerName,
+            'type'             => $penawaran?->jenis_pelanggan ?? 'perorangan',
+            'customer_address' => $penawaran?->alamat ?? '',
+            'telephone'        => $penawaran?->contact_person ?? $kontrak->contact_kedua ?? '',
+            'email'            => $penawaran?->email_person ?? '',
+            'contact_person'   => $customerName,
+            'kendaraans'       => $kendaraans,
+            'rental_count'     => $rentalCount,
+            'total_biaya'      => $totalBiaya,
+            'total_paid'       => $totalPaidInvoices,
+            'sisa'             => $sisa,
+            'auto_status'      => $autoStatus,
+            'rental_details'   => $rentalDetails ?? [],
+        ]);
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -43,14 +159,16 @@ class InvoicesController extends Controller
 
         // dropdown untuk modal tambah/edit
         $penawarans = InvPenawaran::latest()->get();
-        $kontraks   = InvKontrak::latest()->get();
+        $kontraks   = InvKontrak::with('penawaran')->latest()->get();
         $kendaraans = Kendaraan::orderBy('merk')->get();
+        $setting    = Setting::first();
 
         return view('admin.invoice.index', compact(
             'invoices',
             'penawarans',
             'kontraks',
-            'kendaraans'
+            'kendaraans',
+            'setting'
         ));
     }
 
@@ -128,8 +246,8 @@ class InvoicesController extends Controller
             'ttd_staff'    => 'nullable|image|max:2048',
             'ttd_direktur' => 'nullable|image|max:2048',
 
-            'status'         => 'required|in:draft,partial,overdue,lunas',
-            'payment_status' => 'required|in:unpaid,paid',
+            'status'         => 'nullable|in:draft,partial,overdue,lunas',
+            'payment_status' => 'nullable|in:unpaid,paid',
 
             'ppn'   => 'nullable|numeric',
             'pph'   => 'nullable|numeric',
@@ -176,6 +294,33 @@ class InvoicesController extends Controller
         $invoice->kontraks()->sync($kontrakIds);
         $invoice->kendaraans()->sync($kendaraanIds);
 
+        // Task 4: Auto-create InvSummary saat invoice baru dibuat
+        $jumlahDibayar = (float) ($request->input('jumlah_dibayar', 0));
+        $totalAmount   = (float) ($validated['total'] ?? 0);
+        $remaining     = max(0, $totalAmount - $jumlahDibayar);
+
+        // Tentukan payment_status dari jumlah_dibayar
+        if ($jumlahDibayar <= 0) {
+            $summaryPayStatus = 'unpaid';
+        } elseif ($remaining <= 0) {
+            $summaryPayStatus = 'paid';
+        } else {
+            $summaryPayStatus = 'unpaid'; // partial — belum lunas
+        }
+
+        InvSummary::firstOrCreate(
+            ['invoice_id' => $invoice->id],
+            [
+                'penawaran_id'     => $invoice->penawaran_id,
+                'kontrak_id'       => $invoice->kontrak_id,
+                'type'             => $invoice->type,
+                'total_amount'     => $totalAmount,
+                'paid_amount'      => $jumlahDibayar,
+                'remaining_amount' => $remaining,
+                'payment_status'   => $summaryPayStatus,
+            ]
+        );
+
         // Jika request AJAX/JSON (dari modal), kembalikan JSON dengan invoice_id
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
@@ -205,7 +350,91 @@ class InvoicesController extends Controller
             'periodes.remaks',
         ])->findOrFail($id);
 
-        return view('admin.invoice.show', compact('invoice'));
+        // Task 5: load payments untuk ditampilkan di halaman detail
+        $payments = \App\Models\InvoicePayment::where('invoice_id', $id)
+            ->orderBy('payment_date')
+            ->get();
+
+        $totalPaid      = $payments->where('status', 'Verified')->sum('amount');
+        $invoiceTotal   = $invoice->computeTotal();
+        $remaining      = max(0, $invoiceTotal - $totalPaid);
+        $isLunas        = $remaining <= 0 && $invoiceTotal > 0;
+
+        return view('admin.invoice.show', compact(
+            'invoice', 'payments', 'totalPaid', 'invoiceTotal', 'remaining', 'isLunas'
+        ));
+    }
+
+    /**
+     * Task 5: Tambah pembayaran cicilan dari halaman detail invoice.
+     * Route: POST /admin/invoices/{invoice}/payments
+     */
+    public function addPayment(Request $request, string $invoice)
+    {
+        $inv = Invoice::findOrFail($invoice);
+
+        $request->validate([
+            'amount'          => 'required|numeric|min:1',
+            'payment_date'    => 'required|date',
+            'method'          => 'required|string|max:100',
+            'file_pembayaran' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:4096',
+        ]);
+
+        \DB::beginTransaction();
+        try {
+            // Generate transaction ID
+            $prefix = 'TRX-' . now()->format('Ymd') . '-';
+            $last   = \App\Models\InvoicePayment::where('transaction_id', 'like', $prefix . '%')
+                ->latest('id')->first();
+            $num    = $last ? intval(substr($last->transaction_id, -5)) + 1 : 1;
+            $trxId  = $prefix . str_pad($num, 5, '0', STR_PAD_LEFT);
+
+            $data = [
+                'invoice_id'   => $inv->id,
+                'amount'       => $request->amount,
+                'payment_date' => $request->payment_date,
+                'method'       => $request->method,
+                'transaction_id' => $trxId,
+                'status'       => 'Verified',
+            ];
+
+            if ($request->hasFile('file_pembayaran')) {
+                $file     = $request->file('file_pembayaran');
+                $namaFile = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                if (!file_exists(public_path('uploads/payment'))) {
+                    mkdir(public_path('uploads/payment'), 0755, true);
+                }
+                $file->move(public_path('uploads/payment'), $namaFile);
+                $data['file_pembayaran'] = 'uploads/payment/' . $namaFile;
+            }
+
+            $payment = \App\Models\InvoicePayment::create($data);
+
+            // Sync summary & invoice status
+            $paymentsController = new \App\Http\Controllers\Admin\PaymentsController();
+            $syncMethod = new \ReflectionMethod($paymentsController, 'syncSummary');
+            $syncMethod->setAccessible(true);
+            $syncMethod->invoke($paymentsController, $inv->id);
+
+            // Post ke keuangan & buku besar
+            $payment->load('invoice');
+            $createFin = new \ReflectionMethod($paymentsController, 'createFinanceTransaction');
+            $createFin->setAccessible(true);
+            $createFin->invoke($paymentsController, $payment);
+
+            $postBB = new \ReflectionMethod($paymentsController, 'postBukuBesar');
+            $postBB->setAccessible(true);
+            $postBB->invoke($paymentsController, $payment);
+
+            \DB::commit();
+
+            return redirect()
+                ->route('invoices.show', $inv->id)
+                ->with('success', 'Pembayaran berhasil ditambahkan.');
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return back()->withInput()->with('error', $e->getMessage());
+        }
     }
 
     /**
@@ -275,8 +504,8 @@ class InvoicesController extends Controller
             'ttd_staff'    => 'nullable|image|max:2048',
             'ttd_direktur' => 'nullable|image|max:2048',
 
-            'status'         => 'required|in:draft,partial,overdue,lunas',
-            'payment_status' => 'required|in:unpaid,paid',
+            'status'         => 'nullable|in:draft,partial,overdue,lunas',
+            'payment_status' => 'nullable|in:unpaid,paid',
 
             'ppn'   => 'nullable|numeric',
             'pph'   => 'nullable|numeric',

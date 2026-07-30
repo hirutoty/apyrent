@@ -8,8 +8,6 @@ use Illuminate\Support\Facades\DB;
 use App\Models\InvPenawaran;
 use App\Models\InvPenawaranItem;
 use App\Models\Kendaraan;
-use App\Models\Rental;
-use App\Models\Pelanggan;
 use App\Models\Setting;
 use Carbon\Carbon;
 
@@ -49,6 +47,13 @@ class InvPenawaranController
     $kendaraans = Kendaraan::whereIn('status_kendaraan', ['tersedia', 'disewa'])
         ->orderBy('nopol')
         ->get();
+
+    $kendaraanJson = $kendaraans->map(fn($k) => [
+        'id'    => $k->id,
+        'nama'  => $k->merk . ' - ' . $k->nopol,
+        'tahun' => $k->tahun_pembuatan ?? '',
+        'harga' => (int) ($k->harga_sewa_per_hari ?? 0),
+    ])->values()->toArray();
 
     // Setting reminder
     $setting = Setting::first();
@@ -95,6 +100,7 @@ class InvPenawaranController
     return view('admin.penawaran.index', compact(
         'penawarans',
         'kendaraans',
+        'kendaraanJson',
         'reminder'
     ));
 }
@@ -108,7 +114,7 @@ class InvPenawaranController
             'tanggal_penawaran' => 'required',
             'customer_name'     => 'required',
             'kendaraan_id'      => 'required|array|min:1',
-            'kendaraan_id.*'    => 'required',
+            'kendaraan_id.*'    => 'required|exists:kendaraan,id',
             'qty'               => 'required|array|min:1',
             'qty.*'             => 'required|numeric|min:1',
             'price'             => 'required|array|min:1',
@@ -130,6 +136,9 @@ class InvPenawaranController
                 'perihal'           => $request->perihal,
                 'customer_name'     => $request->customer_name,
                 'contact_person'    => $request->contact_person,
+                'email_person'      => $request->email_person,
+                'alamat'            => $request->alamat,
+                'jenis_pelanggan'   => $request->jenis_pelanggan,
                 'pengirim'          => $request->pengirim,
                 'periode'           => $request->periode,
                 'staff'             => $request->staff,
@@ -169,6 +178,9 @@ class InvPenawaranController
             'perihal' => $penawaran->perihal,
             'customer_name' => $penawaran->customer_name,
             'contact_person' => $penawaran->contact_person,
+            'email_person' => $penawaran->email_person,
+            'alamat' => $penawaran->alamat,
+            'jenis_pelanggan' => $penawaran->jenis_pelanggan,
             'pengirim' => $penawaran->pengirim,
             'staff' => $penawaran->staff,
             'name_staff' => $penawaran->name_staff,
@@ -185,7 +197,7 @@ class InvPenawaranController
             'tanggal_penawaran' => 'required',
             'customer_name'     => 'required',
             'kendaraan_id'      => 'required|array|min:1',
-            'kendaraan_id.*'    => 'required',
+            'kendaraan_id.*'    => 'required|exists:kendaraan,id',
             'qty'               => 'required|array|min:1',
             'qty.*'             => 'required|numeric|min:1',
             'price'             => 'required|array|min:1',
@@ -210,6 +222,9 @@ class InvPenawaranController
                 'perihal'           => $request->perihal,
                 'customer_name'     => $request->customer_name,
                 'contact_person'    => $request->contact_person,
+                'email_person'      => $request->email_person,
+                'alamat'            => $request->alamat,
+                'jenis_pelanggan'   => $request->jenis_pelanggan,
                 'pengirim'          => $request->pengirim,
                 'periode'           => $request->periode,
                 'staff'             => $request->staff,
@@ -281,82 +296,24 @@ class InvPenawaranController
         DB::beginTransaction();
 
         try {
-            \Log::info('APPROVE JALAN', ['id' => $id]);
-
-            $penawaran = InvPenawaran::with('items')->findOrFail($id);
+            $penawaran = InvPenawaran::findOrFail($id);
 
             if ($penawaran->items->isEmpty()) {
                 return back()->with('error', 'Item penawaran kosong');
             }
 
-            // =========================
-            // 1. CREATE / GET MEMBER (HANYA 1X)
-            // =========================
-            $member = Pelanggan::firstOrCreate(
-                ['nama_pelanggan' => $penawaran->kepada],
-                [
-                    'kontak_pelanggan' => $penawaran->contact_person ?? null,
-                ]
-            );
-
-            // update status penawaran
+            // Cukup update status penawaran menjadi approved.
+            // Rental akan dibuat otomatis saat Kontrak disimpan (lihat InvKontrakController@store).
             $penawaran->update(['status' => 'approved']);
-
-            // =========================
-            // 2. LOOP ITEM
-            // =========================
-            foreach ($penawaran->items as $item) {
-
-                $tanggalMulai = now();
-                $durasi = (int) $item->durasi;
-                $satuan = strtolower($item->satuan_durasi);
-
-                // default fallback
-                $tanggalSelesai = $tanggalMulai->copy()->addDay();
-
-                if ($durasi > 0) {
-                    if ($satuan === 'hari') {
-                        $tanggalSelesai = $tanggalMulai->copy()->addDays($durasi);
-                    } elseif ($satuan === 'bulan') {
-                        $tanggalSelesai = $tanggalMulai->copy()->addMonths($durasi);
-                    } elseif ($satuan === 'tahun') {
-                        $tanggalSelesai = $tanggalMulai->copy()->addYears($durasi);
-                    }
-                }
-
-                Rental::create([
-                    'user_id'      => auth()->id() ?? 1,
-                    'kendaraan_id' => $item->kendaraan_id,
-                    'member_id'    => $member->id,
-
-                    'tanggal_mulai'   => $tanggalMulai,
-                    'tanggal_selesai' => $tanggalSelesai,
-
-                    'durasi_hari'  => $satuan === 'hari'  ? $durasi : null,
-                    'durasi_bulan' => $satuan === 'bulan' ? $durasi : null,
-                    'durasi_tahun' => $satuan === 'tahun' ? $durasi : null,
-
-                    'biaya_dasar'          => $item->qty * $item->price,
-                    'biaya_tambahan_total' => 0,
-                    'total_biaya'          => $item->qty * $item->price,
-
-                    'metode_pembayaran' => 'transfer',
-                    'jenis_pembayaran'  => 'lunas',
-                    'status_pembayaran' => 'belum_bayar',
-                    'status'            => 'booking',
-                ]);
-
-                Kendaraan::where('id', $item->kendaraan_id);
-            }
 
             DB::commit();
 
-            return back()->with('success', 'Penawaran berhasil di-approve & masuk rental');
+            return back()->with('success', 'Penawaran berhasil di-approve.');
         } catch (\Exception $e) {
             DB::rollBack();
 
             \Log::error('APPROVE ERROR', [
-                'msg' => $e->getMessage(),
+                'msg'   => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 

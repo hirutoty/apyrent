@@ -170,6 +170,11 @@
                     class="btn-modern inline-flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-4 py-2 hover:bg-gray-50">
                     <i class="fa fa-arrow-left"></i> Kembali
                 </a>
+                {{-- Task 8: Tombol cetak Invoice PDF (style sama dengan /admin/invoice/{id}/print) --}}
+                <a href="{{ route('rental.invoice-pdf', $rental->id) }}" target="_blank"
+                    class="btn-modern inline-flex items-center gap-2 text-sm text-white bg-red-600 hover:bg-red-700 px-4 py-2 shadow-sm">
+                    <i class="fa fa-file-pdf"></i> Cetak Invoice PDF
+                </a>
             </div>
         </div>
 

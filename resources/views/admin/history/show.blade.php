@@ -301,6 +301,10 @@
                                         <span class="px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-700">
                                             LUNAS
                                         </span>
+                                    @elseif (!empty($r->bukti_dp))
+                                        <span class="px-2 py-1 text-xs font-semibold rounded bg-yellow-100 text-yellow-700">
+                                            CICILAN / DP
+                                        </span>
                                     @else
                                         <span class="px-2 py-1 text-xs font-semibold rounded bg-red-100 text-red-600">
                                             BELUM LUNAS

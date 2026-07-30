@@ -105,7 +105,7 @@
                 <div id="colDropdown"
                     class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
                     <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
-                    @foreach(['col-nopenawaran'=>'No Penawaran','col-tanggal'=>'Tanggal','col-periode'=>'Periode','col-customer'=>'Customer','col-jenis'=>'Jenis Customer','col-kendaraan'=>'Kendaraan','col-total'=>'Total','col-status'=>'Status','col-penawaran'=>'Aksi Approve','col-aksi'=>'Aksi'] as $cid=>$clabel)
+                    @foreach(['col-nopenawaran'=>'No Penawaran','col-tanggal'=>'Tanggal','col-periode'=>'Periode','col-kendaraan'=>'Kendaraan','col-status'=>'Status','col-penawaran'=>'Approve','col-aksi'=>'Aksi'] as $cid=>$clabel)
                     <label class="flex items-center gap-2 py-1 cursor-pointer hover:text-blue-600 text-xs text-gray-700">
                         <input type="checkbox" class="col-toggle" data-col="{{ $cid }}" checked onchange="toggleColumn('{{ $cid }}', this.checked)"> {{ $clabel }}
                     </label>
@@ -123,10 +123,7 @@
                         <th data-col="col-nopenawaran" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No Penawaran</th>
                         <th data-col="col-tanggal"     class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
                         <th data-col="col-periode"     class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Periode</th>
-                        <th data-col="col-customer"    class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Customer</th>
-                        <th data-col="col-jenis"       class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jenis Customer</th>
                         <th data-col="col-kendaraan"   class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Kendaraan</th>
-                        <th data-col="col-total"       class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total</th>
                         <th data-col="col-status"      class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
                         <th data-col="col-penawaran"   class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Approve</th>
                         <th data-col="col-aksi"        class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
@@ -178,14 +175,6 @@
                                     @endif
                                 </td>
 
-                                <td class="px-4 py-3" data-col="col-customer">
-                                    {{ $p->customer_name }}
-                                </td>
-
-                                <td class="px-4 py-3" data-col="col-jenis">
-                                    {{ $p->jenis_pelanggan }}
-                                </td>
-
                                 <td class="px-4 py-3" data-col="col-kendaraan">
                                     @foreach ($p->items as $item)
                                         <div>
@@ -193,10 +182,6 @@
                                             {{ optional($item->kendaraan)->nopol }}
                                         </div>
                                     @endforeach
-                                </td>
-
-                                <td class="px-4 py-3 text-right" data-col="col-total">
-                                    Rp {{ number_format($p->total, 0, ',', '.') }}
                                 </td>
 
                                 <td class="px-4 py-3.5 text-center" data-col="col-status">
@@ -263,7 +248,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="text-center py-12 text-gray-400 text-sm">
+                                <td colspan="8" class="text-center py-12 text-gray-400 text-sm">
                                     <i class="fa fa-inbox text-3xl mb-3 block text-gray-300"></i>
                                     Belum ada data penawaran
                                 </td>
@@ -284,7 +269,7 @@
     {{-- ========================= MODAL TAMBAH ========================= --}}
     <div id="modalTambah" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-xl w-[95%] max-w-7xl max-h-[95vh] overflow-y-auto">
-            <form action="{{ route('penawaran.store') }}" method="POST">
+            <form id="formTambah" action="{{ route('penawaran.store') }}" method="POST">
                 @csrf
 
                 <div class="flex justify-between items-center border-b px-6 py-4">
@@ -332,7 +317,7 @@
 
                         <div>
                             <label>Contact Person</label>
-                            <input type="number" name="contact_person" value="{{ old('contact_person') }}" class="w-full border rounded-lg p-2 mt-1">
+                            <input type="text" inputmode="numeric" name="contact_person" maxlength="15" oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)" value="{{ old('contact_person') }}" class="w-full border rounded-lg p-2 mt-1">
                         </div>
 
                         <div>
@@ -529,7 +514,7 @@
 
                         <div>
                             <label>Contact Person</label>
-                            <input id="edit_contact" type="number" name="contact_person"
+                            <input id="edit_contact" type="text" inputmode="numeric" name="contact_person" maxlength="15" oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
                                 class="w-full border rounded-lg p-2 mt-1">
                         </div>
 
@@ -810,40 +795,46 @@
     <template id="itemTemplate">
         <tr>
             <td class="border p-2">
-                <select name="kendaraan_id[]" class="kendaraan w-full border rounded p-2" required>
+                <select name="kendaraan_id[]" class="kendaraan w-full border rounded p-2" required
+                    onchange="onTambahKendaraanChange(this)">
                     <option value="">Pilih Kendaraan</option>
                     @foreach ($kendaraans as $k)
-                        <option value="{{ $k->id }}">{{ $k->merk }} - {{ $k->nopol }}</option>
+                        <option value="{{ $k->id }}"
+                            data-tahun="{{ $k->tahun_pembuatan ?? '' }}"
+                            data-harga="{{ (int)($k->harga_sewa_per_hari ?? 0) }}">
+                            {{ $k->merk }} - {{ $k->nopol }}
+                        </option>
                     @endforeach
                 </select>
             </td>
             <td class="border p-2">
                 <input type="number" name="qty[]" value="1" min="1"
-                    class="qty w-full border rounded p-2">
+                    class="qty w-full border rounded p-2 bg-gray-50" readonly>
             </td>
             <td class="border p-2">
-                <select name="tahun_unit[]" class="w-full border rounded p-2">
-                    <option value="">-- Pilih Tahun --</option>
-                    @for ($y = date('Y'); $y >= 1980; $y--)
-                        <option value="{{ $y }}">{{ $y }}</option>
-                    @endfor
-                </select>
+                <input type="text" name="tahun_unit[]" value="" placeholder="—"
+                    class="tahun-unit w-full border rounded p-2 bg-gray-50" readonly>
             </td>
             <td class="border p-2">
-                <input type="number" name="price[]" value="0" class="price w-full border rounded p-2">
+                <input type="number" name="price[]" value="0"
+                    class="price w-full border rounded p-2 bg-gray-50" readonly>
             </td>
             <td class="border p-2">
-                <input type="number" name="durasi[]" value="1" class="w-full border rounded p-2">
+                <input type="number" name="durasi[]" value="1" min="1"
+                    class="durasi w-full border rounded p-2"
+                    oninput="onTambahDurasiChange(this)">
             </td>
             <td class="border p-2">
-                <select name="satuan_durasi[]" class="w-full border rounded p-2">
+                <select name="satuan_durasi[]" class="satuan w-full border rounded p-2"
+                    onchange="onTambahSatuanChange(this)">
                     <option value="Hari">Hari</option>
-                    <option value="Bulan">Bulan</option>
+                    <option value="Bulan" selected>Bulan</option>
                     <option value="Tahun">Tahun</option>
                 </select>
             </td>
             <td class="border p-2 text-center">
-                <button type="button" class="hapusItem bg-red-600 text-white px-3 py-1 rounded">
+                <button type="button" class="hapusItem bg-red-600 text-white px-3 py-1 rounded"
+                    onclick="refreshAllSelects(document.getElementById('itemContainer'))">
                     <i class="fa fa-trash"></i>
                 </button>
             </td>
@@ -871,18 +862,53 @@
             el.style.display = show ? '' : 'none';
         });
     }
-            const kendaraanOptions = @json(
-                $kendaraans->map(fn($k) => [
-                        'id' => $k->id,
-                        'nama' => $k->merk . ' - ' . $k->nopol,
-                    ]));
+            const kendaraanOptions = @json($kendaraanJson);
 
-            function buildKendaraanSelect(selectedId = '') {
+            function buildKendaraanSelect(selectedId = '', excludeIds = []) {
                 let opts = '<option value="">Pilih Kendaraan</option>';
                 kendaraanOptions.forEach(k => {
-                    opts += `<option value="${k.id}" ${k.id == selectedId ? 'selected' : ''}>${k.nama}</option>`;
+                    const disabled = excludeIds.includes(String(k.id)) && String(k.id) !== String(selectedId);
+                    opts += `<option value="${k.id}" data-tahun="${k.tahun}" data-harga="${k.harga}" ${k.id == selectedId ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${k.nama}</option>`;
                 });
                 return opts;
+            }
+
+            // Hitung multiplier durasi → hari
+            function getMultiplier(satuan, durasi) {
+                const d = Number(durasi) || 0;
+                if (satuan === 'Hari')  return d;
+                if (satuan === 'Bulan') return d * 30;
+                if (satuan === 'Tahun') return d * 365;
+                return d;
+            }
+
+            // Hitung harga dari kendaraan_id, durasi, satuan
+            function kalkulasiHarga(kendaraanId, durasi, satuan) {
+                const kend = kendaraanOptions.find(k => String(k.id) === String(kendaraanId));
+                if (!kend) return 0;
+                return kend.harga * getMultiplier(satuan, durasi);
+            }
+
+            // Kumpulkan semua kendaraan_id yang sudah dipakai di container
+            function getUsedIds(container, exceptRow = null) {
+                const ids = [];
+                container.querySelectorAll('tr').forEach(row => {
+                    if (row === exceptRow) return;
+                    const sel = row.querySelector('.kendaraan');
+                    if (sel && sel.value) ids.push(String(sel.value));
+                });
+                return ids;
+            }
+
+            // Refresh semua select di container agar opsi duplikat di-disable
+            function refreshAllSelects(container) {
+                container.querySelectorAll('tr').forEach(row => {
+                    const sel = row.querySelector('.kendaraan');
+                    if (!sel) return;
+                    const used = getUsedIds(container, row);
+                    const currentVal = sel.value;
+                    sel.innerHTML = buildKendaraanSelect(currentVal, used);
+                });
             }
 
             function buildSatuanSelect(selected = '') {
@@ -901,38 +927,72 @@
             }
 
             function buildEditRow(item = {}) {
+                const kend = kendaraanOptions.find(k => String(k.id) === String(item.kendaraan_id ?? ''));
+                const tahun = kend ? kend.tahun : (item.tahun_unit ?? '');
+                const satuan = item.satuan_durasi ?? 'Bulan';
+                const durasi = item.durasi ?? 1;
+                const harga  = kend ? kalkulasiHarga(kend.id, durasi, satuan) : (item.price ?? 0);
                 return `
             <tr>
                 <td class="border p-2">
-                    <select name="kendaraan_id[]" class="kendaraan w-full border rounded p-2" required>
+                    <select name="kendaraan_id[]" class="kendaraan w-full border rounded p-2" required onchange="onEditKendaraanChange(this)">
                         ${buildKendaraanSelect(item.kendaraan_id ?? '')}
                     </select>
                 </td>
                 <td class="border p-2">
-                    <input type="number" name="qty[]" value="${item.qty ?? 1}" min="1" class="qty w-full border rounded p-2">
+                    <input type="number" name="qty[]" value="1" min="1" class="qty w-full border rounded p-2 bg-gray-50" readonly>
                 </td>
                 <td class="border p-2">
-                    <select name="tahun_unit[]" class="w-full border rounded p-2">
-                        ${buildTahunSelect(item.tahun_unit ?? '')}
-                    </select>
+                    <input type="text" name="tahun_unit[]" value="${tahun}" class="tahun-unit w-full border rounded p-2 bg-gray-50" readonly>
                 </td>
                 <td class="border p-2">
-                    <input type="number" name="price[]" value="${item.price ?? 0}" class="price w-full border rounded p-2">
+                    <input type="number" name="price[]" value="${harga}" class="price w-full border rounded p-2 bg-gray-50" readonly>
                 </td>
                 <td class="border p-2">
-                    <input type="number" name="durasi[]" value="${item.durasi ?? 1}" class="w-full border rounded p-2">
+                    <input type="number" name="durasi[]" value="${durasi}" min="1" class="durasi w-full border rounded p-2" oninput="onEditDurasiChange(this)">
                 </td>
                 <td class="border p-2">
-                    <select name="satuan_durasi[]" class="w-full border rounded p-2">
-                        ${buildSatuanSelect(item.satuan_durasi ?? 'Hari')}
+                    <select name="satuan_durasi[]" class="satuan w-full border rounded p-2" onchange="onEditSatuanChange(this)">
+                        ${buildSatuanSelect(satuan)}
                     </select>
                 </td>
                 <td class="border p-2 text-center">
-                    <button type="button" class="hapusEdit bg-red-600 text-white px-3 py-1 rounded">
+                    <button type="button" class="hapusEdit bg-red-600 text-white px-3 py-1 rounded" onclick="refreshAllSelects(document.getElementById('editItemContainer'))">
                         <i class="fa fa-trash"></i>
                     </button>
                 </td>
             </tr>`;
+            }
+
+            function onEditKendaraanChange(sel) {
+                const row = sel.closest('tr');
+                const container = document.getElementById('editItemContainer');
+                const kend = kendaraanOptions.find(k => String(k.id) === sel.value);
+                row.querySelector('.tahun-unit').value = kend ? kend.tahun : '';
+                updateRowPrice(row);
+                refreshAllSelects(container);
+                hitungEditTotal();
+            }
+
+            function onEditDurasiChange(input) {
+                const row = input.closest('tr');
+                updateRowPrice(row);
+                hitungEditTotal();
+            }
+
+            function onEditSatuanChange(sel) {
+                const row = sel.closest('tr');
+                updateRowPrice(row);
+                hitungEditTotal();
+            }
+
+            function updateRowPrice(row) {
+                const kendaraanId = row.querySelector('.kendaraan')?.value;
+                const durasi  = row.querySelector('.durasi')?.value  || 1;
+                const satuan  = row.querySelector('.satuan')?.value  || 'Hari';
+                const price   = kalkulasiHarga(kendaraanId, durasi, satuan);
+                const priceEl = row.querySelector('.price');
+                if (priceEl) priceEl.value = price;
             }
 
             // ---- MODAL TAMBAH ----
@@ -965,18 +1025,47 @@
 
             function tambahBaris() {
                 itemContainer.appendChild(template.content.cloneNode(true));
+                // Refresh disabled options setelah baris baru ditambahkan
+                refreshAllSelects(itemContainer);
                 hitungTotal();
             }
             document.getElementById('btnTambahItem').onclick = tambahBaris;
 
+            // Tambah modal: kendaraan change → auto-fill tahun & harga
+            function onTambahKendaraanChange(sel) {
+                const row = sel.closest('tr');
+                const kend = kendaraanOptions.find(k => String(k.id) === String(sel.value));
+                row.querySelector('.tahun-unit').value = kend ? kend.tahun : '';
+                updateTambahRowPrice(row);
+                refreshAllSelects(itemContainer);
+                hitungTotal();
+            }
+
+            function onTambahDurasiChange(input) {
+                const row = input.closest('tr');
+                updateTambahRowPrice(row);
+                hitungTotal();
+            }
+
+            function onTambahSatuanChange(sel) {
+                const row = sel.closest('tr');
+                updateTambahRowPrice(row);
+                hitungTotal();
+            }
+
+            function updateTambahRowPrice(row) {
+                const kendaraanId = row.querySelector('.kendaraan')?.value;
+                const durasi  = row.querySelector('.durasi')?.value  || 1;
+                const satuan  = row.querySelector('.satuan')?.value  || 'Bulan';
+                const price   = kalkulasiHarga(kendaraanId, durasi, satuan);
+                const priceEl = row.querySelector('.price');
+                if (priceEl) priceEl.value = price;
+            }
+
             itemContainer.addEventListener('click', function(e) {
                 if (e.target.closest('.hapusItem')) {
                     e.target.closest('tr').remove();
-                    hitungTotal();
-                }
-            });
-            itemContainer.addEventListener('input', function(e) {
-                if (e.target.classList.contains('price') || e.target.classList.contains('qty')) {
+                    refreshAllSelects(itemContainer);
                     hitungTotal();
                 }
             });
@@ -984,13 +1073,37 @@
             function hitungTotal() {
                 let total = 0;
                 document.querySelectorAll('#itemContainer tr').forEach(row => {
-                    total += Number(row.querySelector('.qty')?.value ?? 0) *
-                        Number(row.querySelector('.price')?.value ?? 0);
+                    total += Number(row.querySelector('.price')?.value ?? 0);
                 });
                 document.getElementById('grandTotal').value = total.toLocaleString('id-ID');
             }
 
             tambahBaris();
+            // Initial refresh after first auto-added row
+            refreshAllSelects(itemContainer);
+
+            // Validasi: semua select kendaraan wajib dipilih sebelum submit
+            function validateKendaraanItems(containerSelector, formEl) {
+                if (!formEl) return true;
+                formEl.addEventListener('submit', function(e) {
+                    const selects = document.querySelectorAll(containerSelector + ' .kendaraan');
+                    let hasEmpty = false;
+                    selects.forEach(function(sel) {
+                        if (!sel.value) {
+                            sel.classList.add('border-red-500', 'ring-2', 'ring-red-200');
+                            hasEmpty = true;
+                        } else {
+                            sel.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
+                        }
+                    });
+                    if (hasEmpty) {
+                        e.preventDefault();
+                        alert('Pilih kendaraan untuk semua baris item terlebih dahulu.');
+                    }
+                });
+            }
+            validateKendaraanItems('#itemContainer', document.getElementById('formTambah'));
+            validateKendaraanItems('#editItemContainer', document.getElementById('formEdit'));
 
             // ---- MODAL EDIT ----
             const modalEdit = document.getElementById('modalEdit');
@@ -1056,11 +1169,7 @@
             editItemContainer.addEventListener('click', function(e) {
                 if (e.target.closest('.hapusEdit')) {
                     e.target.closest('tr').remove();
-                    hitungEditTotal();
-                }
-            });
-            editItemContainer.addEventListener('input', function(e) {
-                if (e.target.classList.contains('qty') || e.target.classList.contains('price')) {
+                    refreshAllSelects(editItemContainer);
                     hitungEditTotal();
                 }
             });
@@ -1068,8 +1177,7 @@
             function hitungEditTotal() {
                 let total = 0;
                 document.querySelectorAll('#editItemContainer tr').forEach(row => {
-                    total += Number(row.querySelector('.qty')?.value ?? 0) *
-                        Number(row.querySelector('.price')?.value ?? 0);
+                    total += Number(row.querySelector('.price')?.value ?? 0);
                 });
                 document.getElementById('editGrandTotal').value = total.toLocaleString('id-ID');
             }
