@@ -57,6 +57,7 @@ class Invoice extends Model
     public function periodes() { return $this->hasMany(InvoicePeriode::class, 'invoice_id'); }
     public function remaks() { return $this->hasMany(InvoiceRemak::class, 'invoice_id'); }
     public function agingAr() { return $this->hasOne(AgingAr::class, 'invoice_id'); }
+    public function summary() { return $this->hasOne(InvSummary::class, 'invoice_id'); }
 
     /**
      * Hitung total invoice dari remaks (qty * price) + ppn - pph.
