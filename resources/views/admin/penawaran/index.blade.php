@@ -202,15 +202,27 @@
 
                                 <td class="px-4 py-3.5" data-col="col-penawaran">
                                     <div class="flex items-center justify-center gap-1.5 flex-wrap">
+
+                                        {{-- Download draft PDF --}}
+                                        @if($p->file_penawaran)
+                                            <a href="{{ asset($p->file_penawaran) }}" target="_blank"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
+                                                <i class="fa fa-file-pdf text-xs"></i> Draft
+                                            </a>
+                                        @else
+                                            <a href="{{ route('penawaran.download-draft', $p->id) }}"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
+                                                <i class="fa fa-file-pdf text-xs"></i> Draft
+                                            </a>
+                                        @endif
+
                                         @if (!in_array($p->status, ['approved', 'rejected', 'expired']))
-                                            <form action="{{ route('penawaran.approve', $p->id) }}" method="POST"
-                                                onsubmit="return confirm('Approve penawaran ini?')" class="inline">
-                                                @csrf
-                                                <button type="submit"
-                                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
-                                                    <i class="fa fa-check text-xs"></i> Approve
-                                                </button>
-                                            </form>
+                                            {{-- Approve — buka modal upload --}}
+                                            <button type="button"
+                                                onclick="openApproveModal({{ $p->id }}, '{{ $p->no_penawaran }}')"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
+                                                <i class="fa fa-check text-xs"></i> Approve
+                                            </button>
                                             <form action="{{ route('penawaran.reject', $p->id) }}" method="POST"
                                                 onsubmit="return confirm('Tolak penawaran ini?')" class="inline">
                                                 @csrf
@@ -311,28 +323,43 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label>Customer</label>
-                            <input type="text" name="customer_name" value="{{ old('customer_name') }}" class="w-full border rounded-lg p-2 mt-1"
-                                required>
+                            <div class="relative mt-1">
+                                <input type="text" id="tambah_customer_input" name="customer_name"
+                                    value="{{ old('customer_name') }}"
+                                    autocomplete="off"
+                                    placeholder="Nama customer..."
+                                    class="w-full border rounded-lg p-2" required>
+                                <ul id="tambah_customer_list"
+                                    class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm">
+                                </ul>
+                            </div>
                         </div>
-
+                        <div>
+                            <label>No KTP</label>
+                            <input type="text" id="tambah_no_ktp" name="no_ktp" value="{{ old('no_ktp') }}"
+                                inputmode="numeric" maxlength="16"
+                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                                placeholder="16 digit KTP"
+                                class="w-full border rounded-lg p-2 mt-1">
+                        </div>
                         <div>
                             <label>Contact Person</label>
-                            <input type="text" inputmode="numeric" name="contact_person" maxlength="15" oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)" value="{{ old('contact_person') }}" class="w-full border rounded-lg p-2 mt-1">
+                            <input type="text" inputmode="numeric" name="contact_person" maxlength="15"
+                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
+                                value="{{ old('contact_person') }}" class="w-full border rounded-lg p-2 mt-1">
                         </div>
-
                         <div>
                             <label>Email Person</label>
-                            <input type="email" name="email_person" value="{{ old('email_person') }}" class="w-full border rounded-lg p-2 mt-1">
+                            <input type="email" name="email_person" value="{{ old('email_person') }}"
+                                class="w-full border rounded-lg p-2 mt-1">
                         </div>
-
                         <div>
                             <label>Alamat</label>
-                            <textarea name="alamat" rows="3" class="w-full border rounded-lg p-2 mt-1">{{ old('alamat') }}</textarea>
+                            <textarea id="tambah_alamat" name="alamat" rows="3" class="w-full border rounded-lg p-2 mt-1">{{ old('alamat') }}</textarea>
                         </div>
-
                         <div>
                             <label>Jenis Pelanggan</label>
-                            <select name="jenis_pelanggan" class="w-full border rounded-lg p-2 mt-1">
+                            <select id="tambah_jenis_pelanggan" name="jenis_pelanggan" class="w-full border rounded-lg p-2 mt-1">
                                 <option value="">-- Pilih Jenis Pelanggan --</option>
                                 <option value="perorangan" {{ old('jenis_pelanggan') == 'perorangan' ? 'selected' : '' }}>Perorangan</option>
                                 <option value="perusahaan" {{ old('jenis_pelanggan') == 'perusahaan' ? 'selected' : '' }}>Perusahaan</option>
@@ -508,33 +535,45 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label>Customer</label>
-                            <input id="edit_customer" type="text" name="customer_name"
-                                class="w-full border rounded-lg p-2 mt-1" required>
+                            <div class="relative mt-1">
+                                <input type="text" id="edit_customer" name="customer_name"
+                                    autocomplete="off"
+                                    placeholder="Nama customer..."
+                                    class="w-full border rounded-lg p-2" required>
+                                <ul id="edit_customer_list"
+                                    class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm">
+                                </ul>
+                            </div>
                         </div>
-
                         <div>
-                            <label>Contact Person</label>
-                            <input id="edit_contact" type="text" inputmode="numeric" name="contact_person" maxlength="15" oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
+                            <label>No KTP</label>
+                            <input type="text" id="edit_no_ktp" name="no_ktp"
+                                inputmode="numeric" maxlength="16"
+                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                                placeholder="16 digit KTP"
                                 class="w-full border rounded-lg p-2 mt-1">
                         </div>
-
+                        <div>
+                            <label>Contact Person</label>
+                            <input id="edit_contact" type="text" inputmode="numeric" name="contact_person"
+                                maxlength="15" oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
+                                class="w-full border rounded-lg p-2 mt-1">
+                        </div>
                         <div>
                             <label>Email Person</label>
                             <input id="edit_email" type="email" name="email_person"
                                 class="w-full border rounded-lg p-2 mt-1">
                         </div>
-
                         <div>
                             <label>Alamat</label>
                             <textarea id="edit_alamat" name="alamat" rows="3" class="w-full border rounded-lg p-2 mt-1"></textarea>
                         </div>
-
                         <div>
                             <label>Jenis Pelanggan</label>
                             <select id="edit_jenis_pelanggan" name="jenis_pelanggan" class="w-full border rounded-lg p-2 mt-1">
                                 <option value="">-- Pilih Jenis Pelanggan --</option>
-                                <option value="Perorangan">Perorangan</option>
-                                <option value="Perusahaan">Perusahaan</option>
+                                <option value="perorangan">Perorangan</option>
+                                <option value="perusahaan">Perusahaan</option>
                             </select>
                         </div>
                     </div>
@@ -703,6 +742,10 @@
                     <div>
                         <label class="text-sm font-medium text-gray-500">Customer</label>
                         <p id="show_customer" class="text-gray-800 mt-1">-</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">No KTP</label>
+                        <p id="show_no_ktp" class="text-gray-800 mt-1">-</p>
                     </div>
                     <div>
                         <label class="text-sm font-medium text-gray-500">Contact Person</label>
@@ -882,11 +925,11 @@
                 return d;
             }
 
-            // Hitung harga dari kendaraan_id, durasi, satuan
+            // Harga selalu dihitung untuk 1 Bulan (30 hari), durasi tidak mempengaruhi harga
             function kalkulasiHarga(kendaraanId, durasi, satuan) {
                 const kend = kendaraanOptions.find(k => String(k.id) === String(kendaraanId));
                 if (!kend) return 0;
-                return kend.harga * getMultiplier(satuan, durasi);
+                return kend.harga * 30; // harga per bulan = harga_sewa_per_hari × 30
             }
 
             // Kumpulkan semua kendaraan_id yang sudah dipakai di container
@@ -1136,6 +1179,7 @@
                             document.getElementById('edit_up').value = data.up ?? '';
                             document.getElementById('edit_perihal').value = data.perihal ?? '';
                             document.getElementById('edit_customer').value = data.customer_name ?? '';
+                            document.getElementById('edit_no_ktp').value = data.no_ktp ?? '';
                             document.getElementById('edit_contact').value = data.contact_person ?? '';
                             document.getElementById('edit_email').value = data.email_person ?? '';
                             document.getElementById('edit_alamat').value = data.alamat ?? '';
@@ -1236,6 +1280,7 @@
                             document.getElementById('show_perihal').textContent = data.perihal ?? '-';
                             document.getElementById('show_customer').textContent = data.customer_name ??
                             '-';
+                            document.getElementById('show_no_ktp').textContent = data.no_ktp ?? '-';
                             document.getElementById('show_contact').textContent = data.contact_person ??
                             '-';
                             document.getElementById('show_email').textContent = data.email_person ?? '-';
@@ -1287,7 +1332,133 @@
                 document.getElementById('showGrandTotal').value = formatRupiah(total);
             }
         </script>
+
+    {{-- ========================= AUTOSUGGEST CUSTOMER ========================= --}}
+    <script>
+        const customerSearchUrl = "{{ route('penawaran.customer-search') }}";
+        let customerSearchTimer = null;
+
+        function setupCustomerAutosuggest(inputEl, listEl, noKtpEl, alamatEl, jenisEl, emailEl, contactEl) {
+            inputEl.addEventListener('input', function () {
+                clearTimeout(customerSearchTimer);
+                const q = this.value.trim();
+                if (q.length < 1) { listEl.classList.add('hidden'); return; }
+                customerSearchTimer = setTimeout(() => {
+                    fetch(customerSearchUrl + '?q=' + encodeURIComponent(q))
+                        .then(r => r.json())
+                        .then(results => {
+                            listEl.innerHTML = '';
+                            if (!results.length) { listEl.classList.add('hidden'); return; }
+                            results.forEach(member => {
+                                const li = document.createElement('li');
+                                li.className = 'px-3 py-2 cursor-pointer hover:bg-blue-50 text-gray-700';
+                                li.textContent = member.nama_pelanggan;
+                                li.addEventListener('mousedown', function (e) {
+                                    e.preventDefault();
+                                    inputEl.value = member.nama_pelanggan;
+                                    if (noKtpEl)   noKtpEl.value   = member.no_ktp           ?? '';
+                                    if (alamatEl)  alamatEl.value  = member.alamat            ?? '';
+                                    if (jenisEl)   jenisEl.value   = member.jenis_pelanggan   ?? '';
+                                    if (emailEl)   emailEl.value   = member.email_pelanggan   ?? '';
+                                    if (contactEl) contactEl.value = member.kontak_pelanggan  ?? '';
+                                    listEl.classList.add('hidden');
+                                });
+                                listEl.appendChild(li);
+                            });
+                            listEl.classList.remove('hidden');
+                        })
+                        .catch(() => listEl.classList.add('hidden'));
+                }, 300);
+            });
+            inputEl.addEventListener('blur', function () {
+                setTimeout(() => listEl.classList.add('hidden'), 200);
+            });
+            inputEl.addEventListener('focus', function () {
+                if (this.value.trim().length > 0) this.dispatchEvent(new Event('input'));
+            });
+        }
+
+        // ── Aktifkan autosuggest untuk Modal Tambah ──
+        setupCustomerAutosuggest(
+            document.getElementById('tambah_customer_input'),
+            document.getElementById('tambah_customer_list'),
+            document.getElementById('tambah_no_ktp'),
+            document.getElementById('tambah_alamat'),
+            document.getElementById('tambah_jenis_pelanggan'),
+            document.querySelector('#formTambah input[name="email_person"]'),
+            document.querySelector('#formTambah input[name="contact_person"]')
+        );
+
+        // ── Aktifkan autosuggest untuk Modal Edit ──
+        setupCustomerAutosuggest(
+            document.getElementById('edit_customer'),
+            document.getElementById('edit_customer_list'),
+            document.getElementById('edit_no_ktp'),
+            document.getElementById('edit_alamat'),
+            document.getElementById('edit_jenis_pelanggan'),
+            document.getElementById('edit_email'),
+            document.getElementById('edit_contact')
+        );
+    </script>
     @endpush
+
+{{-- ========================= MODAL APPROVE ========================= --}}
+<div id="modalApprove" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+                <h2 class="text-base font-bold text-gray-800">Approve Penawaran</h2>
+                <p id="approveModalSubtitle" class="text-xs text-gray-400 mt-0.5">Upload file yang sudah ditandatangani</p>
+            </div>
+            <button type="button" onclick="closeApproveModal()"
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <form id="formApprove" method="POST" enctype="multipart/form-data" class="px-6 py-5 space-y-4">
+            @csrf
+            <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
+                <i class="fa fa-info-circle mr-1"></i>
+                Pastikan file PDF penawaran sudah ditandatangani oleh kedua pihak sebelum di-approve.
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                    File Penawaran Ditandatangani <span class="text-red-500">*</span>
+                </label>
+                <input type="file" name="file_penawaran" accept=".pdf" required
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-100 focus:border-green-400">
+                <p class="text-xs text-gray-400 mt-1">Format: PDF saja. Maks 10MB.</p>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <button type="button" onclick="closeApproveModal()"
+                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                    Batal
+                </button>
+                <button type="submit"
+                    class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
+                    <i class="fa fa-check text-xs"></i> Approve
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openApproveModal(id, noPenawaran) {
+        document.getElementById('approveModalSubtitle').textContent = noPenawaran;
+        document.getElementById('formApprove').action = '/admin/penawaran/' + id + '/approve';
+        document.getElementById('modalApprove').classList.remove('hidden');
+        document.getElementById('modalApprove').classList.add('flex');
+    }
+    function closeApproveModal() {
+        document.getElementById('modalApprove').classList.add('hidden');
+        document.getElementById('modalApprove').classList.remove('flex');
+    }
+    // Close on backdrop click
+    document.getElementById('modalApprove').addEventListener('click', function(e) {
+        if (e.target === this) closeApproveModal();
+    });
+</script>
 
 @endsection
 

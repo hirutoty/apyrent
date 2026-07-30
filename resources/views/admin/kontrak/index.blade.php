@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Data Kontrak Kendaraan')
 @section('content')
 <div class="space-y-6 p-5">
@@ -387,13 +387,16 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Pertama <span class="text-red-500">*</span></label>
                     <input type="text" name="pihak_pertama" id="create_pihak_pertama"
-                        value="{{ $setting->nama_perusahaan ?? '' }}"
+                        value=""
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 1</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Pertama</label>
                     <input type="text" name="contact_pertama"
-                        value="{{ $setting->telepon ?? '' }}"
+                        value=""
+                        inputmode="numeric" maxlength="16"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                        placeholder="16 digit No KTP"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
@@ -404,6 +407,9 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 2</label>
                     <input type="text" name="contact_kedua" id="create_contact_kedua"
+                        inputmode="numeric" maxlength="15"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
+                        placeholder="08xx-xxxx-xxxx"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>
@@ -453,9 +459,9 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                     File Kontrak TTD <span class="text-red-500">*</span>
                 </label>
-                <input type="file" name="file_kontrak" accept=".pdf,.jpg,.jpeg,.png"
+                <input type="file" name="file_kontrak" accept=".pdf"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" required>
-                <p class="text-[10px] text-gray-400 mt-1">Format: PDF, JPG, PNG. Maks 10MB.</p>
+                <p class="text-[10px] text-gray-400 mt-1">Format: PDF saja. Maks 10MB.</p>
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
                 <button type="button" onclick="closeModal('modalApprove')"
@@ -514,8 +520,11 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 1</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Pertama</label>
                     <input type="text" name="contact_pertama" id="edit_contact_pertama"
+                        inputmode="numeric" maxlength="16"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                        placeholder="16 digit No KTP"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
@@ -526,6 +535,9 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 2</label>
                     <input type="text" name="contact_kedua" id="edit_contact_kedua"
+                        inputmode="numeric" maxlength="15"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
+                        placeholder="08xx-xxxx-xxxx"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>
@@ -648,9 +660,6 @@
     }
 
     function renderPenawaranPreview(data) {
-        // Auto-fill pihak kedua
-        document.getElementById('create_pihak_kedua').value = data.customer_name || data.kepada || '';
-        document.getElementById('create_contact_kedua').value = data.contact_person || '';
 
         // Durasi dari item pertama
         const firstItem = data.items && data.items.length > 0 ? data.items[0] : null;

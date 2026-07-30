@@ -22,6 +22,7 @@ class PelangganController extends Controller
         $request->validate([
             'nama_pelanggan' => 'required|string|max:255|unique:member,nama_pelanggan',
             'kontak_pelanggan' => 'nullable|string|max:50',
+            'no_ktp' => 'nullable|string|max:20',
             'email_pelanggan' => 'nullable|string|max:50',
             'alamat' => 'nullable|string',
             'jenis_pelanggan' => 'required|in:perorangan,perusahaan',
@@ -34,6 +35,7 @@ class PelangganController extends Controller
         Pelanggan::create([
             'nama_pelanggan' => $request->nama_pelanggan,
             'kontak_pelanggan' => $request->kontak_pelanggan,
+            'no_ktp' => $request->no_ktp,
             'email_pelanggan' => $request->email_pelanggan,
             'alamat' => $request->alamat,
             'jenis_pelanggan' => $request->jenis_pelanggan,
@@ -49,6 +51,7 @@ class PelangganController extends Controller
         $request->validate([
             'nama_pelanggan' => 'required|string|max:255|unique:member,nama_pelanggan,' . $id,
             'kontak_pelanggan' => 'string|max:50',
+            'no_ktp' => 'nullable|string|max:20',
             'email_pelanggan' => 'nullable|max:50',
             'alamat' => 'nullable|string',
             'jenis_pelanggan' => 'required|in:perorangan,perusahaan',
@@ -61,6 +64,7 @@ class PelangganController extends Controller
         $pelanggan->update([
             'nama_pelanggan' => $request->nama_pelanggan,
             'kontak_pelanggan' => $request->kontak_pelanggan,
+            'no_ktp' => $request->no_ktp,
             'email_pelanggan' => $request->email_pelanggan,
             'alamat' => $request->alamat,
             'jenis_pelanggan' => $request->jenis_pelanggan,
