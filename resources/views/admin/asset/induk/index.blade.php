@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 @section('title', 'Induk Asset')
 @section('content')
 <div class="space-y-6">
@@ -66,11 +66,6 @@
                     <input type="text" placeholder="Cari aset..." oninput="onSearchInput(this.value)"
                         class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                 </div>
-                <select id="perPageSelect" onchange="renderTable()"
-                    class="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <option value="10" selected>10</option><option value="25">25</option>
-                    <option value="50">50</option><option value="all">All</option>
-                </select>
             </div>
         </div>
         <div class="overflow-x-auto">
@@ -145,7 +140,6 @@
             </table>
             <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
 </div>
 
@@ -309,17 +303,12 @@ deleteModal.addEventListener('click', e => { if(e.target===deleteModal) closeDel
 
 const allRows = Array.from(document.querySelectorAll('#tableBody tr[data-search]'));
 let currentSearch = '';
-function onSearchInput(v) { currentSearch = v.toLowerCase(); renderTable(); }
-function renderTable() {
+function onSearchInput(v) { currentSearch = v.toLowerCase(); filterTable(); }
+function filterTable() {
     if (!allRows.length) return;
-    const perPage = document.getElementById('perPageSelect').value === 'all' ? Infinity : parseInt(document.getElementById('perPageSelect').value);
-    const matched = allRows.filter(r => r.dataset.search.includes(currentSearch));
-    let shown = 0;
-    allRows.forEach(r => r.style.display='none');
-    matched.forEach(r => { if(shown < perPage){ r.style.display=''; shown++; } });
-    document.getElementById('entriesInfo').innerText = matched.length ? `Menampilkan ${shown} dari ${matched.length} entri` : 'Tidak ada data';
+    allRows.forEach(r => r.style.display = r.dataset.search.includes(currentSearch) ? '' : 'none');
 }
-document.addEventListener('DOMContentLoaded', renderTable);
+document.addEventListener('DOMContentLoaded', filterTable);
 
 (function(){
     var overlay=document.getElementById('alertOverlay'), box=document.getElementById('alertBox');

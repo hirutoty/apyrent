@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('purchaseros', function (Blueprint $table) {
             $table->id();
-            $table->string('no_pr')->unique()->nullable();
+            $table->string('no_pr')->nullable();
             $table->date('tanggal')->nullable();
             $table->string('departemen')->nullable();
             $table->string('pemohon')->nullable();

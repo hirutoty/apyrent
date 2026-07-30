@@ -215,6 +215,12 @@
                                 Kendaraan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No
                                 Uji</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Status Uji</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Lokasi Uji</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Penguji</th>
                                 <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                     Tanggal Bayar</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jatuh
@@ -254,6 +260,33 @@
                                 <td class="px-4 py-3.5">
                                     <span
                                         class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->no_uji }}</span>
+                                </td>
+
+                                {{-- Status Uji --}}
+                                <td class="px-4 py-3.5">
+                                    @if ($d->status_uji === 'uji berkala')
+                                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                            Uji Berkala
+                                        </span>
+                                    @elseif ($d->status_uji === 'uji pertama')
+                                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                                            Uji Pertama
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
+                                </td>
+
+                                {{-- Lokasi Uji --}}
+                                <td class="px-4 py-3.5">
+                                    <span class="text-sm text-gray-700">{{ $d->lokasi_uji ?? '-' }}</span>
+                                </td>
+
+                                {{-- Penguji --}}
+                                <td class="px-4 py-3.5">
+                                    <span class="text-sm text-gray-700">{{ $d->penguji ?? '-' }}</span>
                                 </td>
 
                                 <td class="px-4 py-3">
@@ -360,19 +393,11 @@
                                         </button>
                                         @endif
 
-                                        <!-- <button
-                                            onclick="openEditModal(
-        '{{ $d->id }}',
-        '{{ $d->kendaraan_id }}',
-        '{{ $d->no_uji }}',
-        '{{ $d->biaya }}',
-        '{{ $d->masa_berlaku }}',
-        '{{ $d->image ? asset($d->image) : '' }}',
-        '{{ $d->image ? basename($d->image) : '' }}'
-    )"
+                                        <button
+                                            onclick="openEditModal('{{ $d->id }}', '{{ addslashes(($d->kendaraan->nopol ?? '-') . ' - ' . ($d->kendaraan->merk ?? '-')) }}', '{{ $d->status_uji }}')"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                             <i class="fa fa-edit text-xs"></i> Edit
-                                        </button> -->
+                                        </button>
 
 
                                         <form action="/admin/kir/{{ $d->id }}" method="POST"
@@ -390,7 +415,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-5 py-12 text-center">
+                                <td colspan="12" class="px-5 py-12 text-center">
                                     <div class="flex flex-col items-center gap-3">
                                         <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                             <i class="fa-solid fa-file-circle-check text-2xl text-gray-300"></i>
@@ -418,125 +443,153 @@
     {{-- ======================================
     MODAL TAMBAH
 ====================================== --}}
-    <div id="modalTambah" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4"
+    <div id="modalTambah" class="fixed inset-0 z-50 hidden items-start justify-center bg-black/50 p-4 overflow-y-auto"
         style="backdrop-filter:blur(2px)">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            style="animation:slideUp .2s ease">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg my-6" style="animation:slideUp .2s ease">
 
             <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
                 <div>
-                    <h2 class="text-base font-bold text-gray-800">Tambah Data KIR</h2>
+                    <h2 class="text-lg font-bold text-gray-800">Tambah Data KIR</h2>
                     <p class="text-xs text-gray-500 mt-0.5">Isi data uji kendaraan bermotor</p>
                 </div>
                 <button onclick="closeModalTambah()"
-                    class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
-                    <i class="fa fa-times"></i>
+                    class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <form action="/admin/kir" method="POST" enctype="multipart/form-data"
-                class="px-6 py-5 grid grid-cols-1 gap-4">
+            <form id="formTambahKir" action="/admin/kir" method="POST" enctype="multipart/form-data" class="px-6 py-5 grid grid-cols-1 gap-4">
                 @csrf
                 <input type="hidden" name="_modal_open" value="tambah">
 
+                {{-- Kendaraan --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan <span
-                            class="text-red-500">*</span></label>
-                    <select name="kendaraan_id" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan <span class="text-red-500">*</span></label>
+                    <select name="kendaraan_id" id="tambah_kendaraan_id" required
+                        onchange="fetchKendaraanDetail(this.value)"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Kendaraan --</option>
                         @foreach ($kendaraan as $k)
-                            <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }}>{{ $k->nopol }} - {{ $k->merk }}</option>
+                            <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }}>{{ $k->nopol }} — {{ $k->merk }}</option>
                         @endforeach
                     </select>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Uji <span
-                            class="text-red-500">*</span></label>
-                    <input type="text" name="no_uji" required placeholder="Nomor uji kendaraan"
-                        value="{{ old('no_uji') }}"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                {{-- Pemilik & Jenis (auto-fill) --}}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pemilik Kendaraan</label>
+                        <input type="text" id="tambah_nama_pemilik" disabled placeholder="Otomatis terisi"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-100 cursor-not-allowed text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Kendaraan</label>
+                        <input type="text" id="tambah_jenis_kendaraan" disabled placeholder="Otomatis terisi"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-100 cursor-not-allowed text-gray-600">
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Mulai <span
-                            class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal_bayar" id="tambah_tanggal_bayar" required
-                        value="{{ old('tanggal_bayar') }}"
-                        oninput="hitungMasaBerlaku()"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                {{-- No KTP & Nama KTP --}}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP <span class="text-red-500">*</span></label>
+                        <input type="text" name="no_ktp" required placeholder="Nomor KTP" value="{{ old('no_ktp') }}"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama KTP <span class="text-red-500">*</span></label>
+                        <input type="text" name="nama_ktp" required placeholder="Nama sesuai KTP" value="{{ old('nama_ktp') }}"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jatuh Tempo</label>
-                    <input type="date" id="tambah_masa_berlaku_display" disabled
-                        value="{{ old('masa_berlaku') }}"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed">
-                    <input type="hidden" name="masa_berlaku" id="tambah_masa_berlaku" value="{{ old('masa_berlaku') }}">
-                    <p class="text-xs text-gray-400 mt-1">Otomatis tanggal bayar + 1 tahun</p>
+                {{-- Lokasi Uji & Penguji --}}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Lokasi Uji <span class="text-red-500">*</span></label>
+                        <input type="text" name="lokasi_uji" required placeholder="Lokasi uji KIR" value="{{ old('lokasi_uji') }}"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Penguji <span class="text-gray-400 font-normal">(opsional)</span></label>
+                        <input type="text" name="penguji" placeholder="Nama penguji" value="{{ old('penguji') }}"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya <span
-                            class="text-red-500">*</span></label>
-
-                    <input type="number" min="0" max="9999999999" name="biaya"
-                        placeholder="Tambahkan biaya kir"
-                        value="{{ old('biaya') }}"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                        required>
+                {{-- Status Uji & No Uji --}}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Uji <span class="text-red-500">*</span></label>
+                        <select name="status_uji" required
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            <option value="">-- Pilih --</option>
+                            <option value="uji berkala" {{ old('status_uji') === 'uji berkala' ? 'selected' : '' }}>Uji Berkala</option>
+                            <option value="uji pertama" {{ old('status_uji') === 'uji pertama' ? 'selected' : '' }}>Uji Pertama</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Uji <span class="text-red-500">*</span></label>
+                        <input type="text" name="no_uji" required placeholder="Nomor uji kendaraan" value="{{ old('no_uji') }}"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
                 </div>
 
+                {{-- Tanggal Bayar & Masa Berlaku --}}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Habis Masa Uji <span class="text-red-500">*</span></label>
+                        <input type="date" name="tanggal_bayar" id="tambah_tanggal_bayar" required
+                            value="{{ old('tanggal_bayar') }}" oninput="onTglBayarChange()"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Wajib Hadir Uji</label>
+                        <input type="date" id="tambah_masa_berlaku_display" disabled value="{{ old('masa_berlaku') }}"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-100 cursor-not-allowed">
+                        <input type="hidden" name="masa_berlaku" id="tambah_masa_berlaku" value="{{ old('masa_berlaku') }}">
+                        <p class="text-xs text-gray-400 mt-1">Otomatis +6 bulan</p>
+                    </div>
+                </div>
 
+                {{-- Biaya --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya <span class="text-red-500">*</span></label>
+                    <input type="number" min="0" max="9999999999" name="biaya" required
+                        placeholder="Biaya KIR" value="{{ old('biaya') }}"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
 
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Upload File <span class="text-red-500">*</span>
+                {{-- Upload Bukti --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Upload Bukti <span class="text-red-500">*</span></label>
+                    <div id="previewWrap" class="hidden mb-2 relative"></div>
+                    <label for="image" class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                        <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-1"></i>
+                        <span class="text-xs text-slate-500">Klik untuk upload (maks 5MB)</span>
                     </label>
-
-                    {{-- PREVIEW AREA --}}
-                    <div id="previewWrap" class="hidden mb-3 relative"></div>
-
-                    {{-- UPLOAD AREA --}}
-                    <label for="image"
-                        class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
-
-                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-1"></i>
-
-                        <span class="text-xs text-slate-500">
-                            Klik untuk upload / ganti file
-                        </span>
-
-                        <span class="text-[11px] text-slate-400">
-                            (maks 2MB)
-                        </span>
-                    </label>
-
-                    <input type="file" name="image" id="image" class="hidden" onchange="previewFile(this)"
-                        required>
+                    <input type="file" name="image" id="image" class="hidden" onchange="previewFileKir(this)" required>
                 </div>
 
+                {{-- Lampiran --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">
-                        Lampiran Tambahan (opsional, bisa lebih dari 1)
-                    </label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Lampiran Tambahan <span class="text-gray-400 font-normal">(opsional)</span></label>
                     <input type="file" name="bukti_attachment[]" multiple
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                        onchange="renderListAttachment(this, 'listAttachmentPerpanjang')">
-                    <ul id="listAttachmentPerpanjang" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                        onchange="renderListAttachment(this, 'listAttachmentTambah')">
+                    <ul id="listAttachmentTambah" class="mt-1 space-y-1 text-xs text-gray-600"></ul>
                 </div>
 
                 <div class="flex gap-3 pt-1">
                     <button type="button" onclick="closeModalTambah()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
-                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                         <i class="fa fa-save text-sm"></i> Simpan
                     </button>
                 </div>
-
             </form>
         </div>
     </div>
@@ -547,13 +600,13 @@
 ====================================== --}}
     <div id="modalEdit" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4"
         style="backdrop-filter:blur(2px)">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm"
             style="animation:slideUp .2s ease">
 
             <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
                 <div>
-                    <h2 class="text-base font-bold text-gray-800">Edit Data KIR</h2>
-                    <p class="text-xs text-gray-500 mt-0.5">Perbarui data uji kendaraan bermotor</p>
+                    <h2 class="text-base font-bold text-gray-800">Edit Status Uji</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">Ubah status uji kendaraan</p>
                 </div>
                 <button onclick="closeModalEdit()"
                     class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
@@ -561,78 +614,39 @@
                 </button>
             </div>
 
-            <form id="formEdit" method="POST" enctype="multipart/form-data" class="px-6 py-5 grid grid-cols-1 gap-4">
+            <form id="formEdit" method="POST" class="px-6 py-5 grid grid-cols-1 gap-4">
                 @csrf
-                @method('PUT')
+                @method('PATCH')
 
+                {{-- Info Kendaraan (read-only) --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan <span
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan</label>
+                    <div id="edit_kendaraan_info"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+                        -
+                    </div>
+                </div>
+
+                {{-- Status Uji --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Uji <span
                             class="text-red-500">*</span></label>
-                    <select name="kendaraan_id" id="edit_kendaraan_id" required
+                    <select name="status_uji" id="edit_status_uji" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        @foreach ($kendaraan as $k)
-                            <option value="{{ $k->id }}">{{ $k->nopol }} - {{ $k->merk }}</option>
-                        @endforeach
+                        <option value="">-- Pilih Status Uji --</option>
+                        <option value="uji berkala">Uji Berkala</option>
+                        <option value="uji pertama">Uji Pertama</option>
                     </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Uji <span
-                            class="text-red-500">*</span></label>
-                    <input type="text" name="no_uji" id="edit_no_uji" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Masa Berlaku <span
-                            class="text-red-500">*</span></label>
-                    <input type="date" name="masa_berlaku" id="edit_masa_berlaku" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <p class="text-xs text-gray-400 mt-1">Isi tanggal masa berlaku KIR</p>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya <span
-                            class="text-red-500">*</span></label>
-                    <input type="number" min="0" name="biaya" id="edit_biaya" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Image</label>
-
-                    {{-- PREVIEW AREA --}}
-                    <div id="previewWrapEdit" class="hidden mb-3 relative"></div>
-
-                    {{-- UPLOAD AREA --}}
-                    <label for="edit_image"
-                        class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
-
-                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-1"></i>
-
-                        <span class="text-xs text-slate-500">
-                            Klik untuk upload / ganti file
-                        </span>
-
-                        <span class="text-[11px] text-slate-400">
-                            (maks 2MB)
-                        </span>
-                    </label>
-
-                    <input type="file" name="image" id="edit_image" class="hidden"
-                        onchange="previewFileEdit(this)">
-
-
                 </div>
 
                 <div class="flex gap-3 pt-1">
                     <button type="button" onclick="closeModalEdit()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
-                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
-                        <i class="fa fa-save text-sm"></i> Update
+                        class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
+                        <i class="fa fa-save text-sm"></i> Simpan
                     </button>
                 </div>
 
@@ -837,129 +851,120 @@
     </style>
 
     <script>
-        // Fungsi hitung masa berlaku otomatis dari tanggal bayar + 1 tahun
-        function hitungMasaBerlaku() {
-            const tglBayar = document.getElementById('tambah_tanggal_bayar').value;
-            if (!tglBayar) return;
-            
-            const d = new Date(tglBayar);
-            d.setFullYear(d.getFullYear() + 1);
+        // ── Hitung masa berlaku +6 bulan dari tanggal bayar ──────────────────
+        function onTglBayarChange() {
+            const tgl = document.getElementById('tambah_tanggal_bayar').value;
+            if (!tgl) return;
+            const d = new Date(tgl);
+            d.setMonth(d.getMonth() + 6);
             const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            
             document.getElementById('tambah_masa_berlaku_display').value = val;
             document.getElementById('tambah_masa_berlaku').value = val;
         }
+
+        // ── AJAX fetch pemilik & jenis kendaraan ─────────────────────────────
+        function fetchKendaraanDetail(id) {
+            const elPemilik = document.getElementById('tambah_nama_pemilik');
+            const elJenis   = document.getElementById('tambah_jenis_kendaraan');
+            if (!id) { elPemilik.value = ''; elJenis.value = ''; return; }
+            elPemilik.value = 'Memuat...';
+            elJenis.value   = 'Memuat...';
+            fetch(`/admin/kir/kendaraan/${id}/detail`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                elPemilik.value = data.nama_pemilik    ?? '-';
+                elJenis.value   = data.jenis_kendaraan ?? '-';
+            })
+            .catch(() => { elPemilik.value = '-'; elJenis.value = '-'; });
+        }
+
+        // ── Preview file bukti ────────────────────────────────────────────────
+        function previewFileKir(input) {
+            const wrap = document.getElementById('previewWrap');
+            wrap.innerHTML = '';
+            const file = input.files[0];
+            if (!file) { wrap.classList.add('hidden'); return; }
+            wrap.classList.remove('hidden');
+            const ext = file.name.split('.').pop().toLowerCase();
+            const url = URL.createObjectURL(file);
+            if (['jpg','jpeg','png','webp'].includes(ext)) {
+                wrap.innerHTML = `<div class="relative"><img src="${url}" class="h-28 w-full object-cover rounded-xl border"><button type="button" onclick="removePreviewKir()" class="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"><i class="fa fa-times text-[10px]"></i></button></div>`;
+            } else {
+                const icons = { pdf: 'fa-file-pdf text-red-600 bg-red-50', doc: 'fa-file-word text-blue-600 bg-blue-50', docx: 'fa-file-word text-blue-600 bg-blue-50' };
+                const cls   = icons[ext] || 'fa-file text-gray-600 bg-gray-50';
+                wrap.innerHTML = `<div class="flex items-center justify-between p-3 border rounded-xl ${cls.split(' ').slice(1).join(' ')}"><div class="flex items-center gap-2 text-sm font-semibold"><i class="fa-solid ${cls.split(' ')[0]}"></i>${file.name}</div><button type="button" onclick="removePreviewKir()" class="w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"><i class="fa fa-times text-[10px]"></i></button></div>`;
+            }
+        }
+        function removePreviewKir() {
+            document.getElementById('image').value = '';
+            const wrap = document.getElementById('previewWrap');
+            wrap.innerHTML = ''; wrap.classList.add('hidden');
+        }
+
+        // ── Modal Tambah open/close ───────────────────────────────────────────
+        function openModalTambah() {
+            document.getElementById('formTambahKir').reset();
+            document.getElementById('tambah_nama_pemilik').value    = '';
+            document.getElementById('tambah_jenis_kendaraan').value = '';
+            document.getElementById('tambah_masa_berlaku_display').value = '';
+            document.getElementById('tambah_masa_berlaku').value = '';
+            const wrap = document.getElementById('previewWrap');
+            if (wrap) { wrap.innerHTML = ''; wrap.classList.add('hidden'); }
+            const m = document.getElementById('modalTambah');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        }
+
+        function closeModalTambah() {
+            const m = document.getElementById('modalTambah');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        }
+
+        document.getElementById('modalTambah').addEventListener('click', function(e) {
+            if (e.target === this) closeModalTambah();
+        });
+
+        document.getElementById('formTambahKir').addEventListener('submit', function() {
+            const btn = this.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Menyimpan...';
+            btn.classList.add('opacity-60', 'cursor-not-allowed');
+        });
 
         // -- AUTO-REOPEN MODAL PADA VALIDATION ERROR ---
         @if ($errors->any() && !session('success'))
         document.addEventListener('DOMContentLoaded', function() {
             @if (old('_modal_open') === 'perpanjang')
-                // Reopen modal perpanjang dengan data old()
                 (function() {
-                    var id               = '{{ old('_perpanjang_id') }}';
-                    var nopol            = '{{ old('_perpanjang_nopol') }}';
-                    var merk             = '{{ old('_perpanjang_merk') }}';
-                    var no_uji           = '{{ old('no_uji') }}';
-                    var biaya            = '{{ old('biaya') }}';
-                    var masaBerlakuLama  = '{{ old('_perpanjang_masa_berlaku_lama') }}';
-
+                    var id              = '{{ old('_perpanjang_id') }}';
+                    var nopol           = '{{ old('_perpanjang_nopol') }}';
+                    var merk            = '{{ old('_perpanjang_merk') }}';
+                    var no_uji          = '{{ old('no_uji') }}';
+                    var biaya           = '{{ old('biaya') }}';
+                    var masaBerlakuLama = '{{ old('_perpanjang_masa_berlaku_lama') }}';
                     if (typeof openModalPerpanjang === 'function') {
                         openModalPerpanjang(id, nopol, merk, no_uji, biaya, masaBerlakuLama);
                     }
                 })();
             @else
                 openModalTambah();
-                // Re-trigger hitungMasaBerlaku jika tanggal_bayar sudah terisi (old())
-                if (document.getElementById('tambah_tanggal_bayar').value) {
-                    hitungMasaBerlaku();
-                }
+                var oldKendaraanId = document.getElementById('tambah_kendaraan_id').value;
+                if (oldKendaraanId) fetchKendaraanDetail(oldKendaraanId);
             @endif
         });
         @endif
 
-        function closeModalTambah() {
-            var m = document.getElementById('modalTambah');
-            m.classList.add('hidden');
-            m.classList.remove('flex');
-        }
-
-        function openModalTambah() {
-            var m = document.getElementById('modalTambah');
-            m.classList.remove('hidden');
-            m.classList.add('flex');
-        }
-        document.getElementById('modalTambah').addEventListener('click', function(e) {
-            if (e.target === this) closeModalTambah();
-        });
-
         // -- MODAL EDIT -------------------------------------
-        function openEditModal(id, kendaraan_id, no_uji, biaya, masa_berlaku, image, imageName) {
+        function openEditModal(id, kendaraanInfo, statusUji) {
             var m = document.getElementById('modalEdit');
             m.classList.remove('hidden');
             m.classList.add('flex');
 
-            document.getElementById('formEdit').action = '/admin/kir/' + id;
-            document.getElementById('edit_kendaraan_id').value = kendaraan_id;
-            document.getElementById('edit_no_uji').value = no_uji;
-            document.getElementById('edit_biaya').value = biaya;
-
-            // Set masa berlaku dari data yang ada
-            document.getElementById('edit_masa_berlaku').value = masa_berlaku;
-
-            document.getElementById('edit_image').value = '';
-
-            const wrap = document.getElementById('previewWrapEdit');
-            wrap.innerHTML = '';
-
-            if (image) {
-                wrap.classList.remove('hidden');
-
-                const ext = image.split('.').pop().toLowerCase();
-                let html = '';
-
-                if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-                    html = `
-                <div class="relative">
-                    <img src="${image}" class="h-36 w-full object-cover rounded-xl border">
-                    <span class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[11px] px-2 py-1 truncate">
-                        ${imageName}
-                    </span>
-                    <a href="${image}" target="_blank"
-                        class="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-white/90 text-gray-600 rounded-full text-xs">
-                        <i class="fa fa-eye"></i>
-                    </a>
-                </div>
-            `;
-                } else {
-                    let icon = 'fa-file';
-                    let color = 'text-gray-600 bg-gray-50';
-
-                    if (ext === 'pdf') {
-                        icon = 'fa-file-pdf';
-                        color = 'text-red-600 bg-red-50';
-                    }
-                    if (ext === 'doc' || ext === 'docx') {
-                        icon = 'fa-file-word';
-                        color = 'text-blue-600 bg-blue-50';
-                    }
-
-                    html = `
-                <div class="flex items-center justify-between p-3 border rounded-xl ${color}">
-                    <div class="flex items-center gap-2 text-sm font-semibold truncate">
-                        <i class="fa-solid ${icon}"></i>
-                        <span class="truncate">${imageName}</span>
-                    </div>
-                    <a href="${image}" target="_blank" class="text-xs underline flex-shrink-0 ml-2">Lihat</a>
-                </div>
-            `;
-                }
-
-                wrap.innerHTML = html;
-            } else {
-                wrap.classList.add('hidden');
-            }
+            document.getElementById('formEdit').action = '/admin/kir/' + id + '/status';
+            document.getElementById('edit_kendaraan_info').innerText = kendaraanInfo;
+            document.getElementById('edit_status_uji').value = statusUji || '';
         }
-        
 
         function closeModalEdit() {
             var m = document.getElementById('modalEdit');
@@ -1074,150 +1079,6 @@
             }
             window.closeAlert = closeAlert;
         })();
-
-        function previewFile(input) {
-            const wrap = document.getElementById('previewWrap');
-            wrap.innerHTML = '';
-            wrap.classList.remove('hidden');
-
-            const file = input.files[0];
-            if (!file) return;
-
-            const ext = file.name.split('.').pop().toLowerCase();
-            const url = URL.createObjectURL(file);
-
-            let html = '';
-
-            // IMAGE PREVIEW
-            if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-                html = `
-            <div class="relative">
-                <img src="${url}"
-                    class="h-36 w-full object-cover rounded-xl border">
-
-                <button type="button"
-                    onclick="removePreview()"
-                    class="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs">
-                    ?
-                </button>
-            </div>
-        `;
-            }
-
-            // PDF / DOC / DOCX
-            else {
-                let icon = 'fa-file';
-                let color = 'text-gray-600 bg-gray-50';
-
-                if (ext === 'pdf') {
-                    icon = 'fa-file-pdf';
-                    color = 'text-red-600 bg-red-50';
-                }
-
-                if (ext === 'doc' || ext === 'docx') {
-                    icon = 'fa-file-word';
-                    color = 'text-blue-600 bg-blue-50';
-                }
-
-                html = `
-            <div class="flex items-center justify-between p-3 border rounded-xl ${color}">
-                <div class="flex items-center gap-2 text-sm font-semibold">
-                    <i class="fa-solid ${icon}"></i>
-                    ${file.name}
-                </div>
-
-                <button type="button"
-                    onclick="removePreview()"
-                    class="w-6 h-6 bg-red-500 text-white rounded-full text-xs">
-                    ?
-                </button>
-            </div>
-        `;
-            }
-
-            wrap.innerHTML = html;
-        }
-
-        function removePreview() {
-            const input = document.getElementById('image');
-            const wrap = document.getElementById('previewWrap');
-
-            input.value = '';
-            wrap.innerHTML = '';
-            wrap.classList.add('hidden');
-        }
-
-        function previewFileEdit(input) {
-            const wrap = document.getElementById('previewWrapEdit');
-            wrap.innerHTML = '';
-            wrap.classList.remove('hidden');
-
-            const file = input.files[0];
-            if (!file) return;
-
-            const ext = file.name.split('.').pop().toLowerCase();
-            const url = URL.createObjectURL(file);
-
-            let html = '';
-
-            // IMAGE PREVIEW
-            if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-                html = `
-            <div class="relative">
-                <img src="${url}"
-                    class="h-36 w-full object-cover rounded-xl border">
-
-                <button type="button"
-                    onclick="removePreviewEdit()"
-                    class="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs">
-                    ?
-                </button>
-            </div>
-        `;
-            }
-
-            // PDF / DOC / DOCX
-            else {
-                let icon = 'fa-file';
-                let color = 'text-gray-600 bg-gray-50';
-
-                if (ext === 'pdf') {
-                    icon = 'fa-file-pdf';
-                    color = 'text-red-600 bg-red-50';
-                }
-
-                if (ext === 'doc' || ext === 'docx') {
-                    icon = 'fa-file-word';
-                    color = 'text-blue-600 bg-blue-50';
-                }
-
-                html = `
-            <div class="flex items-center justify-between p-3 border rounded-xl ${color}">
-                <div class="flex items-center gap-2 text-sm font-semibold">
-                    <i class="fa-solid ${icon}"></i>
-                    ${file.name}
-                </div>
-
-                <button type="button"
-                    onclick="removePreviewEdit()"
-                    class="w-6 h-6 bg-red-500 text-white rounded-full text-xs">
-                    ?
-                </button>
-            </div>
-        `;
-            }
-
-            wrap.innerHTML = html;
-        }
-
-        function removePreviewEdit() {
-            const input = document.getElementById('edit_image');
-            const wrap = document.getElementById('previewWrapEdit');
-
-            input.value = '';
-            wrap.innerHTML = '';
-            wrap.classList.add('hidden');
-        }
 
         function previewFilePerpanjang(input) {
             const wrap = document.getElementById('previewWrapPerpanjang');

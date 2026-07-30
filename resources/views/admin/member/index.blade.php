@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Member')
 
@@ -50,7 +50,7 @@
             {{-- SHOW ENTRIES --}}
             <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
                 <span>Show</span>
-                <select id="perPageSelect" onchange="renderTable()"
+                <select id="perPageSelect" onchange="filterTable()"
                     class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <option value="5">5</option>
                     <option value="10" selected>10</option>
@@ -59,7 +59,6 @@
                     <option value="all">All</option>
                 </select>
                 <span>entries</span>
-                <div class="ml-auto text-xs text-gray-400" id="entriesInfoTop"></div>
             </div>
 
             <div class="overflow-x-auto">
@@ -162,8 +161,6 @@
                 </table>
                 <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
             </div>
-
-            <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
 
         </div>
 

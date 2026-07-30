@@ -678,21 +678,14 @@
 
                     {{-- Seksi: Status --}}
                     <div>
-                        <p
-                            class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-1.5">
-                            <i class="fa fa-toggle-on text-[10px]"></i> Status
-                        </p>
+                      
                         <div class="flex items-center gap-6">
                             <div class="flex flex-col gap-1">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Status
-                                    Service</span>
+                                    Kendaraan</span>
                                 <span id="d_status_service"></span>
                             </div>
-                            <div class="flex flex-col gap-1">
-                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Status
-                                    Kendaraan</span>
-                                <span id="d_status_kendaraan_2"></span>
-                            </div>
+                        
                         </div>
                     </div>
 

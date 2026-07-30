@@ -462,11 +462,12 @@ class GpsKendaraanController extends Controller
                 'reference'   => $kodeJurnal,
                 'user_id'     => auth()->id(),
                 'kategori'    => 'Pengeluaran',
-                'metode'      => '-',
+                'metode'      => 'Cash',
                 'keterangan'  => 'Perpanjangan GPS kendaraan: ' . $gpsKendaraan->type . ' - ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
                 'pemasukan'   => 0,
                 'pengeluaran' => $pengeluaran,
                 'saldo'       => $lastSaldo - $pengeluaran,
+                'sumber'      => 'auto',
             ]);
 
             // --- Auto-posting ke Buku Besar (tanpa pengecekan duplikat — kode jurnal sudah unik) ---
@@ -591,11 +592,12 @@ class GpsKendaraanController extends Controller
                     'reference'   => $kodeJurnal,
                     'user_id'     => auth()->id(),
                     'kategori'    => 'Pengeluaran',
-                    'metode'      => '-',
+                    'metode'      => 'Cash',
                     'keterangan'  => 'Perpanjangan GPS: ' . $gpsKendaraan->type . ' - ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
                     'pemasukan'   => 0,
                     'pengeluaran' => $pengeluaran,
                     'saldo'       => $lastSaldo - $pengeluaran,
+                    'sumber'      => 'auto',
                 ]);
 
                 // Auto-posting Buku Besar

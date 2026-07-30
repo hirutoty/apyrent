@@ -73,6 +73,12 @@
                     <div>
                         <p class="text-xs text-gray-500 font-medium">Total Pemasukan</p>
                         <p class="text-lg font-bold text-green-600">Rp {{ number_format($totalPemasukan) }}</p>
+                        @if($hasFilter)
+                            <p class="text-xs text-green-500 mt-0.5">
+                                <i class="fa fa-filter text-xs"></i>
+                                Filter: Rp {{ number_format($filteredPemasukan) }}
+                            </p>
+                        @endif
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex
@@ -84,6 +90,12 @@
                     <div>
                         <p class="text-xs text-gray-500 font-medium">Total Pengeluaran</p>
                         <p class="text-lg font-bold text-red-600">Rp {{ number_format($totalPengeluaran) }}</p>
+                        @if($hasFilter)
+                            <p class="text-xs text-red-500 mt-0.5">
+                                <i class="fa fa-filter text-xs"></i>
+                                Filter: Rp {{ number_format($filteredPengeluaran) }}
+                            </p>
+                        @endif
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex
@@ -95,6 +107,12 @@
                     <div>
                         <p class="text-xs text-gray-500 font-medium">Saldo</p>
                         <p class="text-lg font-bold text-blue-600">Rp {{ number_format($saldo) }}</p>
+                        @if($hasFilter)
+                            <p class="text-xs text-blue-500 mt-0.5">
+                                <i class="fa fa-filter text-xs"></i>
+                                Filter: Rp {{ number_format($filteredSaldo) }}
+                            </p>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -269,6 +287,10 @@
                                     class="text-left text-xs font-semibold uppercase tracking-wide
   text-gray-500 px-4 py-3">
                                     Saldo</th>
+                                <th
+                                    class="text-left text-xs font-semibold uppercase tracking-wide
+  text-gray-500 px-4 py-3">
+                                    Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="keuanganTableBody">
@@ -316,6 +338,26 @@
                                     <td class="px-4 py-3.5">
                                         <span class="text-sm font-bold text-blue-600">Rp
                                             {{ number_format($k->saldo) }}</span>
+                                    </td>
+                                    <td class="px-4 py-3.5">
+                                        @if ($k->sumber !== 'auto')
+                                            <form action="{{ route('keuangan.destroy', $k->id) }}"
+                                                method="POST"
+                                                onsubmit="return confirm('Yakin ingin menghapus transaksi ini?')"
+                                                class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                                                    <i class="fa fa-trash text-xs"></i> Hapus
+                                                </button>
+                                            </form>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg cursor-not-allowed"
+                                                title="Entri otomatis sistem — hapus dari sumber asalnya">
+                                                <i class="fa fa-lock text-xs"></i> Auto
+                                            </span>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty

@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Request for Quotation')
 
@@ -82,18 +82,9 @@
         </div>
         {{-- FILTER BAR --}}
         <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <div class="flex items-center gap-2">
-                <span>Show</span>
-                <select id="perPageSelect" onchange="renderTable()"
-                    class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <option value="5">5</option><option value="10" selected>10</option>
-                    <option value="25">25</option><option value="50">50</option><option value="all">All</option>
-                </select>
-                <span>entries</span>
-            </div>
             <div class="w-px h-4 bg-gray-200"></div>
             <span class="text-gray-400 font-medium">Tanggal RFQ:</span>
-            <select id="filterBulan" onchange="renderTable()"
+            <select id="filterBulan" onchange="filterTable()"
                 class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 <option value="">Semua Bulan</option>
                 <option value="01">Januari</option><option value="02">Februari</option><option value="03">Maret</option>
@@ -101,7 +92,7 @@
                 <option value="07">Juli</option><option value="08">Agustus</option><option value="09">September</option>
                 <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
             </select>
-            <select id="filterTahun" onchange="renderTable()"
+            <select id="filterTahun" onchange="filterTable()"
                 class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 <option value="">Semua Tahun</option>
                 @foreach($data->map(fn($d)=>$d->tanggal_rfq?\Carbon\Carbon::parse($d->tanggal_rfq)->year:null)->filter()->unique()->sortDesc() as $yr)
@@ -112,7 +103,6 @@
                 class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                 <i class="fa fa-rotate-left text-[10px]"></i> Reset
             </button>
-            <div class="ml-auto text-xs text-gray-400" id="entriesInfoTop"></div>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -206,7 +196,6 @@
             </table>
             <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
         </div>
-        <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400" id="entriesInfo"></div>
     </div>
 </div>
 
@@ -405,7 +394,7 @@ function resetFilter() {
     document.querySelector('input[oninput="onSearchInput(this.value)"]').value='';
     document.getElementById('filterBulan').value='';
     document.getElementById('filterTahun').value='';
-    document.getElementById('perPageSelect').value='10';
+    
     renderTable();
 }
 document.addEventListener('DOMContentLoaded', renderTable);

@@ -393,11 +393,12 @@ class RentalController extends Controller
                     'reference'   => $kodeJurnal,
                     'user_id'     => auth()->id(),
                     'kategori'    => 'Pemasukan',
-                    'metode'      => 'auto',
+                    'metode'      => 'Cash',
                     'keterangan'  => 'Pelunasan Rental #' . $rental->id . ' - ' . optional($rental->kendaraan)->merk . ' ' . optional($rental->kendaraan)->nopol,
                     'pemasukan'   => $request->nominal_pelunasan,
                     'pengeluaran' => 0,
                     'saldo'       => $lastSaldo + $request->nominal_pelunasan,
+                    'sumber'      => 'auto',
                 ]);
             }
 
@@ -460,11 +461,12 @@ class RentalController extends Controller
                             'reference'   => $kodeJurnal,
                             'user_id'     => auth()->id(),
                             'kategori'    => 'Pemasukan',
-                            'metode'      => 'auto',
+                            'metode'      => 'Cash',
                             'keterangan'  => 'Rental ' . $rental->kendaraan->merk . ' - ' . $rental->kendaraan->nopol,
                             'pemasukan'   => $rental->total_biaya,
                             'pengeluaran' => 0,
                             'saldo'       => $lastSaldo + $rental->total_biaya,
+                            'sumber'      => 'auto',
                         ]);
                     }
 
@@ -711,11 +713,12 @@ class RentalController extends Controller
                             'reference'   => $kodeJurnal,
                             'user_id'     => auth()->id(),
                             'kategori'    => 'Pemasukan',
-                            'metode'      => 'auto',
+                            'metode'      => 'Cash',
                             'keterangan'  => 'Rental ' . $rental->kendaraan->merk . ' - ' . $rental->kendaraan->nopol,
                             'pemasukan'   => $rental->total_biaya,
                             'pengeluaran' => 0,
                             'saldo'       => $lastSaldo + $rental->total_biaya,
+                            'sumber'      => 'auto',
                         ]);
                     }
                     // Auto-posting ke Buku Besar
