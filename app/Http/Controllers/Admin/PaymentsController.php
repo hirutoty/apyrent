@@ -37,7 +37,7 @@ class PaymentsController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $invoices = Invoice::orderBy('invoice_no')->get();
+        $invoices = Invoice::with(['penawaran.items', 'summary'])->orderBy('invoice_no')->get();
 
         return view(
             'admin.payments.index',

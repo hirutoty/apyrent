@@ -38,6 +38,11 @@
     .inv-table td.r { text-align: right; }
     .inv-table td.l { text-align: left; }
     .inv-table tfoot td { font-weight: bold; }
+    /* Baris data: kolom Remaks, QTY, Car Rent/Month tanpa border bawah */
+    .inv-table tbody tr td.no-border-bottom { border-bottom: none; }
+    /* Min-height baris data supaya lebih panjang ke bawah */
+    .inv-table tbody tr { min-height: 80px; }
+    .inv-table tbody tr td { height: 80px; vertical-align: top; padding-top: 8px; }
 
     /* BANK INFO */
     .bank-info { margin margin-top: 20px; font-size: 10.5pt; line-height: 1.6; }
@@ -56,8 +61,8 @@
     .sign-pos { font-size: 10.5pt; margin-top: 2px; }
 
     /* FOOTER */
-    .footer-co { margin-top: 100px; text-align: center; font-weight: bold; font-size: 11pt; }
-    .footnote { margin-top: 4px; text-align: center; font-size: 9pt; line-height: 1.6; }
+    .footer-co { margin-top: 80px; text-align: center; font-weight: bold; font-size: 11pt; }
+    .footnote { margin-top: 0px; text-align: center; font-size: 9pt; line-height: 1.6; }
 
     @page { margin: 0mm; }
   </style>
@@ -66,20 +71,15 @@
 <div class="paper">
 
   {{-- ============ HEADER ============ --}}
-  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
-    <tr>
-      <td width="130" style="vertical-align:middle;">
-        @if(!empty($logoSrc))
-          <img src="{{ $logoSrc }}" style="height:80px;max-width:160px;" alt="Logo">
-        @endif
-      </td>
-      <td style="text-align:center; vertical-align:middle;">
-        <div style="font-size:18pt; font-weight:bold; letter-spacing:3px; border-bottom:2.5px solid #000; display:inline-block; padding-bottom:3px;">INVOICE</div>
-        <div style="font-size:11pt; margin-top:5px;">No. {{ $invoice->invoice_no }}</div>
-      </td>
-      <td width="130"></td>
-    </tr>
-  </table>
+  <div style="position:relative; margin-bottom:8px; min-height:90px;">
+    @if(!empty($logoSrc))
+      <img src="{{ $logoSrc }}" style="position:absolute; top:0; left:0; height:110px; max-width:300px; z-index:0; opacity:1;" alt="Logo">
+    @endif
+    <div style="position:relative; z-index:1; text-align:center; padding-top:4px;">
+      <div style="font-size:18pt; font-weight:bold; letter-spacing:3px; border-bottom:2.5px solid #000; display:inline-block; padding-bottom:3px;">INVOICE</div>
+      <div style="font-size:11pt; margin-top:5px;">No. {{ $invoice->invoice_no }}</div>
+    </div>
+  </div>
 
   {{-- ============ CUSTOMER INFO ============ --}}
   @php
@@ -89,12 +89,10 @@
   @endphp
 
   <table class="info-table">
-    <tr><td class="lbl">No. Order</td><td class="sep">:</td><td>{{ $invoice->order_no ?? '-' }}</td></tr>
     <tr><td class="lbl">Nama Customer</td><td class="sep">:</td><td><strong>{{ $invoice->customer_name }}</strong></td></tr>
     <tr><td class="lbl">Alamat</td><td class="sep">:</td><td>{{ $invoice->customer_address ?? '-' }}</td></tr>
     <tr><td class="lbl">Contact Person</td><td class="sep">:</td><td>{{ $invoice->contact_person ?? '-' }}</td></tr>
     <tr><td class="lbl">Telephone</td><td class="sep">:</td><td>{{ $invoice->telephone ?? '-' }}</td></tr>
-    <tr><td class="lbl">Kendaraan</td><td class="sep">:</td><td>{{ $kendaraanList }}</td></tr>
   </table>
 
   {{-- ============ INVOICE TABLE ============ --}}
@@ -107,61 +105,160 @@
         <th style="width:18%;">Periode</th>
         <th style="width:37%;">Remaks</th>
         <th style="width:7%;">QTY</th>
-        <th style="width:19%;">{{ $invoice->satuan ?: 'Car Rent/Day' }}</th>
+        <th style="width:19%;">Car Rent/Month</th>
         <th style="width:19%;">Sub Total</th>
       </tr>
     </thead>
     <tbody>
-      @forelse($invoice->periodes as $periode)
+    @forelse($invoice->periodes as $periode)
+
         @php
-          $remakList = $periode->remaks;
-          $rowspan   = max($remakList->count(), 1);
+            $remakList = $periode->remaks;
         @endphp
 
-        @if($remakList->isEmpty())
-          <tr>
-            <td class="c" style="font-size:9.5pt;">
-              {{ \Carbon\Carbon::parse($periode->periode_awal)->translatedFormat('d F Y') }}
-              @if($periode->periode_akhir && $periode->periode_akhir != $periode->periode_awal)
-                –<br>{{ \Carbon\Carbon::parse($periode->periode_akhir)->translatedFormat('d F Y') }}
-              @endif
-            </td>
-            <td colspan="4" class="c" style="color:#888;font-style:italic;">Belum ada remaks</td>
-          </tr>
-        @else
-          @foreach($remakList as $i => $item)
-            @php
-              $itemTotal = ($item->qty ?? 1) * ($item->price ?? 0);
-              $subTotal += $itemTotal;
-            @endphp
-            <tr>
-              @if($i === 0)
-                <td class="c" rowspan="{{ $rowspan }}" style="font-size:9.5pt;">
-                  {{ \Carbon\Carbon::parse($periode->periode_awal)->translatedFormat('d F Y') }}
-                  @if($periode->periode_akhir && $periode->periode_akhir != $periode->periode_awal)
-                    –<br>{{ \Carbon\Carbon::parse($periode->periode_akhir)->translatedFormat('d F Y') }}
-                  @endif
-                </td>
-              @endif
-              <td class="l">{!! nl2br(e($item->remaks)) !!}</td>
-              <td class="c">{{ $item->qty ?? 1 }}</td>
-              <td class="r">Rp &nbsp;{{ number_format($item->price ?? 0, 0, ',', '.') }}</td>
-              <td class="r">Rp &nbsp;{{ number_format($itemTotal, 0, ',', '.') }}</td>
-            </tr>
-          @endforeach
-        @endif
-      @empty
         <tr>
-          <td colspan="5" class="c" style="padding:14px;color:#888;font-style:italic;">Belum ada data periode</td>
+            {{-- PERIODE --}}
+            <td class="c" style="font-size:9.5pt;">
+                {{ \Carbon\Carbon::parse($periode->periode_awal)->translatedFormat('d F Y') }}
+
+                @if($periode->periode_akhir && $periode->periode_akhir != $periode->periode_awal)
+                    s/d<br>
+                    {{ \Carbon\Carbon::parse($periode->periode_akhir)->translatedFormat('d F Y') }}
+                @endif
+            </td>
+
+            {{-- REMAKS --}}
+            <td class="l">
+                @if($remakList->isEmpty())
+                    <span style="color:#888;font-style:italic;">
+                        Belum ada remaks
+                    </span>
+                @else
+                    @foreach($remakList as $item)
+                        {!! nl2br(e($item->remaks)) !!}
+                        @if(!$loop->last)
+                            <br>
+                        @endif
+                    @endforeach
+                @endif
+            </td>
+
+            {{-- QTY --}}
+            <td class="c">
+                @if($remakList->isEmpty())
+                    -
+                @else
+                    @foreach($remakList as $idx => $item)
+                        @php
+                            // Ambil harga per bulan dari map penawaran (urut by index)
+                            $penawaranItems = $invoice->penawaran?->items ?? collect();
+                            $pItem          = $penawaranItems->values()->get($idx);
+                            $qtyDisplay     = $pItem ? $pItem->qty : ($item->qty ?? 1);
+                        @endphp
+
+                        {{ $qtyDisplay }}
+
+                        @if(!$loop->last)
+                            <br>
+                        @endif
+                    @endforeach
+                @endif
+            </td>
+
+            {{-- PRICE (per bulan) --}}
+            <td class="r">
+                @if($remakList->isEmpty())
+                    -
+                @else
+                    @foreach($remakList as $idx => $item)
+                        @php
+                            $penawaranItems  = $invoice->penawaran?->items ?? collect();
+                            $pItem           = $penawaranItems->values()->get($idx);
+                            if ($pItem) {
+                                $durasi   = max(1, (int) $pItem->durasi);
+                                $satuan   = strtolower($pItem->satuan_durasi ?? 'month');
+                                $dBulan   = match(true) {
+                                    in_array($satuan, ['tahun','year']) => $durasi * 12,
+                                    in_array($satuan, ['hari','day'])   => $durasi / 30,
+                                    default                             => $durasi,
+                                };
+                                $pricePerBulan = round($pItem->price / max(1, $dBulan));
+                            } else {
+                                $pricePerBulan = $item->price ?? 0;
+                            }
+                        @endphp
+                        Rp&nbsp;{{ number_format($pricePerBulan, 0, ',', '.') }}
+
+                        @if(!$loop->last)
+                            <br>
+                        @endif
+                    @endforeach
+                @endif
+            </td>
+
+            {{-- SUB TOTAL (qty × price per bulan) --}}
+            <td class="r">
+                @if($remakList->isEmpty())
+                    -
+                @else
+                    @foreach($remakList as $idx => $item)
+                        @php
+                            $penawaranItems  = $invoice->penawaran?->items ?? collect();
+                            $pItem           = $penawaranItems->values()->get($idx);
+                            if ($pItem) {
+                                $durasi   = max(1, (int) $pItem->durasi);
+                                $satuan   = strtolower($pItem->satuan_durasi ?? 'month');
+                                $dBulan   = match(true) {
+                                    in_array($satuan, ['tahun','year']) => $durasi * 12,
+                                    in_array($satuan, ['hari','day'])   => $durasi / 30,
+                                    default                             => $durasi,
+                                };
+                                $pricePerBulan = round($pItem->price / max(1, $dBulan));
+                                $itemTotal     = $pItem->qty * $pricePerBulan;
+                            } else {
+                                $itemTotal = ($item->qty ?? 1) * ($item->price ?? 0);
+                            }
+                            $subTotal += $itemTotal;
+                        @endphp
+
+                        Rp&nbsp;{{ number_format($itemTotal, 0, ',', '.') }}
+
+                        @if(!$loop->last)
+                            <br>
+                        @endif
+                    @endforeach
+                @endif
+            </td>
         </tr>
-      @endforelse
+
+    @empty
+        <tr>
+            <td colspan="5" class="c" style="padding:14px;color:#888;font-style:italic;">
+                Belum ada data periode
+            </td>
+        </tr>
+    @endforelse
     </tbody>
 
     @php
-      $ppnNom   = floatval($invoice->ppn ?? 0);
-      $pphNom   = floatval($invoice->pph ?? 0);
+      // Persentase dari setting
+      $ppnPct   = floatval($setting?->ppn_default ?? 0);
+      $pphPct   = floatval($setting?->pph_default ?? 0);
+
+      // Hitung nominal dari subTotal × persentase
+      $ppnNom   = round($subTotal * $ppnPct / 100);
+      $pphNom   = round($subTotal * $pphPct / 100);
+
+      // Grand total = subTotal + PPN (PPh hanya pajangan, tidak mengurangi)
       $afterPpn = $subTotal + $ppnNom;
-      $grand    = $afterPpn - $pphNom;
+      $grand    = $afterPpn;
+
+      $fax = $setting?->fax ? 'Fax: ' . $setting->fax : '';
+      $email = $setting?->email ? '' . $setting->email : '';
+
+      // Label dinamis, strip trailing zero (misal 11.00 → 11, 2.50 → 2,5)
+      $ppnLabel = $ppnPct > 0 ? 'PPN ' . rtrim(rtrim(number_format($ppnPct, 2, ',', ''), '0'), ',') . '%' : 'PPN';
+      $pphLabel = $pphPct > 0 ? 'Pot PPh ' . rtrim(rtrim(number_format($pphPct, 2, ',', ''), '0'), ',') . '%' : 'Pot PPh';
     @endphp
 
     {{-- ============ INVOICE TABLE FOOTER ============ --}}
@@ -174,23 +271,24 @@
         <td class="r">{{ number_format($subTotal, 0, ',', '.') }}</td>
       </tr>
       <tr>
-        <td colspan="2" class="l">PPN 10%</td>
-        <td></td> <td class="r">{{ $ppnNom > 0 ? number_format($ppnNom, 0, ',', '.') : '-' }}</td>
+        <td colspan="2" class="l">{{ $ppnLabel }}</td>
+        <td></td>
+        <td class="r">{{ $ppnNom > 0 ? number_format($ppnNom, 0, ',', '.') : '-' }}</td>
       </tr>
       <tr>
         <td colspan="3" class="l">Sub Total</td>
         <td class="r">{{ number_format($afterPpn, 0, ',', '.') }}</td>
       </tr>
       <tr>
-        <td colspan="3" class="l">Pot PPh 2%</td>
-        <td class="r">{{ $pphNom > 0 ? number_format($pphNom, 0, ',', '.') : '-' }}</td>
+        <td colspan="3" class="l">{{ $pphLabel }}</td>
+        <td class="r"></td>
       </tr>
       <tr>
         <td colspan="4" class="c">Total Invoice</td>
         <td class="r">{{ number_format($grand, 0, ',', '.') }}</td>
       </tr>
       <tr>
-        <td colspan="5" class="c" style="font-style:italic;">
+        <td colspan="5" class="c" style="background-color:#f0f0f0;">
           # {{ $terbilang }} #
         </td>
       </tr>
@@ -206,7 +304,7 @@
   </div>
 
   <div class="pay-note">
-    Bukti Transfer mohon di fax ke nomor (021) 837-92927 / email ke apy@cbn.net.id<br>
+    Bukti Transfer mohon di fax ke nomor {{ $fax }} / email ke {{ $email }}<br>
     Apabila bukti pembayaran belum kami terima maka kami belum dapat memproses
     <br>
     pembayaran Invoice tersebut
@@ -217,7 +315,7 @@
     <tr>
       <td class="left">
         <div style="font-size:11pt;">Jakarta, {{ \Carbon\Carbon::parse($invoice->invoice_date)->translatedFormat('d F Y') }}</div>
-        <div style="font-size:11pt; margin-bottom:6px;">{{ $invoice->pengirim }}</div>
+        <div style="font-size:11pt; margin-bottom:6px;">{{ $setting?->nama_perusahaan ?? '' }}</div>
         <div style="font-style:italic; font-size:11pt;">Prepared By,</div>
         <div class="sign-spacer left">
         <img style="position: absolute; opacity: 40%;" src="{{ $logoSrc }}" alt="TTD Direktur">

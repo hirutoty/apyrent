@@ -280,24 +280,6 @@
                             @endforeach
                         </select>
 
-                        {{-- Info rental + sisa pembayaran --}}
-                        <div id="tambah_kontrak_info" class="mt-3 hidden">
-                            <div class="grid grid-cols-3 gap-3">
-                                <div class="bg-white rounded-lg border border-blue-100 px-3 py-2 text-center">
-                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Jumlah Rental</p>
-                                    <p id="tambah_info_rental_count" class="text-lg font-bold text-blue-600 mt-0.5">0</p>
-                                </div>
-                                <div class="bg-white rounded-lg border border-blue-100 px-3 py-2 text-center">
-                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Total Tagihan</p>
-                                    <p id="tambah_info_total_biaya" class="text-sm font-semibold text-gray-700 mt-0.5">Rp 0</p>
-                                </div>
-                                <div class="bg-white rounded-lg border border-blue-100 px-3 py-2 text-center">
-                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Sisa Pembayaran</p>
-                                    <p id="tambah_info_sisa" class="text-sm font-semibold mt-0.5">Rp 0</p>
-                                </div>
-                            </div>
-                        </div>
-
                         {{-- Status badge --}}
                         <div id="tambah_kontrak_status" class="mt-2 hidden">
                             <span id="tambah_kontrak_status_badge" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"></span>
@@ -375,14 +357,12 @@
                             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Informasi invoice</h3>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Satuan</label>
-                                <input type="text" name="satuan" placeholder="Contoh: Car Rent/Day"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('satuan', 'Car Rent/Day') }}">
-                            </div>
+                                {{-- <label class="block text-xs font-semibold text-gray-600 mb-1.5">Satuan</label> --}}
+                                <input hidden type="text" name="satuan" id="tambah_satuan" placeholder="Contoh: Car Rent/Day"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('satuan', 'Car Rent/Month') }}">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pengirim</label>
-                                <input type="text" name="pengirim" placeholder="Nama pengirim"
+                                <input type="text" name="pengirim" id="tambah_pengirim" placeholder="Nama pengirim"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pengirim') }}">
                             </div>
                         </div>
@@ -395,7 +375,7 @@
                                     @endif
                                 </label>
                                 <div class="relative">
-                                    <input type="number" step="0.01" name="ppn" min="0"
+                                    <input type="number" step="0.01" name="ppn" id="tambah_ppn" min="0"
                                         value="{{ old('ppn', $setting->ppn_default ?? 0) }}"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
@@ -409,7 +389,7 @@
                                     @endif
                                 </label>
                                 <div class="relative">
-                                    <input type="number" step="0.01" name="pph" min="0"
+                                    <input type="number" step="0.01" name="pph" id="tambah_pph" min="0"
                                         value="{{ old('pph', $setting->pph_default ?? 0) }}"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
@@ -417,11 +397,18 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Total (Rp)</label>
-                                <input type="number" step="0.01" name="total" value="0" min="0"
+                                <input type="number" step="0.01" name="total" id="tambah_total" value="0" min="0"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                         </div>
                     </div>
+
+                    <div class="border-t border-gray-100"></div>
+
+                    {{-- Hidden: status & payment_status default draft/unpaid --}}
+                    <input type="hidden" name="status" id="tambah_status_hidden" value="draft">
+                    <input type="hidden" name="payment_status" id="tambah_payment_status_hidden" value="unpaid">
+                    <input type="hidden" id="tambah_jumlah_bayar" name="jumlah_dibayar" value="0">
 
                     <div class="border-t border-gray-100"></div>
 
@@ -430,56 +417,6 @@
                         <div class="flex items-center gap-2 mb-3">
                             <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                                 <span class="text-blue-600 text-[10px] font-bold">4</span>
-                            </div>
-                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Pembayaran & Status</h3>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                            {{-- Jumlah dibayar (input manual cicilan) --}}
-                            <div class="md:col-span-2">
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                                    Jumlah Dibayar <span class="text-gray-400 font-normal">(isi 0 jika belum ada pembayaran)</span>
-                                </label>
-                                <div class="relative">
-                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-semibold">Rp</span>
-                                    <input type="number" id="tambah_jumlah_bayar" name="jumlah_dibayar"
-                                        value="0" min="0" step="1000"
-                                        oninput="onTambahJumlahBayarChange(this)"
-                                        class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                </div>
-                                <div class="mt-1.5 flex flex-wrap gap-4 text-xs text-gray-500">
-                                    <span>Total tagihan: <span id="tambah_lbl_total" class="font-semibold text-gray-700">Rp 0</span></span>
-                                    <span>Sudah dibayar: <span id="tambah_lbl_prev_paid" class="font-semibold text-blue-600">Rp 0</span></span>
-                                    <span>Sisa: <span id="tambah_lbl_sisa" class="font-semibold text-red-600">Rp 0</span></span>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status invoice</label>
-                                <div id="tambah_status_display"
-                                    class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-500 w-full">
-                                    Draft (belum ada pembayaran)
-                                </div>
-                                <input type="hidden" name="status" id="tambah_status_hidden" value="draft">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status pembayaran</label>
-                                <div id="tambah_payment_status_display"
-                                    class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-red-100 text-red-700 w-full">
-                                    Unpaid
-                                </div>
-                                <input type="hidden" name="payment_status" id="tambah_payment_status_hidden" value="unpaid">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="border-t border-gray-100"></div>
-
-                    {{-- SEKSI 5 --}}
-                    <div>
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <span class="text-blue-600 text-[10px] font-bold">5</span>
                             </div>
                             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Penandatangan</h3>
                         </div>
@@ -490,7 +427,7 @@
                                 <p class="text-xs font-semibold text-gray-500"><i class="fa fa-user text-gray-400 mr-1"></i> Staff</p>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan staff</label>
-                                    <select name="staff"
+                                    <select name="staff" id="tambah_staff"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                         <option value="">-- Pilih Jabatan Staf --</option>
                                         <option>Direktur Utama (CEO)</option>
@@ -512,7 +449,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama staff</label>
-                                    <input type="text" name="name_staff" placeholder="Nama lengkap"
+                                    <input type="text" name="name_staff" id="tambah_name_staff" placeholder="Nama lengkap"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('name_staff') }}">
                                 </div>
                                 {{-- TTD Staff: hidden input path + UI tab --}}
@@ -528,7 +465,7 @@
                                 <p class="text-xs font-semibold text-gray-500"><i class="fa fa-user-tie text-gray-400 mr-1"></i> Direktur</p>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan direktur</label>
-                                    <select name="direktur"
+                                    <select name="direktur" id="tambah_direktur"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                         <option value="">-- Pilih Jabatan Direktur --</option>
                                         <option>Direktur Utama (CEO)</option>
@@ -550,7 +487,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama direktur</label>
-                                    <input type="text" name="name_direktur" placeholder="Nama lengkap"
+                                    <input type="text" name="name_direktur" id="tambah_name_direktur" placeholder="Nama lengkap"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('name_direktur') }}">
                                 </div>
                                 <input type="hidden" name="ttd_direktur_path" id="tambah_direktur_path">
@@ -1437,11 +1374,7 @@
             // ===================== LOOKUP NO KONTRAK (dropdown) =====================
             const fmtRp = n => 'Rp ' + Number(n).toLocaleString('id-ID');
 
-            // Total tagihan dari lookup — dipakai oleh onTambahJumlahBayarChange
-            let _tambahTotalTagihan  = 0;
-            // Total yang sudah dibayar di invoice-invoice sebelumnya
-            let _tambahPrevPaid      = 0;
-            // Rental details untuk auto-populate tab 2
+            // Total tagihan & rental details untuk auto-populate tab 2
             let _tambahRentalDetails = [];
 
             function resetTambahForm() {
@@ -1459,22 +1392,24 @@
                 document.getElementById('tambah_hidden_kendaraan_container').innerHTML = '';
                 document.getElementById('tambah_kendaraan_display').innerHTML =
                     '<span class="text-gray-400 italic">Pilih No Kontrak terlebih dahulu.</span>';
-                document.getElementById('tambah_kontrak_info').classList.add('hidden');
                 document.getElementById('tambah_kontrak_status').classList.add('hidden');
-                // Reset jumlah bayar & label
-                _tambahTotalTagihan = 0;
-                _tambahPrevPaid     = 0;
+                // Reset rental details
                 _tambahRentalDetails = [];
+                // Reset seksi 3
+                setVal('tambah_satuan', 'Car Rent/Day');
+                setVal('tambah_pengirim', '');
+                setVal('tambah_ppn', '{{ $setting->ppn_default ?? 0 }}');
+                setVal('tambah_pph', '{{ $setting->pph_default ?? 0 }}');
+                setVal('tambah_total', 0);
+                // Reset seksi 4 (hidden)
                 const jb = document.getElementById('tambah_jumlah_bayar');
                 if (jb) jb.value = 0;
-                const lt = document.getElementById('tambah_lbl_total');
-                if (lt) lt.textContent = 'Rp 0';
-                const lp = document.getElementById('tambah_lbl_prev_paid');
-                if (lp) lp.textContent = 'Rp 0';
-                const sl = document.getElementById('tambah_lbl_sisa');
-                if (sl) { sl.textContent = 'Rp 0'; sl.className = 'font-semibold text-red-600'; }
-                // Reset status display
                 setTambahStatus(0, 0);
+                // Reset seksi 5
+                setVal('tambah_staff', '');
+                setVal('tambah_name_staff', '');
+                setVal('tambah_direktur', '');
+                setVal('tambah_name_direktur', '');
             }
 
             function setTambahStatus(dibayar, total) {
@@ -1515,18 +1450,15 @@
             }
 
             function onTambahJumlahBayarChange(input) {
-                const dibayar     = parseFloat(input.value) || 0;
-                // Sisa yang masih harus dibayar setelah invoice sebelumnya
-                const sisaAktual  = Math.max(0, _tambahTotalTagihan - _tambahPrevPaid);
-                // Update sisa label: sisa aktual dikurangi cicilan yang sekarang diinput
-                const sisaSetelah = Math.max(0, sisaAktual - dibayar);
-                const sisaLbl = document.getElementById('tambah_lbl_sisa');
-                if (sisaLbl) {
-                    sisaLbl.textContent = fmtRp(sisaSetelah);
-                    sisaLbl.className   = 'font-semibold ' + (sisaSetelah > 0 ? 'text-red-600' : 'text-green-600');
-                }
-                // Gunakan total tagihan penuh agar setTambahStatus menghitung dengan benar
-                setTambahStatus(_tambahPrevPaid + dibayar, _tambahTotalTagihan);
+                const dibayar = parseFloat(input.value) || 0;
+                const total   = parseFloat(document.getElementById('tambah_total')?.value) || 0;
+                setTambahStatus(dibayar, total);
+            }
+
+            function onTambahJumlahBayarChange(input) {
+                const dibayar = parseFloat(input.value) || 0;
+                const total   = parseFloat(document.getElementById('tambah_total')?.value) || 0;
+                setTambahStatus(dibayar, total);
             }
 
             function doLookupKontrak(no) {
@@ -1587,70 +1519,25 @@
                         kDisp.innerHTML = '<span class="text-gray-400 italic">Tidak ada kendaraan terkait.</span>';
                     }
 
-                    // Info cards
-                    const infoBox = document.getElementById('tambah_kontrak_info');
-                    infoBox.classList.remove('hidden');
-                    document.getElementById('tambah_info_rental_count').textContent = data.rental_count ?? 0;
-                    document.getElementById('tambah_info_total_biaya').textContent  = fmtRp(data.total_biaya ?? 0);
-                    const sisaEl = document.getElementById('tambah_info_sisa');
-                    const sisa   = data.sisa ?? 0;
-                    sisaEl.textContent = fmtRp(sisa);
-                    sisaEl.className   = 'text-sm font-semibold mt-0.5 ' + (sisa > 0 ? 'text-red-600' : 'text-green-600');
-
-                    // Set total tagihan variable & update labels
-                    _tambahTotalTagihan = parseFloat(data.total_biaya) || 0;
+                    // Info cards dihapus — langsung ambil rental_details
                     _tambahRentalDetails = data.rental_details || [];
 
-                    // Sisa setelah invoice sebelumnya (dari server)
-                    const sisaSetelahInv = parseFloat(data.sisa) || 0;
-                    const totalPaidPrev  = parseFloat(data.total_paid) || 0;
+                    // Auto-fill Seksi 3: Informasi Invoice
+                    setVal('tambah_satuan',  data.satuan  ?? 'Car Rent/Day');
+                    setVal('tambah_pengirim', data.pengirim ?? '');
+                    setVal('tambah_ppn',     data.ppn     ?? 0);
+                    setVal('tambah_pph',     data.pph     ?? 0);
+                    setVal('tambah_total',   data.total   ?? 0);
 
-                    // Simpan prev paid untuk dipakai oleh onTambahJumlahBayarChange
-                    _tambahPrevPaid = totalPaidPrev;
+                    // Auto-fill Seksi 4: total ke hidden field saja (seksi 4 disembunyikan)
+                    const totalTagihan = parseFloat(data.total) || 0;
+                    setVal('tambah_total', totalTagihan);
 
-                    // Update semua label tagihan
-                    const lt = document.getElementById('tambah_lbl_total');
-                    if (lt) lt.textContent = fmtRp(_tambahTotalTagihan);
-                    const lp = document.getElementById('tambah_lbl_prev_paid');
-                    if (lp) lp.textContent = fmtRp(totalPaidPrev);
-
-                    // Jika ada sisa dari invoice sebelumnya, pre-fill jumlah_bayar = 0
-                    // dan set status dari server (partial jika sudah ada cicilan sebelumnya)
-                    const jbInput = document.getElementById('tambah_jumlah_bayar');
-                    jbInput.value = 0;
-
-                    // Tampilkan sisa dari invoice sebelumnya di label
-                    const sisaLbl = document.getElementById('tambah_lbl_sisa');
-                    if (sisaLbl) {
-                        sisaLbl.textContent = fmtRp(sisaSetelahInv);
-                        sisaLbl.className   = 'font-semibold ' + (sisaSetelahInv > 0 ? 'text-red-600' : 'text-green-600');
-                    }
-
-                    // Status awal: jika sudah ada cicilan sebelumnya → partial,
-                    // jika belum ada invoice sebelumnya → draft
-                    if (totalPaidPrev > 0 && sisaSetelahInv > 0) {
-                        // Sudah pernah bayar sebagian — invoice ini adalah cicilan lanjutan
-                        document.getElementById('tambah_status_hidden').value       = 'partial';
-                        document.getElementById('tambah_payment_status_hidden').value = 'unpaid';
-                        const stEl = document.getElementById('tambah_status_display');
-                        stEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-yellow-100 text-yellow-700 w-full';
-                        stEl.textContent = 'Partial — sisa ' + fmtRp(sisaSetelahInv);
-                        const pyEl = document.getElementById('tambah_payment_status_display');
-                        pyEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-yellow-100 text-yellow-700 w-full';
-                        pyEl.textContent = 'Unpaid';
-                    } else if (sisaSetelahInv <= 0 && _tambahTotalTagihan > 0) {
-                        // Sudah lunas semua
-                        document.getElementById('tambah_status_hidden').value       = 'lunas';
-                        document.getElementById('tambah_payment_status_hidden').value = 'paid';
-                        const stEl = document.getElementById('tambah_status_display');
-                        stEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-green-100 text-green-700 w-full';
-                        stEl.textContent = 'Lunas';
-                        const pyEl = document.getElementById('tambah_payment_status_display');
-                        pyEl.className   = 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-green-100 text-green-700 w-full';
-                        pyEl.textContent = 'Paid';
-                    } else {
-                        setTambahStatus(0, _tambahTotalTagihan);
-                    }
+                    // Auto-fill Seksi 5: Penandatangan
+                    setVal('tambah_staff',        data.staff         ?? '');
+                    setVal('tambah_name_staff',   data.name_staff    ?? '');
+                    setVal('tambah_direktur',     data.direktur      ?? '');
+                    setVal('tambah_name_direktur', data.name_direktur ?? '');
                 })
                 .catch(() => {
                     statusBadge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-700';
@@ -1915,13 +1802,15 @@
             document.getElementById('tambah_invoice_no_label').textContent = invoiceNo;
         }
 
-        // Auto-populate periode & remak dari data rental kontrak
+        // Auto-populate periode & remak dari data penawaran kontrak
         async function autoPopulatePeriodeRemak(invoiceId) {
             if (!_tambahRentalDetails || _tambahRentalDetails.length === 0) return;
             const csrf = '{{ csrf_token() }}';
-            for (const rental of _tambahRentalDetails) {
-                if (!rental.tanggal_mulai) continue;
-                // 1. Buat periode
+
+            for (const entry of _tambahRentalDetails) {
+                if (!entry.tanggal_mulai) continue;
+
+                // 1. Buat 1 periode
                 const periodeResp = await fetch('/admin/invoices/' + invoiceId + '/periodes', {
                     method: 'POST',
                     headers: {
@@ -1930,32 +1819,49 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        periode_awal:  rental.tanggal_mulai,
-                        periode_akhir: rental.tanggal_selesai || rental.tanggal_mulai,
+                        periode_awal:  entry.tanggal_mulai,
+                        periode_akhir: entry.tanggal_selesai || entry.tanggal_mulai,
                     })
                 });
                 const periodeJson = await periodeResp.json();
                 const periodeId = periodeJson.id ?? periodeJson.periode?.id ?? null;
                 if (!periodeId) continue;
 
-                // 2. Buat remak dari data kendaraan
-                const durasiLabel = rental.durasi ? rental.durasi + ' ' + rental.satuan : '';
-                const remaksText  = 'Sewa Kendaraan: ' + rental.kendaraan
-                    + (durasiLabel ? ' | Durasi: ' + durasiLabel : '');
+                // 2. Buat remak untuk setiap item kendaraan
+                const remakItems = entry.remak_items || [];
+                for (const item of remakItems) {
+                    await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            remaks: item.kendaraan,
+                            qty:    item.qty,
+                            price:  item.price,
+                        })
+                    });
+                }
 
-                await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrf,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        remaks: remaksText,
-                        qty:    1,
-                        price:  rental.biaya_dasar,
-                    })
-                });
+                // 3. Remak driver terpisah jika ada
+                if (entry.biaya_driver > 0) {
+                    const driverLabel = entry.nama_driver ? 'Driver: ' + entry.nama_driver : 'Biaya Driver';
+                    await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            remaks: driverLabel,
+                            qty:    entry.durasi_nilai ?? 1,
+                            price:  entry.biaya_driver,
+                        })
+                    });
+                }
             }
         }
 
@@ -2034,23 +1940,12 @@
                         <td class="px-3 py-1.5 text-xs text-center">${r.qty||1}</td>
                         <td class="px-3 py-1.5 text-xs text-right">${(r.price||0).toLocaleString('id-ID')}</td>
                         <td class="px-3 py-1.5 text-xs text-right">${((r.qty||1)*(r.price||0)).toLocaleString('id-ID')}</td>
-                        <td class="px-3 py-1.5 text-center">
-                            <button type="button" onclick="deleteTambahRemak(${currentTambahInvoiceId},${p.id},${r.id})" class="text-red-400 hover:text-red-600 text-xs"><i class="fa fa-trash"></i></button>
-                        </td>
+                      
                     </tr>`).join('') || '<tr><td colspan="5" class="text-center py-2 text-gray-400 text-xs">Belum ada remaks</td></tr>';
                 return `<div class="px-4 py-3 border-b">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-semibold text-gray-700">${awal}${akhir}</span>
-                        <div class="flex gap-1">
-                            <button type="button" onclick="openTambahRemakModal(${p.id})"
-                                class="text-xs text-blue-600 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-50">
-                                <i class="fa fa-plus mr-1"></i>Remaks
-                            </button>
-                            <button type="button" onclick="deleteTambahPeriode(${p.id})"
-                                class="text-xs text-red-400 border border-red-200 rounded px-2 py-0.5 hover:bg-red-50">
-                                <i class="fa fa-trash"></i>
-                            </button>
-                        </div>
+                       
                     </div>
                     <table class="w-full text-xs border border-gray-200 rounded">
                         <thead class="bg-gray-50"><tr>

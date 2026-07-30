@@ -38,6 +38,11 @@
     .inv-table td.r { text-align: right; }
     .inv-table td.l { text-align: left; }
     .inv-table tfoot td { font-weight: bold; }
+    /* Baris data: kolom Remaks, QTY, Car Rent/Month tanpa border bawah */
+    .inv-table tbody tr td.no-border-bottom { border-bottom: none; }
+    /* Min-height baris data supaya lebih panjang ke bawah */
+    .inv-table tbody tr { min-height: 80px; }
+    .inv-table tbody tr td { height: 80px; vertical-align: top; padding-top: 8px; }
 
     /* BANK INFO */
     .bank-info { margin margin-top: 20px; font-size: 10.5pt; line-height: 1.6; }
@@ -66,20 +71,15 @@
 <div class="paper">
 
   {{-- ============ HEADER ============ --}}
-  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
-    <tr>
-      <td width="130" style="vertical-align:middle;">
-        @if(!empty($logoSrc))
-          <img src="{{ $logoSrc }}" style="height:80px;max-width:160px;" alt="Logo">
-        @endif
-      </td>
-      <td style="text-align:center; vertical-align:middle;">
-        <div style="font-size:18pt; font-weight:bold; letter-spacing:3px; border-bottom:2.5px solid #000; display:inline-block; padding-bottom:3px;">INVOICE</div>
-        <div style="font-size:11pt; margin-top:5px;">No. INV-RENTAL-{{ str_pad($rental->id, 4, '0', STR_PAD_LEFT) }}</div>
-      </td>
-      <td width="130"></td>
-    </tr>
-  </table>
+  <div style="position:relative; margin-bottom:8px; min-height:90px;">
+    @if(!empty($logoSrc))
+      <img src="{{ $logoSrc }}" style="position:absolute; top:0; left:0; height:110px; max-width:260px; z-index:0; opacity:1;" alt="Logo">
+    @endif
+    <div style="position:relative; z-index:1; text-align:center; padding-top:4px;">
+      <div style="font-size:18pt; font-weight:bold; letter-spacing:3px; border-bottom:2.5px solid #000; display:inline-block; padding-bottom:3px;">INVOICE</div>
+      <div style="font-size:11pt; margin-top:5px;">No. INV-RENTAL-{{ str_pad($rental->id, 4, '0', STR_PAD_LEFT) }}</div>
+    </div>
+  </div>
 
   {{-- ============ CUSTOMER INFO ============ --}}
   @php
@@ -182,9 +182,9 @@
               @endif
             </td>
           @endif
-          <td class="l">{!! nl2br(e($item['remaks'])) !!}</td>
-          <td class="c">{{ $item['qty'] }}</td>
-          <td class="r">Rp &nbsp;{{ number_format($item['price'], 0, ',', '.') }}</td>
+          <td class="l no-border-bottom">{!! nl2br(e($item['remaks'])) !!}</td>
+          <td class="c no-border-bottom">{{ $item['qty'] }}</td>
+          <td class="r no-border-bottom">Rp &nbsp;{{ number_format($item['price'], 0, ',', '.') }}</td>
           <td class="r">Rp &nbsp;{{ number_format($item['subtotal'], 0, ',', '.') }}</td>
         </tr>
       @endforeach

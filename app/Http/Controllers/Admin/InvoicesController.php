@@ -40,8 +40,11 @@ class InvoicesController extends Controller
 
         $penawaran = $kontrak->penawaran;
 
+        $customerName = $penawaran?->customer_name ?? $kontrak->pihak_kedua;
+
         // Kendaraan dari item penawaran
         $kendaraans = [];
+        $kendaraanIds = [];
         if ($penawaran) {
             foreach ($penawaran->items as $item) {
                 if ($item->kendaraan) {
@@ -49,67 +52,65 @@ class InvoicesController extends Controller
                         'id'    => $item->kendaraan->id,
                         'label' => $item->kendaraan->merk . ' - ' . $item->kendaraan->nopol,
                     ];
+                    $kendaraanIds[] = $item->kendaraan->id;
                 }
             }
         }
 
-        // Rental data dari member terkait penawaran
-        $rentalCount = 0;
-        $totalBiaya  = 0;
-        $customerName = $penawaran?->customer_name ?? $kontrak->pihak_kedua;
-        $member = null;
+        // Ambil data dari item penawaran — 1 periode, semua item jadi remaks
+        $periodeAwal    = $kontrak->tanggal_kontrak
+            ? \Carbon\Carbon::parse($kontrak->tanggal_kontrak)->format('Y-m-d')
+            : null;
+        $periodeAkhir   = $kontrak->tanggal_selesai
+            ? \Carbon\Carbon::parse($kontrak->tanggal_selesai)->format('Y-m-d')
+            : $periodeAwal;
 
-        if ($customerName) {
-            $member = \App\Models\Pelanggan::where('nama_pelanggan', $customerName)->first();
-            if ($member) {
-                $rentals     = \App\Models\Rental::where('member_id', $member->id)->get();
-                $rentalCount = $rentals->count();
-                $totalBiaya  = $rentals->sum('total_biaya');
-            }
-        }
-
-        // Sisa pembayaran = total tagihan - semua paid_amount dari invoice sebelumnya (kontrak yang sama)
-        $totalPaidInvoices = \App\Models\InvSummary::where('kontrak_id', $kontrak->id)
-            ->sum('paid_amount');
-
-        $sisa = max(0, $totalBiaya - $totalPaidInvoices);
-
-        // Status otomatis berdasarkan sisa
-        // (dipakai oleh JS untuk menentukan status awal di form)
-        if ($totalBiaya <= 0 || $totalPaidInvoices <= 0) {
-            $autoStatus = 'draft';
-        } elseif ($sisa <= 0) {
-            $autoStatus = 'lunas';
-        } else {
-            $autoStatus = 'partial';
-        }
-
-        // Rental detail untuk auto-populate periode & remak
-        $rentalDetails = [];
-        if (isset($member)) {
-            $rentals = \App\Models\Rental::with('kendaraan')
-                ->where('member_id', $member->id)
-                ->get();
-            foreach ($rentals as $r) {
-                $durasi = null;
-                $satuanLabel = '';
-                if ($r->durasi_tahun)       { $durasi = $r->durasi_tahun;  $satuanLabel = 'Tahun'; }
-                elseif ($r->durasi_bulan)   { $durasi = $r->durasi_bulan;  $satuanLabel = 'Bulan'; }
-                elseif ($r->durasi_hari)    { $durasi = $r->durasi_hari;   $satuanLabel = 'Hari'; }
-
-                $rentalDetails[] = [
-                    'id'             => $r->id,
-                    'tanggal_mulai'  => $r->tanggal_mulai  ? \Carbon\Carbon::parse($r->tanggal_mulai)->format('Y-m-d')  : null,
-                    'tanggal_selesai'=> $r->tanggal_selesai ? \Carbon\Carbon::parse($r->tanggal_selesai)->format('Y-m-d') : null,
-                    'kendaraan'      => $r->kendaraan ? ($r->kendaraan->merk . ' - ' . $r->kendaraan->nopol) : '-',
-                    'harga_per_hari' => (int) ($r->kendaraan->harga_sewa_per_hari ?? 0),
-                    'biaya_dasar'    => (float) ($r->biaya_dasar ?? 0),
-                    'total_biaya'    => (float) ($r->total_biaya ?? 0),
-                    'durasi'         => $durasi,
-                    'satuan'         => $satuanLabel,
+        $remakItems = [];
+        if ($penawaran) {
+            foreach ($penawaran->items as $item) {
+                if (!$item->kendaraan) continue;
+                $remakItems[] = [
+                    'kendaraan'    => $item->kendaraan->merk . ' ' . $item->kendaraan->nopol,
+                    'qty'          => $item->qty ?? 1,
+                    'price'        => (float) ($item->price ?? 0),
                 ];
             }
         }
+
+        // Dibungkus dalam satu periode
+        $rentalDetails = [];
+        if (!empty($remakItems)) {
+            $rentalDetails[] = [
+                'tanggal_mulai'   => $periodeAwal,
+                'tanggal_selesai' => $periodeAkhir,
+                'remak_items'     => $remakItems,   // array remaks
+                // field lama tetap ada untuk kompatibilitas (dipakai sebagai fallback)
+                'kendaraan'       => '',
+                'biaya_dasar'     => 0,
+                'biaya_driver'    => 0,
+                'nama_driver'     => null,
+                'durasi_nilai'    => 1,
+            ];
+        }
+
+        // Satuan dari item penawaran pertama
+        $satuanItem = $penawaran?->items->first();
+        $satuanVal  = '';
+        if ($satuanItem) {
+            $sat = $satuanItem->satuan_durasi ?? '';
+            $satuanVal = $sat ? ('Car Rent/' . ucfirst($sat)) : 'Car Rent/Day';
+        }
+
+        // Total dari penawaran atau sum rental
+        $totalVal = $penawaran?->total ?? 0;
+        if (!$totalVal && !empty($rentalDetails)) {
+            $totalVal = collect($rentalDetails)->sum('total_biaya');
+        }
+
+        // PPN & PPH dari setting
+        $setting = \App\Models\Setting::first();
+        $ppnVal  = $setting?->ppn_default ?? 0;
+        $pphVal  = $setting?->pph_default ?? 0;
 
         return response()->json([
             'found'            => true,
@@ -124,12 +125,18 @@ class InvoicesController extends Controller
             'email'            => $penawaran?->email_person ?? '',
             'contact_person'   => $customerName,
             'kendaraans'       => $kendaraans,
-            'rental_count'     => $rentalCount,
-            'total_biaya'      => $totalBiaya,
-            'total_paid'       => $totalPaidInvoices,
-            'sisa'             => $sisa,
-            'auto_status'      => $autoStatus,
-            'rental_details'   => $rentalDetails ?? [],
+            'rental_details'   => $rentalDetails,
+            // Informasi invoice
+            'satuan'           => $satuanVal,
+            'pengirim'         => $penawaran?->pengirim ?? '',
+            'ppn'              => $ppnVal,
+            'pph'              => $pphVal,
+            'total'            => $totalVal,
+            // Penandatangan
+            'staff'            => $penawaran?->staff ?? '',
+            'name_staff'       => $penawaran?->name_staff ?? '',
+            'direktur'         => $penawaran?->direktur ?? '',
+            'name_direktur'    => $penawaran?->name_direktur ?? '',
         ]);
     }
 
@@ -706,19 +713,24 @@ class InvoicesController extends Controller
 
     public function print($id)
     {
-        $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'kendaraans', 'penawaran', 'kontrak', 'penawarans', 'kontraks'])->findOrFail($id);
+        $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'kendaraans', 'penawaran.items', 'kontrak', 'penawarans', 'kontraks'])->findOrFail($id);
         $setting = Setting::first();
 
-        // Hitung grand total dari remaks
-        $grandTotal = 0;
+        // Hitung subTotal dari remaks
+        $subTotal = 0;
         foreach ($invoice->periodes as $periode) {
             foreach ($periode->remaks as $item) {
-                $grandTotal += $item->subtotal ?? ($item->qty * ($item->price ?? 0));
+                $subTotal += $item->qty * ($item->price ?? 0);
             }
         }
 
-        // Tambahkan ppn - pph (nominal)
-        $grandTotal = $grandTotal + floatval($invoice->ppn ?? 0) - floatval($invoice->pph ?? 0);
+        // Hitung ppn & pph dari persentase setting
+        $ppnPct    = floatval($setting?->ppn_default ?? 0);
+        $pphPct    = floatval($setting?->pph_default ?? 0);
+        $ppnNom    = round($subTotal * $ppnPct / 100);
+        $pphNom    = round($subTotal * $pphPct / 100);
+        // PPh hanya pajangan, tidak mengurangi grand total
+        $grandTotal = $subTotal + $ppnNom;
 
         $terbilang = ucwords(trim($this->penyebut((int) $grandTotal))) . ' Rupiah';
 
