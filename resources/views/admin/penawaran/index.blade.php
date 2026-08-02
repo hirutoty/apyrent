@@ -297,6 +297,7 @@
                         <div>
                             <label class="text-sm font-medium">Tanggal</label>
                             <input type="date" name="tanggal_penawaran" value="{{ date('Y-m-d') }}"
+                                min="{{ date('Y-m-d') }}"
                                 class="w-full border rounded-lg p-2 mt-1" required>
                         </div>
 
@@ -506,6 +507,7 @@
                         <div>
                             <label>Tanggal</label>
                             <input id="edit_tanggal" type="date" name="tanggal_penawaran"
+                                min="{{ date('Y-m-d') }}"
                                 class="w-full border rounded-lg p-2 mt-1" required>
                         </div>
 

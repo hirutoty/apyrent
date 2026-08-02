@@ -725,9 +725,18 @@ class RentalController extends Controller
             $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
         }
 
-        // Hitung terbilang
-        $grandTotal = (int) ($rental->total_biaya ?? 0);
-        $terbilang  = ucwords(trim($this->penyebutRental($grandTotal))) . ' Rupiah';
+        // Hitung subTotal: kendaraan + driver + biaya tambahan
+        $durasi = $rental->durasi_tahun ?? $rental->durasi_bulan ?? $rental->durasi_hari ?? 1;
+        $biayaDasar      = (float) ($rental->biaya_dasar ?? 0);
+        $biayaDriver     = (float) ($rental->biaya_driver ?? 0) * $durasi;
+        $biayaTambahan   = (float) ($rental->biaya_tambahan_total ?? 0);
+        $subTotal        = $biayaDasar + $biayaDriver + $biayaTambahan;
+
+        // Terapkan PPN dari setting
+        $ppnPct          = floatval($setting?->ppn_default ?? 0);
+        $ppnNom          = round($subTotal * $ppnPct / 100);
+        $grandTotal      = (int) ($subTotal + $ppnNom);
+        $terbilang       = ucwords(trim($this->penyebutRental($grandTotal))) . ' Rupiah';
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.rental.invoice-pdf', [
             'rental'    => $rental,

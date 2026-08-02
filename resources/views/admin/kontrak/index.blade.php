@@ -365,6 +365,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Kontrak <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_kontrak" id="create_tanggal_kontrak"
                         onchange="calcTanggalSelesai()"
+                        min="{{ date('Y-m-d') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                         required value="{{ now()->format('Y-m-d') }}">
                 </div>
@@ -379,6 +380,7 @@
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Perjanjian Pembayaran</label>
                 <input type="date" name="perjanjian_pembayaran"
+                    min="{{ date('Y-m-d') }}"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
             </div>
 
@@ -505,11 +507,13 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Kontrak</label>
                     <input type="date" name="tanggal_kontrak" id="edit_tanggal_kontrak"
+                        min="{{ date('Y-m-d') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Perjanjian Pembayaran</label>
                     <input type="date" name="perjanjian_pembayaran" id="edit_perjanjian_pembayaran"
+                        min="{{ date('Y-m-d') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>

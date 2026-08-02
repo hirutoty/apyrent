@@ -155,10 +155,14 @@
         ];
     }
 
-    $ppnNom   = 0;
-    $pphNom   = 0;
+    $ppnPct   = floatval($setting?->ppn_default ?? 0);
+    $ppnNom   = round($subTotal * $ppnPct / 100);
     $afterPpn = $subTotal + $ppnNom;
-    $grand    = (float) ($rental->total_biaya ?? ($afterPpn - $pphNom));
+    $grand    = $afterPpn;
+
+    $ppnLabel = $ppnPct > 0
+        ? 'PPN ' . rtrim(rtrim(number_format($ppnPct, 2, ',', ''), '0'), ',') . '%'
+        : 'PPN';
   @endphp
 
   <table class="inv-table">
@@ -199,7 +203,7 @@
         <td class="r">{{ number_format($subTotal, 0, ',', '.') }}</td>
       </tr>
       <tr>
-        <td colspan="2" class="l">PPN 10%</td>
+        <td colspan="2" class="l">{{ $ppnLabel }}</td>
         <td></td>
         <td class="r">{{ $ppnNom > 0 ? number_format($ppnNom, 0, ',', '.') : '-' }}</td>
       </tr>
@@ -208,8 +212,8 @@
         <td class="r">{{ number_format($afterPpn, 0, ',', '.') }}</td>
       </tr>
       <tr>
-        <td colspan="3" class="l">Pot PPh 2%</td>
-        <td class="r">{{ $pphNom > 0 ? number_format($pphNom, 0, ',', '.') : '-' }}</td>
+        <td colspan="3" class="l">Pot PPh</td>
+        <td class="r">-</td>
       </tr>
       <tr>
         <td colspan="4" class="c">Total Invoice</td>

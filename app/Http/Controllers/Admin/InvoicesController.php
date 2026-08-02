@@ -711,6 +711,20 @@ class InvoicesController extends Controller
         );
     }
 
+    /**
+     * AJAX: Kembalikan grand total invoice (dari computeTotal) untuk auto-fill Summary.
+     * GET /admin/invoices/{id}/compute-total
+     */
+    public function getComputedTotal(string $id)
+    {
+        $invoice = Invoice::with(['periodes.remaks'])->findOrFail($id);
+        return response()->json([
+            'grand_total' => $invoice->computeTotal(),
+            'ppn'         => floatval($invoice->ppn ?? 0),
+            'pph'         => floatval($invoice->pph ?? 0),
+        ]);
+    }
+
     public function print($id)
     {
         $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'kendaraans', 'penawaran.items', 'kontrak', 'penawarans', 'kontraks'])->findOrFail($id);
@@ -724,11 +738,11 @@ class InvoicesController extends Controller
             }
         }
 
-        // Hitung ppn & pph dari persentase setting
-        $ppnPct    = floatval($setting?->ppn_default ?? 0);
-        $pphPct    = floatval($setting?->pph_default ?? 0);
-        $ppnNom    = round($subTotal * $ppnPct / 100);
-        $pphNom    = round($subTotal * $pphPct / 100);
+        // Pakai PPN dari $invoice->ppn (persentase per-invoice)
+        // agar konsisten dengan kalkulasi di halaman detail (show.blade.php)
+        $ppnPct     = floatval($invoice->ppn ?? 0);
+        $pphPct     = floatval($invoice->pph ?? 0);
+        $ppnNom     = round($subTotal * $ppnPct / 100);
         // PPh hanya pajangan, tidak mengurangi grand total
         $grandTotal = $subTotal + $ppnNom;
 
@@ -739,6 +753,8 @@ class InvoicesController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.invoice.print', [
             'invoice'        => $invoice,
             'setting'        => $setting,
+            'ppn_pct'        => $ppnPct,
+            'pph_pct'        => $pphPct,
             'grand_total'    => $grandTotal,
             'terbilang'      => $terbilang,
             'ttdStaffSrc'    => $images['ttdStaffSrc'],

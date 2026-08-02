@@ -20,7 +20,7 @@ class SummaryController extends Controller
         $query = InvSummary::with([
             'penawaran',
             'kontrak',
-            'invoice'
+            'invoice.periodes.remaks',
         ])->latest();
 
         if ($request->search) {
@@ -62,6 +62,23 @@ class SummaryController extends Controller
         $penawarans = InvPenawaran::latest()->get();
         $kontraks   = InvKontrak::latest()->get();
         $invoices   = Invoice::latest()->get();
+
+        // Sync total_amount dari computeTotal() untuk summary yang punya invoice
+        // agar pajak (PPN) selalu terhitung benar sesuai remaks terkini
+        foreach ($summaries as $s) {
+            if ($s->invoice_id && $s->invoice) {
+                $correctTotal = $s->invoice->computeTotal();
+                if (abs($correctTotal - (float) $s->total_amount) > 0.01) {
+                    $newRemaining = max(0, $correctTotal - (float) $s->paid_amount);
+                    $s->update([
+                        'total_amount'     => $correctTotal,
+                        'remaining_amount' => $newRemaining,
+                        'payment_status'   => $newRemaining <= 0 && $correctTotal > 0 ? 'Paid'
+                            : ((float) $s->paid_amount > 0 ? 'Partial' : 'Unpaid'),
+                    ]);
+                }
+            }
+        }
 
         return view('admin.summary.index', compact(
             'summaries',
@@ -158,12 +175,22 @@ class SummaryController extends Controller
             'paid_amount' => 'required|numeric|min:0',
         ]);
 
-        $remaining = $request->total_amount - $request->paid_amount;
+        // Jika invoice dipilih, override total_amount dengan computeTotal()
+        // agar pajak (PPN) ikut terhitung sesuai remaks invoice
+        $totalAmount = (float) $request->total_amount;
+        if ($request->filled('invoice_id')) {
+            $invoice = Invoice::find($request->invoice_id);
+            if ($invoice) {
+                $totalAmount = $invoice->computeTotal();
+            }
+        }
+
+        $remaining = $totalAmount - (float) $request->paid_amount;
 
         if ($remaining <= 0) {
             $status = 'Paid';
             $remaining = 0;
-        } elseif ($request->paid_amount == 0) {
+        } elseif ((float) $request->paid_amount == 0) {
             $status = 'Unpaid';
         } else {
             $status = 'Partial';
@@ -177,7 +204,7 @@ class SummaryController extends Controller
 
             'type' => $request->type,
 
-            'total_amount' => $request->total_amount,
+            'total_amount' => $totalAmount,
 
             'paid_amount' => $request->paid_amount,
 

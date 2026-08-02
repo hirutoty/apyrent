@@ -518,6 +518,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('invoices.export.excel');
   Route::get('invoices/lookup-kontrak', [InvoicesController::class, 'lookupKontrak'])
     ->name('invoices.lookup-kontrak');
+  Route::get('invoices/{invoice}/compute-total', [InvoicesController::class, 'getComputedTotal'])
+    ->name('invoices.compute-total');
   Route::resource('invoices', InvoicesController::class);
 
   // Task 5: Tambah pembayaran cicilan langsung dari detail invoice

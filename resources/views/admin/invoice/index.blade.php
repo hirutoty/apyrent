@@ -306,7 +306,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal invoice <span class="text-red-500">*</span></label>
-                                <input type="date" name="invoice_date" value="{{ date('Y-m-d') }}" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <input type="date" name="invoice_date" value="{{ date('Y-m-d') }}" min="{{ date('Y-m-d') }}" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama customer <span class="text-red-500">*</span></label>
@@ -377,6 +377,7 @@
                                 <div class="relative">
                                     <input type="number" step="0.01" name="ppn" id="tambah_ppn" min="0"
                                         value="{{ old('ppn', $setting->ppn_default ?? 0) }}"
+                                        oninput="recalcTambahTotal()"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
                                 </div>
@@ -391,14 +392,18 @@
                                 <div class="relative">
                                     <input type="number" step="0.01" name="pph" id="tambah_pph" min="0"
                                         value="{{ old('pph', $setting->pph_default ?? 0) }}"
+                                        oninput="recalcTambahTotal()"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Total (Rp)</label>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Total (Rp)
+                                    <span class="text-gray-400 font-normal">— otomatis</span>
+                                </label>
                                 <input type="number" step="0.01" name="total" id="tambah_total" value="0" min="0"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    readonly
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none">
                             </div>
                         </div>
                     </div>
@@ -535,7 +540,9 @@
                     <div class="mt-4 flex justify-end">
                         <table class="text-sm">
                             <tr><td class="text-gray-500 pr-8 py-1">Total</td><td class="text-right font-semibold text-gray-800 min-w-[130px]" id="tambahSummaryTotal">Rp 0</td></tr>
-                            <tr><td class="text-gray-500 pr-8 py-1">Grand Total</td><td class="text-right font-bold text-blue-700" id="tambahSummaryGrand">Rp 0</td></tr>
+                            <tr><td class="text-gray-500 pr-8 py-1" id="tambahSummaryPpnLabel">PPN</td><td class="text-right text-gray-700" id="tambahSummaryPpn">-</td></tr>
+                            <tr><td class="text-gray-500 pr-8 py-1">Sub Total</td><td class="text-right text-gray-700" id="tambahSummarySubTotal">Rp 0</td></tr>
+                            <tr class="border-t"><td class="text-gray-800 font-bold pr-8 py-2">Total Invoice</td><td class="text-right font-bold text-blue-700 text-base" id="tambahSummaryGrand">Rp 0</td></tr>
                         </table>
                     </div>
                 </div>
@@ -945,9 +952,12 @@
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pph') }}">
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Total (Rp)</label>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Total (Rp)
+                                    <span class="text-gray-400 font-normal">— otomatis</span>
+                                </label>
                                 <input id="edit_total" type="number" step="0.01" name="total" min="0"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('total') }}">
+                                    readonly
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none" value="{{ old('total') }}">
                             </div>
                         </div>
                     </div>
@@ -1136,6 +1146,107 @@
         </div>
     </div>
 
+    {{-- Global functions dipanggil dari inline oninput/onclick --}}
+    <script>
+        function rpFmt(n) { return 'Rp ' + Number(n||0).toLocaleString('id-ID'); }
+
+        function fmtDate(s) {
+            if (!s) return '';
+            const d = new Date(s);
+            return d.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+        }
+
+        function recalcTambahTotal() {
+            const ppnPct = parseFloat(document.getElementById('tambah_ppn')?.value) || 0;
+            const base   = parseFloat(window._tambahSubTotalBase || 0);
+            const ppnNom = Math.round(base * ppnPct / 100);
+            const grand  = base + ppnNom;
+
+            const ppnLabel = document.getElementById('tambahSummaryPpnLabel');
+            const ppnEl    = document.getElementById('tambahSummaryPpn');
+            const subEl    = document.getElementById('tambahSummarySubTotal');
+            const grandEl  = document.getElementById('tambahSummaryGrand');
+            if (ppnLabel) ppnLabel.textContent = ppnPct > 0 ? `PPN ${ppnPct}%` : 'PPN';
+            if (ppnEl)    ppnEl.textContent    = ppnNom > 0 ? rpFmt(ppnNom) : '-';
+            if (subEl)    subEl.textContent    = rpFmt(base + ppnNom);
+            if (grandEl)  grandEl.textContent  = rpFmt(grand);
+
+            const totalEl = document.getElementById('tambah_total');
+            if (totalEl) totalEl.value = grand;
+        }
+
+        function switchTambahTab(tab) {
+            const tab1Btn = document.getElementById('tambah_tab1_btn');
+            const tab2Btn = document.getElementById('tambah_tab2_btn');
+            const tab1Con = document.getElementById('tambah_tab1_content');
+            const tab2Con = document.getElementById('tambah_tab2_content');
+            if (!tab1Btn) return;
+            if (tab === 1) {
+                tab1Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tl-lg';
+                tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg';
+                tab1Con.classList.remove('hidden');
+                tab2Con.classList.add('hidden');
+            } else {
+                if (!window._currentTambahInvoiceId) return;
+                tab1Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 rounded-tl-lg';
+                tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tr-lg';
+                tab1Con.classList.add('hidden');
+                tab2Con.classList.remove('hidden');
+                if (typeof loadPeriodesTambah === 'function') loadPeriodesTambah();
+            }
+        }
+
+        function openTambahPeriodeModal() {
+            const el = document.getElementById('tambahPeriodeAwal');
+            if (el) el.value = '';
+            const el2 = document.getElementById('tambahPeriodeAkhir');
+            if (el2) el2.value = '';
+            const m = document.getElementById('modalTambahPeriode');
+            if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+        }
+
+        function openTambahRemakModal(periodeId) {
+            window._activeTambahPeriodeId = periodeId;
+            ['tambahRemakText','tambahRemakQty','tambahRemakPrice'].forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (el) el.value = i === 0 ? '' : (i === 1 ? 1 : 0);
+            });
+            const m = document.getElementById('modalTambahRemak');
+            if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+        }
+
+        async function deleteTambahPeriode(periodeId) {
+            if (!confirm('Hapus periode ini beserta semua remaksnya?')) return;
+            await fetch('/admin/invoices/' + window._currentTambahInvoiceId + '/periodes/' + periodeId, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '', 'Accept': 'application/json' }
+            });
+            if (typeof loadPeriodesTambah === 'function') loadPeriodesTambah();
+        }
+
+        async function deleteTambahRemak(invId, periodeId, remakId) {
+            if (!confirm('Hapus remaks ini?')) return;
+            await fetch('/admin/invoices/' + invId + '/periodes/' + periodeId + '/remaks/' + remakId, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '', 'Accept': 'application/json' }
+            });
+            if (typeof loadPeriodesTambah === 'function') loadPeriodesTambah();
+        }
+
+        function unlockTab2(invoiceId, invoiceNo) {
+            window._currentTambahInvoiceId = invoiceId;
+            // sync ke variabel lokal di DOMContentLoaded block 2
+            if (typeof _setCurrentTambahInvoiceId === 'function') _setCurrentTambahInvoiceId(invoiceId);
+            const tab2Btn = document.getElementById('tambah_tab2_btn');
+            if (tab2Btn) {
+                tab2Btn.disabled = false;
+                tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-600 hover:text-blue-600 rounded-tr-lg cursor-pointer';
+            }
+            const label = document.getElementById('tambah_invoice_no_label');
+            if (label) label.textContent = invoiceNo;
+        }
+    </script>
+
     @push('scripts')
         <script>
         // -- Toggle Kolom --
@@ -1322,6 +1433,7 @@
         </script>
 
         <script>
+        document.addEventListener('DOMContentLoaded', function () {
             // ===================== HELPER =====================
             function openModal(el) {
                 el.classList.remove('hidden');
@@ -1728,6 +1840,7 @@
                 });
             });
 
+        }); // end DOMContentLoaded — script block 1
         </script>
 
         {{-- ====== RELASI ROWS TEMPLATE DATA ====== --}}
@@ -1736,6 +1849,9 @@
         const PENAWARAN_OPTIONS = @json($penawarans->map(fn($p) => ['id' => $p->id, 'label' => $p->no_penawaran . ' � ' . $p->customer_name]));
         const KONTRAK_OPTIONS   = @json($kontraks->map(fn($k) => ['id' => $k->id, 'label' => $k->no_kontrak ?? '#'.$k->id]));
         const KENDARAAN_OPTIONS = @json($kendaraans->map(fn($kd) => ['id' => $kd->id, 'label' => $kd->merk . ' � ' . $kd->nopol]));
+
+
+        document.addEventListener('DOMContentLoaded', function () {
 
         function getOptions(type) {
             const map = { penawaran: PENAWARAN_OPTIONS, kontrak: KONTRAK_OPTIONS, kendaraan: KENDARAAN_OPTIONS };
@@ -1773,34 +1889,12 @@
 
         // ====== TAB SWITCH TAMBAH ======
         let currentTambahInvoiceId = null;
-
-        function switchTambahTab(tab) {
-            const tab1Btn  = document.getElementById('tambah_tab1_btn');
-            const tab2Btn  = document.getElementById('tambah_tab2_btn');
-            const tab1Con  = document.getElementById('tambah_tab1_content');
-            const tab2Con  = document.getElementById('tambah_tab2_content');
-            if (tab === 1) {
-                tab1Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tl-lg';
-                tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg';
-                tab1Con.classList.remove('hidden');
-                tab2Con.classList.add('hidden');
-            } else {
-                if (!currentTambahInvoiceId) return;
-                tab1Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 rounded-tl-lg';
-                tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tr-lg';
-                tab1Con.classList.add('hidden');
-                tab2Con.classList.remove('hidden');
-                loadPeriodesTambah();
-            }
-        }
-
-        function unlockTab2(invoiceId, invoiceNo) {
-            currentTambahInvoiceId = invoiceId;
-            const tab2Btn = document.getElementById('tambah_tab2_btn');
-            tab2Btn.disabled = false;
-            tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-600 hover:text-blue-600 rounded-tr-lg cursor-pointer';
-            document.getElementById('tambah_invoice_no_label').textContent = invoiceNo;
-        }
+        window._currentTambahInvoiceId = null;
+        // Setter dipanggil dari global unlockTab2
+        window._setCurrentTambahInvoiceId = function(id) {
+            currentTambahInvoiceId = id;
+            window._currentTambahInvoiceId = id;
+        };
 
         // Auto-populate periode & remak dari data penawaran kontrak
         async function autoPopulatePeriodeRemak(invoiceId) {
@@ -1866,7 +1960,7 @@
         }
 
         // ====== AJAX STORE FORM TAMBAH ======
-        document.getElementById('formTambah').addEventListener('submit', async function(e) {
+        document.getElementById('formTambah')?.addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = document.getElementById('btnSimpanTambah');
             btn.disabled = true;
@@ -1896,7 +1990,7 @@
         });
 
         // Tutup + reload saat selesai di tab 2
-        document.getElementById('btnSelesaiTambah').addEventListener('click', function() {
+        document.getElementById('btnSelesaiTambah')?.addEventListener('click', function() {
             closeModal(document.getElementById('modalTambah'));
             window.location.reload();
         });
@@ -1924,28 +2018,34 @@
             if (!periodes.length) {
                 list.innerHTML = '<div class="py-10 text-center text-gray-400 text-xs"><i class="fa fa-calendar-alt text-2xl mb-2 block"></i>Belum ada periode.</div>';
                 document.getElementById('tambahSummaryTotal').textContent = rpFmt(0);
+                document.getElementById('tambahSummaryPpn').textContent = '-';
+                document.getElementById('tambahSummarySubTotal').textContent = rpFmt(0);
                 document.getElementById('tambahSummaryGrand').textContent = rpFmt(0);
+                document.getElementById('tambah_total').value = 0;
                 return;
             }
+
+            // Ambil PPN dari field di tab 1
+            const ppnPct = parseFloat(document.getElementById('tambah_ppn')?.value) || 0;
+            const pphPct = parseFloat(document.getElementById('tambah_pph')?.value) || 0;
+
             let total = 0;
             list.innerHTML = periodes.map(p => {
                 const remaks = p.remaks || [];
                 const sub = remaks.reduce((s,r) => s + (r.qty||1)*(r.price||0), 0);
                 total += sub;
                 const awal = fmtDate(p.periode_awal);
-                const akhir = p.periode_akhir ? ' � ' + fmtDate(p.periode_akhir) : '';
+                const akhir = p.periode_akhir ? ' – ' + fmtDate(p.periode_akhir) : '';
                 const rows = remaks.map(r => `
                     <tr>
                         <td class="px-3 py-1.5 text-xs text-gray-700">${r.remaks||''}</td>
                         <td class="px-3 py-1.5 text-xs text-center">${r.qty||1}</td>
                         <td class="px-3 py-1.5 text-xs text-right">${(r.price||0).toLocaleString('id-ID')}</td>
                         <td class="px-3 py-1.5 text-xs text-right">${((r.qty||1)*(r.price||0)).toLocaleString('id-ID')}</td>
-                      
-                    </tr>`).join('') || '<tr><td colspan="5" class="text-center py-2 text-gray-400 text-xs">Belum ada remaks</td></tr>';
+                    </tr>`).join('') || '<tr><td colspan="4" class="text-center py-2 text-gray-400 text-xs">Belum ada remaks</td></tr>';
                 return `<div class="px-4 py-3 border-b">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-semibold text-gray-700">${awal}${akhir}</span>
-                       
                     </div>
                     <table class="w-full text-xs border border-gray-200 rounded">
                         <thead class="bg-gray-50"><tr>
@@ -1953,56 +2053,39 @@
                             <th class="px-3 py-1 text-center w-12">QTY</th>
                             <th class="px-3 py-1 text-right w-28">Harga</th>
                             <th class="px-3 py-1 text-right w-28">Sub Total</th>
-                            <th class="px-3 py-1 w-12"></th>
                         </tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
                 </div>`;
             }).join('');
-            document.getElementById('tambahSummaryTotal').textContent = rpFmt(total);
-            document.getElementById('tambahSummaryGrand').textContent = rpFmt(total);
+
+            // Simpan base agar recalcTambahTotal() bisa pakai saat PPN diubah realtime
+            window._tambahSubTotalBase = total;
+
+            // Hitung pajak
+            const ppnNom    = Math.round(total * ppnPct / 100);
+            const afterPpn  = total + ppnNom;
+            const grandTotal = afterPpn; // PPh tidak mengurangi
+
+            // Update summary
+            document.getElementById('tambahSummaryTotal').textContent    = rpFmt(total);
+            document.getElementById('tambahSummaryPpnLabel').textContent = ppnPct > 0 ? `PPN ${ppnPct}%` : 'PPN';
+            document.getElementById('tambahSummaryPpn').textContent      = ppnNom > 0 ? rpFmt(ppnNom) : '-';
+            document.getElementById('tambahSummarySubTotal').textContent = rpFmt(afterPpn);
+            document.getElementById('tambahSummaryGrand').textContent    = rpFmt(grandTotal);
+
+            // Sync field tambah_total (readonly) agar ikut tersimpan ke DB
+            document.getElementById('tambah_total').value = grandTotal;
         }
 
         // Tambah Periode di tab 2
-        document.getElementById('btnTambahPeriodeTambah').addEventListener('click', function() {
+        document.getElementById('btnTambahPeriodeTambah')?.addEventListener('click', function() {
             openTambahPeriodeModal();
         });
 
         let activeTambahPeriodeId = null;
 
-        function openTambahPeriodeModal() {
-            document.getElementById('tambahPeriodeAwal').value = '';
-            document.getElementById('tambahPeriodeAkhir').value = '';
-            openModal(document.getElementById('modalTambahPeriode'));
-        }
-
-        function openTambahRemakModal(periodeId) {
-            activeTambahPeriodeId = periodeId;
-            document.getElementById('tambahRemakText').value = '';
-            document.getElementById('tambahRemakQty').value = 1;
-            document.getElementById('tambahRemakPrice').value = 0;
-            openModal(document.getElementById('modalTambahRemak'));
-        }
-
-        async function deleteTambahPeriode(periodeId) {
-            if (!confirm('Hapus periode ini beserta semua remaksnya?')) return;
-            await fetch('/admin/invoices/' + currentTambahInvoiceId + '/periodes/' + periodeId, {
-                method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
-            });
-            loadPeriodesTambah();
-        }
-
-        async function deleteTambahRemak(invId, periodeId, remakId) {
-            if (!confirm('Hapus remaks ini?')) return;
-            await fetch('/admin/invoices/' + invId + '/periodes/' + periodeId + '/remaks/' + remakId, {
-                method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
-            });
-            loadPeriodesTambah();
-        }
-
-        document.getElementById('saveTambahPeriode').addEventListener('click', async function() {
+        document.getElementById('saveTambahPeriode')?.addEventListener('click', async function() {
             const awal  = document.getElementById('tambahPeriodeAwal').value;
             if (!awal) { alert('Tanggal awal wajib diisi.'); return; }
             const akhir = document.getElementById('tambahPeriodeAkhir').value;
@@ -2015,7 +2098,7 @@
             loadPeriodesTambah();
         });
 
-        document.getElementById('saveTambahRemak').addEventListener('click', async function() {
+        document.getElementById('saveTambahRemak')?.addEventListener('click', async function() {
             const remaks = document.getElementById('tambahRemakText').value.trim();
             const qty    = document.getElementById('tambahRemakQty').value;
             const price  = document.getElementById('tambahRemakPrice').value;
@@ -2039,11 +2122,10 @@
         
         // Auto-reopen modal tambah on validation error
         @if ($errors->any() && !session('success'))
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof openModalTambah === 'function') openModalTambah();
-            else if (typeof openModal === 'function') openModal();
-        });
+        if (typeof openModalTambah === 'function') openModalTambah();
         @endif
+
+        }); // end DOMContentLoaded
 </script>
     @endpush
 
