@@ -48,19 +48,26 @@ class InvoiceMail extends Mailable
 
     public function attachments(): array
     {
-        // Hitung grand total untuk terbilang
-        $grandTotal = 0;
+        // Hitung grandTotal konsisten dengan controller print() dan computeTotal()
+        // Formula: subtotal + round(subtotal × ppn% / 100)
+        $subTotal = 0;
         foreach ($this->invoice->periodes as $periode) {
             foreach ($periode->remaks as $item) {
-                $grandTotal += $item->subtotal ?? ($item->qty * ($item->price ?? 0));
+                $subTotal += ($item->qty ?? 1) * ($item->price ?? 0);
             }
         }
-        $grandTotal  = $grandTotal + floatval($this->invoice->ppn ?? 0) - floatval($this->invoice->pph ?? 0);
-        $terbilang   = ucwords(trim($this->penyebut((int) $grandTotal))) . ' Rupiah';
+        $ppnPct     = floatval($this->invoice->ppn ?? 0);
+        $pphPct     = floatval($this->invoice->pph ?? 0);
+        $ppnNom     = round($subTotal * $ppnPct / 100);
+        // PPh hanya pajangan, tidak mengurangi grand total
+        $grandTotal = $subTotal + $ppnNom;
+        $terbilang  = ucwords(trim($this->penyebut((int) $grandTotal))) . ' Rupiah';
 
         $pdf = Pdf::loadView('admin.invoice.print', array_merge([
             'invoice'     => $this->invoice,
             'setting'     => $this->setting,
+            'ppn_pct'     => $ppnPct,
+            'pph_pct'     => $pphPct,
             'grand_total' => $grandTotal,
             'terbilang'   => $terbilang,
         ], $this->images))->setPaper('a4', 'portrait');

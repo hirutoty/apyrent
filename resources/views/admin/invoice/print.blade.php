@@ -148,84 +148,37 @@
                 @if($remakList->isEmpty())
                     -
                 @else
-                    @foreach($remakList as $idx => $item)
-                        @php
-                            // Ambil harga per bulan dari map penawaran (urut by index)
-                            $penawaranItems = $invoice->penawaran?->items ?? collect();
-                            $pItem          = $penawaranItems->values()->get($idx);
-                            $qtyDisplay     = $pItem ? $pItem->qty : ($item->qty ?? 1);
-                        @endphp
-
-                        {{ $qtyDisplay }}
-
-                        @if(!$loop->last)
-                            <br>
-                        @endif
+                    @foreach($remakList as $item)
+                        {{ $item->qty ?? 1 }}
+                        @if(!$loop->last)<br>@endif
                     @endforeach
                 @endif
             </td>
 
-            {{-- PRICE (per bulan) --}}
+            {{-- PRICE (per bulan / satuan) --}}
             <td class="r">
                 @if($remakList->isEmpty())
                     -
                 @else
-                    @foreach($remakList as $idx => $item)
-                        @php
-                            $penawaranItems  = $invoice->penawaran?->items ?? collect();
-                            $pItem           = $penawaranItems->values()->get($idx);
-                            if ($pItem) {
-                                $durasi   = max(1, (int) $pItem->durasi);
-                                $satuan   = strtolower($pItem->satuan_durasi ?? 'month');
-                                $dBulan   = match(true) {
-                                    in_array($satuan, ['tahun','year']) => $durasi * 12,
-                                    in_array($satuan, ['hari','day'])   => $durasi / 30,
-                                    default                             => $durasi,
-                                };
-                                $pricePerBulan = round($pItem->price / max(1, $dBulan));
-                            } else {
-                                $pricePerBulan = $item->price ?? 0;
-                            }
-                        @endphp
-                        Rp&nbsp;{{ number_format($pricePerBulan, 0, ',', '.') }}
-
-                        @if(!$loop->last)
-                            <br>
-                        @endif
+                    @foreach($remakList as $item)
+                        Rp&nbsp;{{ number_format($item->price ?? 0, 0, ',', '.') }}
+                        @if(!$loop->last)<br>@endif
                     @endforeach
                 @endif
             </td>
 
-            {{-- SUB TOTAL (qty × price per bulan) --}}
+            {{-- SUB TOTAL (qty × price) --}}
             <td class="r">
                 @if($remakList->isEmpty())
                     -
                 @else
-                    @foreach($remakList as $idx => $item)
+                    @foreach($remakList as $item)
                         @php
-                            $penawaranItems  = $invoice->penawaran?->items ?? collect();
-                            $pItem           = $penawaranItems->values()->get($idx);
-                            if ($pItem) {
-                                $durasi   = max(1, (int) $pItem->durasi);
-                                $satuan   = strtolower($pItem->satuan_durasi ?? 'month');
-                                $dBulan   = match(true) {
-                                    in_array($satuan, ['tahun','year']) => $durasi * 12,
-                                    in_array($satuan, ['hari','day'])   => $durasi / 30,
-                                    default                             => $durasi,
-                                };
-                                $pricePerBulan = round($pItem->price / max(1, $dBulan));
-                                $itemTotal     = $pItem->qty * $pricePerBulan;
-                            } else {
-                                $itemTotal = ($item->qty ?? 1) * ($item->price ?? 0);
-                            }
+                            $itemTotal = ($item->qty ?? 1) * ($item->price ?? 0);
                             $subTotal += $itemTotal;
                         @endphp
-
                         Rp&nbsp;{{ number_format($itemTotal, 0, ',', '.') }}
-
-                        @if(!$loop->last)
-                            <br>
-                        @endif
+                        @if(!$loop->last)<br>@endif
                     @endforeach
                 @endif
             </td>
@@ -241,20 +194,18 @@
     </tbody>
 
     @php
-      // Persentase dari setting
-      $ppnPct   = floatval($setting?->ppn_default ?? 0);
-      $pphPct   = floatval($setting?->pph_default ?? 0);
+      // Gunakan ppn_pct & pph_pct dari controller (sumber: $invoice->ppn / $invoice->pph)
+      // agar konsisten dengan kalkulasi di halaman detail (show.blade.php)
+      $ppnPct   = floatval($ppn_pct ?? 0);
+      $pphPct   = floatval($pph_pct ?? 0);
 
       // Hitung nominal dari subTotal × persentase
       $ppnNom   = round($subTotal * $ppnPct / 100);
       $pphNom   = round($subTotal * $pphPct / 100);
-
-      // Grand total = subTotal + PPN (PPh hanya pajangan, tidak mengurangi)
       $afterPpn = $subTotal + $ppnNom;
-      $grand    = $afterPpn;
 
-      $fax = $setting?->fax ? 'Fax: ' . $setting->fax : '';
-      $email = $setting?->email ? '' . $setting->email : '';
+      $fax   = $setting?->fax   ? 'Fax: ' . $setting->fax : '';
+      $email = $setting?->email ? $setting->email : '';
 
       // Label dinamis, strip trailing zero (misal 11.00 → 11, 2.50 → 2,5)
       $ppnLabel = $ppnPct > 0 ? 'PPN ' . rtrim(rtrim(number_format($ppnPct, 2, ',', ''), '0'), ',') . '%' : 'PPN';
@@ -265,7 +216,6 @@
     <tfoot>
       <tr>
         <td rowspan="4"></td>
-        
         <td colspan="2" class="l">Total</td>
         <td class="r">{{ number_format($subTotal, 0, ',', '.') }}</td>
         <td class="r">{{ number_format($subTotal, 0, ',', '.') }}</td>
@@ -281,11 +231,11 @@
       </tr>
       <tr>
         <td colspan="3" class="l">{{ $pphLabel }}</td>
-        <td class="r"></td>
+        <td class="r">{{ $pphNom > 0 ? number_format($pphNom, 0, ',', '.') : '-' }}</td>
       </tr>
       <tr>
         <td colspan="4" class="c">Total Invoice</td>
-        <td class="r">{{ number_format($grand, 0, ',', '.') }}</td>
+        <td class="r">{{ number_format($grand_total, 0, ',', '.') }}</td>
       </tr>
       <tr>
         <td colspan="5" class="c" style="background-color:#f0f0f0;">

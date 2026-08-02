@@ -60,7 +60,10 @@ class Invoice extends Model
     public function summary() { return $this->hasOne(InvSummary::class, 'invoice_id'); }
 
     /**
-     * Hitung total invoice dari remaks (qty * price) + ppn - pph.
+     * Hitung total invoice dari remaks (qty * price) + PPN nominal.
+     *
+     * Rumus: grandTotal = subtotal + round(subtotal × ppn% / 100)
+     * PPh tidak mengurangi grand total (hanya pajangan).
      *
      * Prioritas sumber remaks:
      *   1. periodes.remaks  — remaks yang terikat ke periode invoice
@@ -99,6 +102,10 @@ class Invoice extends Model
             $subtotal = $this->remaks->sum(fn ($remak) => (float) $remak->qty * (float) $remak->price);
         }
 
-        return $subtotal + (float) $this->ppn - (float) $this->pph;
+        // ppn & pph adalah PERSENTASE (misal 11 = 11%), bukan nominal
+        $ppnNom = round($subtotal * (float) $this->ppn / 100);
+
+        // Grand total = subtotal + PPN nominal (PPh tidak mengurangi)
+        return $subtotal + $ppnNom;
     }
 }

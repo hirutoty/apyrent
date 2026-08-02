@@ -1785,6 +1785,14 @@
                 }
             });
         });
+
+        // Semua input tanggal di halaman keuangan tidak boleh mundur dari hari ini
+        document.addEventListener('DOMContentLoaded', function () {
+            const today = new Date().toISOString().split('T')[0];
+            document.querySelectorAll('input[type="date"]').forEach(function (el) {
+                el.setAttribute('min', today);
+            });
+        });
     </script>
 
 @endsection

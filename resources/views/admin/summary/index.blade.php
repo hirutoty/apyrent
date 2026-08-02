@@ -322,6 +322,7 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice</label>
                                 <select id="edit_invoice_id" name="invoice_id"
+                                    onchange="fetchInvoiceTotal(this.value)"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <option value="">� Tidak ada �</option>
                                     @foreach ($invoices as $inv)
@@ -503,6 +504,22 @@
                 const paid = parseFloat(document.getElementById('edit_paid').value) || 0;
                 const sisa = total - paid;
                 updateSisaUI(sisa, paid, 'edit_sisa_display', 'edit_status_badge');
+            }
+
+            // Auto-fetch computeTotal() dari invoice yang dipilih → isi total_amount
+            function fetchInvoiceTotal(invoiceId) {
+                if (!invoiceId) return;
+                fetch('/admin/invoices/' + invoiceId + '/compute-total', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.grand_total !== undefined) {
+                        document.getElementById('edit_total').value = Math.round(data.grand_total);
+                        hitungSisaEdit();
+                    }
+                })
+                .catch(err => console.error('Gagal fetch invoice total:', err));
             }
 
             /* --- Task 4: Modal Tambah dihapus — summary dibuat otomatis dari Invoice --- */

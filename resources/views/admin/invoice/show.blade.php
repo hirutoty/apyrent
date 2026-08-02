@@ -322,7 +322,8 @@
                 <div class="relative">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
                     <input type="number" name="amount" required min="1"
-                        placeholder="0" value="{{ old('amount') }}"
+                        max="{{ $remaining }}"
+                        placeholder="0" value="{{ old('amount', $remaining) }}"
                         class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>
@@ -428,11 +429,12 @@ function calcSubtotal(remaks) {
 }
 
 function renderSummary(allPeriodes) {
-    const total      = allPeriodes.reduce((s, p) => s + calcSubtotal(p.remaks ?? []), 0);
-    const ppnNom     = Math.round(total * PPN_PCT / 100);
+    const total       = allPeriodes.reduce((s, p) => s + calcSubtotal(p.remaks ?? []), 0);
+    const ppnNom      = Math.round(total * PPN_PCT / 100);
     const subAfterPpn = total + ppnNom;
-    const pphNom     = Math.round(total * PPH_PCT / 100);
-    const grand      = subAfterPpn - pphNom;
+    const pphNom      = Math.round(total * PPH_PCT / 100);
+    // PPh hanya pajangan, tidak mengurangi grand total
+    const grand       = subAfterPpn;
 
     document.getElementById('summaryTotal').textContent    = total.toLocaleString('id-ID');
     document.getElementById('summaryPpn').textContent      = ppnNom > 0 ? ppnNom.toLocaleString('id-ID') : '-';
@@ -607,20 +609,23 @@ function bindRemakButtons() {
 }
 
 // ============================================================
-//  MODAL PERIODE
+//  MODAL PERIODE  +  MODAL REMAK  +  INIT  (dibungkus DOMContentLoaded)
 // ============================================================
+document.addEventListener('DOMContentLoaded', function () {
+
 const modalPeriode = document.getElementById('modalPeriode');
-document.getElementById('btnTambahPeriode').onclick = () => {
+const btnTambahPeriode = document.getElementById('btnTambahPeriode');
+if (btnTambahPeriode) btnTambahPeriode.onclick = () => {
     document.getElementById('editPeriodeId').value = '';
     document.getElementById('periodeAwal').value   = '';
     document.getElementById('periodeAkhir').value  = '';
     document.getElementById('modalPeriodeTitle').textContent = 'Tambah Periode';
     openModal(modalPeriode);
 };
-document.getElementById('closeModalPeriode').onclick  = () => closeModal(modalPeriode);
-document.getElementById('closeModalPeriode2').onclick = () => closeModal(modalPeriode);
+document.getElementById('closeModalPeriode')?.addEventListener('click',  () => closeModal(modalPeriode));
+document.getElementById('closeModalPeriode2')?.addEventListener('click', () => closeModal(modalPeriode));
 
-document.getElementById('savePeriode').addEventListener('click', async () => {
+document.getElementById('savePeriode')?.addEventListener('click', async () => {
     const id    = document.getElementById('editPeriodeId').value;
     const awal  = document.getElementById('periodeAwal').value;
     const akhir = document.getElementById('periodeAkhir').value;
@@ -644,10 +649,10 @@ document.getElementById('savePeriode').addEventListener('click', async () => {
 //  MODAL REMAK
 // ============================================================
 const modalRemak = document.getElementById('modalRemak');
-document.getElementById('closeModalRemak').onclick  = () => closeModal(modalRemak);
-document.getElementById('closeModalRemak2').onclick = () => closeModal(modalRemak);
+document.getElementById('closeModalRemak')?.addEventListener('click',  () => closeModal(modalRemak));
+document.getElementById('closeModalRemak2')?.addEventListener('click', () => closeModal(modalRemak));
 
-document.getElementById('saveRemak').addEventListener('click', async () => {
+document.getElementById('saveRemak')?.addEventListener('click', async () => {
     const remakId   = document.getElementById('editRemakId').value;
     const periodeId = document.getElementById('currentPeriodeId').value;
     const remaks    = document.getElementById('remakText').value.trim();
@@ -675,6 +680,8 @@ document.getElementById('saveRemak').addEventListener('click', async () => {
 //  INIT
 // ============================================================
 loadPeriodes();
+
+}); // end DOMContentLoaded
 </script>
 @endpush
 

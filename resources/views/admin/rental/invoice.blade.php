@@ -130,12 +130,21 @@
     @php
         $setting = $setting ?? null;
 
-        $dp = $rental->nominal_dp ?? 0;
-        $biayaDriver = ($rental->biaya_driver ?? 0) * ($rental->durasi_hari ?? 1);
-        $grandTotal = $rental->total_biaya ?? 0;
-        $sisaPelunasan = $grandTotal - $dp;
+        $dp          = $rental->nominal_dp ?? 0;
+        $durasi      = $rental->durasi_tahun ?? $rental->durasi_bulan ?? $rental->durasi_hari ?? 1;
+        $biayaDriver = (float) ($rental->biaya_driver ?? 0) * $durasi;
 
-        // Harga satuan & label durasi kendaraan
+        // subTotal = kendaraan + driver + biaya tambahan
+        $biayaDasar    = (float) ($rental->biaya_dasar ?? 0);
+        $biayaTambahan = (float) ($rental->biaya_tambahan_total ?? 0);
+        $subTotal      = $biayaDasar + $biayaDriver + $biayaTambahan;
+
+        // PPN dari setting
+        $ppnPct    = floatval($setting?->ppn_default ?? 0);
+        $ppnNom    = round($subTotal * $ppnPct / 100);
+        $grandTotal = $subTotal + $ppnNom;
+
+        $sisaPelunasan = $grandTotal - $dp;
         $satuan = '';
         $hargaSatuan = 0;
 
@@ -153,8 +162,8 @@
             $hargaSatuan = ($rental->kendaraan->harga_sewa_per_hari ?? 0) * 30 * 12;
         }
 
-        // Sub total kendaraan saja (tanpa driver)
-        $subTotalKendaraan = $grandTotal - $biayaDriver;
+        // Sub total kendaraan saja (tanpa driver, tanpa PPN)
+        $subTotalKendaraan = $biayaDasar;
 
         $bulanRomawi = [
             1 => 'I',
@@ -280,15 +289,32 @@
 
             @if (!empty($rental->biaya_driver) && $rental->biaya_driver > 0)
 
-            {{-- Sub Total --}}
-            
+            {{-- Biaya Driver --}}
             <tr class="summary-row">
                 <td colspan="6" class="right"><strong>Biaya Driver</strong></td>
                 <td class="right">
                     <strong>Rp {{ number_format($biayaDriver, 0, ',', '.') }}</strong>
                 </td>
             </tr>
-            
+
+            {{-- Sub Total (kendaraan + driver) --}}
+            <tr class="summary-row">
+                <td colspan="6" class="right"><strong>Sub Total</strong></td>
+                <td class="right">
+                    <strong>Rp {{ number_format($subTotal, 0, ',', '.') }}</strong>
+                </td>
+            </tr>
+
+            {{-- PPN --}}
+            @if($ppnNom > 0)
+            <tr class="summary-row">
+                <td colspan="6" class="right">
+                    PPN {{ rtrim(rtrim(number_format($ppnPct, 2, ',', ''), '0'), ',') }}%
+                </td>
+                <td class="right">Rp {{ number_format($ppnNom, 0, ',', '.') }}</td>
+            </tr>
+            @endif
+
                 {{-- DP --}}
                 @if ($dp > 0)
                     <tr>
@@ -306,17 +332,24 @@
                     <td class="right">Rp {{ number_format($grandTotal, 0, ',', '.') }}</td>
                 </tr>
 
-
             @else
-                {{-- Sub Total --}}
+                {{-- Sub Total (kendaraan saja) --}}
                 <tr class="summary-row">
                     <td colspan="5" class="right"><strong>Sub Total</strong></td>
                     <td class="right">
-                        <strong>Rp {{ number_format($grandTotal, 0, ',', '.') }}</strong>
+                        <strong>Rp {{ number_format($subTotal, 0, ',', '.') }}</strong>
                     </td>
                 </tr>
 
-
+                {{-- PPN --}}
+                @if($ppnNom > 0)
+                <tr class="summary-row">
+                    <td colspan="5" class="right">
+                        PPN {{ rtrim(rtrim(number_format($ppnPct, 2, ',', ''), '0'), ',') }}%
+                    </td>
+                    <td class="right">Rp {{ number_format($ppnNom, 0, ',', '.') }}</td>
+                </tr>
+                @endif
 
                 {{-- DP --}}
                 @if ($dp > 0)
