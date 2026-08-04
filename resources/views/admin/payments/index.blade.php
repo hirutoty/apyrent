@@ -297,26 +297,27 @@
                                 <option value="">— Pilih Invoice —</option>
                                 @foreach ($invoices as $inv)
                                     @php
-                                        $biayaBulan = 0;
-                                        if ($inv->penawaran) {
-                                            foreach ($inv->penawaran->items as $item) {
-                                                $durasi  = max(1, (int) $item->durasi);
-                                                $satuan  = strtolower($item->satuan_durasi ?? 'month');
-                                                // Konversi durasi ke bulan
-                                                $durasiDalamBulan = match(true) {
-                                                    in_array($satuan, ['tahun', 'year']) => $durasi * 12,
-                                                    in_array($satuan, ['hari', 'day'])   => $durasi / 30,
-                                                    default                              => $durasi, // month / bulan
-                                                };
-                                                $biayaBulan += ($item->qty * $item->price) / max(1, $durasiDalamBulan);
-                                            }
-                                        }
+                                        // Sisa tagihan: dari summary jika ada, fallback computeTotal - paid
+                                        $invTotal   = $inv->summary?->total_amount ?? $inv->computeTotal();
+                                        $paidAmount = $inv->summary?->paid_amount  ?? 0;
+                                        $remaining  = max(0, $invTotal - $paidAmount);
                                     @endphp
-                                    <option value="{{ $inv->id }}" data-total="{{ round($biayaBulan) }}">
+                                    <option value="{{ $inv->id }}"
+                                        data-remaining="{{ round($remaining) }}"
+                                        data-total="{{ round($invTotal) }}"
+                                        data-paid="{{ round($paidAmount) }}"
+                                        @if($remaining <= 0) class="text-gray-400" @endif>
                                         {{ $inv->invoice_no }} — {{ $inv->customer_name }}
+                                        @if($remaining <= 0) (Lunas) @endif
                                     </option>
                                 @endforeach
                             </select>
+                            {{-- Info sisa tagihan: muncul setelah invoice dipilih --}}
+                            <div id="tambah_sisa_info" class="hidden mt-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs flex items-center justify-between gap-3">
+                                <span class="text-gray-500">Total: <span id="tambah_info_total" class="font-semibold text-gray-700">-</span></span>
+                                <span class="text-gray-500">Dibayar: <span id="tambah_info_paid" class="font-semibold text-yellow-600">-</span></span>
+                                <span class="font-bold" id="tambah_info_remaining_wrap">Sisa: <span id="tambah_info_remaining" class="text-blue-700">-</span></span>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Pembayaran <span class="text-red-500">*</span></label>
@@ -456,14 +457,28 @@
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice <span class="text-red-500">*</span></label>
                             <select id="edit_invoice_id" name="invoice_id" required
+                                onchange="onEditInvoiceChange(this)"
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="">� Pilih Invoice �</option>
+                                <option value="">— Pilih Invoice —</option>
                                 @foreach ($invoices as $inv)
-                                    <option value="{{ $inv->id }}">
-                                        {{ $inv->invoice_no }} � {{ $inv->customer_name }}
+                                    @php
+                                        $invTotal   = $inv->summary?->total_amount ?? $inv->computeTotal();
+                                        $paidAmount = $inv->summary?->paid_amount  ?? 0;
+                                        $remaining  = max(0, $invTotal - $paidAmount);
+                                    @endphp
+                                    <option value="{{ $inv->id }}"
+                                        data-remaining="{{ round($remaining) }}"
+                                        data-total="{{ round($invTotal) }}"
+                                        data-paid="{{ round($paidAmount) }}">
+                                        {{ $inv->invoice_no }} — {{ $inv->customer_name }}
                                     </option>
                                 @endforeach
                             </select>
+                            <div id="edit_sisa_info" class="hidden mt-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs flex items-center justify-between gap-3">
+                                <span class="text-gray-500">Total: <span id="edit_info_total" class="font-semibold text-gray-700">-</span></span>
+                                <span class="text-gray-500">Dibayar: <span id="edit_info_paid" class="font-semibold text-yellow-600">-</span></span>
+                                <span class="font-bold">Sisa: <span id="edit_info_remaining" class="text-blue-700 font-bold">-</span></span>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Pembayaran <span class="text-red-500">*</span></label>
@@ -600,13 +615,28 @@
     const formTambah  = document.getElementById('formTambah');
 
     function onTambahInvoiceChange(sel) {
-        const opt    = sel.options[sel.selectedIndex];
-        const total  = opt ? parseFloat(opt.dataset.total || 0) : 0;
+        const opt       = sel.options[sel.selectedIndex];
+        const remaining = opt ? parseFloat(opt.dataset.remaining || 0) : 0;
+        const total     = opt ? parseFloat(opt.dataset.total    || 0) : 0;
+        const paid      = opt ? parseFloat(opt.dataset.paid     || 0) : 0;
         const amountInput = document.getElementById('tambah_amount');
-        if (total > 0) {
-            amountInput.value = Math.round(total);
+        const infoBox     = document.getElementById('tambah_sisa_info');
+
+        if (opt && opt.value) {
+            // Auto-fill sisa tagihan
+            amountInput.value = remaining > 0 ? Math.round(remaining) : '';
+
+            // Tampilkan info box
+            const fmt = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+            document.getElementById('tambah_info_total').textContent    = fmt(total);
+            document.getElementById('tambah_info_paid').textContent     = fmt(paid);
+            const sisaEl = document.getElementById('tambah_info_remaining');
+            sisaEl.textContent = fmt(remaining);
+            sisaEl.className   = remaining <= 0 ? 'text-green-600 font-bold' : 'text-blue-700 font-bold';
+            infoBox.classList.remove('hidden');
         } else {
             amountInput.value = '';
+            infoBox.classList.add('hidden');
         }
     }
 
@@ -614,6 +644,7 @@
         formTambah.reset();
         document.getElementById('previewTambah').classList.add('hidden');
         document.getElementById('tambah_amount').value = '';
+        document.getElementById('tambah_sisa_info').classList.add('hidden');
         modalTambah.classList.remove('hidden');
         modalTambah.classList.add('flex');
     }
@@ -646,6 +677,9 @@
             document.getElementById('edit_amount').value         = data.amount ?? '';
             document.getElementById('edit_status').value         = data.status ?? 'Pending';
 
+            // Tampilkan info sisa tagihan untuk invoice yang dipilih
+            onEditInvoiceChange(document.getElementById('edit_invoice_id'));
+
             // File lama
             const existingBlock = document.getElementById('existingFile');
             const existingLink  = document.getElementById('existingFileLink');
@@ -675,6 +709,25 @@
         modalEdit.classList.remove('flex');
     }
     modalEdit.addEventListener('click', e => { if (e.target === modalEdit) closeModalEdit(); });
+
+    function onEditInvoiceChange(sel) {
+        const opt       = sel.options[sel.selectedIndex];
+        const infoBox   = document.getElementById('edit_sisa_info');
+        if (opt && opt.value) {
+            const remaining = parseFloat(opt.dataset.remaining || 0);
+            const total     = parseFloat(opt.dataset.total    || 0);
+            const paid      = parseFloat(opt.dataset.paid     || 0);
+            const fmt = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+            document.getElementById('edit_info_total').textContent    = fmt(total);
+            document.getElementById('edit_info_paid').textContent     = fmt(paid);
+            const sisaEl = document.getElementById('edit_info_remaining');
+            sisaEl.textContent = fmt(remaining);
+            sisaEl.className   = remaining <= 0 ? 'text-green-600 font-bold' : 'text-blue-700 font-bold';
+            infoBox.classList.remove('hidden');
+        } else {
+            infoBox.classList.add('hidden');
+        }
+    }
 
     /* -- DRAG DROP & PREVIEW -- */
     function previewFilePembayaran(event, previewId, dropId) {
