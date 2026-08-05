@@ -20,6 +20,8 @@ class Kendaraan extends Model
 
         'nopol',
         'foto',
+        'foto_masalah',    // JSON array path foto masalah
+        'catatan_masalah',
         'nama_pemilik',
         'alamat',
         'merk',
@@ -148,5 +150,6 @@ class Kendaraan extends Model
 
         'masa_berlaku' => 'date',
         'tanggal_terakhir_service' => 'date',
+        'foto_masalah' => 'array',
     ];
 }

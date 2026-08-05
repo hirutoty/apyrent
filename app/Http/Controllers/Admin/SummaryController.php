@@ -65,22 +65,9 @@ class SummaryController extends Controller
         $kontraks   = InvKontrak::latest()->get();
         $invoices   = Invoice::latest()->get();
 
-        // Sync total_amount dari computeTotal() untuk summary yang punya invoice
-        // agar pajak (PPN) selalu terhitung benar sesuai remaks terkini
-        foreach ($summaries as $s) {
-            if ($s->invoice_id && $s->invoice) {
-                $correctTotal = $s->invoice->computeTotal();
-                if (abs($correctTotal - (float) $s->total_amount) > 0.01) {
-                    $newRemaining = max(0, $correctTotal - (float) $s->paid_amount);
-                    $s->update([
-                        'total_amount'     => $correctTotal,
-                        'remaining_amount' => $newRemaining,
-                        'payment_status'   => $newRemaining <= 0 && $correctTotal > 0 ? 'Paid'
-                            : ((float) $s->paid_amount > 0 ? 'Partial' : 'Unpaid'),
-                    ]);
-                }
-            }
-        }
+        // CATATAN: jangan auto-update total_amount dari computeTotal() di sini,
+        // karena bisa merusak data yang sudah benar jika ada remaks duplikat.
+        // total_amount hanya diupdate oleh syncSummary() saat payment diproses.
 
         return view('admin.summary.index', compact(
             'summaries',

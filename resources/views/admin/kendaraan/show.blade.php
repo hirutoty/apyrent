@@ -278,27 +278,28 @@
                                     <td class="px-4 py-3.5">
                                         @if ($d->status_kendaraan === 'tersedia')
                                             <button type="button"
-                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}')"
+                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}', '', '')"
                                                 class="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-emerald-200 transition-colors">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
                                                 Tersedia
                                             </button>
                                         @elseif($d->status_kendaraan === 'disewa')
                                             <button type="button"
-                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}')"
+                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}', '', '')"
                                                 class="inline-flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-blue-200 transition-colors">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>
                                                 Disewa
                                             </button>
                                         @elseif($d->status_kendaraan === 'service')
                                             <button type="button"
-                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}')"
+                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}', '', '')"
                                                 class="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-amber-200 transition-colors">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>
                                                 Service
                                             </button>
                                         @elseif($d->status_kendaraan === 'bermasalah')
-                                            <button type="button" onclick="showBermasalahInfo()"
+                                            <button type="button"
+                                                onclick="ubahStatus({{ $d->id }}, 'bermasalah', '{{ addslashes(json_encode($d->foto_masalah ?? [])) }}', '{{ addslashes($d->catatan_masalah ?? '') }}')"
                                                 class="inline-flex items-center gap-1.5 bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-red-200 transition-colors">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>
                                                 Bermasalah
@@ -337,7 +338,10 @@
                                                 data-km_svc="{{ $d->km_terakhir_service }}"
                                                 data-tgl_svc="{{ $d->tanggal_terakhir_service }}"
                                                 data-status_service="{{ $d->status_service }}"
-                                                data-status_kendaraan="{{ $d->status_kendaraan }}" data-member_id="{{ $d->member_id }}">
+                                                data-status_kendaraan="{{ $d->status_kendaraan }}"
+                                                data-foto_masalah="{{ addslashes(json_encode($d->foto_masalah ?? [])) }}"
+                                                data-catatan_masalah="{{ $d->catatan_masalah ?? '' }}"
+                                                data-member_id="{{ $d->member_id }}">
                                                 <i class="fa fa-eye text-xs"></i> Detail
                                             </button>
 
@@ -415,6 +419,96 @@
 
 
 
+
+
+        {{-- ======================================
+        MODAL UBAH STATUS
+    ====================================== --}}
+        <div id="modalStatus" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30"
+            style="backdrop-filter:blur(2px)">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4" style="animation:slideUp .2s ease">
+
+                <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+                    <div>
+                        <h2 class="text-base font-bold text-gray-800">Ubah Status Kendaraan</h2>
+                        <p class="text-xs text-gray-500 mt-0.5" id="statusModalSubtitle">Pilih status kendaraan baru</p>
+                    </div>
+                    <button onclick="closeModalStatus()"
+                        class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+
+                <form id="formStatus" method="POST" enctype="multipart/form-data" class="px-6 py-5">
+                    @csrf
+                    @method('PATCH')
+                    <input type="hidden" name="status_kendaraan" id="statusKendaraanInput">
+
+                    <div class="grid grid-cols-2 gap-3 mb-5">
+                        <button type="button" onclick="pilihStatus('bermasalah', this)"
+                            class="status-btn bg-red-50 hover:bg-red-100 text-red-700 rounded-xl py-3 text-sm font-semibold transition-colors">
+                            <i class="fa fa-exclamation-triangle mr-1"></i> Bermasalah
+                        </button>
+                        <button type="button" onclick="pilihStatus('tersedia', this)"
+                            class="status-btn bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl py-3 text-sm font-semibold transition-colors">
+                            <i class="fa fa-check-circle mr-1"></i> Tersedia
+                        </button>
+
+                        {{-- Service: non-interaktif, hanya info --}}
+                        <div class="col-span-2 bg-amber-50 text-amber-400 rounded-xl py-2 px-3 text-xs font-semibold text-center cursor-not-allowed select-none border border-amber-100">
+                            Service &amp; Disewa diatur otomatis dari menu masing-masing
+                        </div>
+                    </div>
+
+                    {{-- Bagian bermasalah: foto multiple + catatan --}}
+                    <div id="sectionBermasalah" class="hidden mb-5 space-y-3 border border-red-100 rounded-xl p-4 bg-red-50/40">
+                        <p class="text-xs font-bold text-red-600 uppercase tracking-wide flex items-center gap-1.5">
+                            <i class="fa fa-camera"></i> Dokumentasi Masalah
+                        </p>
+
+                        {{-- Preview foto yang sudah ada --}}
+                        <div id="existingFotoWrap" class="hidden">
+                            <p class="text-xs text-gray-500 mb-2">Foto tersimpan:</p>
+                            <div id="existingFotoGrid" class="grid grid-cols-3 gap-2"></div>
+                        </div>
+
+                        {{-- Upload foto baru --}}
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                Foto Masalah <span class="text-gray-400 font-normal">(multiple, maks 5 MB/foto)</span>
+                            </label>
+                            <input id="inputFotoMasalah" name="foto_masalah[]" type="file" multiple
+                                accept="image/jpg,image/jpeg,image/png,image/webp"
+                                onchange="previewFotoMasalah(event)"
+                                class="w-full border border-dashed border-red-300 rounded-lg px-3 py-2 text-xs text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 cursor-pointer">
+                            <p class="text-xs text-gray-400 mt-1">Format: JPG, PNG, WEBP</p>
+                        </div>
+
+                        {{-- Preview foto baru yang dipilih --}}
+                        <div id="previewFotoMasalah" class="hidden grid grid-cols-3 gap-2"></div>
+
+                        {{-- Catatan --}}
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan Masalah</label>
+                            <textarea id="inputCatatanMasalah" name="catatan_masalah" rows="3"
+                                placeholder="Deskripsikan masalah pada kendaraan..."
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 resize-none"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="closeModalStatus()"
+                            class="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit"
+                            class="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+                            <i class="fa fa-save text-xs"></i> Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
 
         {{-- ======================================
@@ -687,6 +781,28 @@
                             </div>
                         
                         </div>
+                    </div>
+
+                    {{-- Seksi: Foto & Catatan Masalah (tampil hanya jika bermasalah) --}}
+                    <div id="d_masalah_section" class="hidden">
+                        <hr class="border-gray-100 mb-4">
+                        <p class="text-[10px] font-semibold uppercase tracking-widest text-red-400 mb-3 flex items-center gap-1.5">
+                            <i class="fa fa-exclamation-triangle text-[10px]"></i> Detail Masalah
+                        </p>
+
+                        {{-- Catatan masalah --}}
+                        <div id="d_catatan_masalah_wrap" class="hidden mb-3">
+                            <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Catatan</span>
+                            <p id="d_catatan_masalah" class="text-sm text-gray-700 mt-1 bg-red-50 border border-red-100 rounded-lg px-3 py-2"></p>
+                        </div>
+
+                        {{-- Foto masalah grid --}}
+                        <div id="d_foto_masalah_wrap" class="hidden">
+                            <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Foto Masalah</span>
+                            <div id="d_foto_masalah_grid" class="grid grid-cols-3 gap-2 mt-2"></div>
+                        </div>
+
+                        <p id="d_masalah_kosong" class="hidden text-xs text-gray-400 italic">Belum ada foto atau catatan masalah.</p>
                     </div>
 
                 </div>
@@ -1333,17 +1449,63 @@
             });
 
             // -- MODAL STATUS --------------------------------------
-            function ubahStatus(id, statusSekarang) {
-
+            function ubahStatus(id, statusSekarang, fotoMasalahJson, catatanMasalah) {
                 let form = document.getElementById('formStatus');
-
                 form.action = '/admin/kendaraan/' + id + '/status';
+                document.getElementById('statusKendaraanInput').value = statusSekarang;
 
-                console.log('Action:', form.action);
-                console.log('Method:', form.method);
+                // Reset section
+                var section = document.getElementById('sectionBermasalah');
+                section.classList.add('hidden');
+                document.getElementById('inputFotoMasalah').value = '';
+                document.getElementById('previewFotoMasalah').innerHTML = '';
+                document.getElementById('previewFotoMasalah').classList.add('hidden');
+                document.getElementById('inputCatatanMasalah').value = '';
 
-                document.getElementById('statusKendaraanInput').value =
-                    statusSekarang;
+                // Highlight tombol yang sesuai status sekarang
+                document.querySelectorAll('.status-btn').forEach(function(btn) {
+                    btn.classList.remove('ring-2', 'ring-offset-2', 'ring-red-400', 'ring-emerald-400', 'scale-105');
+                });
+
+                // Tampilkan bermasalah section + foto lama jika status bermasalah
+                if (statusSekarang === 'bermasalah') {
+                    section.classList.remove('hidden');
+
+                    var existingWrap = document.getElementById('existingFotoWrap');
+                    var existingGrid = document.getElementById('existingFotoGrid');
+                    existingGrid.innerHTML = '';
+
+                    try {
+                        var fotos = fotoMasalahJson ? JSON.parse(fotoMasalahJson) : [];
+                        if (fotos.length > 0) {
+                            existingWrap.classList.remove('hidden');
+                            fotos.forEach(function(path) {
+                                var col = document.createElement('div');
+                                col.className = 'relative';
+                                col.innerHTML = '<img src="/' + path + '" class="w-full h-16 object-cover rounded-lg border border-gray-200">'
+                                    + '<form method="POST" action="/admin/kendaraan/' + id + '/foto-masalah" style="display:inline">'
+                                    + '<input type="hidden" name="_token" value="{{ csrf_token() }}">'
+                                    + '<input type="hidden" name="_method" value="DELETE">'
+                                    + '<input type="hidden" name="foto_path" value="' + path + '">'
+                                    + '<button type="submit" onclick="return confirm(\'Hapus foto ini?\')" '
+                                    + 'class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center shadow">'
+                                    + '<i class="fa fa-times" style="font-size:9px"></i></button>'
+                                    + '</form>';
+                                existingGrid.appendChild(col);
+                            });
+                        } else {
+                            existingWrap.classList.add('hidden');
+                        }
+                    } catch (e) {
+                        existingWrap.classList.add('hidden');
+                    }
+
+                    if (catatanMasalah) {
+                        document.getElementById('inputCatatanMasalah').value = catatanMasalah;
+                    }
+                } else {
+                    document.getElementById('existingFotoWrap').classList.add('hidden');
+                }
 
                 openModal('modalStatus');
             }
@@ -1351,21 +1513,49 @@
             function pilihStatus(status, element) {
                 document.getElementById('statusKendaraanInput').value = status;
 
-                document.querySelectorAll('.status-btn').forEach(btn => {
-                    btn.classList.remove(
-                        'ring-2',
-                        'ring-offset-2',
-                        'ring-blue-500',
-                        'scale-105'
-                    );
+                document.querySelectorAll('.status-btn').forEach(function(btn) {
+                    btn.classList.remove('ring-2', 'ring-offset-2', 'ring-red-400', 'ring-emerald-400', 'scale-105');
                 });
 
-                element.classList.add(
-                    'ring-2',
-                    'ring-offset-2',
-                    'ring-blue-500',
-                    'scale-105'
-                );
+                if (element) {
+                    var ringColor = (status === 'bermasalah') ? 'ring-red-400' : 'ring-emerald-400';
+                    element.classList.add('ring-2', 'ring-offset-2', ringColor, 'scale-105');
+                }
+
+                // Tampilkan/sembunyikan section bermasalah
+                var section = document.getElementById('sectionBermasalah');
+                if (status === 'bermasalah') {
+                    section.classList.remove('hidden');
+                    document.getElementById('existingFotoWrap').classList.add('hidden');
+                } else {
+                    section.classList.add('hidden');
+                    document.getElementById('inputFotoMasalah').value = '';
+                    document.getElementById('previewFotoMasalah').innerHTML = '';
+                    document.getElementById('previewFotoMasalah').classList.add('hidden');
+                    document.getElementById('inputCatatanMasalah').value = '';
+                }
+            }
+
+            function previewFotoMasalah(event) {
+                var container = document.getElementById('previewFotoMasalah');
+                container.innerHTML = '';
+                var files = event.target.files;
+                if (!files.length) {
+                    container.classList.add('hidden');
+                    return;
+                }
+                container.classList.remove('hidden');
+                Array.from(files).forEach(function(file) {
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        var col = document.createElement('div');
+                        col.className = 'relative';
+                        col.innerHTML = '<img src="' + e.target.result + '" class="w-full h-16 object-cover rounded-lg border border-gray-200">'
+                            + '<span class="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-[9px] px-1 py-0.5 rounded-b-lg truncate">' + file.name + '</span>';
+                        container.appendChild(col);
+                    };
+                    reader.readAsDataURL(file);
+                });
             }
 
             function closeModalStatus() {
@@ -1470,6 +1660,52 @@
 
                     document.getElementById('d_status_service').innerHTML = badgeStatus(d.status_kendaraan);
                     document.getElementById('d_status_kendaraan').innerHTML = badgeStatus(d.status_kendaraan);
+
+                    // -- Foto & Catatan Masalah --
+                    var masalahSection = document.getElementById('d_masalah_section');
+                    if (d.status_kendaraan === 'bermasalah') {
+                        masalahSection.classList.remove('hidden');
+
+                        // Catatan
+                        var catatanWrap = document.getElementById('d_catatan_masalah_wrap');
+                        var catatanEl   = document.getElementById('d_catatan_masalah');
+                        if (d.catatan_masalah && d.catatan_masalah.trim()) {
+                            catatanEl.textContent = d.catatan_masalah;
+                            catatanWrap.classList.remove('hidden');
+                        } else {
+                            catatanWrap.classList.add('hidden');
+                        }
+
+                        // Foto grid
+                        var fotoWrap2  = document.getElementById('d_foto_masalah_wrap');
+                        var fotoGrid   = document.getElementById('d_foto_masalah_grid');
+                        var kosong     = document.getElementById('d_masalah_kosong');
+                        fotoGrid.innerHTML = '';
+                        try {
+                            var fotos = d.foto_masalah ? JSON.parse(d.foto_masalah) : [];
+                            if (Array.isArray(fotos) && fotos.length > 0) {
+                                fotoWrap2.classList.remove('hidden');
+                                kosong.classList.add('hidden');
+                                fotos.forEach(function(path) {
+                                    var img = document.createElement('a');
+                                    img.href   = '/' + path;
+                                    img.target = '_blank';
+                                    img.className = 'block';
+                                    img.innerHTML = '<img src="/' + path + '" class="w-full h-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition-opacity">';
+                                    fotoGrid.appendChild(img);
+                                });
+                            } else {
+                                fotoWrap2.classList.add('hidden');
+                                if (!d.catatan_masalah) kosong.classList.remove('hidden');
+                                else kosong.classList.add('hidden');
+                            }
+                        } catch(e) {
+                            fotoWrap2.classList.add('hidden');
+                            kosong.classList.remove('hidden');
+                        }
+                    } else {
+                        masalahSection.classList.add('hidden');
+                    }
 
                     openModal('modalDetail');
                 });
@@ -1619,17 +1855,6 @@
 
         
 
-
-        <script>
-            function showBermasalahInfo() {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Status Tidak Dapat Dipilih',
-                    text: 'Status Bermasalah hanya dapat diubah otomatis dari menu Mobil Bermasalah atau hasil inspeksi/service.',
-                    confirmButtonText: 'Mengerti'
-                });
-            }
-        </script>
 
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 

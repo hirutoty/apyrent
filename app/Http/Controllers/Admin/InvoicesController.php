@@ -42,12 +42,12 @@ class InvoicesController extends Controller
 
         $customerName = $penawaran?->customer_name ?? $kontrak->pihak_kedua;
 
-        // Kendaraan dari item penawaran
+        // Kendaraan dari item penawaran (deduplicated by kendaraan_id)
         $kendaraans = [];
         $kendaraanIds = [];
         if ($penawaran) {
             foreach ($penawaran->items as $item) {
-                if ($item->kendaraan) {
+                if ($item->kendaraan && !in_array($item->kendaraan->id, $kendaraanIds)) {
                     $kendaraans[] = [
                         'id'    => $item->kendaraan->id,
                         'label' => $item->kendaraan->merk . ' - ' . $item->kendaraan->nopol,
@@ -99,9 +99,13 @@ class InvoicesController extends Controller
 
         if ($penawaran && $penawaran->items->isNotEmpty()) {
             foreach ($penawaran->items as $item) {
-                $label = $item->kendaraan
-                    ? $item->kendaraan->merk . ' ' . $item->kendaraan->nopol
-                    : 'Item Penawaran';
+                // Skip item yang tidak memiliki kendaraan (kendaraan_id null)
+                // agar tidak menghasilkan remaks duplikat / kosong
+                if (!$item->kendaraan) {
+                    continue;
+                }
+
+                $label = $item->kendaraan->merk . ' ' . $item->kendaraan->nopol;
 
                 // Tanggal awal periode ini = perjanjian_pembayaran + 1 hari (atau null)
                 $itemAwal  = $periodeAwal; // sudah dihitung di atas
@@ -143,8 +147,11 @@ class InvoicesController extends Controller
                     'durasi_nilai'=> $item->durasi ?? 1,
                 ];
             }
-        } else {
-            // Tidak ada items — buat 1 periode kosong agar tab 2 tetap terbuka
+        }
+
+        // Fallback: jika rentalDetails kosong (semua items tanpa kendaraan / penawaran kosong)
+        // buat 1 periode kosong agar tab 2 tetap terbuka
+        if (empty($rentalDetails)) {
             $rentalDetails = [[
                 'tanggal_mulai'   => $periodeAwal,
                 'tanggal_selesai' => $periodeAkhir,

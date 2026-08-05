@@ -338,13 +338,74 @@ class KendaraanController extends Controller
     {
         $request->validate([
             'status_kendaraan' => 'required|in:tersedia,disewa,service,bermasalah',
+            'foto_masalah.*'   => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'catatan_masalah'  => 'nullable|string|max:1000',
         ]);
 
-        $kendaraan->update([
+        $data = [
             'status_kendaraan' => $request->status_kendaraan,
-        ]);
+        ];
+
+        // Jika bermasalah → simpan foto dan catatan
+        if ($request->status_kendaraan === 'bermasalah') {
+            // Upload foto-foto baru (append ke yang sudah ada, atau fresh)
+            $fotoLama = $kendaraan->foto_masalah ?? [];
+
+            if ($request->hasFile('foto_masalah')) {
+                $fotos = [];
+                foreach ($request->file('foto_masalah') as $file) {
+                    $name = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $file->move(public_path('kendaraan/masalah'), $name);
+                    $fotos[] = 'kendaraan/masalah/' . $name;
+                }
+                // Gabungkan dengan foto lama (jika ada)
+                $data['foto_masalah'] = json_encode(array_merge($fotoLama, $fotos));
+            }
+
+            if ($request->filled('catatan_masalah')) {
+                $data['catatan_masalah'] = $request->catatan_masalah;
+            }
+        } else {
+            // Jika status bukan bermasalah, reset foto & catatan masalah
+            // Hapus file fisik
+            $fotoLama = $kendaraan->foto_masalah ?? [];
+            foreach ($fotoLama as $path) {
+                if ($path && file_exists(public_path($path))) {
+                    unlink(public_path($path));
+                }
+            }
+            $data['foto_masalah']    = null;
+            $data['catatan_masalah'] = null;
+        }
+
+        $kendaraan->update($data);
 
         return back()->with('success', 'Status berhasil diperbarui.');
+    }
+
+    /**
+     * Hapus satu foto masalah dari kendaraan
+     */
+    public function deleteFotoMasalah(Request $request, Kendaraan $kendaraan)
+    {
+        $request->validate([
+            'foto_path' => 'required|string',
+        ]);
+
+        $path    = $request->foto_path;
+        $fotos   = $kendaraan->foto_masalah ?? [];
+        $fotos   = array_values(array_filter($fotos, fn($f) => $f !== $path));
+
+        // Hapus file fisik
+        if ($path && file_exists(public_path($path))) {
+            unlink(public_path($path));
+        }
+
+        $kendaraan->update([
+            'foto_masalah' => count($fotos) > 0 ? json_encode($fotos) : null,
+        ]);
+
+        return back()->with('success', 'Foto masalah berhasil dihapus.');
     }
 
     public function exportPdf($merk)

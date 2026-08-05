@@ -161,16 +161,26 @@ class PaymentsController extends Controller
             ->where('status', 'Verified')
             ->sum('amount');
 
-        // P0 #4: gunakan computeTotal() bukan kolom total
         $invoice = Invoice::find($invoiceId);
 
         if (! $invoice) {
             return;
         }
 
-        // P0 #4 — invoice total via computeTotal()
-        $invoiceTotal = $invoice->computeTotal();
-        $remaining    = max(0, $invoiceTotal - $totalVerified);
+        // Cek apakah summary sudah ada dengan total_amount yang valid.
+        // Jika sudah ada, pertahankan total_amount tersimpan agar tidak
+        // ter-overwrite oleh computeTotal() yang bisa menghasilkan nilai
+        // salah jika ada remaks duplikat.
+        // computeTotal() hanya dipakai untuk summary yang benar-benar baru.
+        $existingSummary = InvSummary::where('invoice_id', $invoiceId)->first();
+
+        if ($existingSummary && (float) $existingSummary->total_amount > 0) {
+            $invoiceTotal = (float) $existingSummary->total_amount;
+        } else {
+            $invoiceTotal = $invoice->computeTotal();
+        }
+
+        $remaining = max(0, $invoiceTotal - $totalVerified);
 
         // MEDIUM #1 — tentukan status konsisten untuk KEDUA kolom
         if ($totalVerified <= 0) {
@@ -184,16 +194,26 @@ class PaymentsController extends Controller
             $statusKolom   = 'partial';
         }
 
-        // P0 #5 — upsert InvSummary (updateOrCreate menggantikan find + conditional update)
-        InvSummary::updateOrCreate(
-            ['invoice_id' => $invoiceId],
-            [
+        // P0 #5 — upsert InvSummary
+        // total_amount hanya diisi untuk record baru; jika sudah ada, tidak diubah
+        if ($existingSummary) {
+            $existingSummary->update([
+                'paid_amount'      => $totalVerified,
+                'remaining_amount' => $remaining,
+                'payment_status'   => $paymentStatus,
+            ]);
+        } else {
+            InvSummary::create([
+                'invoice_id'       => $invoiceId,
+                'penawaran_id'     => $invoice->penawaran_id,
+                'kontrak_id'       => $invoice->kontrak_id,
+                'type'             => $invoice->type,
                 'total_amount'     => $invoiceTotal,
                 'paid_amount'      => $totalVerified,
                 'remaining_amount' => $remaining,
                 'payment_status'   => $paymentStatus,
-            ]
-        );
+            ]);
+        }
 
         // MEDIUM #1 — update kedua kolom di tabel invoices secara konsisten
         $invoice->update([
@@ -390,7 +410,11 @@ class PaymentsController extends Controller
         if ($request->status === 'Verified') {
             $invoice = Invoice::findOrFail($request->invoice_id);
 
-            $invoiceTotal = $invoice->computeTotal();
+            // Gunakan total dari summary yang sudah tersimpan jika ada,
+            // agar tidak recompute dari remaks (bisa dobel jika ada remaks duplikat).
+            // Fallback ke computeTotal() hanya jika summary belum ada.
+            $summary      = InvSummary::where('invoice_id', $request->invoice_id)->first();
+            $invoiceTotal = $summary ? (float) $summary->total_amount : $invoice->computeTotal();
 
             $alreadyPaid = InvoicePayment::where('invoice_id', $request->invoice_id)
                 ->where('status', 'Verified')
@@ -398,10 +422,10 @@ class PaymentsController extends Controller
 
             $remaining = $invoiceTotal - (float) $alreadyPaid;
 
-            if ((float) $request->amount > $remaining) {
+            if ((float) $request->amount > $remaining + 0.01) {
                 return back()
                     ->withInput()
-                    ->with('error', 'Jumlah pembayaran melebihi sisa tagihan. Sisa tagihan: ' . number_format($remaining, 0, ',', '.'));
+                    ->with('error', 'Jumlah pembayaran melebihi sisa tagihan. Sisa tagihan: ' . number_format(max(0, $remaining), 0, ',', '.'));
             }
         }
 
@@ -495,7 +519,11 @@ class PaymentsController extends Controller
         if ($request->status === 'Verified') {
             $invoice = Invoice::findOrFail($request->invoice_id);
 
-            $invoiceTotal = $invoice->computeTotal();
+            // Gunakan total dari summary yang sudah tersimpan jika ada,
+            // agar tidak recompute dari remaks (bisa dobel jika ada remaks duplikat).
+            // Fallback ke computeTotal() hanya jika summary belum ada.
+            $summary      = InvSummary::where('invoice_id', $request->invoice_id)->first();
+            $invoiceTotal = $summary ? (float) $summary->total_amount : $invoice->computeTotal();
 
             // Jumlah sudah dibayar kecuali payment yang sedang diedit
             $alreadyPaid = InvoicePayment::where('invoice_id', $request->invoice_id)
@@ -505,10 +533,10 @@ class PaymentsController extends Controller
 
             $remaining = $invoiceTotal - (float) $alreadyPaid;
 
-            if ((float) $request->amount > $remaining) {
+            if ((float) $request->amount > $remaining + 0.01) {
                 return back()
                     ->withInput()
-                    ->with('error', 'Jumlah pembayaran melebihi sisa tagihan. Sisa tagihan: ' . number_format($remaining, 0, ',', '.'));
+                    ->with('error', 'Jumlah pembayaran melebihi sisa tagihan. Sisa tagihan: ' . number_format(max(0, $remaining), 0, ',', '.'));
             }
         }
 
