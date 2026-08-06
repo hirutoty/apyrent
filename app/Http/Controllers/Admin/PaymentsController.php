@@ -190,16 +190,26 @@ class PaymentsController extends Controller
             $statusKolom   = 'partial';
         }
 
-        // P0 #5 — upsert InvSummary (updateOrCreate menggantikan find + conditional update)
-        InvSummary::updateOrCreate(
-            ['invoice_id' => $invoiceId],
-            [
+        // P0 #5 — upsert InvSummary
+        // total_amount hanya diisi untuk record baru; jika sudah ada, tidak diubah
+        if ($existingSummary) {
+            $existingSummary->update([
+                'paid_amount'      => $totalVerified,
+                'remaining_amount' => $remaining,
+                'payment_status'   => $paymentStatus,
+            ]);
+        } else {
+            InvSummary::create([
+                'invoice_id'       => $invoiceId,
+                'penawaran_id'     => $invoice->penawaran_id,
+                'kontrak_id'       => $invoice->kontrak_id,
+                'type'             => $invoice->type,
                 'total_amount'     => $invoiceTotal,
                 'paid_amount'      => $totalVerified,
                 'remaining_amount' => $remaining,
                 'payment_status'   => $paymentStatus,
-            ]
-        );
+            ]);
+        }
 
         // MEDIUM #1 — update kedua kolom di tabel invoices secara konsisten
         $invoice->update([
@@ -404,10 +414,10 @@ class PaymentsController extends Controller
 
             $remaining = $invoiceTotal - (float) $alreadyPaid;
 
-            if ((float) $request->amount > $remaining) {
+            if ((float) $request->amount > $remaining + 0.01) {
                 return back()
                     ->withInput()
-                    ->with('error', 'Jumlah pembayaran melebihi sisa tagihan. Sisa tagihan: ' . number_format($remaining, 0, ',', '.'));
+                    ->with('error', 'Jumlah pembayaran melebihi sisa tagihan. Sisa tagihan: ' . number_format(max(0, $remaining), 0, ',', '.'));
             }
         }
 
@@ -511,10 +521,10 @@ class PaymentsController extends Controller
 
             $remaining = $invoiceTotal - (float) $alreadyPaid;
 
-            if ((float) $request->amount > $remaining) {
+            if ((float) $request->amount > $remaining + 0.01) {
                 return back()
                     ->withInput()
-                    ->with('error', 'Jumlah pembayaran melebihi sisa tagihan. Sisa tagihan: ' . number_format($remaining, 0, ',', '.'));
+                    ->with('error', 'Jumlah pembayaran melebihi sisa tagihan. Sisa tagihan: ' . number_format(max(0, $remaining), 0, ',', '.'));
             }
         }
 

@@ -42,12 +42,12 @@ class InvoicesController extends Controller
 
         $customerName = $penawaran?->customer_name ?? $kontrak->pihak_kedua;
 
-        // Kendaraan dari item penawaran
+        // Kendaraan dari item penawaran (deduplicated by kendaraan_id)
         $kendaraans = [];
         $kendaraanIds = [];
         if ($penawaran) {
             foreach ($penawaran->items as $item) {
-                if ($item->kendaraan) {
+                if ($item->kendaraan && !in_array($item->kendaraan->id, $kendaraanIds)) {
                     $kendaraans[] = [
                         'id'    => $item->kendaraan->id,
                         'label' => $item->kendaraan->merk . ' - ' . $item->kendaraan->nopol,
@@ -68,8 +68,10 @@ class InvoicesController extends Controller
         $durasiValue  = (int) ($kontrak->durasi_value ?? 1);
         $durasiSatuan = strtolower($kontrak->durasi_satuan ?? 'bulan'); // bulan, hari, tahun
 
-        $remakItems = [];
-        if ($penawaran) {
+        // Setiap item penawaran = 1 periode sendiri (tanggal dihitung dari durasi per item)
+        $rentalDetails = [];
+
+        if ($penawaran && $penawaran->items->isNotEmpty()) {
             foreach ($penawaran->items as $item) {
                 // Ambil label kendaraan — gunakan relasi jika ada
                 if ($item->kendaraan) {
@@ -175,6 +177,14 @@ class InvoicesController extends Controller
             'name_staff'       => $penawaran?->name_staff ?? '',
             'direktur'         => $penawaran?->direktur ?? '',
             'name_direktur'    => $penawaran?->name_direktur ?? '',
+            // Debug info
+            '_debug' => [
+                'penawaran_found'   => $penawaran !== null,
+                'items_count'       => $penawaran ? $penawaran->items->count() : 0,
+                'rental_details_count' => count($rentalDetails),
+                'periode_awal'      => $periodeAwal,
+                'periode_akhir'     => $periodeAkhir,
+            ],
         ]);
     }
 

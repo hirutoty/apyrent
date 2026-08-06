@@ -385,6 +385,7 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                                     PPH (%)
+                                    <span class="text-gray-400 font-normal">— opsional</span>
                                     @if(($setting->pph_default ?? 0) > 0)
                                         <span class="text-blue-400 font-normal">— dari setting</span>
                                     @endif
@@ -393,6 +394,7 @@
                                     <input type="number" step="0.01" name="pph" id="tambah_pph" min="0"
                                         value="{{ old('pph', $setting->pph_default ?? 0) }}"
                                         oninput="recalcTambahTotal()"
+                                        placeholder="0"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
                                 </div>
@@ -953,8 +955,9 @@
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('ppn') }}">
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPH (%)</label>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPH (%) <span class="text-gray-400 font-normal">— opsional</span></label>
                                 <input id="edit_pph" type="number" step="0.01" name="pph" min="0"
+                                    placeholder="0"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pph') }}">
                             </div>
                             <div>
@@ -1109,7 +1112,10 @@
     {{-- ===== MODAL TAMBAH PERIODE (Tab 2) ===== --}}
     <div id="modalTambahPeriode" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
-            
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <h3 class="text-sm font-semibold text-gray-800">Tambah Periode</h3>
+                <button type="button" id="closeTambahPeriode" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none"><i class="fa fa-times"></i></button>
+            </div>
             <div class="px-6 py-5 space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Awal <span class="text-red-500">*</span></label>
@@ -1131,7 +1137,8 @@
     <div id="modalTambahRemak" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
             <div class="flex items-center justify-between px-6 py-4 border-b">
-                
+                <h3 class="text-sm font-semibold text-gray-800">Tambah Remak</h3>
+                <button type="button" id="closeTambahRemak" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none"><i class="fa fa-times"></i></button>
             </div>
             <div class="px-6 py-5 space-y-4">
                 <div>
@@ -1168,7 +1175,22 @@
 
         function recalcTambahTotal() {
             const ppnPct = parseFloat(document.getElementById('tambah_ppn')?.value) || 0;
-            const base   = parseFloat(window._tambahSubTotalBase || 0);
+
+            // Prioritas 1: base sudah dihitung dari tab 2 (loadPeriodesTambah)
+            // Prioritas 2: hitung dari rental_details yang ada di tab 1
+            let base = parseFloat(window._tambahSubTotalBase) || 0;
+            if (!base) {
+                const details = window._tambahRentalDetails || [];
+                details.forEach(entry => {
+                    (entry.remak_items || []).forEach(item => {
+                        base += (parseFloat(item.qty) || 1) * (parseFloat(item.price) || 0);
+                    });
+                    if (entry.biaya_driver > 0) {
+                        base += parseFloat(entry.biaya_driver) || 0;
+                    }
+                });
+            }
+
             const ppnNom = Math.round(base * ppnPct / 100);
             const grand  = base + ppnNom;
 
@@ -1884,9 +1906,12 @@
         {{-- ====== RELASI ROWS TEMPLATE DATA ====== --}}
         <script>
         // Data untuk opsi select (dari Blade ke JS)
-        const PENAWARAN_OPTIONS = @json($penawarans->map(fn($p) => ['id' => $p->id, 'label' => $p->no_penawaran . ' � ' . $p->customer_name]));
+        const PENAWARAN_OPTIONS = @json($penawarans->map(fn($p) => ['id' => $p->id, 'label' => $p->no_penawaran . ' — ' . $p->customer_name]));
         const KONTRAK_OPTIONS   = @json($kontraks->map(fn($k) => ['id' => $k->id, 'label' => $k->no_kontrak ?? '#'.$k->id]));
-        const KENDARAAN_OPTIONS = @json($kendaraans->map(fn($kd) => ['id' => $kd->id, 'label' => $kd->merk . ' � ' . $kd->nopol]));
+        const KENDARAAN_OPTIONS = @json($kendaraans->map(fn($kd) => ['id' => $kd->id, 'label' => $kd->merk . ' — ' . $kd->nopol]));
+
+        // Global: dibagi antara script block 1 dan script block 2
+        window._tambahRentalDetails = window._tambahRentalDetails || [];
 
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -1980,31 +2005,71 @@
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            remaks: item.kendaraan,
-                            qty:    item.qty,
-                            price:  item.price,
+                            periode_awal:  periodeAwal,
+                            periode_akhir: periodeAkhir,
                         })
                     });
+                    const periodeJson = await periodeResp.json();
+                    console.log('[autoPopulate] periode response:', periodeJson);
+                    periodeId = periodeJson.id ?? periodeJson.periode?.id ?? null;
+                } catch(err) {
+                    console.error('[autoPopulate] Gagal buat periode:', err);
+                    continue;
+                }
+
+                if (!periodeId) {
+                    console.warn('[autoPopulate] periodeId null, skip remaks.');
+                    continue;
+                }
+
+                // 2. Buat remak untuk setiap item
+                const remakItems = entry.remak_items || [];
+                console.log('[autoPopulate] remak_items:', remakItems);
+                for (const item of remakItems) {
+                    try {
+                        const remakResp = await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrf,
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                remaks: item.kendaraan || 'Item',
+                                qty:    item.qty   || 1,
+                                price:  item.price || 0,
+                            })
+                        });
+                        const remakJson = await remakResp.json();
+                        console.log('[autoPopulate] remak response:', remakJson);
+                    } catch(err) {
+                        console.error('[autoPopulate] Gagal buat remak:', err);
+                    }
                 }
 
                 // 3. Remak driver terpisah jika ada
                 if (entry.biaya_driver > 0) {
                     const driverLabel = entry.nama_driver ? 'Driver: ' + entry.nama_driver : 'Biaya Driver';
-                    await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrf,
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            remaks: driverLabel,
-                            qty:    entry.durasi_nilai ?? 1,
-                            price:  entry.biaya_driver,
-                        })
-                    });
+                    try {
+                        await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrf,
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                remaks: driverLabel,
+                                qty:    entry.durasi_nilai ?? 1,
+                                price:  entry.biaya_driver,
+                            })
+                        });
+                    } catch(err) {
+                        console.error('[autoPopulate] Gagal buat remak driver:', err);
+                    }
                 }
             }
+            console.log('[autoPopulate] selesai.');
         }
 
         // ====== AJAX STORE FORM TAMBAH ======
@@ -2025,6 +2090,8 @@
                 if (json.success) {
                     unlockTab2(json.invoice_id, json.invoice_no);
                     await autoPopulatePeriodeRemak(json.invoice_id);
+                    // Panggil loadPeriodesTambah setelah autoPopulate agar list ter-render
+                    if (typeof loadPeriodesTambah === 'function') await loadPeriodesTambah();
                     switchTambahTab(2);
                     // Paksa reload daftar periode setelah auto-populate selesai
                     if (typeof loadPeriodesTambah === 'function') await loadPeriodesTambah();
@@ -2062,6 +2129,8 @@
                 renderPeriodeListTambah(periodes);
             } catch(e) { console.error(e); }
         }
+        // Expose ke global agar bisa dipanggil dari block lain
+        window.loadPeriodesTambah = loadPeriodesTambah;
 
         function renderPeriodeListTambah(periodes) {
             const list = document.getElementById('periodeListTambah');
@@ -2128,15 +2197,7 @@
             document.getElementById('tambah_total').value = grandTotal;
         }
 
-        // Tambah Periode di tab 2
-        document.getElementById('btnTambahPeriodeTambah')?.addEventListener('click', function() {
-            openTambahPeriodeModal();
-        });
-
-        let activeTambahPeriodeId = null;
-
-        document.getElementById('saveTambahPeriode')?.addEventListener('click', async function() {
-            const awal  = document.getElementById('tambahPeriodeAwal').value;
+                  const awal  = document.getElementById('tambahPeriodeAwal').value;
             if (!awal) { alert('Tanggal awal wajib diisi.'); return; }
             const akhir = document.getElementById('tambahPeriodeAkhir').value;
             await fetch('/admin/invoices/' + currentTambahInvoiceId + '/periodes', {

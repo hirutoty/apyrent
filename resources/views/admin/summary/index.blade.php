@@ -149,15 +149,16 @@
                         class="hidden absolute right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px] max-h-64 overflow-y-auto">
                         <p class="text-[10px] font-semibold text-gray-400 uppercase mb-2">Tampilkan Kolom</p>
                         @foreach ([
-                            'col-invoice'   => 'Invoice',
-                            'col-penawaran' => 'Penawaran',
-                            'col-kontrak'   => 'Kontrak',
-                            'col-tipe'      => 'Tipe',
-                            'col-total'     => 'Total',
-                            'col-dibayar'   => 'Dibayar',
-                            'col-sisa'      => 'Sisa',
-                            'col-status'    => 'Status',
-                            'col-aksi'      => 'Aksi',
+                            'col-invoice'    => 'Invoice',
+                            'col-penawaran'  => 'Penawaran',
+                            'col-kontrak'    => 'Kontrak',
+                            'col-kendaraan'  => 'Kendaraan',
+                            'col-tipe'       => 'Tipe',
+                            'col-total'      => 'Total',
+                            'col-dibayar'    => 'Dibayar',
+                            'col-sisa'       => 'Sisa',
+                            'col-status'     => 'Status',
+                            'col-aksi'       => 'Aksi',
                         ] as $colId => $colLabel)
                         <label class="flex items-center gap-2 py-1 cursor-pointer hover:text-blue-600 text-xs text-gray-700">
                             <input type="checkbox" class="col-toggle" data-col="{{ $colId }}" checked
@@ -183,6 +184,8 @@
                                 Penawaran</th>
                             <th data-col="col-kontrak" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Kontrak</th>
+                            <th data-col="col-kendaraan" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Kendaraan</th>
                             <th data-col="col-tipe" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tipe
                             </th>
                             <th data-col="col-total" class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -224,6 +227,35 @@
                                 </td>
                                 <td data-col="col-kontrak" class="px-4 py-3.5 text-sm text-gray-600">
                                     {{ optional($s->kontrak)->no_kontrak ?? '�' }}
+                                </td>
+                                <td data-col="col-kendaraan" class="px-4 py-3.5">
+                                    @if ($s->invoice && $s->invoice->kendaraans->isNotEmpty())
+                                        <div class="flex flex-col gap-1">
+                                            @foreach ($s->invoice->kendaraans as $kendaraan)
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
+                                                        <i class="bi bi-car-front text-[10px]"></i>
+                                                        {{ $kendaraan->nopol }}
+                                                    </span>
+                                                    @if ($kendaraan->merk)
+                                                        <span class="text-xs text-gray-500">{{ $kendaraan->merk }}</span>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @elseif ($s->invoice && $s->invoice->kendaraan)
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
+                                                <i class="bi bi-car-front text-[10px]"></i>
+                                                {{ $s->invoice->kendaraan->nopol }}
+                                            </span>
+                                            @if ($s->invoice->kendaraan->merk)
+                                                <span class="text-xs text-gray-500">{{ $s->invoice->kendaraan->merk }}</span>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-xs text-gray-400">�</span>
+                                    @endif
                                 </td>
                                 <td data-col="col-tipe" class="px-4 py-3.5">
                                     <span

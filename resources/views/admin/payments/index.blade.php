@@ -298,9 +298,16 @@
                                 @foreach ($invoices as $inv)
                                     <option value="{{ $inv->id }}" data-total="{{ (int) $inv->total }}">
                                         {{ $inv->invoice_no }} — {{ $inv->customer_name }}
+                                        @if($remaining <= 0) (Lunas) @endif
                                     </option>
                                 @endforeach
                             </select>
+                            {{-- Info sisa tagihan: muncul setelah invoice dipilih --}}
+                            <div id="tambah_sisa_info" class="hidden mt-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs flex items-center justify-between gap-3">
+                                <span class="text-gray-500">Total: <span id="tambah_info_total" class="font-semibold text-gray-700">-</span></span>
+                                <span class="text-gray-500">Dibayar: <span id="tambah_info_paid" class="font-semibold text-yellow-600">-</span></span>
+                                <span class="font-bold" id="tambah_info_remaining_wrap">Sisa: <span id="tambah_info_remaining" class="text-blue-700">-</span></span>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Pembayaran <span class="text-red-500">*</span></label>
@@ -451,6 +458,11 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <div id="edit_sisa_info" class="hidden mt-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs flex items-center justify-between gap-3">
+                                <span class="text-gray-500">Total: <span id="edit_info_total" class="font-semibold text-gray-700">-</span></span>
+                                <span class="text-gray-500">Dibayar: <span id="edit_info_paid" class="font-semibold text-yellow-600">-</span></span>
+                                <span class="font-bold">Sisa: <span id="edit_info_remaining" class="text-blue-700 font-bold">-</span></span>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Pembayaran <span class="text-red-500">*</span></label>
@@ -604,6 +616,7 @@
         formTambah.reset();
         document.getElementById('previewTambah').classList.add('hidden');
         document.getElementById('tambah_amount').value = '';
+        document.getElementById('tambah_sisa_info').classList.add('hidden');
         modalTambah.classList.remove('hidden');
         modalTambah.classList.add('flex');
     }
@@ -672,6 +685,25 @@
         modalEdit.classList.remove('flex');
     }
     modalEdit.addEventListener('click', e => { if (e.target === modalEdit) closeModalEdit(); });
+
+    function onEditInvoiceChange(sel) {
+        const opt       = sel.options[sel.selectedIndex];
+        const infoBox   = document.getElementById('edit_sisa_info');
+        if (opt && opt.value) {
+            const remaining = parseFloat(opt.dataset.remaining || 0);
+            const total     = parseFloat(opt.dataset.total    || 0);
+            const paid      = parseFloat(opt.dataset.paid     || 0);
+            const fmt = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+            document.getElementById('edit_info_total').textContent    = fmt(total);
+            document.getElementById('edit_info_paid').textContent     = fmt(paid);
+            const sisaEl = document.getElementById('edit_info_remaining');
+            sisaEl.textContent = fmt(remaining);
+            sisaEl.className   = remaining <= 0 ? 'text-green-600 font-bold' : 'text-blue-700 font-bold';
+            infoBox.classList.remove('hidden');
+        } else {
+            infoBox.classList.add('hidden');
+        }
+    }
 
     /* -- DRAG DROP & PREVIEW -- */
     function previewFilePembayaran(event, previewId, dropId) {

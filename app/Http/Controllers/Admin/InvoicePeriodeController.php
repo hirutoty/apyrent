@@ -25,9 +25,13 @@ class InvoicePeriodeController extends Controller
     public function store(Request $request, Invoice $invoice)
     {
         $validated = $request->validate([
-            'periode_awal'  => 'required|date',
-            'periode_akhir' => 'nullable|date|after_or_equal:periode_awal',
+            'periode_awal'  => 'nullable|date',
+            'periode_akhir' => 'nullable|date',
         ]);
+
+        // Fallback ke hari ini jika tanggal tidak dikirim
+        $validated['periode_awal']  = $validated['periode_awal']  ?? now()->toDateString();
+        $validated['periode_akhir'] = $validated['periode_akhir'] ?? $validated['periode_awal'];
 
         $periode = $invoice->periodes()->create($validated);
 
@@ -77,10 +81,13 @@ class InvoicePeriodeController extends Controller
         abort_unless($periode->invoice_id === $invoice->id, 403);
 
         $validated = $request->validate([
-            'remaks' => 'required|string|max:500',
-            'qty'    => 'required|integer|min:1',
+            'remaks' => 'nullable|string|max:500',
+            'qty'    => 'required|numeric|min:0',
             'price'  => 'required|numeric|min:0',
         ]);
+
+        // Fallback label jika remaks kosong
+        $validated['remaks'] = $validated['remaks'] ?: 'Item';
 
         $remak = $periode->remaks()->create(array_merge($validated, [
             'invoice_id' => $invoice->id,
@@ -100,7 +107,7 @@ class InvoicePeriodeController extends Controller
 
         $validated = $request->validate([
             'remaks' => 'required|string|max:500',
-            'qty'    => 'required|integer|min:1',
+            'qty'    => 'required|numeric|min:0',
             'price'  => 'required|numeric|min:0',
         ]);
 
