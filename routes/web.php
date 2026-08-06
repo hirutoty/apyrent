@@ -407,6 +407,11 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     [KendaraanController::class, 'updateStatus']
   )->name('kendaraan.updateStatus');
 
+  Route::delete(
+    '/kendaraan/{kendaraan}/foto-masalah',
+    [KendaraanController::class, 'deleteFotoMasalah']
+  )->name('kendaraan.foto-masalah.delete');
+
 
 
   Route::resource('jenis', JenisController::class);

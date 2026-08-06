@@ -236,16 +236,16 @@
                 </button>
             </div>
 
-            <form id="formStatus" method="POST" class="px-6 py-5">
+            <form id="formStatus" method="POST" enctype="multipart/form-data" class="px-6 py-5">
                 @csrf
-                @method('PUT')
+                @method('PATCH')
                 <input type="hidden" name="status_kendaraan" id="statusKendaraanInput">
 
                 <div class="grid grid-cols-2 gap-3 mb-5">
 
-                    <button type="button" onclick="pilihStatus('bermasalah')"
+                    <button type="button" onclick="pilihStatus('bermasalah', this)"
                         class="status-btn bg-red-50 hover:bg-red-100 text-red-700 rounded-xl py-3 text-sm font-semibold transition-colors">
-                        Bermasalah
+                        <i class="fa fa-exclamation-triangle mr-1"></i> Bermasalah
                     </button>
 
                     {{-- Service: non-interaktif, hanya info --}}
@@ -253,6 +253,41 @@
                         class="bg-amber-50 text-amber-400 rounded-xl py-3 text-sm font-semibold text-center cursor-not-allowed select-none border border-amber-100">
                         Service
                         <p class="text-xs font-normal mt-0.5 text-amber-300">otomatis dari menu service</p>
+                    </div>
+                </div>
+
+                {{-- Bagian bermasalah: foto multiple + catatan --}}
+                <div id="sectionBermasalah" class="hidden mb-5 space-y-3 border border-red-100 rounded-xl p-4 bg-red-50/40">
+                    <p class="text-xs font-bold text-red-600 uppercase tracking-wide flex items-center gap-1.5">
+                        <i class="fa fa-camera"></i> Dokumentasi Masalah
+                    </p>
+
+                    {{-- Preview foto yang sudah ada --}}
+                    <div id="existingFotoWrap" class="hidden">
+                        <p class="text-xs text-gray-500 mb-2">Foto tersimpan sebelumnya:</p>
+                        <div id="existingFotoGrid" class="grid grid-cols-3 gap-2"></div>
+                    </div>
+
+                    {{-- Upload foto baru --}}
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                            Foto Masalah <span class="text-gray-400 font-normal">(multiple, maks 5 MB/foto)</span>
+                        </label>
+                        <input id="inputFotoMasalah" name="foto_masalah[]" type="file" multiple
+                            accept="image/jpg,image/jpeg,image/png,image/webp"
+                            onchange="previewFotoMasalah(event)"
+                            class="w-full border border-dashed border-red-300 rounded-lg px-3 py-2 text-xs text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 cursor-pointer">
+                        <p class="text-xs text-gray-400 mt-1">Format: JPG, PNG, WEBP</p>
+                    </div>
+
+                    {{-- Preview foto baru yang dipilih --}}
+                    <div id="previewFotoMasalah" class="hidden grid grid-cols-3 gap-2"></div>
+
+                    {{-- Catatan --}}
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan Masalah</label>
+                        <textarea id="inputCatatanMasalah" name="catatan_masalah" rows="3" placeholder="Deskripsikan masalah pada kendaraan..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 resize-none"></textarea>
                     </div>
                 </div>
 
@@ -1214,14 +1249,109 @@
         });
 
         // -- MODAL STATUS --------------------------------------
-        function ubahStatus(id, statusSekarang) {
-            document.getElementById('formStatus').action = '/admin/kendaraan/' + id;
+        function ubahStatus(id, statusSekarang, fotoMasalahJson, catatanMasalah) {
+            document.getElementById('formStatus').action = '/admin/kendaraan/' + id + '/status';
             document.getElementById('statusKendaraanInput').value = statusSekarang;
+
+            // Reset section bermasalah
+            var section = document.getElementById('sectionBermasalah');
+            section.classList.add('hidden');
+            document.getElementById('inputFotoMasalah').value = '';
+            document.getElementById('previewFotoMasalah').innerHTML = '';
+            document.getElementById('previewFotoMasalah').classList.add('hidden');
+            document.getElementById('inputCatatanMasalah').value = '';
+
+            // Jika status sekarang bermasalah, tampilkan section dan foto lama
+            if (statusSekarang === 'bermasalah') {
+                section.classList.remove('hidden');
+                var existingWrap = document.getElementById('existingFotoWrap');
+                var existingGrid = document.getElementById('existingFotoGrid');
+                existingGrid.innerHTML = '';
+
+                try {
+                    var fotos = fotoMasalahJson ? JSON.parse(fotoMasalahJson) : [];
+                    if (fotos.length > 0) {
+                        existingWrap.classList.remove('hidden');
+                        fotos.forEach(function(path) {
+                            var col = document.createElement('div');
+                            col.className = 'relative';
+                            col.innerHTML = '<img src="/' + path + '" class="w-full h-16 object-cover rounded-lg border border-gray-200">'
+                                + '<form method="POST" action="/admin/kendaraan/' + id + '/foto-masalah" class="absolute -top-1.5 -right-1.5">'
+                                + '@csrf'
+                                + '<input type="hidden" name="_method" value="DELETE">'
+                                + '<input type="hidden" name="foto_path" value="' + path + '">'
+                                + '<button type="submit" onclick="return confirm(\'Hapus foto ini?\')" '
+                                + 'class="w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center shadow">'
+                                + '<i class="fa fa-times" style="font-size:9px"></i></button>'
+                                + '</form>';
+                            existingGrid.appendChild(col);
+                        });
+                    } else {
+                        existingWrap.classList.add('hidden');
+                    }
+                } catch (e) {
+                    existingWrap.classList.add('hidden');
+                }
+
+                if (catatanMasalah) {
+                    document.getElementById('inputCatatanMasalah').value = catatanMasalah;
+                }
+            } else {
+                document.getElementById('existingFotoWrap').classList.add('hidden');
+            }
+
+            // Highlight tombol bermasalah jika status sekarang bermasalah
+            document.querySelectorAll('.status-btn').forEach(function(btn) {
+                btn.classList.remove('ring-2', 'ring-offset-2', 'ring-red-400', 'scale-105', 'bg-red-100');
+            });
+
             openModal('modalStatus');
         }
 
-        function pilihStatus(status) {
+        function pilihStatus(status, element) {
             document.getElementById('statusKendaraanInput').value = status;
+
+            document.querySelectorAll('.status-btn').forEach(function(btn) {
+                btn.classList.remove('ring-2', 'ring-offset-2', 'ring-red-400', 'scale-105');
+            });
+
+            if (element) {
+                element.classList.add('ring-2', 'ring-offset-2', 'ring-red-400', 'scale-105');
+            }
+
+            // Tampilkan/sembunyikan section bermasalah
+            var section = document.getElementById('sectionBermasalah');
+            if (status === 'bermasalah') {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+                document.getElementById('inputFotoMasalah').value = '';
+                document.getElementById('previewFotoMasalah').innerHTML = '';
+                document.getElementById('previewFotoMasalah').classList.add('hidden');
+                document.getElementById('inputCatatanMasalah').value = '';
+            }
+        }
+
+        function previewFotoMasalah(event) {
+            var container = document.getElementById('previewFotoMasalah');
+            container.innerHTML = '';
+            var files = event.target.files;
+            if (!files.length) {
+                container.classList.add('hidden');
+                return;
+            }
+            container.classList.remove('hidden');
+            Array.from(files).forEach(function(file) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var col = document.createElement('div');
+                    col.className = 'relative';
+                    col.innerHTML = '<img src="' + e.target.result + '" class="w-full h-16 object-cover rounded-lg border border-gray-200">'
+                        + '<span class="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-[9px] px-1 py-0.5 rounded-b-lg truncate">' + file.name + '</span>';
+                    container.appendChild(col);
+                };
+                reader.readAsDataURL(file);
+            });
         }
 
         function closeModalStatus() {
