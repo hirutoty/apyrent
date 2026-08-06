@@ -296,17 +296,7 @@
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <option value="">— Pilih Invoice —</option>
                                 @foreach ($invoices as $inv)
-                                    @php
-                                        // Sisa tagihan: dari summary jika ada, fallback computeTotal - paid
-                                        $invTotal   = $inv->summary?->total_amount ?? $inv->computeTotal();
-                                        $paidAmount = $inv->summary?->paid_amount  ?? 0;
-                                        $remaining  = max(0, $invTotal - $paidAmount);
-                                    @endphp
-                                    <option value="{{ $inv->id }}"
-                                        data-remaining="{{ round($remaining) }}"
-                                        data-total="{{ round($invTotal) }}"
-                                        data-paid="{{ round($paidAmount) }}"
-                                        @if($remaining <= 0) class="text-gray-400" @endif>
+                                    <option value="{{ $inv->id }}" data-total="{{ (int) $inv->total }}">
                                         {{ $inv->invoice_no }} — {{ $inv->customer_name }}
                                         @if($remaining <= 0) (Lunas) @endif
                                     </option>
@@ -350,9 +340,11 @@
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
                                 <input id="tambah_amount" type="number" name="amount" required min="1"
-                                    placeholder="0"
-                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    placeholder="Pilih invoice terlebih dahulu"
+                                    readonly
+                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none">
                             </div>
+                            <p class="mt-1 text-xs text-gray-400">Otomatis dari total invoice</p>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
@@ -461,15 +453,7 @@
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <option value="">— Pilih Invoice —</option>
                                 @foreach ($invoices as $inv)
-                                    @php
-                                        $invTotal   = $inv->summary?->total_amount ?? $inv->computeTotal();
-                                        $paidAmount = $inv->summary?->paid_amount  ?? 0;
-                                        $remaining  = max(0, $invTotal - $paidAmount);
-                                    @endphp
-                                    <option value="{{ $inv->id }}"
-                                        data-remaining="{{ round($remaining) }}"
-                                        data-total="{{ round($invTotal) }}"
-                                        data-paid="{{ round($paidAmount) }}">
+                                    <option value="{{ $inv->id }}" data-total="{{ (int) $inv->total }}">
                                         {{ $inv->invoice_no }} — {{ $inv->customer_name }}
                                     </option>
                                 @endforeach
@@ -510,8 +494,10 @@
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
                                 <input id="edit_amount" type="number" name="amount" required min="1"
-                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    readonly
+                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none">
                             </div>
+                            <p class="mt-1 text-xs text-gray-400">Otomatis dari total invoice</p>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
@@ -615,29 +601,15 @@
     const formTambah  = document.getElementById('formTambah');
 
     function onTambahInvoiceChange(sel) {
-        const opt       = sel.options[sel.selectedIndex];
-        const remaining = opt ? parseFloat(opt.dataset.remaining || 0) : 0;
-        const total     = opt ? parseFloat(opt.dataset.total    || 0) : 0;
-        const paid      = opt ? parseFloat(opt.dataset.paid     || 0) : 0;
-        const amountInput = document.getElementById('tambah_amount');
-        const infoBox     = document.getElementById('tambah_sisa_info');
+        const opt   = sel.options[sel.selectedIndex];
+        const total = opt ? parseFloat(opt.dataset.total || 0) : 0;
+        document.getElementById('tambah_amount').value = total > 0 ? Math.round(total) : '';
+    }
 
-        if (opt && opt.value) {
-            // Auto-fill sisa tagihan
-            amountInput.value = remaining > 0 ? Math.round(remaining) : '';
-
-            // Tampilkan info box
-            const fmt = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
-            document.getElementById('tambah_info_total').textContent    = fmt(total);
-            document.getElementById('tambah_info_paid').textContent     = fmt(paid);
-            const sisaEl = document.getElementById('tambah_info_remaining');
-            sisaEl.textContent = fmt(remaining);
-            sisaEl.className   = remaining <= 0 ? 'text-green-600 font-bold' : 'text-blue-700 font-bold';
-            infoBox.classList.remove('hidden');
-        } else {
-            amountInput.value = '';
-            infoBox.classList.add('hidden');
-        }
+    function onEditInvoiceChange(sel) {
+        const opt   = sel.options[sel.selectedIndex];
+        const total = opt ? parseFloat(opt.dataset.total || 0) : 0;
+        document.getElementById('edit_amount').value = total > 0 ? Math.round(total) : '';
     }
 
     function openModalTambah() {
@@ -677,8 +649,12 @@
             document.getElementById('edit_amount').value         = data.amount ?? '';
             document.getElementById('edit_status').value         = data.status ?? 'Pending';
 
-            // Tampilkan info sisa tagihan untuk invoice yang dipilih
-            onEditInvoiceChange(document.getElementById('edit_invoice_id'));
+            // Sync amount dari invoice total jika ada di options
+            const editSel = document.getElementById('edit_invoice_id');
+            const selectedOpt = editSel.options[editSel.selectedIndex];
+            if (selectedOpt && selectedOpt.dataset.total > 0) {
+                document.getElementById('edit_amount').value = Math.round(parseFloat(selectedOpt.dataset.total));
+            }
 
             // File lama
             const existingBlock = document.getElementById('existingFile');

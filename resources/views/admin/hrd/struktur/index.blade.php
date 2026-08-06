@@ -44,13 +44,6 @@
                     class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
             </div>
         </div>
-        <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100 text-xs text-gray-500">
-            <span>Show</span>
-            <select onchange="onPerPageChange(this.value)" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none">
-                <option value="5">5</option><option value="10" selected>10</option><option value="25">25</option><option value="all">All</option>
-            </select>
-            <span>entries</span>
-        </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>

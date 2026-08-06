@@ -57,111 +57,79 @@ class InvoicesController extends Controller
             }
         }
 
-        // Hitung periode: awal = perjanjian_pembayaran + 1 hari, akhir = awal + durasi
-        $periodeAwal  = null;
-        $periodeAkhir = null;
+        // Ambil data dari item penawaran — buat periode per durasi kontrak
+        $periodeAwal  = $kontrak->tanggal_kontrak
+            ? \Carbon\Carbon::parse($kontrak->tanggal_kontrak)
+            : now();  // fallback ke hari ini jika tanggal kontrak tidak diisi
+        $periodeAkhir = $kontrak->tanggal_selesai
+            ? \Carbon\Carbon::parse($kontrak->tanggal_selesai)
+            : $periodeAwal->copy()->addMonths($kontrak->durasi_value ?? 1);
 
-        if ($kontrak->perjanjian_pembayaran) {
-            $periodeAwal = \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)
-                ->addDay()
-                ->format('Y-m-d');
-
-            if ($kontrak->durasi_value && $kontrak->durasi_satuan) {
-                $durasi = (int) $kontrak->durasi_value;
-                $satuan = strtolower($kontrak->durasi_satuan);
-                $akhir  = \Carbon\Carbon::parse($periodeAwal);
-
-                if (in_array($satuan, ['hari', 'day', 'days'])) {
-                    $akhir->addDays($durasi);
-                } elseif (in_array($satuan, ['bulan', 'month', 'months'])) {
-                    $akhir->addMonths($durasi);
-                } elseif (in_array($satuan, ['tahun', 'year', 'years'])) {
-                    $akhir->addYears($durasi);
-                } else {
-                    $akhir->addDays($durasi);
-                }
-                $periodeAkhir = $akhir->format('Y-m-d');
-            } else {
-                // Fallback: tanggal_selesai kontrak jika tidak ada durasi
-                $periodeAkhir = $kontrak->tanggal_selesai
-                    ? \Carbon\Carbon::parse($kontrak->tanggal_selesai)->format('Y-m-d')
-                    : $periodeAwal;
-            }
-        } else {
-            // Fallback: tidak ada perjanjian_pembayaran, pakai tanggal_selesai saja
-            $periodeAkhir = $kontrak->tanggal_selesai
-                ? \Carbon\Carbon::parse($kontrak->tanggal_selesai)->format('Y-m-d')
-                : null;
-        }
+        $durasiValue  = (int) ($kontrak->durasi_value ?? 1);
+        $durasiSatuan = strtolower($kontrak->durasi_satuan ?? 'bulan'); // bulan, hari, tahun
 
         // Setiap item penawaran = 1 periode sendiri (tanggal dihitung dari durasi per item)
         $rentalDetails = [];
 
         if ($penawaran && $penawaran->items->isNotEmpty()) {
             foreach ($penawaran->items as $item) {
-                // Skip item yang tidak memiliki kendaraan (kendaraan_id null)
-                // agar tidak menghasilkan remaks duplikat / kosong
-                if (!$item->kendaraan) {
-                    continue;
+                // Ambil label kendaraan — gunakan relasi jika ada
+                if ($item->kendaraan) {
+                    $label = $item->kendaraan->merk . ' ' . $item->kendaraan->nopol;
+                } elseif ($item->kendaraan_id) {
+                    // Coba load manual kalau eager load gagal
+                    $kdr = \App\Models\Kendaraan::find($item->kendaraan_id);
+                    $label = $kdr ? $kdr->merk . ' ' . $kdr->nopol : 'Kendaraan #' . $item->kendaraan_id;
+                } else {
+                    $label = 'Item #' . ($item->id ?? (count($remakItems) + 1));
                 }
 
-                $label = $item->kendaraan->merk . ' ' . $item->kendaraan->nopol;
-
-                // Tanggal awal periode ini = perjanjian_pembayaran + 1 hari (atau null)
-                $itemAwal  = $periodeAwal; // sudah dihitung di atas
-
-                // Tanggal akhir = awal + durasi item (satuan_durasi per item)
-                $itemAkhir = $itemAwal;
-                if ($itemAwal && $item->durasi && $item->satuan_durasi) {
-                    $durasi = (int) $item->durasi;
-                    $satuan = strtolower($item->satuan_durasi);
-                    $akhir  = \Carbon\Carbon::parse($itemAwal);
-
-                    if (in_array($satuan, ['hari', 'day', 'days'])) {
-                        $akhir->addDays($durasi);
-                    } elseif (in_array($satuan, ['bulan', 'month', 'months'])) {
-                        $akhir->addMonths($durasi);
-                    } elseif (in_array($satuan, ['tahun', 'year', 'years'])) {
-                        $akhir->addYears($durasi);
-                    } else {
-                        $akhir->addDays($durasi);
-                    }
-                    $itemAkhir = $akhir->format('Y-m-d');
-                } elseif ($periodeAkhir) {
-                    // Fallback ke tanggal akhir kontrak
-                    $itemAkhir = $periodeAkhir;
-                }
-
-                $rentalDetails[] = [
-                    'tanggal_mulai'   => $itemAwal,
-                    'tanggal_selesai' => $itemAkhir,
-                    'remak_items'     => [[
-                        'kendaraan' => $label,
-                        'qty'       => $item->qty ?? 1,
-                        'price'     => (float) ($item->price ?? 0),
-                    ]],
-                    'kendaraan'   => $label,
-                    'biaya_dasar' => 0,
-                    'biaya_driver'=> 0,
-                    'nama_driver' => null,
-                    'durasi_nilai'=> $item->durasi ?? 1,
+                $remakItems[] = [
+                    'kendaraan' => $label,
+                    'qty'       => $item->qty ?? 1,
+                    'price'     => (float) ($item->price ?? 0),
                 ];
             }
         }
 
-        // Fallback: jika rentalDetails kosong (semua items tanpa kendaraan / penawaran kosong)
-        // buat 1 periode kosong agar tab 2 tetap terbuka
-        if (empty($rentalDetails)) {
-            $rentalDetails = [[
-                'tanggal_mulai'   => $periodeAwal,
-                'tanggal_selesai' => $periodeAkhir,
-                'remak_items'     => [],
+        // Buat array periode berdasarkan durasi satuan — selalu dibuat
+        $rentalDetails = [];
+        $stepMethod = match ($durasiSatuan) {
+            'tahun' => 'addYear',
+            'hari'  => 'addDay',
+            default => 'addMonth', // bulan (default)
+        };
+
+        $cursor    = $periodeAwal->copy();
+        $endDate   = $periodeAkhir->copy();
+        $periodeNo = 0;
+
+        while ($cursor->lte($endDate)) {
+            // Akhir periode: satu langkah maju lalu kurang 1 hari
+            $nextCursor = $cursor->copy()->{$stepMethod}();
+            $periodeEnd = $nextCursor->copy()->subDay();
+
+            // Pastikan tidak melebihi tanggal selesai kontrak
+            if ($periodeEnd->gt($endDate)) {
+                $periodeEnd = $endDate->copy();
+            }
+
+            $rentalDetails[] = [
+                'tanggal_mulai'   => $cursor->format('Y-m-d'),
+                'tanggal_selesai' => $periodeEnd->format('Y-m-d'),
+                'remak_items'     => $remakItems,
                 'kendaraan'       => '',
                 'biaya_dasar'     => 0,
                 'biaya_driver'    => 0,
                 'nama_driver'     => null,
                 'durasi_nilai'    => 1,
-            ]];
+            ];
+
+            $cursor = $nextCursor;
+            $periodeNo++;
+
+            // Batasi maksimal 120 periode untuk mencegah loop tak terbatas
+            if ($periodeNo >= 120) break;
         }
 
         // Satuan dari item penawaran pertama
@@ -172,11 +140,10 @@ class InvoicesController extends Controller
             $satuanVal = $sat ? ('Car Rent/' . ucfirst($sat)) : 'Car Rent/Day';
         }
 
-        // Total dari penawaran atau sum rental
-        $totalVal = $penawaran?->total ?? 0;
-        if (!$totalVal && !empty($rentalDetails)) {
-            $totalVal = collect($rentalDetails)->sum('total_biaya');
-        }
+        // Total dari penawaran — per periode/bulan (tidak dikali jumlah periode)
+        $totalVal        = (float) ($penawaran?->total ?? 0);
+        $totalPerPeriode = $totalVal;
+        $jumlahPeriode   = count($rentalDetails);
 
         // PPN & PPH dari setting
         $setting = \App\Models\Setting::first();
@@ -184,19 +151,21 @@ class InvoicesController extends Controller
         $pphVal  = $setting?->pph_default ?? 0;
 
         return response()->json([
-            'found'            => true,
-            'kontrak_id'       => $kontrak->id,
-            'no_kontrak'       => $kontrak->no_kontrak,
-            'penawaran_id'     => $penawaran?->id,
-            'no_penawaran'     => $penawaran?->no_penawaran,
-            'customer_name'    => $customerName,
-            'type'             => $penawaran?->jenis_pelanggan ?? 'perorangan',
-            'customer_address' => $penawaran?->alamat ?? '',
-            'telephone'        => $penawaran?->contact_person ?? $kontrak->contact_kedua ?? '',
-            'email'            => $penawaran?->email_person ?? '',
-            'contact_person'   => $customerName,
-            'kendaraans'       => $kendaraans,
-            'rental_details'   => $rentalDetails,
+            'found'              => true,
+            'kontrak_id'         => $kontrak->id,
+            'no_kontrak'         => $kontrak->no_kontrak,
+            'penawaran_id'       => $penawaran?->id,
+            'no_penawaran'       => $penawaran?->no_penawaran,
+            'customer_name'      => $customerName,
+            'type'               => $penawaran?->jenis_pelanggan ?? 'perorangan',
+            'customer_address'   => $penawaran?->alamat ?? '',
+            'telephone'          => $penawaran?->contact_person ?? $kontrak->contact_kedua ?? '',
+            'email'              => $penawaran?->email_person ?? '',
+            'contact_person'     => $customerName,
+            'kendaraans'         => $kendaraans,
+            'rental_details'     => $rentalDetails,
+            'total_per_periode'  => $totalPerPeriode,
+            'jumlah_periode'     => $jumlahPeriode,
             // Informasi invoice
             'satuan'           => $satuanVal,
             'pengirim'         => $penawaran?->pengirim ?? '',

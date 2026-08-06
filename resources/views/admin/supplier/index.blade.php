@@ -116,11 +116,11 @@
                         </tr>
                     </thead>
                     <tbody id="supplierTableBody">
-                        @forelse ($data as $i => $d)
+                        @forelse ($data as $d)
                             <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
                                 data-search="{{ strtolower($d->nama_supplier . ' ' . $d->no_telp . ' ' . $d->nama_barang . ' ' . ($d->user->name ?? '')) }}">
 
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $i + 1 }}</td>
+                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $data->firstItem() + $loop->index }}</td>
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-2">

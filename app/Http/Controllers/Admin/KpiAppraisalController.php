@@ -13,15 +13,17 @@ class KpiAppraisalController extends Controller
         $data = KpiAppraisal::latest()->paginate(15)->withQueryString();
 
         $totalEvaluasi    = KpiAppraisal::count();
-        $totalTerlampaui  = KpiAppraisal::where('status', 'Terlampaui')->count();
-        $totalTercapai    = KpiAppraisal::where('status', 'Tercapai')->count();
-        $totalBelum       = KpiAppraisal::where('status', 'Belum Tercapai')->count();
+        // Status dihitung dari nilai_akhir: >=90 Terlampaui, >=70 Tercapai, <70 Belum Tercapai
+        $totalTerlampaui  = KpiAppraisal::where('nilai_akhir', '>=', 90)->count();
+        $totalTercapai    = KpiAppraisal::whereBetween('nilai_akhir', [70, 89.99])->count();
+        $totalBelum       = KpiAppraisal::where('nilai_akhir', '<', 70)->count();
         $totalPegawai     = KpiAppraisal::distinct('nama_pegawai')->count('nama_pegawai');
         $rataNilai        = round(KpiAppraisal::avg('nilai_akhir') ?? 0, 2);
         $totalNilaiTinggi = KpiAppraisal::where('nilai_akhir', '>=', 80)->count();
 
         return view('admin.hrd.kpi.index', compact(
-            'data', 'totalEvaluasi', 'totalPegawai', 'rataNilai', 'totalNilaiTinggi'
+            'data', 'totalEvaluasi', 'totalTerlampaui', 'totalTercapai', 'totalBelum',
+            'totalPegawai', 'rataNilai', 'totalNilaiTinggi'
         ));
     }
 

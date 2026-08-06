@@ -337,12 +337,12 @@
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
-                        @forelse ($data as $i => $d)
+                        @forelse ($data as $d)
                             <tr class="border-t border-gray-50 hover:bg-blue-50/30 transition-colors duration-100 group"
                                 data-search="{{ strtolower($d->name . ' ' . $d->username . ' ' . $d->email . ' ' . $d->no_telp . ' ' . $d->role) }}">
 
                                 {{-- No --}}
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $i + 1 }}</td>
+                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $data->firstItem() + $loop->index }}</td>
 
                                 {{-- User --}}
                                 <td class="px-4 py-3.5">

@@ -167,16 +167,12 @@ class PaymentsController extends Controller
             return;
         }
 
-        // Cek apakah summary sudah ada dengan total_amount yang valid.
-        // Jika sudah ada, pertahankan total_amount tersimpan agar tidak
-        // ter-overwrite oleh computeTotal() yang bisa menghasilkan nilai
-        // salah jika ada remaks duplikat.
-        // computeTotal() hanya dipakai untuk summary yang benar-benar baru.
-        $existingSummary = InvSummary::where('invoice_id', $invoiceId)->first();
+        // Gunakan kolom total tersimpan (nilai per periode/bulan + PPN)
+        // bukan computeTotal() yang menjumlahkan semua periodes
+        $invoiceTotal = (float) $invoice->total;
 
-        if ($existingSummary && (float) $existingSummary->total_amount > 0) {
-            $invoiceTotal = (float) $existingSummary->total_amount;
-        } else {
+        // Fallback ke computeTotal hanya jika total belum pernah diisi
+        if ($invoiceTotal <= 0) {
             $invoiceTotal = $invoice->computeTotal();
         }
 
@@ -406,15 +402,11 @@ class PaymentsController extends Controller
             'file_pembayaran' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:4096',
         ]);
 
-        // MEDIUM #6 — validasi overpayment sebelum simpan
+        // Validasi overpayment sebelum simpan
         if ($request->status === 'Verified') {
             $invoice = Invoice::findOrFail($request->invoice_id);
 
-            // Gunakan total dari summary yang sudah tersimpan jika ada,
-            // agar tidak recompute dari remaks (bisa dobel jika ada remaks duplikat).
-            // Fallback ke computeTotal() hanya jika summary belum ada.
-            $summary      = InvSummary::where('invoice_id', $request->invoice_id)->first();
-            $invoiceTotal = $summary ? (float) $summary->total_amount : $invoice->computeTotal();
+            $invoiceTotal = (float) $invoice->total ?: $invoice->computeTotal();
 
             $alreadyPaid = InvoicePayment::where('invoice_id', $request->invoice_id)
                 ->where('status', 'Verified')
@@ -515,15 +507,11 @@ class PaymentsController extends Controller
             'file_pembayaran' => 'nullable|file|max:4096',
         ]);
 
-        // MEDIUM #6 — validasi overpayment sebelum simpan
+        // Validasi overpayment sebelum update
         if ($request->status === 'Verified') {
             $invoice = Invoice::findOrFail($request->invoice_id);
 
-            // Gunakan total dari summary yang sudah tersimpan jika ada,
-            // agar tidak recompute dari remaks (bisa dobel jika ada remaks duplikat).
-            // Fallback ke computeTotal() hanya jika summary belum ada.
-            $summary      = InvSummary::where('invoice_id', $request->invoice_id)->first();
-            $invoiceTotal = $summary ? (float) $summary->total_amount : $invoice->computeTotal();
+            $invoiceTotal = (float) $invoice->total ?: $invoice->computeTotal();
 
             // Jumlah sudah dibayar kecuali payment yang sedang diedit
             $alreadyPaid = InvoicePayment::where('invoice_id', $request->invoice_id)

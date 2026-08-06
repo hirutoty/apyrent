@@ -15,15 +15,36 @@ class EfakturController extends Controller
    public function index()
   {
       $statusMap = ['draft' => 'Pending'];
-  
+
       $data = Efaktur::latest()->paginate(13)->withQueryString()->through(function ($item) use ($statusMap) {
           $item->status = $statusMap[$item->status] ?? $item->status;
           return $item;
       });
-  
-      $dataBupot = \App\Models\Bupot::latest()->get();
-  
-      return view('admin.efaktur.index', compact('data', 'dataBupot'));
+
+      // Aggregate stats dari DB langsung — tidak bergantung pada halaman aktif
+      $efakturStats = [
+          'total'       => \App\Models\Efaktur::count(),
+          'total_dpp'   => \App\Models\Efaktur::sum('dpp'),
+          'total_ppn'   => \App\Models\Efaktur::sum('ppn'),
+          'total_ppnbm' => \App\Models\Efaktur::sum('ppnbm'),
+          'pending'     => \App\Models\Efaktur::whereIn('status', ['Pending', 'draft'])->count(),
+          'approve'     => \App\Models\Efaktur::where('status', 'Approve')->count(),
+          'submit_djp'  => \App\Models\Efaktur::where('status', 'Submit DJP')->count(),
+      ];
+
+      $bupotStats = [
+          'total'       => \App\Models\Bupot::count(),
+          'total_bruto' => \App\Models\Bupot::sum('jumlah_bruto'),
+          'total_potong'=> \App\Models\Bupot::sum('jumlah_potong'),
+          'draft'       => \App\Models\Bupot::where('status', 'Draft')->count(),
+          'approve'     => \App\Models\Bupot::where('status', 'Approve')->count(),
+          'submit_djp'  => \App\Models\Bupot::where('status', 'Submit DJP')->count(),
+          'avg_tarif'   => \App\Models\Bupot::avg('tarif_pajak') ?? 0,
+      ];
+
+      $dataBupot = \App\Models\Bupot::latest()->paginate(13)->withQueryString();
+
+      return view('admin.efaktur.index', compact('data', 'dataBupot', 'efakturStats', 'bupotStats'));
   }
 
     public function store(Request $request)
