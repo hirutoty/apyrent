@@ -385,6 +385,7 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                                     PPH (%)
+                                    <span class="text-gray-400 font-normal">— opsional</span>
                                     @if(($setting->pph_default ?? 0) > 0)
                                         <span class="text-blue-400 font-normal">— dari setting</span>
                                     @endif
@@ -393,6 +394,7 @@
                                     <input type="number" step="0.01" name="pph" id="tambah_pph" min="0"
                                         value="{{ old('pph', $setting->pph_default ?? 0) }}"
                                         oninput="recalcTambahTotal()"
+                                        placeholder="0"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
                                 </div>
@@ -947,8 +949,9 @@
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('ppn') }}">
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPH (%)</label>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPH (%) <span class="text-gray-400 font-normal">— opsional</span></label>
                                 <input id="edit_pph" type="number" step="0.01" name="pph" min="0"
+                                    placeholder="0"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('pph') }}">
                             </div>
                             <div>
@@ -1099,7 +1102,10 @@
     {{-- ===== MODAL TAMBAH PERIODE (Tab 2) ===== --}}
     <div id="modalTambahPeriode" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
-            
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <h3 class="text-sm font-semibold text-gray-800">Tambah Periode</h3>
+                <button type="button" id="closeTambahPeriode" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none"><i class="fa fa-times"></i></button>
+            </div>
             <div class="px-6 py-5 space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Awal <span class="text-red-500">*</span></label>
@@ -1121,7 +1127,8 @@
     <div id="modalTambahRemak" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
             <div class="flex items-center justify-between px-6 py-4 border-b">
-                
+                <h3 class="text-sm font-semibold text-gray-800">Tambah Remak</h3>
+                <button type="button" id="closeTambahRemak" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none"><i class="fa fa-times"></i></button>
             </div>
             <div class="px-6 py-5 space-y-4">
                 <div>
@@ -1158,7 +1165,22 @@
 
         function recalcTambahTotal() {
             const ppnPct = parseFloat(document.getElementById('tambah_ppn')?.value) || 0;
-            const base   = parseFloat(window._tambahSubTotalBase || 0);
+
+            // Prioritas 1: base sudah dihitung dari tab 2 (loadPeriodesTambah)
+            // Prioritas 2: hitung dari rental_details yang ada di tab 1
+            let base = parseFloat(window._tambahSubTotalBase) || 0;
+            if (!base) {
+                const details = window._tambahRentalDetails || [];
+                details.forEach(entry => {
+                    (entry.remak_items || []).forEach(item => {
+                        base += (parseFloat(item.qty) || 1) * (parseFloat(item.price) || 0);
+                    });
+                    if (entry.biaya_driver > 0) {
+                        base += parseFloat(entry.biaya_driver) || 0;
+                    }
+                });
+            }
+
             const ppnNom = Math.round(base * ppnPct / 100);
             const grand  = base + ppnNom;
 
@@ -1445,6 +1467,10 @@
                 el.classList.remove('flex');
             }
 
+            // Expose ke global agar bisa diakses dari script block lain
+            window.openModal  = openModal;
+            window.closeModal = closeModal;
+
             function setVal(id, value) {
                 const el = document.getElementById(id);
                 if (el) el.value = value ?? '';
@@ -1477,17 +1503,14 @@
                 });
                 openModal(modalTambah);
             };
-            document.getElementById('closeTambah').onclick = () => closeModal(modalTambah);
-            document.getElementById('closeTambah2').onclick = () => closeModal(modalTambah);
-            modalTambah.addEventListener('click', e => {
-                if (e.target === modalTambah) closeModal(modalTambah);
-            });
+            // closeTambah onclick dan backdrop di-setup di bawah (setelah resetTambahForm didefinisikan)
 
             // ===================== LOOKUP NO KONTRAK (dropdown) =====================
             const fmtRp = n => 'Rp ' + Number(n).toLocaleString('id-ID');
 
             // Total tagihan & rental details untuk auto-populate tab 2
-            let _tambahRentalDetails = [];
+            // Dideklarasikan di window agar bisa diakses lintas script block
+            let _tambahRentalDetails = window._tambahRentalDetails;
 
             function resetTambahForm() {
                 ['tambah_customer_name','tambah_telephone','tambah_email'].forEach(id => {
@@ -1507,6 +1530,7 @@
                 document.getElementById('tambah_kontrak_status').classList.add('hidden');
                 // Reset rental details
                 _tambahRentalDetails = [];
+                window._tambahRentalDetails = _tambahRentalDetails;
                 // Reset seksi 3
                 setVal('tambah_satuan', 'Car Rent/Day');
                 setVal('tambah_pengirim', '');
@@ -1633,17 +1657,27 @@
 
                     // Info cards dihapus — langsung ambil rental_details
                     _tambahRentalDetails = data.rental_details || [];
+                    window._tambahRentalDetails = _tambahRentalDetails;
+
+                    // Hitung subtotal base dari remak_items agar recalcTambahTotal() bekerja
+                    // saat user mengubah PPN di tab 1 (sebelum masuk tab 2)
+                    let baseFromItems = 0;
+                    _tambahRentalDetails.forEach(entry => {
+                        (entry.remak_items || []).forEach(item => {
+                            baseFromItems += (parseFloat(item.qty) || 1) * (parseFloat(item.price) || 0);
+                        });
+                        if (entry.biaya_driver > 0) baseFromItems += parseFloat(entry.biaya_driver) || 0;
+                    });
+                    window._tambahSubTotalBase = baseFromItems || (parseFloat(data.total) || 0);
 
                     // Auto-fill Seksi 3: Informasi Invoice
                     setVal('tambah_satuan',  data.satuan  ?? 'Car Rent/Day');
                     setVal('tambah_pengirim', data.pengirim ?? '');
                     setVal('tambah_ppn',     data.ppn     ?? 0);
                     setVal('tambah_pph',     data.pph     ?? 0);
-                    setVal('tambah_total',   data.total   ?? 0);
 
-                    // Auto-fill Seksi 4: total ke hidden field saja (seksi 4 disembunyikan)
-                    const totalTagihan = parseFloat(data.total) || 0;
-                    setVal('tambah_total', totalTagihan);
+                    // Hitung ulang total dengan PPN yang baru di-set
+                    recalcTambahTotal();
 
                     // Auto-fill Seksi 5: Penandatangan
                     setVal('tambah_staff',        data.staff         ?? '');
@@ -1662,16 +1696,20 @@
                 doLookupKontrak(this.value);
             });
 
-            // Reset form saat modal ditutup
-            const _origClose = window.closeModal;
-            window.closeModal = function(el) {
-                _origClose(el);
-                if (el === modalTambah) {
-                    resetTambahForm();
-                    document.getElementById('tambah_no_kontrak_input').value = '';
-                }
-            };
-            // ===================== END LOOKUP =====================
+            // Reset form saat modal ditutup — hook langsung ke tombol close
+            // (tidak override window.closeModal karena closeModal adalah fungsi lokal)
+            function closeTambahModal() {
+                closeModal(modalTambah);
+                resetTambahForm();
+                document.getElementById('tambah_no_kontrak_input').value = '';
+            }
+
+            // Tombol × dan backdrop untuk modal tambah pakai closeTambahModal
+            document.getElementById('closeTambah').onclick  = () => closeTambahModal();
+            document.getElementById('closeTambah2').onclick = () => closeTambahModal();
+            modalTambah.addEventListener('click', e => {
+                if (e.target === modalTambah) closeTambahModal();
+            });
 
             // ===================== MODAL SHOW =====================
             const modalShow = document.getElementById('modalShow');
@@ -1846,9 +1884,12 @@
         {{-- ====== RELASI ROWS TEMPLATE DATA ====== --}}
         <script>
         // Data untuk opsi select (dari Blade ke JS)
-        const PENAWARAN_OPTIONS = @json($penawarans->map(fn($p) => ['id' => $p->id, 'label' => $p->no_penawaran . ' � ' . $p->customer_name]));
+        const PENAWARAN_OPTIONS = @json($penawarans->map(fn($p) => ['id' => $p->id, 'label' => $p->no_penawaran . ' — ' . $p->customer_name]));
         const KONTRAK_OPTIONS   = @json($kontraks->map(fn($k) => ['id' => $k->id, 'label' => $k->no_kontrak ?? '#'.$k->id]));
-        const KENDARAAN_OPTIONS = @json($kendaraans->map(fn($kd) => ['id' => $kd->id, 'label' => $kd->merk . ' � ' . $kd->nopol]));
+        const KENDARAAN_OPTIONS = @json($kendaraans->map(fn($kd) => ['id' => $kd->id, 'label' => $kd->merk . ' — ' . $kd->nopol]));
+
+        // Global: dibagi antara script block 1 dan script block 2
+        window._tambahRentalDetails = window._tambahRentalDetails || [];
 
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -1898,33 +1939,25 @@
 
         // Auto-populate periode & remak dari data penawaran kontrak
         async function autoPopulatePeriodeRemak(invoiceId) {
-            if (!_tambahRentalDetails || _tambahRentalDetails.length === 0) return;
+            const _tambahRentalDetails = window._tambahRentalDetails || [];
+            console.log('[autoPopulate] rental_details:', _tambahRentalDetails);
+            if (!_tambahRentalDetails || _tambahRentalDetails.length === 0) {
+                console.warn('[autoPopulate] _tambahRentalDetails kosong, skip.');
+                return;
+            }
             const csrf = '{{ csrf_token() }}';
 
+            // Tanggal fallback: hari ini
+            const today = new Date().toISOString().split('T')[0];
+
             for (const entry of _tambahRentalDetails) {
-                if (!entry.tanggal_mulai) continue;
+                const periodeAwal  = entry.tanggal_mulai   || today;
+                const periodeAkhir = entry.tanggal_selesai || periodeAwal;
 
                 // 1. Buat 1 periode
-                const periodeResp = await fetch('/admin/invoices/' + invoiceId + '/periodes', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrf,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        periode_awal:  entry.tanggal_mulai,
-                        periode_akhir: entry.tanggal_selesai || entry.tanggal_mulai,
-                    })
-                });
-                const periodeJson = await periodeResp.json();
-                const periodeId = periodeJson.id ?? periodeJson.periode?.id ?? null;
-                if (!periodeId) continue;
-
-                // 2. Buat remak untuk setiap item kendaraan
-                const remakItems = entry.remak_items || [];
-                for (const item of remakItems) {
-                    await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
+                let periodeId = null;
+                try {
+                    const periodeResp = await fetch('/admin/invoices/' + invoiceId + '/periodes', {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': csrf,
@@ -1932,31 +1965,71 @@
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            remaks: item.kendaraan,
-                            qty:    item.qty,
-                            price:  item.price,
+                            periode_awal:  periodeAwal,
+                            periode_akhir: periodeAkhir,
                         })
                     });
+                    const periodeJson = await periodeResp.json();
+                    console.log('[autoPopulate] periode response:', periodeJson);
+                    periodeId = periodeJson.id ?? periodeJson.periode?.id ?? null;
+                } catch(err) {
+                    console.error('[autoPopulate] Gagal buat periode:', err);
+                    continue;
+                }
+
+                if (!periodeId) {
+                    console.warn('[autoPopulate] periodeId null, skip remaks.');
+                    continue;
+                }
+
+                // 2. Buat remak untuk setiap item
+                const remakItems = entry.remak_items || [];
+                console.log('[autoPopulate] remak_items:', remakItems);
+                for (const item of remakItems) {
+                    try {
+                        const remakResp = await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrf,
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                remaks: item.kendaraan || 'Item',
+                                qty:    item.qty   || 1,
+                                price:  item.price || 0,
+                            })
+                        });
+                        const remakJson = await remakResp.json();
+                        console.log('[autoPopulate] remak response:', remakJson);
+                    } catch(err) {
+                        console.error('[autoPopulate] Gagal buat remak:', err);
+                    }
                 }
 
                 // 3. Remak driver terpisah jika ada
                 if (entry.biaya_driver > 0) {
                     const driverLabel = entry.nama_driver ? 'Driver: ' + entry.nama_driver : 'Biaya Driver';
-                    await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrf,
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            remaks: driverLabel,
-                            qty:    entry.durasi_nilai ?? 1,
-                            price:  entry.biaya_driver,
-                        })
-                    });
+                    try {
+                        await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrf,
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                remaks: driverLabel,
+                                qty:    entry.durasi_nilai ?? 1,
+                                price:  entry.biaya_driver,
+                            })
+                        });
+                    } catch(err) {
+                        console.error('[autoPopulate] Gagal buat remak driver:', err);
+                    }
                 }
             }
+            console.log('[autoPopulate] selesai.');
         }
 
         // ====== AJAX STORE FORM TAMBAH ======
@@ -1977,6 +2050,8 @@
                 if (json.success) {
                     unlockTab2(json.invoice_id, json.invoice_no);
                     await autoPopulatePeriodeRemak(json.invoice_id);
+                    // Panggil loadPeriodesTambah setelah autoPopulate agar list ter-render
+                    if (typeof loadPeriodesTambah === 'function') await loadPeriodesTambah();
                     switchTambahTab(2);
                 } else {
                     alert(json.message || 'Gagal menyimpan invoice.');
@@ -2012,6 +2087,8 @@
                 renderPeriodeListTambah(periodes);
             } catch(e) { console.error(e); }
         }
+        // Expose ke global agar bisa dipanggil dari block lain
+        window.loadPeriodesTambah = loadPeriodesTambah;
 
         function renderPeriodeListTambah(periodes) {
             const list = document.getElementById('periodeListTambah');
@@ -2078,15 +2155,7 @@
             document.getElementById('tambah_total').value = grandTotal;
         }
 
-        // Tambah Periode di tab 2
-        document.getElementById('btnTambahPeriodeTambah')?.addEventListener('click', function() {
-            openTambahPeriodeModal();
-        });
-
-        let activeTambahPeriodeId = null;
-
-        document.getElementById('saveTambahPeriode')?.addEventListener('click', async function() {
-            const awal  = document.getElementById('tambahPeriodeAwal').value;
+                  const awal  = document.getElementById('tambahPeriodeAwal').value;
             if (!awal) { alert('Tanggal awal wajib diisi.'); return; }
             const akhir = document.getElementById('tambahPeriodeAkhir').value;
             await fetch('/admin/invoices/' + currentTambahInvoiceId + '/periodes', {
@@ -2114,10 +2183,12 @@
 
         // Close buttons untuk modal periode/remak tab 2
         ['closeTambahPeriode','closeTambahPeriode2'].forEach(id => {
-            document.getElementById(id).onclick = () => closeModal(document.getElementById('modalTambahPeriode'));
+            const el = document.getElementById(id);
+            if (el) el.onclick = () => closeModal(document.getElementById('modalTambahPeriode'));
         });
         ['closeTambahRemak','closeTambahRemak2'].forEach(id => {
-            document.getElementById(id).onclick = () => closeModal(document.getElementById('modalTambahRemak'));
+            const el = document.getElementById(id);
+            if (el) el.onclick = () => closeModal(document.getElementById('modalTambahRemak'));
         });
         
         // Auto-reopen modal tambah on validation error

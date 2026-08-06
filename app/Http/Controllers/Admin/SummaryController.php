@@ -21,6 +21,8 @@ class SummaryController extends Controller
             'penawaran',
             'kontrak',
             'invoice.periodes.remaks',
+            'invoice.kendaraans',
+            'invoice.kendaraan',
         ])->latest();
 
         if ($request->search) {
