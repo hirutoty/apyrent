@@ -161,16 +161,22 @@ class PaymentsController extends Controller
             ->where('status', 'Verified')
             ->sum('amount');
 
-        // P0 #4: gunakan computeTotal() bukan kolom total
         $invoice = Invoice::find($invoiceId);
 
         if (! $invoice) {
             return;
         }
 
-        // P0 #4 — invoice total via computeTotal()
-        $invoiceTotal = $invoice->computeTotal();
-        $remaining    = max(0, $invoiceTotal - $totalVerified);
+        // Gunakan kolom total tersimpan (nilai per periode/bulan + PPN)
+        // bukan computeTotal() yang menjumlahkan semua periodes
+        $invoiceTotal = (float) $invoice->total;
+
+        // Fallback ke computeTotal hanya jika total belum pernah diisi
+        if ($invoiceTotal <= 0) {
+            $invoiceTotal = $invoice->computeTotal();
+        }
+
+        $remaining = max(0, $invoiceTotal - $totalVerified);
 
         // MEDIUM #1 — tentukan status konsisten untuk KEDUA kolom
         if ($totalVerified <= 0) {
@@ -386,11 +392,11 @@ class PaymentsController extends Controller
             'file_pembayaran' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:4096',
         ]);
 
-        // MEDIUM #6 — validasi overpayment sebelum simpan
+        // Validasi overpayment sebelum simpan
         if ($request->status === 'Verified') {
             $invoice = Invoice::findOrFail($request->invoice_id);
 
-            $invoiceTotal = $invoice->computeTotal();
+            $invoiceTotal = (float) $invoice->total ?: $invoice->computeTotal();
 
             $alreadyPaid = InvoicePayment::where('invoice_id', $request->invoice_id)
                 ->where('status', 'Verified')
@@ -491,11 +497,11 @@ class PaymentsController extends Controller
             'file_pembayaran' => 'nullable|file|max:4096',
         ]);
 
-        // MEDIUM #6 — validasi overpayment sebelum simpan
+        // Validasi overpayment sebelum update
         if ($request->status === 'Verified') {
             $invoice = Invoice::findOrFail($request->invoice_id);
 
-            $invoiceTotal = $invoice->computeTotal();
+            $invoiceTotal = (float) $invoice->total ?: $invoice->computeTotal();
 
             // Jumlah sudah dibayar kecuali payment yang sedang diedit
             $alreadyPaid = InvoicePayment::where('invoice_id', $request->invoice_id)

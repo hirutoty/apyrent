@@ -39,7 +39,9 @@ class InvKontrakController extends Controller
             ->latest()
             ->paginate(15)->withQueryString();
 
-        $penawarans = InvPenawaran::where('status', 'approved')->latest()->get();
+        $penawarans = InvPenawaran::whereIn('status', ['approved', 'active'])
+            ->latest()
+            ->get();
         $setting    = Setting::first();
 
         $reminder = match ($setting->satuan_reminder) {

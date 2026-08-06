@@ -404,6 +404,11 @@
                                 <input type="number" step="0.01" name="total" id="tambah_total" value="0" min="0"
                                     readonly
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none">
+                                <p id="tambah_periode_info" class="mt-1 text-xs text-indigo-500 font-medium hidden"></p>
+                                <p class="mt-1 text-xs text-blue-500 flex items-center gap-1">
+                                    <i class="fa fa-info-circle"></i>
+                                    Sudah termasuk PPN {{ $setting->ppn_default ?? 0 }}%
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -944,6 +949,7 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">PPN (%)</label>
                                 <input id="edit_ppn" type="number" step="0.01" name="ppn" min="0"
+                                    oninput="recalcEditTotal()"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('ppn') }}">
                             </div>
                             <div>
@@ -958,6 +964,10 @@
                                 <input id="edit_total" type="number" step="0.01" name="total" min="0"
                                     readonly
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none" value="{{ old('total') }}">
+                                <p class="mt-1 text-xs text-blue-500 flex items-center gap-1">
+                                    <i class="fa fa-info-circle"></i>
+                                    Sudah termasuk PPN {{ $setting->ppn_default ?? 0 }}%
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -1172,6 +1182,16 @@
             if (grandEl)  grandEl.textContent  = rpFmt(grand);
 
             const totalEl = document.getElementById('tambah_total');
+            if (totalEl) totalEl.value = grand;
+        }
+
+        function recalcEditTotal() {
+            const ppnPct = parseFloat(document.getElementById('edit_ppn')?.value) || 0;
+            const base   = parseFloat(window._editSubTotalBase || 0);
+            const ppnNom = Math.round(base * ppnPct / 100);
+            const grand  = base + ppnNom;
+
+            const totalEl = document.getElementById('edit_total');
             if (totalEl) totalEl.value = grand;
         }
 
@@ -1445,6 +1465,10 @@
                 el.classList.remove('flex');
             }
 
+            // Export ke global agar bisa dipakai dari DOMContentLoaded block lain
+            window.openModal = openModal;
+            window.closeModal = closeModal;
+
             function setVal(id, value) {
                 const el = document.getElementById(id);
                 if (el) el.value = value ?? '';
@@ -1477,17 +1501,13 @@
                 });
                 openModal(modalTambah);
             };
-            document.getElementById('closeTambah').onclick = () => closeModal(modalTambah);
-            document.getElementById('closeTambah2').onclick = () => closeModal(modalTambah);
-            modalTambah.addEventListener('click', e => {
-                if (e.target === modalTambah) closeModal(modalTambah);
-            });
+            // closeTambah binding ditangani oleh closeTambahModal di bawah
 
             // ===================== LOOKUP NO KONTRAK (dropdown) =====================
             const fmtRp = n => 'Rp ' + Number(n).toLocaleString('id-ID');
 
             // Total tagihan & rental details untuk auto-populate tab 2
-            let _tambahRentalDetails = [];
+            window._tambahRentalDetails = [];
 
             function resetTambahForm() {
                 ['tambah_customer_name','tambah_telephone','tambah_email'].forEach(id => {
@@ -1506,13 +1526,16 @@
                     '<span class="text-gray-400 italic">Pilih No Kontrak terlebih dahulu.</span>';
                 document.getElementById('tambah_kontrak_status').classList.add('hidden');
                 // Reset rental details
-                _tambahRentalDetails = [];
+                window._tambahRentalDetails = [];
                 // Reset seksi 3
                 setVal('tambah_satuan', 'Car Rent/Day');
                 setVal('tambah_pengirim', '');
                 setVal('tambah_ppn', '{{ $setting->ppn_default ?? 0 }}');
                 setVal('tambah_pph', '{{ $setting->pph_default ?? 0 }}');
                 setVal('tambah_total', 0);
+                window._tambahSubTotalBase = 0;
+                const pi = document.getElementById('tambah_periode_info');
+                if (pi) { pi.textContent = ''; pi.classList.add('hidden'); }
                 // Reset seksi 4 (hidden)
                 const jb = document.getElementById('tambah_jumlah_bayar');
                 if (jb) jb.value = 0;
@@ -1632,18 +1655,23 @@
                     }
 
                     // Info cards dihapus — langsung ambil rental_details
-                    _tambahRentalDetails = data.rental_details || [];
+                    window._tambahRentalDetails = data.rental_details || [];
 
                     // Auto-fill Seksi 3: Informasi Invoice
                     setVal('tambah_satuan',  data.satuan  ?? 'Car Rent/Day');
                     setVal('tambah_pengirim', data.pengirim ?? '');
                     setVal('tambah_ppn',     data.ppn     ?? 0);
                     setVal('tambah_pph',     data.pph     ?? 0);
-                    setVal('tambah_total',   data.total   ?? 0);
 
-                    // Auto-fill Seksi 4: total ke hidden field saja (seksi 4 disembunyikan)
-                    const totalTagihan = parseFloat(data.total) || 0;
-                    setVal('tambah_total', totalTagihan);
+                    // Subtotal = total penawaran per bulan (tidak dikali jumlah periode)
+                    const totalPerPeriode = parseFloat(data.total_per_periode) || 0;
+                    const jumlahPeriode   = parseInt(data.jumlah_periode) || 1;
+                    window._tambahSubTotalBase = totalPerPeriode;
+                    recalcTambahTotal();
+
+                    // Sembunyikan info periode (tidak perlu tampilkan perkalian)
+                    const periodeInfoEl = document.getElementById('tambah_periode_info');
+                    if (periodeInfoEl) periodeInfoEl.classList.add('hidden');
 
                     // Auto-fill Seksi 5: Penandatangan
                     setVal('tambah_staff',        data.staff         ?? '');
@@ -1662,15 +1690,17 @@
                 doLookupKontrak(this.value);
             });
 
-            // Reset form saat modal ditutup
-            const _origClose = window.closeModal;
-            window.closeModal = function(el) {
-                _origClose(el);
-                if (el === modalTambah) {
-                    resetTambahForm();
-                    document.getElementById('tambah_no_kontrak_input').value = '';
-                }
-            };
+            // Reset form saat modal tambah ditutup — hook langsung ke tombol close & backdrop
+            function closeTambahModal() {
+                closeModal(modalTambah);
+                resetTambahForm();
+                document.getElementById('tambah_no_kontrak_input').value = '';
+            }
+            document.getElementById('closeTambah').onclick  = () => closeTambahModal();
+            document.getElementById('closeTambah2').onclick = () => closeTambahModal();
+            modalTambah.addEventListener('click', e => {
+                if (e.target === modalTambah) closeTambahModal();
+            });
             // ===================== END LOOKUP =====================
 
             // ===================== MODAL SHOW =====================
@@ -1803,7 +1833,15 @@
                     setVal('edit_pengirim', d.pengirim);
                     setVal('edit_ppn', d.ppn ?? 0);
                     setVal('edit_pph', d.pph ?? 0);
-                    setVal('edit_total', d.total ?? 0);
+
+                    // Hitung kembali subtotal dari grand total tersimpan
+                    // subtotal = total / (1 + ppn/100)
+                    const editPpnPct = parseFloat(d.ppn) || 0;
+                    const editGrand  = parseFloat(d.total) || 0;
+                    window._editSubTotalBase = editPpnPct > 0
+                        ? Math.round(editGrand / (1 + editPpnPct / 100))
+                        : editGrand;
+                    recalcEditTotal();
 
                     // Seksi 4
                     setVal('edit_status', d.status ?? 'draft');
@@ -1898,27 +1936,37 @@
 
         // Auto-populate periode & remak dari data penawaran kontrak
         async function autoPopulatePeriodeRemak(invoiceId) {
-            if (!_tambahRentalDetails || _tambahRentalDetails.length === 0) return;
+            console.log('[autoPopulate] invoiceId:', invoiceId, 'rentalDetails:', window._tambahRentalDetails);
+            if (!window._tambahRentalDetails || window._tambahRentalDetails.length === 0) {
+                console.warn('[autoPopulate] _tambahRentalDetails kosong, skip.');
+                return;
+            }
             const csrf = '{{ csrf_token() }}';
 
-            for (const entry of _tambahRentalDetails) {
+            for (const entry of window._tambahRentalDetails) {
                 if (!entry.tanggal_mulai) continue;
 
                 // 1. Buat 1 periode
-                const periodeResp = await fetch('/admin/invoices/' + invoiceId + '/periodes', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrf,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        periode_awal:  entry.tanggal_mulai,
-                        periode_akhir: entry.tanggal_selesai || entry.tanggal_mulai,
-                    })
-                });
-                const periodeJson = await periodeResp.json();
-                const periodeId = periodeJson.id ?? periodeJson.periode?.id ?? null;
+                let periodeId = null;
+                try {
+                    const periodeResp = await fetch('/admin/invoices/' + invoiceId + '/periodes', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            periode_awal:  entry.tanggal_mulai,
+                            periode_akhir: entry.tanggal_selesai || entry.tanggal_mulai,
+                        })
+                    });
+                    const periodeJson = await periodeResp.json();
+                    console.log('[autoPopulate] periodeResp status:', periodeResp.status, 'json:', periodeJson);
+                    periodeId = periodeJson.id ?? periodeJson.periode?.id ?? null;
+                } catch (e) {
+                    console.error('Gagal buat periode:', e);
+                }
                 if (!periodeId) continue;
 
                 // 2. Buat remak untuk setiap item kendaraan
@@ -1978,6 +2026,8 @@
                     unlockTab2(json.invoice_id, json.invoice_no);
                     await autoPopulatePeriodeRemak(json.invoice_id);
                     switchTambahTab(2);
+                    // Paksa reload daftar periode setelah auto-populate selesai
+                    if (typeof loadPeriodesTambah === 'function') await loadPeriodesTambah();
                 } else {
                     alert(json.message || 'Gagal menyimpan invoice.');
                 }
@@ -2114,10 +2164,12 @@
 
         // Close buttons untuk modal periode/remak tab 2
         ['closeTambahPeriode','closeTambahPeriode2'].forEach(id => {
-            document.getElementById(id).onclick = () => closeModal(document.getElementById('modalTambahPeriode'));
+            const el = document.getElementById(id);
+            if (el) el.onclick = () => closeModal(document.getElementById('modalTambahPeriode'));
         });
         ['closeTambahRemak','closeTambahRemak2'].forEach(id => {
-            document.getElementById(id).onclick = () => closeModal(document.getElementById('modalTambahRemak'));
+            const el = document.getElementById(id);
+            if (el) el.onclick = () => closeModal(document.getElementById('modalTambahRemak'));
         });
         
         // Auto-reopen modal tambah on validation error

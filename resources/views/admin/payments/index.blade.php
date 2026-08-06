@@ -296,23 +296,7 @@
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <option value="">— Pilih Invoice —</option>
                                 @foreach ($invoices as $inv)
-                                    @php
-                                        $biayaBulan = 0;
-                                        if ($inv->penawaran) {
-                                            foreach ($inv->penawaran->items as $item) {
-                                                $durasi  = max(1, (int) $item->durasi);
-                                                $satuan  = strtolower($item->satuan_durasi ?? 'month');
-                                                // Konversi durasi ke bulan
-                                                $durasiDalamBulan = match(true) {
-                                                    in_array($satuan, ['tahun', 'year']) => $durasi * 12,
-                                                    in_array($satuan, ['hari', 'day'])   => $durasi / 30,
-                                                    default                              => $durasi, // month / bulan
-                                                };
-                                                $biayaBulan += ($item->qty * $item->price) / max(1, $durasiDalamBulan);
-                                            }
-                                        }
-                                    @endphp
-                                    <option value="{{ $inv->id }}" data-total="{{ round($biayaBulan) }}">
+                                    <option value="{{ $inv->id }}" data-total="{{ (int) $inv->total }}">
                                         {{ $inv->invoice_no }} — {{ $inv->customer_name }}
                                     </option>
                                 @endforeach
@@ -349,9 +333,11 @@
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
                                 <input id="tambah_amount" type="number" name="amount" required min="1"
-                                    placeholder="0"
-                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    placeholder="Pilih invoice terlebih dahulu"
+                                    readonly
+                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none">
                             </div>
+                            <p class="mt-1 text-xs text-gray-400">Otomatis dari total invoice</p>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
@@ -456,11 +442,12 @@
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice <span class="text-red-500">*</span></label>
                             <select id="edit_invoice_id" name="invoice_id" required
+                                onchange="onEditInvoiceChange(this)"
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="">� Pilih Invoice �</option>
+                                <option value="">— Pilih Invoice —</option>
                                 @foreach ($invoices as $inv)
-                                    <option value="{{ $inv->id }}">
-                                        {{ $inv->invoice_no }} � {{ $inv->customer_name }}
+                                    <option value="{{ $inv->id }}" data-total="{{ (int) $inv->total }}">
+                                        {{ $inv->invoice_no }} — {{ $inv->customer_name }}
                                     </option>
                                 @endforeach
                             </select>
@@ -495,8 +482,10 @@
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
                                 <input id="edit_amount" type="number" name="amount" required min="1"
-                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    readonly
+                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none">
                             </div>
+                            <p class="mt-1 text-xs text-gray-400">Otomatis dari total invoice</p>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
@@ -600,14 +589,15 @@
     const formTambah  = document.getElementById('formTambah');
 
     function onTambahInvoiceChange(sel) {
-        const opt    = sel.options[sel.selectedIndex];
-        const total  = opt ? parseFloat(opt.dataset.total || 0) : 0;
-        const amountInput = document.getElementById('tambah_amount');
-        if (total > 0) {
-            amountInput.value = Math.round(total);
-        } else {
-            amountInput.value = '';
-        }
+        const opt   = sel.options[sel.selectedIndex];
+        const total = opt ? parseFloat(opt.dataset.total || 0) : 0;
+        document.getElementById('tambah_amount').value = total > 0 ? Math.round(total) : '';
+    }
+
+    function onEditInvoiceChange(sel) {
+        const opt   = sel.options[sel.selectedIndex];
+        const total = opt ? parseFloat(opt.dataset.total || 0) : 0;
+        document.getElementById('edit_amount').value = total > 0 ? Math.round(total) : '';
     }
 
     function openModalTambah() {
@@ -645,6 +635,13 @@
             document.getElementById('edit_method').value         = data.method ?? '';
             document.getElementById('edit_amount').value         = data.amount ?? '';
             document.getElementById('edit_status').value         = data.status ?? 'Pending';
+
+            // Sync amount dari invoice total jika ada di options
+            const editSel = document.getElementById('edit_invoice_id');
+            const selectedOpt = editSel.options[editSel.selectedIndex];
+            if (selectedOpt && selectedOpt.dataset.total > 0) {
+                document.getElementById('edit_amount').value = Math.round(parseFloat(selectedOpt.dataset.total));
+            }
 
             // File lama
             const existingBlock = document.getElementById('existingFile');

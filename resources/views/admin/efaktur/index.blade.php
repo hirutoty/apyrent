@@ -54,7 +54,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-slate-500">Total eFaktur</p>
-                            <h3 class="text-3xl font-bold text-slate-800 mt-2">{{ $data->count() }}</h3>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-2">{{ $efakturStats['total'] }}</h3>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center">
                             <i class="fa-solid fa-receipt text-2xl"></i>
@@ -66,7 +66,7 @@
                         <div>
                             <p class="text-sm text-slate-500">Total DPP</p>
                             <h3 class="text-lg font-bold text-indigo-600 mt-2 leading-tight">Rp
-                                {{ number_format($data->sum('dpp'), 0, ',', '.') }}</h3>
+                                {{ number_format($efakturStats['total_dpp'], 0, ',', '.') }}</h3>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center
   justify-center">
@@ -79,7 +79,7 @@
                         <div>
                             <p class="text-sm text-slate-500">Total PPN</p>
                             <h3 class="text-lg font-bold text-green-600 mt-2 leading-tight">Rp
-                                {{ number_format($data->sum('ppn'), 0, ',', '.') }}</h3>
+                                {{ number_format($efakturStats['total_ppn'], 0, ',', '.') }}</h3>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-green-100 text-green-600 flex items-center
   justify-center">
@@ -92,7 +92,7 @@
                         <div>
                             <p class="text-sm text-slate-500">Total PPNBM</p>
                             <h3 class="text-lg font-bold text-orange-600 mt-2 leading-tight">Rp
-                                {{ number_format($data->sum('ppnbm'), 0, ',', '.') }}</h3>
+                                {{ number_format($efakturStats['total_ppnbm'], 0, ',', '.') }}</h3>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-orange-100 text-orange-600 flex items-center
   justify-center">
@@ -104,8 +104,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-slate-500">Status Pending</p>
-                            <h3 class="text-3xl font-bold text-yellow-600 mt-2">
-                                {{ $data->where('status', 'Pending')->count() }}</h3>
+                            <h3 class="text-3xl font-bold text-yellow-600 mt-2">{{ $efakturStats['pending'] }}</h3>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-yellow-100 text-yellow-600 flex items-center
   justify-center">
@@ -117,8 +116,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-slate-500">Status Approve</p>
-                            <h3 class="text-3xl font-bold text-green-600 mt-2">
-                                {{ $data->where('status', 'Approve')->count() }}</h3>
+                            <h3 class="text-3xl font-bold text-green-600 mt-2">{{ $efakturStats['approve'] }}</h3>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-green-100 text-green-600 flex items-center
   justify-center">
@@ -130,13 +128,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-slate-500">Submit DJP</p>
-                            <h3 class="text-3xl font-bold text-purple-600 mt-2">
-                                {{ $data->where(
-                                        'status',
-                                        'Submit
-                                                                                                  DJP',
-                                    )->count() }}
-                            </h3>
+                            <h3 class="text-3xl font-bold text-purple-600 mt-2">{{ $efakturStats['submit_djp'] }}</h3>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-purple-100 text-purple-600 flex items-center
   justify-center">
@@ -153,7 +145,7 @@
   border-b border-gray-100">
                     <div>
                         <h2 class="font-semibold text-gray-800 text-base">Daftar eFaktur</h2>
-                        <p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total data eFaktur</p>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ $efakturStats['total'] }} total data eFaktur</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <a href="{{ route('efaktur.pdf') }}?search=" id="pdfLinkEfaktur" target="_blank"
@@ -340,6 +332,7 @@
                             @endforelse
                         </tbody>
                     </table>
+                    <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
                 </div>
             </div>
 
@@ -372,7 +365,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-slate-500">Total Bupot</p>
-                            <h3 class="text-3xl font-bold text-slate-800 mt-2">{{ $dataBupot->count() }}</h3>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-2">{{ $bupotStats['total'] }}</h3>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center">
                             <i class="fa-solid fa-file-lines text-2xl"></i>
@@ -384,7 +377,7 @@
                         <div>
                             <p class="text-sm text-slate-500">Total Jumlah Bruto</p>
                             <h3 class="text-lg font-bold text-green-600 mt-2 leading-tight">Rp
-                                {{ number_format($dataBupot->sum('jumlah_bruto'), 0, ',', '.') }}</h3>
+                                {{ number_format($bupotStats['total_bruto'], 0, ',', '.') }}</h3>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-green-100 text-green-600 flex items-center
   justify-center">
@@ -397,7 +390,7 @@
                         <div>
                             <p class="text-sm text-slate-500">Total Pajak Dipotong</p>
                             <h3 class="text-lg font-bold text-red-600 mt-2 leading-tight">Rp
-                                {{ number_format($dataBupot->sum('jumlah_potong'), 0, ',', '.') }}</h3>
+                                {{ number_format($bupotStats['total_potong'], 0, ',', '.') }}</h3>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center">
                             <i class="fa-solid fa-scissors text-2xl"></i>
@@ -408,8 +401,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-slate-500">Status Draft</p>
-                            <h3 class="text-3xl font-bold text-yellow-600 mt-2">
-                                {{ $dataBupot->where('status', 'Draft')->count() }}</h3>
+                            <h3 class="text-3xl font-bold text-yellow-600 mt-2">{{ $bupotStats['draft'] }}</h3>
                         </div>
                         <div
                             class="w-14 h-14 rounded-2xl bg-yellow-100 text-yellow-600 flex items-center
@@ -422,8 +414,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-slate-500">Status Approve</p>
-                            <h3 class="text-3xl font-bold text-emerald-600 mt-2">
-                                {{ $dataBupot->where('status', 'Approve')->count() }}</h3>
+                            <h3 class="text-3xl font-bold text-emerald-600 mt-2">{{ $bupotStats['approve'] }}</h3>
                         </div>
                         <div
                             class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center
@@ -436,13 +427,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-slate-500">Status Submit DJP</p>
-                            <h3 class="text-3xl font-bold text-emerald-600 mt-2">
-                                {{ $dataBupot->where(
-                                        'status',
-                                        'Submit
-                                                                                                  DJP',
-                                    )->count() }}
-                            </h3>
+                            <h3 class="text-3xl font-bold text-emerald-600 mt-2">{{ $bupotStats['submit_djp'] }}</h3>
                         </div>
                         <div
                             class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center
@@ -456,7 +441,7 @@
                         <div>
                             <p class="text-sm text-slate-500">Rata-rata Tarif Pajak</p>
                             <h3 class="text-3xl font-bold text-purple-600 mt-2">
-                                {{ number_format($dataBupot->avg('tarif_pajak'), 1) }}%</h3>
+                                {{ number_format($bupotStats['avg_tarif'], 1) }}%</h3>
                         </div>
                         <div
                             class="w-14 h-14 rounded-2xl bg-purple-100 text-purple-600 flex items-center
@@ -474,7 +459,7 @@
   border-b border-gray-100">
                     <div>
                         <h2 class="font-semibold text-gray-800 text-base">Daftar Bukti Potong</h2>
-                        <p class="text-xs text-gray-400 mt-0.5">{{ $dataBupot->count() }} total data bupot</p>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ $bupotStats['total'] }} total data bupot</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <a href="{{ route('bupot.pdf') }}?search=" id="pdfLinkBupot" target="_blank"
@@ -567,7 +552,7 @@
                                             ' ' .
                                             $item->status,
                                     ) }}">
-                                    <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
+                                    <td class="px-4 py-3.5 text-gray-400">{{ $dataBupot->firstItem() + $loop->index }}</td>
                                     <td class="px-4 py-3.5"><span
                                             class="font-semibold text-gray-800">{{ $item->nomor_bukti }}</span></td>
                                     <td class="px-4 py-3.5 text-gray-600">{{ $item->tanggal_bukti }}</td>
@@ -658,7 +643,7 @@
                             @endforelse
                         </tbody>
                     </table>
-                    <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$data" /></div>
+                    <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$dataBupot" /></div>
                 </div>
             </div>
 

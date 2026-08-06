@@ -57,40 +57,77 @@ class InvoicesController extends Controller
             }
         }
 
-        // Ambil data dari item penawaran — 1 periode, semua item jadi remaks
-        $periodeAwal    = $kontrak->tanggal_kontrak
-            ? \Carbon\Carbon::parse($kontrak->tanggal_kontrak)->format('Y-m-d')
-            : null;
-        $periodeAkhir   = $kontrak->tanggal_selesai
-            ? \Carbon\Carbon::parse($kontrak->tanggal_selesai)->format('Y-m-d')
-            : $periodeAwal;
+        // Ambil data dari item penawaran — buat periode per durasi kontrak
+        $periodeAwal  = $kontrak->tanggal_kontrak
+            ? \Carbon\Carbon::parse($kontrak->tanggal_kontrak)
+            : now();  // fallback ke hari ini jika tanggal kontrak tidak diisi
+        $periodeAkhir = $kontrak->tanggal_selesai
+            ? \Carbon\Carbon::parse($kontrak->tanggal_selesai)
+            : $periodeAwal->copy()->addMonths($kontrak->durasi_value ?? 1);
+
+        $durasiValue  = (int) ($kontrak->durasi_value ?? 1);
+        $durasiSatuan = strtolower($kontrak->durasi_satuan ?? 'bulan'); // bulan, hari, tahun
 
         $remakItems = [];
         if ($penawaran) {
             foreach ($penawaran->items as $item) {
-                if (!$item->kendaraan) continue;
+                // Ambil label kendaraan — gunakan relasi jika ada
+                if ($item->kendaraan) {
+                    $label = $item->kendaraan->merk . ' ' . $item->kendaraan->nopol;
+                } elseif ($item->kendaraan_id) {
+                    // Coba load manual kalau eager load gagal
+                    $kdr = \App\Models\Kendaraan::find($item->kendaraan_id);
+                    $label = $kdr ? $kdr->merk . ' ' . $kdr->nopol : 'Kendaraan #' . $item->kendaraan_id;
+                } else {
+                    $label = 'Item #' . ($item->id ?? (count($remakItems) + 1));
+                }
+
                 $remakItems[] = [
-                    'kendaraan'    => $item->kendaraan->merk . ' ' . $item->kendaraan->nopol,
-                    'qty'          => $item->qty ?? 1,
-                    'price'        => (float) ($item->price ?? 0),
+                    'kendaraan' => $label,
+                    'qty'       => $item->qty ?? 1,
+                    'price'     => (float) ($item->price ?? 0),
                 ];
             }
         }
 
-        // Dibungkus dalam satu periode
+        // Buat array periode berdasarkan durasi satuan — selalu dibuat
         $rentalDetails = [];
-        if (!empty($remakItems)) {
+        $stepMethod = match ($durasiSatuan) {
+            'tahun' => 'addYear',
+            'hari'  => 'addDay',
+            default => 'addMonth', // bulan (default)
+        };
+
+        $cursor    = $periodeAwal->copy();
+        $endDate   = $periodeAkhir->copy();
+        $periodeNo = 0;
+
+        while ($cursor->lte($endDate)) {
+            // Akhir periode: satu langkah maju lalu kurang 1 hari
+            $nextCursor = $cursor->copy()->{$stepMethod}();
+            $periodeEnd = $nextCursor->copy()->subDay();
+
+            // Pastikan tidak melebihi tanggal selesai kontrak
+            if ($periodeEnd->gt($endDate)) {
+                $periodeEnd = $endDate->copy();
+            }
+
             $rentalDetails[] = [
-                'tanggal_mulai'   => $periodeAwal,
-                'tanggal_selesai' => $periodeAkhir,
-                'remak_items'     => $remakItems,   // array remaks
-                // field lama tetap ada untuk kompatibilitas (dipakai sebagai fallback)
+                'tanggal_mulai'   => $cursor->format('Y-m-d'),
+                'tanggal_selesai' => $periodeEnd->format('Y-m-d'),
+                'remak_items'     => $remakItems,
                 'kendaraan'       => '',
                 'biaya_dasar'     => 0,
                 'biaya_driver'    => 0,
                 'nama_driver'     => null,
                 'durasi_nilai'    => 1,
             ];
+
+            $cursor = $nextCursor;
+            $periodeNo++;
+
+            // Batasi maksimal 120 periode untuk mencegah loop tak terbatas
+            if ($periodeNo >= 120) break;
         }
 
         // Satuan dari item penawaran pertama
@@ -101,11 +138,10 @@ class InvoicesController extends Controller
             $satuanVal = $sat ? ('Car Rent/' . ucfirst($sat)) : 'Car Rent/Day';
         }
 
-        // Total dari penawaran atau sum rental
-        $totalVal = $penawaran?->total ?? 0;
-        if (!$totalVal && !empty($rentalDetails)) {
-            $totalVal = collect($rentalDetails)->sum('total_biaya');
-        }
+        // Total dari penawaran — per periode/bulan (tidak dikali jumlah periode)
+        $totalVal        = (float) ($penawaran?->total ?? 0);
+        $totalPerPeriode = $totalVal;
+        $jumlahPeriode   = count($rentalDetails);
 
         // PPN & PPH dari setting
         $setting = \App\Models\Setting::first();
@@ -113,19 +149,21 @@ class InvoicesController extends Controller
         $pphVal  = $setting?->pph_default ?? 0;
 
         return response()->json([
-            'found'            => true,
-            'kontrak_id'       => $kontrak->id,
-            'no_kontrak'       => $kontrak->no_kontrak,
-            'penawaran_id'     => $penawaran?->id,
-            'no_penawaran'     => $penawaran?->no_penawaran,
-            'customer_name'    => $customerName,
-            'type'             => $penawaran?->jenis_pelanggan ?? 'perorangan',
-            'customer_address' => $penawaran?->alamat ?? '',
-            'telephone'        => $penawaran?->contact_person ?? $kontrak->contact_kedua ?? '',
-            'email'            => $penawaran?->email_person ?? '',
-            'contact_person'   => $customerName,
-            'kendaraans'       => $kendaraans,
-            'rental_details'   => $rentalDetails,
+            'found'              => true,
+            'kontrak_id'         => $kontrak->id,
+            'no_kontrak'         => $kontrak->no_kontrak,
+            'penawaran_id'       => $penawaran?->id,
+            'no_penawaran'       => $penawaran?->no_penawaran,
+            'customer_name'      => $customerName,
+            'type'               => $penawaran?->jenis_pelanggan ?? 'perorangan',
+            'customer_address'   => $penawaran?->alamat ?? '',
+            'telephone'          => $penawaran?->contact_person ?? $kontrak->contact_kedua ?? '',
+            'email'              => $penawaran?->email_person ?? '',
+            'contact_person'     => $customerName,
+            'kendaraans'         => $kendaraans,
+            'rental_details'     => $rentalDetails,
+            'total_per_periode'  => $totalPerPeriode,
+            'jumlah_periode'     => $jumlahPeriode,
             // Informasi invoice
             'satuan'           => $satuanVal,
             'pengirim'         => $penawaran?->pengirim ?? '',
