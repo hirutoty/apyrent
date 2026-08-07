@@ -584,6 +584,14 @@
                                 <td class="text-gray-500 pr-8 py-1 text-[10px]">Jumlah Periode</td>
                                 <td class="text-right text-gray-400 text-[10px]" id="tambahSummarySubTotal">-</td>
                             </tr>
+                            <tr id="bayarKeRow" class="hidden">
+                                <td class="text-gray-500 pr-8 py-1 text-[10px]">Bayar Ke</td>
+                                <td class="text-right text-[10px] font-semibold text-blue-600" id="tambahSummaryBayarKe">-</td>
+                            </tr>
+                            <tr id="sisaRow" class="hidden">
+                                <td class="text-gray-400 pr-8 py-1 text-[10px]">Sisa</td>
+                                <td class="text-right text-[10px] font-medium text-orange-500" id="tambahSummarySisa">-</td>
+                            </tr>
                             <tr class="border-t">
                                 <td class="text-gray-800 font-bold pr-8 py-2">Total Invoice</td>
                                 <td class="text-right font-bold text-blue-700 text-base" id="tambahSummaryGrand">Rp 0</td>
@@ -1153,12 +1161,55 @@
 
     {{-- ===== MODAL TAMBAH PERIODE (Tab 2) ===== --}}
     <div id="modalTambahPeriode" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
-            <div class="flex items-center justify-between px-6 py-4 border-b">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
                 <h3 class="text-sm font-semibold text-gray-800">Tambah Periode</h3>
                 <button type="button" id="closeTambahPeriode" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none"><i class="fa fa-times"></i></button>
             </div>
-            <div class="px-6 py-5 space-y-4">
+
+            {{-- Mode: pilih dari rental details (muncul jika ada rental details) --}}
+            <div id="periodeCheckboxSection" class="hidden flex-1 overflow-y-auto">
+                <div class="px-6 pt-4 pb-2">
+                    <p class="text-xs text-gray-500 mb-3">
+                        <i class="fa fa-info-circle text-blue-400 mr-1"></i>
+                        Pilih satu atau lebih remak. Jika pilih &gt;1, periode awal diambil dari tanggal mulai remak pertama dan periode akhir dari tanggal selesai remak terakhir.
+                    </p>
+                    {{-- Tombol select all --}}
+                    <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 cursor-pointer mb-3 hover:bg-blue-50 hover:border-blue-200">
+                        <input type="checkbox" id="checkAllPeriode" class="w-4 h-4 rounded accent-blue-600">
+                        <span class="text-xs font-semibold text-gray-600">Pilih Semua</span>
+                    </label>
+                    {{-- Daftar rental details --}}
+                    <div id="periodeCheckboxList" class="space-y-2"></div>
+                </div>
+                {{-- Preview periode terpilih --}}
+                <div id="periodeCheckboxPreview" class="hidden px-6 pb-4 pt-2">
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                        <p class="text-xs font-semibold text-blue-700 mb-1.5"><i class="fa fa-calendar-check mr-1"></i> Periode yang akan dibuat:</p>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <div>
+                                <span class="text-[10px] text-blue-400 block">Tanggal Awal</span>
+                                <span id="previewPeriodeAwal" class="text-xs font-bold text-blue-800">–</span>
+                            </div>
+                            <div class="text-blue-300 text-sm">→</div>
+                            <div>
+                                <span class="text-[10px] text-blue-400 block">Tanggal Akhir</span>
+                                <span id="previewPeriodeAkhir" class="text-xs font-bold text-blue-800">–</span>
+                            </div>
+                            <div class="ml-auto">
+                                <span class="text-[10px] text-blue-400 block text-right">Jumlah Remak</span>
+                                <span id="previewJumlahRemak" class="text-xs font-bold text-blue-800 block text-right">0 item</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Mode: manual (muncul jika TIDAK ada rental details) --}}
+            <div id="periodeManualSection" class="px-6 py-5 space-y-4">
+                <p class="text-xs text-gray-400 italic">
+                    <i class="fa fa-pencil-alt mr-1"></i> Tidak ada data rental aktif. Isi tanggal secara manual.
+                </p>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Awal <span class="text-red-500">*</span></label>
                     <input type="date" id="tambahPeriodeAwal" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
@@ -1168,9 +1219,12 @@
                     <input type="date" id="tambahPeriodeAkhir" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>
-            <div class="border-t px-6 py-4 flex justify-end gap-2">
+
+            <div class="border-t px-6 py-4 flex justify-end gap-2 flex-shrink-0">
                 <button type="button" id="closeTambahPeriode2" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>
-                <button type="button" id="saveTambahPeriode" class="px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl">Simpan</button>
+                <button type="button" id="saveTambahPeriode" class="px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
+                    <i class="fa fa-plus mr-1"></i> Simpan Periode
+                </button>
             </div>
         </div>
     </div>
@@ -1280,13 +1334,134 @@
         }
 
         function openTambahPeriodeModal() {
-            const el = document.getElementById('tambahPeriodeAwal');
-            if (el) el.value = '';
-            const el2 = document.getElementById('tambahPeriodeAkhir');
-            if (el2) el2.value = '';
+            // Reset input manual
+            const elAwal  = document.getElementById('tambahPeriodeAwal');
+            const elAkhir = document.getElementById('tambahPeriodeAkhir');
+            if (elAwal)  elAwal.value  = '';
+            if (elAkhir) elAkhir.value = '';
+
+            const details = window._tambahRentalDetails || [];
+            const checkboxSection = document.getElementById('periodeCheckboxSection');
+            const manualSection   = document.getElementById('periodeManualSection');
+            const listEl          = document.getElementById('periodeCheckboxList');
+            const previewEl       = document.getElementById('periodeCheckboxPreview');
+            const checkAll        = document.getElementById('checkAllPeriode');
+
+            if (details.length > 0) {
+                // Mode checkbox: tampilkan rental details
+                checkboxSection.classList.remove('hidden');
+                manualSection.classList.add('hidden');
+                if (previewEl) previewEl.classList.add('hidden');
+                if (checkAll)  checkAll.checked = false;
+
+                // Render daftar checkbox dari rental_details
+                listEl.innerHTML = details.map((entry, idx) => {
+                    const labelAwal  = entry.tanggal_mulai
+                        ? new Date(entry.tanggal_mulai).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' })
+                        : '–';
+                    const labelAkhir = entry.tanggal_selesai
+                        ? new Date(entry.tanggal_selesai).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' })
+                        : labelAwal;
+
+                    // Hitung subtotal semua remak_items entry ini
+                    const subTotal = (entry.remak_items || []).reduce((s, r) => s + (parseFloat(r.qty)||1) * (parseFloat(r.price)||0), 0)
+                        + (parseFloat(entry.biaya_driver) || 0);
+
+                    // Label kendaraan
+                    const kendaraanLabels = (entry.remak_items || []).map(r => r.kendaraan || 'Item').join(', ');
+
+                    return `<label class="periode-checkbox-row flex items-start gap-3 px-3 py-2.5 rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 hover:bg-blue-50/40 transition-all"
+                                data-idx="${idx}"
+                                data-awal="${entry.tanggal_mulai || ''}"
+                                data-akhir="${entry.tanggal_selesai || entry.tanggal_mulai || ''}">
+                        <input type="checkbox" class="periode-item-cb mt-0.5 w-4 h-4 rounded accent-blue-600 flex-shrink-0" data-idx="${idx}">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-2 flex-wrap">
+                                <span class="text-xs font-semibold text-gray-800">${labelAwal} – ${labelAkhir}</span>
+                                <span class="text-xs font-bold text-blue-700">${'Rp ' + Number(subTotal).toLocaleString('id-ID')}</span>
+                            </div>
+                            <p class="text-[11px] text-gray-400 mt-0.5 truncate">${kendaraanLabels || '–'}</p>
+                        </div>
+                    </label>`;
+                }).join('');
+
+                // Bind perubahan checkbox → update preview
+                listEl.querySelectorAll('.periode-item-cb').forEach(cb => {
+                    cb.addEventListener('change', updatePeriodeCheckboxPreview);
+                });
+
+                // Bind "Pilih Semua"
+                if (checkAll) {
+                    checkAll.addEventListener('change', function() {
+                        listEl.querySelectorAll('.periode-item-cb').forEach(cb => { cb.checked = this.checked; });
+                        updatePeriodeCheckboxPreview();
+                    });
+                }
+
+            } else {
+                // Mode manual: tidak ada rental details
+                checkboxSection.classList.add('hidden');
+                manualSection.classList.remove('hidden');
+            }
+
             const m = document.getElementById('modalTambahPeriode');
             if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
         }
+
+        // Hitung tanggal periode dari checkbox yang dipilih dan tampilkan preview
+        function updatePeriodeCheckboxPreview() {
+            const selected = Array.from(document.querySelectorAll('.periode-item-cb:checked'));
+            const previewEl = document.getElementById('periodeCheckboxPreview');
+            if (!previewEl) return;
+
+            // Sinkronisasi "Pilih Semua"
+            const total   = document.querySelectorAll('.periode-item-cb').length;
+            const checkAll = document.getElementById('checkAllPeriode');
+            if (checkAll) checkAll.checked = (selected.length === total && total > 0);
+
+            if (selected.length === 0) {
+                previewEl.classList.add('hidden');
+                return;
+            }
+
+            const details = window._tambahRentalDetails || [];
+
+            // Kumpulkan semua tanggal dari yang dipilih
+            let awalDates  = [];
+            let akhirDates = [];
+            selected.forEach(cb => {
+                const idx   = parseInt(cb.dataset.idx);
+                const entry = details[idx];
+                if (!entry) return;
+                if (entry.tanggal_mulai)   awalDates.push(new Date(entry.tanggal_mulai));
+                if (entry.tanggal_selesai) akhirDates.push(new Date(entry.tanggal_selesai));
+                else if (entry.tanggal_mulai) akhirDates.push(new Date(entry.tanggal_mulai));
+            });
+
+            const minAwal  = awalDates.length  ? new Date(Math.min(...awalDates))  : null;
+            const maxAkhir = akhirDates.length ? new Date(Math.max(...akhirDates)) : null;
+
+            const fmtPrev = d => d
+                ? d.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' })
+                : '–';
+
+            document.getElementById('previewPeriodeAwal').textContent  = fmtPrev(minAwal);
+            document.getElementById('previewPeriodeAkhir').textContent = fmtPrev(maxAkhir);
+
+            // Hitung total jumlah remak items dari yang dipilih
+            let jumlahRemak = 0;
+            selected.forEach(cb => {
+                const idx   = parseInt(cb.dataset.idx);
+                const entry = details[idx];
+                if (!entry) return;
+                jumlahRemak += (entry.remak_items || []).length;
+                if ((entry.biaya_driver || 0) > 0) jumlahRemak += 1;
+            });
+            document.getElementById('previewJumlahRemak').textContent = jumlahRemak + ' item';
+
+            previewEl.classList.remove('hidden');
+        }
+        window.updatePeriodeCheckboxPreview = updatePeriodeCheckboxPreview;
 
         function openTambahRemakModal(periodeId) {
             window._activeTambahPeriodeId = periodeId;
@@ -1593,6 +1768,9 @@
                 window._lokalPeriodes        = [];
                 window._invoiceDraft         = false;
                 window._existingInvoiceCount = 0;
+                window._paidPeriodesCount    = 0;
+                window._coveredPeriodesCount = 0;
+                window._selectedFuturePis    = [];
                 // Reset seksi 3
                 setVal('tambah_satuan', 'Car Rent/Day');
                 setVal('tambah_pengirim', '');
@@ -1723,6 +1901,10 @@
                     // Info cards dihapus — langsung ambil rental_details
                     window._tambahRentalDetails    = data.rental_details || [];
                     window._existingInvoiceCount   = data.existing_invoice_count ?? 0;
+                    // Periode yang sudah PAID (dicoret hijau) — dari server
+                    window._paidPeriodesCount      = data.paid_periodes_count ?? 0;
+                    // Periode yang sudah ter-cover semua invoice paid+unpaid (dicoret biru)
+                    window._coveredPeriodesCount   = data.covered_periodes_count ?? 0;
 
                     // Auto-fill Seksi 3: Informasi Invoice
                     setVal('tambah_satuan',  data.satuan  ?? 'Car Rent/Day');
@@ -1866,14 +2048,17 @@
             function rebuildRelRows(prefix, type, selectedIds) {
                 const container = document.getElementById(prefix + '_' + type + '_rows');
                 if (!container) return;
+                // Gunakan window.buildRelRow agar bisa diakses lintas DOMContentLoaded block
+                const _buildRelRow = window.buildRelRow || buildRelRow;
+                const _addRelRow   = window.addRelRow   || addRelRow;
                 // Reset ke satu row kosong
-                container.innerHTML = buildRelRow(prefix, type, '');
+                container.innerHTML = _buildRelRow(prefix, type, '');
                 // Populate baris pertama
                 const firstSelect = container.querySelector('select');
                 if (firstSelect && selectedIds.length > 0) firstSelect.value = selectedIds[0];
                 // Tambah baris ekstra jika lebih dari 1
                 for (let i = 1; i < selectedIds.length; i++) {
-                    addRelRow(prefix, type, selectedIds[i]);
+                    _addRelRow(prefix, type, selectedIds[i]);
                 }
             }
 
@@ -1994,6 +2179,11 @@
             }
             row.remove();
         }
+
+        // Expose ke window agar bisa diakses dari DOMContentLoaded block lain
+        window.buildRelRow  = buildRelRow;
+        window.addRelRow    = addRelRow;
+        window.removeRelRow = removeRelRow;
 
         // ====== TAB SWITCH TAMBAH ======
         let currentTambahInvoiceId = null;
@@ -2174,8 +2364,19 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Menyimpan...';
 
-            const form = document.getElementById('formTambah');
-            const formData = new FormData(form);
+            const form      = document.getElementById('formTambah');
+            const formData  = new FormData(form);
+
+            // Inject grand total yang sudah mencakup semua periode terpilih
+            // (tambah_total sudah di-sync oleh onFuturePeriodeCheck)
+            const totalInput = document.getElementById('tambah_total');
+            if (totalInput) formData.set('total', totalInput.value);
+
+            // Hitung jumlah periode yang akan disimpan = aktif + future terpilih
+            const coveredCntPre  = window._coveredPeriodesCount ?? 0;
+            const selectedPisPre = window._selectedFuturePis || [];
+            const periodeCountPre = 1 + selectedPisPre.length; // 1 = periode aktif + jumlah future
+            formData.set('periode_count', periodeCountPre);
 
             try {
                 // 1. Simpan invoice via AJAX
@@ -2195,10 +2396,24 @@
 
                 const invoiceId = json.invoice_id;
 
-                // 2. Simpan periode & remaks lokal (dari window._lokalPeriodes)
-                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                // 2. Tentukan periode mana yang perlu disimpan:
+                //    - Selalu simpan periode AKTIF (index = verifiedCount)
+                //    - Tambah future yang dipilih user via checkbox
+                const csrf          = document.querySelector('meta[name=csrf-token]')?.content || '';
                 const lokalPeriodes = window._lokalPeriodes || [];
-                for (const periode of lokalPeriodes) {
+                const verifiedCnt   = window._existingInvoiceCount ?? 0;
+                const coveredCnt    = window._coveredPeriodesCount ?? verifiedCnt;
+
+                // Kumpulkan index future yang dipilih — dari global (bukan DOM agar tidak hilang saat re-render)
+                const checkedFuturePis = window._selectedFuturePis || [];
+
+                // Periode yang akan disimpan = [periode aktif (coveredCnt)] + [future terpilih], urut
+                const periodesToSave = lokalPeriodes.filter((p, idx) => {
+                    if (idx === coveredCnt) return true;            // periode aktif wajib
+                    return checkedFuturePis.includes(idx);          // future yang dipilih
+                });
+
+                for (const periode of periodesToSave) {
                     let periodeId = null;
                     try {
                         const pr = await fetch('/admin/invoices/' + invoiceId + '/periodes', {
@@ -2223,10 +2438,12 @@
                 }
 
                 // 3. Recalculate summary total setelah periodes/remaks tersimpan
+                // Kirim juga jumlah periode yang disimpan agar periode_count tersimpan benar
                 try {
                     await fetch('/admin/invoice/' + invoiceId + '/recalculate-summary', {
                         method: 'POST',
                         headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ periode_count: periodesToSave.length }),
                     });
                 } catch(e) { console.error('Gagal recalculate summary:', e); }
 
@@ -2255,8 +2472,11 @@
                 return;
             }
 
-            // Periode aktif = index ke existing_invoice_count (invoice ke-N berarti periode ke-N)
-            const verifiedCount = window._existingInvoiceCount ?? 0;
+            // Periode aktif = index ke covered_periodes_count (sudah ter-cover invoice sebelumnya)
+            // isPaid = sudah lunas (paid), isInvoiced = sudah diinvoice tapi belum lunas, isActive = aktif sekarang
+            const paidCount      = window._paidPeriodesCount    ?? 0;   // dicoret hijau
+            const coveredCount   = window._coveredPeriodesCount ?? paidCount; // dicoret biru (paid+unpaid)
+            // verifiedCount tidak dipakai lagi untuk render — gunakan paidCount dan coveredCount
 
             list.innerHTML = periodes.map((p, pi) => {
                 const awal   = fmtDate(p.awal);
@@ -2264,11 +2484,12 @@
                 const label  = awal + (akhir ? ' – ' + akhir : '');
                 const subtot = (p.remaks || []).reduce((s, r) => s + (r.qty || 1) * (r.price || 0), 0);
 
-                const isPaid   = pi < verifiedCount;
-                const isActive = pi === verifiedCount;
-                const isFuture = pi > verifiedCount;
+                const isPaid      = pi < paidCount;                    // lunas: centang hijau + coret hijau
+                const isInvoiced  = pi >= paidCount && pi < coveredCount; // sudah diinvoice tapi belum lunas: coret abu
+                const isActive    = pi === coveredCount;               // periode aktif saat ini
+                const isFuture    = pi > coveredCount;                 // belum dibuat invoice
 
-                // ── Sudah dibayar: centang hijau collapsed ──────────
+                // ── Sudah dibayar (lunas): centang hijau + coret hijau ──────────
                 if (isPaid) {
                     return `<div class="px-4 py-3 flex items-center justify-between border-b border-gray-50 bg-green-50/40">
                         <div class="flex items-center gap-2">
@@ -2285,23 +2506,42 @@
                     </div>`;
                 }
 
-                // ── Belum saatnya: silang abu collapsed ─────────────
-                if (isFuture) {
-                    return `<div class="px-4 py-3 flex items-center justify-between border-b border-gray-50 bg-gray-50/60">
+                // ── Sudah diinvoice tapi belum lunas: coret abu ──────────
+                if (isInvoiced) {
+                    return `<div class="px-4 py-3 flex items-center justify-between border-b border-gray-50 bg-blue-50/20">
                         <div class="flex items-center gap-2">
-                            <span class="w-5 h-5 flex items-center justify-center rounded-full bg-gray-200 flex-shrink-0">
-                                <i class="fa fa-times text-[10px] text-gray-400"></i>
+                            <span class="w-5 h-5 flex items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
+                                <i class="fa fa-file-invoice text-[10px] text-blue-500"></i>
                             </span>
-                            <span class="text-xs text-gray-400">${label}</span>
+                            <span class="text-xs font-medium text-blue-400 line-through">${label}</span>
+                            <span class="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">Ditagih</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-gray-400">${rpFmt(subtot)}</span>
+                            <span class="text-xs text-blue-400">${rpFmt(subtot)}</span>
                             <button onclick="deleteLokalPeriode(${pi})" class="text-red-300 hover:text-red-500 text-xs px-1"><i class="fa fa-trash text-[10px]"></i></button>
                         </div>
                     </div>`;
                 }
 
-                // ── Periode AKTIF: expanded, border biru ────────────
+                // ── Belum saatnya: checkbox abu collapsed ─────────────
+                if (isFuture) {
+                    const isSelectedFuture = (window._selectedFuturePis || []).includes(pi);
+                    return `<div class="periode-future-row px-4 py-3 flex items-center justify-between border-b border-gray-100 ${isSelectedFuture ? 'bg-blue-50/40' : 'bg-gray-50/60 hover:bg-gray-100/60'} transition-colors"
+                        data-pi="${pi}" data-awal="${p.awal}" data-akhir="${p.akhir || p.awal}">
+                        <label class="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                            <input type="checkbox" class="periode-future-cb w-4 h-4 rounded accent-blue-600 flex-shrink-0" data-pi="${pi}"
+                                ${isSelectedFuture ? 'checked' : ''}
+                                onchange="onFuturePeriodeCheck(this)">
+                            <span class="text-xs ${isSelectedFuture ? 'text-blue-700 font-semibold' : 'text-gray-500 font-medium'} truncate">${label}</span>
+                        </label>
+                        <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <span class="text-xs ${isSelectedFuture ? 'text-blue-600 font-semibold' : 'text-gray-400'}">${rpFmt(subtot)}</span>
+                            <button onclick="deleteLokalPeriode(${pi})" class="text-red-300 hover:text-red-500 text-xs px-1"><i class="fa fa-trash text-[10px]"></i></button>
+                        </div>
+                    </div>`;
+                }
+
+                // ── Periode AKTIF: expanded, border biru — checkbox wajib tercentang ──
                 const remakRows = (p.remaks || []).map((r, ri) => `
                     <div class="flex items-center justify-between bg-white rounded-lg px-3 py-2 text-xs border border-blue-100">
                         <span class="text-gray-700 flex-1">${r.text}</span>
@@ -2315,9 +2555,8 @@
                 return `<div class="border-l-4 border-blue-500 bg-blue-50/30">
                     <div class="px-4 py-3 flex items-center justify-between">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <span class="w-5 h-5 flex items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
-                                <i class="fa fa-calendar text-[10px] text-blue-600"></i>
-                            </span>
+                            <input type="checkbox" class="periode-aktif-cb w-4 h-4 rounded accent-blue-600 flex-shrink-0"
+                                checked disabled title="Periode aktif selalu termasuk">
                             <span class="text-xs font-bold text-blue-800">${label}</span>
                             <span class="text-[10px] font-semibold bg-blue-600 text-white px-2 py-0.5 rounded-full animate-pulse">Aktif</span>
                         </div>
@@ -2339,11 +2578,44 @@
                 </div>`;
             }).join('');
 
+            // ── Panel preview multi-periode (muncul saat ada future checkbox yang dipilih) ──
+            const listEl2 = document.getElementById('periodeListTambah');
+            if (listEl2 && !listEl2.querySelector('#futurePeriodeBanner')) {
+                listEl2.insertAdjacentHTML('beforeend',
+                    `<div id="futurePeriodeBanner" class="hidden border-t border-blue-200 bg-blue-50/60 px-4 py-3">
+                        <div class="flex items-start justify-between flex-wrap gap-3">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <i class="fa fa-layer-group text-blue-500 text-xs"></i>
+                                <span class="text-xs font-semibold text-blue-700">Invoice mencakup:</span>
+                                <span id="futureBannerAwal" class="text-xs text-blue-600 font-medium">–</span>
+                                <span class="text-blue-300 text-xs">→</span>
+                                <span id="futureBannerAkhir" class="text-xs text-blue-600 font-medium">–</span>
+                                <span class="text-xs text-blue-400" id="futureBannerCount"></span>
+                            </div>
+                            <div class="text-right">
+                                <div class="flex items-center gap-2 text-xs text-blue-600">
+                                    <span>Sub Total</span>
+                                    <span id="futureBannerSubtotal" class="font-semibold">–</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-xs text-blue-500">
+                                    <span id="futureBannerPpnLabel">PPN</span>
+                                    <span id="futureBannerPpn">-</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-xs border-t border-blue-200 pt-1 mt-1">
+                                    <span class="font-semibold text-blue-700">Grand Total</span>
+                                    <span id="futureBannerTotal" class="font-bold text-blue-800">–</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`
+                );
+            }
+
             // Update summary
-            // Base = subtotal periode aktif (index 0 = periode pertama yang belum dibayar)
-            // karena setiap periode bisa beda nilai (kendaraan yang masih aktif berbeda)
-            const verifiedCountLokal = window._existingInvoiceCount ?? 0;
-            const aktivIdx           = Math.min(verifiedCountLokal, periodes.length - 1);
+            // Base = subtotal periode aktif (periode pertama yang belum ter-cover invoice)
+            const paidCountLokal    = window._paidPeriodesCount    ?? 0;
+            const coveredCountLokal = window._coveredPeriodesCount ?? paidCountLokal;
+            const aktivIdx          = Math.min(coveredCountLokal, periodes.length - 1);
             let base = 0;
             if (periodes[aktivIdx]) {
                 (periodes[aktivIdx].remaks || []).forEach(r => {
@@ -2376,6 +2648,9 @@
             const elJumlah = document.getElementById('tambahSummarySubTotal');
             if (elJumlah) elJumlah.textContent = jumlahPeriode + ' periode';
 
+            // "Bayar Ke X / N" — default 1 periode aktif
+            if (typeof updateBayarKe === 'function') updateBayarKe(1);
+
             recalcTambahTotal();
         }
         window.renderPeriodeListLokal = renderPeriodeListLokal;
@@ -2403,6 +2678,216 @@
         window.deleteLokalPeriode  = deleteLokalPeriode;
         window.deleteLokalRemak    = deleteLokalRemak;
         window.openLokalRemakModal = openLokalRemakModal;
+
+        // ====== HELPER: Update "Bayar Ke X/N" di summary ======
+        function updateBayarKe(jumlahDipilih) {
+            const paidCount    = window._paidPeriodesCount    ?? 0;
+            const coveredCount = window._coveredPeriodesCount ?? paidCount;
+            const totalPeriode = (window._lokalPeriodes || []).length;
+            const bayarKeRow     = document.getElementById('bayarKeRow');
+            const bayarKeEl      = document.getElementById('tambahSummaryBayarKe');
+            const sisaRow        = document.getElementById('sisaRow');
+            const sisaEl         = document.getElementById('tambahSummarySisa');
+            if (!bayarKeEl) return;
+
+            if (totalPeriode === 0) {
+                if (bayarKeRow) bayarKeRow.classList.add('hidden');
+                if (sisaRow)    sisaRow.classList.add('hidden');
+                return;
+            }
+
+            // jumlahDipilih = berapa periode yang dicakup invoice ini (default 1 = periode aktif saja)
+            const count    = jumlahDipilih || 1;
+            const dariKe   = coveredCount + 1;
+            const sampaiKe = Math.min(coveredCount + count, totalPeriode);
+
+            // Sisa = total - sampaiKe (periode yang belum dibayar setelah invoice ini)
+            const sisa = totalPeriode - sampaiKe;
+
+            if (bayarKeRow) bayarKeRow.classList.remove('hidden');
+            bayarKeEl.textContent = dariKe === sampaiKe
+                ? `${dariKe} / ${totalPeriode}`
+                : `${dariKe} – ${sampaiKe} / ${totalPeriode}`;
+
+            if (sisaRow && sisaEl) {
+                if (sisa > 0) {
+                    sisaRow.classList.remove('hidden');
+                    sisaEl.className = 'text-right text-[10px] font-medium text-orange-500';
+                    sisaEl.textContent = sisa + 'x lagi';
+                } else {
+                    sisaRow.classList.remove('hidden');
+                    sisaEl.className = 'text-right text-[10px] font-medium text-green-600';
+                    sisaEl.textContent = 'Semua periode lunas';
+                }
+            }
+        }
+        window.updateBayarKe = updateBayarKe;
+        // Menyimpan index (data-pi) dari checkbox terakhir yang diubah secara manual
+        window._lastCheckedFuturePi = null;
+        // Menyimpan daftar pi yang sedang dipilih user (persisten walau DOM di-render ulang)
+        window._selectedFuturePis = [];
+
+        function onFuturePeriodeCheck(changedCb) {
+            const allCbs   = Array.from(document.querySelectorAll('.periode-future-cb'));
+            const periodes = window._lokalPeriodes || [];
+
+            // Ambil index posisi DOM dari semua checkbox future (urut DOM = urut tampilan)
+            const domIndices = allCbs.map(cb => parseInt(cb.dataset.pi));
+
+            const changedPi   = parseInt(changedCb.dataset.pi);
+            const changedPos  = domIndices.indexOf(changedPi);
+            const isNowChecked = changedCb.checked;
+
+            if (isNowChecked) {
+                // ── User mencentang sebuah periode ──────────────────────────
+                // Cari checkbox pertama yang sudah tercentang sebelumnya (posisi paling kecil)
+                const alreadyChecked = allCbs
+                    .filter(cb => cb !== changedCb && cb.checked)
+                    .map(cb => domIndices.indexOf(parseInt(cb.dataset.pi)));
+
+                if (alreadyChecked.length > 0) {
+                    const minPos = Math.min(...alreadyChecked);
+                    const maxPos = Math.max(Math.max(...alreadyChecked), changedPos);
+
+                    // Isi semua checkbox di antara minPos dan maxPos (fill range)
+                    allCbs.forEach((cb, idx) => {
+                        if (idx >= minPos && idx <= maxPos) {
+                            cb.checked = true;
+                        }
+                    });
+                }
+
+                window._lastCheckedFuturePi = changedPi;
+
+            } else {
+                // ── User UN-centang sebuah periode ──────────────────────────
+                // Harus jaga konsistensi: tidak boleh ada "lubang" di tengah range
+                // Cari semua yang masih tercentang dan un-centang semua yang di luar range baru
+                const stillChecked = allCbs
+                    .filter(cb => cb.checked)
+                    .map(cb => domIndices.indexOf(parseInt(cb.dataset.pi)));
+
+                if (stillChecked.length > 0) {
+                    const minStill = Math.min(...stillChecked);
+                    const maxStill = Math.max(...stillChecked);
+                    // Un-centang semua di luar range yang tersisa (hapus lubang)
+                    allCbs.forEach((cb, idx) => {
+                        if (idx < minStill || idx > maxStill) {
+                            cb.checked = false;
+                        }
+                    });
+                }
+
+                window._lastCheckedFuturePi = null;
+            }
+
+            // ── Update banner preview ───────────────────────────────────────
+            const banner  = document.getElementById('futurePeriodeBanner');
+            if (!banner) return;
+
+            const finalChecked = Array.from(document.querySelectorAll('.periode-future-cb:checked'));
+
+            // Simpan ke global agar persisten saat DOM di-render ulang
+            window._selectedFuturePis = finalChecked.map(cb => parseInt(cb.dataset.pi));
+
+            if (finalChecked.length === 0) {
+                banner.classList.add('hidden');
+                // Kembalikan summary ke nilai periode aktif
+                renderPeriodeListLokal();
+                return;
+            }
+
+            const selectedPeriodes = finalChecked
+                .map(cb => ({ pi: parseInt(cb.dataset.pi), p: periodes[parseInt(cb.dataset.pi)] }))
+                .filter(x => x.p)
+                .sort((a, b) => new Date(a.p.awal) - new Date(b.p.awal));
+
+            const firstP = selectedPeriodes[0].p;
+            const lastP  = selectedPeriodes[selectedPeriodes.length - 1].p;
+
+            // Hitung subtotal: periode AKTIF (wajib) + semua future yang dipilih
+            const verifiedCountCb = window._existingInvoiceCount ?? 0;
+            const coveredCountCb  = window._coveredPeriodesCount ?? verifiedCountCb;
+            const aktivPeriodeCb  = periodes[coveredCountCb];
+
+            // Mulai dari periode aktif (selalu ada)
+            let subtotalSel = 0;
+            if (aktivPeriodeCb) {
+                (aktivPeriodeCb.remaks || []).forEach(r => { subtotalSel += (r.qty || 1) * (r.price || 0); });
+            }
+            // Tambah semua future yang dipilih
+            selectedPeriodes.forEach(({ p }) => {
+                (p.remaks || []).forEach(r => { subtotalSel += (r.qty || 1) * (r.price || 0); });
+            });
+
+            // Banner menampilkan range: dari periode aktif s/d future terakhir yang dipilih
+            const bannerFirstP = aktivPeriodeCb || firstP;
+            const bannerLastP  = lastP;
+
+            // Ambil PPN dari field tab 1
+            const ppnPct    = parseFloat(document.getElementById('tambah_ppn')?.value) || 0;
+            const ppnNom    = Math.round(subtotalSel * ppnPct / 100);
+            const grandSel  = subtotalSel + ppnNom;
+
+            document.getElementById('futureBannerAwal').textContent     = fmtDate(bannerFirstP.awal);
+            document.getElementById('futureBannerAkhir').textContent    = fmtDate(bannerLastP.akhir || bannerLastP.awal);
+            document.getElementById('futureBannerCount').textContent    = '(' + (finalChecked.length + 1) + ' periode)';
+            document.getElementById('futureBannerSubtotal').textContent = rpFmt(subtotalSel);
+            document.getElementById('futureBannerPpnLabel').textContent = ppnPct > 0 ? 'PPN ' + ppnPct + '%' : 'PPN';
+            document.getElementById('futureBannerPpn').textContent      = ppnNom > 0 ? rpFmt(ppnNom) : '-';
+            document.getElementById('futureBannerTotal').textContent    = rpFmt(grandSel);
+            banner.classList.remove('hidden');
+
+            // ── Sinkronkan summary bawah dengan nilai terpilih ─────────────
+            // Item rows: tampilkan remaks dari periode AKTIF + semua future terpilih
+            const itemRowsEl = document.getElementById('tambahSummaryItemRows');
+            if (itemRowsEl) {
+                const allRemaks = [];
+                // Sertakan periode aktif dulu
+                if (aktivPeriodeCb) {
+                    (aktivPeriodeCb.remaks || []).forEach(r => allRemaks.push(r));
+                }
+                // Tambah future terpilih
+                selectedPeriodes.forEach(({ p }) => {
+                    (p.remaks || []).forEach(r => allRemaks.push(r));
+                });
+                // Gabungkan item dengan teks sama
+                const grouped = {};
+                allRemaks.forEach(r => {
+                    const key = r.text || 'Item';
+                    if (!grouped[key]) grouped[key] = 0;
+                    grouped[key] += (r.qty || 1) * (r.price || 0);
+                });
+                itemRowsEl.innerHTML = Object.entries(grouped).map(([lbl, tot]) =>
+                    `<tr>
+                        <td class="text-gray-400 pr-8 py-0.5 text-xs">${lbl}</td>
+                        <td class="text-right text-xs text-gray-600">${rpFmt(tot)}</td>
+                    </tr>`
+                ).join('');
+            }
+
+            // Update Sub Total, PPN, Grand Total, Jumlah Periode di summary bawah
+            const elSubTotal   = document.getElementById('tambahSummaryTotal');
+            const elPpnLabel   = document.getElementById('tambahSummaryPpnLabel');
+            const elPpn        = document.getElementById('tambahSummaryPpn');
+            const elJumlah     = document.getElementById('tambahSummarySubTotal');
+            const elGrand      = document.getElementById('tambahSummaryGrand');
+            const elTotalInput = document.getElementById('tambah_total');
+            if (elSubTotal)   elSubTotal.textContent   = rpFmt(subtotalSel);
+            if (elPpnLabel)   elPpnLabel.textContent   = ppnPct > 0 ? 'PPN ' + ppnPct + '%' : 'PPN';
+            if (elPpn)        elPpn.textContent        = ppnNom > 0 ? rpFmt(ppnNom) : '-';
+            if (elJumlah)     elJumlah.textContent     = finalChecked.length + ' periode terpilih';
+            if (elGrand)      elGrand.textContent      = rpFmt(grandSel);
+            if (elTotalInput) elTotalInput.value       = grandSel;
+
+            // Simpan base agar recalcTambahTotal() konsisten
+            window._tambahSubTotalBase = subtotalSel;
+
+            // "Bayar Ke X – Y / N" sesuai jumlah periode yang dipilih
+            // +1 karena periode aktif selalu ikut
+            if (typeof updateBayarKe === 'function') updateBayarKe(finalChecked.length + 1);
+        }
+        window.onFuturePeriodeCheck = onFuturePeriodeCheck;
 
         // ====== PERIODE DI TAB 2 MODAL TAMBAH ======
         function rpFmt(n) { return 'Rp ' + Number(n||0).toLocaleString('id-ID'); }
@@ -2491,12 +2976,67 @@
 
         // ====== SIMPAN PERIODE (mode lokal: sebelum invoice disimpan) ======
         document.getElementById('saveTambahPeriode')?.addEventListener('click', function() {
-            const awal  = document.getElementById('tambahPeriodeAwal').value;
-            if (!awal) { alert('Tanggal awal wajib diisi.'); return; }
-            const akhir = document.getElementById('tambahPeriodeAkhir').value;
-
             if (!window._lokalPeriodes) window._lokalPeriodes = [];
-            window._lokalPeriodes.push({ awal, akhir: akhir || awal, remaks: [] });
+
+            const checkboxSection = document.getElementById('periodeCheckboxSection');
+            const isCheckboxMode  = checkboxSection && !checkboxSection.classList.contains('hidden');
+
+            if (isCheckboxMode) {
+                // ── Mode Checkbox ──────────────────────────────────────────
+                const selected = Array.from(document.querySelectorAll('.periode-item-cb:checked'));
+                if (selected.length === 0) {
+                    alert('Pilih minimal satu remak terlebih dahulu.');
+                    return;
+                }
+
+                const details = window._tambahRentalDetails || [];
+
+                // Kumpulkan semua entri yang dipilih
+                const selectedEntries = selected.map(cb => details[parseInt(cb.dataset.idx)]).filter(Boolean);
+
+                // Hitung periode_awal = min(tanggal_mulai), periode_akhir = max(tanggal_selesai)
+                const awalDates  = selectedEntries.map(e => e.tanggal_mulai   ? new Date(e.tanggal_mulai)   : null).filter(Boolean);
+                const akhirDates = selectedEntries.map(e => e.tanggal_selesai ? new Date(e.tanggal_selesai) : (e.tanggal_mulai ? new Date(e.tanggal_mulai) : null)).filter(Boolean);
+
+                const minAwal  = awalDates.length  ? new Date(Math.min(...awalDates))  : null;
+                const maxAkhir = akhirDates.length ? new Date(Math.max(...akhirDates)) : null;
+
+                // Format ke YYYY-MM-DD untuk disimpan
+                const toYMD = d => d ? d.toISOString().slice(0,10) : '';
+                const awal  = toYMD(minAwal);
+                const akhir = toYMD(maxAkhir);
+
+                if (!awal) { alert('Tidak ada tanggal valid pada remak yang dipilih.'); return; }
+
+                // Kumpulkan semua remak_items dari semua entri terpilih
+                const remaks = [];
+                selectedEntries.forEach(entry => {
+                    (entry.remak_items || []).forEach(item => {
+                        remaks.push({
+                            text:  item.kendaraan || 'Item',
+                            qty:   item.qty   || 1,
+                            price: item.price || 0,
+                        });
+                    });
+                    // Biaya driver (jika ada)
+                    if ((parseFloat(entry.biaya_driver) || 0) > 0) {
+                        remaks.push({
+                            text:  entry.nama_driver ? 'Driver: ' + entry.nama_driver : 'Biaya Driver',
+                            qty:   entry.durasi_nilai ?? 1,
+                            price: parseFloat(entry.biaya_driver),
+                        });
+                    }
+                });
+
+                window._lokalPeriodes.push({ awal, akhir, remaks });
+
+            } else {
+                // ── Mode Manual ────────────────────────────────────────────
+                const awal  = document.getElementById('tambahPeriodeAwal').value;
+                if (!awal) { alert('Tanggal awal wajib diisi.'); return; }
+                const akhir = document.getElementById('tambahPeriodeAkhir').value;
+                window._lokalPeriodes.push({ awal, akhir: akhir || awal, remaks: [] });
+            }
 
             closeModal(document.getElementById('modalTambahPeriode'));
             renderPeriodeListLokal();

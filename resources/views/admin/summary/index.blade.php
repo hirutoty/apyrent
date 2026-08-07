@@ -195,7 +195,11 @@
                         $grandPaid   = $items->sum('paid_amount');
                         $grandSisa   = $grandTotal - $grandPaid;
                         // paidCount = invoice yg sudah ada payment Verified (bukan harus fully paid)
-                        $paidCount   = $firstItem->_paid_count ?? $items->filter(fn($s) => strtolower($s->payment_status) === 'paid')->count();
+                        $paidCount        = $firstItem->_paid_count ?? $items->filter(fn($s) => strtolower($s->payment_status) === 'paid')->count();
+                        // paidPeriodes = total PERIODE yang sudah paid (bisa > paidCount jika multi-periode)
+                        $paidPeriodes     = $firstItem->_paid_periodes ?? $items
+                            ->filter(fn($s) => strtolower($s->payment_status) === 'paid')
+                            ->sum(fn($s) => max((int)($s->periode_count ?? 1), 1));
                         $accordionId = 'acc_' . md5($kontrakKey);
                     @endphp
                     <div class="bg-white">
@@ -208,7 +212,7 @@
                                 <span class="font-mono text-sm font-bold text-blue-700">{{ $noKontrak }}</span>
                                 <span class="text-xs text-gray-500 truncate">{{ $customer }}</span>
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $kontrakStatusColor }}">{{ $kontrakStatus }}</span>
-                                <span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">{{ $paidCount }}/{{ $totalPeriode }} periode lunas</span>
+                                <span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">{{ $paidPeriodes }}/{{ $totalPeriode }} periode lunas</span>
                             </button>
 
                             {{-- Kanan: angka + tombol hapus --}}
@@ -309,7 +313,7 @@
                                                             {{ $s->_pembayaran_ke }}/{{ $s->_total_periode }}
                                                         </span>
                                                     @else
-                                                        <span class="text-xs font-semibold text-indigo-500">
+                                                        <span class="text-xs font-semibold text-blue-600">
                                                             {{ $s->_pembayaran_ke }}/{{ $s->_total_periode }}
                                                         </span>
                                                     @endif

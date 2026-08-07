@@ -187,7 +187,7 @@
                                 $items = $k->penawaran?->items ?? collect();
                                 $hasPerjanjian = $k->perjanjian_pembayaran;
                                 $mulaiRental = $hasPerjanjian
-                                    ? \Carbon\Carbon::parse($k->perjanjian_pembayaran)->addDay()
+                                    ? \Carbon\Carbon::parse($k->perjanjian_pembayaran)
                                     : ($k->tanggal_kontrak ?? null);
                             @endphp
                             @if($items->isNotEmpty())
@@ -414,7 +414,7 @@
                         onchange="calcTanggalSelesai()"
                         min="{{ date('Y-m-d') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <p class="text-[10px] text-gray-400 mt-1">Rental mulai <strong>+1 hari</strong> setelah tanggal ini</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Rental mulai dari tanggal ini</p>
                 </div>
             </div>
 
@@ -424,7 +424,7 @@
                     <i class="fa fa-calendar-check text-indigo-500"></i> Estimasi Tanggal Selesai per Kendaraan
                 </label>
                 <div id="list_selesai_kendaraan" class="space-y-1.5"></div>
-                <p class="text-[10px] text-gray-400 mt-1">Dihitung dari perjanjian pembayaran +1 hari + durasi masing-masing kendaraan</p>
+                <p class="text-[10px] text-gray-400 mt-1">Dihitung dari perjanjian pembayaran + durasi masing-masing kendaraan</p>
             </div>
 
             {{-- Pihak --}}
@@ -459,6 +459,37 @@
                 </div>
             </div>
 
+            {{-- Data Customer Pihak Kedua --}}
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
+                    <input type="text" name="no_ktp_kedua" id="create_no_ktp_kedua"
+                        inputmode="numeric" maxlength="16"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                        placeholder="16 digit No KTP"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua</label>
+                    <input type="email" name="email_kedua" id="create_email_kedua"
+                        placeholder="email@example.com"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
+                    <select name="jenis_pelanggan" id="create_jenis_pelanggan"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih --</option>
+                        <option value="perorangan">Perorangan</option>
+                        <option value="perusahaan">Perusahaan</option>
+                    </select>
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua</label>
+                    <textarea name="alamat_kedua" id="create_alamat_kedua" rows="2"
+                        placeholder="Alamat lengkap..."
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
+                </div>
             {{-- ── Ketentuan Asuransi Pasal 4 Ayat 7 ── --}}
             <div class="border border-gray-200 rounded-xl overflow-hidden">
                 <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
@@ -481,6 +512,8 @@
                     Silakan download, tandatangani, lalu upload kembali untuk <strong>Approve</strong>.
                 </p>
             </div>
+
+            <div class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 flex items-start gap-2">
 
             <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
                 <button type="button" onclick="closeModal('modalCreate')"
@@ -642,6 +675,52 @@
                     </div>
                 </div>
             </div>
+            {{-- Data Customer Pihak Kedua --}}
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
+                    <input type="text" name="no_ktp_kedua" id="edit_no_ktp_kedua"
+                        inputmode="numeric" maxlength="16"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                        placeholder="16 digit No KTP"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua</label>
+                    <input type="email" name="email_kedua" id="edit_email_kedua"
+                        placeholder="email@example.com"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
+                    <select name="jenis_pelanggan" id="edit_jenis_pelanggan"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih --</option>
+                        <option value="perorangan">Perorangan</option>
+                        <option value="perusahaan">Perusahaan</option>
+                    </select>
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua</label>
+                    <textarea name="alamat_kedua" id="edit_alamat_kedua" rows="2"
+                        placeholder="Alamat lengkap..."
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
+                <select name="status" id="edit_status"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                    @foreach(['pending','approved','active','completed','selesai-belum lunas','rejected','expired','terminated'] as $st)
+                    <option value="{{ $st }}">{{ ucfirst($st) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <p class="text-xs text-gray-400">File baru akan menggantikan file lama (opsional)</p>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">File Kontrak</label>
+                    <input type="file" name="file_kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
 
             {{-- ── TAB 2: Ketentuan Asuransi ── --}}
             <div id="editTab2" class="hidden px-6 py-5 space-y-4">
@@ -852,7 +931,7 @@
     }
 
     // ── Hitung tanggal selesai otomatis per kendaraan ──────────
-    // Mulai = perjanjian_pembayaran + 1 hari
+    // Mulai = perjanjian_pembayaran (langsung, tanpa +1 hari)
     // Selesai = mulai + durasi per item
     let _currentItems = []; // cache items dari penawaran terakhir
 
@@ -868,9 +947,8 @@
 
         const opts = { day: 'numeric', month: 'long', year: 'numeric' };
 
-        // Mulai = perjanjian +1 hari
+        // Mulai = perjanjian (langsung)
         const mulai = new Date(perjanjianStr);
-        mulai.setDate(mulai.getDate() + 1);
 
         const rows = _currentItems.map(item => {
             if (!item.kendaraan) return '';
@@ -1030,6 +1108,18 @@
     // ── Edit modal ─────────────────────────────────
     function openEditModal(data) {
         document.getElementById('editForm').action = `/admin/kontrak/${data.id}`;
+        document.getElementById('edit_penawaran_id').value         = data.penawaran_id ?? '';
+        document.getElementById('edit_no_kontrak').value           = data.no_kontrak ?? '';
+        document.getElementById('edit_tanggal_kontrak').value      = data.tanggal_kontrak ? data.tanggal_kontrak.substring(0, 10) : '';
+        document.getElementById('edit_perjanjian_pembayaran').value= data.perjanjian_pembayaran ? data.perjanjian_pembayaran.substring(0, 10) : '';
+        document.getElementById('edit_pihak_pertama').value        = data.pihak_pertama ?? '';
+        document.getElementById('edit_contact_pertama').value      = data.contact_pertama ?? '';
+        document.getElementById('edit_pihak_kedua').value          = data.pihak_kedua ?? '';
+        document.getElementById('edit_contact_kedua').value        = data.contact_kedua ?? '';
+        document.getElementById('edit_no_ktp_kedua').value         = data.no_ktp_kedua ?? '';
+        document.getElementById('edit_email_kedua').value          = data.email_kedua ?? '';
+        document.getElementById('edit_jenis_pelanggan').value      = data.jenis_pelanggan ?? '';
+        document.getElementById('edit_alamat_kedua').value         = data.alamat_kedua ?? '';
         document.getElementById('edit_penawaran_id').value          = data.penawaran_id ?? '';
         document.getElementById('edit_no_kontrak').value            = data.no_kontrak ?? '';
         document.getElementById('edit_tanggal_kontrak').value       = data.tanggal_kontrak ? data.tanggal_kontrak.substring(0, 10) : '';

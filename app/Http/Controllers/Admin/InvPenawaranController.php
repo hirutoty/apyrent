@@ -150,11 +150,11 @@ class InvPenawaranController
             Pelanggan::firstOrCreate(
                 ['nama_pelanggan' => $request->customer_name],
                 [
-                    'kontak_pelanggan' => $request->contact_person,
-                    'email_pelanggan'  => $request->email_person,
-                    'alamat'           => $request->alamat,
-                    'no_ktp'           => $request->no_ktp,
-                    'jenis_pelanggan'  => $request->jenis_pelanggan ?: 'perorangan',
+                    'kontak_pelanggan' => null,
+                    'email_pelanggan'  => null,
+                    'alamat'           => null,
+                    'no_ktp'           => null,
+                    'jenis_pelanggan'  => 'perorangan',
                 ]
             );
 
@@ -165,17 +165,17 @@ class InvPenawaranController
                 'up'                => $request->up,
                 'perihal'           => $request->perihal,
                 'customer_name'     => $request->customer_name,
-                'contact_person'    => $request->contact_person,
-                'email_person'      => $request->email_person,
-                'alamat'            => $request->alamat,
-                'no_ktp'            => $request->no_ktp,
-                'jenis_pelanggan'   => $request->jenis_pelanggan,
-                'pengirim'          => $request->pengirim,
+                'contact_person'    => null,
+                'email_person'      => null,
+                'alamat'            => null,
+                'no_ktp'            => null,
+                'jenis_pelanggan'   => null,
+                'pengirim'          => null,
                 'periode'           => $request->periode,
                 'staff'             => $request->staff,
                 'name_staff'        => $request->name_staff,
-                'direktur'          => $request->direktur,
-                'name_direktur'     => $request->name_direktur,
+                'direktur'          => null,
+                'name_direktur'     => null,
                 'total'             => $total,
             ]);
 
@@ -255,16 +255,9 @@ class InvPenawaranController
 
             $penawaran = InvPenawaran::findOrFail($id);
 
-            // Jika customer belum ada di tabel member, simpan otomatis
+            // Simpan customer jika belum ada (detail kontak sekarang ada di kontrak)
             Pelanggan::firstOrCreate(
-                ['nama_pelanggan' => $request->customer_name],
-                [
-                    'kontak_pelanggan' => $request->contact_person,
-                    'email_pelanggan'  => $request->email_person,
-                    'alamat'           => $request->alamat,
-                    'no_ktp'           => $request->no_ktp,
-                    'jenis_pelanggan'  => $request->jenis_pelanggan ?: 'perorangan',
-                ]
+                ['nama_pelanggan' => $request->customer_name]
             );
 
             // Update data penawaran
@@ -275,17 +268,9 @@ class InvPenawaranController
                 'up'                => $request->up,
                 'perihal'           => $request->perihal,
                 'customer_name'     => $request->customer_name,
-                'contact_person'    => $request->contact_person,
-                'email_person'      => $request->email_person,
-                'alamat'            => $request->alamat,
-                'no_ktp'            => $request->no_ktp,
-                'jenis_pelanggan'   => $request->jenis_pelanggan,
-                'pengirim'          => $request->pengirim,
                 'periode'           => $request->periode,
                 'staff'             => $request->staff,
                 'name_staff'        => $request->name_staff,
-                'direktur'          => $request->direktur,
-                'name_direktur'     => $request->name_direktur,
                 'total'             => $total,
             ]);
 

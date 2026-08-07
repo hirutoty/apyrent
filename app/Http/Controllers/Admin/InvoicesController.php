@@ -59,7 +59,7 @@ class InvoicesController extends Controller
 
         // Ambil data dari item penawaran — buat 1 periode saja (awal s/d selesai kontrak)
         $periodeAwal  = $kontrak->perjanjian_pembayaran
-            ? \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)->addDay()
+            ? \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)
             : (\Carbon\Carbon::parse($kontrak->tanggal_kontrak) ?? now());
         $periodeAkhir = $kontrak->tanggal_selesai
             ? \Carbon\Carbon::parse($kontrak->tanggal_selesai)
@@ -190,6 +190,35 @@ class InvoicesController extends Controller
             'name_direktur'    => $penawaran?->name_direktur ?? '',
             // Jumlah invoice yang sudah dibuat untuk kontrak ini (untuk menentukan periode aktif)
             'existing_invoice_count' => Invoice::where('kontrak_id', $kontrak->id)->count(),
+            // Jumlah invoice yang sudah PAID (untuk menentukan yang dicoret hijau)
+            'paid_invoice_count'     => \App\Models\InvSummary::where('kontrak_id', $kontrak->id)
+                ->where('payment_status', 'paid')->count(),
+            // Total periode yang sudah ter-cover oleh invoice PAID (dicoret hijau)
+            'paid_periodes_count'    => (function() use ($kontrak) {
+                $total = 0;
+                $paidSummaries = \App\Models\InvSummary::where('kontrak_id', $kontrak->id)
+                    ->where('payment_status', 'paid')
+                    ->get();
+                foreach ($paidSummaries as $s) {
+                    $total += max((int)($s->periode_count ?? 1), 1);
+                }
+                return $total;
+            })(),
+            // Total periode yang sudah ter-cover oleh SEMUA invoice (paid + unpaid) — dicoret biru
+            'covered_periodes_count' => (function() use ($kontrak) {
+                $invoices = Invoice::where('kontrak_id', $kontrak->id)
+                    ->withCount('periodes')
+                    ->get();
+                if ($invoices->isEmpty()) return 0;
+                $total = 0;
+                foreach ($invoices as $inv) {
+                    $summaryCount = \App\Models\InvSummary::where('invoice_id', $inv->id)
+                        ->value('periode_count') ?? 1;
+                    $dbCount = $inv->periodes_count ?? 0;
+                    $total += max((int)$summaryCount, (int)$dbCount, 1);
+                }
+                return $total;
+            })(),
             // Debug info
             '_debug' => [
                 'penawaran_found'   => $penawaran !== null,
@@ -387,6 +416,11 @@ class InvoicesController extends Controller
             $totalAmount = (float) ($validated['total'] ?? 0);
         }
 
+        // Ambil periode_count dari request jika ada (dikirim frontend saat simpan multi-periode)
+        // Fallback ke 1 jika tidak ada
+        $periodeCount = (int) ($request->input('periode_count') ?? 1);
+        if ($periodeCount <= 0) $periodeCount = 1;
+
         InvSummary::firstOrCreate(
             ['invoice_id' => $invoice->id],
             [
@@ -397,6 +431,7 @@ class InvoicesController extends Controller
                 'paid_amount'      => 0,
                 'remaining_amount' => $totalAmount,
                 'payment_status'   => 'unpaid',
+                'periode_count'    => $periodeCount,
             ]
         );
 
@@ -830,9 +865,9 @@ class InvoicesController extends Controller
                     ->count() - 1;
             }
 
-            // Tentukan tanggal mulai periode (perjanjian_pembayaran + 1 hari + N bulan)
+            // Tentukan tanggal mulai periode (perjanjian_pembayaran + N bulan)
             $mulaiBase = $kontrak?->perjanjian_pembayaran
-                ? \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)->addDay()
+                ? \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)
                 : \Carbon\Carbon::parse($kontrak?->tanggal_kontrak ?? $invoice->invoice_date ?? now());
 
             $periodeAwal  = $mulaiBase->copy()->addMonths($invoiceIdx);
@@ -985,7 +1020,7 @@ class InvoicesController extends Controller
     /* ─────────────────────────────────────────────
        RECALCULATE SUMMARY — dipanggil setelah periodes/remaks selesai disimpan
     ───────────────────────────────────────────── */
-    public function recalculateSummary($id)
+    public function recalculateSummary(Request $request, $id)
     {
         $invoice = Invoice::with('periodes.remaks')->findOrFail($id);
 
@@ -994,18 +1029,26 @@ class InvoicesController extends Controller
             $totalAmount = (float) $invoice->total;
         }
 
+        // Prioritas: pakai periode_count dari request (dikirim frontend), 
+        // fallback ke jumlah periodes di DB
+        $periodeCount = (int) ($request->input('periode_count') ?? 0);
+        if ($periodeCount <= 0) {
+            $periodeCount = max(1, $invoice->periodes->count());
+        }
+
         $summary = \App\Models\InvSummary::where('invoice_id', $id)->first();
         if ($summary) {
             $summary->update([
                 'total_amount'     => $totalAmount,
                 'remaining_amount' => max(0, $totalAmount - (float) $summary->paid_amount),
+                'periode_count'    => $periodeCount,
             ]);
         }
 
         // Juga update kolom total di invoice
         $invoice->update(['total' => $totalAmount]);
 
-        return response()->json(['success' => true, 'total' => $totalAmount]);
+        return response()->json(['success' => true, 'total' => $totalAmount, 'periode_count' => $periodeCount]);
     }
     public static function computeSummaryTotal(Invoice $invoice): float
     {

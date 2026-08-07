@@ -306,17 +306,23 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
                         <div>
                             <label>Kepada</label>
-                            <input type="text" name="kepada" value="{{ old('kepada') }}" class="w-full border rounded-lg p-2 mt-1">
+                            <input type="text" name="kepada" value="{{ old('kepada') }}"
+                                placeholder="cth: PT. Maju Jaya Tbk."
+                                class="w-full border rounded-lg p-2 mt-1">
                         </div>
                         <div>
                             <label>UP</label>
-                            <input type="text" name="up" value="{{ old('up') }}" class="w-full border rounded-lg p-2 mt-1">
+                            <input type="text" name="up" value="{{ old('up') }}"
+                                placeholder="cth: Bapak Budi Santoso"
+                                class="w-full border rounded-lg p-2 mt-1">
                         </div>
                     </div>
 
                     <div class="mt-4">
                         <label>Perihal</label>
-                        <input type="text" name="perihal" value="{{ old('perihal') }}" class="w-full border rounded-lg p-2 mt-1">
+                        <input type="text" name="perihal" value="{{ old('perihal') }}"
+                            placeholder="cth: Penawaran Jasa Sewa Kendaraan Operasional"
+                            class="w-full border rounded-lg p-2 mt-1">
                     </div>
 
                     <hr class="my-6">
@@ -335,46 +341,11 @@
                                 </ul>
                             </div>
                         </div>
-                        <div>
-                            <label>No KTP</label>
-                            <input type="text" id="tambah_no_ktp" name="no_ktp" value="{{ old('no_ktp') }}"
-                                inputmode="numeric" maxlength="16"
-                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
-                                placeholder="16 digit KTP"
-                                class="w-full border rounded-lg p-2 mt-1">
-                        </div>
-                        <div>
-                            <label>Contact Person</label>
-                            <input type="text" inputmode="numeric" name="contact_person" maxlength="15"
-                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
-                                value="{{ old('contact_person') }}" class="w-full border rounded-lg p-2 mt-1">
-                        </div>
-                        <div>
-                            <label>Email Person</label>
-                            <input type="email" name="email_person" value="{{ old('email_person') }}"
-                                class="w-full border rounded-lg p-2 mt-1">
-                        </div>
-                        <div>
-                            <label>Alamat</label>
-                            <textarea id="tambah_alamat" name="alamat" rows="3" class="w-full border rounded-lg p-2 mt-1">{{ old('alamat') }}</textarea>
-                        </div>
-                        <div>
-                            <label>Jenis Pelanggan</label>
-                            <select id="tambah_jenis_pelanggan" name="jenis_pelanggan" class="w-full border rounded-lg p-2 mt-1">
-                                <option value="">-- Pilih Jenis Pelanggan --</option>
-                                <option value="perorangan" {{ old('jenis_pelanggan') == 'perorangan' ? 'selected' : '' }}>Perorangan</option>
-                                <option value="perusahaan" {{ old('jenis_pelanggan') == 'perusahaan' ? 'selected' : '' }}>Perusahaan</option>
-                            </select>
-                        </div>
                     </div>
 
                     <hr class="my-6">
 
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div>
-                            <label>Pengirim</label>
-                            <input type="text" name="pengirim" class="w-full border rounded-lg p-2 mt-1">
-                        </div>
                         <div>
                             <label>Staff</label>
                             <select name="staff" class="w-full border rounded-lg p-2 mt-1">
@@ -398,42 +369,16 @@
                         </div>
                         <div>
                             <label>Nama Staff</label>
-                            <input type="text" name="name_staff" class="w-full border rounded-lg p-2 mt-1">
-                        </div>
-                        <div>
-                            <label>Direktur</label>
-                            <select name="direktur" class="w-full border rounded-lg p-2 mt-1">
-                                <option value="">-- Pilih Jabatan Direktur --</option>
-                                <option>Direktur Utama (CEO)</option>
-                                <option>Wakil Direktur (Vice President)</option>
-                                <option>Manajer Umum (General Manager)</option>
-                                <option>Manajer Operasional</option>
-                                <option>Manajer Keuangan</option>
-                                <option>Manajer Pemasaran</option>
-                                <option>Manajer SDM (HR Manager)</option>
-                                <option>Supervisor / Koordinator</option>
-                                <option>Staf Administrasi</option>
-                                <option>Staf Keuangan</option>
-                                <option>Staf Pemasaran</option>
-                                <option>Staf IT</option>
-                                <option>Customer Service</option>
-                                <option>Office Boy / Office Girl</option>
-                                <option>Security</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label>Nama Direktur</label>
-                            <input type="text" name="name_direktur" class="w-full border rounded-lg p-2 mt-1">
+                            <input type="text" name="name_staff"
+                                placeholder="cth: Agus Pratama"
+                                class="w-full border rounded-lg p-2 mt-1">
                         </div>
                         <div>
                             <label>Periode</label>
-
                             <div class="flex mt-1">
                                 <input type="number" name="periode" placeholder="12"
                                     class="w-full border border-r-0 rounded-l-lg p-2">
-
-                                <span
-                                    class="px-4 flex items-center border border-l-0 rounded-r-lg bg-gray-100 text-gray-600">
+                                <span class="px-4 flex items-center border border-l-0 rounded-r-lg bg-gray-100 text-gray-600">
                                     Bulan
                                 </span>
                             </div>
@@ -517,11 +462,13 @@
                         <div>
                             <label>Kepada</label>
                             <input id="edit_kepada" type="text" name="kepada"
+                                placeholder="cth: PT. Maju Jaya Tbk."
                                 class="w-full border rounded-lg p-2 mt-1">
                         </div>
                         <div>
                             <label>UP</label>
                             <input id="edit_up" type="text" name="up"
+                                placeholder="cth: Bapak Budi Santoso"
                                 class="w-full border rounded-lg p-2 mt-1">
                         </div>
                     </div>
@@ -529,6 +476,7 @@
                     <div class="mt-4">
                         <label>Perihal</label>
                         <input id="edit_perihal" type="text" name="perihal"
+                            placeholder="cth: Penawaran Jasa Sewa Kendaraan Operasional"
                             class="w-full border rounded-lg p-2 mt-1">
                     </div>
 
@@ -547,47 +495,11 @@
                                 </ul>
                             </div>
                         </div>
-                        <div>
-                            <label>No KTP</label>
-                            <input type="text" id="edit_no_ktp" name="no_ktp"
-                                inputmode="numeric" maxlength="16"
-                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
-                                placeholder="16 digit KTP"
-                                class="w-full border rounded-lg p-2 mt-1">
-                        </div>
-                        <div>
-                            <label>Contact Person</label>
-                            <input id="edit_contact" type="text" inputmode="numeric" name="contact_person"
-                                maxlength="15" oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
-                                class="w-full border rounded-lg p-2 mt-1">
-                        </div>
-                        <div>
-                            <label>Email Person</label>
-                            <input id="edit_email" type="email" name="email_person"
-                                class="w-full border rounded-lg p-2 mt-1">
-                        </div>
-                        <div>
-                            <label>Alamat</label>
-                            <textarea id="edit_alamat" name="alamat" rows="3" class="w-full border rounded-lg p-2 mt-1"></textarea>
-                        </div>
-                        <div>
-                            <label>Jenis Pelanggan</label>
-                            <select id="edit_jenis_pelanggan" name="jenis_pelanggan" class="w-full border rounded-lg p-2 mt-1">
-                                <option value="">-- Pilih Jenis Pelanggan --</option>
-                                <option value="perorangan">Perorangan</option>
-                                <option value="perusahaan">Perusahaan</option>
-                            </select>
-                        </div>
                     </div>
 
                     <hr class="my-6">
 
                     <div class="grid grid-cols-3 gap-4">
-                        <div>
-                            <label>Pengirim</label>
-                            <input id="edit_pengirim" type="text" name="pengirim"
-                                class="w-full border rounded-lg p-2 mt-1">
-                        </div>
                         <div>
                             <label>Staff</label>
                             <select id="edit_staff" name="staff" class="w-full border rounded-lg p-2 mt-1">
@@ -612,43 +524,16 @@
                         <div>
                             <label>Nama Staff</label>
                             <input id="edit_name_staff" type="text" name="name_staff"
-                                class="w-full border rounded-lg p-2 mt-1">
-                        </div>
-                        <div>
-                            <label>Direktur</label>
-                            <select id="edit_direktur" name="direktur" class="w-full border rounded-lg p-2 mt-1">
-                                <option value="">-- Pilih Jabatan Direktur --</option>
-                                <option>Direktur Utama (CEO)</option>
-                                <option>Wakil Direktur (Vice President)</option>
-                                <option>Manajer Umum (General Manager)</option>
-                                <option>Manajer Operasional</option>
-                                <option>Manajer Keuangan</option>
-                                <option>Manajer Pemasaran</option>
-                                <option>Manajer SDM (HR Manager)</option>
-                                <option>Supervisor / Koordinator</option>
-                                <option>Staf Administrasi</option>
-                                <option>Staf Keuangan</option>
-                                <option>Staf Pemasaran</option>
-                                <option>Staf IT</option>
-                                <option>Customer Service</option>
-                                <option>Office Boy / Office Girl</option>
-                                <option>Security</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label>Nama Direktur</label>
-                            <input id="edit_name_direktur" type="text" name="name_direktur"
+                                placeholder="cth: Agus Pratama"
                                 class="w-full border rounded-lg p-2 mt-1">
                         </div>
                         <div>
                             <label>Periode</label>
-
                             <div class="flex mt-1">
                                 <input id="edit_periode" type="number" name="periode"
+                                    placeholder="cth: 12"
                                     class="w-full border border-r-0 rounded-l-lg p-2">
-
-                                <span
-                                    class="px-4 flex items-center border border-l-0 rounded-r-lg bg-gray-100 text-gray-600">
+                                <span class="px-4 flex items-center border border-l-0 rounded-r-lg bg-gray-100 text-gray-600">
                                     Bulan
                                 </span>
                             </div>
@@ -1181,16 +1066,8 @@
                             document.getElementById('edit_up').value = data.up ?? '';
                             document.getElementById('edit_perihal').value = data.perihal ?? '';
                             document.getElementById('edit_customer').value = data.customer_name ?? '';
-                            document.getElementById('edit_no_ktp').value = data.no_ktp ?? '';
-                            document.getElementById('edit_contact').value = data.contact_person ?? '';
-                            document.getElementById('edit_email').value = data.email_person ?? '';
-                            document.getElementById('edit_alamat').value = data.alamat ?? '';
-                            document.getElementById('edit_jenis_pelanggan').value = data.jenis_pelanggan ?? '';
-                            document.getElementById('edit_pengirim').value = data.pengirim ?? '';
                             document.getElementById('edit_staff').value = data.staff ?? '';
                             document.getElementById('edit_name_staff').value = data.name_staff ?? '';
-                            document.getElementById('edit_direktur').value = data.direktur ?? '';
-                            document.getElementById('edit_name_direktur').value = data.name_direktur ?? '';
                             document.getElementById('edit_periode').value = data.periode ?? '';
 
                             loadEditItems(data.items ?? []);
@@ -1384,22 +1261,22 @@
         setupCustomerAutosuggest(
             document.getElementById('tambah_customer_input'),
             document.getElementById('tambah_customer_list'),
-            document.getElementById('tambah_no_ktp'),
-            document.getElementById('tambah_alamat'),
-            document.getElementById('tambah_jenis_pelanggan'),
-            document.querySelector('#formTambah input[name="email_person"]'),
-            document.querySelector('#formTambah input[name="contact_person"]')
+            null,
+            null,
+            null,
+            null,
+            null
         );
 
         // ── Aktifkan autosuggest untuk Modal Edit ──
         setupCustomerAutosuggest(
             document.getElementById('edit_customer'),
             document.getElementById('edit_customer_list'),
-            document.getElementById('edit_no_ktp'),
-            document.getElementById('edit_alamat'),
-            document.getElementById('edit_jenis_pelanggan'),
-            document.getElementById('edit_email'),
-            document.getElementById('edit_contact')
+            null,
+            null,
+            null,
+            null,
+            null
         );
     </script>
     @endpush

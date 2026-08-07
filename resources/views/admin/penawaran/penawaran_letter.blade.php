@@ -74,7 +74,7 @@ body {
 .sign-table td { vertical-align:top; border:none; font-size:10pt; }
 .sign-name { font-weight:bold; font-size:10pt; }
 .sign-logo { max-height:11mm; max-width:28mm; opacity:0.45; margin:1.5mm 0; display:block; }
-.sign-line { border-top:1px solid #000; width:52mm; margin-top:10mm; margin-bottom:2mm; }
+.sign-line { border-top:1px solid #000; width:52mm; margin-bottom:2mm; }
 
 /* ── FOOTER (fixed at very bottom, appears on every page) ── */
 .page-footer {
@@ -206,17 +206,18 @@ body {
 {{-- ── TANDA TANGAN ── --}}
 <table class="sign-table">
     <tr>
-        <td style="width:50%;">
+        <td style="width:50%; vertical-align:top;">
             <p>Hormat kami,</p>
             <p class="sign-name">{{ $namaPerush }}</p>
+            <div style="height:14mm;"></div>
             <div class="sign-line"></div>
-            <p>{{ $penawaran->name_direktur ?? $penawaran->pengirim ?? '…………………………' }}</p>
-            <p style="font-size:9.5pt;">&nbsp;&nbsp;({{ $penawaran->direktur ?? 'Direktur' }})</p>
+            <p>{{ $penawaran->name_staff ?? '…………………………' }}</p>
+            <p style="font-size:9.5pt;">({{ $penawaran->staff ?? 'Staff' }})</p>
         </td>
-        <td style="width:50%; text-align:center; padding-top:4mm;">
+        <td style="width:50%; vertical-align:top; text-align:center; padding-top:0;">
             <p>Disetujui Oleh,</p>
             <p class="sign-name">{{ $penawaran->kepada }}</p>
-            <div style="height:11mm;"></div>
+            <div style="height:14mm;"></div>
             <div class="sign-line" style="margin-left:auto; margin-right:auto;"></div>
             <p>({{ $penawaran->up ?? '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' }})</p>
         </td>

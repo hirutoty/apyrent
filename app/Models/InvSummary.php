@@ -20,6 +20,7 @@ class InvSummary extends Model
         'paid_amount',
         'remaining_amount',
         'payment_status',
+        'periode_count',
     ];
 
     protected $casts = [
