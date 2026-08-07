@@ -22,6 +22,10 @@ class ServiceDetail extends Model
         'bukti',
     ];
 
+    protected $casts = [
+        'bukti' => 'array',
+    ];
+
     /**
      * Relasi ke service history
      */

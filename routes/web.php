@@ -435,6 +435,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   Route::resource('service-detail', ServiceDetailController::class);
   Route::put('service/service-detail/{id}/status', [ServiceDetailController::class, 'updateStatus']);
+  Route::delete('service-detail/{id}/bukti', [ServiceDetailController::class, 'deleteBukti'])
+      ->name('service-detail.bukti.delete');
 
   // Reminder Service
   Route::resource('reminder-service', ReminderServiceController::class);
@@ -515,6 +517,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   Route::get('invoice/{id}/print', [InvoicesController::class, 'print'])
     ->name('invoices.print');
+  Route::post('invoice/{id}/recalculate-summary', [InvoicesController::class, 'recalculateSummary'])
+    ->name('invoices.recalculateSummary');
   Route::post('invoice/{id}/send-email', [InvoicesController::class, 'sendEmail'])
     ->name('invoices.email');
   Route::get('invoices/ttd-library', [InvoicesController::class, 'ttdLibrary'])
@@ -550,6 +554,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
 
   Route::resource('summary', SummaryController::class);
+  Route::delete('/summary/destroy-by-kontrak/{kontrak_id}', [SummaryController::class, 'destroyByKontrak'])
+    ->name('summary.destroyByKontrak');
   Route::get('/admin/summary/pdf', [SummaryController::class, 'exportPdf'])
     ->name('summary.pdf');
   Route::get('/summary/export/excel', [SummaryController::class, 'exportExcel'])

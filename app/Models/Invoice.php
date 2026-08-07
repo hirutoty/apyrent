@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\InvoicePayment;
 
 class Invoice extends Model
 {
@@ -56,6 +57,7 @@ class Invoice extends Model
     public function kendaraans() { return $this->belongsToMany(Kendaraan::class, 'invoice_kendaraans', 'invoice_id', 'kendaraan_id')->withTimestamps(); }
     public function periodes() { return $this->hasMany(InvoicePeriode::class, 'invoice_id'); }
     public function remaks() { return $this->hasMany(InvoiceRemak::class, 'invoice_id'); }
+    public function payments() { return $this->hasMany(InvoicePayment::class, 'invoice_id'); }
     public function agingAr() { return $this->hasOne(AgingAr::class, 'invoice_id'); }
     public function summary() { return $this->hasOne(InvSummary::class, 'invoice_id'); }
 

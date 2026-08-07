@@ -457,7 +457,6 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-slate-500">Total Tagihan</p>
-                            <h3 class="text-3xl font-bold text-slate-800 mt-2">{{ $dataAp->count() }}</h3>
                         </div>
                         <div
                             class="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-600 flex

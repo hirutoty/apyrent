@@ -126,12 +126,40 @@ class InvKontrakController extends Controller
             'contact_kedua'         => 'nullable|string|max:255',
         ]);
 
-        // Hitung durasi & tanggal selesai
-        $penawaran   = InvPenawaran::with('items.kendaraan')->findOrFail($request->penawaran_id);
-        $firstItem   = $penawaran->items->first();
-        $durasiValue = (int) ($firstItem->durasi ?? $penawaran->periode ?? 1);
-        $durasiSat   = strtolower(trim($firstItem->satuan_durasi ?? 'bulan'));
-        if (!in_array($durasiSat, ['hari', 'bulan', 'tahun'])) $durasiSat = 'bulan';
+        // Hitung durasi & tanggal selesai — pakai durasi terpanjang dari semua item
+        $penawaran = InvPenawaran::with('items.kendaraan')->findOrFail($request->penawaran_id);
+
+        $toDays = function (int $val, string $sat): int {
+            return match ($sat) {
+                'tahun' => $val * 365,
+                'bulan' => $val * 30,
+                default => $val,
+            };
+        };
+
+        $maxDays     = 0;
+        $durasiValue = (int) ($penawaran->periode ?? 1);
+        $durasiSat   = 'bulan';
+
+        foreach ($penawaran->items as $item) {
+            $val = (int) ($item->durasi ?? $penawaran->periode ?? 1);
+            $sat = strtolower(trim($item->satuan_durasi ?? 'bulan'));
+            if (!in_array($sat, ['hari', 'bulan', 'tahun'])) $sat = 'bulan';
+            if ($val <= 0) $val = 1;
+
+            $days = $toDays($val, $sat);
+            if ($days > $maxDays) {
+                $maxDays     = $days;
+                $durasiValue = $val;
+                $durasiSat   = $sat;
+            }
+        }
+
+        if ($maxDays === 0) {
+            // Fallback: tidak ada item
+            $durasiValue = (int) ($penawaran->periode ?? 1);
+            $durasiSat   = 'bulan';
+        }
 
         $mulai = Carbon::parse($request->tanggal_kontrak);
         $selesai = match ($durasiSat) {
@@ -226,6 +254,12 @@ class InvKontrakController extends Controller
                         ]
                     );
 
+                    // tanggal_mulai = perjanjian_pembayaran + 1 hari
+                    // Jika perjanjian_pembayaran belum diisi, fallback ke tanggal_kontrak
+                    $mulai = $kontrak->perjanjian_pembayaran
+                        ? Carbon::parse($kontrak->perjanjian_pembayaran)->addDay()
+                        : Carbon::parse($kontrak->tanggal_kontrak);
+
                     foreach ($validItems as $item) {
                         $durasi = (int) $item->durasi;
                         $satuan = strtolower(trim($item->satuan_durasi ?? 'bulan'));
@@ -233,7 +267,7 @@ class InvKontrakController extends Controller
                         if ($durasi <= 0) { $durasi = (int) ($penawaran->periode ?? 1); }
                         if ($durasi <= 0) $durasi = 1;
 
-                        $mulai   = Carbon::parse($kontrak->tanggal_kontrak);
+                        // Tanggal selesai dihitung per item dari tanggal_mulai yang sama
                         $selesai = match ($satuan) {
                             'hari'  => $mulai->copy()->addDays($durasi),
                             'tahun' => $mulai->copy()->addYears($durasi),

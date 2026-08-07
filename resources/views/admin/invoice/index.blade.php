@@ -150,8 +150,28 @@
                             <td data-col="col-customer"   class="px-4 py-3.5 text-sm font-semibold text-gray-800">{{ $inv->customer_name }}</td>
                             <td data-col="col-penawaran"  class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->penawaran)->no_penawaran ?? '�' }}</td>
                             <td data-col="col-kontrak"    class="px-4 py-3.5 text-sm text-gray-600">{{ optional($inv->kontrak)->no_kontrak ?? '�' }}</td>
-                            <td data-col="col-kendaraan"  class="px-4 py-3.5 text-sm text-gray-600">
-                                {{ $inv->kendaraan ? $inv->kendaraan->merk . ' � ' . $inv->kendaraan->nopol : '�' }}
+                            <td data-col="col-kendaraan" class="px-4 py-3.5 text-xs text-gray-600">
+                                @php
+                                    $kendaraanList = $inv->kendaraans->isNotEmpty()
+                                        ? $inv->kendaraans
+                                        : ($inv->kendaraan ? collect([$inv->kendaraan]) : collect());
+                                    $isLunas = $inv->payment_status === 'paid' || $inv->status === 'lunas';
+                                @endphp
+                                @if($kendaraanList->isEmpty())
+                                    <span class="text-gray-400">-</span>
+                                @else
+                                    <div class="flex flex-col gap-1">
+                                    @foreach($kendaraanList as $kdNo => $kd)
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="text-[10px] font-bold text-gray-400 w-4">{{ $kdNo + 1 }}.</span>
+                                            <span class="font-medium text-gray-800">{{ $kd->merk }} &ndash; {{ $kd->nopol }}</span>
+                                            @if($isLunas)
+                                            <span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">Lunas</span>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                    </div>
+                                @endif
                             </td>
                             <td data-col="col-status" class="px-4 py-3.5 text-center">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $statusColor }}">
@@ -519,9 +539,10 @@
                         class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
                         Batal
                     </button>
-                    <button type="submit" id="btnSimpanTambah"
+                    <button type="button" id="btnSimpanTambah"
+                        onclick="handleLanjutKePeriode()"
                         class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
-                        <i class="fa fa-save text-sm"></i> Simpan & Lanjut ke Periode
+                        <i class="fa fa-arrow-right text-sm"></i> Lanjut ke Periode & Remaks
                     </button>
                 </div>
             </form>
@@ -535,7 +556,10 @@
                             <h3 class="text-sm font-bold text-gray-800">Periode & Remaks</h3>
                             <p class="text-xs text-gray-400 mt-0.5">Invoice: <span id="tambah_invoice_no_label" class="font-semibold text-blue-600">-</span></p>
                         </div>
-                       
+                        <button type="button" onclick="openTambahPeriodeModal()"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                            <i class="fa fa-plus text-xs"></i> Tambah Periode
+                        </button>
                     </div>
                     <div id="periodeListTambah" class="divide-y border rounded-xl min-h-[120px]">
                         <div class="py-10 text-center text-gray-400 text-xs">
@@ -543,20 +567,38 @@
                             Belum ada periode. Klik "Tambah Periode" untuk memulai.
                         </div>
                     </div>
-                    {{-- Summary --}}
+                    {{-- Summary periode --}}
                     <div class="mt-4 flex justify-end">
-                        <table class="text-sm">
-                            <tr><td class="text-gray-500 pr-8 py-1">Total</td><td class="text-right font-semibold text-gray-800 min-w-[130px]" id="tambahSummaryTotal">Rp 0</td></tr>
-                            <tr><td class="text-gray-500 pr-8 py-1" id="tambahSummaryPpnLabel">PPN</td><td class="text-right text-gray-700" id="tambahSummaryPpn">-</td></tr>
-                            <tr><td class="text-gray-500 pr-8 py-1">Sub Total</td><td class="text-right text-gray-700" id="tambahSummarySubTotal">Rp 0</td></tr>
-                            <tr class="border-t"><td class="text-gray-800 font-bold pr-8 py-2">Total Invoice</td><td class="text-right font-bold text-blue-700 text-base" id="tambahSummaryGrand">Rp 0</td></tr>
+                        <table class="text-sm min-w-[260px]">
+                            {{-- Sub total per item kendaraan --}}
+                            <tbody id="tambahSummaryItemRows"></tbody>
+                            <tr>
+                                <td class="text-gray-500 pr-8 py-1">Sub Total</td>
+                                <td class="text-right font-semibold text-gray-800 min-w-[130px]" id="tambahSummaryTotal">Rp 0</td>
+                            </tr>
+                            <tr>
+                                <td class="text-gray-500 pr-8 py-1" id="tambahSummaryPpnLabel">PPN</td>
+                                <td class="text-right text-gray-700" id="tambahSummaryPpn">-</td>
+                            </tr>
+                            <tr>
+                                <td class="text-gray-500 pr-8 py-1 text-[10px]">Jumlah Periode</td>
+                                <td class="text-right text-gray-400 text-[10px]" id="tambahSummarySubTotal">-</td>
+                            </tr>
+                            <tr class="border-t">
+                                <td class="text-gray-800 font-bold pr-8 py-2">Total Invoice</td>
+                                <td class="text-right font-bold text-blue-700 text-base" id="tambahSummaryGrand">Rp 0</td>
+                            </tr>
                         </table>
                     </div>
                 </div>
-                <div class="border-t border-gray-100 px-6 py-4 flex justify-end">
+                <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
+                    <button type="button" onclick="switchTambahTab(1)"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                        <i class="fa fa-arrow-left text-xs"></i> Kembali
+                    </button>
                     <button type="button" id="btnSelesaiTambah"
                         class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
-                        <i class="fa fa-check"></i> Selesai
+                        <i class="fa fa-save"></i> Simpan Invoice
                     </button>
                 </div>
             </div>{{-- end tab2 --}}
@@ -1196,11 +1238,10 @@
 
             const ppnLabel = document.getElementById('tambahSummaryPpnLabel');
             const ppnEl    = document.getElementById('tambahSummaryPpn');
-            const subEl    = document.getElementById('tambahSummarySubTotal');
             const grandEl  = document.getElementById('tambahSummaryGrand');
             if (ppnLabel) ppnLabel.textContent = ppnPct > 0 ? `PPN ${ppnPct}%` : 'PPN';
             if (ppnEl)    ppnEl.textContent    = ppnNom > 0 ? rpFmt(ppnNom) : '-';
-            if (subEl)    subEl.textContent    = rpFmt(base + ppnNom);
+            // tambahSummarySubTotal = "Per Periode" — sudah diisi di renderPeriodeListLokal, tidak di-override
             if (grandEl)  grandEl.textContent  = rpFmt(grand);
 
             const totalEl = document.getElementById('tambah_total');
@@ -1548,7 +1589,10 @@
                     '<span class="text-gray-400 italic">Pilih No Kontrak terlebih dahulu.</span>';
                 document.getElementById('tambah_kontrak_status').classList.add('hidden');
                 // Reset rental details
-                window._tambahRentalDetails = [];
+                window._tambahRentalDetails  = [];
+                window._lokalPeriodes        = [];
+                window._invoiceDraft         = false;
+                window._existingInvoiceCount = 0;
                 // Reset seksi 3
                 setVal('tambah_satuan', 'Car Rent/Day');
                 setVal('tambah_pengirim', '');
@@ -1677,7 +1721,8 @@
                     }
 
                     // Info cards dihapus — langsung ambil rental_details
-                    window._tambahRentalDetails = data.rental_details || [];
+                    window._tambahRentalDetails    = data.rental_details || [];
+                    window._existingInvoiceCount   = data.existing_invoice_count ?? 0;
 
                     // Auto-fill Seksi 3: Informasi Invoice
                     setVal('tambah_satuan',  data.satuan  ?? 'Car Rent/Day');
@@ -1962,59 +2007,37 @@
         // Auto-populate periode & remak dari data penawaran kontrak
         async function autoPopulatePeriodeRemak(invoiceId) {
             console.log('[autoPopulate] invoiceId:', invoiceId, 'rentalDetails:', window._tambahRentalDetails);
+
             if (!window._tambahRentalDetails || window._tambahRentalDetails.length === 0) {
                 console.warn('[autoPopulate] _tambahRentalDetails kosong, skip.');
                 return;
             }
-            const csrf = '{{ csrf_token() }}';
+
+            const csrf = document.querySelector('meta[name=csrf-token]')?.content || '{{ csrf_token() }}';
 
             for (const entry of window._tambahRentalDetails) {
                 if (!entry.tanggal_mulai) continue;
 
-                // 1. Buat 1 periode
+                // 1. Buat periode
                 let periodeId = null;
                 try {
                     const periodeResp = await fetch('/admin/invoices/' + invoiceId + '/periodes', {
                         method: 'POST',
                         headers: {
-                            'X-CSRF-TOKEN': csrf,
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
+                            'X-CSRF-TOKEN':  csrf,
+                            'Accept':        'application/json',
+                            'Content-Type':  'application/json',
                         },
                         body: JSON.stringify({
                             periode_awal:  entry.tanggal_mulai,
                             periode_akhir: entry.tanggal_selesai || entry.tanggal_mulai,
-                        })
+                        }),
                     });
                     const periodeJson = await periodeResp.json();
                     console.log('[autoPopulate] periodeResp status:', periodeResp.status, 'json:', periodeJson);
                     periodeId = periodeJson.id ?? periodeJson.periode?.id ?? null;
-                } catch (e) {
-                    console.error('Gagal buat periode:', e);
-                }
-                if (!periodeId) continue;
-
-                // 2. Buat remak untuk setiap item kendaraan
-                const remakItems = entry.remak_items || [];
-                for (const item of remakItems) {
-                    await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrf,
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            periode_awal:  periodeAwal,
-                            periode_akhir: periodeAkhir,
-                        })
-                    });
-                    const periodeJson = await periodeResp.json();
-                    console.log('[autoPopulate] periode response:', periodeJson);
-                    periodeId = periodeJson.id ?? periodeJson.periode?.id ?? null;
-                } catch(err) {
+                } catch (err) {
                     console.error('[autoPopulate] Gagal buat periode:', err);
-                    continue;
                 }
 
                 if (!periodeId) {
@@ -2022,7 +2045,7 @@
                     continue;
                 }
 
-                // 2. Buat remak untuk setiap item
+                // 2. Remak per item kendaraan
                 const remakItems = entry.remak_items || [];
                 console.log('[autoPopulate] remak_items:', remakItems);
                 for (const item of remakItems) {
@@ -2030,41 +2053,41 @@
                         const remakResp = await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
                             method: 'POST',
                             headers: {
-                                'X-CSRF-TOKEN': csrf,
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json'
+                                'X-CSRF-TOKEN':  csrf,
+                                'Accept':        'application/json',
+                                'Content-Type':  'application/json',
                             },
                             body: JSON.stringify({
                                 remaks: item.kendaraan || 'Item',
                                 qty:    item.qty   || 1,
                                 price:  item.price || 0,
-                            })
+                            }),
                         });
                         const remakJson = await remakResp.json();
                         console.log('[autoPopulate] remak response:', remakJson);
-                    } catch(err) {
+                    } catch (err) {
                         console.error('[autoPopulate] Gagal buat remak:', err);
                     }
                 }
 
-                // 3. Remak driver terpisah jika ada
+                // 3. Remak driver (jika ada)
                 if (entry.biaya_driver > 0) {
                     const driverLabel = entry.nama_driver ? 'Driver: ' + entry.nama_driver : 'Biaya Driver';
                     try {
                         await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
                             method: 'POST',
                             headers: {
-                                'X-CSRF-TOKEN': csrf,
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json'
+                                'X-CSRF-TOKEN':  csrf,
+                                'Accept':        'application/json',
+                                'Content-Type':  'application/json',
                             },
                             body: JSON.stringify({
                                 remaks: driverLabel,
                                 qty:    entry.durasi_nilai ?? 1,
                                 price:  entry.biaya_driver,
-                            })
+                            }),
                         });
-                    } catch(err) {
+                    } catch (err) {
                         console.error('[autoPopulate] Gagal buat remak driver:', err);
                     }
                 }
@@ -2072,45 +2095,314 @@
             console.log('[autoPopulate] selesai.');
         }
 
-        // ====== AJAX STORE FORM TAMBAH ======
-        document.getElementById('formTambah')?.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btnSimpanTambah');
+        // ====== TAB 1: LANJUT KE PERIODE (hanya validasi + pindah tab, BELUM simpan) ======
+        function handleLanjutKePeriode() {
+            const form = document.getElementById('formTambah');
+            const requiredFields = form.querySelectorAll('[required]');
+            let valid = true;
+            requiredFields.forEach(function(field) {
+                if (!field.value.trim()) {
+                    field.classList.add('border-red-400');
+                    valid = false;
+                } else {
+                    field.classList.remove('border-red-400');
+                }
+            });
+            if (!valid) {
+                alert('Harap lengkapi semua field yang wajib diisi terlebih dahulu.');
+                return;
+            }
+
+            // Aktifkan tab 2 tanpa invoice_id dulu (mode draft lokal)
+            const tab2Btn = document.getElementById('tambah_tab2_btn');
+            if (tab2Btn) {
+                tab2Btn.disabled = false;
+                tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-600 hover:text-blue-600 rounded-tr-lg cursor-pointer';
+            }
+            // Tandai bahwa kita di mode "belum disimpan"
+            window._invoiceDraft = true;
+
+            // Tampilkan tab 2 (periodeListTambah kosong, user tambah manual)
+            const tab1Btn = document.getElementById('tambah_tab1_btn');
+            const tab1Con = document.getElementById('tambah_tab1_content');
+            const tab2Con = document.getElementById('tambah_tab2_content');
+            tab1Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 rounded-tl-lg';
+            tab2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tr-lg';
+            tab1Con.classList.add('hidden');
+            tab2Con.classList.remove('hidden');
+
+            // Label invoice sementara
+            const label = document.getElementById('tambah_invoice_no_label');
+            if (label) label.textContent = '(akan dibuat setelah simpan)';
+
+            // Auto-populate _lokalPeriodes dari rental_details kontrak
+            // Setiap entry = 1 periode bulan, semua kendaraan jadi remaks per periode
+            const rentalDetails = window._tambahRentalDetails || [];
+            if (rentalDetails.length > 0 && window._lokalPeriodes.length === 0) {
+                window._lokalPeriodes = rentalDetails
+                    .filter(entry => entry.tanggal_mulai)
+                    .map(entry => {
+                        const remaks = (entry.remak_items || []).map(item => ({
+                            text:  item.kendaraan || 'Item',
+                            qty:   item.qty   || 1,
+                            price: item.price || 0,
+                        }));
+                        if (entry.biaya_driver > 0) {
+                            remaks.push({
+                                text:  entry.nama_driver ? 'Driver: ' + entry.nama_driver : 'Biaya Driver',
+                                qty:   entry.durasi_nilai ?? 1,
+                                price: entry.biaya_driver,
+                            });
+                        }
+                        return {
+                            awal:   entry.tanggal_mulai,
+                            akhir:  entry.tanggal_selesai || entry.tanggal_mulai,
+                            remaks: remaks,
+                        };
+                    });
+            }
+
+            // Render daftar periode lokal
+            renderPeriodeListLokal();
+        }
+        // Expose ke global agar bisa dipanggil dari onclick inline
+        window.handleLanjutKePeriode = handleLanjutKePeriode;
+
+        // ====== TAB 2: SIMPAN INVOICE (AJAX store + periode lokal) ======
+        document.getElementById('btnSelesaiTambah')?.addEventListener('click', async function() {
+            const btn = this;
             btn.disabled = true;
             btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Menyimpan...';
 
-            const formData = new FormData(this);
+            const form = document.getElementById('formTambah');
+            const formData = new FormData(form);
+
             try {
-                const resp = await fetch(this.action, {
+                // 1. Simpan invoice via AJAX
+                const resp = await fetch(form.action, {
                     method: 'POST',
                     headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    body: formData
+                    body: formData,
                 });
                 const json = await resp.json();
-                if (json.success) {
-                    unlockTab2(json.invoice_id, json.invoice_no);
-                    await autoPopulatePeriodeRemak(json.invoice_id);
-                    // Panggil loadPeriodesTambah setelah autoPopulate agar list ter-render
-                    if (typeof loadPeriodesTambah === 'function') await loadPeriodesTambah();
-                    switchTambahTab(2);
-                    // Paksa reload daftar periode setelah auto-populate selesai
-                    if (typeof loadPeriodesTambah === 'function') await loadPeriodesTambah();
-                } else {
+
+                if (!json.success) {
                     alert(json.message || 'Gagal menyimpan invoice.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa fa-save"></i> Simpan Invoice';
+                    return;
                 }
+
+                const invoiceId = json.invoice_id;
+
+                // 2. Simpan periode & remaks lokal (dari window._lokalPeriodes)
+                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                const lokalPeriodes = window._lokalPeriodes || [];
+                for (const periode of lokalPeriodes) {
+                    let periodeId = null;
+                    try {
+                        const pr = await fetch('/admin/invoices/' + invoiceId + '/periodes', {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ periode_awal: periode.awal, periode_akhir: periode.akhir }),
+                        });
+                        const pj = await pr.json();
+                        periodeId = pj.id ?? pj.periode?.id ?? null;
+                    } catch(e) { console.error('Gagal simpan periode:', e); }
+
+                    if (!periodeId) continue;
+                    for (const remak of (periode.remaks || [])) {
+                        try {
+                            await fetch('/admin/invoices/' + invoiceId + '/periodes/' + periodeId + '/remaks', {
+                                method: 'POST',
+                                headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ remaks: remak.text, qty: remak.qty, price: remak.price }),
+                            });
+                        } catch(e) { console.error('Gagal simpan remak:', e); }
+                    }
+                }
+
+                // 3. Recalculate summary total setelah periodes/remaks tersimpan
+                try {
+                    await fetch('/admin/invoice/' + invoiceId + '/recalculate-summary', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                    });
+                } catch(e) { console.error('Gagal recalculate summary:', e); }
+
+                // 4. Selesai — tutup modal & reload
+                window._lokalPeriodes = [];
+                const modal = document.getElementById('modalTambah');
+                if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+                window.location.reload();
+
             } catch(err) {
                 alert('Terjadi kesalahan: ' + err.message);
-            } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa fa-save text-sm"></i> Simpan & Lanjut ke Periode';
+                btn.innerHTML = '<i class="fa fa-save"></i> Simpan Invoice';
             }
         });
 
-        // Tutup + reload saat selesai di tab 2
-        document.getElementById('btnSelesaiTambah')?.addEventListener('click', function() {
-            closeModal(document.getElementById('modalTambah'));
-            window.location.reload();
-        });
+        // ====== PERIODE LOKAL (sebelum invoice disimpan) ======
+        window._lokalPeriodes = []; // [{awal, akhir, remaks:[{text,qty,price}]}]
+
+        function renderPeriodeListLokal() {
+            const list = document.getElementById('periodeListTambah');
+            if (!list) return;
+            const periodes = window._lokalPeriodes;
+            if (!periodes.length) {
+                list.innerHTML = '<div class="py-10 text-center text-gray-400 text-xs"><i class="fa fa-calendar-alt text-2xl mb-2 block"></i>Belum ada periode. Klik "Tambah Periode".</div>';
+                return;
+            }
+
+            // Periode aktif = index ke existing_invoice_count (invoice ke-N berarti periode ke-N)
+            const verifiedCount = window._existingInvoiceCount ?? 0;
+
+            list.innerHTML = periodes.map((p, pi) => {
+                const awal   = fmtDate(p.awal);
+                const akhir  = p.akhir && p.akhir !== p.awal ? fmtDate(p.akhir) : '';
+                const label  = awal + (akhir ? ' – ' + akhir : '');
+                const subtot = (p.remaks || []).reduce((s, r) => s + (r.qty || 1) * (r.price || 0), 0);
+
+                const isPaid   = pi < verifiedCount;
+                const isActive = pi === verifiedCount;
+                const isFuture = pi > verifiedCount;
+
+                // ── Sudah dibayar: centang hijau collapsed ──────────
+                if (isPaid) {
+                    return `<div class="px-4 py-3 flex items-center justify-between border-b border-gray-50 bg-green-50/40">
+                        <div class="flex items-center gap-2">
+                            <span class="w-5 h-5 flex items-center justify-center rounded-full bg-green-100 flex-shrink-0">
+                                <i class="fa fa-check text-[10px] text-green-600"></i>
+                            </span>
+                            <span class="text-xs font-semibold text-green-700 line-through">${label}</span>
+                            <span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Lunas</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-green-600 font-semibold">${rpFmt(subtot)}</span>
+                            <button onclick="deleteLokalPeriode(${pi})" class="text-red-300 hover:text-red-500 text-xs px-1"><i class="fa fa-trash text-[10px]"></i></button>
+                        </div>
+                    </div>`;
+                }
+
+                // ── Belum saatnya: silang abu collapsed ─────────────
+                if (isFuture) {
+                    return `<div class="px-4 py-3 flex items-center justify-between border-b border-gray-50 bg-gray-50/60">
+                        <div class="flex items-center gap-2">
+                            <span class="w-5 h-5 flex items-center justify-center rounded-full bg-gray-200 flex-shrink-0">
+                                <i class="fa fa-times text-[10px] text-gray-400"></i>
+                            </span>
+                            <span class="text-xs text-gray-400">${label}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-400">${rpFmt(subtot)}</span>
+                            <button onclick="deleteLokalPeriode(${pi})" class="text-red-300 hover:text-red-500 text-xs px-1"><i class="fa fa-trash text-[10px]"></i></button>
+                        </div>
+                    </div>`;
+                }
+
+                // ── Periode AKTIF: expanded, border biru ────────────
+                const remakRows = (p.remaks || []).map((r, ri) => `
+                    <div class="flex items-center justify-between bg-white rounded-lg px-3 py-2 text-xs border border-blue-100">
+                        <span class="text-gray-700 flex-1">${r.text}</span>
+                        <div class="flex items-center gap-3 flex-shrink-0 ml-2">
+                            <span class="text-gray-400">${r.qty}x</span>
+                            <span class="font-semibold text-gray-800">${rpFmt(r.price)}</span>
+                            <button onclick="deleteLokalRemak(${pi},${ri})" class="text-red-400 hover:text-red-600"><i class="fa fa-times text-[10px]"></i></button>
+                        </div>
+                    </div>`).join('');
+
+                return `<div class="border-l-4 border-blue-500 bg-blue-50/30">
+                    <div class="px-4 py-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="w-5 h-5 flex items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
+                                <i class="fa fa-calendar text-[10px] text-blue-600"></i>
+                            </span>
+                            <span class="text-xs font-bold text-blue-800">${label}</span>
+                            <span class="text-[10px] font-semibold bg-blue-600 text-white px-2 py-0.5 rounded-full animate-pulse">Aktif</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="openLokalRemakModal(${pi})" class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
+                                <i class="fa fa-plus text-[10px]"></i> Remak
+                            </button>
+                            <button onclick="deleteLokalPeriode(${pi})" class="text-xs px-2 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200">
+                                <i class="fa fa-trash text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="px-4 pb-3 space-y-1">
+                        ${remakRows || '<p class="text-xs text-gray-400 italic">Belum ada remak. Klik "+ Remak".</p>'}
+                    </div>
+                    <div class="px-4 pb-3 flex justify-end">
+                        <span class="text-xs font-bold text-blue-700">Sub Total: ${rpFmt(subtot)}</span>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Update summary
+            // Base = subtotal periode aktif (index 0 = periode pertama yang belum dibayar)
+            // karena setiap periode bisa beda nilai (kendaraan yang masih aktif berbeda)
+            const verifiedCountLokal = window._existingInvoiceCount ?? 0;
+            const aktivIdx           = Math.min(verifiedCountLokal, periodes.length - 1);
+            let base = 0;
+            if (periodes[aktivIdx]) {
+                (periodes[aktivIdx].remaks || []).forEach(r => {
+                    base += (r.qty || 1) * (r.price || 0);
+                });
+            }
+
+            const jumlahPeriode  = periodes.length;
+            const basePerPeriode = base; // subtotal periode aktif (bukan rata-rata)
+
+            // Simpan base PER PERIODE agar recalcTambahTotal pakai nilai yang benar
+            window._tambahSubTotalBase = basePerPeriode;
+
+            // Isi baris sub total per item kendaraan dari periode aktif
+            const aktivPeriode = periodes[aktivIdx];
+            const itemRowsEl   = document.getElementById('tambahSummaryItemRows');
+            if (itemRowsEl && aktivPeriode) {
+                itemRowsEl.innerHTML = (aktivPeriode.remaks || []).map(r => {
+                    const subtotItem = (r.qty || 1) * (r.price || 0);
+                    return `<tr>
+                        <td class="text-gray-400 pr-8 py-0.5 text-xs">${r.text || '-'}</td>
+                        <td class="text-right text-xs text-gray-600">${rpFmt(subtotItem)}</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            // Isi kolom "Sub Total" dan "Jumlah Periode"
+            const elSubTotal = document.getElementById('tambahSummaryTotal');
+            if (elSubTotal) elSubTotal.textContent = rpFmt(basePerPeriode);
+            const elJumlah = document.getElementById('tambahSummarySubTotal');
+            if (elJumlah) elJumlah.textContent = jumlahPeriode + ' periode';
+
+            recalcTambahTotal();
+        }
+        window.renderPeriodeListLokal = renderPeriodeListLokal;
+
+        function deleteLokalPeriode(pi) {
+            if (!confirm('Hapus periode ini?')) return;
+            window._lokalPeriodes.splice(pi, 1);
+            renderPeriodeListLokal();
+        }
+
+        function deleteLokalRemak(pi, ri) {
+            window._lokalPeriodes[pi].remaks.splice(ri, 1);
+            renderPeriodeListLokal();
+        }
+
+        function openLokalRemakModal(pi) {
+            window._aktivLokalPeriodeIdx = pi;
+            ['tambahRemakText','tambahRemakQty','tambahRemakPrice'].forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (el) el.value = i === 0 ? '' : (i === 1 ? 1 : 0);
+            });
+            const m = document.getElementById('modalTambahRemak');
+            if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+        }
+        window.deleteLokalPeriode  = deleteLokalPeriode;
+        window.deleteLokalRemak    = deleteLokalRemak;
+        window.openLokalRemakModal = openLokalRemakModal;
 
         // ====== PERIODE DI TAB 2 MODAL TAMBAH ======
         function rpFmt(n) { return 'Rp ' + Number(n||0).toLocaleString('id-ID'); }
@@ -2197,30 +2489,34 @@
             document.getElementById('tambah_total').value = grandTotal;
         }
 
-                  const awal  = document.getElementById('tambahPeriodeAwal').value;
+        // ====== SIMPAN PERIODE (mode lokal: sebelum invoice disimpan) ======
+        document.getElementById('saveTambahPeriode')?.addEventListener('click', function() {
+            const awal  = document.getElementById('tambahPeriodeAwal').value;
             if (!awal) { alert('Tanggal awal wajib diisi.'); return; }
             const akhir = document.getElementById('tambahPeriodeAkhir').value;
-            await fetch('/admin/invoices/' + currentTambahInvoiceId + '/periodes', {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ periode_awal: awal, periode_akhir: akhir || null })
-            });
+
+            if (!window._lokalPeriodes) window._lokalPeriodes = [];
+            window._lokalPeriodes.push({ awal, akhir: akhir || awal, remaks: [] });
+
             closeModal(document.getElementById('modalTambahPeriode'));
-            loadPeriodesTambah();
+            renderPeriodeListLokal();
         });
 
-        document.getElementById('saveTambahRemak')?.addEventListener('click', async function() {
-            const remaks = document.getElementById('tambahRemakText').value.trim();
-            const qty    = document.getElementById('tambahRemakQty').value;
-            const price  = document.getElementById('tambahRemakPrice').value;
-            if (!remaks) { alert('Keterangan wajib diisi.'); return; }
-            await fetch('/admin/invoices/' + currentTambahInvoiceId + '/periodes/' + activeTambahPeriodeId + '/remaks', {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ remaks, qty: parseInt(qty), price: parseFloat(price) })
-            });
+        // ====== SIMPAN REMAK (mode lokal) ======
+        document.getElementById('saveTambahRemak')?.addEventListener('click', function() {
+            const text  = document.getElementById('tambahRemakText').value.trim();
+            const qty   = parseInt(document.getElementById('tambahRemakQty').value) || 1;
+            const price = parseFloat(document.getElementById('tambahRemakPrice').value) || 0;
+            if (!text) { alert('Keterangan wajib diisi.'); return; }
+
+            const pi = window._aktivLokalPeriodeIdx;
+            if (pi === undefined || pi === null || !window._lokalPeriodes?.[pi]) {
+                alert('Pilih periode terlebih dahulu.'); return;
+            }
+            window._lokalPeriodes[pi].remaks.push({ text, qty, price });
+
             closeModal(document.getElementById('modalTambahRemak'));
-            loadPeriodesTambah();
+            renderPeriodeListLokal();
         });
 
         // Close buttons untuk modal periode/remak tab 2

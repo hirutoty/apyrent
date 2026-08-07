@@ -296,17 +296,41 @@
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <option value="">— Pilih Invoice —</option>
                                 @foreach ($invoices as $inv)
-                                    <option value="{{ $inv->id }}" data-total="{{ (int) $inv->total }}">
+                                    @php $pi = $inv->_pi; @endphp
+                                    <option value="{{ $inv->id }}"
+                                        data-total="{{ (int) $inv->total }}"
+                                        data-harga="{{ $pi['harga'] }}"
+                                        data-total-periode="{{ $pi['total_periode'] }}"
+                                        data-verified="{{ $pi['verified'] }}"
+                                        data-sisa="{{ $pi['sisa'] }}"
+                                        data-next-no="{{ $pi['next_no'] }}"
+                                        data-awal-fmt="{{ $pi['awal_fmt'] }}"
+                                        data-akhir-fmt="{{ $pi['akhir_fmt'] }}">
                                         {{ $inv->invoice_no }} — {{ $inv->customer_name }}
-                                        @if($remaining <= 0) (Lunas) @endif
+                                        @if($pi['sisa'] <= 0 && $pi['total_periode'] > 0) (Lunas) @endif
                                     </option>
                                 @endforeach
                             </select>
-                            {{-- Info sisa tagihan: muncul setelah invoice dipilih --}}
-                            <div id="tambah_sisa_info" class="hidden mt-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs flex items-center justify-between gap-3">
-                                <span class="text-gray-500">Total: <span id="tambah_info_total" class="font-semibold text-gray-700">-</span></span>
-                                <span class="text-gray-500">Dibayar: <span id="tambah_info_paid" class="font-semibold text-yellow-600">-</span></span>
-                                <span class="font-bold" id="tambah_info_remaining_wrap">Sisa: <span id="tambah_info_remaining" class="text-blue-700">-</span></span>
+                            {{-- Info periode & sisa pembayaran --}}
+                            <div id="tambah_sisa_info" class="hidden mt-2 space-y-1.5">
+                                {{-- Baris 1: pembayaran ke-N dari M + sisa badge --}}
+                                <div class="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+                                    <span class="text-xs font-semibold text-indigo-700">
+                                        <i class="fa fa-calendar text-indigo-400 mr-1"></i>
+                                        Pembayaran ke-<span id="tambah_next_no">-</span>
+                                        dari <span id="tambah_total_periode">-</span>
+                                    </span>
+                                    <span id="tambah_sisa_badge"
+                                        class="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                                        Sisa <span id="tambah_sisa_count">-</span>x lagi
+                                    </span>
+                                </div>
+                                {{-- Baris 2: rentang periode berikutnya --}}
+                                <div id="tambah_periode_range_wrap"
+                                    class="hidden flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700">
+                                    <i class="fa fa-calendar-alt text-blue-400"></i>
+                                    <span>Periode: <strong id="tambah_periode_range">-</strong></span>
+                                </div>
                             </div>
                         </div>
                         <div>
@@ -341,10 +365,9 @@
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
                                 <input id="tambah_amount" type="number" name="amount" required min="1"
                                     placeholder="Pilih invoice terlebih dahulu"
-                                    readonly
-                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none">
+                                    class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
-                            <p class="mt-1 text-xs text-gray-400">Otomatis dari total invoice</p>
+                            <p class="mt-1 text-xs text-gray-400">Otomatis dari harga per periode. Bisa diedit.</p>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
@@ -601,9 +624,60 @@
     const formTambah  = document.getElementById('formTambah');
 
     function onTambahInvoiceChange(sel) {
-        const opt   = sel.options[sel.selectedIndex];
-        const total = opt ? parseFloat(opt.dataset.total || 0) : 0;
-        document.getElementById('tambah_amount').value = total > 0 ? Math.round(total) : '';
+        const opt        = sel.options[sel.selectedIndex];
+        const infoBox    = document.getElementById('tambah_sisa_info');
+        const rangeWrap  = document.getElementById('tambah_periode_range_wrap');
+
+        if (!opt || !opt.value) {
+            infoBox.classList.add('hidden');
+            document.getElementById('tambah_amount').value = '';
+            return;
+        }
+
+        const totalPeriode = parseInt(opt.dataset.totalPeriode || 0);
+        const verified     = parseInt(opt.dataset.verified     || 0);
+        const sisa         = parseInt(opt.dataset.sisa         || 0);
+        const nextNo       = parseInt(opt.dataset.nextNo       || 1);
+        const harga        = parseFloat(opt.dataset.harga      || opt.dataset.total || 0);
+        const awalFmt      = opt.dataset.awalFmt  || '';
+        const akhirFmt     = opt.dataset.akhirFmt || '';
+
+        // Isi amount otomatis
+        document.getElementById('tambah_amount').value = harga > 0 ? Math.round(harga) : '';
+
+        if (totalPeriode > 0) {
+            // Ke-N dari M
+            document.getElementById('tambah_next_no').textContent       = nextNo;
+            document.getElementById('tambah_total_periode').textContent = totalPeriode;
+            document.getElementById('tambah_sisa_count').textContent    = sisa;
+
+            // Warna badge sisa
+            const badge = document.getElementById('tambah_sisa_badge');
+            if (sisa <= 0) {
+                badge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700';
+                badge.textContent = '✓ Lunas';
+            } else if (sisa === 1) {
+                badge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700';
+                badge.innerHTML = 'Sisa <span id="tambah_sisa_count">' + sisa + '</span>x lagi';
+            } else {
+                badge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700';
+                badge.innerHTML = 'Sisa <span id="tambah_sisa_count">' + sisa + '</span>x lagi';
+            }
+
+            // Range periode berikutnya
+            if (awalFmt) {
+                const rangeText = awalFmt + (akhirFmt && akhirFmt !== awalFmt ? ' – ' + akhirFmt : '');
+                document.getElementById('tambah_periode_range').textContent = rangeText;
+                rangeWrap.classList.remove('hidden');
+            } else {
+                rangeWrap.classList.add('hidden');
+            }
+
+            infoBox.classList.remove('hidden');
+        } else {
+            // Invoice tanpa periode — fallback biasa
+            infoBox.classList.add('hidden');
+        }
     }
 
     function onEditInvoiceChange(sel) {

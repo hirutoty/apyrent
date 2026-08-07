@@ -379,12 +379,16 @@
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex flex-col gap-1.5">
-                                        {{-- Badge status bayar --}}
-                                        @if ($r->bukti_pelunasan || $r->bukti_lunas)
+                                        {{-- Badge status bayar — pakai status_pembayaran dari DB --}}
+                                        @if ($r->status_pembayaran === 'lunas' || $r->bukti_pelunasan || $r->bukti_lunas)
                                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 w-fit">
                                                 <i class="fa fa-check-circle"></i> LUNAS
                                             </span>
-                                        @elseif ($r->bukti_dp)
+                                        @elseif ($r->status_pembayaran === 'partial')
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700 w-fit">
+                                                <i class="fa fa-clock"></i> PARTIAL
+                                            </span>
+                                        @elseif ($r->status_pembayaran === 'dp' || $r->bukti_dp)
                                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 w-fit">
                                                 <i class="fa fa-credit-card"></i> DP
                                             </span>

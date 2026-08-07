@@ -57,10 +57,10 @@ class InvoicesController extends Controller
             }
         }
 
-        // Ambil data dari item penawaran — buat periode per durasi kontrak
-        $periodeAwal  = $kontrak->tanggal_kontrak
-            ? \Carbon\Carbon::parse($kontrak->tanggal_kontrak)
-            : now();  // fallback ke hari ini jika tanggal kontrak tidak diisi
+        // Ambil data dari item penawaran — buat 1 periode saja (awal s/d selesai kontrak)
+        $periodeAwal  = $kontrak->perjanjian_pembayaran
+            ? \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)->addDay()
+            : (\Carbon\Carbon::parse($kontrak->tanggal_kontrak) ?? now());
         $periodeAkhir = $kontrak->tanggal_selesai
             ? \Carbon\Carbon::parse($kontrak->tanggal_selesai)
             : $periodeAwal->copy()->addMonths($kontrak->durasi_value ?? 1);
@@ -71,64 +71,75 @@ class InvoicesController extends Controller
         // Setiap item penawaran = 1 periode sendiri (tanggal dihitung dari durasi per item)
         $rentalDetails = [];
 
+        // Kumpulkan item dengan info durasi masing-masing
+        $itemsWithDurasi = [];
         if ($penawaran && $penawaran->items->isNotEmpty()) {
             foreach ($penawaran->items as $item) {
-                // Ambil label kendaraan — gunakan relasi jika ada
                 if ($item->kendaraan) {
                     $label = $item->kendaraan->merk . ' ' . $item->kendaraan->nopol;
                 } elseif ($item->kendaraan_id) {
-                    // Coba load manual kalau eager load gagal
-                    $kdr = \App\Models\Kendaraan::find($item->kendaraan_id);
+                    $kdr   = \App\Models\Kendaraan::find($item->kendaraan_id);
                     $label = $kdr ? $kdr->merk . ' ' . $kdr->nopol : 'Kendaraan #' . $item->kendaraan_id;
                 } else {
-                    $label = 'Item #' . ($item->id ?? (count($remakItems) + 1));
+                    $label = 'Item #' . ($item->id ?? count($itemsWithDurasi) + 1);
                 }
 
-                $remakItems[] = [
-                    'kendaraan' => $label,
-                    'qty'       => $item->qty ?? 1,
-                    'price'     => (float) ($item->price ?? 0),
+                $itemDurasi = (int) ($item->durasi ?? $kontrak->durasi_value ?? 1);
+                $itemSatuan = strtolower(trim($item->satuan_durasi ?? $kontrak->durasi_satuan ?? 'bulan'));
+                if (!in_array($itemSatuan, ['hari', 'bulan', 'tahun'])) $itemSatuan = 'bulan';
+
+                // Tanggal selesai item (inklusif = hari terakhir sewa)
+                $itemSelesai = match ($itemSatuan) {
+                    'hari'  => $periodeAwal->copy()->addDays($itemDurasi)->subDay(),
+                    'tahun' => $periodeAwal->copy()->addYears($itemDurasi)->subDay(),
+                    default => $periodeAwal->copy()->addMonths($itemDurasi)->subDay(),
+                };
+
+                $itemsWithDurasi[] = [
+                    'kendaraan'    => $label,
+                    'qty'          => $item->qty ?? 1,
+                    'price'        => (float) ($item->price ?? 0),
+                    'item_selesai' => $itemSelesai, // Carbon instance
                 ];
             }
         }
 
-        // Buat array periode berdasarkan durasi satuan — selalu dibuat
+        // Buat periode per bulan — remaks per periode hanya berisi kendaraan yang masih aktif
         $rentalDetails = [];
-        $stepMethod = match ($durasiSatuan) {
-            'tahun' => 'addYear',
-            'hari'  => 'addDay',
-            default => 'addMonth', // bulan (default)
-        };
-
-        $cursor    = $periodeAwal->copy();
-        $endDate   = $periodeAkhir->copy();
+        $cursor   = $periodeAwal->copy();
+        $endDate  = $periodeAkhir->copy();
         $periodeNo = 0;
 
         while ($cursor->lte($endDate)) {
-            // Akhir periode: satu langkah maju lalu kurang 1 hari
-            $nextCursor = $cursor->copy()->{$stepMethod}();
-            $periodeEnd = $nextCursor->copy()->subDay();
-
-            // Pastikan tidak melebihi tanggal selesai kontrak
+            $periodeEnd = $cursor->copy()->addMonth()->subDay();
             if ($periodeEnd->gt($endDate)) {
                 $periodeEnd = $endDate->copy();
             }
+
+            // Filter: hanya item yang tanggal selesainya >= tanggal mulai periode ini
+            $remaksUntukPeriode = array_values(array_filter(
+                $itemsWithDurasi,
+                fn($item) => $item['item_selesai']->gte($cursor)
+            ));
+
+            // Hapus key 'item_selesai' (Carbon) sebelum masuk JSON
+            $remakItems = array_map(fn($item) => [
+                'kendaraan' => $item['kendaraan'],
+                'qty'       => $item['qty'],
+                'price'     => $item['price'],
+            ], $remaksUntukPeriode);
 
             $rentalDetails[] = [
                 'tanggal_mulai'   => $cursor->format('Y-m-d'),
                 'tanggal_selesai' => $periodeEnd->format('Y-m-d'),
                 'remak_items'     => $remakItems,
-                'kendaraan'       => '',
-                'biaya_dasar'     => 0,
                 'biaya_driver'    => 0,
                 'nama_driver'     => null,
                 'durasi_nilai'    => 1,
             ];
 
-            $cursor = $nextCursor;
+            $cursor->addMonth();
             $periodeNo++;
-
-            // Batasi maksimal 120 periode untuk mencegah loop tak terbatas
             if ($periodeNo >= 120) break;
         }
 
@@ -177,6 +188,8 @@ class InvoicesController extends Controller
             'name_staff'       => $penawaran?->name_staff ?? '',
             'direktur'         => $penawaran?->direktur ?? '',
             'name_direktur'    => $penawaran?->name_direktur ?? '',
+            // Jumlah invoice yang sudah dibuat untuk kontrak ini (untuk menentukan periode aktif)
+            'existing_invoice_count' => Invoice::where('kontrak_id', $kontrak->id)->count(),
             // Debug info
             '_debug' => [
                 'penawaran_found'   => $penawaran !== null,
@@ -267,11 +280,14 @@ class InvoicesController extends Controller
 
     /**
      * Store a newly created resource in storage.
+     * Selalu return JSON jika request adalah AJAX (dari modal "Simpan & Lanjut ke Periode").
      */
-
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $isAjax = $request->wantsJson() || $request->ajax();
+
+        // Validasi manual agar error bisa dikembalikan sebagai JSON 422
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'penawaran_ids'  => 'nullable|array',
             'penawaran_ids.*'=> 'nullable|exists:inv_penawarans,id',
             'kontrak_ids'    => 'nullable|array',
@@ -309,7 +325,20 @@ class InvoicesController extends Controller
             'total' => 'nullable|numeric',
         ]);
 
-        // Filter nilai kosong dari array relasi
+        if ($validator->fails()) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validasi gagal: ' . $validator->errors()->first(),
+                    'errors'  => $validator->errors(),
+                ], 422);
+            }
+            return back()->withErrors($validator)->withInput();
+        }
+
+        $validated = $validator->validated();
+
+        try {
         $penawaranIds = array_filter($request->input('penawaran_ids', []), fn($v) => !empty($v));
         $kontrakIds   = array_filter($request->input('kontrak_ids',   []), fn($v) => !empty($v));
         $kendaraanIds = array_filter($request->input('kendaraan_ids', []), fn($v) => !empty($v));
@@ -350,17 +379,12 @@ class InvoicesController extends Controller
         $invoice->kendaraans()->sync($kendaraanIds);
 
         // Task 4: Auto-create InvSummary saat invoice baru dibuat
-        $jumlahDibayar = (float) ($request->input('jumlah_dibayar', 0));
-        $totalAmount   = (float) ($validated['total'] ?? 0);
-        $remaining     = max(0, $totalAmount - $jumlahDibayar);
-
-        // Tentukan payment_status dari jumlah_dibayar
-        if ($jumlahDibayar <= 0) {
-            $summaryPayStatus = 'unpaid';
-        } elseif ($remaining <= 0) {
-            $summaryPayStatus = 'paid';
-        } else {
-            $summaryPayStatus = 'unpaid'; // partial — belum lunas
+        // paid_amount selalu 0 — akan diupdate saat payment dilakukan
+        // Hitung total dari remaks invoice (sesuai kendaraan aktif di periode ini)
+        $invoice->load('periodes.remaks');
+        $totalAmount = $invoice->computeTotal();
+        if ($totalAmount <= 0) {
+            $totalAmount = (float) ($validated['total'] ?? 0);
         }
 
         InvSummary::firstOrCreate(
@@ -370,14 +394,14 @@ class InvoicesController extends Controller
                 'kontrak_id'       => $invoice->kontrak_id,
                 'type'             => $invoice->type,
                 'total_amount'     => $totalAmount,
-                'paid_amount'      => $jumlahDibayar,
-                'remaining_amount' => $remaining,
-                'payment_status'   => $summaryPayStatus,
+                'paid_amount'      => 0,
+                'remaining_amount' => $totalAmount,
+                'payment_status'   => 'unpaid',
             ]
         );
 
         // Jika request AJAX/JSON (dari modal), kembalikan JSON dengan invoice_id
-        if ($request->wantsJson() || $request->ajax()) {
+        if ($isAjax) {
             return response()->json([
                 'success'    => true,
                 'message'    => 'Invoice berhasil ditambahkan.',
@@ -389,6 +413,16 @@ class InvoicesController extends Controller
         return redirect()
             ->route('invoices.index')
             ->with('success', 'Invoice berhasil ditambahkan.');
+
+        } catch (\Exception $e) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
+                ], 500);
+            }
+            return back()->with('error', $e->getMessage())->withInput();
+        }
     }
 
 
@@ -414,9 +448,10 @@ class InvoicesController extends Controller
         $invoiceTotal   = $invoice->computeTotal();
         $remaining      = max(0, $invoiceTotal - $totalPaid);
         $isLunas        = $remaining <= 0 && $invoiceTotal > 0;
+        $verifiedCount  = $payments->where('status', 'Verified')->count();
 
         return view('admin.invoice.show', compact(
-            'invoice', 'payments', 'totalPaid', 'invoiceTotal', 'remaining', 'isLunas'
+            'invoice', 'payments', 'totalPaid', 'invoiceTotal', 'remaining', 'isLunas', 'verifiedCount'
         ));
     }
 
@@ -778,6 +813,80 @@ class InvoicesController extends Controller
         $invoice = Invoice::with(['periodes.remaks', 'kendaraan', 'kendaraans', 'penawaran.items', 'kontrak', 'penawarans', 'kontraks'])->findOrFail($id);
         $setting = Setting::first();
 
+        // Ambil hanya periode PERTAMA dari invoice ini untuk ditampilkan di PDF
+        $periodeUntukPdf = $invoice->periodes->sortBy('periode_awal')->first();
+        if ($periodeUntukPdf) {
+            $invoice->setRelation('periodes', collect([$periodeUntukPdf]));
+        } else {
+            // Fallback: periodes kosong → generate virtual periode dari kendaraans + kontrak
+            $kontrak  = $invoice->kontrak ?? $invoice->kontraks->first();
+            $penawaran = $invoice->penawaran ?? $invoice->penawarans->first();
+
+            // Hitung urutan invoice ini dalam kontrak (untuk menentukan periode ke-N)
+            $invoiceIdx = 0;
+            if ($kontrak) {
+                $invoiceIdx = Invoice::where('kontrak_id', $kontrak->id)
+                    ->where('id', '<=', $invoice->id)
+                    ->count() - 1;
+            }
+
+            // Tentukan tanggal mulai periode (perjanjian_pembayaran + 1 hari + N bulan)
+            $mulaiBase = $kontrak?->perjanjian_pembayaran
+                ? \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)->addDay()
+                : \Carbon\Carbon::parse($kontrak?->tanggal_kontrak ?? $invoice->invoice_date ?? now());
+
+            $periodeAwal  = $mulaiBase->copy()->addMonths($invoiceIdx);
+            $periodeAkhir = $periodeAwal->copy()->addMonth()->subDay();
+
+            // Buat virtual remaks dari kendaraans yang masih aktif di periode ini
+            $virtualRemaks = collect();
+            if ($penawaran) {
+                foreach ($penawaran->items as $item) {
+                    if (! $item->kendaraan) continue;
+
+                    // Cek apakah kendaraan masih aktif di periode ini
+                    $itemDurasi = (int) ($item->durasi ?? 1);
+                    $itemSatuan = strtolower($item->satuan_durasi ?? 'bulan');
+                    $itemSelesai = match ($itemSatuan) {
+                        'tahun' => $mulaiBase->copy()->addYears($itemDurasi)->subDay(),
+                        'hari'  => $mulaiBase->copy()->addDays($itemDurasi)->subDay(),
+                        default => $mulaiBase->copy()->addMonths($itemDurasi)->subDay(),
+                    };
+
+                    if ($itemSelesai->lt($periodeAwal)) continue; // sudah selesai
+
+                    $virtualRemaks->push((object)[
+                        'remaks' => $item->kendaraan->merk . ' ' . $item->kendaraan->nopol,
+                        'qty'    => $item->qty ?? 1,
+                        'price'  => (float) ($item->price ?? 0),
+                    ]);
+                }
+            }
+
+            // Fallback ke kendaraans invoice jika tidak ada penawaran
+            if ($virtualRemaks->isEmpty()) {
+                $kendaraanList = $invoice->kendaraans->isNotEmpty()
+                    ? $invoice->kendaraans
+                    : ($invoice->kendaraan ? collect([$invoice->kendaraan]) : collect());
+                foreach ($kendaraanList as $kd) {
+                    $virtualRemaks->push((object)[
+                        'remaks' => $kd->merk . ' ' . $kd->nopol,
+                        'qty'    => 1,
+                        'price'  => (float) ($invoice->total ?? 0),
+                    ]);
+                }
+            }
+
+            // Buat virtual periode object
+            $virtualPeriode = (object)[
+                'periode_awal'  => $periodeAwal->toDateString(),
+                'periode_akhir' => $periodeAkhir->toDateString(),
+                'remaks'        => $virtualRemaks,
+            ];
+
+            $invoice->setRelation('periodes', collect([$virtualPeriode]));
+        }
+
         // Hitung subTotal dari remaks
         $subTotal = 0;
         foreach ($invoice->periodes as $periode) {
@@ -871,5 +980,78 @@ class InvoicesController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /* ─────────────────────────────────────────────
+       RECALCULATE SUMMARY — dipanggil setelah periodes/remaks selesai disimpan
+    ───────────────────────────────────────────── */
+    public function recalculateSummary($id)
+    {
+        $invoice = Invoice::with('periodes.remaks')->findOrFail($id);
+
+        $totalAmount = $invoice->computeTotal();
+        if ($totalAmount <= 0) {
+            $totalAmount = (float) $invoice->total;
+        }
+
+        $summary = \App\Models\InvSummary::where('invoice_id', $id)->first();
+        if ($summary) {
+            $summary->update([
+                'total_amount'     => $totalAmount,
+                'remaining_amount' => max(0, $totalAmount - (float) $summary->paid_amount),
+            ]);
+        }
+
+        // Juga update kolom total di invoice
+        $invoice->update(['total' => $totalAmount]);
+
+        return response()->json(['success' => true, 'total' => $totalAmount]);
+    }
+    public static function computeSummaryTotal(Invoice $invoice): float
+    {
+        // Load relasi yang dibutuhkan
+        if (! $invoice->relationLoaded('penawarans')) {
+            $invoice->load('penawarans.items');
+        }
+
+        $setting  = Setting::first();
+        $ppnPct   = (float) ($setting?->ppn_default ?? 0); // misal 11 = 11%
+
+        $subtotal = 0.0;
+
+        // Kumpulkan semua penawaran yang terkait ke invoice ini
+        $penawarans = $invoice->penawarans;
+
+        // Fallback: jika pakai FK lama (penawaran_id tunggal)
+        if ($penawarans->isEmpty() && $invoice->penawaran_id) {
+            $penawarans = collect([InvPenawaran::with('items')->find($invoice->penawaran_id)]);
+        }
+
+        foreach ($penawarans as $penawaran) {
+            if (! $penawaran) continue;
+
+            $items = $penawaran->relationLoaded('items')
+                ? $penawaran->items
+                : $penawaran->items()->get();
+
+            foreach ($items as $item) {
+                $price  = (float) ($item->price  ?? 0);
+                $qty    = (int)   ($item->qty    ?? 1);
+                $durasi = (int)   ($item->durasi ?? 1);
+                $satuan = strtolower(trim($item->satuan_durasi ?? 'bulan'));
+
+                // Total per invoice = price × qty untuk 1 periode saja (bukan dikali semua bulan)
+                // Setiap invoice mewakili 1 periode pembayaran
+                $subtotal += $price * $qty;
+            }
+        }
+
+        // Jika tidak ada item dari penawaran, fallback ke invoice->total tersimpan
+        if ($subtotal <= 0) {
+            return (float) $invoice->total;
+        }
+
+        $ppnNom = round($subtotal * $ppnPct / 100);
+        return $subtotal + $ppnNom;
     }
 }
