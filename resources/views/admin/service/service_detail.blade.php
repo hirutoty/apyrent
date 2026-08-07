@@ -47,8 +47,6 @@
 
         {{-- SUMMARY CARDS --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
                     <i class="fa fa-screwdriver-wrench text-blue-500 text-xl"></i>
@@ -58,7 +56,6 @@
                     <p class="text-2xl font-bold text-gray-800">{{ $jumlahService }}</p>
                 </div>
             </div>
-
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
                     <i class="fa fa-wallet text-green-500 text-xl"></i>
@@ -68,7 +65,6 @@
                     <p class="text-xl font-bold text-gray-800">Rp {{ number_format($totalBiaya, 0, ',', '.') }}</p>
                 </div>
             </div>
-
         </div>
 
         {{-- TABLE CARD --}}
@@ -81,7 +77,6 @@
                     <p class="text-xs text-gray-400 mt-0.5" id="totalCount">{{ $data->count() }} data</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    {{-- Filter Status --}}
                     <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
                         <button type="button" onclick="setActiveStatus('semua')" id="btnSemua"
                             class="px-3 py-1 text-xs font-medium rounded-md transition-colors bg-white text-gray-700 shadow-sm">
@@ -96,10 +91,8 @@
                             Tidak Layak
                         </button>
                     </div>
-                    {{-- Filter Bulan --}}
                     <input type="month" id="filterBulan" onchange="setActiveBulan(this.value)"
                         class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    {{-- Search --}}
                     <div class="relative">
                         <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
                         <input type="text" id="searchInput" placeholder="Cari kendaraan..."
@@ -149,11 +142,11 @@
                                 $groupKey   = 'group-' . $kendaraanId;
                             @endphp
 
-                            {{-- -- GROUP HEADER ROW -- --}}
+                            {{-- GROUP HEADER ROW --}}
                             <tr class="group-header bg-blue-50 border-t border-blue-100 border-l-4 border-l-blue-500 cursor-pointer select-none hover:bg-blue-100 transition-colors duration-150 shadow-sm"
                                 data-group="{{ $groupKey }}"
                                 onclick="toggleAccordion('{{ $groupKey }}', this)">
-                                <td class="px-4 py-3" colspan="2" class="px-5 py-3.5">
+                                <td class="px-4 py-3" colspan="2">
                                     <div class="flex items-center gap-2.5">
                                         <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
                                             <i class="fa fa-car text-blue-500 text-sm"></i>
@@ -167,15 +160,11 @@
                                         </span>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 text-xs text-gray-400 italic" colspan="3">
-                                    {{ $groupCount }} catatan
+                                <td class="px-4 py-3 text-xs text-gray-400 italic" colspan="3">{{ $groupCount }} catatan</td>
+                                <td class="px-4 py-3" colspan="2">
+                                    <span class="text-sm font-bold text-emerald-600">Rp {{ number_format($groupBiaya, 0, ',', '.') }}</span>
                                 </td>
-                                <td class="px-4 py-3" colspan="2" class="px-5 py-3.5">
-                                    <span class="text-sm font-bold text-emerald-600">
-                                        Rp {{ number_format($groupBiaya, 0, ',', '.') }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3" colspan="2" class="px-5 py-3.5">
+                                <td class="px-4 py-3">
                                     <div class="flex justify-end pr-2">
                                         <i class="fa fa-chevron-down text-blue-400 text-xs group-chevron transition-transform duration-200"
                                            data-group="{{ $groupKey }}"></i>
@@ -183,9 +172,22 @@
                                 </td>
                             </tr>
 
-                            {{-- -- CHILD / DETAIL ROWS -- --}}
+                            {{-- CHILD ROWS --}}
                             @foreach($rows as $d)
-                                @php $rowCounter++ @endphp
+                                @php
+                                    $rowCounter++;
+                                    $rawBukti = is_array($d->bukti) ? $d->bukti : (json_decode($d->bukti, true) ?? []);
+                                    // Normalise: pastikan setiap item punya key path & name
+                                    $buktiArr = array_values(array_filter(array_map(function($f) {
+                                        if (is_array($f)) {
+                                            return ['path' => $f['path'] ?? '', 'name' => $f['name'] ?? basename($f['path'] ?? '')];
+                                        }
+                                        // format lama: plain string path
+                                        return ['path' => $f, 'name' => basename($f)];
+                                    }, $rawBukti), fn($f) => !empty($f['path'])));
+                                    $buktiCount = count($buktiArr);
+                                    $buktiJson = json_encode($buktiArr);
+                                @endphp
                                 <tr class="group-child border-t border-gray-100 odd:bg-white even:bg-gray-100 hover:bg-blue-50/40 transition-colors duration-100"
                                     data-group-child="{{ $groupKey }}"
                                     data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . $d->keterangan) }}"
@@ -233,12 +235,32 @@
 
                                     {{-- BUKTI --}}
                                     <td class="px-5 py-4">
-                                        @if ($d->bukti)
-                                            @php $filename = basename($d->bukti); @endphp
-                                            <a href="{{ asset($d->bukti) }}" target="_blank"
-                                                class="text-blue-500 text-xs hover:underline">
-                                                <i class="fa fa-paperclip text-[10px]"></i> {{ $filename }}
-                                            </a>
+                                        @if ($buktiCount > 0)
+                                            <div class="space-y-1">
+                                                @foreach ($buktiArr as $i => $buktiItem)
+                                                    @php
+                                                        $bPath = $buktiItem['path'] ?? '';
+                                                        $bName = $buktiItem['name'] ?? basename($bPath);
+                                                        $bExt  = strtolower(pathinfo($bPath, PATHINFO_EXTENSION));
+                                                        $bIsImg = in_array($bExt, ['jpg','jpeg','png','webp']);
+                                                    @endphp
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-[9px] font-bold flex-shrink-0">
+                                                            {{ $i + 1 }}
+                                                        </span>
+                                                        <a href="{{ asset($bPath) }}" target="_blank"
+                                                            class="text-xs text-blue-600 hover:underline truncate max-w-[140px]"
+                                                            title="{{ $bName }}">
+                                                            <i class="fa {{ $bIsImg ? 'fa-image' : ($bExt === 'pdf' ? 'fa-file-pdf' : 'fa-file-word') }} text-[10px] mr-0.5"></i>{{ $bName }}
+                                                        </a>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                            <button type="button"
+                                                onclick="openDetailBukti({{ $d->id }}, {{ $buktiJson }}, '{{ addslashes($d->kendaraan->merk ?? '') }} - {{ addslashes($d->kendaraan->nopol ?? '') }}')"
+                                                class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-500 hover:bg-blue-100 border border-blue-200 transition-colors">
+                                                <i class="fa fa-expand-alt text-[9px]"></i> Lihat Semua
+                                            </button>
                                         @else
                                             <span class="text-gray-300 text-sm">—</span>
                                         @endif
@@ -256,7 +278,7 @@
                                                 data-status="{{ $d->status }}"
                                                 data-biaya="{{ $d->biaya }}"
                                                 data-keterangan="{{ $d->keterangan }}"
-                                                data-bukti="{{ $d->bukti }}">
+                                                data-bukti="{{ $buktiJson }}">
                                                 <i class="fa fa-edit text-xs"></i> Edit
                                             </button>
 
@@ -271,13 +293,12 @@
                                             </form>
                                         </div>
                                     </td>
-
                                 </tr>
                             @endforeach
 
                         @empty
                             <tr>
-                                <td colspan="9" class="px-5 py-12 text-center">
+                                <td colspan="7" class="px-5 py-12 text-center">
                                     <p class="text-sm text-gray-500">Belum ada data service</p>
                                 </td>
                             </tr>
@@ -295,39 +316,29 @@
                         <p class="text-xs text-gray-400">Coba ubah kata kunci pencarian atau filter</p>
                     </div>
                 </div>
-
             </div>
 
-            {{-- FOOTER: SHOWING INFO + PAGINATION --}}
             <div id="tableFooter" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50/50">
                 <p id="showingInfo" class="text-xs text-gray-500"></p>
                 <div id="paginationControls" class="flex items-center gap-1"></div>
             </div>
 
         </div>
-
     </div>
 
 
-    {{-- ======================================
+    {{-- ============================================================
     MODAL TAMBAH / EDIT
-====================================== --}}
+    ============================================================ --}}
     <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 overflow-y-auto py-6"
         style="backdrop-filter:blur(2px)">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 flex flex-col">
 
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 max-h-[130vh] flex flex-col">
-
-            <!-- HEADER (FIX) -->
-            <div class="px-6 py-5 border-b border-gray-100 shrink-0">
-
-
-
-
+            <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100 shrink-0">
                 <div>
                     <h2 id="modalTitle" class="text-base font-bold text-gray-800">Tambah Data Service</h2>
                     <p id="modalDesc" class="text-xs text-gray-500 mt-0.5">Isi data detail service kendaraan</p>
                 </div>
-
                 <button onclick="closeModal()"
                     class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
                     <i class="fa fa-times"></i>
@@ -335,110 +346,131 @@
             </div>
 
             <form id="form" method="POST" enctype="multipart/form-data"
-                class="px-6 py-5 space-y-4 overflow-y-auto">
+                class="px-6 py-5 space-y-4 overflow-y-auto max-h-[80vh]">
                 @csrf
 
-                {{-- KENDARAAN --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan</label>
                     <select name="kendaraan_id" id="kendaraan_id"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
                         @foreach ($kendaraan as $k)
-                            <option value="{{ $k->id }}">
-                                {{ $k->merk }} - {{ $k->nopol }}
-                            </option>
+                            <option value="{{ $k->id }}">{{ $k->merk }} - {{ $k->nopol }}</option>
                         @endforeach
                     </select>
                 </div>
 
-                {{-- TANGGAL SERVICE --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Bermasalah</label>
                     <input type="date" name="tanggal_service" id="tanggal_service"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
                 </div>
 
-                {{-- KILOMETER --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kilometer</label>
                     <input type="number" name="kilometer" id="kilometer" placeholder="Contoh: 45000"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
                 </div>
 
-                {{-- STATUS --}}
-                <div>
-                    {{-- <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Kendaraan</label> --}}
-                    <select name="status" id="status" hidden
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                        <option value="Tidak Layak">Tidak Layak</option>
-                    </select>
-                </div>
+                <select name="status" id="status" hidden>
+                    <option value="Tidak Layak">Tidak Layak</option>
+                </select>
 
-                {{-- KELUHAN --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keluhan</label>
                     <textarea name="keterangan" id="keterangan" rows="3" placeholder="Keluhan mobil"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"></textarea>
                 </div>
 
-                {{-- BIAYA --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya</label>
                     <input type="number" name="biaya" id="biaya" max="9999999999" placeholder="Nominal biaya service"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
                 </div>
 
-                <div class="md:col-span-2">
+                {{-- UPLOAD BUKTI MULTIPLE --}}
+                <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Bukti Upload
+                        <span class="text-gray-400 font-normal">(bisa pilih banyak file)</span>
                     </label>
 
-                    {{-- PREVIEW AREA --}}
-                    <div id="previewWrapper" class="hidden mb-3"></div>
+                    {{-- Daftar file existing saat edit --}}
+                    <div id="existingBuktiWrap" class="hidden mb-3">
+                        <p class="text-xs text-gray-500 mb-2 font-medium">File tersimpan:</p>
+                        <div id="existingBuktiList" class="space-y-1.5"></div>
+                    </div>
 
-                    {{-- UPLOAD AREA --}}
+                    {{-- Preview file baru yang dipilih --}}
+                    <div id="newBuktiPreview" class="hidden mb-3 space-y-1.5"></div>
+
+                    {{-- Upload area --}}
                     <label for="bukti"
-                        class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
-
-                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-1"></i>
-
-                        <span class="text-xs text-slate-500">
-                            Klik untuk upload / ganti file
-                        </span>
-
-                        <span class="text-[11px] text-slate-400">
-                            JPG, PNG, PDF, DOC, DOCX (maks 2MB)
-                        </span>
+                        class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                        <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-1"></i>
+                        <span class="text-xs text-slate-500">Klik untuk upload / tambah file</span>
+                        <span class="text-[11px] text-slate-400">JPG, PNG, PDF, DOC, DOCX (maks 5MB/file)</span>
                     </label>
-
-                    <input type="file" name="bukti" id="bukti" class="hidden"
-                        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" onchange="previewBukti(this)">
+                    <input type="file" name="bukti[]" id="bukti" class="hidden" multiple
+                        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" onchange="previewNewBukti(this)">
                 </div>
 
                 <button type="submit"
                     class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl">
                     <i class="fa fa-save text-sm"></i> Simpan
                 </button>
-
             </form>
+        </div>
+    </div>
+
+
+    {{-- ============================================================
+    MODAL DETAIL BUKTI
+    ============================================================ --}}
+    <div id="modalDetailBukti" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/50 p-4"
+        style="backdrop-filter:blur(3px)">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+            style="animation:slideUp .2s ease">
+
+            <div class="flex items-start justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+                <div>
+                    <h2 class="text-base font-bold text-gray-800">Detail Bukti</h2>
+                    <p id="detailBuktiSubtitle" class="text-xs text-gray-500 mt-0.5"></p>
+                </div>
+                <button onclick="closeDetailBukti()"
+                    class="text-gray-400 hover:text-red-500 transition-colors text-xl leading-none">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+
+            <div id="detailBuktiContent" class="overflow-y-auto p-6 flex-1">
+                {{-- Diisi via JS --}}
+            </div>
 
         </div>
     </div>
 
-    {{-- ======================================
-    POPUP ALERT (FIXED OVERLAY)
-====================================== --}}
+    {{-- Lightbox overlay untuk zoom gambar --}}
+    <div id="lightbox" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/80"
+        onclick="closeLightbox()">
+        <img id="lightboxImg" src="" alt="" class="max-w-[90vw] max-h-[90vh] rounded-xl shadow-2xl object-contain">
+        <button onclick="closeLightbox()"
+            class="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center text-lg transition-colors">
+            <i class="fa fa-times"></i>
+        </button>
+    </div>
+
+
+    {{-- ============================================================
+    POPUP ALERT
+    ============================================================ --}}
     @if (session('success') || session('error') || $errors->any())
         <div id="alertOverlay" class="fixed inset-0 z-[9999] flex items-start justify-center pt-6"
             style="background:rgba(0,0,0,0.18);opacity:0;transition:opacity 0.2s;pointer-events:none">
-
             <div id="alertBox"
                 class="bg-white rounded-xl shadow-xl border border-gray-100 px-5 py-4 flex items-start gap-3 w-full max-w-md mx-4"
                 style="transform:translateY(-16px);transition:transform 0.25s">
-
                 @if (session('success'))
-                    <div
-                        class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0 text-green-600 text-xl">
+                    <div class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0 text-green-600 text-xl">
                         <i class="fa fa-check-circle"></i>
                     </div>
                     <div class="flex-1 min-w-0">
@@ -446,8 +478,7 @@
                         <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ session('success') }}</p>
                     </div>
                 @else
-                    <div
-                        class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl">
+                    <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl">
                         <i class="fa fa-exclamation-circle"></i>
                     </div>
                     <div class="flex-1 min-w-0">
@@ -459,56 +490,39 @@
                         </ul>
                     </div>
                 @endif
-
                 <button onclick="closeAlert()"
-                    class="text-gray-400 hover:text-gray-600 transition-colors text-lg leading-none mt-0.5 flex-shrink-0"
-                    aria-label="Tutup">
+                    class="text-gray-400 hover:text-gray-600 transition-colors text-lg leading-none mt-0.5 flex-shrink-0">
                     <i class="fa fa-times"></i>
                 </button>
-
             </div>
         </div>
     @endif
 
+    {{-- ============================================================
+    MODAL UBAH STATUS
+    ============================================================ --}}
     <div id="statusModal" class="fixed inset-0 hidden items-center justify-center bg-black/30 z-50">
         <div class="bg-white p-5 rounded-xl w-80">
-
             <h2 class="font-bold text-sm mb-3">Ubah Status</h2>
-
             <form id="statusForm" method="POST">
                 @csrf
                 @method('PUT')
-
                 <select name="status" id="statusSelect" class="w-full border rounded-lg px-3 py-2 text-sm mb-4">
                     <option value="Layak">Layak</option>
                     <option value="Tidak Layak">Tidak Layak</option>
                 </select>
-
-                <button class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm">
-                    Simpan
-                </button>
+                <button class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm">Simpan</button>
             </form>
-
-            <button onclick="closeStatusModal()" class="text-xs text-gray-500 mt-2 w-full">
-                Batal
-            </button>
+            <button onclick="closeStatusModal()" class="text-xs text-gray-500 mt-2 w-full">Batal</button>
         </div>
     </div>
 
 
     <style>
         @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(16px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
-
         select {
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239ca3af'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
@@ -518,563 +532,560 @@
     </style>
 
     <script>
-        function setModalMode(mode) {
-            const title = document.querySelector('#modalTitle');
-            const desc = document.querySelector('#modalDesc');
+    // =================================================================
+    // MODAL TAMBAH / EDIT
+    // =================================================================
+    const modal = document.getElementById('modal');
 
-            if (mode === 'edit') {
-                if (title) title.textContent = 'Edit Data Service';
-                if (desc) desc.textContent = 'Ubah data detail service kendaraan';
-            } else {
-                if (title) title.textContent = 'Tambah Data Service';
-                if (desc) desc.textContent = 'Isi data detail service kendaraan';
+    function setModalMode(mode) {
+        document.getElementById('modalTitle').textContent = mode === 'edit' ? 'Edit Data Service' : 'Tambah Data Service';
+        document.getElementById('modalDesc').textContent  = mode === 'edit' ? 'Ubah data detail service kendaraan' : 'Isi data detail service kendaraan';
+    }
+
+    function openModal() {
+        setModalMode('add');
+        document.getElementById('form').reset();
+        document.getElementById('form').action = '/admin/service-detail';
+        const mp = document.getElementById('method-put');
+        if (mp) mp.remove();
+        clearBuktiPreview();
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+    // -- EDIT BUTTON --------------------------------------------------
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-edit');
+        if (!btn) return;
+
+        setModalMode('edit');
+
+        const form = document.getElementById('form');
+        form.action = '/admin/service-detail/' + btn.dataset.id;
+
+        const existingMp = document.getElementById('method-put');
+        if (existingMp) existingMp.remove();
+
+        const input = document.createElement('input');
+        input.type = 'hidden'; input.name = '_method'; input.value = 'PUT'; input.id = 'method-put';
+        form.appendChild(input);
+
+        document.getElementById('biaya').value          = btn.dataset.biaya;
+        document.getElementById('keterangan').value     = btn.dataset.keterangan;
+        document.getElementById('kendaraan_id').value   = btn.dataset.kendaraan_id;
+        document.getElementById('tanggal_service').value = btn.dataset.tanggal_service;
+        document.getElementById('kilometer').value      = btn.dataset.kilometer;
+        document.getElementById('status').value         = btn.dataset.status;
+
+        // Tampilkan file yang sudah tersimpan
+        clearBuktiPreview();
+        try {
+            const buktiArr = JSON.parse(btn.dataset.bukti || '[]');
+            if (Array.isArray(buktiArr) && buktiArr.length > 0) {
+                renderExistingBukti(buktiArr, btn.dataset.id);
             }
-        }
-        // -- MODAL ------------------------------------------
-        const modal = document.getElementById('modal');
-
-        function openModal() {
-            setModalMode('add');
-
-            document.getElementById('form').reset();
-            document.getElementById('form').action = '/admin/service-detail';
-
-            const mp = document.getElementById('method-put');
-            if (mp) mp.remove();
-
-            // Reset preview bukti
-            const previewWrapper = document.getElementById('previewWrapper');
-            if (previewWrapper) {
-                previewWrapper.innerHTML = '';
-                previewWrapper.classList.add('hidden');
-            }
-
-            // Reset input file
-            const buktiInput = document.getElementById('bukti');
-            if (buktiInput) buktiInput.value = '';
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeModal() {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        modal.addEventListener('click', e => {
-            if (e.target === modal) closeModal();
-        });
-
-
-        document.addEventListener('click', function(e) {
-            const btn = e.target.closest('.btn-edit');
-            if (!btn) return;
-
-            setModalMode('edit');
-
-            const form = document.getElementById('form');
-            form.action = '/admin/service-detail/' + btn.dataset.id;
-
-            // Hapus method PUT lama jika ada, lalu tambah baru
-            const existingMp = document.getElementById('method-put');
-            if (existingMp) existingMp.remove();
-
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = '_method';
-            input.value = 'PUT';
-            input.id = 'method-put';
-            form.appendChild(input);
-
-            // Isi field form
-            document.getElementById('biaya').value = btn.dataset.biaya;
-            document.getElementById('keterangan').value = btn.dataset.keterangan;
-            document.getElementById('kendaraan_id').value = btn.dataset.kendaraan_id;
-            document.getElementById('tanggal_service').value = btn.dataset.tanggal_service;
-            document.getElementById('kilometer').value = btn.dataset.kilometer;
-            document.getElementById('status').value = btn.dataset.status;
-
-            // Preview bukti � pakai previewWrapper + previewBukti logic yang sudah ada
-            const previewWrapper = document.getElementById('previewWrapper');
-            previewWrapper.innerHTML = '';
-
-            if (btn.dataset.bukti && btn.dataset.bukti !== 'null' && btn.dataset.bukti !== '') {
-                const buktiUrl = '/' + btn.dataset.bukti;
-                const ext = btn.dataset.bukti.split('.').pop().toLowerCase();
-
-                let html = '';
-
-                if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-                    html = `
-                <div class="relative inline-block">
-                    <img src="${buktiUrl}" class="w-28 h-28 object-cover rounded-lg border shadow">
-                    <button type="button" onclick="removeBukti()"
-                        class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs">?</button>
-                </div>`;
-                } else if (ext === 'pdf') {
-                    html = `
-                <div class="flex items-center justify-between p-3 border rounded-xl bg-red-50 text-red-600">
-                    <div class="flex items-center gap-2 text-sm font-semibold">
-                        <i class="fa-solid fa-file-pdf"></i> ${btn.dataset.bukti.split('/').pop()}
-                    </div>
-                    <button type="button" onclick="removeBukti()"
-                        class="w-6 h-6 bg-red-500 text-white rounded-full text-xs">?</button>
-                </div>`;
-                } else if (['doc', 'docx'].includes(ext)) {
-                    html = `
-                <div class="flex items-center justify-between p-3 border rounded-xl bg-blue-50 text-blue-600">
-                    <div class="flex items-center gap-2 text-sm font-semibold">
-                        <i class="fa-solid fa-file-word"></i> ${btn.dataset.bukti.split('/').pop()}
-                    </div>
-                    <button type="button" onclick="removeBukti()"
-                        class="w-6 h-6 bg-red-500 text-white rounded-full text-xs">?</button>
-                </div>`;
-                }
-
-                previewWrapper.innerHTML = html;
-                previewWrapper.classList.remove('hidden');
-            } else {
-                previewWrapper.classList.add('hidden');
-            }
-
-            // Buka modal � gunakan variable global, bukan deklarasi ulang
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        });
-
-        // -- FILTER STATUS + BULAN + SEARCH ------------------
-        let activeStatus = 'semua';
-        let activeBulan = 'semua';
-        let activeTahun = 'semua';
-        let currentPage = 1;
-
-        function setActiveStatus(status) {
-            activeStatus = status;
-            currentPage = 1;
-
-            const buttons = {
-                semua: document.getElementById('btnSemua'),
-                'Layak': document.getElementById('btnLayak'),
-                'Tidak Layak': document.getElementById('btnTidakLayak'),
-            };
-
-            Object.entries(buttons).forEach(([key, btn]) => {
-                if (!btn) return;
-
-                if (key === status) {
-                    btn.classList.add('bg-white', 'shadow-sm', 'border', 'border-gray-200');
-                    if (key === 'Layak') btn.classList.add('text-green-700');
-                    else if (key === 'Tidak Layak') btn.classList.add('text-red-600');
-                    else btn.classList.add('text-gray-700');
-                    btn.classList.remove('text-gray-500');
-                } else {
-                    btn.classList.remove('bg-white', 'shadow-sm', 'border', 'border-gray-200', 'text-green-700',
-                        'text-red-600', 'text-gray-700');
-                    btn.classList.add('text-gray-500');
-                }
-            });
-
-            applyFilters();
-        }
-
-        function setActiveBulan(bulan) {
-            activeBulan = (bulan && bulan.trim() !== '') ? bulan : 'semua';
-            currentPage = 1;
-            applyFilters();
-        }
-
-        function resetBulan() {
-            document.getElementById('filterBulan').value = '';
-            activeBulan = 'semua';
-            currentPage = 1;
-            applyFilters();
-        }
-
-        function setActiveTahun(tahun) {
-            activeTahun = tahun;
-            // Reset filter bulan jika ganti tahun
-            document.getElementById('filterBulan').value = '';
-            activeBulan = 'semua';
-            currentPage = 1;
-            applyFilters();
-        }
-
-        function applyFilters() {
-            const keyword    = document.getElementById('searchInput').value.toLowerCase().trim();
-            const filterHari = document.getElementById('filterHari')?.value || '';
-            const showVal    = document.getElementById('showEntries')?.value || '15';
-            const perPage    = showVal === 'all' ? Infinity : parseInt(showVal);
-
-            // All child rows (have data-search attribute)
-            const childRows = document.querySelectorAll('#serviceTableBody tr[data-search]');
-
-            // Determine which child rows pass the filters
-            const matched = [];
-            childRows.forEach(row => {
-                const matchSearch = !keyword || row.dataset.search.includes(keyword);
-                const matchStatus = activeStatus === 'semua' || row.dataset.status === activeStatus;
-
-                const tgl               = row.dataset.bulan || '';
-                const [rowYear, rowMonth, rowDay] = tgl.split('-');
-                const rowYM             = rowYear && rowMonth ? `${rowYear}-${rowMonth}` : '';
-
-                const matchHari  = !filterHari    || rowDay   === filterHari;
-                const matchBulan = activeBulan === 'semua' || rowYM    === activeBulan;
-                const matchTahun = activeTahun === 'semua' || rowYear  === activeTahun;
-
-                if (matchSearch && matchStatus && matchHari && matchBulan && matchTahun) {
-                    matched.push(row);
-                }
-            });
-
-            const total      = matched.length;
-            const totalPages = perPage === Infinity ? 1 : Math.ceil(total / perPage);
-            if (currentPage > totalPages) currentPage = 1;
-
-            const start = perPage === Infinity ? 0 : (currentPage - 1) * perPage;
-            const end   = perPage === Infinity ? total : Math.min(start + perPage, total);
-
-            // Build a Set of rows visible on this page
-            const pageSet = new Set(matched.slice(start, end));
-
-            // Build a Set of groups that have at least one matching row overall
-            const visibleGroups = new Set(matched.map(r => r.dataset.groupChild));
-
-            // Jika ada filter aktif (bukan semua), otomatis buka accordion grup yang relevan
-            const filterAktif = activeStatus !== 'semua' || keyword || activeBulan !== 'semua' || activeTahun !== 'semua' || filterHari;
-            if (filterAktif) {
-                visibleGroups.forEach(gKey => {
-                    if (!groupState[gKey]) {
-                        groupState[gKey] = true;
-                        const chevron = document.querySelector(`.group-chevron[data-group="${gKey}"]`);
-                        if (chevron) chevron.style.transform = 'rotate(180deg)';
-                        const hdr = document.querySelector(`tr.group-header[data-group="${gKey}"]`);
-                        if (hdr) { hdr.classList.add('bg-blue-100'); hdr.classList.remove('bg-blue-50'); }
-                    }
-                });
-            } else {
-                // Filter tidak aktif → tutup semua accordion yang sebelumnya dibuka oleh filter
-                Object.keys(groupState).forEach(gKey => {
-                    if (groupState[gKey]) {
-                        groupState[gKey] = false;
-                        const chevron = document.querySelector(`.group-chevron[data-group="${gKey}"]`);
-                        if (chevron) chevron.style.transform = 'rotate(0deg)';
-                        const hdr = document.querySelector(`tr.group-header[data-group="${gKey}"]`);
-                        if (hdr) { hdr.classList.add('bg-blue-50'); hdr.classList.remove('bg-blue-100'); }
-                    }
-                });
-            }
-
-            // Show/hide each child row
-            childRows.forEach(row => {
-                if (pageSet.has(row)) {
-                    // Paksa tampil (accordion sudah dibuka di atas jika filter aktif)
-                    const gKey = row.dataset.groupChild;
-                    const shouldShow = filterAktif ? true : (groupState[gKey] || false);
-                    row.style.display = shouldShow ? '' : 'none';
-                    row.style.opacity = '1';
-                    row.style.transition = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-
-            // Show/hide group header rows
-            document.querySelectorAll('#serviceTableBody tr.group-header').forEach(headerRow => {
-                const gKey = headerRow.dataset.group;
-                headerRow.style.display = visibleGroups.has(gKey) ? '' : 'none';
-            });
-
-            // Renumber visible child rows
-            let num = start + 1;
-            matched.slice(start, end).forEach(row => {
-                const cell = row.querySelector('.row-number');
-                if (cell) cell.textContent = num++;
-            });
-
-            // Info text
-            const showingInfo = document.getElementById('showingInfo');
-            if (showingInfo) {
-                if (total === 0) {
-                    showingInfo.textContent = 'Tidak ada data yang ditampilkan';
-                } else {
-                    showingInfo.textContent = `Menampilkan ${start + 1} sampai ${end} dari ${total} data`;
-                }
-            }
-
-            // Pagination
-            renderPagination(totalPages);
-
-            // Header count
-            document.getElementById('totalCount').textContent = total + ' total data';
-
-            // No result row
-            const noResult = document.getElementById('noResultRow');
-            if (noResult) noResult.classList.toggle('hidden', total > 0 || childRows.length === 0);
-
-            updatePdfLink();
-        }
-
-        function renderPagination(totalPages) {
-            const container = document.getElementById('paginationControls');
-            if (!container) return;
-            container.innerHTML = '';
-
-            if (totalPages <= 1) return;
-
-            const btnClass = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
-            const activeClass = 'bg-blue-600 text-white border-blue-600';
-            const normalClass = 'border-gray-200 text-gray-600 hover:bg-gray-50';
-
-            // Prev
-            const prev = document.createElement('button');
-            prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
-            prev.className = `${btnClass} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
-            prev.disabled = currentPage === 1;
-            prev.onclick = () => { currentPage--; applyFilters(); };
-            container.appendChild(prev);
-
-            // Page numbers (max 5 pages shown)
-            const range = 2;
-            for (let i = 1; i <= totalPages; i++) {
-                if (
-                    i === 1 || i === totalPages ||
-                    (i >= currentPage - range && i <= currentPage + range)
-                ) {
-                    const btn = document.createElement('button');
-                    btn.textContent = i;
-                    btn.className = `${btnClass} ${i === currentPage ? activeClass : normalClass}`;
-                    btn.onclick = (function(page) {
-                        return function() { currentPage = page; applyFilters(); };
-                    })(i);
-                    container.appendChild(btn);
-                } else if (
-                    i === currentPage - range - 1 ||
-                    i === currentPage + range + 1
-                ) {
-                    const dots = document.createElement('span');
-                    dots.textContent = '...';
-                    dots.className = 'px-1 text-xs text-gray-400';
-                    container.appendChild(dots);
-                }
-            }
-
-            // Next
-            const next = document.createElement('button');
-            next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
-            next.className = `${btnClass} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
-            next.disabled = currentPage === totalPages;
-            next.onclick = () => { currentPage++; applyFilters(); };
-            container.appendChild(next);
-        }
-
-        // -- PDF LINK IKUT BAWA FILTER AKTIF -----------------
-        function updatePdfLink() {
-            const keyword  = document.getElementById('searchInput').value;
-            const filterHari = document.getElementById('filterHari')?.value || '';
-            const pdfBtn   = document.getElementById('pdfBtn');
-
-            const params = new URLSearchParams();
-            if (keyword)               params.set('search', keyword);
-            if (filterHari)            params.set('hari', filterHari);
-            if (activeStatus !== 'semua') params.set('status', activeStatus);
-            if (activeBulan  !== 'semua') params.set('bulan', activeBulan);
-            if (activeTahun  !== 'semua') params.set('tahun', activeTahun);
-
-            const qs = params.toString();
-            pdfBtn.href = "{{ route('service-detail.pdf') }}" + (qs ? '?' + qs : '');
-        }
-
-        // -- POPUP ALERT ------------------------------------
-        (function() {
-            var overlay = document.getElementById('alertOverlay');
-            var box = document.getElementById('alertBox');
-            if (!overlay) return;
-
-            setTimeout(function() {
-                overlay.style.opacity = '1';
-                overlay.style.pointerEvents = 'auto';
-                box.style.transform = 'translateY(0)';
-            }, 80);
-
-            var timer = setTimeout(closeAlert, 4500);
-
-            overlay.addEventListener('click', function(e) {
-                if (e.target === overlay) closeAlert();
-            });
-
-            function closeAlert() {
-                clearTimeout(timer);
-                overlay.style.opacity = '0';
-                overlay.style.pointerEvents = 'none';
-                box.style.transform = 'translateY(-16px)';
-            }
-            window.closeAlert = closeAlert;
-        })();
-
-        function openStatusModal(el) {
-            const id = el.dataset.id;
-            const status = el.dataset.status;
-
-            const modal = document.getElementById('statusModal');
-            const form = document.getElementById('statusForm');
-            const select = document.getElementById('statusSelect');
-
-            form.action = 'service/service-detail/' + id + '/status';
-            select.value = status;
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeStatusModal() {
-            const modal = document.getElementById('statusModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-
-            document.getElementById('statusForm').reset();
-        }
-
-        function previewBukti(input) {
-            const wrapper = document.getElementById('previewWrapper');
-            wrapper.innerHTML = '';
-            wrapper.classList.remove('hidden');
-
-            const file = input.files[0];
-            if (!file) return;
-
-            const ext = file.name.split('.').pop().toLowerCase();
-            const url = URL.createObjectURL(file);
-
-            let html = '';
-
-            // IMAGE
-            if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-                html = `
-            <div class="relative inline-block">
-                <img src="${url}"
-                    class="w-28 h-28 object-cover rounded-lg border shadow">
-
-                <button type="button"
-                    onclick="removeBukti()"
-                    class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs">
-                    ?
-                </button>
-            </div>
-        `;
-            }
-
-            // PDF / DOC
-            else {
-                let icon = 'fa-file';
-                let color = 'bg-gray-50 text-gray-600';
-
-                if (ext === 'pdf') {
-                    icon = 'fa-file-pdf';
-                    color = 'bg-red-50 text-red-600';
-                }
-
-                if (ext === 'doc' || ext === 'docx') {
-                    icon = 'fa-file-word';
-                    color = 'bg-blue-50 text-blue-600';
-                }
-
-                html = `
-            <div class="flex items-center justify-between p-3 border rounded-xl ${color}">
-                <div class="flex items-center gap-2 text-sm font-semibold">
-                    <i class="fa-solid ${icon}"></i>
-                    ${file.name}
+        } catch(err) {}
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    });
+
+
+    // =================================================================
+    // BUKTI FILE HELPERS
+    // =================================================================
+    function clearBuktiPreview() {
+        const wrap = document.getElementById('existingBuktiWrap');
+        const list = document.getElementById('existingBuktiList');
+        const prev = document.getElementById('newBuktiPreview');
+        if (wrap) { wrap.classList.add('hidden'); }
+        if (list) { list.innerHTML = ''; }
+        if (prev) { prev.innerHTML = ''; prev.classList.add('hidden'); }
+        const inp = document.getElementById('bukti');
+        if (inp) inp.value = '';
+    }
+
+    function renderExistingBukti(arr, recordId) {
+        const wrap = document.getElementById('existingBuktiWrap');
+        const list = document.getElementById('existingBuktiList');
+        list.innerHTML = '';
+
+        arr.forEach(function(item) {
+            // support both {path,name} and plain string (old format)
+            const path     = (typeof item === 'object') ? item.path : item;
+            const origName = (typeof item === 'object' && item.name) ? item.name : path.split('/').pop();
+            if (!path) return;
+
+            const ext      = path.split('.').pop().toLowerCase();
+            const isImage  = ['jpg','jpeg','png','webp'].includes(ext);
+            const isPdf    = ext === 'pdf';
+            const isDoc    = ['doc','docx'].includes(ext);
+
+            let iconHtml = '';
+            let colorClass = 'bg-gray-50 border-gray-200 text-gray-600';
+            if (isImage)    { iconHtml = `<img src="/${path}" class="w-8 h-8 object-cover rounded flex-shrink-0">`; colorClass = 'bg-blue-50 border-blue-200 text-blue-700'; }
+            else if (isPdf) { iconHtml = `<i class="fa fa-file-pdf text-red-500 text-xl flex-shrink-0"></i>`;  colorClass = 'bg-red-50 border-red-200 text-red-600'; }
+            else if (isDoc) { iconHtml = `<i class="fa fa-file-word text-blue-500 text-xl flex-shrink-0"></i>`; colorClass = 'bg-blue-50 border-blue-200 text-blue-600'; }
+            else            { iconHtml = `<i class="fa fa-file text-gray-400 text-xl flex-shrink-0"></i>`; }
+
+            const item2 = document.createElement('div');
+            item2.className = `flex items-center justify-between gap-3 px-3 py-2 border rounded-xl ${colorClass}`;
+            item2.innerHTML = `
+                <div class="flex items-center gap-2.5 min-w-0">
+                    ${iconHtml}
+                    <a href="/${path}" target="_blank" class="text-xs font-medium truncate hover:underline" title="${origName}">${origName}</a>
                 </div>
+                <button type="button" title="Hapus file ini"
+                    onclick="deleteSingleBukti('${path}', ${recordId}, this.closest('div[class*=flex]'))"
+                    class="flex-shrink-0 w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 text-red-500 flex items-center justify-center transition-colors">
+                    <i class="fa fa-times text-[10px]"></i>
+                </button>`;
+            list.appendChild(item2);
+        });
 
-                <button type="button"
-                    onclick="removeBukti()"
-                    class="w-6 h-6 bg-red-500 text-white rounded-full text-xs">
-                    ?
-                </button>
-            </div>
-        `;
+        wrap.classList.remove('hidden');
+    }
+
+    function deleteSingleBukti(filePath, recordId, rowEl) {
+        if (!confirm('Hapus file ini?')) return;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/service-detail/' + recordId + '/bukti';
+        form.innerHTML = `
+            @csrf
+            <input type="hidden" name="_method" value="DELETE">
+            <input type="hidden" name="file_path" value="${filePath}">`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function previewNewBukti(input) {
+        const prev = document.getElementById('newBuktiPreview');
+        prev.innerHTML = '';
+
+        const files = Array.from(input.files);
+        if (!files.length) { prev.classList.add('hidden'); return; }
+
+        files.forEach(function(file) {
+            const ext     = file.name.split('.').pop().toLowerCase();
+            const isImage = ['jpg','jpeg','png','webp'].includes(ext);
+            const url     = URL.createObjectURL(file);
+
+            let iconHtml   = '';
+            let colorClass = 'bg-gray-50 border-gray-200 text-gray-600';
+
+            if (isImage) {
+                iconHtml   = `<img src="${url}" class="w-8 h-8 object-cover rounded">`;
+                colorClass = 'bg-blue-50 border-blue-200 text-blue-700';
+            } else if (ext === 'pdf') {
+                iconHtml   = `<i class="fa fa-file-pdf text-red-500 text-xl"></i>`;
+                colorClass = 'bg-red-50 border-red-200 text-red-600';
+            } else {
+                iconHtml   = `<i class="fa fa-file-word text-blue-500 text-xl"></i>`;
+                colorClass = 'bg-blue-50 border-blue-200 text-blue-600';
             }
 
-            wrapper.innerHTML = html;
-        }
+            const item = document.createElement('div');
+            item.className = `flex items-center gap-2.5 px-3 py-2 border rounded-xl ${colorClass}`;
+            item.innerHTML = `${iconHtml}<span class="text-xs font-medium truncate">${file.name}</span>`;
+            prev.appendChild(item);
+        });
 
-        function removeBukti() {
-            const input = document.getElementById('bukti');
-            const wrapper = document.getElementById('previewWrapper');
+        prev.classList.remove('hidden');
+    }
 
-            input.value = '';
-            wrapper.innerHTML = '';
-            wrapper.classList.add('hidden');
-        }
 
-        // -- ACCORDION GROUP TOGGLE ----------------------------
-        // Track which groups are expanded (key = groupKey, value = bool)
-        const groupState = {};
+    // =================================================================
+    // MODAL DETAIL BUKTI
+    // =================================================================
+    function openDetailBukti(recordId, buktiArr, label) {
+        document.getElementById('detailBuktiSubtitle').textContent = label || '';
 
-        function toggleAccordion(groupKey, headerRow) {
-            const isExpanded = groupState[groupKey] || false;
-            const newState   = !isExpanded;
-            groupState[groupKey] = newState;
+        const content = document.getElementById('detailBuktiContent');
+        content.innerHTML = '';
 
-            // Show/hide child rows
-            const childRows = document.querySelectorAll(`tr[data-group-child="${groupKey}"]`);
-            childRows.forEach(row => {
-                if (newState) {
-                    row.style.display = '';
-                    row.style.opacity = '0';
-                    // Smooth fade-in
-                    requestAnimationFrame(() => {
-                        row.style.transition = 'opacity 0.18s ease';
-                        row.style.opacity = '1';
-                    });
-                } else {
-                    row.style.transition = 'opacity 0.15s ease';
-                    row.style.opacity = '0';
-                    setTimeout(() => { row.style.display = 'none'; }, 150);
-                }
-            });
+        if (!Array.isArray(buktiArr) || buktiArr.length === 0) {
+            content.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">Tidak ada file bukti</p>';
+        } else {
+            // Normalise ke {path, name}
+            const files = buktiArr.map(function(f) {
+                const path     = (typeof f === 'object') ? (f.path || '') : f;
+                const origName = (typeof f === 'object' && f.name) ? f.name : path.split('/').pop();
+                return { path, name: origName };
+            }).filter(f => f.path);
 
-            // Rotate chevron
-            const chevron = document.querySelector(`.group-chevron[data-group="${groupKey}"]`);
-            if (chevron) {
-                chevron.style.transform = newState ? 'rotate(180deg)' : 'rotate(0deg)';
+            const images = files.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f.path));
+            const docs   = files.filter(f => !/\.(jpg|jpeg|png|webp)$/i.test(f.path));
+
+            // --- GRID GAMBAR ---
+            if (images.length > 0) {
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4';
+
+                images.forEach(function(f) {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'group relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50 cursor-pointer';
+                    wrap.onclick   = function() { openLightbox('/' + f.path); };
+                    wrap.innerHTML = `
+                        <img src="/${f.path}" alt="${f.name}"
+                            class="w-full h-36 object-cover transition-transform duration-200 group-hover:scale-105">
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                            <i class="fa fa-expand text-white opacity-0 group-hover:opacity-100 text-xl transition-opacity drop-shadow"></i>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/60 to-transparent">
+                            <p class="text-[10px] text-white/90 truncate font-medium" title="${f.name}">${f.name}</p>
+                            <a href="/${f.path}" download="${f.name}" onclick="event.stopPropagation()"
+                                class="text-[10px] text-white/60 hover:text-white flex items-center gap-1 mt-0.5">
+                                <i class="fa fa-download text-[9px]"></i> Unduh
+                            </a>
+                        </div>`;
+                    grid.appendChild(wrap);
+                });
+
+                content.appendChild(grid);
             }
 
-            // Update header row appearance
-            if (headerRow) {
-                if (newState) {
-                    headerRow.classList.add('bg-blue-100');
-                    headerRow.classList.remove('bg-blue-50');
-                } else {
-                    headerRow.classList.add('bg-blue-50');
-                    headerRow.classList.remove('bg-blue-100');
+            // --- LIST DOKUMEN ---
+            if (docs.length > 0) {
+                if (images.length > 0) {
+                    const hr = document.createElement('hr');
+                    hr.className = 'border-gray-100 mb-4';
+                    content.appendChild(hr);
                 }
+
+                const docList = document.createElement('div');
+                docList.className = 'space-y-2';
+
+                docs.forEach(function(f) {
+                    const ext   = f.path.split('.').pop().toLowerCase();
+                    const isPdf = ext === 'pdf';
+
+                    const item = document.createElement('a');
+                    item.href   = '/' + f.path;
+                    item.target = '_blank';
+                    item.className = `flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors hover:bg-gray-50 ${isPdf ? 'border-red-100 bg-red-50/40 text-red-600' : 'border-blue-100 bg-blue-50/40 text-blue-600'}`;
+                    item.innerHTML = `
+                        <i class="fa ${isPdf ? 'fa-file-pdf' : 'fa-file-word'} text-xl flex-shrink-0"></i>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-semibold truncate" title="${f.name}">${f.name}</p>
+                            <p class="text-[10px] text-gray-400 mt-0.5">Klik untuk buka</p>
+                        </div>
+                        <i class="fa fa-external-link-alt text-xs text-gray-400 flex-shrink-0"></i>`;
+                    docList.appendChild(item);
+                });
+
+                content.appendChild(docList);
             }
         }
 
-        function expandAllAccordion() {
-            document.querySelectorAll('tr.group-header').forEach(headerRow => {
-                const key = headerRow.dataset.group;
-                if (key && !groupState[key]) {
-                    toggleAccordion(key, headerRow);
-                }
-            });
-        }
+        const detailModal = document.getElementById('modalDetailBukti');
+        detailModal.classList.remove('hidden');
+        detailModal.classList.add('flex');
+    }
 
-        function collapseAllAccordion() {
-            document.querySelectorAll('tr.group-header').forEach(headerRow => {
-                const key = headerRow.dataset.group;
-                if (key && groupState[key]) {
-                    toggleAccordion(key, headerRow);
-                }
-            });
-        }
+    function closeDetailBukti() {
+        const m = document.getElementById('modalDetailBukti');
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+    }
 
-        // -- END ACCORDION -------------------------------------
+    document.getElementById('modalDetailBukti').addEventListener('click', function(e) {
+        if (e.target === this) closeDetailBukti();
+    });
 
-        // Inisialisasi awal (set link PDF & totalCount sesuai state default)
+    // =================================================================
+    // LIGHTBOX
+    // =================================================================
+    function openLightbox(src) {
+        document.getElementById('lightboxImg').src = src;
+        const lb = document.getElementById('lightbox');
+        lb.classList.remove('hidden');
+        lb.classList.add('flex');
+    }
+
+    function closeLightbox() {
+        const lb = document.getElementById('lightbox');
+        lb.classList.add('hidden');
+        lb.classList.remove('flex');
+        document.getElementById('lightboxImg').src = '';
+    }
+
+
+    // =================================================================
+    // FILTER + SEARCH + ACCORDION
+    // =================================================================
+    let activeStatus = 'semua';
+    let activeBulan  = 'semua';
+    let activeTahun  = 'semua';
+    let currentPage  = 1;
+
+    function setActiveStatus(status) {
+        activeStatus = status;
+        currentPage  = 1;
+        const buttons = {
+            semua:          document.getElementById('btnSemua'),
+            'Layak':        document.getElementById('btnLayak'),
+            'Tidak Layak':  document.getElementById('btnTidakLayak'),
+        };
+        Object.entries(buttons).forEach(([key, btn]) => {
+            if (!btn) return;
+            if (key === status) {
+                btn.classList.add('bg-white','shadow-sm','border','border-gray-200');
+                if (key === 'Layak')       btn.classList.add('text-green-700');
+                else if (key === 'Tidak Layak') btn.classList.add('text-red-600');
+                else                       btn.classList.add('text-gray-700');
+                btn.classList.remove('text-gray-500');
+            } else {
+                btn.classList.remove('bg-white','shadow-sm','border','border-gray-200','text-green-700','text-red-600','text-gray-700');
+                btn.classList.add('text-gray-500');
+            }
+        });
         applyFilters();
+    }
+
+    function setActiveBulan(bulan) {
+        activeBulan = (bulan && bulan.trim() !== '') ? bulan : 'semua';
+        currentPage = 1;
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const keyword  = document.getElementById('searchInput').value.toLowerCase().trim();
+        const showVal  = '15';
+        const perPage  = parseInt(showVal);
+
+        const childRows = document.querySelectorAll('#serviceTableBody tr[data-search]');
+
+        const matched = [];
+        childRows.forEach(row => {
+            const matchSearch = !keyword || row.dataset.search.includes(keyword);
+            const matchStatus = activeStatus === 'semua' || row.dataset.status === activeStatus;
+            const tgl         = row.dataset.bulan || '';
+            const [rY, rM]    = tgl.split('-');
+            const rowYM       = rY && rM ? `${rY}-${rM}` : '';
+            const matchBulan  = activeBulan === 'semua' || rowYM === activeBulan;
+            if (matchSearch && matchStatus && matchBulan) matched.push(row);
+        });
+
+        const total      = matched.length;
+        const totalPages = Math.ceil(total / perPage) || 1;
+        if (currentPage > totalPages) currentPage = 1;
+
+        const start   = (currentPage - 1) * perPage;
+        const end     = Math.min(start + perPage, total);
+        const pageSet = new Set(matched.slice(start, end));
+
+        const visibleGroups  = new Set(matched.map(r => r.dataset.groupChild));
+        const filterAktif    = activeStatus !== 'semua' || keyword || activeBulan !== 'semua';
+
+        if (filterAktif) {
+            visibleGroups.forEach(gKey => {
+                if (!groupState[gKey]) {
+                    groupState[gKey] = true;
+                    const chevron = document.querySelector(`.group-chevron[data-group="${gKey}"]`);
+                    if (chevron) chevron.style.transform = 'rotate(180deg)';
+                    const hdr = document.querySelector(`tr.group-header[data-group="${gKey}"]`);
+                    if (hdr) { hdr.classList.add('bg-blue-100'); hdr.classList.remove('bg-blue-50'); }
+                }
+            });
+        } else {
+            Object.keys(groupState).forEach(gKey => {
+                if (groupState[gKey]) {
+                    groupState[gKey] = false;
+                    const chevron = document.querySelector(`.group-chevron[data-group="${gKey}"]`);
+                    if (chevron) chevron.style.transform = 'rotate(0deg)';
+                    const hdr = document.querySelector(`tr.group-header[data-group="${gKey}"]`);
+                    if (hdr) { hdr.classList.add('bg-blue-50'); hdr.classList.remove('bg-blue-100'); }
+                }
+            });
+        }
+
+        childRows.forEach(row => {
+            if (pageSet.has(row)) {
+                const gKey      = row.dataset.groupChild;
+                const shouldShow = filterAktif ? true : (groupState[gKey] || false);
+                row.style.display = shouldShow ? '' : 'none';
+                row.style.opacity = '1';
+                row.style.transition = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.querySelectorAll('#serviceTableBody tr.group-header').forEach(hr => {
+            hr.style.display = visibleGroups.has(hr.dataset.group) ? '' : 'none';
+        });
+
+        const showingInfo = document.getElementById('showingInfo');
+        if (showingInfo) {
+            showingInfo.textContent = total === 0
+                ? 'Tidak ada data yang ditampilkan'
+                : `Menampilkan ${start + 1} sampai ${end} dari ${total} data`;
+        }
+
+        renderPagination(totalPages);
+        document.getElementById('totalCount').textContent = total + ' total data';
+
+        const noResult = document.getElementById('noResultRow');
+        if (noResult) noResult.classList.toggle('hidden', total > 0 || childRows.length === 0);
+
+        updatePdfLink();
+    }
+
+    function renderPagination(totalPages) {
+        const container = document.getElementById('paginationControls');
+        if (!container) return;
+        container.innerHTML = '';
+        if (totalPages <= 1) return;
+
+        const btnClass    = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
+        const activeClass = 'bg-blue-600 text-white border-blue-600';
+        const normalClass = 'border-gray-200 text-gray-600 hover:bg-gray-50';
+
+        const prev      = document.createElement('button');
+        prev.innerHTML  = '<i class="fa fa-chevron-left text-[10px]"></i>';
+        prev.className  = `${btnClass} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
+        prev.disabled   = currentPage === 1;
+        prev.onclick    = () => { currentPage--; applyFilters(); };
+        container.appendChild(prev);
+
+        const range = 2;
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - range && i <= currentPage + range)) {
+                const btn      = document.createElement('button');
+                btn.textContent = i;
+                btn.className  = `${btnClass} ${i === currentPage ? activeClass : normalClass}`;
+                btn.onclick    = (function(page) { return function() { currentPage = page; applyFilters(); }; })(i);
+                container.appendChild(btn);
+            } else if (i === currentPage - range - 1 || i === currentPage + range + 1) {
+                const dots       = document.createElement('span');
+                dots.textContent = '...';
+                dots.className   = 'px-1 text-xs text-gray-400';
+                container.appendChild(dots);
+            }
+        }
+
+        const next     = document.createElement('button');
+        next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
+        next.className = `${btnClass} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
+        next.disabled  = currentPage === totalPages;
+        next.onclick   = () => { currentPage++; applyFilters(); };
+        container.appendChild(next);
+    }
+
+    function updatePdfLink() {
+        const keyword = document.getElementById('searchInput').value;
+        const pdfBtn  = document.getElementById('pdfBtn');
+        const params  = new URLSearchParams();
+        if (keyword)               params.set('search', keyword);
+        if (activeStatus !== 'semua') params.set('status', activeStatus);
+        if (activeBulan  !== 'semua') params.set('bulan',  activeBulan);
+        const qs = params.toString();
+        pdfBtn.href = "{{ route('service-detail.pdf') }}" + (qs ? '?' + qs : '');
+    }
+
+
+    // =================================================================
+    // POPUP ALERT
+    // =================================================================
+    (function() {
+        const overlay = document.getElementById('alertOverlay');
+        const box     = document.getElementById('alertBox');
+        if (!overlay) return;
+        setTimeout(function() {
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
+            box.style.transform = 'translateY(0)';
+        }, 80);
+        const timer = setTimeout(closeAlert, 4500);
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) closeAlert(); });
+        function closeAlert() {
+            clearTimeout(timer);
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+            box.style.transform = 'translateY(-16px)';
+        }
+        window.closeAlert = closeAlert;
+    })();
+
+    // =================================================================
+    // STATUS MODAL
+    // =================================================================
+    function openStatusModal(el) {
+        const id     = el.dataset.id;
+        const status = el.dataset.status;
+        const m      = document.getElementById('statusModal');
+        document.getElementById('statusForm').action = 'service/service-detail/' + id + '/status';
+        document.getElementById('statusSelect').value = status;
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+    }
+
+    function closeStatusModal() {
+        const m = document.getElementById('statusModal');
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+        document.getElementById('statusForm').reset();
+    }
+
+    // =================================================================
+    // ACCORDION
+    // =================================================================
+    const groupState = {};
+
+    function toggleAccordion(groupKey, headerRow) {
+        const isExpanded = groupState[groupKey] || false;
+        const newState   = !isExpanded;
+        groupState[groupKey] = newState;
+
+        const childRows = document.querySelectorAll(`tr[data-group-child="${groupKey}"]`);
+        childRows.forEach(row => {
+            if (newState) {
+                row.style.display = '';
+                row.style.opacity = '0';
+                requestAnimationFrame(() => {
+                    row.style.transition = 'opacity 0.18s ease';
+                    row.style.opacity = '1';
+                });
+            } else {
+                row.style.transition = 'opacity 0.15s ease';
+                row.style.opacity = '0';
+                setTimeout(() => { row.style.display = 'none'; }, 150);
+            }
+        });
+
+        const chevron = document.querySelector(`.group-chevron[data-group="${groupKey}"]`);
+        if (chevron) chevron.style.transform = newState ? 'rotate(180deg)' : 'rotate(0deg)';
+
+        if (headerRow) {
+            if (newState) { headerRow.classList.add('bg-blue-100');  headerRow.classList.remove('bg-blue-50'); }
+            else          { headerRow.classList.add('bg-blue-50');   headerRow.classList.remove('bg-blue-100'); }
+        }
+    }
+
+    function expandAllAccordion() {
+        document.querySelectorAll('tr.group-header').forEach(headerRow => {
+            const key = headerRow.dataset.group;
+            if (key && !groupState[key]) toggleAccordion(key, headerRow);
+        });
+    }
+
+    function collapseAllAccordion() {
+        document.querySelectorAll('tr.group-header').forEach(headerRow => {
+            const key = headerRow.dataset.group;
+            if (key && groupState[key]) toggleAccordion(key, headerRow);
+        });
+    }
+
+    // Init
+    applyFilters();
     </script>
 
 @endsection

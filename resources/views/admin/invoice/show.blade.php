@@ -387,11 +387,12 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 // ─────────────────────────────────────────────────────────────
 
-const INVOICE_ID = {{ $invoice->id }};
-const PPN_PCT    = {{ floatval($invoice->ppn ?? 0) }};
-const PPH_PCT    = {{ floatval($invoice->pph ?? 0) }};
-const BASE_URL   = '/admin/invoices/' + INVOICE_ID + '/periodes';
-const CSRF       = '{{ csrf_token() }}';
+const INVOICE_ID    = {{ $invoice->id }};
+const PPN_PCT       = {{ floatval($invoice->ppn ?? 0) }};
+const PPH_PCT       = {{ floatval($invoice->pph ?? 0) }};
+const BASE_URL      = '/admin/invoices/' + INVOICE_ID + '/periodes';
+const CSRF          = '{{ csrf_token() }}';
+const VERIFIED_COUNT = {{ $verifiedCount }};
 
 // ============================================================
 //  HELPERS
@@ -468,23 +469,64 @@ function renderRemakRow(r, periodeId) {
         </tr>`;
 }
 
-function renderPeriode(p) {
+function renderPeriode(p, index) {
     const remaks   = p.remaks ?? [];
     const subtotal = calcSubtotal(remaks);
     const awal     = formatDate(p.periode_awal);
-    const akhir    = p.periode_akhir && p.periode_akhir !== p.periode_awal ? formatDate(p.periode_akhir) : '';
+    const akhir    = p.periode_akhir && p.periode_akhir !== p.periode_awal
+        ? formatDate(p.periode_akhir) : '';
+    const dateLabel = awal + (akhir ? ' – ' + akhir : '');
 
+    const isPaid   = index < VERIFIED_COUNT;          // sudah dibayar
+    const isActive = index === VERIFIED_COUNT;         // periode aktif sekarang
+    const isFuture = index > VERIFIED_COUNT;           // belum saatnya
+
+    // ── Periode SUDAH DIBAYAR: collapsed + centang hijau ───────
+    if (isPaid) {
+        return `
+        <div class="px-5 py-3 flex items-center justify-between border-b border-gray-50 bg-green-50/40" id="periode-${p.id}">
+            <div class="flex items-center gap-2">
+                <span class="w-5 h-5 flex items-center justify-center rounded-full bg-green-100 flex-shrink-0">
+                    <i class="fa fa-check text-[10px] text-green-600"></i>
+                </span>
+                <span class="text-xs font-semibold text-green-700 line-through decoration-green-400">${dateLabel}</span>
+                <span class="text-[10px] text-green-600 font-medium bg-green-100 px-1.5 py-0.5 rounded-full">Lunas</span>
+            </div>
+            <span class="text-xs text-green-600 font-semibold">${rp(subtotal)}</span>
+        </div>`;
+    }
+
+    // ── Periode BELUM SAATNYA: collapsed + silang abu ──────────
+    if (isFuture) {
+        return `
+        <div class="px-5 py-3 flex items-center justify-between border-b border-gray-50 bg-gray-50/60" id="periode-${p.id}">
+            <div class="flex items-center gap-2">
+                <span class="w-5 h-5 flex items-center justify-center rounded-full bg-gray-200 flex-shrink-0">
+                    <i class="fa fa-times text-[10px] text-gray-400"></i>
+                </span>
+                <span class="text-xs text-gray-400">${dateLabel}</span>
+            </div>
+            <span class="text-xs text-gray-400">${rp(subtotal)}</span>
+        </div>`;
+    }
+
+    // ── Periode AKTIF: expanded + border biru + badge ──────────
     const remakRows = remaks.map(r => renderRemakRow(r, p.id)).join('');
 
     return `
-    <div class="px-5 py-4" id="periode-${p.id}">
-        <div class="flex items-start justify-between mb-3">
-            <div>
-                <span class="text-sm font-semibold text-gray-800">${awal}${akhir ? ' <span class="text-gray-400 font-normal">s/d</span> ' + akhir : ''}</span>
-                <span class="ml-2 text-xs text-gray-400">Sub Total: <strong>${rp(subtotal)}</strong></span>
+    <div class="border-l-4 border-blue-500 bg-blue-50/30" id="periode-${p.id}">
+        <div class="px-5 py-3 flex items-start justify-between">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="w-5 h-5 flex items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
+                    <i class="fa fa-calendar text-[10px] text-blue-600"></i>
+                </span>
+                <span class="text-sm font-bold text-blue-800">${dateLabel}</span>
+                <span class="text-[10px] font-semibold bg-blue-600 text-white px-2 py-0.5 rounded-full animate-pulse">
+                    Periode Aktif
+                </span>
             </div>
             <div class="flex gap-1 flex-shrink-0 ml-3">
-                <button class="addRemakBtn text-blue-600 hover:bg-blue-50 px-2 py-1 text-xs rounded font-semibold border border-blue-200"
+                <button class="addRemakBtn text-blue-600 hover:bg-blue-100 px-2 py-1 text-xs rounded font-semibold border border-blue-200"
                     data-periode-id="${p.id}">
                     <i class="fa fa-plus mr-1"></i>Tambah Remaks
                 </button>
@@ -498,21 +540,26 @@ function renderPeriode(p) {
                 </button>
             </div>
         </div>
-        <div class="overflow-x-auto rounded-lg border border-gray-200">
-            <table class="w-full text-sm" id="remak-table-${p.id}">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500">Remaks</th>
-                        <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 w-16">QTY</th>
-                        <th class="px-4 py-2 text-right text-xs font-semibold text-gray-500 w-32">Harga/Hari</th>
-                        <th class="px-4 py-2 text-right text-xs font-semibold text-gray-500 w-32">Sub Total</th>
-                        <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 w-24">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody id="remak-tbody-${p.id}">
-                    ${remakRows || '<tr><td colspan="5" class="text-center py-4 text-gray-400 text-xs">Belum ada remaks. Klik "+ Tambah Remaks"</td></tr>'}
-                </tbody>
-            </table>
+        <div class="px-5 pb-4">
+            <div class="overflow-x-auto rounded-lg border border-blue-200">
+                <table class="w-full text-sm">
+                    <thead class="bg-blue-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-blue-600">Remaks</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-blue-600 w-16">QTY</th>
+                            <th class="px-4 py-2 text-right text-xs font-semibold text-blue-600 w-32">Harga</th>
+                            <th class="px-4 py-2 text-right text-xs font-semibold text-blue-600 w-32">Sub Total</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-blue-600 w-24">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="remak-tbody-${p.id}">
+                        ${remakRows || '<tr><td colspan="5" class="text-center py-4 text-gray-400 text-xs">Belum ada remaks</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-2 flex justify-end">
+                <span class="text-xs font-bold text-blue-700">Sub Total: ${rp(subtotal)}</span>
+            </div>
         </div>
     </div>`;
 }
@@ -534,7 +581,7 @@ async function loadPeriodes() {
                     Belum ada periode. Klik "Tambah Periode" untuk memulai.
                 </div>`;
         } else {
-            list.innerHTML = allPeriodes.map(renderPeriode).join('');
+            list.innerHTML = allPeriodes.map((p, index) => renderPeriode(p, index)).join('');
             bindRemakButtons();
         }
         renderSummary(allPeriodes);

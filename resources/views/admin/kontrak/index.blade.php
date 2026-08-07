@@ -156,9 +156,10 @@
                         <td class="px-4 py-3.5">
                             @if($k->penawaran && $k->penawaran->items->isNotEmpty())
                                 <div class="flex flex-col gap-1">
-                                @foreach($k->penawaran->items as $item)
+                                @foreach($k->penawaran->items as $itemNo => $item)
                                     @if($item->kendaraan)
                                     <div class="flex items-center gap-1.5">
+                                        <span class="text-[10px] font-bold text-gray-400 w-4">{{ $itemNo + 1 }}.</span>
                                         <span class="text-xs font-semibold text-gray-800">{{ $item->kendaraan->merk }} – {{ $item->kendaraan->nopol }}</span>
                                         @php
                                             $stc = match($item->kendaraan->status_kendaraan ?? '') {
@@ -182,14 +183,55 @@
 
                         {{-- Durasi & Periode --}}
                         <td class="px-4 py-3.5 text-xs text-gray-600">
-                            @if($k->durasi_value)
-                            <span class="font-semibold text-indigo-700">{{ $k->durasi_value }} {{ $k->durasi_satuan }}</span>
-                            @endif
-                            @if($k->tanggal_kontrak && $k->tanggal_selesai)
-                            <div class="text-[10px] text-gray-400 mt-0.5">
-                                {{ $k->tanggal_kontrak->format('d M Y') }} –<br>
-                                {{ $k->tanggal_selesai->format('d M Y') }}
-                            </div>
+                            @php
+                                $items = $k->penawaran?->items ?? collect();
+                                $hasPerjanjian = $k->perjanjian_pembayaran;
+                                $mulaiRental = $hasPerjanjian
+                                    ? \Carbon\Carbon::parse($k->perjanjian_pembayaran)->addDay()
+                                    : ($k->tanggal_kontrak ?? null);
+                            @endphp
+                            @if($items->isNotEmpty())
+                                <div class="flex flex-col gap-1">
+                                @foreach($items as $item)
+                                    @php
+                                        $durVal = (int) ($item->durasi ?? 1);
+                                        $durSat = strtolower(trim($item->satuan_durasi ?? 'bulan'));
+                                        if (!in_array($durSat, ['hari','bulan','tahun'])) $durSat = 'bulan';
+                                        $selesaiItem = $mulaiRental ? match($durSat) {
+                                            'hari'  => \Carbon\Carbon::parse($mulaiRental)->addDays($durVal),
+                                            'tahun' => \Carbon\Carbon::parse($mulaiRental)->addYears($durVal),
+                                            default => \Carbon\Carbon::parse($mulaiRental)->addMonths($durVal),
+                                        } : null;
+                                        $satLabel = match($durSat) { 'tahun' => 'Thn', 'hari' => 'Hr', default => 'Bln' };
+                                    @endphp
+                                    <div class="flex items-start gap-1.5">
+                                        <i class="fa fa-car text-gray-300 text-[10px] mt-0.5 flex-shrink-0"></i>
+                                        <div class="min-w-0">
+                                            <span class="font-semibold text-indigo-700">{{ $durVal }} {{ $satLabel }}</span>
+                                            @if($item->kendaraan)
+                                            <span class="text-[10px] text-gray-400 ml-1">{{ $item->kendaraan->nopol }}</span>
+                                            @endif
+                                            @if($mulaiRental && $selesaiItem)
+                                            <div class="text-[10px] text-gray-400 leading-tight">
+                                                {{ \Carbon\Carbon::parse($mulaiRental)->format('d M Y') }} –<br>
+                                                {{ $selesaiItem->format('d M Y') }}
+                                            </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
+                                </div>
+                            @else
+                                {{-- fallback: data lama sebelum per-item --}}
+                                @if($k->durasi_value)
+                                <span class="font-semibold text-indigo-700">{{ $k->durasi_value }} {{ $k->durasi_satuan }}</span>
+                                @endif
+                                @if($mulaiRental && $k->tanggal_selesai)
+                                <div class="text-[10px] text-gray-400 mt-0.5">
+                                    {{ \Carbon\Carbon::parse($mulaiRental)->format('d M Y') }} –<br>
+                                    {{ $k->tanggal_selesai->format('d M Y') }}
+                                </div>
+                                @endif
                             @endif
                         </td>
 
@@ -340,14 +382,11 @@
 
                     <div class="pt-2 border-t border-blue-200">
                         <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
-                            <i class="fa fa-clock"></i> Durasi Sewa (dari penawaran)
+                            <i class="fa fa-clock"></i> Durasi Sewa per Kendaraan
                         </p>
-                        <div class="flex items-center gap-3 bg-white rounded-lg border border-blue-200 px-4 py-2">
-                            <span class="text-xl font-bold text-blue-700" id="preview_durasi_value">-</span>
-                            <span class="text-sm font-semibold text-blue-600" id="preview_durasi_satuan">-</span>
-                            <span class="text-xs text-gray-400 ml-2">• Tidak dapat diubah</span>
-                        </div>
-                        {{-- Hidden inputs --}}
+                        {{-- Durasi per item — diisi JS --}}
+                        <div id="preview_durasi_list" class="space-y-2"></div>
+                        {{-- Hidden inputs: durasi kontrak (pakai item terpanjang sebagai patokan) --}}
                         <input type="hidden" name="durasi_value" id="hidden_durasi_value">
                         <input type="hidden" name="durasi_satuan" id="hidden_durasi_satuan">
                     </div>
@@ -364,24 +403,28 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Kontrak <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_kontrak" id="create_tanggal_kontrak"
-                        onchange="calcTanggalSelesai()"
                         min="{{ date('Y-m-d') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                         required value="{{ now()->format('Y-m-d') }}">
+                    <p class="text-[10px] text-gray-400 mt-1">Tanggal terbit dokumen kontrak</p>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Selesai (otomatis)</label>
-                    <input type="text" id="display_tanggal_selesai" readonly
-                        class="w-full border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
-                        placeholder="Pilih penawaran + tanggal kontrak">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Perjanjian Pembayaran</label>
+                    <input type="date" name="perjanjian_pembayaran" id="create_perjanjian_pembayaran"
+                        onchange="calcTanggalSelesai()"
+                        min="{{ date('Y-m-d') }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <p class="text-[10px] text-gray-400 mt-1">Rental mulai <strong>+1 hari</strong> setelah tanggal ini</p>
                 </div>
             </div>
 
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Perjanjian Pembayaran</label>
-                <input type="date" name="perjanjian_pembayaran"
-                    min="{{ date('Y-m-d') }}"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+            {{-- Tanggal selesai per kendaraan (otomatis) --}}
+            <div id="selesai_per_kendaraan" class="hidden">
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                    <i class="fa fa-calendar-check text-indigo-500"></i> Estimasi Tanggal Selesai per Kendaraan
+                </label>
+                <div id="list_selesai_kendaraan" class="space-y-1.5"></div>
+                <p class="text-[10px] text-gray-400 mt-1">Dihitung dari perjanjian pembayaran +1 hari + durasi masing-masing kendaraan</p>
             </div>
 
             {{-- Pihak --}}
@@ -647,7 +690,9 @@
 
     function fetchPenawaranDetail(penawaranId) {
         if (!penawaranId) {
+            _currentItems = [];
             document.getElementById('preview_penawaran').classList.add('hidden');
+            document.getElementById('selesai_per_kendaraan').classList.add('hidden');
             return;
         }
         if (_penawaranCache[penawaranId]) {
@@ -664,18 +709,51 @@
     }
 
     function renderPenawaranPreview(data) {
+        const items = data.items || [];
+        _currentItems = items; // simpan ke cache untuk calcTanggalSelesai
 
-        // Durasi dari item pertama
-        const firstItem = data.items && data.items.length > 0 ? data.items[0] : null;
-        const durasiVal = firstItem ? (firstItem.durasi || data.periode || 1) : (data.periode || 1);
-        const durasiSat = firstItem ? (firstItem.satuan_durasi || 'bulan') : 'bulan';
+        // ── Durasi per item ──────────────────────────
+        // Konversi semua durasi ke hari untuk menentukan yang terpanjang
+        const toDays = (val, sat) => {
+            val = parseInt(val) || 1;
+            if (sat === 'tahun') return val * 365;
+            if (sat === 'bulan') return val * 30;
+            return val; // hari
+        };
 
-        document.getElementById('preview_durasi_value').textContent = durasiVal;
-        document.getElementById('preview_durasi_satuan').textContent = durasiSat;
-        document.getElementById('hidden_durasi_value').value = durasiVal;
-        document.getElementById('hidden_durasi_satuan').value = durasiSat;
+        let maxDays   = 0;
+        let maxVal    = 1;
+        let maxSat    = 'bulan';
 
-        // Kalkulasi tanggal selesai
+        const durasiListEl = document.getElementById('preview_durasi_list');
+        if (items.length > 0) {
+            durasiListEl.innerHTML = items.map(item => {
+                if (!item.kendaraan) return '';
+                const durVal = parseInt(item.durasi) || (data.periode || 1);
+                const durSat = (item.satuan_durasi || 'bulan').toLowerCase();
+                const days   = toDays(durVal, durSat);
+                if (days > maxDays) { maxDays = days; maxVal = durVal; maxSat = durSat; }
+                const label  = `${item.kendaraan.merk || '-'} ${item.kendaraan.nopol || ''}`.trim();
+                const satLabel = durSat === 'tahun' ? 'Tahun' : durSat === 'bulan' ? 'Bulan' : 'Hari';
+                return `<div class="flex items-center justify-between bg-white border border-blue-200 rounded-lg px-3 py-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <i class="fa fa-car text-blue-400 text-xs flex-shrink-0"></i>
+                        <span class="text-xs text-gray-700 truncate">${label}</span>
+                    </div>
+                    <span class="ml-3 flex-shrink-0 text-sm font-bold text-indigo-700">
+                        ${durVal} <span class="text-xs font-normal text-indigo-500">${satLabel}</span>
+                    </span>
+                </div>`;
+            }).join('');
+        } else {
+            durasiListEl.innerHTML = '<p class="text-xs text-gray-400">Tidak ada item</p>';
+        }
+
+        // Set hidden: pakai durasi terpanjang sebagai patokan kontrak
+        document.getElementById('hidden_durasi_value').value = maxVal;
+        document.getElementById('hidden_durasi_satuan').value = maxSat;
+
+        // Kalkulasi ulang tanggal selesai jika perjanjian sudah diisi
         calcTanggalSelesai();
 
         // Total
@@ -714,25 +792,53 @@
         document.getElementById('preview_penawaran').classList.remove('hidden');
     }
 
-    // ── Hitung tanggal selesai otomatis ────────────
-    function calcTanggalSelesai() {
-        const tglStr  = document.getElementById('create_tanggal_kontrak').value;
-        const durVal  = parseInt(document.getElementById('hidden_durasi_value').value || '0');
-        const durSat  = document.getElementById('hidden_durasi_satuan').value || '';
-        const dispEl  = document.getElementById('display_tanggal_selesai');
+    // ── Hitung tanggal selesai otomatis per kendaraan ──────────
+    // Mulai = perjanjian_pembayaran + 1 hari
+    // Selesai = mulai + durasi per item
+    let _currentItems = []; // cache items dari penawaran terakhir
 
-        if (!tglStr || !durVal || !durSat) {
-            dispEl.value = '';
+    function calcTanggalSelesai() {
+        const perjanjianStr = document.getElementById('create_perjanjian_pembayaran').value;
+        const selesaiWrap   = document.getElementById('selesai_per_kendaraan');
+        const selesaiList   = document.getElementById('list_selesai_kendaraan');
+
+        if (!perjanjianStr || _currentItems.length === 0) {
+            selesaiWrap.classList.add('hidden');
             return;
         }
 
-        let d = new Date(tglStr);
-        if (durSat === 'hari')  d.setDate(d.getDate() + durVal);
-        else if (durSat === 'tahun') d.setFullYear(d.getFullYear() + durVal);
-        else d.setMonth(d.getMonth() + durVal); // bulan
-
         const opts = { day: 'numeric', month: 'long', year: 'numeric' };
-        dispEl.value = d.toLocaleDateString('id-ID', opts);
+
+        // Mulai = perjanjian +1 hari
+        const mulai = new Date(perjanjianStr);
+        mulai.setDate(mulai.getDate() + 1);
+
+        const rows = _currentItems.map(item => {
+            if (!item.kendaraan) return '';
+            const durVal = parseInt(item.durasi) || 1;
+            const durSat = (item.satuan_durasi || 'bulan').toLowerCase();
+            const satLabel = durSat === 'tahun' ? 'Tahun' : durSat === 'bulan' ? 'Bulan' : 'Hari';
+            const label  = `${item.kendaraan.merk || '-'} – ${item.kendaraan.nopol || ''}`.trim();
+
+            let selesai = new Date(mulai);
+            if (durSat === 'hari')       selesai.setDate(selesai.getDate() + durVal);
+            else if (durSat === 'tahun') selesai.setFullYear(selesai.getFullYear() + durVal);
+            else                         selesai.setMonth(selesai.getMonth() + durVal);
+
+            return `<div class="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+                <div class="flex items-center gap-2 min-w-0">
+                    <i class="fa fa-car text-indigo-400 text-xs flex-shrink-0"></i>
+                    <span class="text-xs font-semibold text-gray-800 truncate">${label}</span>
+                    <span class="text-[10px] text-indigo-500 flex-shrink-0">(${durVal} ${satLabel})</span>
+                </div>
+                <span class="ml-3 flex-shrink-0 text-xs font-bold text-indigo-700">
+                    ${mulai.toLocaleDateString('id-ID', opts)} – ${selesai.toLocaleDateString('id-ID', opts)}
+                </span>
+            </div>`;
+        }).filter(Boolean).join('');
+
+        selesaiList.innerHTML = rows || '<p class="text-xs text-gray-400">Tidak ada kendaraan</p>';
+        selesaiWrap.classList.remove('hidden');
     }
 
     // ── Approve modal ──────────────────────────────

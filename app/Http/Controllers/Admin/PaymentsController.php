@@ -10,6 +10,8 @@ use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\InvSummary;
 use App\Models\Keuangan;
+use App\Models\Rental;
+use App\Http\Controllers\Admin\InvoicesController;
 use App\Models\Bukubesar;
 
 class PaymentsController extends Controller
@@ -37,7 +39,45 @@ class PaymentsController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $invoices = Invoice::with(['penawaran.items', 'summary'])->orderBy('invoice_no')->get();
+        $invoices = Invoice::with(['penawaran.items', 'summary', 'periodes'])
+            ->withCount([
+                'periodes',
+                'payments as verified_count' => fn($q) => $q->where('status', 'Verified'),
+            ])
+            ->orderBy('invoice_no')
+            ->get()
+            ->map(function ($inv) {
+                $totalPeriode  = $inv->periodes_count ?? 0;
+                $verified      = $inv->verified_count  ?? 0;
+                $sisa          = max(0, $totalPeriode - $verified);
+                $nextNo        = $verified + 1;
+
+                // harga per periode = total invoice ÷ jumlah periode
+                $hargaPerPeriode = ($totalPeriode > 0)
+                    ? round((float) $inv->total / $totalPeriode)
+                    : (float) $inv->total;
+
+                // periode berikutnya (index = jumlah yang sudah dibayar)
+                $nextPeriode = $inv->periodes
+                    ->sortBy('periode_awal')
+                    ->values()
+                    ->get($verified);          // null jika semua sudah dibayar
+
+                $inv->_pi = [
+                    'total_periode'  => $totalPeriode,
+                    'verified'       => $verified,
+                    'sisa'           => $sisa,
+                    'next_no'        => $nextNo,
+                    'harga'          => $hargaPerPeriode,
+                    'awal'           => $nextPeriode?->periode_awal?->format('Y-m-d'),
+                    'akhir'          => $nextPeriode?->periode_akhir?->format('Y-m-d'),
+                    'awal_fmt'       => $nextPeriode?->periode_awal?->translatedFormat('d M Y')
+                                        ?? $nextPeriode?->periode_awal?->format('d M Y'),
+                    'akhir_fmt'      => $nextPeriode?->periode_akhir?->translatedFormat('d M Y')
+                                        ?? $nextPeriode?->periode_akhir?->format('d M Y'),
+                ];
+                return $inv;
+            });
 
         return view(
             'admin.payments.index',
@@ -167,13 +207,14 @@ class PaymentsController extends Controller
             return;
         }
 
-        // Gunakan kolom total tersimpan (nilai per periode/bulan + PPN)
-        // bukan computeTotal() yang menjumlahkan semua periodes
-        $invoiceTotal = (float) $invoice->total;
+        // Hitung total dari remaks invoice (price × qty per remak) + PPN invoice
+        // Ini akurat karena remaks sudah disesuaikan dengan kendaraan aktif di periode ini
+        $invoice->load('periodes.remaks');
+        $invoiceTotal = $invoice->computeTotal();
 
-        // Fallback ke computeTotal hanya jika total belum pernah diisi
+        // Fallback ke kolom total tersimpan jika tidak ada remaks
         if ($invoiceTotal <= 0) {
-            $invoiceTotal = $invoice->computeTotal();
+            $invoiceTotal = (float) $invoice->total;
         }
 
         $remaining = max(0, $invoiceTotal - $totalVerified);
@@ -192,8 +233,11 @@ class PaymentsController extends Controller
 
         // P0 #5 — upsert InvSummary
         // total_amount hanya diisi untuk record baru; jika sudah ada, tidak diubah
+        $existingSummary = InvSummary::where('invoice_id', $invoiceId)->first();
+
         if ($existingSummary) {
             $existingSummary->update([
+                'total_amount'     => $invoiceTotal,  // refresh dengan kalkulasi terbaru
                 'paid_amount'      => $totalVerified,
                 'remaining_amount' => $remaining,
                 'payment_status'   => $paymentStatus,
@@ -216,6 +260,75 @@ class PaymentsController extends Controller
             'payment_status' => $paymentStatus,
             'status'         => $statusKolom,
         ]);
+
+        // Update status_pembayaran di Rental — per kendaraan berdasarkan invoice terkait
+        if ($invoice->kontrak_id) {
+            // Hitung total periode dari durasi kontrak (bukan jumlah invoice yang sudah dibuat)
+            $kontrakData = \App\Models\InvKontrak::find($invoice->kontrak_id);
+            $totalPeriodeKontrak = 1;
+            if ($kontrakData) {
+                $durVal = (int) ($kontrakData->durasi_value ?? 1);
+                $durSat = strtolower($kontrakData->durasi_satuan ?? 'bulan');
+                $totalPeriodeKontrak = match ($durSat) {
+                    'tahun' => $durVal * 12,
+                    'hari'  => max(1, (int) round($durVal / 30)),
+                    default => $durVal,
+                };
+            }
+
+            // Ambil semua kendaraan yang terkait kontrak ini via invoice_kendaraans
+            $kendaraanIds = \DB::table('invoice_kendaraans')
+                ->join('invoices', 'invoices.id', '=', 'invoice_kendaraans.invoice_id')
+                ->where('invoices.kontrak_id', $invoice->kontrak_id)
+                ->pluck('invoice_kendaraans.kendaraan_id')
+                ->unique()
+                ->toArray();
+
+            foreach ($kendaraanIds as $kendaraanId) {
+                // Hitung berapa invoice PAID untuk kendaraan ini dalam kontrak
+                $paidInv = \DB::table('invoice_kendaraans')
+                    ->join('invoices', 'invoices.id', '=', 'invoice_kendaraans.invoice_id')
+                    ->where('invoices.kontrak_id', $invoice->kontrak_id)
+                    ->where('invoice_kendaraans.kendaraan_id', $kendaraanId)
+                    ->where('invoices.payment_status', 'paid')
+                    ->count();
+
+                $hasAnyPaid = $paidInv > 0;
+
+                // Hitung total periode untuk kendaraan ini (bisa lebih pendek dari kontrak)
+                // Ambil durasi item penawaran untuk kendaraan ini
+                $itemDurasi = \DB::table('inv_penawaran_items')
+                    ->join('inv_kontraks', function ($j) use ($kendaraanId) {
+                        $j->on('inv_kontraks.penawaran_id', '=', 'inv_penawaran_items.penawaran_id');
+                    })
+                    ->where('inv_kontraks.id', $invoice->kontrak_id)
+                    ->where('inv_penawaran_items.kendaraan_id', $kendaraanId)
+                    ->select('inv_penawaran_items.durasi', 'inv_penawaran_items.satuan_durasi')
+                    ->first();
+
+                if ($itemDurasi) {
+                    $iDur = (int) ($itemDurasi->durasi ?? 1);
+                    $iSat = strtolower($itemDurasi->satuan_durasi ?? 'bulan');
+                    $totalPeriodeItem = match ($iSat) {
+                        'tahun' => $iDur * 12,
+                        'hari'  => max(1, (int) round($iDur / 30)),
+                        default => $iDur,
+                    };
+                } else {
+                    $totalPeriodeItem = $totalPeriodeKontrak;
+                }
+
+                $statusPerKendaraan = match (true) {
+                    $hasAnyPaid && $paidInv >= $totalPeriodeItem => 'lunas',
+                    $hasAnyPaid                                  => 'partial',
+                    default                                      => 'belum_bayar',
+                };
+
+                Rental::where('kendaraan_id', $kendaraanId)
+                    ->where('status', 'aktif')
+                    ->update(['status_pembayaran' => $statusPerKendaraan]);
+            }
+        }
     }
 
     // =========================================================================
@@ -405,8 +518,9 @@ class PaymentsController extends Controller
         // Validasi overpayment sebelum simpan
         if ($request->status === 'Verified') {
             $invoice = Invoice::findOrFail($request->invoice_id);
-
-            $invoiceTotal = (float) $invoice->total ?: $invoice->computeTotal();
+            $invoice->load('periodes.remaks');
+            $invoiceTotal = $invoice->computeTotal();
+            if ($invoiceTotal <= 0) $invoiceTotal = (float) $invoice->total;
 
             $alreadyPaid = InvoicePayment::where('invoice_id', $request->invoice_id)
                 ->where('status', 'Verified')
@@ -510,8 +624,9 @@ class PaymentsController extends Controller
         // Validasi overpayment sebelum update
         if ($request->status === 'Verified') {
             $invoice = Invoice::findOrFail($request->invoice_id);
-
-            $invoiceTotal = (float) $invoice->total ?: $invoice->computeTotal();
+            $invoice->load('periodes.remaks');
+            $invoiceTotal = $invoice->computeTotal();
+            if ($invoiceTotal <= 0) $invoiceTotal = (float) $invoice->total;
 
             // Jumlah sudah dibayar kecuali payment yang sedang diedit
             $alreadyPaid = InvoicePayment::where('invoice_id', $request->invoice_id)

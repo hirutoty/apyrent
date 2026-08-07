@@ -17,32 +17,11 @@ class SummaryController extends Controller
      */
     public function index(Request $request)
     {
-        $query = InvSummary::with([
-            'penawaran',
-            'kontrak',
-            'invoice.periodes.remaks',
-            'invoice.kendaraans',
-            'invoice.kendaraan',
-        ])->latest();
+        // Base query untuk stats (tidak paginate)
+        $baseQuery = InvSummary::query();
 
         if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->whereHas('invoice', function ($q2) use ($request) {
-                    $q2->where('invoice_no', 'like', '%' . $request->search . '%')
-                       ->orWhere('customer_name', 'like', '%' . $request->search . '%');
-                })->orWhere('type', 'like', '%' . $request->search . '%');
-            });
-        }
-
-        // Filter status
-        if ($request->status) {
-            $query->where('payment_status', $request->status);
-        }
-
-        // Statistik dari SEMUA data (bukan paginate)
-        $allQuery   = InvSummary::query();
-        if ($request->search) {
-            $allQuery->where(function ($q) use ($request) {
+            $baseQuery->where(function ($q) use ($request) {
                 $q->whereHas('invoice', function ($q2) use ($request) {
                     $q2->where('invoice_no', 'like', '%' . $request->search . '%')
                        ->orWhere('customer_name', 'like', '%' . $request->search . '%');
@@ -50,27 +29,143 @@ class SummaryController extends Controller
             });
         }
         if ($request->status) {
-            $allQuery->where('payment_status', $request->status);
+            $baseQuery->where('payment_status', $request->status);
         }
 
         $stats = [
-            'total'   => (clone $allQuery)->count(),
-            'paid'    => (clone $allQuery)->where('payment_status', 'Paid')->count(),
-            'partial' => (clone $allQuery)->where('payment_status', 'Partial')->count(),
-            'unpaid'  => (clone $allQuery)->where('payment_status', 'Unpaid')->count(),
+            'total'   => (clone $baseQuery)->count(),
+            'paid'    => (clone $baseQuery)->where('payment_status', 'Paid')->count(),
+            'partial' => (clone $baseQuery)->where('payment_status', 'Partial')->count(),
+            'unpaid'  => (clone $baseQuery)->where('payment_status', 'Unpaid')->count(),
         ];
 
-        $summaries  = $query->paginate(10)->withQueryString();
+        // Ambil semua summaries dengan relasi lengkap
+        $allSummaries = (clone $baseQuery)
+            ->with([
+                'penawaran',
+                'kontrak.penawaran.items',
+                'invoice.periodes',
+                'invoice.payments',
+                'invoice.kendaraans',
+                'invoice.kendaraan',
+            ])
+            ->latest()
+            ->get();
+
+        // Group by kontrak_id — invoice tanpa kontrak pakai key "tanpa_kontrak_{id}"
+        $grouped = $allSummaries->groupBy(function ($s) {
+            return $s->kontrak_id ?? 'tanpa_kontrak_' . $s->id;
+        });
+
+        // Ambil PPN dari setting sekali saja di luar loop
+        $setting = \App\Models\Setting::first();
+        $ppnPct  = (float) ($setting?->ppn_default ?? 0);
+
+        // Hitung pembayaran_ke dan sisa_kali per invoice dalam tiap group
+        $grouped = $grouped->map(function ($items) use ($ppnPct) {
+            // Urutkan berdasarkan invoice_no agar urutan konsisten
+            $items = $items->sortBy(fn($s) => optional($s->invoice)->invoice_no);
+
+            // Total periode = durasi kontrak dalam bulan
+            // Ambil dari kontrak (durasi_value + durasi_satuan), konversi ke bulan
+            $kontrak = $items->first()?->kontrak;
+            if ($kontrak) {
+                $durVal  = (int) ($kontrak->durasi_value ?? $items->count());
+                $durSat  = strtolower($kontrak->durasi_satuan ?? 'bulan');
+                $totalPeriode = match ($durSat) {
+                    'tahun' => $durVal * 12,
+                    'hari'  => max(1, (int) round($durVal / 30)),
+                    default => $durVal, // bulan
+                };
+            } else {
+                $totalPeriode = $items->count();
+            }
+
+            // Hitung total kontrak sesungguhnya dari penawaran items × durasi per item
+            // Setiap item punya durasi sendiri (Mobil A 12 bulan, Mobil B 1 bulan)
+            $grandTotalKontrak = 0.0;
+            if ($kontrak) {
+                $penawaran = $kontrak->penawaran;
+                if ($penawaran) {
+                    if (! $penawaran->relationLoaded('items')) {
+                        $penawaran->load('items');
+                    }
+                    $subtotal = 0.0;
+
+                    $mulaiKontrak = $kontrak->perjanjian_pembayaran
+                        ? \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)->addDay()
+                        : \Carbon\Carbon::parse($kontrak->tanggal_kontrak ?? now());
+
+                    foreach ($penawaran->items as $item) {
+                        $price    = (float) ($item->price ?? 0);
+                        $qty      = (int)   ($item->qty   ?? 1);
+                        $durasi   = (int)   ($item->durasi ?? 1);
+                        $satuan   = strtolower(trim($item->satuan_durasi ?? 'bulan'));
+
+                        // Konversi durasi item ke bulan
+                        $itemBulan = match ($satuan) {
+                            'tahun' => $durasi * 12,
+                            'hari'  => max(1, (int) round($durasi / 30)),
+                            default => $durasi,
+                        };
+
+                        $subtotal += $price * $qty * $itemBulan;
+                    }
+
+                    $ppnNom = round($subtotal * $ppnPct / 100);
+                    $grandTotalKontrak = $subtotal + $ppnNom;
+                }
+            }
+
+            // Fallback: sum dari invoice yang sudah ada
+            if ($grandTotalKontrak <= 0) {
+                $grandTotalKontrak = $items->sum('total_amount');
+            }
+            $invoiceIds = $items->pluck('invoice_id')->filter()->values()->toArray();
+            $paidInvoiceCount = \App\Models\InvoicePayment::whereIn('invoice_id', $invoiceIds)
+                ->where('status', 'Verified')
+                ->distinct('invoice_id')
+                ->count('invoice_id');
+
+            return $items->values()->map(function ($s, $idx) use ($totalPeriode, $paidInvoiceCount, $grandTotalKontrak) {
+                $sudahBayar = strtolower($s->payment_status) === 'paid'
+                           || strtolower($s->payment_status) === 'partial';
+
+                // Sudah bayar → tampil urutan invoice ini (idx+1)
+                // Belum bayar → tampil jumlah yang sudah lunas di kontrak
+                $s->_pembayaran_ke  = $sudahBayar ? ($idx + 1) : $paidInvoiceCount;
+                $s->_sudah_bayar    = $sudahBayar;
+                $s->_total_periode  = $totalPeriode;
+                $s->_sisa_kali      = max(0, $totalPeriode - $paidInvoiceCount);
+                $s->_paid_count     = $paidInvoiceCount;
+                $s->_grand_total    = $grandTotalKontrak;
+                return $s;
+            });
+        });
+
+        // Paginate manual: ambil grup per halaman
+        $perPage    = 5;  // 5 kontrak per halaman
+        $page       = (int) ($request->page ?? 1);
+        $groupKeys  = $grouped->keys();
+        $totalGroups = $groupKeys->count();
+        $pagedKeys  = $groupKeys->slice(($page - 1) * $perPage, $perPage);
+        $pagedGroups = $grouped->only($pagedKeys->toArray());
+
+        // Buat LengthAwarePaginator untuk pagination di view
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $pagedGroups,
+            $totalGroups,
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         $penawarans = InvPenawaran::latest()->get();
         $kontraks   = InvKontrak::latest()->get();
         $invoices   = Invoice::latest()->get();
 
-        // CATATAN: jangan auto-update total_amount dari computeTotal() di sini,
-        // karena bisa merusak data yang sudah benar jika ada remaks duplikat.
-        // total_amount hanya diupdate oleh syncSummary() saat payment diproses.
-
         return view('admin.summary.index', compact(
-            'summaries',
+            'paginator',
             'penawarans',
             'kontraks',
             'invoices',
@@ -218,6 +313,18 @@ class SummaryController extends Controller
         return redirect()
             ->route('summary.index')
             ->with('success', 'Summary berhasil dihapus.');
+    }
+
+    /**
+     * Hapus semua summary dalam satu kontrak sekaligus
+     */
+    public function destroyByKontrak($kontrak_id)
+    {
+        $deleted = InvSummary::where('kontrak_id', $kontrak_id)->delete();
+
+        return redirect()
+            ->route('summary.index')
+            ->with('success', "Semua summary kontrak berhasil dihapus ({$deleted} data).");
     }
 
     public function exportExcel(Request $request)

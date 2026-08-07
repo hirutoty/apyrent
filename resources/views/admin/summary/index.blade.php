@@ -171,146 +171,196 @@
 
             </div>
 
-            {{-- TABLE --}}
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-100">
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No
-                            </th>
-                            <th data-col="col-invoice" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Invoice</th>
-                            <th data-col="col-penawaran" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Penawaran</th>
-                            <th data-col="col-kontrak" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Kontrak</th>
-                            <th data-col="col-kendaraan" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Kendaraan</th>
-                            <th data-col="col-tipe" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tipe
-                            </th>
-                            <th data-col="col-total" class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Total</th>
-                            <th data-col="col-dibayar" class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Dibayar</th>
-                            <th data-col="col-sisa" class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Sisa</th>
-                            <th data-col="col-status" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Status</th>
-                            <th data-col="col-aksi" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($summaries as $i => $s)
-                            @php
-                                $statusColor = match ($s->payment_status) {
-                                    'Paid' => 'bg-green-100 text-green-700',
-                                    'Partial' => 'bg-yellow-100 text-yellow-700',
-                                    'Unpaid' => 'bg-red-100 text-red-700',
-                                    default => 'bg-gray-100 text-gray-600',
-                                };
-                                $sisaColor =
-                                    $s->remaining_amount > 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
-                            @endphp
-                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
-                                <td class="px-4 py-3.5 text-xs text-gray-400">{{ $summaries->firstItem() + $i }}</td>
-                                <td data-col="col-invoice" class="px-4 py-3.5">
-                                    @if ($s->invoice)
-                                        <p class="text-sm font-semibold text-blue-700">{{ $s->invoice->invoice_no }}</p>
-                                        <p class="text-xs text-gray-500">{{ $s->invoice->customer_name }}</p>
-                                    @else
-                                        <span class="text-xs text-gray-400">�</span>
-                                    @endif
-                                </td>
-                                <td data-col="col-penawaran" class="px-4 py-3.5 text-sm text-gray-600">
-                                    {{ optional($s->penawaran)->no_penawaran ?? '�' }}
-                                </td>
-                                <td data-col="col-kontrak" class="px-4 py-3.5 text-sm text-gray-600">
-                                    {{ optional($s->kontrak)->no_kontrak ?? '�' }}
-                                </td>
-                                <td data-col="col-kendaraan" class="px-4 py-3.5">
-                                    @if ($s->invoice && $s->invoice->kendaraans->isNotEmpty())
-                                        <div class="flex flex-col gap-1">
-                                            @foreach ($s->invoice->kendaraans as $kendaraan)
-                                                <div class="flex items-center gap-1.5">
-                                                    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
-                                                        <i class="bi bi-car-front text-[10px]"></i>
-                                                        {{ $kendaraan->nopol }}
-                                                    </span>
-                                                    @if ($kendaraan->merk)
-                                                        <span class="text-xs text-gray-500">{{ $kendaraan->merk }}</span>
+            {{-- ACCORDION PER KONTRAK --}}
+            <div class="divide-y divide-gray-100">
+                @forelse ($paginator as $kontrakKey => $items)
+                    @php
+                        $firstItem    = $items->first();
+                        $kontrak      = $firstItem->kontrak;
+                        $noKontrak    = $kontrak?->no_kontrak ?? 'Tanpa Kontrak';
+                        $customer     = optional($firstItem->invoice)->customer_name ?? '-';
+                        // Ambil total periode dari _total_periode yang sudah dikonversi di controller
+                        $totalPeriode = $firstItem->_total_periode ?? $items->count();
+                        $anyPartial   = $items->contains(fn($s) => strtolower($s->payment_status) === 'partial');
+                        $allPaid      = $items->every(fn($s) => strtolower($s->payment_status) === 'paid');
+                        $anyPaid      = $items->contains(fn($s) => strtolower($s->payment_status) === 'paid');
+                        $kontrakStatus = $allPaid ? 'Paid' : ($anyPartial || $anyPaid ? 'Partial' : 'Unpaid');
+                        $kontrakStatusColor = match($kontrakStatus) {
+                            'Paid'    => 'bg-green-100 text-green-700',
+                            'Partial' => 'bg-yellow-100 text-yellow-700',
+                            default   => 'bg-red-100 text-red-700',
+                        };
+                        // Total kontrak = dihitung dari penawaran items × durasi per item + PPN
+                        $grandTotal  = $firstItem->_grand_total ?? $items->sum('total_amount');
+                        $grandPaid   = $items->sum('paid_amount');
+                        $grandSisa   = $grandTotal - $grandPaid;
+                        // paidCount = invoice yg sudah ada payment Verified (bukan harus fully paid)
+                        $paidCount   = $firstItem->_paid_count ?? $items->filter(fn($s) => strtolower($s->payment_status) === 'paid')->count();
+                        $accordionId = 'acc_' . md5($kontrakKey);
+                    @endphp
+                    <div class="bg-white">
+                        {{-- HEADER --}}
+                        <div class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                            {{-- Kiri: tombol toggle + info kontrak --}}
+                            <button type="button" onclick="toggleAccordion('{{ $accordionId }}')"
+                                class="flex items-center gap-3 flex-wrap flex-1 text-left min-w-0">
+                                <i id="{{ $accordionId }}_icon" class="fa fa-chevron-right text-xs text-gray-400 transition-transform duration-200 flex-shrink-0"></i>
+                                <span class="font-mono text-sm font-bold text-blue-700">{{ $noKontrak }}</span>
+                                <span class="text-xs text-gray-500 truncate">{{ $customer }}</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $kontrakStatusColor }}">{{ $kontrakStatus }}</span>
+                                <span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">{{ $paidCount }}/{{ $totalPeriode }} periode lunas</span>
+                            </button>
+
+                            {{-- Kanan: angka + tombol hapus --}}
+                            <div class="flex items-center gap-4 flex-shrink-0 ml-4">
+                                <div class="hidden sm:block text-right">
+                                    <p class="text-[10px] text-gray-400">
+                                        Total Tagihan
+                                      
+                                    </p>
+                                    <p class="text-xs font-bold text-gray-800">Rp {{ number_format($grandTotal,0,',','.') }}</p>
+                                </div>
+                                <div class="hidden sm:block text-right">
+                                    <p class="text-[10px] text-gray-400">Dibayar</p>
+                                    <p class="text-xs font-bold text-green-600">Rp {{ number_format($grandPaid,0,',','.') }}</p>
+                                </div>
+                                <div class="hidden sm:block text-right">
+                                    <p class="text-[10px] text-gray-400">Sisa Bayar</p>
+                                    <p class="text-xs font-bold {{ $grandSisa > 0 ? 'text-red-600' : 'text-green-600' }}">Rp {{ number_format($grandSisa,0,',','.') }}</p>
+                                </div>
+
+                                {{-- Tombol hapus semua per kontrak --}}
+                                @if($kontrak)
+                                <form action="{{ route('summary.destroyByKontrak', $kontrak->id) }}"
+                                    method="POST"
+                                    onsubmit="return confirm('Hapus semua {{ $totalPeriode }} data summary untuk kontrak {{ $noKontrak }}?')"
+                                    class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-colors">
+                                        <i class="fa fa-trash text-[10px]"></i>
+                                        <span class="hidden sm:inline">Hapus Semua</span>
+                                    </button>
+                                </form>
+                                @endif
+                            </div>
+                        </div>
+                        {{-- DETAIL --}}
+                        <div id="{{ $accordionId }}" class="hidden">
+                            <div class="overflow-x-auto border-t border-gray-100">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                                            <th class="px-4 py-2 text-left">Invoice</th>
+                                            <th class="px-4 py-2 text-left">Kendaraan</th>
+                                            <th class="px-4 py-2 text-center">Bayar ke</th>
+                                            <th class="px-4 py-2 text-center">Sisa</th>
+                                            <th class="px-4 py-2 text-right">Total</th>
+                                            <th class="px-4 py-2 text-right">Dibayar</th>
+                                            <th class="px-4 py-2 text-right">Sisa Bayar</th>
+                                            <th class="px-4 py-2 text-center">Status</th>
+                                            <th class="px-4 py-2 text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($items as $s)
+                                            @php
+                                                $sc = match(strtolower($s->payment_status)) {
+                                                    'paid'    => 'bg-green-100 text-green-700',
+                                                    'partial' => 'bg-yellow-100 text-yellow-700',
+                                                    'unpaid'  => 'bg-red-100 text-red-700',
+                                                    default   => 'bg-gray-100 text-gray-600',
+                                                };
+                                                $sisaColor = $s->remaining_amount > 0 ? 'text-red-600 font-bold' : 'text-green-600';
+                                                $isPaid    = strtolower($s->payment_status) === 'paid';
+                                            @endphp
+                                            <tr class="border-t border-gray-50 {{ $isPaid ? 'bg-green-50/30' : 'odd:bg-white even:bg-gray-50/40' }} hover:bg-blue-50/30 transition-colors">
+                                                <td class="px-4 py-3">
+                                                    @if($s->invoice)
+                                                        <p class="text-xs font-semibold {{ $isPaid ? 'text-green-700' : 'text-blue-700' }}">
+                                                            {{ $s->invoice->invoice_no }}
+                                                            @if($isPaid)<i class="fa fa-check-circle text-[10px] ml-1"></i>@endif
+                                                        </p>
+                                                        <p class="text-[10px] text-gray-400">{{ $s->invoice->customer_name }}</p>
+                                                    @else
+                                                        <span class="text-xs text-gray-400">-</span>
                                                     @endif
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @elseif ($s->invoice && $s->invoice->kendaraan)
-                                        <div class="flex items-center gap-1.5">
-                                            <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
-                                                <i class="bi bi-car-front text-[10px]"></i>
-                                                {{ $s->invoice->kendaraan->nopol }}
-                                            </span>
-                                            @if ($s->invoice->kendaraan->merk)
-                                                <span class="text-xs text-gray-500">{{ $s->invoice->kendaraan->merk }}</span>
-                                            @endif
-                                        </div>
-                                    @else
-                                        <span class="text-xs text-gray-400">�</span>
-                                    @endif
-                                </td>
-                                <td data-col="col-tipe" class="px-4 py-3.5">
-                                    <span
-                                        class="inline-flex items-center text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                                        {{ $s->type }}
-                                    </span>
-                                </td>
-                                <td data-col="col-total" class="px-4 py-3.5 text-right text-sm font-semibold text-gray-800">
-                                    Rp {{ number_format($s->total_amount, 0, ',', '.') }}
-                                </td>
-                                <td data-col="col-dibayar" class="px-4 py-3.5 text-right text-sm font-semibold text-green-700">
-                                    Rp {{ number_format($s->paid_amount, 0, ',', '.') }}
-                                </td>
-                                <td data-col="col-sisa" class="px-4 py-3.5 text-right text-sm {{ $sisaColor }}">
-                                    Rp {{ number_format($s->remaining_amount, 0, ',', '.') }}
-                                </td>
-                                <td data-col="col-status" class="px-4 py-3.5 text-center">
-                                    <span
-                                        class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $statusColor }}">
-                                        {{ $s->payment_status }}
-                                    </span>
-                                </td>
-                                <td data-col="col-aksi" class="px-4 py-3.5">
-                                    <div class="flex items-center justify-center gap-1.5">
-                                        <button onclick="openModalEdit({{ $s->id }})"
-                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-colors">
-                                            <i class="fa fa-edit text-xs"></i> Edit
-                                        </button>
-                                        <form action="{{ route('summary.destroy', $s->id) }}" method="POST"
-                                            onsubmit="return confirm('Hapus data summary ini?')" class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
-                                                <i class="fa fa-trash text-xs"></i> Hapus
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="10" class="text-center py-12 text-gray-400 text-sm">
-                                    <i class="fa fa-inbox text-3xl mb-3 block text-gray-300"></i>
-                                    Belum ada data summary
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                                                </td>
+                                                <td class="px-4 py-3 text-xs text-gray-600">
+                                                    @if($s->invoice && $s->invoice->kendaraans->isNotEmpty())
+                                                        @foreach($s->invoice->kendaraans as $kdNo => $kd)
+                                                            <div class="flex items-center gap-1">
+                                                                <span class="text-[10px] font-bold text-gray-400 w-4">{{ $kdNo + 1 }}.</span>
+                                                                @if($isPaid)<i class="fa fa-check text-[10px] text-green-500"></i>@endif
+                                                                <span>{{ $kd->merk }} {{ $kd->nopol }}</span>
+                                                            </div>
+                                                        @endforeach
+                                                    @elseif($s->invoice?->kendaraan)
+                                                        <span>{{ $s->invoice->kendaraan->merk }} {{ $s->invoice->kendaraan->nopol }}</span>
+                                                    @else
+                                                        <span class="text-gray-400">-</span>
+                                                    @endif
+                                                </td>
+                                                <td class="px-4 py-3 text-center">
+                                                    @if($s->_paid_count === 0 && !$s->_sudah_bayar)
+                                                        <span class="text-xs text-gray-400">-/{{ $s->_total_periode }}</span>
+                                                    @elseif($s->_sudah_bayar)
+                                                        <span class="text-xs font-bold text-green-600">
+                                                            {{ $s->_pembayaran_ke }}/{{ $s->_total_periode }}
+                                                        </span>
+                                                    @else
+                                                        <span class="text-xs font-semibold text-indigo-500">
+                                                            {{ $s->_pembayaran_ke }}/{{ $s->_total_periode }}
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                                <td class="px-4 py-3 text-center">
+                                                    @if($s->_sisa_kali <= 0)
+                                                        <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Lunas</span>
+                                                    @elseif($s->_sisa_kali === 1)
+                                                        <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">1x lagi</span>
+                                                    @else
+                                                        <span class="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">{{ $s->_sisa_kali }}x lagi</span>
+                                                    @endif
+                                                </td>
+                                                <td class="px-4 py-3 text-right text-xs font-semibold text-gray-800">Rp {{ number_format($s->total_amount,0,',','.') }}</td>
+                                                <td class="px-4 py-3 text-right text-xs font-semibold text-green-700">Rp {{ number_format($s->paid_amount,0,',','.') }}</td>
+                                                <td class="px-4 py-3 text-right text-xs {{ $sisaColor }}">Rp {{ number_format($s->remaining_amount,0,',','.') }}</td>
+                                                <td class="px-4 py-3 text-center">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $sc }}">{{ ucfirst($s->payment_status) }}</span>
+                                                </td>
+                                                <td class="px-4 py-3 text-center">
+                                                    <div class="flex items-center justify-center gap-1">
+                                                        <button onclick="openModalEdit({{ $s->id }})"
+                                                            class="px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-700 hover:bg-yellow-200">
+                                                            <i class="fa fa-edit"></i>
+                                                        </button>
+                                                        <form action="{{ route('summary.destroy', $s->id) }}" method="POST" onsubmit="return confirm('Hapus?')" class="inline">
+                                                            @csrf @method('DELETE')
+                                                            <button type="submit" class="px-2 py-1 rounded text-xs bg-red-100 text-red-600 hover:bg-red-200">
+                                                                <i class="fa fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="px-5 py-12 text-center text-gray-400 text-sm">
+                        <i class="fa fa-inbox text-3xl mb-3 block text-gray-300"></i>
+                        Belum ada data summary
+                    </div>
+                @endforelse
             </div>
 
             {{-- PAGINATION --}}
             <div class="py-3 border-t border-gray-100">
-                <x-pagination :paginator="$summaries" />
+                <x-pagination :paginator="$paginator" />
             </div>
 
         </div>
@@ -617,10 +667,21 @@
 
             // Toggle kolom berdasarkan data-col attribute
             function toggleColumn(colId, show) {
-                // Sembunyikan/tampilkan semua th dan td dengan data-col matching
                 document.querySelectorAll(`[data-col="${colId}"]`).forEach(el => {
                     el.style.display = show ? '' : 'none';
                 });
+            }
+
+            // Toggle accordion per kontrak
+            function toggleAccordion(id) {
+                const body = document.getElementById(id);
+                const icon = document.getElementById(id + '_icon');
+                if (!body) return;
+                const isOpen = !body.classList.contains('hidden');
+                body.classList.toggle('hidden', isOpen);
+                if (icon) {
+                    icon.style.transform = isOpen ? '' : 'rotate(90deg)';
+                }
             }
         
         // Auto-reopen modal tambah on validation error — tidak diperlukan (Task 4)
