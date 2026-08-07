@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\MemberKendaraanController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\ServiceHistoryController;
 use App\Http\Controllers\Admin\ServiceDetailController;
+use App\Http\Controllers\Admin\ServiceAsuransiController;
 use App\Http\Controllers\Admin\ReminderServiceController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\UserController;
@@ -54,6 +55,7 @@ use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\PenawaranKendaraanController;
 use App\Http\Controllers\Admin\InvPenawaranController;
 use App\Http\Controllers\Admin\InvKontrakController;
+use App\Http\Controllers\Admin\DataLeasingController;
 use App\Http\Controllers\Admin\InvoicesController;
 use App\Http\Controllers\Admin\InvoicePeriodeController;
 use App\Http\Controllers\Admin\PaymentsController;
@@ -437,6 +439,15 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::put('service/service-detail/{id}/status', [ServiceDetailController::class, 'updateStatus']);
   Route::delete('service-detail/{id}/bukti', [ServiceDetailController::class, 'deleteBukti'])
       ->name('service-detail.bukti.delete');
+  Route::delete('service-detail/{id}/attachment', [ServiceDetailController::class, 'deleteAttachment'])
+      ->name('service-detail.attachment.delete');
+
+  // Service Asuransi
+  Route::resource('service-asuransi', ServiceAsuransiController::class);
+  Route::delete('service-asuransi/{id}/bukti', [ServiceAsuransiController::class, 'deleteBukti'])
+      ->name('service-asuransi.bukti.delete');
+  Route::delete('service-asuransi/{id}/attachment', [ServiceAsuransiController::class, 'deleteAttachment'])
+      ->name('service-asuransi.attachment.delete');
 
   // Reminder Service
   Route::resource('reminder-service', ReminderServiceController::class);
@@ -600,6 +611,12 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('kontrak.penawaran.detail');
 
   Route::resource('kontrak', InvKontrakController::class);
+
+  // ── DATA LEASING ────────────────────────────────────────────────────
+  Route::get('/data-leasing/kontrak/{id}/detail', [DataLeasingController::class, 'getKontrakDetail'])
+    ->name('data-leasing.kontrak-detail');
+  Route::resource('data-leasing', DataLeasingController::class)
+    ->except(['create', 'edit', 'show']);
 
   Route::get('/setting', [SettingController::class, 'index'])
     ->name('setting.index');

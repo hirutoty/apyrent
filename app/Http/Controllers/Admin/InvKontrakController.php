@@ -124,6 +124,9 @@ class InvKontrakController extends Controller
             'contact_pertama'       => 'nullable|string|max:255',
             'pihak_kedua'           => 'required|string|max:255',
             'contact_kedua'         => 'nullable|string|max:255',
+            'ketentuan'             => 'nullable|array',
+            'ketentuan.*.id'        => 'nullable|string|max:2000',
+            'ketentuan.*.en'        => 'nullable|string|max:2000',
         ]);
 
         // Hitung durasi & tanggal selesai — pakai durasi terpanjang dari semua item
@@ -186,6 +189,19 @@ class InvKontrakController extends Controller
             'alamat_kedua'          => $request->alamat_kedua,
             'status'                => 'pending',
         ];
+
+        // Proses ketentuan asuransi — filter baris yang keduanya kosong
+        $ketentuan = [];
+        foreach ($request->input('ketentuan', []) as $poin) {
+            $idText = trim($poin['id'] ?? '');
+            $enText = trim($poin['en'] ?? '');
+            if ($idText !== '' || $enText !== '') {
+                $ketentuan[] = ['id' => $idText, 'en' => $enText];
+            }
+        }
+        if (!empty($ketentuan)) {
+            $data['ketentuan_asuransi'] = $ketentuan;
+        }
 
         $kontrak = InvKontrak::create($data);
 
@@ -258,8 +274,6 @@ class InvKontrakController extends Controller
                         ]
                     );
 
-                    // tanggal_mulai = perjanjian_pembayaran + 1 hari
-                    // Jika perjanjian_pembayaran belum diisi, fallback ke tanggal_kontrak
                     $mulai = $kontrak->perjanjian_pembayaran
                         ? Carbon::parse($kontrak->perjanjian_pembayaran)->addDay()
                         : Carbon::parse($kontrak->tanggal_kontrak);
@@ -271,7 +285,6 @@ class InvKontrakController extends Controller
                         if ($durasi <= 0) { $durasi = (int) ($penawaran->periode ?? 1); }
                         if ($durasi <= 0) $durasi = 1;
 
-                        // Tanggal selesai dihitung per item dari tanggal_mulai yang sama
                         $selesai = match ($satuan) {
                             'hari'  => $mulai->copy()->addDays($durasi),
                             'tahun' => $mulai->copy()->addYears($durasi),
@@ -302,7 +315,6 @@ class InvKontrakController extends Controller
                 }
             }
 
-            // Update status ke active
             $kontrak->update(['status' => 'active']);
         });
 
@@ -386,9 +398,23 @@ class InvKontrakController extends Controller
             'pihak_kedua'           => 'required|string|max:255',
             'contact_kedua'         => 'nullable|string|max:255',
             'status'                => 'required',
+            'ketentuan'             => 'nullable|array',
+            'ketentuan.*.id'        => 'nullable|string|max:2000',
+            'ketentuan.*.en'        => 'nullable|string|max:2000',
         ]);
 
-        $data = $request->except(['file_kontrak', 'file_persyaratan']);
+        $data = $request->except(['file_kontrak', 'file_persyaratan', 'ketentuan']);
+
+        // Proses ketentuan asuransi dari Tab 2
+        $ketentuan = [];
+        foreach ($request->input('ketentuan', []) as $poin) {
+            $idText = trim($poin['id'] ?? '');
+            $enText = trim($poin['en'] ?? '');
+            if ($idText !== '' || $enText !== '') {
+                $ketentuan[] = ['id' => $idText, 'en' => $enText];
+            }
+        }
+        $data['ketentuan_asuransi'] = !empty($ketentuan) ? $ketentuan : null;
 
         if ($request->hasFile('file_kontrak')) {
             $file     = $request->file('file_kontrak');
@@ -405,6 +431,29 @@ class InvKontrakController extends Controller
         }
 
         $kontrak->update($data);
+
+        // Regenerate draft PDF dengan ketentuan terbaru
+        $kontrak->refresh()->load('penawaran.items.kendaraan');
+        $setting  = Setting::first();
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+        try {
+            $pdfFilename = 'draft_' . $kontrak->no_kontrak . '.pdf';
+            $savePath    = public_path('uploads/kontrak/' . $pdfFilename);
+            if (!is_dir(public_path('uploads/kontrak'))) {
+                mkdir(public_path('uploads/kontrak'), 0755, true);
+            }
+            Pdf::loadView('admin.kontrak.draft_pdf', compact('kontrak', 'setting', 'logoSrc'))
+                ->setPaper('a4', 'portrait')
+                ->save($savePath);
+            $kontrak->update(['file_draft' => 'uploads/kontrak/' . $pdfFilename]);
+        } catch (\Exception $e) {
+            // PDF regeneration gagal — update tetap berhasil
+        }
 
         return redirect()->route('kontrak.index')->with('success', 'Kontrak berhasil diupdate.');
     }

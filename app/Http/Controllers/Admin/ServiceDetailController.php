@@ -34,9 +34,11 @@ class ServiceDetailController extends Controller
             'status'          => 'required',
             'biaya'           => 'required|numeric',
             'bukti.*'         => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'attachment.*'    => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
         ]);
 
-        $buktiList = $this->uploadBuktiFiles($request);
+        $buktiList      = $this->uploadBuktiFiles($request);
+        $attachmentList = $this->uploadAttachmentFiles($request);
 
         ServiceDetail::create([
             'kendaraan_id'    => $request->kendaraan_id,
@@ -45,7 +47,8 @@ class ServiceDetailController extends Controller
             'status'          => $request->status,
             'biaya'           => $request->biaya,
             'keterangan'      => $request->keterangan,
-            'bukti'           => !empty($buktiList) ? json_encode($buktiList) : null,
+            'bukti'           => !empty($buktiList)      ? json_encode($buktiList)      : null,
+            'attachment'      => !empty($attachmentList) ? json_encode($attachmentList) : null,
         ]);
 
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
@@ -61,17 +64,21 @@ class ServiceDetailController extends Controller
         $data = ServiceDetail::findOrFail($id);
 
         $request->validate([
-            'biaya'   => 'required|numeric',
-            'bukti.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'biaya'           => 'required|numeric',
+            'bukti.*'         => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'attachment.*'    => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
         ]);
 
         // File lama dipertahankan, file baru ditambahkan (append)
-        $buktiLama = $data->bukti ?? [];
+        $buktiLama      = $data->bukti       ?? [];
+        $attachmentLama = $data->attachment  ?? [];
 
-        $buktiFiles = $this->uploadBuktiFiles($request);
+        $buktiFiles      = $this->uploadBuktiFiles($request);
+        $attachmentFiles = $this->uploadAttachmentFiles($request);
 
         // Gabungkan file lama + file baru
-        $buktiList = array_merge($buktiLama, $buktiFiles);
+        $buktiList      = array_merge($buktiLama,      $buktiFiles);
+        $attachmentList = array_merge($attachmentLama, $attachmentFiles);
 
         $data->update([
             'kendaraan_id'    => $request->kendaraan_id,
@@ -80,7 +87,8 @@ class ServiceDetailController extends Controller
             'status'          => $request->status,
             'biaya'           => $request->biaya,
             'keterangan'      => $request->keterangan,
-            'bukti'           => !empty($buktiList) ? json_encode($buktiList) : null,
+            'bukti'           => !empty($buktiList)      ? json_encode($buktiList)      : null,
+            'attachment'      => !empty($attachmentList) ? json_encode($attachmentList) : null,
         ]);
 
         return back()->with('success', 'Data berhasil diupdate');
@@ -132,9 +140,51 @@ class ServiceDetailController extends Controller
             }
         }
 
+        // Hapus semua file attachment fisik
+        foreach ($data->attachment ?? [] as $f) {
+            $path     = is_array($f) ? ($f['path'] ?? '') : $f;
+            $fullPath = public_path($path);
+            if ($path && file_exists($fullPath)) {
+                unlink($fullPath);
+            }
+        }
+
         $data->delete();
 
         return back()->with('success', 'Data berhasil dihapus');
+    }
+
+    /**
+     * Hapus satu file attachment dari service detail
+     */
+    public function deleteAttachment(Request $request, $id)
+    {
+        $request->validate([
+            'file_path' => 'required|string',
+        ]);
+
+        $data = ServiceDetail::findOrFail($id);
+        $path = $request->file_path;
+
+        $attachmentList = $data->attachment ?? [];
+
+        // Support both old format (plain string) and new format (object with 'path')
+        $attachmentList = array_values(array_filter($attachmentList, function ($f) use ($path) {
+            $p = is_array($f) ? ($f['path'] ?? '') : $f;
+            return $p !== $path;
+        }));
+
+        // Hapus file fisik
+        $fullPath = public_path($path);
+        if ($path && file_exists($fullPath)) {
+            unlink($fullPath);
+        }
+
+        $data->update([
+            'attachment' => !empty($attachmentList) ? json_encode($attachmentList) : null,
+        ]);
+
+        return back()->with('success', 'File attachment berhasil dihapus');
     }
 
     public function pdf(Request $request)
@@ -235,6 +285,39 @@ class ServiceDetailController extends Controller
 
             $items[] = [
                 'path' => 'service-detail/' . $filename,
+                'name' => $originalName,
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * Upload semua file dari request->file('attachment') ke public/service-detail-attachment
+     * dan kembalikan array object [{path, name}].
+     */
+    private function uploadAttachmentFiles(Request $request): array
+    {
+        $items = [];
+
+        if (!$request->hasFile('attachment')) {
+            return $items;
+        }
+
+        $destination = public_path('service-detail-attachment');
+        if (!file_exists($destination)) {
+            mkdir($destination, 0777, true);
+        }
+
+        foreach ($request->file('attachment') as $file) {
+            if (!$file->isValid()) continue;
+
+            $originalName = $file->getClientOriginalName();
+            $filename     = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move($destination, $filename);
+
+            $items[] = [
+                'path' => 'service-detail-attachment/' . $filename,
                 'name' => $originalName,
             ];
         }
