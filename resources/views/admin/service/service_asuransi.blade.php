@@ -1,6 +1,6 @@
 ﻿@extends('admin.layouts.app')
 
-@section('title', 'Mobil Bermasalah')
+@section('title', 'Service Asuransi')
 
 @section('content')
 
@@ -14,8 +14,8 @@
         {{-- PAGE HEADER --}}
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">Service Kendaraan</h1>
-                <p class="text-sm text-gray-500 mt-0.5">Riwayat Service & Data Mobil Bermasalah</p>
+                <h1 class="text-2xl font-bold text-gray-800">Service Asuransi</h1>
+                <p class="text-sm text-gray-500 mt-0.5">Data Service & Asuransi Kendaraan</p>
             </div>
             <button onclick="openModal()"
                 class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150 mt-2 sm:mt-0">
@@ -50,10 +50,10 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <i class="fa fa-screwdriver-wrench text-blue-500 text-xl"></i>
+                    <i class="fa fa-shield-halved text-blue-500 text-xl"></i>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-500 font-medium">Jumlah Mobil Bermasalah</p>
+                    <p class="text-xs text-gray-500 font-medium">Total Service Asuransi</p>
                     <p class="text-2xl font-bold text-gray-800">{{ $jumlahService }}</p>
                 </div>
             </div>
@@ -74,24 +74,10 @@
             {{-- TOOLBAR --}}
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
-                    <h2 class="font-semibold text-gray-800">Mobil Bermasalah</h2>
+                    <h2 class="font-semibold text-gray-800">Service Asuransi</h2>
                     <p class="text-xs text-gray-400 mt-0.5" id="totalCount">{{ $data->count() }} data</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-                        <button type="button" onclick="setActiveStatus('semua')" id="btnSemua"
-                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors bg-white text-gray-700 shadow-sm">
-                            Semua
-                        </button>
-                        <button type="button" onclick="setActiveStatus('Layak')" id="btnLayak"
-                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors text-gray-500 hover:text-green-600">
-                            Layak
-                        </button>
-                        <button type="button" onclick="setActiveStatus('Tidak Layak')" id="btnTidakLayak"
-                            class="px-3 py-1 text-xs font-medium rounded-md transition-colors text-gray-500 hover:text-red-500">
-                            Tidak Layak
-                        </button>
-                    </div>
                     <input type="month" id="filterBulan" onchange="setActiveBulan(this.value)"
                         class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     <div class="relative">
@@ -100,18 +86,6 @@
                             oninput="applyFilters()"
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                     </div>
-                    <a id="pdfBtn" href="{{ route('service-detail.pdf') }}" target="_blank"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
-                        <i class="fa fa-file-pdf"></i> PDF
-                    </a>
-                    <button type="button" id="btnExpandAll" onclick="expandAllAccordion()"
-                        class="px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
-                        <i class="fa fa-chevron-down text-xs"></i> Buka Semua
-                    </button>
-                    <button type="button" id="btnCollapseAll" onclick="collapseAllAccordion()"
-                        class="px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <i class="fa fa-chevron-right text-xs"></i> Tutup Semua
-                    </button>
                 </div>
             </div>
 
@@ -119,65 +93,20 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Kendaraan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Keluhan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">KM</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Tanggal</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Periode</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Biaya</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Status</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Bukti</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Attachment</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="serviceTableBody">
-                        @php
-                            $grouped = $data->groupBy('kendaraan_id');
-                            $rowCounter = 0;
-                        @endphp
-                        @forelse($grouped as $kendaraanId => $rows)
+                        @forelse($data as $d)
                             @php
-                                $firstRow   = $rows->first();
-                                $merk       = $firstRow->kendaraan->merk  ?? '-';
-                                $nopol      = $firstRow->kendaraan->nopol ?? '-';
-                                $groupCount = $rows->count();
-                                $groupBiaya = $rows->sum('biaya');
-                                $groupKey   = 'group-' . $kendaraanId;
-                            @endphp
-
-                            {{-- GROUP HEADER ROW --}}
-                            <tr class="group-header bg-blue-50 border-t border-blue-100 border-l-4 border-l-blue-500 cursor-pointer select-none hover:bg-blue-100 transition-colors duration-150 shadow-sm"
-                                data-group="{{ $groupKey }}"
-                                onclick="toggleAccordion('{{ $groupKey }}', this)">
-                                <td class="px-4 py-3" colspan="2">
-                                    <div class="flex items-center gap-2.5">
-                                        <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                            <i class="fa fa-car text-blue-500 text-sm"></i>
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-bold text-gray-800">{{ $merk }}</p>
-                                            <p class="text-xs text-gray-500 font-mono">{{ $nopol }}</p>
-                                        </div>
-                                        <span class="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-200 text-blue-700 text-[10px] font-bold">
-                                            {{ $groupCount }}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-xs text-gray-400 italic" colspan="3">{{ $groupCount }} catatan</td>
-                                <td class="px-4 py-3" colspan="2">
-                                    <span class="text-sm font-bold text-emerald-600">Rp {{ number_format($groupBiaya, 0, ',', '.') }}</span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="flex justify-end pr-2">
-                                        <i class="fa fa-chevron-down text-blue-400 text-xs group-chevron transition-transform duration-200"
-                                           data-group="{{ $groupKey }}"></i>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            {{-- CHILD ROWS --}}
-                            @foreach($rows as $d)
-                                @php
-                                    $rowCounter++;
                                     $rawBukti = is_array($d->bukti) ? $d->bukti : (json_decode($d->bukti, true) ?? []);
                                     // Normalise: pastikan setiap item punya key path & name
                                     $buktiArr = array_values(array_filter(array_map(function($f) {
@@ -200,14 +129,24 @@
                                     $attachmentCount = count($attachmentArr);
                                     $attachmentJson = json_encode($attachmentArr);
                                 @endphp
-                                <tr class="group-child border-t border-gray-100 odd:bg-white even:bg-gray-100 hover:bg-blue-50/40 transition-colors duration-100"
-                                    data-group-child="{{ $groupKey }}"
-                                    data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . $d->keterangan) }}"
-                                    data-status="{{ $d->status }}"
-                                    data-bulan="{{ $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->format('Y-m-d') : '' }}"
-                                    style="display:none;">
+                            <tr class="border-t border-gray-100 odd:bg-white even:bg-gray-50 hover:bg-blue-50/40 transition-colors duration-100"
+                                data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . $d->keterangan) }}"
+                                data-bulan="{{ $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->format('Y-m-d') : '' }}">
 
-                                    {{-- KELUHAN --}}
+                                {{-- KENDARAAN --}}
+                                <td class="px-5 py-4">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                                            <i class="fa fa-car text-blue-500 text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-800">{{ $d->kendaraan->merk ?? '-' }}</p>
+                                            <p class="text-xs text-gray-500 font-mono">{{ $d->kendaraan->nopol ?? '-' }}</p>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                {{-- KELUHAN --}}
                                     <td class="px-5 py-4 text-sm text-gray-700 max-w-xs">
                                         <span class="line-clamp-2">{{ $d->keterangan ?? '-' }}</span>
                                     </td>
@@ -222,27 +161,25 @@
                                         {{ $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->format('d M Y') : '-' }}
                                     </td>
 
+                                    {{-- PERIODE --}}
+                                    <td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">
+                                        @if($d->periode_mulai && $d->periode_selesai)
+                                            <div class="flex flex-col gap-0.5">
+                                                <span class="text-xs text-gray-400">Mulai:</span>
+                                                <span class="font-medium">{{ \Carbon\Carbon::parse($d->periode_mulai)->format('d M Y') }}</span>
+                                                <span class="text-xs text-gray-400 mt-1">Selesai:</span>
+                                                <span class="font-medium">{{ \Carbon\Carbon::parse($d->periode_selesai)->format('d M Y') }}</span>
+                                            </div>
+                                        @else
+                                            <span class="text-gray-300">—</span>
+                                        @endif
+                                    </td>
+
                                     {{-- BIAYA --}}
                                     <td class="px-5 py-4 whitespace-nowrap">
                                         <span class="text-sm font-semibold text-gray-800">
                                             Rp {{ number_format($d->biaya ?? 0, 0, ',', '.') }}
                                         </span>
-                                    </td>
-
-                                    {{-- STATUS --}}
-                                    <td class="px-5 py-4">
-                                        <button type="button" class="btn-status" data-id="{{ $d->id }}"
-                                            data-status="{{ $d->status }}" onclick="openStatusModal(this)">
-                                            @if ($d->status == 'Layak')
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Layak
-                                                </span>
-                                            @else
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Tidak Layak
-                                                </span>
-                                            @endif
-                                        </button>
                                     </td>
 
                                     {{-- BUKTI --}}
@@ -319,8 +256,9 @@
                                                 data-id="{{ $d->id }}"
                                                 data-kendaraan_id="{{ $d->kendaraan_id }}"
                                                 data-tanggal_service="{{ $d->tanggal_service }}"
+                                                data-periode_mulai="{{ $d->periode_mulai }}"
+                                                data-periode_selesai="{{ $d->periode_selesai }}"
                                                 data-kilometer="{{ $d->kilometer }}"
-                                                data-status="{{ $d->status }}"
                                                 data-biaya="{{ $d->biaya }}"
                                                 data-keterangan="{{ $d->keterangan }}"
                                                 data-bukti="{{ $buktiJson }}"
@@ -328,7 +266,7 @@
                                                 <i class="fa fa-edit text-xs"></i> Edit
                                             </button>
 
-                                            <form action="{{ route('service-detail.destroy', $d->id) }}" method="POST"
+                                            <form action="{{ route('service-asuransi.destroy', $d->id) }}" method="POST"
                                                 onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
                                                 @csrf
                                                 @method('DELETE')
@@ -340,12 +278,11 @@
                                         </div>
                                     </td>
                                 </tr>
-                            @endforeach
 
                         @empty
                             <tr>
-                                <td colspan="7" class="px-5 py-12 text-center">
-                                    <p class="text-sm text-gray-500">Belum ada data service</p>
+                                <td colspan="9" class="px-5 py-12 text-center">
+                                    <p class="text-sm text-gray-500">Belum ada data service asuransi</p>
                                 </td>
                             </tr>
                         @endforelse
@@ -382,8 +319,8 @@
 
             <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100 shrink-0">
                 <div>
-                    <h2 id="modalTitle" class="text-base font-bold text-gray-800">Tambah Data Service</h2>
-                    <p id="modalDesc" class="text-xs text-gray-500 mt-0.5">Isi data detail service kendaraan</p>
+                    <h2 id="modalTitle" class="text-base font-bold text-gray-800">Tambah Data Service Asuransi</h2>
+                    <p id="modalDesc" class="text-xs text-gray-500 mt-0.5">Isi data service & asuransi kendaraan</p>
                 </div>
                 <button onclick="closeModal()"
                     class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
@@ -406,9 +343,22 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Bermasalah</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Service</label>
                     <input type="date" name="tanggal_service" id="tanggal_service"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Periode Mulai</label>
+                        <input type="date" name="periode_mulai" id="periode_mulai"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Periode Selesai</label>
+                        <input type="date" name="periode_selesai" id="periode_selesai"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                    </div>
                 </div>
 
                 <div>
@@ -416,10 +366,6 @@
                     <input type="number" name="kilometer" id="kilometer" placeholder="Contoh: 45000"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
                 </div>
-
-                <select name="status" id="status" hidden>
-                    <option value="Tidak Layak">Tidak Layak</option>
-                </select>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keluhan</label>
@@ -597,26 +543,6 @@
         </div>
     @endif
 
-    {{-- ============================================================
-    MODAL UBAH STATUS
-    ============================================================ --}}
-    <div id="statusModal" class="fixed inset-0 hidden items-center justify-center bg-black/30 z-50">
-        <div class="bg-white p-5 rounded-xl w-80">
-            <h2 class="font-bold text-sm mb-3">Ubah Status</h2>
-            <form id="statusForm" method="POST">
-                @csrf
-                @method('PUT')
-                <select name="status" id="statusSelect" class="w-full border rounded-lg px-3 py-2 text-sm mb-4">
-                    <option value="Layak">Layak</option>
-                    <option value="Tidak Layak">Tidak Layak</option>
-                </select>
-                <button class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm">Simpan</button>
-            </form>
-            <button onclick="closeStatusModal()" class="text-xs text-gray-500 mt-2 w-full">Batal</button>
-        </div>
-    </div>
-
-
     <style>
         @keyframes slideUp {
             from { opacity: 0; transform: translateY(16px); }
@@ -637,14 +563,14 @@
     const modal = document.getElementById('modal');
 
     function setModalMode(mode) {
-        document.getElementById('modalTitle').textContent = mode === 'edit' ? 'Edit Data Service' : 'Tambah Data Service';
-        document.getElementById('modalDesc').textContent  = mode === 'edit' ? 'Ubah data detail service kendaraan' : 'Isi data detail service kendaraan';
+        document.getElementById('modalTitle').textContent = mode === 'edit' ? 'Edit Data Service Asuransi' : 'Tambah Data Service Asuransi';
+        document.getElementById('modalDesc').textContent  = mode === 'edit' ? 'Ubah data service & asuransi kendaraan' : 'Isi data service & asuransi kendaraan';
     }
 
     function openModal() {
         setModalMode('add');
         document.getElementById('form').reset();
-        document.getElementById('form').action = '/admin/service-detail';
+        document.getElementById('form').action = '/admin/service-asuransi';
         const mp = document.getElementById('method-put');
         if (mp) mp.remove();
         clearBuktiPreview();
@@ -667,7 +593,7 @@
         setModalMode('edit');
 
         const form = document.getElementById('form');
-        form.action = '/admin/service-detail/' + btn.dataset.id;
+        form.action = '/admin/service-asuransi/' + btn.dataset.id;
 
         const existingMp = document.getElementById('method-put');
         if (existingMp) existingMp.remove();
@@ -680,8 +606,9 @@
         document.getElementById('keterangan').value     = btn.dataset.keterangan;
         document.getElementById('kendaraan_id').value   = btn.dataset.kendaraan_id;
         document.getElementById('tanggal_service').value = btn.dataset.tanggal_service;
+        document.getElementById('periode_mulai').value  = btn.dataset.periode_mulai || '';
+        document.getElementById('periode_selesai').value = btn.dataset.periode_selesai || '';
         document.getElementById('kilometer').value      = btn.dataset.kilometer;
-        document.getElementById('status').value         = btn.dataset.status;
 
         // Tampilkan file yang sudah tersimpan
         clearBuktiPreview();
@@ -764,7 +691,7 @@
         if (!confirm('Hapus file ini?')) return;
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = '/admin/service-detail/' + recordId + '/bukti';
+        form.action = '/admin/service-asuransi/' + recordId + '/bukti';
         form.innerHTML = `
             @csrf
             <input type="hidden" name="_method" value="DELETE">
@@ -867,7 +794,7 @@
         if (!confirm('Hapus file ini?')) return;
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = '/admin/service-detail/' + recordId + '/attachment';
+        form.action = '/admin/service-asuransi/' + recordId + '/attachment';
         form.innerHTML = `
             @csrf
             <input type="hidden" name="_method" value="DELETE">
@@ -1124,36 +1051,10 @@
 
 
     // =================================================================
-    // FILTER + SEARCH + ACCORDION
+    // FILTER + SEARCH (SIMPLIFIED - NO ACCORDION, NO STATUS FILTER)
     // =================================================================
-    let activeStatus = 'semua';
-    let activeBulan  = 'semua';
-    let activeTahun  = 'semua';
-    let currentPage  = 1;
-
-    function setActiveStatus(status) {
-        activeStatus = status;
-        currentPage  = 1;
-        const buttons = {
-            semua:          document.getElementById('btnSemua'),
-            'Layak':        document.getElementById('btnLayak'),
-            'Tidak Layak':  document.getElementById('btnTidakLayak'),
-        };
-        Object.entries(buttons).forEach(([key, btn]) => {
-            if (!btn) return;
-            if (key === status) {
-                btn.classList.add('bg-white','shadow-sm','border','border-gray-200');
-                if (key === 'Layak')       btn.classList.add('text-green-700');
-                else if (key === 'Tidak Layak') btn.classList.add('text-red-600');
-                else                       btn.classList.add('text-gray-700');
-                btn.classList.remove('text-gray-500');
-            } else {
-                btn.classList.remove('bg-white','shadow-sm','border','border-gray-200','text-green-700','text-red-600','text-gray-700');
-                btn.classList.add('text-gray-500');
-            }
-        });
-        applyFilters();
-    }
+    let activeBulan = 'semua';
+    let currentPage = 1;
 
     function setActiveBulan(bulan) {
         activeBulan = (bulan && bulan.trim() !== '') ? bulan : 'semua';
@@ -1162,70 +1063,31 @@
     }
 
     function applyFilters() {
-        const keyword  = document.getElementById('searchInput').value.toLowerCase().trim();
-        const showVal  = '15';
-        const perPage  = parseInt(showVal);
+        const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+        const perPage = 15;
 
-        const childRows = document.querySelectorAll('#serviceTableBody tr[data-search]');
+        const allRows = document.querySelectorAll('#serviceTableBody tr[data-search]');
 
         const matched = [];
-        childRows.forEach(row => {
+        allRows.forEach(row => {
             const matchSearch = !keyword || row.dataset.search.includes(keyword);
-            const matchStatus = activeStatus === 'semua' || row.dataset.status === activeStatus;
-            const tgl         = row.dataset.bulan || '';
-            const [rY, rM]    = tgl.split('-');
-            const rowYM       = rY && rM ? `${rY}-${rM}` : '';
-            const matchBulan  = activeBulan === 'semua' || rowYM === activeBulan;
-            if (matchSearch && matchStatus && matchBulan) matched.push(row);
+            const tgl = row.dataset.bulan || '';
+            const [rY, rM] = tgl.split('-');
+            const rowYM = rY && rM ? `${rY}-${rM}` : '';
+            const matchBulan = activeBulan === 'semua' || rowYM === activeBulan;
+            if (matchSearch && matchBulan) matched.push(row);
         });
 
-        const total      = matched.length;
+        const total = matched.length;
         const totalPages = Math.ceil(total / perPage) || 1;
         if (currentPage > totalPages) currentPage = 1;
 
-        const start   = (currentPage - 1) * perPage;
-        const end     = Math.min(start + perPage, total);
+        const start = (currentPage - 1) * perPage;
+        const end = Math.min(start + perPage, total);
         const pageSet = new Set(matched.slice(start, end));
 
-        const visibleGroups  = new Set(matched.map(r => r.dataset.groupChild));
-        const filterAktif    = activeStatus !== 'semua' || keyword || activeBulan !== 'semua';
-
-        if (filterAktif) {
-            visibleGroups.forEach(gKey => {
-                if (!groupState[gKey]) {
-                    groupState[gKey] = true;
-                    const chevron = document.querySelector(`.group-chevron[data-group="${gKey}"]`);
-                    if (chevron) chevron.style.transform = 'rotate(180deg)';
-                    const hdr = document.querySelector(`tr.group-header[data-group="${gKey}"]`);
-                    if (hdr) { hdr.classList.add('bg-blue-100'); hdr.classList.remove('bg-blue-50'); }
-                }
-            });
-        } else {
-            Object.keys(groupState).forEach(gKey => {
-                if (groupState[gKey]) {
-                    groupState[gKey] = false;
-                    const chevron = document.querySelector(`.group-chevron[data-group="${gKey}"]`);
-                    if (chevron) chevron.style.transform = 'rotate(0deg)';
-                    const hdr = document.querySelector(`tr.group-header[data-group="${gKey}"]`);
-                    if (hdr) { hdr.classList.add('bg-blue-50'); hdr.classList.remove('bg-blue-100'); }
-                }
-            });
-        }
-
-        childRows.forEach(row => {
-            if (pageSet.has(row)) {
-                const gKey      = row.dataset.groupChild;
-                const shouldShow = filterAktif ? true : (groupState[gKey] || false);
-                row.style.display = shouldShow ? '' : 'none';
-                row.style.opacity = '1';
-                row.style.transition = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-
-        document.querySelectorAll('#serviceTableBody tr.group-header').forEach(hr => {
-            hr.style.display = visibleGroups.has(hr.dataset.group) ? '' : 'none';
+        allRows.forEach(row => {
+            row.style.display = pageSet.has(row) ? '' : 'none';
         });
 
         const showingInfo = document.getElementById('showingInfo');
@@ -1239,9 +1101,7 @@
         document.getElementById('totalCount').textContent = total + ' total data';
 
         const noResult = document.getElementById('noResultRow');
-        if (noResult) noResult.classList.toggle('hidden', total > 0 || childRows.length === 0);
-
-        updatePdfLink();
+        if (noResult) noResult.classList.toggle('hidden', total > 0 || allRows.length === 0);
     }
 
     function renderPagination(totalPages) {
@@ -1285,6 +1145,7 @@
         container.appendChild(next);
     }
 
+    /* TODO: implement PDF export
     function updatePdfLink() {
         const keyword = document.getElementById('searchInput').value;
         const pdfBtn  = document.getElementById('pdfBtn');
@@ -1293,8 +1154,9 @@
         if (activeStatus !== 'semua') params.set('status', activeStatus);
         if (activeBulan  !== 'semua') params.set('bulan',  activeBulan);
         const qs = params.toString();
-        pdfBtn.href = "{{ route('service-detail.pdf') }}" + (qs ? '?' + qs : '');
+        pdfBtn.href = '/admin/service-asuransi/pdf' + (qs ? '?' + qs : '');
     }
+    */
 
 
     // =================================================================
@@ -1323,72 +1185,6 @@
     // =================================================================
     // STATUS MODAL
     // =================================================================
-    function openStatusModal(el) {
-        const id     = el.dataset.id;
-        const status = el.dataset.status;
-        const m      = document.getElementById('statusModal');
-        document.getElementById('statusForm').action = 'service/service-detail/' + id + '/status';
-        document.getElementById('statusSelect').value = status;
-        m.classList.remove('hidden');
-        m.classList.add('flex');
-    }
-
-    function closeStatusModal() {
-        const m = document.getElementById('statusModal');
-        m.classList.add('hidden');
-        m.classList.remove('flex');
-        document.getElementById('statusForm').reset();
-    }
-
-    // =================================================================
-    // ACCORDION
-    // =================================================================
-    const groupState = {};
-
-    function toggleAccordion(groupKey, headerRow) {
-        const isExpanded = groupState[groupKey] || false;
-        const newState   = !isExpanded;
-        groupState[groupKey] = newState;
-
-        const childRows = document.querySelectorAll(`tr[data-group-child="${groupKey}"]`);
-        childRows.forEach(row => {
-            if (newState) {
-                row.style.display = '';
-                row.style.opacity = '0';
-                requestAnimationFrame(() => {
-                    row.style.transition = 'opacity 0.18s ease';
-                    row.style.opacity = '1';
-                });
-            } else {
-                row.style.transition = 'opacity 0.15s ease';
-                row.style.opacity = '0';
-                setTimeout(() => { row.style.display = 'none'; }, 150);
-            }
-        });
-
-        const chevron = document.querySelector(`.group-chevron[data-group="${groupKey}"]`);
-        if (chevron) chevron.style.transform = newState ? 'rotate(180deg)' : 'rotate(0deg)';
-
-        if (headerRow) {
-            if (newState) { headerRow.classList.add('bg-blue-100');  headerRow.classList.remove('bg-blue-50'); }
-            else          { headerRow.classList.add('bg-blue-50');   headerRow.classList.remove('bg-blue-100'); }
-        }
-    }
-
-    function expandAllAccordion() {
-        document.querySelectorAll('tr.group-header').forEach(headerRow => {
-            const key = headerRow.dataset.group;
-            if (key && !groupState[key]) toggleAccordion(key, headerRow);
-        });
-    }
-
-    function collapseAllAccordion() {
-        document.querySelectorAll('tr.group-header').forEach(headerRow => {
-            const key = headerRow.dataset.group;
-            if (key && groupState[key]) toggleAccordion(key, headerRow);
-        });
-    }
-
     // Init
     applyFilters();
     </script>

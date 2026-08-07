@@ -139,6 +139,26 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
     // KTP Pihak Pertama diambil dari kolom contact_pertama
     $pihak1KTP = $kontrak->contact_pertama ?? '…………………………………';
 
+    // Ketentuan asuransi Pasal 4 Ayat 7 — dari JSON atau fallback default
+    $ketentuanAsuransi = $kontrak->ketentuan_asuransi ?: [
+        [
+            'id' => 'Kewajiban Pihak Ketiga yang ditanggung PIHAK PERTAMA sesuai dengan polis asuransi sebesar Rp. 10.000.000,- (Sepuluh juta rupiah) untuk sedan dan minibus per kejadian. Kelebihan tanggungan menjadi tanggung jawab PIHAK KEDUA.',
+            'en' => 'Third Party Liabilities (TPL) accounted by FIRST PARTY is equal to or maximum Rp. 10.000.000,- (ten million rupiah) for sedan and minibus per occurrence. Exceeding amount becomes the SECOND PARTY responsibility.',
+        ],
+        [
+            'id' => 'Dalam hal kecelakaan/kehilangan/pencurian mobil yang disewa, dimana kerugian tidak ditanggung oleh asuransi, maka kerugian sepenuhnya beralih menjadi tanggung jawab PIHAK KEDUA.',
+            'en' => 'In the event of damage/loss/theft of the car, hence the claim is rejected by the insurance company and in effect will hold responsible fully to the cost effect of occurrence.',
+        ],
+        [
+            'id' => 'Selama proses pengurusan pengajuan klaim asuransi atas kehilangan tersebut, PIHAK KEDUA tidak mendapat kendaraan pengganti dan berkewajiban membayar klaim own risk sebesar 10% dari uang pertanggungan yang tertera di polis.',
+            'en' => 'While undergoing the process of insurance claim for the loss/theft of the car, The SECOND PARTY will not receive replacement car and responsible to pay own risk claim of 10% of the insured sum that is written in the insurance policy.',
+        ],
+        [
+            'id' => 'Dalam hal terjadinya kecelakaan yang memerlukan perbaikan body repair, PIHAK KEDUA berkewajiban membayar biaya resiko sendiri.',
+            'en' => 'In the event of accident that requires body repair, the SECOND PARTY is obligated to pay own risk.',
+        ],
+    ];
+
     // Data Pihak Kedua — cari dari tabel member dengan prioritas customer_name penawaran
     // karena data member disimpan berdasarkan customer_name saat input penawaran
     $namaP2 = $kontrak->penawaran->customer_name
@@ -381,14 +401,9 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
             <li><span class="nb">7.</span><span class="tx">PIHAK PERTAMA berkewajiban untuk mengasuransikan kendaraan secara All Risk
                 tetapi diluar banjir dan Hura-Hara dengan ketentuan sebagai berikut:
                 <ul class="alst">
-                    <li><span class="nb">a.</span><span class="tx">Kewajiban Pihak Ketiga yang ditanggung PIHAK PERTAMA sesuai dengan
-                        polis asuransi sebesar Rp. 10.000.000,- (Sepuluh juta rupiah) untuk sedan
-                        dan minibus per kejadian. Kelebihan tanggungan menjadi tanggung jawab
-                        PIHAK KEDUA.</span></li>
-                    <li><span class="nb">b.</span><span class="tx">Dalam hal kecelakaan/kehilangan/pencurian mobil yang disewa, dimana
-                        kerugian tidak ditanggung oleh asuransi, maka kerugian sepenuhnya beralih
-                        menjadi tanggung jawab PIHAK KEDUA.</span></li>
-                    <li><span class="nb">c.</span><span class="tx">Selama proses pengurusan</span></li>
+                    @foreach($ketentuanAsuransi as $ki => $kp)
+                    <li><span class="nb">{{ chr(97 + $ki) }}.</span><span class="tx">{{ $kp['id'] }}</span></li>
+                    @endforeach
                 </ul>
             </span></li>
         </ul>
@@ -411,13 +426,9 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
                 but exclude flood, SRCC (Strike, Riot, Civil, Commotion) under the following
                 provisions:
                 <ul class="alst">
-                    <li><span class="nb">a.</span><span class="tx">Third Party Liabilities (TPL) accounted by FIRST PARTY is equal to or
-                        maximum Rp. 10.000.000,- (ten million rupiah) for sedan and minibus per
-                        occurrence. Exceeding amount becomes the SECOND PARTY responsibility.</span></li>
-                    <li><span class="nb">b.</span><span class="tx">In the event of damage/loss/theft of the car, hence the claim is rejected
-                        by the insurance company and in effect will hold responsible fully to the
-                        cost effect of occurrence.</span></li>
-                    <li><span class="nb">c.</span><span class="tx">While undergoing the process of</span></li>
+                    @foreach($ketentuanAsuransi as $ki => $kp)
+                    <li><span class="nb">{{ chr(97 + $ki) }}.</span><span class="tx">{{ $kp['en'] }}</span></li>
+                    @endforeach
                 </ul>
             </span></li>
         </ul>
@@ -432,26 +443,6 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
 <div class="page">
 <table class="tc">
 
-<tr>
-    <td>
-        <ul class="alst" style="margin-left:22px;">
-            <li><span class="nb">c.</span><span class="tx">pengajuan klaim asuransi atas kehilangan tersebut, PIHAK KEDUA tidak
-                mendapat kendaraan pengganti dan berkewajiban membayar klaim own risk sebesar
-                10% dari uang pertanggungan yang tertera di polis.</span></li>
-            <li><span class="nb">d.</span><span class="tx">Dalam hal terjadinya kecelakaan yang memerlukan perbaikan body repair,
-                PIHAK KEDUA berkewajiban membayar biaya resiko sendiri</span></li>
-        </ul>
-    </td>
-    <td class="r">
-        <ul class="alst" style="margin-left:22px;">
-            <li><span class="nb">c.</span><span class="tx">insurance claim for the loss/theft of the car, The SECOND PARTY will not
-                receive replacement car and responsible to pay own risk claim of 10% of the
-                insured sum that is written in the insurance policy.</span></li>
-            <li><span class="nb">d.</span><span class="tx">In the event of accident that requires body repair, the SECOND PARTY is
-                obligated to pay own risk</span></li>
-        </ul>
-    </td>
-</tr>
 <tr><td colspan="2"><span class="s12"></span></td></tr>
 
 <tr>

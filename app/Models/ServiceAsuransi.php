@@ -5,18 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class ServiceDetail extends Model
+class ServiceAsuransi extends Model
 {
     use HasFactory;
 
-    protected $table = 'service_detail';
+    protected $table = 'service_asuransi';
 
     protected $fillable = [
         'kendaraan_id',
-        'service_history_id',
         'tanggal_service',
+        'periode_mulai',
+        'periode_selesai',
         'kilometer',
-        'status',
         'biaya',
         'keterangan',
         'bukti',
@@ -28,17 +28,6 @@ class ServiceDetail extends Model
         'attachment' => 'array',
     ];
 
-    /**
-     * Relasi ke service history
-     */
-    public function serviceHistory()
-    {
-        return $this->belongsTo(ServiceHistory::class, 'service_history_id');
-    }
-
-    /**
-     * Relasi ke kendaraan
-     */
     public function kendaraan()
     {
         return $this->belongsTo(Kendaraan::class, 'kendaraan_id');

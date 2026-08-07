@@ -656,6 +656,14 @@
                                
                             @endif
 
+                            {{-- Sub: Data Leasing --}}
+                            @if ($role == 'superadmin' || $role == 'keuangan')
+                                <a href="/admin/data-leasing"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-bank w-4 text-center shrink-0"></i> Data Leasing
+                                </a>
+                            @endif
+
                         </div>
                     </div>
                 </div>

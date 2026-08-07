@@ -31,6 +31,7 @@ class InvKontrak extends Model
         'file_draft',
 
         'status',
+        'ketentuan_asuransi',
     ];
 
     protected $casts = [
@@ -38,6 +39,7 @@ class InvKontrak extends Model
         'perjanjian_pembayaran'=> 'date',
         'tanggal_selesai'      => 'date',
         'durasi_value'         => 'integer',
+        'ketentuan_asuransi'   => 'array',
     ];
 
     public function penawaran()
