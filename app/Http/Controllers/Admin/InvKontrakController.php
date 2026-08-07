@@ -180,6 +180,10 @@ class InvKontrakController extends Controller
             'contact_pertama'       => $request->contact_pertama,
             'pihak_kedua'           => $request->pihak_kedua,
             'contact_kedua'         => $request->contact_kedua,
+            'no_ktp_kedua'          => $request->no_ktp_kedua,
+            'email_kedua'           => $request->email_kedua,
+            'jenis_pelanggan'       => $request->jenis_pelanggan,
+            'alamat_kedua'          => $request->alamat_kedua,
             'status'                => 'pending',
         ];
 

@@ -25,6 +25,10 @@ class InvKontrak extends Model
 
         'pihak_kedua',
         'contact_kedua',
+        'no_ktp_kedua',
+        'email_kedua',
+        'jenis_pelanggan',
+        'alamat_kedua',
 
         'file_kontrak',
         'file_persyaratan',

@@ -93,7 +93,7 @@ class SummaryController extends Controller
                     $subtotal = 0.0;
 
                     $mulaiKontrak = $kontrak->perjanjian_pembayaran
-                        ? \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)->addDay()
+                        ? \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)
                         : \Carbon\Carbon::parse($kontrak->tanggal_kontrak ?? now());
 
                     foreach ($penawaran->items as $item) {
@@ -127,17 +127,37 @@ class SummaryController extends Controller
                 ->distinct('invoice_id')
                 ->count('invoice_id');
 
-            return $items->values()->map(function ($s, $idx) use ($totalPeriode, $paidInvoiceCount, $grandTotalKontrak) {
+            // Hitung total PERIODE yang sudah paid (bukan jumlah invoice)
+            $paidPeriodes = $items
+                ->filter(fn($s) => strtolower($s->payment_status) === 'paid')
+                ->sum(fn($s) => max((int)($s->periode_count ?? 1), 1));
+
+            return $items->values()->map(function ($s, $idx) use ($totalPeriode, $paidInvoiceCount, $paidPeriodes, $grandTotalKontrak) {
                 $sudahBayar = strtolower($s->payment_status) === 'paid'
                            || strtolower($s->payment_status) === 'partial';
 
-                // Sudah bayar → tampil urutan invoice ini (idx+1)
-                // Belum bayar → tampil jumlah yang sudah lunas di kontrak
-                $s->_pembayaran_ke  = $sudahBayar ? ($idx + 1) : $paidInvoiceCount;
+                // Hitung jumlah periode yang dicakup invoice ini — ambil dari kolom DB jika ada,
+                // fallback ke periodes count, fallback ke 1
+                $jumlahPeriodeInvoice = (int) ($s->periode_count ?? 0);
+                if ($jumlahPeriodeInvoice <= 0) {
+                    $jumlahPeriodeInvoice = $s->invoice
+                        ? max(1, $s->invoice->periodes->count())
+                        : 1;
+                }
+
+                // Bayar ke: invoice ini adalah pembayaran ke-(idx+1) s/d (idx+jumlahPeriode)
+                $bayarDari   = $idx + 1;
+                $bayarSampai = min($idx + $jumlahPeriodeInvoice, $totalPeriode);
+
+                $s->_pembayaran_ke  = $bayarDari === $bayarSampai
+                    ? (string) $bayarDari
+                    : "{$bayarDari}–{$bayarSampai}";
                 $s->_sudah_bayar    = $sudahBayar;
                 $s->_total_periode  = $totalPeriode;
-                $s->_sisa_kali      = max(0, $totalPeriode - $paidInvoiceCount);
+                // Sisa = total periode - periode yang sudah tercakup invoice ini
+                $s->_sisa_kali      = max(0, $totalPeriode - $bayarSampai);
                 $s->_paid_count     = $paidInvoiceCount;
+                $s->_paid_periodes  = $paidPeriodes;   // total periode yg sudah paid
                 $s->_grand_total    = $grandTotalKontrak;
                 return $s;
             });

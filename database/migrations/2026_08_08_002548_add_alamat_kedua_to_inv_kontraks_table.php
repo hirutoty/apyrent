@@ -1,0 +1,22 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('inv_kontraks', function (Blueprint $table) {
+            $table->text('alamat_kedua')->nullable()->after('jenis_pelanggan');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('inv_kontraks', function (Blueprint $table) {
+            $table->dropColumn('alamat_kedua');
+        });
+    }
+};

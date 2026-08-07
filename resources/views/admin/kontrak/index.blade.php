@@ -187,7 +187,7 @@
                                 $items = $k->penawaran?->items ?? collect();
                                 $hasPerjanjian = $k->perjanjian_pembayaran;
                                 $mulaiRental = $hasPerjanjian
-                                    ? \Carbon\Carbon::parse($k->perjanjian_pembayaran)->addDay()
+                                    ? \Carbon\Carbon::parse($k->perjanjian_pembayaran)
                                     : ($k->tanggal_kontrak ?? null);
                             @endphp
                             @if($items->isNotEmpty())
@@ -414,7 +414,7 @@
                         onchange="calcTanggalSelesai()"
                         min="{{ date('Y-m-d') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    <p class="text-[10px] text-gray-400 mt-1">Rental mulai <strong>+1 hari</strong> setelah tanggal ini</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Rental mulai dari tanggal ini</p>
                 </div>
             </div>
 
@@ -424,7 +424,7 @@
                     <i class="fa fa-calendar-check text-indigo-500"></i> Estimasi Tanggal Selesai per Kendaraan
                 </label>
                 <div id="list_selesai_kendaraan" class="space-y-1.5"></div>
-                <p class="text-[10px] text-gray-400 mt-1">Dihitung dari perjanjian pembayaran +1 hari + durasi masing-masing kendaraan</p>
+                <p class="text-[10px] text-gray-400 mt-1">Dihitung dari perjanjian pembayaran + durasi masing-masing kendaraan</p>
             </div>
 
             {{-- Pihak --}}
@@ -459,13 +459,40 @@
                 </div>
             </div>
 
-            <div class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 flex items-start gap-2">
-                <i class="fa fa-info-circle text-blue-500 mt-0.5 flex-shrink-0"></i>
-                <p class="text-xs text-blue-700">
-                    Setelah disimpan, <strong>draft PDF kontrak</strong> akan otomatis di-generate.
-                    Silakan download, tandatangani, lalu upload kembali untuk <strong>Approve</strong>.
-                </p>
+            {{-- Data Customer Pihak Kedua --}}
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
+                    <input type="text" name="no_ktp_kedua" id="create_no_ktp_kedua"
+                        inputmode="numeric" maxlength="16"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                        placeholder="16 digit No KTP"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua</label>
+                    <input type="email" name="email_kedua" id="create_email_kedua"
+                        placeholder="email@example.com"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
+                    <select name="jenis_pelanggan" id="create_jenis_pelanggan"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih --</option>
+                        <option value="perorangan">Perorangan</option>
+                        <option value="perusahaan">Perusahaan</option>
+                    </select>
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua</label>
+                    <textarea name="alamat_kedua" id="create_alamat_kedua" rows="2"
+                        placeholder="Alamat lengkap..."
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
+                </div>
             </div>
+
+            <div class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 flex items-start gap-2">
 
             <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
                 <button type="button" onclick="closeModal('modalCreate')"
@@ -586,6 +613,38 @@
                         oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
                         placeholder="08xx-xxxx-xxxx"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+            </div>
+            {{-- Data Customer Pihak Kedua --}}
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
+                    <input type="text" name="no_ktp_kedua" id="edit_no_ktp_kedua"
+                        inputmode="numeric" maxlength="16"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                        placeholder="16 digit No KTP"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua</label>
+                    <input type="email" name="email_kedua" id="edit_email_kedua"
+                        placeholder="email@example.com"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
+                    <select name="jenis_pelanggan" id="edit_jenis_pelanggan"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih --</option>
+                        <option value="perorangan">Perorangan</option>
+                        <option value="perusahaan">Perusahaan</option>
+                    </select>
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua</label>
+                    <textarea name="alamat_kedua" id="edit_alamat_kedua" rows="2"
+                        placeholder="Alamat lengkap..."
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
                 </div>
             </div>
             <div>
@@ -793,7 +852,7 @@
     }
 
     // ── Hitung tanggal selesai otomatis per kendaraan ──────────
-    // Mulai = perjanjian_pembayaran + 1 hari
+    // Mulai = perjanjian_pembayaran (langsung, tanpa +1 hari)
     // Selesai = mulai + durasi per item
     let _currentItems = []; // cache items dari penawaran terakhir
 
@@ -809,9 +868,8 @@
 
         const opts = { day: 'numeric', month: 'long', year: 'numeric' };
 
-        // Mulai = perjanjian +1 hari
+        // Mulai = perjanjian (langsung)
         const mulai = new Date(perjanjianStr);
-        mulai.setDate(mulai.getDate() + 1);
 
         const rows = _currentItems.map(item => {
             if (!item.kendaraan) return '';
@@ -859,6 +917,10 @@
         document.getElementById('edit_contact_pertama').value      = data.contact_pertama ?? '';
         document.getElementById('edit_pihak_kedua').value          = data.pihak_kedua ?? '';
         document.getElementById('edit_contact_kedua').value        = data.contact_kedua ?? '';
+        document.getElementById('edit_no_ktp_kedua').value         = data.no_ktp_kedua ?? '';
+        document.getElementById('edit_email_kedua').value          = data.email_kedua ?? '';
+        document.getElementById('edit_jenis_pelanggan').value      = data.jenis_pelanggan ?? '';
+        document.getElementById('edit_alamat_kedua').value         = data.alamat_kedua ?? '';
         const validStatuses = ['dibuat','pending','approved','active','rejected','expired','completed','terminated','selesai-belum lunas'];
         document.getElementById('edit_status').value = validStatuses.includes(data.status) ? data.status : 'pending';
         openModal('modalEdit');
