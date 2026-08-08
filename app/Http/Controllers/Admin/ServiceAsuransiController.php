@@ -32,13 +32,19 @@ class ServiceAsuransiController extends Controller
             'periode_mulai'   => 'nullable|date',
             'periode_selesai' => 'nullable|date|after_or_equal:periode_mulai',
             'kilometer'       => 'required|numeric',
-            'biaya'           => 'required|numeric',
+            'biaya'           => 'nullable|numeric',
             'bukti.*'         => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
             'attachment.*'    => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
         ]);
 
         $buktiList      = $this->uploadBuktiFiles($request);
         $attachmentList = $this->uploadAttachmentFiles($request);
+
+        // Cek duplikat: kendaraan yang sama tidak boleh ditambah lagi
+        $exists = ServiceAsuransi::where('kendaraan_id', $request->kendaraan_id)->exists();
+        if ($exists) {
+            return back()->withInput()->with('error', 'Kendaraan ini sudah memiliki data service asuransi. Gunakan fitur Edit untuk memperbarui data.');
+        }
 
         ServiceAsuransi::create([
             'kendaraan_id'    => $request->kendaraan_id,
@@ -69,10 +75,18 @@ class ServiceAsuransiController extends Controller
             'periode_mulai'   => 'nullable|date',
             'periode_selesai' => 'nullable|date|after_or_equal:periode_mulai',
             'kilometer'       => 'required|numeric',
-            'biaya'           => 'required|numeric',
+            'biaya'           => 'nullable|numeric',
             'bukti.*'         => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
             'attachment.*'    => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
         ]);
+
+        // Cek duplikat: kendaraan yang sama tidak boleh dipakai oleh record lain
+        $exists = ServiceAsuransi::where('kendaraan_id', $request->kendaraan_id)
+            ->where('id', '!=', $id)
+            ->exists();
+        if ($exists) {
+            return back()->withInput()->with('error', 'Kendaraan ini sudah memiliki data service asuransi di record lain.');
+        }
 
         // File lama dipertahankan, file baru di-append
         $buktiLama      = $data->bukti      ?? [];

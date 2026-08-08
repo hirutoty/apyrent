@@ -240,8 +240,8 @@ class InvKontrakController extends Controller
     {
         $kontrak = InvKontrak::with('penawaran.items.kendaraan')->findOrFail($id);
 
-        if ($kontrak->status !== 'pending') {
-            return back()->with('error', 'Hanya kontrak berstatus pending yang dapat di-approve.');
+        if (!in_array($kontrak->status, ['pending', 'approved'])) {
+            return back()->with('error', 'Kontrak dengan status ini tidak dapat di-approve.');
         }
 
         $request->validate([
