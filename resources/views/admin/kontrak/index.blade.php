@@ -513,8 +513,6 @@
                 </p>
             </div>
 
-            <div class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 flex items-start gap-2">
-
             <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
                 <button type="button" onclick="closeModal('modalCreate')"
                     class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>

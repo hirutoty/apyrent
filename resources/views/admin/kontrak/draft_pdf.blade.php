@@ -159,24 +159,32 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
         ],
     ];
 
-    // Data Pihak Kedua — cari dari tabel member dengan prioritas customer_name penawaran
-    // karena data member disimpan berdasarkan customer_name saat input penawaran
-    $namaP2 = $kontrak->penawaran->customer_name
-               ?? $kontrak->penawaran->kepada
-               ?? $kontrak->pihak_kedua;
+    // Data Pihak Kedua — prioritas: kolom di inv_kontraks → penawaran → lookup Pelanggan
+    $namaP2 = $kontrak->pihak_kedua
+               ?: ($kontrak->penawaran->customer_name ?? null)
+               ?: ($kontrak->penawaran->kepada ?? '…………………………………');
 
-    // Cari member: coba customer_name dulu, lalu kepada, lalu pihak_kedua
-    $pelangganP2 = \App\Models\Pelanggan::where('nama_pelanggan', $kontrak->penawaran->customer_name ?? '')
-                    ->first();
-    if (!$pelangganP2 && $kontrak->penawaran?->kepada) {
-        $pelangganP2 = \App\Models\Pelanggan::where('nama_pelanggan', $kontrak->penawaran->kepada)->first();
-    }
-    if (!$pelangganP2) {
-        $pelangganP2 = \App\Models\Pelanggan::where('nama_pelanggan', $kontrak->pihak_kedua)->first();
-    }
+    // Alamat: kolom alamat_kedua di kontrak → penawaran → lookup Pelanggan → placeholder
+    $alamatP2 = ($kontrak->alamat_kedua ?: null)
+                ?? ($kontrak->penawaran->alamat ?? null);
 
-    $alamatP2 = $pelangganP2->alamat  ?? '…………………………………………………………………………';
-    $noktp2   = $pelangganP2->no_ktp  ?? '……………………………………';
+    // No. KTP: kolom no_ktp_kedua di kontrak → penawaran → lookup Pelanggan → placeholder
+    $noktp2 = ($kontrak->no_ktp_kedua ?: null)
+               ?? ($kontrak->penawaran->no_ktp ?? null);
+
+    // Jika salah satu masih kosong, fallback ke lookup tabel Pelanggan
+    if (!$alamatP2 || !$noktp2) {
+        $pelangganP2 = \App\Models\Pelanggan::where('nama_pelanggan', $kontrak->pihak_kedua ?? '')
+                        ->first();
+        if (!$pelangganP2 && !empty($kontrak->penawaran->customer_name)) {
+            $pelangganP2 = \App\Models\Pelanggan::where('nama_pelanggan', $kontrak->penawaran->customer_name)->first();
+        }
+        if (!$pelangganP2 && !empty($kontrak->penawaran->kepada)) {
+            $pelangganP2 = \App\Models\Pelanggan::where('nama_pelanggan', $kontrak->penawaran->kepada)->first();
+        }
+        $alamatP2 = $alamatP2 ?? $pelangganP2?->alamat ?? '…………………………………………………………………………';
+        $noktp2   = $noktp2   ?? $pelangganP2?->no_ktp ?? '……………………………………';
+    }
 
     // PPN & PPH dari setting
     $ppn = $setting->ppn_default ?? 11;
@@ -677,11 +685,9 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
         Fax. &nbsp; {{ $faxPerush }}</p>
         <span class="s8"></span>
         <p><strong>PIHAK KEDUA</strong><br>
-        ………………………………<br>
-        ………………………………<br>
-        ………………………………<br>
-        ………………………………<br>
-        Hp. .............................</p>
+        {{ $namaP2 }}<br>
+        {{ $alamatP2 }}<br>
+        Hp. {{ $kontrak->contact_kedua ?: '…..........................' }}</p>
     </td>
     <td class="r">
         <p><strong>THE FIRST PARTY</strong><br>
@@ -691,11 +697,9 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
         Fax. &nbsp; {{ $faxPerush }}</p>
         <span class="s8"></span>
         <p><strong>THE SECOND PARTY</strong><br>
-        ………………………………<br>
-        ………………………………<br>
-        ………………………………<br>
-        ………………………………<br>
-        Hp. .............................</p>
+        {{ $namaP2 }}<br>
+        {{ $alamatP2 }}<br>
+        Hp. {{ $kontrak->contact_kedua ?: '…..........................' }}</p>
     </td>
 </tr>
 <tr><td colspan="2"><span class="s8"></span></td></tr>

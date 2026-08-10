@@ -512,7 +512,7 @@ class PaymentsController extends Controller
             'payment_date'    => 'required|date',
             'method'          => 'required|string|max:100',
             'status'          => 'required|in:Pending,Verified,Rejected',
-            'file_pembayaran' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:4096',
+            'file_pembayaran' => 'required|file|mimes:pdf,jpg,jpeg,png|max:4096',
         ]);
 
         // Validasi overpayment sebelum simpan
@@ -593,7 +593,12 @@ class PaymentsController extends Controller
         $payment = InvoicePayment::findOrFail($id);
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json($payment);
+            $data = $payment->toArray();
+            // Format payment_date ke YYYY-MM-DD agar kompatibel dengan input type="date"
+            $data['payment_date'] = $payment->payment_date
+                ? \Carbon\Carbon::parse($payment->payment_date)->format('Y-m-d')
+                : null;
+            return response()->json($data);
         }
 
         $invoices = Invoice::orderBy('invoice_no')->get();

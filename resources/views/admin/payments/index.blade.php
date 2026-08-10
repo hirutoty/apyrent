@@ -389,8 +389,7 @@
                         <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                             <span class="text-blue-600 text-[10px] font-bold">3</span>
                         </div>
-                        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bukti pembayaran</h3>
-                        <span class="text-xs text-gray-400">(opsional)</span>
+                        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bukti pembayaran <span class="text-red-500 normal-case font-bold">*</span></h3>
                     </div>
 
                     <div id="dropZoneTambah"
@@ -622,6 +621,37 @@
     /* -- MODAL TAMBAH -- */
     const modalTambah = document.getElementById('modalTambah');
     const formTambah  = document.getElementById('formTambah');
+
+    // Validasi manual: file_pembayaran wajib diisi
+    formTambah.addEventListener('submit', function (e) {
+        const fileInput = document.getElementById('fileTambah');
+        const dropZone  = document.getElementById('dropZoneTambah');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            e.preventDefault();
+            dropZone.classList.add('border-red-400', 'bg-red-50');
+            dropZone.classList.remove('border-blue-300', 'bg-blue-50');
+            // Geser ke drop zone agar user tahu
+            dropZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Tambah pesan error sementara jika belum ada
+            let errMsg = document.getElementById('fileTambahError');
+            if (!errMsg) {
+                errMsg = document.createElement('p');
+                errMsg.id = 'fileTambahError';
+                errMsg.className = 'text-xs text-red-500 mt-1 font-semibold';
+                errMsg.textContent = 'Bukti pembayaran wajib diupload.';
+                dropZone.after(errMsg);
+            }
+        }
+    });
+
+    // Hapus highlight error saat file dipilih
+    document.getElementById('fileTambah').addEventListener('change', function () {
+        const dropZone = document.getElementById('dropZoneTambah');
+        dropZone.classList.remove('border-red-400', 'bg-red-50');
+        dropZone.classList.add('border-blue-300', 'bg-blue-50');
+        const errMsg = document.getElementById('fileTambahError');
+        if (errMsg) errMsg.remove();
+    });
 
     function onTambahInvoiceChange(sel) {
         const opt        = sel.options[sel.selectedIndex];
