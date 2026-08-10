@@ -75,7 +75,7 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
 .s12 { height: 12px; display: block; }
 .s18 { height: 18px; display: block; }
 .s30 { height: 30px; display: block; }
-.s55 { height: 55px; display: block; }
+.s55 { height: 85px; display: block; }
 
 /* ── NOMOR HALAMAN ── */
 .pgn {
@@ -90,19 +90,9 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
 .pgn:after {
     content: counter(page);
 }
-
 /* ── GARIS TTD ── */
-.sline { border-top: 1px solid #000; width: 210px; margin-top: 40px; margin-bottom: 3px; }
-
-@page {
-    margin: 0mm 0mm 14mm 0mm;
-    @bottom-center {
-        content: counter(page);
-        font-size: 9pt;
-        color: #333;
-        font-family: "Times New Roman", Times, serif;
-    }
-}
+.sline { border-top: 1px solid #000; width: 210px; margin-bottom: 3px; }
+@page { margin: 0mm 0mm 14mm 0mm; }
 </style>
 </head>
 <body>
@@ -741,29 +731,32 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
     <td><p>Jakarta, {{ $ttdId }}</p></td>
     <td class="r"><p>Jakarta, {{ $ttdEn }}</p></td>
 </tr>
-<tr><td colspan="2"><span class="s8"></span></td></tr>
+<tr><td colspan="2"><span class="s18"></span></td></tr>
 
 {{-- Label TTD --}}
 <tr>
-    <td><p>PIHAK PERTAMA/THE FIRST PARTY</p></td>
-    <td class="r"><p>PIHAK KEDUA/THE SECOND PARTY</p></td>
+    <td><p><strong>PIHAK PERTAMA/THE FIRST PARTY</strong></p></td>
+    <td class="r"><p><strong>PIHAK KEDUA/THE SECOND PARTY</strong></p></td>
 </tr>
 
 {{-- Garis & nama TTD --}}
 <tr>
     <td>
-        <div class="sline" style="margin-top:25px;"></div>
+        <span class="s55"></span>
+        <div class="sline"></div>
         <p>{{ $kontrak->pihak_pertama }}</p>
     </td>
     <td class="r">
-        <div class="sline" style="margin-top:25px;"></div>
+        <span class="s55"></span>
+        <div class="sline"></div>
         <p>………………………………</p>
     </td>
 </tr>
 
 </table>
-<div class="pgn"></div>
 </div>
+
+<div class="pgn"></div>
 
 </body>
 </html>

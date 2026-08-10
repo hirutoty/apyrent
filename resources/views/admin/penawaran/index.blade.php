@@ -327,24 +327,6 @@
 
                     <hr class="my-6">
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label>Customer</label>
-                            <div class="relative mt-1">
-                                <input type="text" id="tambah_customer_input" name="customer_name"
-                                    value="{{ old('customer_name') }}"
-                                    autocomplete="off"
-                                    placeholder="Nama customer..."
-                                    class="w-full border rounded-lg p-2" required>
-                                <ul id="tambah_customer_list"
-                                    class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm">
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="my-6">
-
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div>
                             <label>Staff</label>
@@ -478,23 +460,6 @@
                         <input id="edit_perihal" type="text" name="perihal"
                             placeholder="cth: Penawaran Jasa Sewa Kendaraan Operasional"
                             class="w-full border rounded-lg p-2 mt-1">
-                    </div>
-
-                    <hr class="my-6">
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label>Customer</label>
-                            <div class="relative mt-1">
-                                <input type="text" id="edit_customer" name="customer_name"
-                                    autocomplete="off"
-                                    placeholder="Nama customer..."
-                                    class="w-full border rounded-lg p-2" required>
-                                <ul id="edit_customer_list"
-                                    class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm">
-                                </ul>
-                            </div>
-                        </div>
                     </div>
 
                     <hr class="my-6">
@@ -1065,7 +1030,6 @@
                             document.getElementById('edit_kepada').value = data.kepada ?? '';
                             document.getElementById('edit_up').value = data.up ?? '';
                             document.getElementById('edit_perihal').value = data.perihal ?? '';
-                            document.getElementById('edit_customer').value = data.customer_name ?? '';
                             document.getElementById('edit_staff').value = data.staff ?? '';
                             document.getElementById('edit_name_staff').value = data.name_staff ?? '';
                             document.getElementById('edit_periode').value = data.periode ?? '';
@@ -1257,27 +1221,7 @@
             });
         }
 
-        // ── Aktifkan autosuggest untuk Modal Tambah ──
-        setupCustomerAutosuggest(
-            document.getElementById('tambah_customer_input'),
-            document.getElementById('tambah_customer_list'),
-            null,
-            null,
-            null,
-            null,
-            null
-        );
-
-        // ── Aktifkan autosuggest untuk Modal Edit ──
-        setupCustomerAutosuggest(
-            document.getElementById('edit_customer'),
-            document.getElementById('edit_customer_list'),
-            null,
-            null,
-            null,
-            null,
-            null
-        );
+        // Autosuggest customer diaktifkan di modal approve kontrak
     </script>
     @endpush
 

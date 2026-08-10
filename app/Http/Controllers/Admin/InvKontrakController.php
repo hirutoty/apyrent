@@ -92,15 +92,18 @@ class InvKontrakController extends Controller
         });
 
         return response()->json([
-            'id'            => $penawaran->id,
-            'no_penawaran'  => $penawaran->no_penawaran,
-            'kepada'        => $penawaran->kepada,
-            'customer_name' => $penawaran->customer_name,
-            'contact_person'=> $penawaran->contact_person,
-            'alamat'        => $penawaran->alamat,
-            'total'         => $penawaran->total,
-            'periode'       => $penawaran->periode,
-            'items'         => $items,
+            'id'             => $penawaran->id,
+            'no_penawaran'   => $penawaran->no_penawaran,
+            'kepada'         => $penawaran->kepada,
+            'customer_name'  => $penawaran->customer_name,
+            'contact_person' => $penawaran->contact_person,
+            'email_person'   => $penawaran->email_person,
+            'no_ktp'         => $penawaran->no_ktp,
+            'jenis_pelanggan'=> $penawaran->jenis_pelanggan,
+            'alamat'         => $penawaran->alamat,
+            'total'          => $penawaran->total,
+            'periode'        => $penawaran->periode,
+            'items'          => $items,
         ]);
     }
 
@@ -245,7 +248,13 @@ class InvKontrakController extends Controller
         }
 
         $request->validate([
-            'file_kontrak' => 'required|file|mimes:pdf|max:10240',
+            'file_kontrak'   => 'required|file|mimes:pdf|max:10240',
+            'customer_name'  => 'required|string|max:255',
+            'contact_person' => 'nullable|string|max:15',
+            'no_ktp_kedua'   => 'nullable|string|max:16',
+            'email_kedua'    => 'nullable|email|max:255',
+            'jenis_pelanggan'=> 'nullable|in:perorangan,perusahaan',
+            'alamat_kedua'   => 'nullable|string|max:1000',
         ]);
 
         // Simpan file hasil TTD
@@ -253,10 +262,22 @@ class InvKontrakController extends Controller
         $filename = time() . '_' . $file->getClientOriginalName();
         $file->move(public_path('uploads/kontrak'), $filename);
 
-        DB::transaction(function () use ($kontrak, $filename) {
+        DB::transaction(function () use ($kontrak, $filename, $request) {
+            // Simpan data customer ke penawaran
+            if ($kontrak->penawaran) {
+                $kontrak->penawaran->update([
+                    'customer_name'  => $request->customer_name,
+                    'contact_person' => $request->contact_person,
+                ]);
+            }
+
             $kontrak->update([
-                'file_kontrak' => 'uploads/kontrak/' . $filename,
-                'status'       => 'approved',
+                'file_kontrak'   => 'uploads/kontrak/' . $filename,
+                'status'         => 'approved',
+                'no_ktp_kedua'   => $request->no_ktp_kedua   ?? $kontrak->no_ktp_kedua,
+                'email_kedua'    => $request->email_kedua    ?? $kontrak->email_kedua,
+                'jenis_pelanggan'=> $request->jenis_pelanggan ?? $kontrak->jenis_pelanggan,
+                'alamat_kedua'   => $request->alamat_kedua   ?? $kontrak->alamat_kedua,
             ]);
 
             // Auto-create Rental
@@ -265,12 +286,13 @@ class InvKontrakController extends Controller
                 $validItems = $penawaran->items->filter(fn($i) => !empty($i->kendaraan_id));
                 if ($validItems->isNotEmpty()) {
                     $member = Pelanggan::updateOrCreate(
-                        ['nama_pelanggan' => $penawaran->customer_name ?? $penawaran->kepada],
+                        ['nama_pelanggan' => $request->customer_name ?? $penawaran->customer_name ?? $penawaran->kepada],
                         [
-                            'kontak_pelanggan' => $penawaran->contact_person ?? null,
-                            'email_pelanggan'  => $penawaran->email_person ?? null,
-                            'alamat'           => $penawaran->alamat ?? null,
-                            'jenis_pelanggan'  => $penawaran->jenis_pelanggan ?? 'perorangan',
+                            'kontak_pelanggan' => $request->contact_person ?? $penawaran->contact_person ?? null,
+                            'email_pelanggan'  => $kontrak->email_kedua      ?? $penawaran->email_person ?? null,
+                            'alamat'           => $kontrak->alamat_kedua     ?? $penawaran->alamat ?? null,
+                            'jenis_pelanggan'  => $kontrak->jenis_pelanggan  ?? $penawaran->jenis_pelanggan ?? 'perorangan',
+                            'no_ktp'           => $kontrak->no_ktp_kedua     ?? null,
                         ]
                     );
 

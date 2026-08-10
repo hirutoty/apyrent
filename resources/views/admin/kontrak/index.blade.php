@@ -288,7 +288,16 @@
 
                                 {{-- Upload & Approve: status pending atau approved --}}
                                 @if(in_array($k->status, ['pending', 'approved']))
-                                <button onclick="openApproveModal({{ $k->id }}, '{{ $k->no_kontrak }}')"
+                                <button type="button"
+                                    onclick="openApproveModal(this)"
+                                    data-id="{{ $k->id }}"
+                                    data-no="{{ $k->no_kontrak }}"
+                                    data-customer="{{ $k->penawaran?->customer_name }}"
+                                    data-contact="{{ $k->penawaran?->contact_person }}"
+                                    data-ktp="{{ $k->no_ktp_kedua }}"
+                                    data-email="{{ $k->email_kedua }}"
+                                    data-jenis="{{ $k->jenis_pelanggan }}"
+                                    data-alamat="{{ $k->alamat_kedua }}"
                                     class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200">
                                     <i class="fa fa-upload text-xs"></i> Approve
                                 </button>
@@ -466,7 +475,22 @@
                 </div>
             </div>
 
-            {{-- Data Customer Pihak Kedua --}}
+            {{-- Nama Customer --}}
+            <div class="grid grid-cols-1 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Customer <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <input type="text" name="customer_name" id="create_customer_name"
+                            autocomplete="off"
+                            placeholder="Nama customer..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                        <ul id="create_customer_list"
+                            class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm"></ul>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Detail Customer Pihak Kedua --}}
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
@@ -497,7 +521,8 @@
                         placeholder="Alamat lengkap..."
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
                 </div>
-            </div>{{-- end grid customer --}}
+            </div>{{-- end detail customer --}}
+
             </div>{{-- end px-6 py-5 Tab1 --}}
             <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
                 <button type="button" onclick="closeModal('modalCreate')"
@@ -623,6 +648,67 @@
                                 <p class="text-[10px] text-green-500 mt-0.5">File siap diupload</p>
                             </div>
                             <i class="fa fa-check-circle text-green-500 text-lg flex-shrink-0"></i>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Data Customer Pihak Kedua --}}
+                <div class="border-t border-gray-100 mx-6"></div>
+                <div class="px-6 pt-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                            <span class="text-blue-600 text-[10px] font-bold">3</span>
+                        </div>
+                        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Data Customer (Pihak Kedua)</h3>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Customer <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <input type="text" name="customer_name" id="approve_customer_name"
+                                    autocomplete="off"
+                                    placeholder="Nama customer..."
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                                <ul id="approve_customer_list"
+                                    class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm"></ul>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Kontak</label>
+                            <input type="text" name="contact_person" id="approve_contact_person"
+                                inputmode="numeric" maxlength="15"
+                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
+                                placeholder="08xx-xxxx-xxxx"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP</label>
+                            <input type="text" name="no_ktp_kedua" id="approve_no_ktp_kedua"
+                                inputmode="numeric" maxlength="16"
+                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                                placeholder="16 digit No KTP"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email</label>
+                            <input type="email" name="email_kedua" id="approve_email_kedua"
+                                placeholder="email@example.com"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
+                            <select name="jenis_pelanggan" id="approve_jenis_pelanggan"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <option value="">-- Pilih --</option>
+                                <option value="perorangan">Perorangan</option>
+                                <option value="perusahaan">Perusahaan</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat</label>
+                            <textarea name="alamat_kedua" id="approve_alamat_kedua" rows="2"
+                                placeholder="Alamat lengkap pihak kedua..."
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
                         </div>
                     </div>
                 </div>
@@ -1105,7 +1191,9 @@
     }
 
     // ── Approve modal ──────────────────────────────
-    function openApproveModal(id, noKontrak) {
+    function openApproveModal(btn) {
+        const id       = btn.dataset.id;
+        const noKontrak = btn.dataset.no;
         document.getElementById('approveForm').action = `/admin/kontrak/${id}/approve`;
         document.getElementById('approve_subtitle').textContent = `Kontrak: ${noKontrak}`;
         // Reset ke tab 1
@@ -1124,6 +1212,29 @@
             submitBtn.disabled = true;
             submitBtn.className = 'inline-flex items-center gap-2 bg-gray-300 text-gray-500 text-sm font-semibold px-5 py-2 rounded-xl cursor-not-allowed transition-colors';
         }
+        // Pre-fill customer fields dari data-* attribute tombol
+        const custNameEl = document.getElementById('approve_customer_name');
+        if (custNameEl) custNameEl.value = btn.dataset.customer ?? '';
+        const contactEl = document.getElementById('approve_contact_person');
+        if (contactEl) contactEl.value = btn.dataset.contact ?? '';
+        const noKtpEl = document.getElementById('approve_no_ktp_kedua');
+        if (noKtpEl) noKtpEl.value = btn.dataset.ktp ?? '';
+        const emailEl = document.getElementById('approve_email_kedua');
+        if (emailEl) emailEl.value = btn.dataset.email ?? '';
+        const jenisEl = document.getElementById('approve_jenis_pelanggan');
+        if (jenisEl) jenisEl.value = btn.dataset.jenis ?? '';
+        const alamatEl = document.getElementById('approve_alamat_kedua');
+        if (alamatEl) alamatEl.value = btn.dataset.alamat ?? '';
+        // Setup autosuggest customer di modal approve
+        setupCustomerAutosuggest(
+            document.getElementById('approve_customer_name'),
+            document.getElementById('approve_customer_list'),
+            document.getElementById('approve_no_ktp_kedua'),
+            document.getElementById('approve_alamat_kedua'),
+            document.getElementById('approve_jenis_pelanggan'),
+            document.getElementById('approve_email_kedua'),
+            document.getElementById('approve_contact_person')
+        );
         openModal('modalApprove');
     }
 
@@ -1465,5 +1576,59 @@
 
         openModal('modalDetail');
     }
+
+    // ── Customer autosuggest (tambah kontrak & approve) ──────────
+    const _customerSearchUrl = "{{ route('penawaran.customer-search') }}";
+    let _customerTimer = null;
+
+    function setupCustomerAutosuggest(inputEl, listEl, noKtpEl, alamatEl, jenisEl, emailEl, contactEl) {
+        if (!inputEl || !listEl) return;
+        inputEl.addEventListener('input', function () {
+            clearTimeout(_customerTimer);
+            const q = this.value.trim();
+            if (q.length < 1) { listEl.classList.add('hidden'); return; }
+            _customerTimer = setTimeout(() => {
+                fetch(_customerSearchUrl + '?q=' + encodeURIComponent(q))
+                    .then(r => r.json())
+                    .then(results => {
+                        listEl.innerHTML = '';
+                        if (!results.length) { listEl.classList.add('hidden'); return; }
+                        results.forEach(member => {
+                            const li = document.createElement('li');
+                            li.className = 'px-3 py-2 cursor-pointer hover:bg-blue-50 text-gray-700 text-sm';
+                            li.textContent = member.nama_pelanggan;
+                            li.addEventListener('mousedown', function (e) {
+                                e.preventDefault();
+                                inputEl.value = member.nama_pelanggan;
+                                if (noKtpEl)   noKtpEl.value   = member.no_ktp          ?? '';
+                                if (alamatEl)  alamatEl.value  = member.alamat           ?? '';
+                                if (jenisEl)   jenisEl.value   = member.jenis_pelanggan  ?? '';
+                                if (emailEl)   emailEl.value   = member.email_pelanggan  ?? '';
+                                if (contactEl) contactEl.value = member.kontak_pelanggan ?? '';
+                                listEl.classList.add('hidden');
+                            });
+                            listEl.appendChild(li);
+                        });
+                        listEl.classList.remove('hidden');
+                    })
+                    .catch(() => listEl.classList.add('hidden'));
+            }, 300);
+        });
+        inputEl.addEventListener('blur', () => setTimeout(() => listEl.classList.add('hidden'), 200));
+        inputEl.addEventListener('focus', function () {
+            if (this.value.trim().length > 0) this.dispatchEvent(new Event('input'));
+        });
+    }
+
+    // Aktifkan autosuggest untuk form tambah kontrak
+    setupCustomerAutosuggest(
+        document.getElementById('create_customer_name'),
+        document.getElementById('create_customer_list'),
+        document.getElementById('create_no_ktp_kedua'),
+        document.getElementById('create_alamat_kedua'),
+        document.getElementById('create_jenis_pelanggan'),
+        document.getElementById('create_email_kedua'),
+        document.getElementById('create_contact_kedua')
+    );
 </script>
 @endsection

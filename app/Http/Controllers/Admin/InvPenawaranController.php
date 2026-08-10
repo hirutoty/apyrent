@@ -130,7 +130,6 @@ class InvPenawaranController
 
         $request->validate([
             'tanggal_penawaran' => 'required',
-            'customer_name'     => 'required',
             'kendaraan_id'      => 'required|array|min:1',
             'kendaraan_id.*'    => 'required|exists:kendaraan,id',
             'qty'               => 'required|array|min:1',
@@ -146,17 +145,19 @@ class InvPenawaranController
 
         DB::transaction(function () use ($request, $total, $noPenawaran) {
 
-            // Jika customer belum ada di tabel member, simpan otomatis
-            Pelanggan::firstOrCreate(
-                ['nama_pelanggan' => $request->customer_name],
-                [
-                    'kontak_pelanggan' => null,
-                    'email_pelanggan'  => null,
-                    'alamat'           => null,
-                    'no_ktp'           => null,
-                    'jenis_pelanggan'  => 'perorangan',
-                ]
-            );
+            // Customer akan dilengkapi saat approve kontrak
+            if ($request->customer_name) {
+                Pelanggan::firstOrCreate(
+                    ['nama_pelanggan' => $request->customer_name],
+                    [
+                        'kontak_pelanggan' => null,
+                        'email_pelanggan'  => null,
+                        'alamat'           => null,
+                        'no_ktp'           => null,
+                        'jenis_pelanggan'  => 'perorangan',
+                    ]
+                );
+            }
 
             $penawaran = InvPenawaran::create([
                 'no_penawaran'      => $noPenawaran,
@@ -164,7 +165,7 @@ class InvPenawaranController
                 'kepada'            => $request->kepada,
                 'up'                => $request->up,
                 'perihal'           => $request->perihal,
-                'customer_name'     => $request->customer_name,
+                'customer_name'     => $request->customer_name ?? null,
                 'contact_person'    => null,
                 'email_person'      => null,
                 'alamat'            => null,
@@ -237,7 +238,6 @@ class InvPenawaranController
     {
         $request->validate([
             'tanggal_penawaran' => 'required',
-            'customer_name'     => 'required',
             'kendaraan_id'      => 'required|array|min:1',
             'kendaraan_id.*'    => 'required|exists:kendaraan,id',
             'qty'               => 'required|array|min:1',
