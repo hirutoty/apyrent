@@ -18,6 +18,7 @@ class InvoicePayment extends Model
         'method',
         'transaction_id',
         'file_pembayaran',
+        'file_pembayaran_name',
         'status',
     ];
 

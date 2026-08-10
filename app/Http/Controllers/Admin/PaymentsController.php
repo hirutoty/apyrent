@@ -512,7 +512,7 @@ class PaymentsController extends Controller
             'payment_date'    => 'required|date',
             'method'          => 'required|string|max:100',
             'status'          => 'required|in:Pending,Verified,Rejected',
-            'file_pembayaran' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:4096',
+            'file_pembayaran' => 'required|file|mimes:pdf,jpg,jpeg,png|max:4096',
         ]);
 
         // Validasi overpayment sebelum simpan
@@ -547,7 +547,8 @@ class PaymentsController extends Controller
                 $file     = $request->file('file_pembayaran');
                 $namaFile = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('uploads/payment'), $namaFile);
-                $data['file_pembayaran'] = 'uploads/payment/' . $namaFile;
+                $data['file_pembayaran']      = 'uploads/payment/' . $namaFile;
+                $data['file_pembayaran_name'] = $file->getClientOriginalName();
             }
 
             $payment = InvoicePayment::create($data);
@@ -658,7 +659,8 @@ class PaymentsController extends Controller
                 $file     = $request->file('file_pembayaran');
                 $namaFile = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('uploads/payment'), $namaFile);
-                $data['file_pembayaran'] = 'uploads/payment/' . $namaFile;
+                $data['file_pembayaran']      = 'uploads/payment/' . $namaFile;
+                $data['file_pembayaran_name'] = $file->getClientOriginalName();
             }
 
             $payment->update($data);

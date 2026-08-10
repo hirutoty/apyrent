@@ -206,11 +206,12 @@
                             <td data-col="col-bukti" class="px-4 py-3.5 text-center">
                                 @if ($pay->file_pembayaran)
                                     <a href="{{ asset($pay->file_pembayaran) }}" target="_blank"
-                                        class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors">
-                                        <i class="fa fa-file text-xs"></i> Lihat
+                                        class="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg text-indigo-700 transition-colors max-w-[160px]">
+                                        <i class="fa fa-file text-xs flex-shrink-0"></i>
+                                        <span class="truncate">{{ $pay->file_pembayaran_name ?? basename($pay->file_pembayaran) }}</span>
                                     </a>
                                 @else
-                                    <span class="text-xs text-gray-400">�</span>
+                                    <span class="text-xs text-gray-400">—</span>
                                 @endif
                             </td>
                             <td data-col="col-status" class="px-4 py-3.5 text-center">
@@ -397,7 +398,7 @@
                         class="w-full border-2 border-dashed border-blue-300 bg-blue-50 rounded-xl p-6
                                flex flex-col items-center justify-center text-center cursor-pointer
                                hover:bg-blue-100 transition-colors">
-                        <input type="file" name="file_pembayaran" id="fileTambah" class="hidden"
+                        <input type="file" name="file_pembayaran" id="fileTambah" class="hidden" required
                             accept=".pdf,.jpg,.jpeg,.png"
                             onchange="previewFilePembayaran(event,'previewTambah','dropZoneTambah')">
                         <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">

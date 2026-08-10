@@ -286,9 +286,18 @@
                                     <i class="fa fa-eye text-xs"></i>
                                 </button>
 
-                                {{-- Upload & Approve: hanya status pending --}}
-                                @if($k->status === 'pending')
-                                <button onclick="openApproveModal({{ $k->id }}, '{{ $k->no_kontrak }}')"
+                                {{-- Upload & Approve: status pending atau approved --}}
+                                @if(in_array($k->status, ['pending', 'approved']))
+                                <button type="button"
+                                    onclick="openApproveModal(this)"
+                                    data-id="{{ $k->id }}"
+                                    data-no="{{ $k->no_kontrak }}"
+                                    data-customer="{{ $k->penawaran?->customer_name }}"
+                                    data-contact="{{ $k->penawaran?->contact_person }}"
+                                    data-ktp="{{ $k->no_ktp_kedua }}"
+                                    data-email="{{ $k->email_kedua }}"
+                                    data-jenis="{{ $k->jenis_pelanggan }}"
+                                    data-alamat="{{ $k->alamat_kedua }}"
                                     class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200">
                                     <i class="fa fa-upload text-xs"></i> Approve
                                 </button>
@@ -348,16 +357,23 @@
 <div id="modalCreate" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
     <div class="bg-white w-full max-w-2xl rounded-2xl shadow-xl max-h-[95vh] overflow-y-auto mx-4">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <div>
-                <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                    <i class="fa fa-check-circle text-blue-600"></i> Approve Kontrak
-                </h2>
-                <p class="text-xs text-gray-400 mt-0.5">Pilih penawaran — data kendaraan & durasi otomatis terisi</p>
+            <div class="flex gap-0">
+                <button type="button" id="createTab1Btn" onclick="switchCreateTab(1)"
+                    class="px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tl-lg">
+                    <i class="fa fa-file-alt mr-1"></i> Data
+                </button>
+                <button type="button" id="createTab2Btn" onclick="switchCreateTab(2)" disabled
+                    class="px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg">
+                    <i class="fa fa-list-alt mr-1"></i> Ketentuan
+                </button>
             </div>
             <button onclick="closeModal('modalCreate')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50">&times;</button>
         </div>
-        <form action="{{ route('kontrak.store') }}" method="POST" class="px-6 py-5 space-y-4">
+        <form action="{{ route('kontrak.store') }}" method="POST" id="formCreateKontrak">
             @csrf
+            {{-- TAB 1: DATA --}}
+            <div id="createTabContent1">
+            <div class="px-6 py-5 space-y-4">
 
             {{-- Pilih Penawaran --}}
             <div>
@@ -459,7 +475,22 @@
                 </div>
             </div>
 
-            {{-- Data Customer Pihak Kedua --}}
+            {{-- Nama Customer --}}
+            <div class="grid grid-cols-1 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Customer <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <input type="text" name="customer_name" id="create_customer_name"
+                            autocomplete="off"
+                            placeholder="Nama customer..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                        <ul id="create_customer_list"
+                            class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm"></ul>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Detail Customer Pihak Kedua --}}
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
@@ -490,6 +521,22 @@
                         placeholder="Alamat lengkap..."
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
                 </div>
+            </div>{{-- end detail customer --}}
+
+            </div>{{-- end px-6 py-5 Tab1 --}}
+            <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
+                <button type="button" onclick="closeModal('modalCreate')"
+                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>
+                <button type="button" onclick="goToCreateTab2()"
+                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
+                    Selanjutnya <i class="fa fa-arrow-right text-xs"></i>
+                </button>
+            </div>
+            </div>{{-- end Tab 1 --}}
+
+            {{-- TAB 2: KETENTUAN --}}
+            <div id="createTabContent2" class="hidden">
+            <div class="px-6 py-5 space-y-4">
             {{-- ── Ketentuan Asuransi Pasal 4 Ayat 7 ── --}}
             <div class="border border-gray-200 rounded-xl overflow-hidden">
                 <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
@@ -513,16 +560,19 @@
                 </p>
             </div>
 
-            <div class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 flex items-start gap-2">
-
-            <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                <button type="button" onclick="closeModal('modalCreate')"
-                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>
+            </div>{{-- end px-6 py-5 Tab2 --}}
+            <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
+                <button type="button" onclick="switchCreateTab(1)"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                    <i class="fa fa-arrow-left text-xs"></i> Kembali
+                </button>
                 <button type="submit"
                     class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
                     <i class="fa fa-save text-xs"></i> Simpan & Generate Draft
                 </button>
             </div>
+            </div>{{-- end Tab 2 --}}
+
         </form>
     </div>
 </div>
@@ -531,39 +581,201 @@
      MODAL: UPLOAD & APPROVE
 ═══════════════════════════════════════════════════ --}}
 <div id="modalApprove" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl mx-4">
+    <div class="bg-white rounded-2xl shadow-xl w-[95%] max-w-2xl max-h-[95vh] overflow-y-auto">
+
+        {{-- Header dengan tabs --}}
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <div>
-                <h2 class="text-base font-bold text-gray-800">Upload File & Approve</h2>
-                <p class="text-xs text-gray-400 mt-0.5" id="approve_subtitle">Upload file kontrak yang sudah ditandatangani</p>
-            </div>
-            <button onclick="closeModal('modalApprove')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50">&times;</button>
-        </div>
-        <form id="approveForm" method="POST" enctype="multipart/form-data" class="px-6 py-5 space-y-4">
-            @csrf
-            <div class="rounded-lg bg-green-50 border border-green-200 px-4 py-3 flex items-start gap-2">
-                <i class="fa fa-info-circle text-green-600 mt-0.5 flex-shrink-0"></i>
-                <p class="text-xs text-green-700">
-                    Upload file kontrak hasil tanda tangan kedua pihak. Setelah diupload, status akan berubah ke
-                    <strong>Active</strong> dan rental kendaraan otomatis dibuat.
-                </p>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                    File Kontrak TTD <span class="text-red-500">*</span>
-                </label>
-                <input type="file" name="file_kontrak" accept=".pdf"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" required>
-                <p class="text-[10px] text-gray-400 mt-1">Format: PDF saja. Maks 10MB.</p>
-            </div>
-            <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                <button type="button" onclick="closeModal('modalApprove')"
-                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>
-                <button type="submit"
-                    class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
-                    <i class="fa fa-check text-xs"></i> Approve Kontrak
+            <div class="flex gap-0">
+                <button type="button" id="approveTab1Btn"
+                    onclick="switchApproveTab(1)"
+                    class="px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tl-lg">
+                    <i class="fa fa-upload mr-1"></i> Data
+                </button>
+                <button type="button" id="approveTab2Btn"
+                    onclick="switchApproveTab(2)"
+                    disabled
+                    class="px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg">
+                    <i class="fa fa-clipboard-list mr-1"></i> Ketentuan
                 </button>
             </div>
+            <button onclick="closeModal('modalApprove')"
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+
+        <form id="approveForm" method="POST" enctype="multipart/form-data">
+            @csrf
+
+            {{-- TAB 1: DATA --}}
+            <div id="approveTabContent1">
+                <div class="px-6 py-5 space-y-5">
+                    <div>
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                <span class="text-blue-600 text-[10px] font-bold">1</span>
+                            </div>
+                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Informasi kontrak</h3>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4">
+                            <p class="text-xs font-semibold text-blue-700 mb-1"><i class="fa fa-file-contract mr-1"></i> <span id="approve_subtitle">–</span></p>
+                            <p class="text-xs text-blue-600">Status akan berubah ke <strong>Active</strong> dan rental kendaraan akan dibuat otomatis setelah approve.</p>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-100"></div>
+
+                    <div>
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                <span class="text-blue-600 text-[10px] font-bold">2</span>
+                            </div>
+                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Upload file kontrak TTD</h3>
+                        </div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                            File Kontrak <span class="text-red-500">*</span>
+                        </label>
+                        <input type="file" id="approve_file_input" name="file_kontrak" accept=".pdf"
+                            onchange="onApproveFileChange(this)"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <p class="text-[10px] text-gray-400 mt-1">Format: PDF saja. Maks 10MB.</p>
+                        <p id="approve_file_error" class="text-[10px] text-red-500 mt-1 hidden">Harap pilih file PDF terlebih dahulu.</p>
+
+                        <div id="approveFilePreview" class="hidden mt-3 rounded-xl bg-green-50 border border-green-200 px-4 py-3 flex items-center gap-3">
+                            <i class="fa fa-file-pdf text-green-600 text-lg flex-shrink-0"></i>
+                            <div class="flex-1 min-w-0">
+                                <p id="approveFileName" class="text-xs font-semibold text-green-700 truncate"></p>
+                                <p class="text-[10px] text-green-500 mt-0.5">File siap diupload</p>
+                            </div>
+                            <i class="fa fa-check-circle text-green-500 text-lg flex-shrink-0"></i>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Data Customer Pihak Kedua --}}
+                <div class="border-t border-gray-100 mx-6"></div>
+                <div class="px-6 pt-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                            <span class="text-blue-600 text-[10px] font-bold">3</span>
+                        </div>
+                        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Data Customer (Pihak Kedua)</h3>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Customer <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <input type="text" name="customer_name" id="approve_customer_name"
+                                    autocomplete="off"
+                                    placeholder="Nama customer..."
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                                <ul id="approve_customer_list"
+                                    class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm"></ul>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Kontak</label>
+                            <input type="text" name="contact_person" id="approve_contact_person"
+                                inputmode="numeric" maxlength="15"
+                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
+                                placeholder="08xx-xxxx-xxxx"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP</label>
+                            <input type="text" name="no_ktp_kedua" id="approve_no_ktp_kedua"
+                                inputmode="numeric" maxlength="16"
+                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                                placeholder="16 digit No KTP"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email</label>
+                            <input type="email" name="email_kedua" id="approve_email_kedua"
+                                placeholder="email@example.com"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
+                            <select name="jenis_pelanggan" id="approve_jenis_pelanggan"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                <option value="">-- Pilih --</option>
+                                <option value="perorangan">Perorangan</option>
+                                <option value="perusahaan">Perusahaan</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat</label>
+                            <textarea name="alamat_kedua" id="approve_alamat_kedua" rows="2"
+                                placeholder="Alamat lengkap pihak kedua..."
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
+                    <button type="button" onclick="closeModal('modalApprove')"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                        Batal
+                    </button>
+                    <button type="button" onclick="goToApproveTab2()"
+                        class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
+                        Selanjutnya <i class="fa fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            {{-- TAB 2: KETENTUAN --}}
+            <div id="approveTabContent2" class="hidden">
+                <div class="px-6 py-5 space-y-5">
+                    <div>
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                <i class="fa fa-exclamation text-amber-600 text-[10px]"></i>
+                            </div>
+                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ketentuan approve kontrak</h3>
+                        </div>
+                        <div class="rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 space-y-2">
+                            <p class="text-xs text-amber-700 font-semibold mb-2">Harap baca dan pahami ketentuan berikut sebelum melanjutkan:</p>
+                            @foreach([
+                                'Status kontrak akan langsung berubah ke <strong>Active</strong> dan tidak dapat dikembalikan ke pending.',
+                                'Rental kendaraan akan otomatis dibuat untuk semua item dalam kontrak ini.',
+                                'Status kendaraan terkait akan berubah menjadi <strong>Disewa</strong>.',
+                                'Pastikan file yang diupload adalah dokumen final yang sudah ditandatangani oleh kedua pihak.',
+                                'Data kontrak tidak dapat diubah setelah status berubah ke Active.',
+                            ] as $i => $point)
+                            <div class="flex items-start gap-2.5">
+                                <span class="w-4 h-4 rounded-full bg-amber-200 text-amber-700 text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{{ $i+1 }}</span>
+                                <p class="text-xs text-amber-800 leading-relaxed">{!! $point !!}</p>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-100"></div>
+
+                    <label class="flex items-start gap-3 cursor-pointer group bg-gray-50 rounded-xl px-4 py-3 border border-gray-200 hover:border-green-300 hover:bg-green-50/30 transition-colors">
+                        <input type="checkbox" id="approveTncCheck"
+                            onchange="onApproveTncChange(this)"
+                            class="w-4 h-4 rounded mt-0.5 accent-green-600 flex-shrink-0">
+                        <span class="text-xs text-gray-600 group-hover:text-gray-800 leading-relaxed">
+                            Saya telah membaca, memahami, dan menyetujui seluruh ketentuan di atas serta memastikan file yang diupload sudah benar dan final.
+                        </span>
+                    </label>
+                </div>
+
+                <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
+                    <button type="button" onclick="switchApproveTab(1)"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                        <i class="fa fa-arrow-left text-xs"></i> Kembali
+                    </button>
+                    <button type="submit" id="approveSubmitBtn" disabled
+                        class="inline-flex items-center gap-2 bg-gray-200 text-gray-400 text-sm font-semibold px-5 py-2 rounded-xl cursor-not-allowed transition-all">
+                        <i class="fa fa-check text-xs"></i> Approve Kontrak
+                    </button>
+                </div>
+            </div>
+
         </form>
     </div>
 </div>
@@ -979,10 +1191,146 @@
     }
 
     // ── Approve modal ──────────────────────────────
-    function openApproveModal(id, noKontrak) {
+    function openApproveModal(btn) {
+        const id       = btn.dataset.id;
+        const noKontrak = btn.dataset.no;
         document.getElementById('approveForm').action = `/admin/kontrak/${id}/approve`;
         document.getElementById('approve_subtitle').textContent = `Kontrak: ${noKontrak}`;
+        // Reset ke tab 1
+        switchApproveTab(1);
+        // Reset file & checkbox
+        const fi = document.getElementById('approve_file_input');
+        if (fi) fi.value = '';
+        const preview = document.getElementById('approveFilePreview');
+        if (preview) preview.classList.add('hidden');
+        const err = document.getElementById('approve_file_error');
+        if (err) err.classList.add('hidden');
+        const tnc = document.getElementById('approveTncCheck');
+        if (tnc) tnc.checked = false;
+        const submitBtn = document.getElementById('approveSubmitBtn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.className = 'inline-flex items-center gap-2 bg-gray-300 text-gray-500 text-sm font-semibold px-5 py-2 rounded-xl cursor-not-allowed transition-colors';
+        }
+        // Pre-fill customer fields dari data-* attribute tombol
+        const custNameEl = document.getElementById('approve_customer_name');
+        if (custNameEl) custNameEl.value = btn.dataset.customer ?? '';
+        const contactEl = document.getElementById('approve_contact_person');
+        if (contactEl) contactEl.value = btn.dataset.contact ?? '';
+        const noKtpEl = document.getElementById('approve_no_ktp_kedua');
+        if (noKtpEl) noKtpEl.value = btn.dataset.ktp ?? '';
+        const emailEl = document.getElementById('approve_email_kedua');
+        if (emailEl) emailEl.value = btn.dataset.email ?? '';
+        const jenisEl = document.getElementById('approve_jenis_pelanggan');
+        if (jenisEl) jenisEl.value = btn.dataset.jenis ?? '';
+        const alamatEl = document.getElementById('approve_alamat_kedua');
+        if (alamatEl) alamatEl.value = btn.dataset.alamat ?? '';
+        // Setup autosuggest customer di modal approve
+        setupCustomerAutosuggest(
+            document.getElementById('approve_customer_name'),
+            document.getElementById('approve_customer_list'),
+            document.getElementById('approve_no_ktp_kedua'),
+            document.getElementById('approve_alamat_kedua'),
+            document.getElementById('approve_jenis_pelanggan'),
+            document.getElementById('approve_email_kedua'),
+            document.getElementById('approve_contact_person')
+        );
         openModal('modalApprove');
+    }
+
+    function switchCreateTab(tab) {
+        const t1Btn = document.getElementById('createTab1Btn');
+        const t2Btn = document.getElementById('createTab2Btn');
+        const c1    = document.getElementById('createTabContent1');
+        const c2    = document.getElementById('createTabContent2');
+        if (tab === 1) {
+            t1Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tl-lg';
+            t2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg';
+            c1.classList.remove('hidden'); c2.classList.add('hidden');
+        } else {
+            t1Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 rounded-tl-lg';
+            t2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tr-lg';
+            c1.classList.add('hidden'); c2.classList.remove('hidden');
+        }
+    }
+
+    function goToCreateTab2() {
+        // Validasi field wajib di Tab 1
+        const required = ['create_penawaran_id', 'create_tanggal_kontrak', 'create_pihak_pertama', 'create_pihak_kedua'];
+        let valid = true;
+        required.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el || !el.value.trim()) {
+                if (el) el.classList.add('border-red-400');
+                valid = false;
+            } else {
+                if (el) el.classList.remove('border-red-400');
+            }
+        });
+        if (!valid) { alert('Harap lengkapi semua field yang wajib diisi terlebih dahulu.'); return; }
+        // Aktifkan tab 2
+        const t2Btn = document.getElementById('createTab2Btn');
+        if (t2Btn) { t2Btn.disabled = false; t2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-600 hover:text-blue-600 rounded-tr-lg'; }
+        switchCreateTab(2);
+    }
+
+    function switchApproveTab(tab) {
+        const tab1Btn  = document.getElementById('approveTab1Btn');
+        const tab2Btn  = document.getElementById('approveTab2Btn');
+        const content1 = document.getElementById('approveTabContent1');
+        const content2 = document.getElementById('approveTabContent2');
+        if (tab === 1) {
+            tab1Btn.className  = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tl-lg';
+            tab2Btn.className  = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg';
+            content1.classList.remove('hidden');
+            content2.classList.add('hidden');
+        } else {
+            tab1Btn.className  = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 rounded-tl-lg';
+            tab2Btn.className  = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tr-lg';
+            content1.classList.add('hidden');
+            content2.classList.remove('hidden');
+        }
+    }
+
+    function onApproveFileChange(input) {
+        const preview  = document.getElementById('approveFilePreview');
+        const nameEl   = document.getElementById('approveFileName');
+        const errEl    = document.getElementById('approve_file_error');
+        if (input.files && input.files[0]) {
+            if (nameEl)  nameEl.textContent = input.files[0].name;
+            if (preview) preview.classList.remove('hidden');
+            if (errEl)   errEl.classList.add('hidden');
+        } else {
+            if (preview) preview.classList.add('hidden');
+        }
+    }
+
+    function goToApproveTab2() {
+        const fi  = document.getElementById('approve_file_input');
+        const err = document.getElementById('approve_file_error');
+        if (!fi || !fi.files || fi.files.length === 0) {
+            if (err) err.classList.remove('hidden');
+            fi?.classList.add('border-red-400');
+            return;
+        }
+        if (err) err.classList.add('hidden');
+        fi.classList.remove('border-red-400');
+        // Aktifkan tab 2
+        const tab2Btn = document.getElementById('approveTab2Btn');
+        if (tab2Btn) tab2Btn.disabled = false;
+        switchApproveTab(2);
+    }
+
+    function onApproveTncChange(cb) {
+        const submitBtn = document.getElementById('approveSubmitBtn');
+        if (!submitBtn) return;
+        if (cb.checked) {
+            submitBtn.disabled = false;
+            submitBtn.className = 'inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all cursor-pointer';
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.className = 'inline-flex items-center gap-2 bg-gray-200 text-gray-400 text-sm font-semibold px-5 py-2 rounded-xl cursor-not-allowed transition-all';
+        }
     }
 
     // ── Ketentuan helpers (shared) ─────────────────
@@ -1050,6 +1398,13 @@
     let createKtnIdx = 0;
 
     function initCreateKetentuan() {
+        // Reset ke Tab 1 setiap kali modal dibuka
+        switchCreateTab(1);
+        const t2Btn = document.getElementById('createTab2Btn');
+        if (t2Btn) {
+            t2Btn.disabled = true;
+            t2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg';
+        }
         const list = document.getElementById('createKetentuanList');
         list.innerHTML = '';
         createKtnIdx = 0;
@@ -1221,5 +1576,59 @@
 
         openModal('modalDetail');
     }
+
+    // ── Customer autosuggest (tambah kontrak & approve) ──────────
+    const _customerSearchUrl = "{{ route('penawaran.customer-search') }}";
+    let _customerTimer = null;
+
+    function setupCustomerAutosuggest(inputEl, listEl, noKtpEl, alamatEl, jenisEl, emailEl, contactEl) {
+        if (!inputEl || !listEl) return;
+        inputEl.addEventListener('input', function () {
+            clearTimeout(_customerTimer);
+            const q = this.value.trim();
+            if (q.length < 1) { listEl.classList.add('hidden'); return; }
+            _customerTimer = setTimeout(() => {
+                fetch(_customerSearchUrl + '?q=' + encodeURIComponent(q))
+                    .then(r => r.json())
+                    .then(results => {
+                        listEl.innerHTML = '';
+                        if (!results.length) { listEl.classList.add('hidden'); return; }
+                        results.forEach(member => {
+                            const li = document.createElement('li');
+                            li.className = 'px-3 py-2 cursor-pointer hover:bg-blue-50 text-gray-700 text-sm';
+                            li.textContent = member.nama_pelanggan;
+                            li.addEventListener('mousedown', function (e) {
+                                e.preventDefault();
+                                inputEl.value = member.nama_pelanggan;
+                                if (noKtpEl)   noKtpEl.value   = member.no_ktp          ?? '';
+                                if (alamatEl)  alamatEl.value  = member.alamat           ?? '';
+                                if (jenisEl)   jenisEl.value   = member.jenis_pelanggan  ?? '';
+                                if (emailEl)   emailEl.value   = member.email_pelanggan  ?? '';
+                                if (contactEl) contactEl.value = member.kontak_pelanggan ?? '';
+                                listEl.classList.add('hidden');
+                            });
+                            listEl.appendChild(li);
+                        });
+                        listEl.classList.remove('hidden');
+                    })
+                    .catch(() => listEl.classList.add('hidden'));
+            }, 300);
+        });
+        inputEl.addEventListener('blur', () => setTimeout(() => listEl.classList.add('hidden'), 200));
+        inputEl.addEventListener('focus', function () {
+            if (this.value.trim().length > 0) this.dispatchEvent(new Event('input'));
+        });
+    }
+
+    // Aktifkan autosuggest untuk form tambah kontrak
+    setupCustomerAutosuggest(
+        document.getElementById('create_customer_name'),
+        document.getElementById('create_customer_list'),
+        document.getElementById('create_no_ktp_kedua'),
+        document.getElementById('create_alamat_kedua'),
+        document.getElementById('create_jenis_pelanggan'),
+        document.getElementById('create_email_kedua'),
+        document.getElementById('create_contact_kedua')
+    );
 </script>
 @endsection
