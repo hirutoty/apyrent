@@ -6,19 +6,19 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class DataLeasing extends Model
+class DataKontrak extends Model
 {
     use HasFactory;
 
-    protected $table = 'data_leasings';
+    protected $table = 'data_kontraks';
 
     protected $fillable = [
-        'data_kontrak_id',
         'no_kontrak',
+        'kendaraan_id',
         'mobil',
-        'tahun',
         'nopol',
-        'user_leasing',
+        'tahun',
+        'user_kontrak',
         'angsuran_per_bulan',
         'jatuh_tempo',
         'periode_mulai',
@@ -26,46 +26,62 @@ class DataLeasing extends Model
         'personal_account',
         'sumber_dana_debit',
         'cara_bayar',
-        'asuransi_leasing',
+        // Asuransi inline
+        'nama_asuransi',
+        'alamat_asuransi',
+        'nama_marketing',
+        'kontak_marketing',
+        'nama_bengkel',
+        'kontak_bengkel',
+        'bukti',
     ];
 
     protected $casts = [
-        'jatuh_tempo'        => 'integer',
         'angsuran_per_bulan' => 'integer',
+        'jatuh_tempo'        => 'integer',
         'periode_mulai'      => 'date',
         'periode_selesai'    => 'date',
     ];
 
     /* ─────────────────────────────────────────────
-       RELASI — ke DataKontrak (master)
+       RELASI
     ───────────────────────────────────────────── */
-    public function dataKontrak()
+
+    public function kendaraan()
     {
-        return $this->belongsTo(DataKontrak::class, 'data_kontrak_id');
+        return $this->belongsTo(Kendaraan::class, 'kendaraan_id');
+    }
+
+    public function leasings()
+    {
+        return $this->hasMany(DataLeasing::class, 'data_kontrak_id');
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'relation_id')
+            ->where('relation_type', 'data_kontrak');
     }
 
     /* ─────────────────────────────────────────────
        ACCESSOR — Jumlah Cicilan Total
-       Gunakan data dari DataKontrak jika ada,
-       fallback ke field lokal
+       = diff bulan antara periode_mulai & periode_selesai
     ───────────────────────────────────────────── */
     public function getJumlahCicilanAttribute(): int
     {
-        $mulai   = $this->periode_mulai;
-        $selesai = $this->periode_selesai;
-
-        if (!$mulai || !$selesai) {
+        if (!$this->periode_mulai || !$this->periode_selesai) {
             return 0;
         }
 
-        $mulaiC   = Carbon::parse($mulai)->startOfMonth();
-        $selesaiC = Carbon::parse($selesai)->startOfMonth();
+        $mulai   = Carbon::parse($this->periode_mulai)->startOfMonth();
+        $selesai = Carbon::parse($this->periode_selesai)->startOfMonth();
 
-        return max(0, $mulaiC->diffInMonths($selesaiC));
+        return max(0, $mulai->diffInMonths($selesai));
     }
 
     /* ─────────────────────────────────────────────
        ACCESSOR — Cicilan Tersisa
+       = jumlah_cicilan - bulan yang sudah lewat
     ───────────────────────────────────────────── */
     public function getCicilanTersisaAttribute(): int
     {
@@ -79,6 +95,7 @@ class DataLeasing extends Model
         $mulai = Carbon::parse($this->periode_mulai)->startOfMonth();
 
         if ($now->lessThan($mulai)) {
+            // Belum mulai, cicilan masih penuh
             return $total;
         }
 

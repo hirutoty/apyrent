@@ -29,6 +29,7 @@ class InvPenawaran extends Model
         // Pengirim & Penandatangan
         'pengirim',
         'periode',
+        'periode_satuan',
         'staff',
         'name_staff',
         'direktur',

@@ -21,6 +21,7 @@ class ServiceAsuransi extends Model
         'keterangan',
         'bukti',
         'attachment',
+        'status',
     ];
 
     protected $casts = [

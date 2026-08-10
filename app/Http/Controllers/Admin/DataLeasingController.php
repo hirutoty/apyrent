@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\DataLeasingExport;
 use App\Http\Controllers\Controller;
+use App\Imports\DataLeasingImport;
+use App\Models\DataKontrak;
 use App\Models\DataLeasing;
-use App\Models\InvKontrak;
-use App\Models\Asuransi;
+use App\Models\Kendaraan;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DataLeasingController extends Controller
 {
@@ -15,58 +18,54 @@ class DataLeasingController extends Controller
     ───────────────────────────────────────────── */
     public function index()
     {
-        $leasings = DataLeasing::with('kontrak')
+        $leasings = DataLeasing::with('dataKontrak')
             ->latest()
             ->paginate(15)
             ->withQueryString();
 
-        $kontraks = InvKontrak::with('penawaran')
+        $dataKontraks = DataKontrak::with('kendaraan')
             ->latest()
             ->get();
 
-        $asuransis = Asuransi::orderBy('nama_asuransi')->get();
+        $kendaraans = Kendaraan::orderBy('merk')->get();
 
-        return view('admin.data_leasing.index', compact('leasings', 'kontraks', 'asuransis'));
+        // Data kontrak untuk tab Data Kontrak (paginated)
+        $kontraks = DataKontrak::with(['kendaraan', 'attachments'])
+            ->latest()
+            ->paginate(15, ['*'], 'kontrak_page')
+            ->withQueryString();
+
+        return view('admin.data_leasing.index', compact(
+            'leasings',
+            'dataKontraks',
+            'kendaraans',
+            'kontraks'
+        ));
     }
 
     /* ─────────────────────────────────────────────
-       GET KONTRAK DETAIL (AJAX – untuk auto-fill form)
+       GET DATA KONTRAK DETAIL (AJAX – auto-fill form)
     ───────────────────────────────────────────── */
-    public function getKontrakDetail($id)
+    public function getDataKontrakDetail($id)
     {
-        $kontrak   = InvKontrak::with('penawaran.items.kendaraan')->findOrFail($id);
-        $penawaran = $kontrak->penawaran;
-
-        // Ambil angka tanggal dari perjanjian_pembayaran (jatuh tempo)
-        $jatuhTempo = $kontrak->perjanjian_pembayaran
-            ? (int) \Carbon\Carbon::parse($kontrak->perjanjian_pembayaran)->format('d')
-            : null;
-
-        // Periode mulai = tanggal_kontrak, periode selesai = tanggal_selesai
-        $periodeMulai   = $kontrak->tanggal_kontrak
-            ? \Carbon\Carbon::parse($kontrak->tanggal_kontrak)->format('Y-m-d')
-            : null;
-        $periodeSelesai = $kontrak->tanggal_selesai
-            ? \Carbon\Carbon::parse($kontrak->tanggal_selesai)->format('Y-m-d')
-            : null;
-
-        // Kumpulkan semua kendaraan dari items
-        $kendaraans = $penawaran?->items->map(function ($item) {
-            $k = $item->kendaraan;
-            return [
-                'mobil' => $k ? trim($k->merk) : '',
-                'tahun' => $k ? (string) $k->tahun_pembuatan : ($item->tahun_unit ?? ''),
-                'nopol' => $k ? $k->nopol : '',
-            ];
-        })->values() ?? collect();
+        $kontrak = DataKontrak::with('kendaraan')->findOrFail($id);
 
         return response()->json([
-            'no_kontrak'      => $kontrak->no_kontrak,
-            'user_leasing'    => $penawaran?->kepada ?? '',
-            'kendaraans'      => $kendaraans,
-            'jatuh_tempo'     => $jatuhTempo,
-            'periode_mulai'   => $periodeMulai,
-            'periode_selesai' => $periodeSelesai,
+            'no_kontrak'         => $kontrak->no_kontrak,
+            'user_leasing'       => $kontrak->user_kontrak,
+            'mobil'              => $kontrak->mobil,
+            'nopol'              => $kontrak->nopol,
+            'tahun'              => $kontrak->tahun,
+            'angsuran_per_bulan' => $kontrak->angsuran_per_bulan,
+            'jatuh_tempo'        => $kontrak->jatuh_tempo,
+            'periode_mulai'      => $kontrak->periode_mulai
+                ? $kontrak->periode_mulai->format('Y-m-d') : null,
+            'periode_selesai'    => $kontrak->periode_selesai
+                ? $kontrak->periode_selesai->format('Y-m-d') : null,
+            'personal_account'   => $kontrak->personal_account,
+            'sumber_dana_debit'  => $kontrak->sumber_dana_debit,
+            'cara_bayar'         => $kontrak->cara_bayar,
+            'nama_asuransi'      => $kontrak->nama_asuransi,
         ]);
     }
 
@@ -76,6 +75,7 @@ class DataLeasingController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'data_kontrak_id'    => 'nullable|exists:data_kontraks,id',
             'no_kontrak'         => 'nullable|string|max:255',
             'mobil'              => 'nullable|string|max:500',
             'tahun'              => 'nullable|string|max:255',
@@ -84,7 +84,7 @@ class DataLeasingController extends Controller
             'angsuran_per_bulan' => 'nullable|numeric|min:0',
             'jatuh_tempo'        => 'nullable|integer|min:1|max:31',
             'periode_mulai'      => 'nullable|date',
-            'periode_selesai'    => 'nullable|date',
+            'periode_selesai'    => 'nullable|date|after_or_equal:periode_mulai',
             'personal_account'   => 'nullable|string|max:255',
             'sumber_dana_debit'  => 'nullable|string|max:255',
             'cara_bayar'         => 'nullable|string|max:255',
@@ -92,7 +92,7 @@ class DataLeasingController extends Controller
         ]);
 
         DataLeasing::create([
-            'kontrak_id'         => $request->kontrak_id ?: null,
+            'data_kontrak_id'    => $request->data_kontrak_id ?: null,
             'no_kontrak'         => $request->no_kontrak,
             'mobil'              => $request->mobil,
             'tahun'              => $request->tahun,
@@ -120,6 +120,7 @@ class DataLeasingController extends Controller
         $leasing = DataLeasing::findOrFail($id);
 
         $request->validate([
+            'data_kontrak_id'    => 'nullable|exists:data_kontraks,id',
             'no_kontrak'         => 'nullable|string|max:255',
             'mobil'              => 'nullable|string|max:500',
             'tahun'              => 'nullable|string|max:255',
@@ -128,7 +129,7 @@ class DataLeasingController extends Controller
             'angsuran_per_bulan' => 'nullable|numeric|min:0',
             'jatuh_tempo'        => 'nullable|integer|min:1|max:31',
             'periode_mulai'      => 'nullable|date',
-            'periode_selesai'    => 'nullable|date',
+            'periode_selesai'    => 'nullable|date|after_or_equal:periode_mulai',
             'personal_account'   => 'nullable|string|max:255',
             'sumber_dana_debit'  => 'nullable|string|max:255',
             'cara_bayar'         => 'nullable|string|max:255',
@@ -136,7 +137,7 @@ class DataLeasingController extends Controller
         ]);
 
         $leasing->update([
-            'kontrak_id'         => $request->kontrak_id ?: null,
+            'data_kontrak_id'    => $request->data_kontrak_id ?: null,
             'no_kontrak'         => $request->no_kontrak,
             'mobil'              => $request->mobil,
             'tahun'              => $request->tahun,
@@ -154,6 +155,56 @@ class DataLeasingController extends Controller
 
         return redirect()->route('data-leasing.index')
             ->with('success', 'Data Leasing berhasil diupdate.');
+    }
+
+    /* ─────────────────────────────────────────────
+       EXPORT — Download Template Excel
+    ───────────────────────────────────────────── */
+    public function exportTemplate()
+    {
+        return Excel::download(
+            new DataLeasingExport(),
+            'template-data-leasing.xlsx'
+        );
+    }
+
+    /* ─────────────────────────────────────────────
+       IMPORT — Upload Excel
+    ───────────────────────────────────────────── */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file_import' => 'required|file|mimes:xlsx,xls,csv|max:5120',
+        ]);
+
+        $import = new DataLeasingImport();
+
+        Excel::import($import, $request->file('file_import'));
+
+        $imported = $import->importedCount;
+        $skipped  = $import->skippedRows;
+
+        // Pisahkan warning (bukan fatal) dari error murni
+        $errors   = array_filter($skipped, fn($r) => empty($r['warn']));
+        $warnings = array_filter($skipped, fn($r) => !empty($r['warn']));
+
+        // Bangun pesan hasil
+        $msg = "Import selesai: {$imported} baris berhasil diimport.";
+
+        if (!empty($errors)) {
+            $msg .= ' ' . count($errors) . ' baris diskip karena error.';
+        }
+        if (!empty($warnings)) {
+            $msg .= ' ' . count($warnings) . ' baris diimport dengan peringatan (no_kontrak tidak ditemukan).';
+        }
+
+        // Simpan detail skipped ke session untuk ditampilkan di view
+        if (!empty($skipped)) {
+            session()->flash('import_skipped', $skipped);
+        }
+
+        return redirect()->route('data-leasing.index')
+            ->with('success', $msg);
     }
 
     /* ─────────────────────────────────────────────

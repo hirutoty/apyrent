@@ -7,6 +7,8 @@
     @php
         $jumlahService = $data->count();
         $totalBiaya = $data->sum('biaya');
+        $jumlahBermasalah = $data->where('status', 'bermasalah')->count();
+        $jumlahSelesai    = $data->where('status', 'selesai')->count();
     @endphp
 
     <div class="space-y-6">
@@ -47,7 +49,7 @@
         </div>
 
         {{-- SUMMARY CARDS --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
                     <i class="fa fa-shield-halved text-blue-500 text-xl"></i>
@@ -55,6 +57,24 @@
                 <div>
                     <p class="text-xs text-gray-500 font-medium">Total Service Asuransi</p>
                     <p class="text-2xl font-bold text-gray-800">{{ $jumlahService }}</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <i class="fa fa-exclamation-triangle text-red-500 text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 font-medium">Bermasalah</p>
+                    <p class="text-2xl font-bold text-red-600">{{ $jumlahBermasalah }}</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                    <i class="fa fa-check-circle text-green-500 text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 font-medium">Selesai</p>
+                    <p class="text-2xl font-bold text-green-600">{{ $jumlahSelesai }}</p>
                 </div>
             </div>
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
@@ -99,6 +119,7 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Tanggal</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Periode</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Biaya</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Status</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Bukti</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Attachment</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Aksi</th>
@@ -180,6 +201,21 @@
                                         <span class="text-sm font-semibold text-gray-800">
                                             Rp {{ number_format($d->biaya ?? 0, 0, ',', '.') }}
                                         </span>
+                                    </td>
+
+                                    {{-- STATUS --}}
+                                    <td class="px-5 py-4 whitespace-nowrap">
+                                        @php $st = $d->status ?? 'bermasalah'; @endphp
+                                        <button type="button"
+                                            onclick="openStatusModal({{ $d->id }}, '{{ $st }}', '{{ addslashes(($d->kendaraan->merk ?? '') . ' - ' . ($d->kendaraan->nopol ?? '')) }}')"
+                                            title="Klik untuk ubah status"
+                                            class="status-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border cursor-pointer transition-all hover:shadow-sm
+                                                {{ $st === 'selesai'
+                                                    ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                                    : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' }}">
+                                            <span class="w-1.5 h-1.5 rounded-full {{ $st === 'selesai' ? 'bg-green-500' : 'bg-red-500' }}"></span>
+                                            {{ $st === 'selesai' ? 'Selesai' : 'Bermasalah' }}
+                                        </button>
                                     </td>
 
                                     {{-- BUKTI --}}
@@ -281,7 +317,7 @@
 
                         @empty
                             <tr>
-                                <td colspan="9" class="px-5 py-12 text-center">
+                                <td colspan="10" class="px-5 py-12 text-center">
                                     <p class="text-sm text-gray-500">Belum ada data service asuransi</p>
                                 </td>
                             </tr>
@@ -692,10 +728,10 @@
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/admin/service-asuransi/' + recordId + '/bukti';
-        form.innerHTML = `
-            @csrf
-            <input type="hidden" name="_method" value="DELETE">
-            <input type="hidden" name="file_path" value="${filePath}">`;
+        form.innerHTML =
+            '<input type="hidden" name="_token" value="{{ csrf_token() }}">' +
+            '<input type="hidden" name="_method" value="DELETE">' +
+            '<input type="hidden" name="file_path" value="' + filePath + '">';
         document.body.appendChild(form);
         form.submit();
     }
@@ -795,10 +831,10 @@
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/admin/service-asuransi/' + recordId + '/attachment';
-        form.innerHTML = `
-            @csrf
-            <input type="hidden" name="_method" value="DELETE">
-            <input type="hidden" name="file_path" value="${filePath}">`;
+        form.innerHTML =
+            '<input type="hidden" name="_token" value="{{ csrf_token() }}">' +
+            '<input type="hidden" name="_method" value="DELETE">' +
+            '<input type="hidden" name="file_path" value="' + filePath + '">';
         document.body.appendChild(form);
         form.submit();
     }
@@ -1187,6 +1223,76 @@
     // =================================================================
     // Init
     applyFilters();
+    </script>
+
+    {{-- ============================================================
+    MODAL UBAH STATUS
+    ============================================================ --}}
+    <div id="modalStatus" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/40 p-4"
+        style="backdrop-filter:blur(3px)">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-auto" style="animation:slideUp .18s ease">
+
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-800">Ubah Status</h3>
+                    <p class="text-xs text-gray-500 mt-0.5" id="statusModalDesc"></p>
+                </div>
+                <button onclick="closeStatusModal()" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+
+            <form id="formStatus" method="POST" action="" class="px-6 py-5 space-y-4">
+                @csrf
+                @method('PUT')
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Penanganan</label>
+                    <select name="status" id="statusSelect"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="bermasalah">⚠️ Bermasalah — mobil masih bermasalah</option>
+                        <option value="selesai">✅ Selesai — masalah sudah ditangani</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeStatusModal()"
+                        class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit"
+                        class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors">
+                        <i class="fa fa-save text-xs mr-1"></i> Simpan
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+    <script>
+    // =================================================================
+    // STATUS MODAL HANDLER
+    // =================================================================
+    function openStatusModal(id, currentStatus, label) {
+        document.getElementById('statusModalDesc').textContent = label || '';
+        document.getElementById('statusSelect').value = currentStatus || 'bermasalah';
+        document.getElementById('formStatus').action = '/admin/service-asuransi/' + id + '/status';
+
+        const m = document.getElementById('modalStatus');
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+    }
+
+    function closeStatusModal() {
+        const m = document.getElementById('modalStatus');
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+    }
+
+    document.getElementById('modalStatus').addEventListener('click', function(e) {
+        if (e.target === this) closeStatusModal();
+    });
     </script>
 
 @endsection

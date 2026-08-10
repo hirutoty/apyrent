@@ -23,9 +23,12 @@ class InvPenawaranController
         ->get()
         ->each(function ($penawaran) {
 
-            $expiredDate = Carbon::parse($penawaran->tanggal_penawaran)
-                ->addMonths($penawaran->periode)
-                ->startOfDay();
+            $satuan = $penawaran->periode_satuan ?? 'bulan';
+            $base   = Carbon::parse($penawaran->tanggal_penawaran)->startOfDay();
+
+            $expiredDate = $satuan === 'hari'
+                ? $base->addDays($penawaran->periode)
+                : $base->addMonths($penawaran->periode);
 
             if (now()->startOfDay()->gt($expiredDate)) {
                 $penawaran->update([
@@ -78,9 +81,12 @@ class InvPenawaranController
     // Hitung reminder tiap penawaran
     foreach ($penawarans as $p) {
 
-        $p->tanggalBerakhir = Carbon::parse($p->tanggal_penawaran)
-            ->startOfDay()
-            ->addMonths($p->periode);
+        $satuan = $p->periode_satuan ?? 'bulan';
+        $base   = Carbon::parse($p->tanggal_penawaran)->startOfDay();
+
+        $p->tanggalBerakhir = $satuan === 'hari'
+            ? $base->copy()->addDays($p->periode)
+            : $base->copy()->addMonths($p->periode);
 
         $p->sisaHari = (int) now()->startOfDay()
             ->diffInDays($p->tanggalBerakhir, false);
@@ -173,6 +179,7 @@ class InvPenawaranController
                 'jenis_pelanggan'   => null,
                 'pengirim'          => null,
                 'periode'           => $request->periode,
+                'periode_satuan'    => $request->periode_satuan ?? 'bulan',
                 'staff'             => $request->staff,
                 'name_staff'        => $request->name_staff,
                 'direktur'          => null,
@@ -230,6 +237,7 @@ class InvPenawaranController
             'direktur' => $penawaran->direktur,
             'name_direktur' => $penawaran->name_direktur,
             'periode' => $penawaran->periode,
+            'periode_satuan' => $penawaran->periode_satuan ?? 'bulan',
             'items' => $penawaran->items,
         ]);
     }
@@ -269,6 +277,7 @@ class InvPenawaranController
                 'perihal'           => $request->perihal,
                 'customer_name'     => $request->customer_name,
                 'periode'           => $request->periode,
+                'periode_satuan'    => $request->periode_satuan ?? 'bulan',
                 'staff'             => $request->staff,
                 'name_staff'        => $request->name_staff,
                 'total'             => $total,
@@ -293,9 +302,12 @@ class InvPenawaranController
             // Ubah status hanya jika belum approved atau rejected
             if (!in_array($penawaran->status, ['approved', 'rejected'])) {
                 $periode = (int) $request->input('periode');
+                $satuan  = $request->input('periode_satuan', 'bulan');
 
-                $expired = Carbon::parse($request->tanggal_penawaran)
-                    ->addMonths($periode);
+                $base    = Carbon::parse($request->tanggal_penawaran);
+                $expired = $satuan === 'hari'
+                    ? $base->addDays($periode)
+                    : $base->addMonths($periode);
 
                 $penawaran->update([
                     'status' => now()->gt($expired) ? 'expired' : 'pending'

@@ -11,6 +11,7 @@ use App\Models\Rental;
 use App\Models\Kendaraan;
 use App\Models\Pelanggan;
 use App\Models\Setting;
+use App\Helpers\KontrakHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -127,9 +128,7 @@ class InvKontrakController extends Controller
             'contact_pertama'       => 'nullable|string|max:255',
             'pihak_kedua'           => 'required|string|max:255',
             'contact_kedua'         => 'nullable|string|max:255',
-            'ketentuan'             => 'nullable|array',
-            'ketentuan.*.id'        => 'nullable|string|max:2000',
-            'ketentuan.*.en'        => 'nullable|string|max:2000',
+            'pasal'                 => 'nullable|array',
         ]);
 
         // Hitung durasi & tanggal selesai — pakai durasi terpanjang dari semua item
@@ -193,18 +192,9 @@ class InvKontrakController extends Controller
             'status'                => 'pending',
         ];
 
-        // Proses ketentuan asuransi — filter baris yang keduanya kosong
-        $ketentuan = [];
-        foreach ($request->input('ketentuan', []) as $poin) {
-            $idText = trim($poin['id'] ?? '');
-            $enText = trim($poin['en'] ?? '');
-            if ($idText !== '' || $enText !== '') {
-                $ketentuan[] = ['id' => $idText, 'en' => $enText];
-            }
-        }
-        if (!empty($ketentuan)) {
-            $data['ketentuan_asuransi'] = $ketentuan;
-        }
+        // Proses pasal_ketentuan dari form editor
+        $pasalKetentuan = self::processPasalFromRequest($request);
+        $data['pasal_ketentuan'] = $pasalKetentuan;
 
         $kontrak = InvKontrak::create($data);
 
@@ -420,23 +410,13 @@ class InvKontrakController extends Controller
             'pihak_kedua'           => 'required|string|max:255',
             'contact_kedua'         => 'nullable|string|max:255',
             'status'                => 'required',
-            'ketentuan'             => 'nullable|array',
-            'ketentuan.*.id'        => 'nullable|string|max:2000',
-            'ketentuan.*.en'        => 'nullable|string|max:2000',
+            'pasal'                 => 'nullable|array',
         ]);
 
-        $data = $request->except(['file_kontrak', 'file_persyaratan', 'ketentuan']);
+        $data = $request->except(['file_kontrak', 'file_persyaratan', 'ketentuan', 'pasal']);
 
-        // Proses ketentuan asuransi dari Tab 2
-        $ketentuan = [];
-        foreach ($request->input('ketentuan', []) as $poin) {
-            $idText = trim($poin['id'] ?? '');
-            $enText = trim($poin['en'] ?? '');
-            if ($idText !== '' || $enText !== '') {
-                $ketentuan[] = ['id' => $idText, 'en' => $enText];
-            }
-        }
-        $data['ketentuan_asuransi'] = !empty($ketentuan) ? $ketentuan : null;
+        // Proses pasal_ketentuan dari form editor
+        $data['pasal_ketentuan'] = self::processPasalFromRequest($request);
 
         if ($request->hasFile('file_kontrak')) {
             $file     = $request->file('file_kontrak');
@@ -531,6 +511,53 @@ class InvKontrakController extends Controller
             ->setPaper('a4', 'landscape');
 
         return $pdf->download('Laporan-Kontrak-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /* ─────────────────────────────────────────────
+       HELPER — Proses array pasal dari form request
+       Mengembalikan array pasal yang sudah disanitasi,
+       atau default dari KontrakHelper jika kosong.
+    ───────────────────────────────────────────── */
+    private static function processPasalFromRequest(Request $request): array
+    {
+        $rawPasal = $request->input('pasal', []);
+        $result   = [];
+
+        foreach ($rawPasal as $pasal) {
+            $judulId = trim($pasal['judul_id'] ?? '');
+            $judulEn = trim($pasal['judul_en'] ?? '');
+            $tipe    = in_array($pasal['tipe'] ?? '', ['paragraf', 'list', 'sublist'])
+                       ? $pasal['tipe']
+                       : 'list';
+
+            $poin = [];
+            foreach ($pasal['poin'] ?? [] as $p) {
+                $pId = trim($p['id'] ?? '');
+                $pEn = trim($p['en'] ?? '');
+                if ($pId !== '' || $pEn !== '') {
+                    $poin[] = ['id' => $pId, 'en' => $pEn];
+                }
+            }
+
+            // Skip pasal yang judulnya kosong & tidak punya poin
+            if ($judulId === '' && $judulEn === '' && empty($poin)) {
+                continue;
+            }
+
+            $result[] = [
+                'judul_id' => $judulId,
+                'judul_en' => $judulEn,
+                'tipe'     => $tipe,
+                'poin'     => $poin,
+            ];
+        }
+
+        // Jika form tidak mengirim pasal sama sekali, pakai default
+        if (empty($result)) {
+            return KontrakHelper::defaultPasalKetentuan();
+        }
+
+        return $result;
     }
 }
 

@@ -144,7 +144,7 @@
                                 </td>
 
                                 <td class="px-4 py-3" data-col="col-periode">
-                                    {{ $p->periode }} Bulan
+                                    {{ $p->periode }} {{ $p->periode_satuan === 'hari' ? 'Hari' : 'Bulan' }}
 
                                     @if (!in_array($p->status, ['approved', 'rejected', 'expired']))
                                         @if ($p->isExpired)
@@ -356,13 +356,15 @@
                                 class="w-full border rounded-lg p-2 mt-1">
                         </div>
                         <div>
-                            <label>Periode</label>
+                            <label>Masa Penawaran</label>
                             <div class="flex mt-1">
                                 <input type="number" name="periode" placeholder="12"
                                     class="w-full border border-r-0 rounded-l-lg p-2">
-                                <span class="px-4 flex items-center border border-l-0 rounded-r-lg bg-gray-100 text-gray-600">
-                                    Bulan
-                                </span>
+                                <select name="periode_satuan"
+                                    class="border border-l-0 rounded-r-lg px-3 py-2 bg-gray-100 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400">
+                                    <option value="bulan">Bulan</option>
+                                    <option value="hari">Hari</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -498,9 +500,11 @@
                                 <input id="edit_periode" type="number" name="periode"
                                     placeholder="cth: 12"
                                     class="w-full border border-r-0 rounded-l-lg p-2">
-                                <span class="px-4 flex items-center border border-l-0 rounded-r-lg bg-gray-100 text-gray-600">
-                                    Bulan
-                                </span>
+                                <select id="edit_periode_satuan" name="periode_satuan"
+                                    class="border border-l-0 rounded-r-lg px-3 py-2 bg-gray-100 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400">
+                                    <option value="bulan">Bulan</option>
+                                    <option value="hari">Hari</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -1033,6 +1037,7 @@
                             document.getElementById('edit_staff').value = data.staff ?? '';
                             document.getElementById('edit_name_staff').value = data.name_staff ?? '';
                             document.getElementById('edit_periode').value = data.periode ?? '';
+                            document.getElementById('edit_periode_satuan').value = data.periode_satuan ?? 'bulan';
 
                             loadEditItems(data.items ?? []);
                         })

@@ -11,11 +11,29 @@ class ServiceAsuransiController extends Controller
 {
     public function index()
     {
+        // Auto-selesaikan record yang periode_selesai-nya sudah lewat
+        $expired = ServiceAsuransi::with('kendaraan')
+            ->where('status', 'bermasalah')
+            ->whereNotNull('periode_selesai')
+            ->where('periode_selesai', '<', now()->toDateString())
+            ->get();
+
+        foreach ($expired as $item) {
+            $item->update(['status' => 'selesai']);
+
+            if ($item->kendaraan) {
+                $masihBermasalah = ServiceAsuransi::where('kendaraan_id', $item->kendaraan_id)
+                    ->where('id', '!=', $item->id)
+                    ->where('status', 'bermasalah')
+                    ->exists();
+
+                if (!$masihBermasalah) {
+                    $item->kendaraan->update(['status_kendaraan' => 'tersedia']);
+                }
+            }
+        }
+
         $data = ServiceAsuransi::with('kendaraan')
-            ->where(function($q) {
-                $q->whereNull('periode_selesai')
-                  ->orWhere('periode_selesai', '>=', now()->toDateString());
-            })
             ->latest()
             ->paginate(15)->withQueryString();
 
@@ -56,6 +74,7 @@ class ServiceAsuransiController extends Controller
             'keterangan'      => $request->keterangan,
             'bukti'           => !empty($buktiList)      ? json_encode($buktiList)      : null,
             'attachment'      => !empty($attachmentList) ? json_encode($attachmentList) : null,
+            'status'          => 'bermasalah',
         ]);
 
         // Auto-set kendaraan status to 'bermasalah'
@@ -172,6 +191,41 @@ class ServiceAsuransiController extends Controller
         $data->update(['attachment' => !empty($attachmentList) ? json_encode($attachmentList) : null]);
 
         return back()->with('success', 'File attachment berhasil dihapus');
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $data = ServiceAsuransi::with('kendaraan')->findOrFail($id);
+
+        $request->validate([
+            'status' => 'required|in:bermasalah,selesai',
+        ]);
+
+        $updateData = ['status' => $request->status];
+
+        // Jika diubah ke selesai, set periode_selesai ke hari ini
+        if ($request->status === 'selesai') {
+            $updateData['periode_selesai'] = now()->toDateString();
+        }
+
+        $data->update($updateData);
+
+        if ($data->kendaraan) {
+            if ($request->status === 'selesai') {
+                $masihBermasalah = ServiceAsuransi::where('kendaraan_id', $data->kendaraan_id)
+                    ->where('id', '!=', $id)
+                    ->where('status', 'bermasalah')
+                    ->exists();
+
+                if (!$masihBermasalah) {
+                    $data->kendaraan->update(['status_kendaraan' => 'tersedia']);
+                }
+            } else {
+                $data->kendaraan->update(['status_kendaraan' => 'bermasalah']);
+            }
+        }
+
+        return back()->with('success', 'Status berhasil diperbarui menjadi ' . ($request->status === 'selesai' ? 'Selesai' : 'Bermasalah'));
     }
 
     // ── HELPERS ─────────────────────────────────────────────────────────────

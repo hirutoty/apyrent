@@ -36,6 +36,7 @@ class InvKontrak extends Model
 
         'status',
         'ketentuan_asuransi',
+        'pasal_ketentuan',
     ];
 
     protected $casts = [
@@ -44,6 +45,7 @@ class InvKontrak extends Model
         'tanggal_selesai'      => 'date',
         'durasi_value'         => 'integer',
         'ketentuan_asuransi'   => 'array',
+        'pasal_ketentuan'      => 'array',
     ];
 
     public function penawaran()

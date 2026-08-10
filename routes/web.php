@@ -56,6 +56,7 @@ use App\Http\Controllers\Admin\PenawaranKendaraanController;
 use App\Http\Controllers\Admin\InvPenawaranController;
 use App\Http\Controllers\Admin\InvKontrakController;
 use App\Http\Controllers\Admin\DataLeasingController;
+use App\Http\Controllers\Admin\DataKontrakController;
 use App\Http\Controllers\Admin\InvoicesController;
 use App\Http\Controllers\Admin\InvoicePeriodeController;
 use App\Http\Controllers\Admin\PaymentsController;
@@ -448,6 +449,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       ->name('service-asuransi.bukti.delete');
   Route::delete('service-asuransi/{id}/attachment', [ServiceAsuransiController::class, 'deleteAttachment'])
       ->name('service-asuransi.attachment.delete');
+  Route::put('service-asuransi/{id}/status', [ServiceAsuransiController::class, 'updateStatus'])
+      ->name('service-asuransi.update-status');
 
   // Reminder Service
   Route::resource('reminder-service', ReminderServiceController::class);
@@ -613,9 +616,23 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::resource('kontrak', InvKontrakController::class);
 
   // ── DATA LEASING ────────────────────────────────────────────────────
-  Route::get('/data-leasing/kontrak/{id}/detail', [DataLeasingController::class, 'getKontrakDetail'])
-    ->name('data-leasing.kontrak-detail');
+  Route::get('/data-leasing/template', [DataLeasingController::class, 'exportTemplate'])
+    ->name('data-leasing.template');
+  Route::post('/data-leasing/import', [DataLeasingController::class, 'import'])
+    ->name('data-leasing.import');
+  Route::get('/data-leasing/data-kontrak/{id}/detail', [DataLeasingController::class, 'getDataKontrakDetail'])
+    ->name('data-leasing.data-kontrak-detail');
   Route::resource('data-leasing', DataLeasingController::class)
+    ->except(['create', 'edit', 'show']);
+
+  // ── DATA KONTRAK ─────────────────────────────────────────────────────
+  Route::get('/data-kontrak/generate-no', [DataKontrakController::class, 'generateNoKontrak'])
+    ->name('data-kontrak.generate-no');
+  Route::get('/data-kontrak/kendaraan/{id}/detail', [DataKontrakController::class, 'getKendaraanDetail'])
+    ->name('data-kontrak.kendaraan-detail');
+  Route::delete('/data-kontrak/attachment/{id}', [DataKontrakController::class, 'destroyAttachment'])
+    ->name('data-kontrak.attachment.destroy');
+  Route::resource('data-kontrak', DataKontrakController::class)
     ->except(['create', 'edit', 'show']);
 
   Route::get('/setting', [SettingController::class, 'index'])
