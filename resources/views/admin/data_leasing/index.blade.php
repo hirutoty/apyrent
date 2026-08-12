@@ -976,7 +976,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">Kontak Marketing</label>
-                        <input type="text" name="kontak_marketing"
+                        <input type="number" name="kontak_marketing"
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                             placeholder="08xx-xxxx-xxxx">
                     </div>
@@ -988,7 +988,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">Kontak Bengkel</label>
-                        <input type="text" name="kontak_bengkel"
+                        <input type="number" name="kontak_bengkel"
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                             placeholder="08xx-xxxx-xxxx">
                     </div>
@@ -1169,7 +1169,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">Kontak Marketing</label>
-                        <input type="text" name="kontak_marketing" id="ek_kontak_marketing"
+                        <input type="number" name="kontak_marketing" id="ek_kontak_marketing"
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                             placeholder="08xx-xxxx-xxxx">
                     </div>
@@ -1181,7 +1181,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">Kontak Bengkel</label>
-                        <input type="text" name="kontak_bengkel" id="ek_kontak_bengkel"
+                        <input type="number" name="kontak_bengkel" id="ek_kontak_bengkel"
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                             placeholder="08xx-xxxx-xxxx">
                     </div>
