@@ -23,6 +23,7 @@ class DataLeasing extends Model
         'jatuh_tempo',
         'periode_mulai',
         'periode_selesai',
+        'jumlah_cicilan',
         'personal_account',
         'sumber_dana_debit',
         'cara_bayar',
@@ -32,6 +33,7 @@ class DataLeasing extends Model
     protected $casts = [
         'jatuh_tempo'        => 'integer',
         'angsuran_per_bulan' => 'integer',
+        'jumlah_cicilan'     => 'integer',
         'periode_mulai'      => 'date',
         'periode_selesai'    => 'date',
     ];
@@ -46,11 +48,18 @@ class DataLeasing extends Model
 
     /* ─────────────────────────────────────────────
        ACCESSOR — Jumlah Cicilan Total
-       Gunakan data dari DataKontrak jika ada,
-       fallback ke field lokal
+       Prioritas: kolom jumlah_cicilan (manual via import/form)
+       Fallback : hitung otomatis dari selisih periode
     ───────────────────────────────────────────── */
     public function getJumlahCicilanAttribute(): int
     {
+        // Jika diisi manual (via import atau form), pakai nilai itu
+        $manual = $this->attributes['jumlah_cicilan'] ?? null;
+        if ($manual !== null && (int) $manual > 0) {
+            return (int) $manual;
+        }
+
+        // Fallback: hitung dari selisih bulan periode_mulai → periode_selesai
         $mulai   = $this->periode_mulai;
         $selesai = $this->periode_selesai;
 
@@ -66,6 +75,11 @@ class DataLeasing extends Model
 
     /* ─────────────────────────────────────────────
        ACCESSOR — Cicilan Tersisa
+       Dihitung dari selisih bulan antara periode_mulai
+       dan bulan sekarang. Cicilan bulan ini belum dihitung
+       sebagai yang sudah dibayar.
+       Contoh: mulai Mei, sekarang Ags → sudah lewat 3 (Mei/Jun/Jul),
+       tersisa = total - 3
     ───────────────────────────────────────────── */
     public function getCicilanTersisaAttribute(): int
     {
@@ -78,10 +92,13 @@ class DataLeasing extends Model
         $now   = Carbon::now()->startOfMonth();
         $mulai = Carbon::parse($this->periode_mulai)->startOfMonth();
 
+        // Belum mulai sama sekali
         if ($now->lessThan($mulai)) {
             return $total;
         }
 
+        // Cicilan yang sudah lewat = bulan dari mulai sampai sebelum bulan sekarang
+        // diffInMonths(Mei-01, Ags-01) = 3 → tersisa = total - 3
         $sudahLewat = $mulai->diffInMonths($now);
 
         return max(0, $total - $sudahLewat);

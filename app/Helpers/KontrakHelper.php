@@ -14,14 +14,27 @@ namespace App\Helpers;
  *               sublist   = lettered (a, b, c...) — digunakan untuk sub-poin
  *   poin      : array of { id, en }
  *
- * Pasal 1 (tabel kendaraan) TIDAK masuk di sini karena di-render secara khusus
- * dari data kendaraan. Pasal 2–10 ada di sini.
+ * Pasal 1 (DATA-DATA KENDARAAN) sekarang masuk dalam array dan dapat diedit.
+ * Pasal 2–10 berikutnya adalah isi ketentuan kontrak.
  */
 class KontrakHelper
 {
     public static function defaultPasalKetentuan(): array
     {
         return [
+            // ─── PASAL 1 ─────────────────────────────────────────────────────
+            [
+                'judul_id' => "PASAL 1\nDATA-DATA KENDARAAN",
+                'judul_en' => "ARTICLE 1\nVEHICLE DATA",
+                'tipe'     => 'paragraf',
+                'poin'     => [
+                    [
+                        'id' => 'PIHAK PERTAMA telah menyerahkan kendaraan untuk disewa oleh PIHAK KEDUA dan PIHAK KEDUA telah menerima kendaraan tersebut yang tertuang dalam berita acara serah terima kendaraan dan check list yang ditandatangani oleh Para Pihak dan merupakan bagian yang tak terpisahkan dari Perjanjian ini. Adapun spesifikasi dan jumlah kendaraan tertuang dalam lampiran 1 (satu) Perjanjian ini.',
+                        'en' => 'The FIRST PARTY shall provide a car to be rented by the SECOND PARTY and the SECOND PARTY shall receive the said car that is specifically stated in the vehicle handover form and check list form signed by The Parties that constitute and inseparable part of this Agreement. The car specification and quantity are described in detail in attachment 1 (one) of the Agreement.',
+                    ],
+                ],
+            ],
+
             // ─── PASAL 2 ─────────────────────────────────────────────────────
             [
                 'judul_id' => "PASAL 2\nMASA SEWA",

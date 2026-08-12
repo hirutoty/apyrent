@@ -39,10 +39,12 @@ class InvPenawaran extends Model
         'total',
         'file_penawaran',
         'file_persyaratan',
+        'ketentuan',
     ];
 
     protected $casts = [
         'tanggal_penawaran' => 'date',
+        'ketentuan'         => 'array',
     ];
 
     /**

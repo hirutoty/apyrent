@@ -523,9 +523,21 @@ class InvKontrakController extends Controller
         $rawPasal = $request->input('pasal', []);
         $result   = [];
 
+        // Inject \n antara "PASAL N" dan nama topik jika belum ada
+        $normalizeJudul = function(string $judul): string {
+            if ($judul === '' || str_contains($judul, "\n")) return $judul;
+            // "PASAL 2MASA SEWA" → "PASAL 2\nMASA SEWA"
+            // "ARTICLE 2RENTAL PERIOD" → "ARTICLE 2\nRENTAL PERIOD"
+            return preg_replace(
+                '/^((?:PASAL|ARTICLE)\s+\d+)\s*([A-Z].*)$/si',
+                "$1\n$2",
+                $judul
+            ) ?? $judul;
+        };
+
         foreach ($rawPasal as $pasal) {
-            $judulId = trim($pasal['judul_id'] ?? '');
-            $judulEn = trim($pasal['judul_en'] ?? '');
+            $judulId = $normalizeJudul(trim($pasal['judul_id'] ?? ''));
+            $judulEn = $normalizeJudul(trim($pasal['judul_en'] ?? ''));
             $tipe    = in_array($pasal['tipe'] ?? '', ['paragraf', 'list', 'sublist'])
                        ? $pasal['tipe']
                        : 'list';

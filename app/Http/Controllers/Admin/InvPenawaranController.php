@@ -91,6 +91,9 @@ class InvPenawaranController
         $p->sisaHari = (int) now()->startOfDay()
             ->diffInDays($p->tanggalBerakhir, false);
 
+        // Hitung sisa jam dari waktu sekarang ke tanggal berakhir (tepat, tanpa endOfDay)
+        $p->sisaJam = (int) now()->diffInHours($p->tanggalBerakhir, false);
+
         // Tidak dihitung jika sudah selesai
         if (in_array($p->status, ['approved', 'rejected', 'expired'])) {
 
@@ -185,6 +188,7 @@ class InvPenawaranController
                 'direktur'          => null,
                 'name_direktur'     => null,
                 'total'             => $total,
+                'ketentuan'         => $this->parseKetentuan($request),
             ]);
 
             foreach ($request->kendaraan_id as $i => $kendaraan) {
@@ -239,6 +243,7 @@ class InvPenawaranController
             'periode' => $penawaran->periode,
             'periode_satuan' => $penawaran->periode_satuan ?? 'bulan',
             'items' => $penawaran->items,
+            'ketentuan' => $penawaran->ketentuan ?? [],
         ]);
     }
 
@@ -281,6 +286,7 @@ class InvPenawaranController
                 'staff'             => $request->staff,
                 'name_staff'        => $request->name_staff,
                 'total'             => $total,
+                'ketentuan'         => $this->parseKetentuan($request),
             ]);
 
             // Hapus item lama
@@ -386,6 +392,33 @@ class InvPenawaranController
             ->save($path);
 
         return 'uploads/penawaran/' . $filename;
+    }
+
+    private function parseKetentuan(Request $request): ?array
+    {
+        $teks = $request->input('ketentuan_teks', []);
+        if (empty($teks)) {
+            return null; // null → blade akan pakai default
+        }
+
+        $subAll = $request->input('ketentuan_sub', []);
+        $result = [];
+
+        foreach ($teks as $i => $t) {
+            $t = trim($t);
+            if ($t === '') continue;
+
+            // Sub-item: dikirim sebagai string multi-baris, pisahkan per baris non-kosong
+            $subRaw = $subAll[$i] ?? '';
+            $sub = array_values(array_filter(
+                array_map('trim', explode("\n", $subRaw)),
+                fn($s) => $s !== ''
+            ));
+
+            $result[] = ['teks' => $t, 'sub' => $sub];
+        }
+
+        return empty($result) ? null : $result;
     }
 
     private function generateNoPenawaran(): string

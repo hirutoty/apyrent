@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\ServiceAsuransi;
 use App\Models\Kendaraan;
+use App\Models\Asuransi;
+use App\Models\JenisAsuransi;
 
 class ServiceAsuransiController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         // Auto-selesaikan record yang periode_selesai-nya sudah lewat
         $expired = ServiceAsuransi::with('kendaraan')
@@ -33,51 +35,71 @@ class ServiceAsuransiController extends Controller
             }
         }
 
-        $data = ServiceAsuransi::with('kendaraan')
-            ->latest()
-            ->paginate(15)->withQueryString();
+        $query = ServiceAsuransi::with(['kendaraan', 'jenisAsuransi'])->latest();
 
-        $kendaraan = Kendaraan::orderBy('merk')->get();
+        // Filter pencarian: nopol atau merk kendaraan
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->whereHas('kendaraan', function ($q) use ($s) {
+                $q->where('nopol', 'like', "%{$s}%")
+                  ->orWhere('merk', 'like', "%{$s}%");
+            });
+        }
 
-        return view('admin.service.service_asuransi', compact('data', 'kendaraan'));
+        // Filter status
+        if ($request->filled('status') && in_array($request->status, ['bermasalah', 'selesai'])) {
+            $query->where('status', $request->status);
+        }
+
+        $data = $query->paginate(15)->withQueryString();
+
+        $kendaraan     = Kendaraan::orderBy('merk')->get();
+        $asuransi      = Asuransi::orderBy('nama_asuransi')->get();
+        $jenisAsuransi = JenisAsuransi::orderBy('nama_jenis')->get();
+
+        return view('admin.service.service_asuransi', compact('data', 'kendaraan', 'asuransi', 'jenisAsuransi'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'kendaraan_id'    => 'required|exists:kendaraan,id',
-            'tanggal_service' => 'required|date',
-            'periode_mulai'   => 'nullable|date',
-            'periode_selesai' => 'nullable|date|after_or_equal:periode_mulai',
-            'kilometer'       => 'required|numeric',
-            'biaya'           => 'nullable|numeric',
-            'bukti.*'         => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
-            'attachment.*'    => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'kendaraan_id'      => 'required|exists:kendaraan,id',
+            'nama_asuransi'     => 'nullable|string|max:255',
+            'jenis_asuransi_id' => 'nullable|exists:jenis_asuransi,id',
+            'tanggal_service'   => 'required|date',
+            'periode_mulai'     => 'nullable|date',
+            'periode_selesai'   => 'nullable|date|after_or_equal:periode_mulai',
+            'kilometer'         => 'required|numeric',
+            'biaya'             => 'nullable|numeric',
+            'bukti.*'           => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'attachment.*'      => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
         ]);
 
-        $buktiList      = $this->uploadBuktiFiles($request);
-        $attachmentList = $this->uploadAttachmentFiles($request);
-
-        // Cek duplikat: kendaraan yang sama tidak boleh ditambah lagi
+        // Cek duplikat
         $exists = ServiceAsuransi::where('kendaraan_id', $request->kendaraan_id)->exists();
         if ($exists) {
             return back()->withInput()->with('error', 'Kendaraan ini sudah memiliki data service asuransi. Gunakan fitur Edit untuk memperbarui data.');
         }
 
+        $buktiList      = $this->uploadBuktiFiles($request);
+        $attachmentList = $this->uploadAttachmentFiles($request);
+
+        // Model memiliki cast array, cukup pass array langsung
         ServiceAsuransi::create([
-            'kendaraan_id'    => $request->kendaraan_id,
-            'tanggal_service' => $request->tanggal_service,
-            'periode_mulai'   => $request->periode_mulai,
-            'periode_selesai' => $request->periode_selesai,
-            'kilometer'       => $request->kilometer,
-            'biaya'           => $request->biaya,
-            'keterangan'      => $request->keterangan,
-            'bukti'           => !empty($buktiList)      ? json_encode($buktiList)      : null,
-            'attachment'      => !empty($attachmentList) ? json_encode($attachmentList) : null,
-            'status'          => 'bermasalah',
+            'kendaraan_id'      => $request->kendaraan_id,
+            'nama_asuransi'     => $request->nama_asuransi ?: null,
+            'jenis_asuransi_id' => $request->jenis_asuransi_id ?: null,
+            'tanggal_service'   => $request->tanggal_service,
+            'periode_mulai'     => $request->periode_mulai,
+            'periode_selesai'   => $request->periode_selesai,
+            'kilometer'         => $request->kilometer,
+            'biaya'             => $request->biaya,
+            'keterangan'        => $request->keterangan,
+            'bukti'             => !empty($buktiList)      ? $buktiList      : null,
+            'attachment'        => !empty($attachmentList) ? $attachmentList : null,
+            'status'            => 'bermasalah',
         ]);
 
-        // Auto-set kendaraan status to 'bermasalah'
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
         $kendaraan->update(['status_kendaraan' => 'bermasalah']);
 
@@ -89,17 +111,19 @@ class ServiceAsuransiController extends Controller
         $data = ServiceAsuransi::findOrFail($id);
 
         $request->validate([
-            'kendaraan_id'    => 'required|exists:kendaraan,id',
-            'tanggal_service' => 'required|date',
-            'periode_mulai'   => 'nullable|date',
-            'periode_selesai' => 'nullable|date|after_or_equal:periode_mulai',
-            'kilometer'       => 'required|numeric',
-            'biaya'           => 'nullable|numeric',
-            'bukti.*'         => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
-            'attachment.*'    => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'kendaraan_id'      => 'required|exists:kendaraan,id',
+            'nama_asuransi'     => 'nullable|string|max:255',
+            'jenis_asuransi_id' => 'nullable|exists:jenis_asuransi,id',
+            'tanggal_service'   => 'required|date',
+            'periode_mulai'     => 'nullable|date',
+            'periode_selesai'   => 'nullable|date|after_or_equal:periode_mulai',
+            'kilometer'         => 'required|numeric',
+            'biaya'             => 'nullable|numeric',
+            'bukti.*'           => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'attachment.*'      => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
         ]);
 
-        // Cek duplikat: kendaraan yang sama tidak boleh dipakai oleh record lain
+        // Cek duplikat kendaraan di record lain
         $exists = ServiceAsuransi::where('kendaraan_id', $request->kendaraan_id)
             ->where('id', '!=', $id)
             ->exists();
@@ -107,9 +131,9 @@ class ServiceAsuransiController extends Controller
             return back()->withInput()->with('error', 'Kendaraan ini sudah memiliki data service asuransi di record lain.');
         }
 
-        // File lama dipertahankan, file baru di-append
-        $buktiLama      = $data->bukti      ?? [];
-        $attachmentLama = $data->attachment ?? [];
+        // Ambil file lama — pastikan selalu array (hindari foreach error jika tersimpan sebagai string)
+        $buktiLama      = $this->normalizeFileArray($data->getRawOriginal('bukti'));
+        $attachmentLama = $this->normalizeFileArray($data->getRawOriginal('attachment'));
 
         $buktiFiles      = $this->uploadBuktiFiles($request);
         $attachmentFiles = $this->uploadAttachmentFiles($request);
@@ -118,15 +142,17 @@ class ServiceAsuransiController extends Controller
         $attachmentList = array_merge($attachmentLama, $attachmentFiles);
 
         $data->update([
-            'kendaraan_id'    => $request->kendaraan_id,
-            'tanggal_service' => $request->tanggal_service,
-            'periode_mulai'   => $request->periode_mulai,
-            'periode_selesai' => $request->periode_selesai,
-            'kilometer'       => $request->kilometer,
-            'biaya'           => $request->biaya,
-            'keterangan'      => $request->keterangan,
-            'bukti'           => !empty($buktiList)      ? json_encode($buktiList)      : null,
-            'attachment'      => !empty($attachmentList) ? json_encode($attachmentList) : null,
+            'kendaraan_id'      => $request->kendaraan_id,
+            'nama_asuransi'     => $request->nama_asuransi ?: null,
+            'jenis_asuransi_id' => $request->jenis_asuransi_id ?: null,
+            'tanggal_service'   => $request->tanggal_service,
+            'periode_mulai'     => $request->periode_mulai,
+            'periode_selesai'   => $request->periode_selesai,
+            'kilometer'         => $request->kilometer,
+            'biaya'             => $request->biaya,
+            'keterangan'        => $request->keterangan,
+            'bukti'             => !empty($buktiList)      ? $buktiList      : null,
+            'attachment'        => !empty($attachmentList) ? $attachmentList : null,
         ]);
 
         return back()->with('success', 'Data berhasil diupdate');
@@ -136,16 +162,15 @@ class ServiceAsuransiController extends Controller
     {
         $data = ServiceAsuransi::findOrFail($id);
 
-        foreach ($data->bukti ?? [] as $f) {
-            $path     = is_array($f) ? ($f['path'] ?? '') : $f;
-            $fullPath = public_path($path);
-            if ($path && file_exists($fullPath)) unlink($fullPath);
+        // Normalise raw JSON string → array sebelum foreach
+        foreach ($this->normalizeFileArray($data->getRawOriginal('bukti')) as $f) {
+            $path = is_array($f) ? ($f['path'] ?? '') : $f;
+            if ($path && file_exists(public_path($path))) unlink(public_path($path));
         }
 
-        foreach ($data->attachment ?? [] as $f) {
-            $path     = is_array($f) ? ($f['path'] ?? '') : $f;
-            $fullPath = public_path($path);
-            if ($path && file_exists($fullPath)) unlink($fullPath);
+        foreach ($this->normalizeFileArray($data->getRawOriginal('attachment')) as $f) {
+            $path = is_array($f) ? ($f['path'] ?? '') : $f;
+            if ($path && file_exists(public_path($path))) unlink(public_path($path));
         }
 
         $data->delete();
@@ -160,15 +185,14 @@ class ServiceAsuransiController extends Controller
         $data = ServiceAsuransi::findOrFail($id);
         $path = $request->file_path;
 
-        $buktiList = array_values(array_filter($data->bukti ?? [], function ($f) use ($path) {
-            $p = is_array($f) ? ($f['path'] ?? '') : $f;
-            return $p !== $path;
-        }));
+        $buktiList = array_values(array_filter(
+            $this->normalizeFileArray($data->getRawOriginal('bukti')),
+            fn($f) => (is_array($f) ? ($f['path'] ?? '') : $f) !== $path
+        ));
 
-        $fullPath = public_path($path);
-        if ($path && file_exists($fullPath)) unlink($fullPath);
+        if ($path && file_exists(public_path($path))) unlink(public_path($path));
 
-        $data->update(['bukti' => !empty($buktiList) ? json_encode($buktiList) : null]);
+        $data->update(['bukti' => !empty($buktiList) ? $buktiList : null]);
 
         return back()->with('success', 'File bukti berhasil dihapus');
     }
@@ -180,15 +204,14 @@ class ServiceAsuransiController extends Controller
         $data = ServiceAsuransi::findOrFail($id);
         $path = $request->file_path;
 
-        $attachmentList = array_values(array_filter($data->attachment ?? [], function ($f) use ($path) {
-            $p = is_array($f) ? ($f['path'] ?? '') : $f;
-            return $p !== $path;
-        }));
+        $attachmentList = array_values(array_filter(
+            $this->normalizeFileArray($data->getRawOriginal('attachment')),
+            fn($f) => (is_array($f) ? ($f['path'] ?? '') : $f) !== $path
+        ));
 
-        $fullPath = public_path($path);
-        if ($path && file_exists($fullPath)) unlink($fullPath);
+        if ($path && file_exists(public_path($path))) unlink(public_path($path));
 
-        $data->update(['attachment' => !empty($attachmentList) ? json_encode($attachmentList) : null]);
+        $data->update(['attachment' => !empty($attachmentList) ? $attachmentList : null]);
 
         return back()->with('success', 'File attachment berhasil dihapus');
     }
@@ -203,7 +226,6 @@ class ServiceAsuransiController extends Controller
 
         $updateData = ['status' => $request->status];
 
-        // Jika diubah ke selesai, set periode_selesai ke hari ini
         if ($request->status === 'selesai') {
             $updateData['periode_selesai'] = now()->toDateString();
         }
@@ -229,6 +251,18 @@ class ServiceAsuransiController extends Controller
     }
 
     // ── HELPERS ─────────────────────────────────────────────────────────────
+
+    /**
+     * Normalise nilai kolom bukti/attachment ke array.
+     * Menangani: null, string JSON, atau array yang sudah di-cast.
+     */
+    private function normalizeFileArray(mixed $value): array
+    {
+        if (empty($value)) return [];
+        if (is_array($value)) return $value;
+        $decoded = json_decode($value, true);
+        return is_array($decoded) ? $decoded : [];
+    }
 
     private function uploadBuktiFiles(Request $request): array
     {

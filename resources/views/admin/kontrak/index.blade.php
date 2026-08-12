@@ -792,22 +792,18 @@
 
         {{-- Header --}}
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h2 class="text-base font-bold text-gray-800">Edit Kontrak</h2>
-            <button onclick="closeModal('modalEdit')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50">&times;</button>
-        </div>
-
-        {{-- Navtab --}}
-        <div class="flex border-b border-gray-200 px-6 pt-3 gap-1">
-            <button type="button" id="editTab1Btn"
-                onclick="switchEditTab(1)"
-                class="edit-tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border border-b-0 border-transparent text-blue-600 border-blue-300 bg-blue-50">
-                <i class="fa fa-file-alt mr-1 text-xs"></i> Data Kontrak
-            </button>
-            <button type="button" id="editTab2Btn"
-                onclick="switchEditTab(2)"
-                class="edit-tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border border-b-0 border-transparent text-gray-400 hover:text-gray-600">
-                <i class="fa fa-shield-alt mr-1 text-xs"></i> Ketentuan Asuransi
-            </button>
+            <div class="flex gap-0">
+                <button type="button" id="editTab1Btn" onclick="switchEditTab(1)"
+                    class="px-4 py-2 text-sm font-semibold rounded-tl-lg border-b-2 border-blue-600 text-blue-600 bg-blue-50/50">
+                    <i class="fa fa-file-alt mr-1 text-xs"></i> Data Kontrak
+                </button>
+                <button type="button" id="editTab2Btn" onclick="switchEditTab(2)"
+                    class="px-4 py-2 text-sm font-semibold rounded-tr-lg border-b-2 border-transparent text-gray-400 hover:text-gray-600">
+                    <i class="fa fa-list-alt mr-1 text-xs"></i> Ketentuan Pasal
+                </button>
+            </div>
+            <button onclick="closeModal('modalEdit')"
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50">&times;</button>
         </div>
 
         <form id="editForm" method="POST" enctype="multipart/form-data">
@@ -815,20 +811,26 @@
 
             {{-- ── TAB 1: Data Kontrak ── --}}
             <div id="editTab1" class="px-6 py-5 space-y-4">
+
+                {{-- No Kontrak --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Kontrak</label>
                     <input type="text" name="no_kontrak" id="edit_no_kontrak"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
+
+                {{-- Penawaran --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Penawaran</label>
                     <select name="penawaran_id" id="edit_penawaran_id"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                         @foreach ($penawarans as $p)
-                        <option value="{{ $p->id }}">{{ $p->no_penawaran }}</option>
+                        <option value="{{ $p->id }}">{{ $p->no_penawaran }} – {{ $p->customer_name ?? $p->kepada }}</option>
                         @endforeach
                     </select>
                 </div>
+
+                {{-- Tanggal --}}
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Kontrak</label>
@@ -841,6 +843,8 @@
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
                 </div>
+
+                {{-- Pihak 1 --}}
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Pertama</label>
@@ -855,20 +859,55 @@
                             placeholder="16 digit No KTP"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
+                </div>
+
+                {{-- Pihak 2 --}}
+                <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Kedua</label>
                         <input type="text" name="pihak_kedua" id="edit_pihak_kedua"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 2</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak Kedua</label>
                         <input type="text" name="contact_kedua" id="edit_contact_kedua"
                             inputmode="numeric" maxlength="15"
                             oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
                             placeholder="08xx-xxxx-xxxx"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
+                        <input type="text" name="no_ktp_kedua" id="edit_no_ktp_kedua"
+                            inputmode="numeric" maxlength="16"
+                            oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
+                            placeholder="16 digit No KTP"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua</label>
+                        <input type="email" name="email_kedua" id="edit_email_kedua"
+                            placeholder="email@example.com"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
+                        <select name="jenis_pelanggan" id="edit_jenis_pelanggan"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            <option value="">-- Pilih --</option>
+                            <option value="perorangan">Perorangan</option>
+                            <option value="perusahaan">Perusahaan</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua</label>
+                        <textarea name="alamat_kedua" id="edit_alamat_kedua" rows="2"
+                            placeholder="Alamat lengkap..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
+                    </div>
                 </div>
+
+                {{-- Status --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                     <select name="status" id="edit_status"
@@ -878,64 +917,25 @@
                         @endforeach
                     </select>
                 </div>
-                <p class="text-xs text-gray-400">File baru akan menggantikan file lama (opsional)</p>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">File Kontrak</label>
-                        <input type="file" name="file_kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+
+                {{-- File upload --}}
+                <div>
+                    <p class="text-xs text-gray-400 mb-2">File baru akan menggantikan file lama (opsional)</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">File Kontrak</label>
+                            <input type="file" name="file_kontrak" accept=".pdf"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">File Persyaratan</label>
+                            <input type="file" name="file_persyaratan" accept=".pdf"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">File Persyaratan</label>
-                        <input type="file" name="file_persyaratan" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                    </div>
                 </div>
-            </div>
-            {{-- Data Customer Pihak Kedua --}}
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
-                    <input type="text" name="no_ktp_kedua" id="edit_no_ktp_kedua"
-                        inputmode="numeric" maxlength="16"
-                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
-                        placeholder="16 digit No KTP"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua</label>
-                    <input type="email" name="email_kedua" id="edit_email_kedua"
-                        placeholder="email@example.com"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
-                    <select name="jenis_pelanggan" id="edit_jenis_pelanggan"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="">-- Pilih --</option>
-                        <option value="perorangan">Perorangan</option>
-                        <option value="perusahaan">Perusahaan</option>
-                    </select>
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua</label>
-                    <textarea name="alamat_kedua" id="edit_alamat_kedua" rows="2"
-                        placeholder="Alamat lengkap..."
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
-                </div>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
-                <select name="status" id="edit_status"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
-                    @foreach(['pending','approved','active','completed','selesai-belum lunas','rejected','expired','terminated'] as $st)
-                    <option value="{{ $st }}">{{ ucfirst($st) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <p class="text-xs text-gray-400">File baru akan menggantikan file lama (opsional)</p>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">File Kontrak</label>
-                    <input type="file" name="file_kontrak" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+
+            </div>{{-- end Tab 1 --}}
 
             {{-- ── TAB 2: Ketentuan Pasal ── --}}
             <div id="editTab2" class="hidden px-6 py-5 space-y-3">
@@ -953,27 +953,29 @@
                     </div>
                 </div>
 
-                {{-- Container pasal --}}
                 <div id="editPasalContainer" class="space-y-3 max-h-[55vh] overflow-y-auto pr-1"></div>
 
-                {{-- Tombol tambah pasal --}}
                 <button type="button" onclick="addPasalBlock('edit')"
                     class="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold
                            text-indigo-600 border-2 border-dashed border-indigo-200 bg-indigo-50/50
                            hover:bg-indigo-100 hover:border-indigo-400 px-4 py-3 rounded-xl transition-colors">
                     <i class="fa fa-plus-circle text-sm"></i> Tambah Pasal Baru
                 </button>
-            </div>
 
-            {{-- Footer tombol --}}
-            <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+            </div>{{-- end Tab 2 --}}
+
+            {{-- Footer --}}
+            <div class="flex justify-between gap-2 px-6 py-4 border-t border-gray-100">
                 <button type="button" onclick="closeModal('modalEdit')"
-                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Batal</button>
+                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                    Batal
+                </button>
                 <button type="submit"
                     class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
                     <i class="fa fa-save text-xs"></i> Update
                 </button>
             </div>
+
         </form>
     </div>
 </div>
@@ -1385,23 +1387,23 @@
                             <label class="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">
                                 <i class="fa fa-language mr-1"></i>Judul ID
                             </label>
-                            <input type="text"
+                            <textarea
                                 name="pasal[${pIdx}][judul_id]"
-                                value="${escHtml(judulId)}"
-                                placeholder="cth: PASAL 2 / MASA SEWA"
+                                rows="2"
+                                placeholder="cth: PASAL 2&#10;MASA SEWA"
                                 class="w-full border border-blue-200 rounded-lg px-2.5 py-1.5 text-xs bg-white font-bold uppercase
-                                       focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400">
+                                       focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 resize-none">${escHtml(judulId)}</textarea>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-green-600 uppercase tracking-wider mb-1">
                                 <i class="fa fa-globe mr-1"></i>Judul EN
                             </label>
-                            <input type="text"
+                            <textarea
                                 name="pasal[${pIdx}][judul_en]"
-                                value="${escHtml(judulEn)}"
-                                placeholder="cth: ARTICLE 2 / RENTAL PERIOD"
+                                rows="2"
+                                placeholder="cth: ARTICLE 2&#10;RENTAL PERIOD"
                                 class="w-full border border-green-200 rounded-lg px-2.5 py-1.5 text-xs bg-white font-bold uppercase
-                                       focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400">
+                                       focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400 resize-none">${escHtml(judulEn)}</textarea>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
@@ -1544,16 +1546,17 @@
         const t2 = document.getElementById('editTab2');
         const b1 = document.getElementById('editTab1Btn');
         const b2 = document.getElementById('editTab2Btn');
-        const activeClass   = ['text-blue-600','border-blue-300','bg-blue-50','border'];
-        const inactiveClass = ['text-gray-400','hover:text-gray-600'];
+
         if (tab === 1) {
-            t1.classList.remove('hidden'); t2.classList.add('hidden');
-            b1.classList.add(...activeClass); b1.classList.remove(...inactiveClass);
-            b2.classList.remove(...activeClass); b2.classList.add(...inactiveClass);
+            t1.classList.remove('hidden');
+            t2.classList.add('hidden');
+            b1.className = 'px-4 py-2 text-sm font-semibold rounded-tl-lg border-b-2 border-blue-600 text-blue-600 bg-blue-50/50';
+            b2.className = 'px-4 py-2 text-sm font-semibold rounded-tr-lg border-b-2 border-transparent text-gray-400 hover:text-gray-600';
         } else {
-            t2.classList.remove('hidden'); t1.classList.add('hidden');
-            b2.classList.add(...activeClass); b2.classList.remove(...inactiveClass);
-            b1.classList.remove(...activeClass); b1.classList.add(...inactiveClass);
+            t2.classList.remove('hidden');
+            t1.classList.add('hidden');
+            b2.className = 'px-4 py-2 text-sm font-semibold rounded-tr-lg border-b-2 border-blue-600 text-blue-600 bg-blue-50/50';
+            b1.className = 'px-4 py-2 text-sm font-semibold rounded-tl-lg border-b-2 border-transparent text-gray-400 hover:text-gray-600';
         }
     }
 

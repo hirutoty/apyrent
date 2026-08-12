@@ -176,24 +176,48 @@ body {
 </table>
 
 {{-- ── KETENTUAN ── --}}
+@php
+    // Default ketentuan jika belum ada yang disimpan di database
+    $defaultKetentuan = [
+        ['teks' => 'Harga sewa termasuk PPN 11%, diluar BBM, Tol dan Parkir', 'sub' => []],
+        ['teks' => 'TOP (Term of payment) min. 2 minggu setelah pengiriman kendaraan dan invoice diterima', 'sub' => []],
+        ['teks' => 'Pembatalan kontrak di kenakan penalty sebesar 25% dari sisa nilai kontrak sewa kendaraan', 'sub' => []],
+        ['teks' => 'Klaim own risk untuk kerusakan kendaraan sebesar Rp. 350.000,- / kejadian', 'sub' => []],
+        ['teks' => 'Klaim own risk untuk kehilangan kendaraan sebesar 10% dari nilai pertanggungan', 'sub' => []],
+        ['teks' => 'Harga penawaran ini berlaku selama 2 (dua) minggu sejak tanggal penawaran', 'sub' => []],
+        ['teks' => 'Pengiriman Kendaraan 4 (Empat) minggu setelah PO / SPK diterima', 'sub' => []],
+        ['teks' => 'Harga sudah termasuk :', 'sub' => [
+            'Perawatan kendaraan (Maintenance, Sparepart, & Penggantian ban bisa dilakukan di tahun ke-3)',
+            'Asuransi All Risk (TJH max. 10 jt)',
+            'Kendaraan pengganti sementara',
+            'Perpanjangan STNK dan KIR',
+        ]],
+    ];
+
+    $ketentuanList = (!empty($penawaran->ketentuan) && is_array($penawaran->ketentuan))
+        ? $penawaran->ketentuan
+        : $defaultKetentuan;
+@endphp
+
 <div class="ketentuan">
     <p>Ketentuan:</p>
     <ul>
-        <li>Harga sewa termasuk PPN 11%, diluar BBM, Tol dan Parkir</li>
-        <li>TOP (Term of payment) min. 2 minggu setelah pengiriman kendaraan dan invoice diterima</li>
-        <li>Pembatalan kontrak di kenakan penalty sebesar 25% dari sisa nilai kontrak sewa kendaraan</li>
-        <li>Klaim own risk untuk kerusakan kendaraan sebesar Rp. 350.000,- / kejadian</li>
-        <li>Klaim own risk untuk kehilangan kendaraan sebesar 10% dari nilai pertanggungan</li>
-        <li>Harga penawaran ini berlaku selama 2 (dua) minggu sejak tanggal penawaran</li>
-        <li>Pengiriman Kendaraan 4 (Empat) minggu setelah PO / SPK diterima</li>
-        <li>Harga sudah termasuk :
-            <ol>
-                <li>Perawatan kendaraan (Maintenance, Sparepart, &amp; Penggantian ban bisa dilakukan di tahun ke-3)</li>
-                <li>Asuransi All Risk (TJH max. 10 jt)</li>
-                <li>Kendaraan pengganti sementara</li>
-                <li>Perpanjangan STNK dan KIR</li>
-            </ol>
-        </li>
+        @foreach($ketentuanList as $item)
+            @php
+                $teks = is_array($item) ? ($item['teks'] ?? '') : $item;
+                $sub  = is_array($item) ? ($item['sub'] ?? []) : [];
+            @endphp
+            <li>
+                {{ $teks }}
+                @if(!empty($sub))
+                    <ol>
+                        @foreach($sub as $subItem)
+                            <li>{{ $subItem }}</li>
+                        @endforeach
+                    </ol>
+                @endif
+            </li>
+        @endforeach
     </ul>
     <p>Persyaratan untuk Perusahaan :</p>
     <p>PO (Purchase Order) / SPK &nbsp;&bull;&nbsp; Fc NIB, NPWP, SIUP, TDP &amp; Akta &nbsp;&bull;&nbsp; Fc, KTP dan SIM penandatanganan kontrak</p>
