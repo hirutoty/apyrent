@@ -2,39 +2,59 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\DataKontrakFullExport;
 use App\Http\Controllers\Controller;
 use App\Models\Attachment;
 use App\Models\DataKontrak;
 use App\Models\Kendaraan;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DataKontrakController extends Controller
 {
     /* ─────────────────────────────────────────────
        INDEX
     ───────────────────────────────────────────── */
-    public function index()
+    public function index(Request $request)
     {
-        $kontraks   = DataKontrak::with(['kendaraan', 'attachments'])
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
+        $query = DataKontrak::with(['kendaraan', 'attachments'])->latest();
 
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('serial_number', 'like', "%{$s}%")
+                  ->orWhere('no_kontrak',   'like', "%{$s}%")
+                  ->orWhere('mobil',        'like', "%{$s}%")
+                  ->orWhere('nopol',        'like', "%{$s}%")
+                  ->orWhere('user_kontrak', 'like', "%{$s}%");
+            });
+        }
+
+        $kontraks   = $query->paginate(15, ['*'], 'kontrak_page')->withQueryString();
         $kendaraans = Kendaraan::orderBy('merk')->get();
 
         return view('admin.data_leasing.index', compact('kontraks', 'kendaraans'));
     }
 
     /* ─────────────────────────────────────────────
-       GENERATE NO KONTRAK (AJAX)
-       Format: KTR-YYYYMM-XXXX
+       EXPORT — Download Data Kontrak Lengkap
+    ───────────────────────────────────────────── */
+    public function exportKontrak()
+    {
+        $filename = 'data-kontrak-' . now()->format('Y-m-d_His') . '.xlsx';
+
+        return Excel::download(new DataKontrakFullExport(), $filename);
+    }
+
+    /* ─────────────────────────────────────────────
+       GENERATE SERIAL NUMBER (AJAX)
+       Format: KTR-YYYYMM-XXXX  →  ke kolom serial_number
     ───────────────────────────────────────────── */
     public function generateNoKontrak()
     {
-        $no = $this->buatNoKontrak();
-
-        return response()->json(['no_kontrak' => $no]);
+        return response()->json([
+            'serial_number' => $this->buatSerialNumber(),
+        ]);
     }
 
     /* ─────────────────────────────────────────────
@@ -57,6 +77,7 @@ class DataKontrakController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'no_kontrak'         => 'required|string|max:255|unique:data_kontraks,no_kontrak',
             'kendaraan_id'       => 'nullable|exists:kendaraan,id',
             'mobil'              => 'nullable|string|max:500',
             'nopol'              => 'nullable|string|max:255',
@@ -69,29 +90,47 @@ class DataKontrakController extends Controller
             'personal_account'   => 'nullable|string|max:255',
             'sumber_dana_debit'  => 'nullable|string|max:255',
             'cara_bayar'         => 'nullable|string|max:255',
-            'nama_asuransi'      => 'nullable|string|max:255',
+            'nama_asuransi'      => 'required|string|max:255',
             'alamat_asuransi'    => 'nullable|string|max:1000',
             'nama_marketing'     => 'nullable|string|max:255',
             'kontak_marketing'   => 'nullable|string|max:50',
             'nama_bengkel'       => 'nullable|string|max:255',
             'kontak_bengkel'     => 'nullable|string|max:50',
-            'bukti'              => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'bukti'              => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'attachments.*'      => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ], [
+            'no_kontrak.required'    => 'Nomor kontrak wajib diisi.',
+            'no_kontrak.unique'      => 'Nomor kontrak sudah ada, gunakan nomor yang berbeda.',
+            'nama_asuransi.required' => 'Nama asuransi wajib diisi.',
+            'bukti.required'         => 'File bukti wajib diupload.',
+            'bukti.mimes'            => 'Bukti harus berformat JPG, PNG, atau PDF.',
+            'bukti.max'              => 'Ukuran bukti maksimal 5MB.',
         ]);
 
-        // Generate no kontrak (ambil dari request — sudah di-generate saat modal dibuka)
-        $noKontrak = $request->no_kontrak ?: $this->buatNoKontrak();
+        // Serial number selalu auto-generate
+        $serialNumber = $this->buatSerialNumber();
 
-        // Handle bukti (single file)
+        // No kontrak dari input manual — sudah divalidasi required + unique
+        $noKontrak = $request->no_kontrak;
+
+        // Pastikan folder ada
+        if (!is_dir(public_path('uploads/data-kontrak'))) {
+            mkdir(public_path('uploads/data-kontrak'), 0777, true);
+        }
+
+        // Handle bukti (single file) — metadata diambil SEBELUM move()
         $buktiPath = null;
         if ($request->hasFile('bukti')) {
-            $file      = $request->file('bukti');
-            $filename  = time() . '_' . $file->getClientOriginalName();
+            $file         = $request->file('bukti');
+            $originalName = $file->getClientOriginalName();
+            $ext          = $file->getClientOriginalExtension();
+            $filename     = time() . '_' . uniqid() . '.' . $ext;
             $file->move(public_path('uploads/data-kontrak'), $filename);
             $buktiPath = 'uploads/data-kontrak/' . $filename;
         }
 
         $kontrak = DataKontrak::create([
+            'serial_number'      => $serialNumber,
             'no_kontrak'         => $noKontrak,
             'kendaraan_id'       => $request->kendaraan_id ?: null,
             'mobil'              => $request->mobil,
@@ -114,25 +153,28 @@ class DataKontrakController extends Controller
             'bukti'              => $buktiPath,
         ]);
 
-        // Handle attachments (multiple)
+        // Handle attachments (multiple) — metadata diambil SEBELUM move()
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
-                $filename = time() . '_' . $file->getClientOriginalName();
+                $originalName = $file->getClientOriginalName();
+                $mimeType     = $file->getMimeType();
+                $fileSize     = $file->getSize();
+                $filename     = time() . '_' . $originalName;
                 $file->move(public_path('uploads/data-kontrak'), $filename);
 
                 Attachment::create([
                     'relation_type' => 'data_kontrak',
                     'relation_id'   => $kontrak->id,
-                    'file_name'     => $file->getClientOriginalName(),
+                    'file_name'     => $originalName,
                     'file_path'     => 'uploads/data-kontrak/' . $filename,
-                    'file_type'     => $file->getMimeType(),
-                    'file_size'     => $file->getSize(),
+                    'file_type'     => $mimeType,
+                    'file_size'     => $fileSize,
                 ]);
             }
         }
 
         return redirect()->route('data-leasing.index', ['tab' => 'kontrak'])
-            ->with('success', 'Data Kontrak berhasil ditambahkan. No: ' . $noKontrak);
+            ->with('success', 'Data Kontrak berhasil ditambahkan. Serial: ' . $serialNumber);
     }
 
     /* ─────────────────────────────────────────────
@@ -143,6 +185,7 @@ class DataKontrakController extends Controller
         $kontrak = DataKontrak::findOrFail($id);
 
         $request->validate([
+            'no_kontrak'         => 'required|string|max:255|unique:data_kontraks,no_kontrak,' . $id,
             'kendaraan_id'       => 'nullable|exists:kendaraan,id',
             'mobil'              => 'nullable|string|max:500',
             'nopol'              => 'nullable|string|max:255',
@@ -163,22 +206,30 @@ class DataKontrakController extends Controller
             'kontak_bengkel'     => 'nullable|string|max:50',
             'bukti'              => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'attachments.*'      => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ], [
+            'no_kontrak.required' => 'Nomor kontrak wajib diisi.',
+            'no_kontrak.unique'   => 'Nomor kontrak sudah ada, gunakan nomor yang berbeda.',
         ]);
 
-        // Handle bukti baru
+        if (!is_dir(public_path('uploads/data-kontrak'))) {
+            mkdir(public_path('uploads/data-kontrak'), 0777, true);
+        }
+
+        // Handle bukti baru — metadata diambil SEBELUM move()
         $buktiPath = $kontrak->bukti;
         if ($request->hasFile('bukti')) {
-            // Hapus file lama
             if ($buktiPath && file_exists(public_path($buktiPath))) {
                 unlink(public_path($buktiPath));
             }
             $file      = $request->file('bukti');
-            $filename  = time() . '_' . $file->getClientOriginalName();
+            $ext       = $file->getClientOriginalExtension();
+            $filename  = time() . '_' . uniqid() . '.' . $ext;
             $file->move(public_path('uploads/data-kontrak'), $filename);
             $buktiPath = 'uploads/data-kontrak/' . $filename;
         }
 
         $kontrak->update([
+            'no_kontrak'         => $request->no_kontrak ?: null,
             'kendaraan_id'       => $request->kendaraan_id ?: null,
             'mobil'              => $request->mobil,
             'nopol'              => $request->nopol,
@@ -203,16 +254,19 @@ class DataKontrakController extends Controller
         // Handle attachments baru
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
-                $filename = time() . '_' . $file->getClientOriginalName();
+                $originalName = $file->getClientOriginalName();
+                $mimeType     = $file->getMimeType();
+                $fileSize     = $file->getSize();
+                $filename     = time() . '_' . $originalName;
                 $file->move(public_path('uploads/data-kontrak'), $filename);
 
                 Attachment::create([
                     'relation_type' => 'data_kontrak',
                     'relation_id'   => $kontrak->id,
-                    'file_name'     => $file->getClientOriginalName(),
+                    'file_name'     => $originalName,
                     'file_path'     => 'uploads/data-kontrak/' . $filename,
-                    'file_type'     => $file->getMimeType(),
-                    'file_size'     => $file->getSize(),
+                    'file_type'     => $mimeType,
+                    'file_size'     => $fileSize,
                 ]);
             }
         }
@@ -226,8 +280,7 @@ class DataKontrakController extends Controller
     ───────────────────────────────────────────── */
     public function destroyAttachment($id)
     {
-        $attachment = Attachment::where('relation_type', 'data_kontrak')
-            ->findOrFail($id);
+        $attachment = Attachment::where('relation_type', 'data_kontrak')->findOrFail($id);
 
         if ($attachment->file_path && file_exists(public_path($attachment->file_path))) {
             unlink(public_path($attachment->file_path));
@@ -245,7 +298,6 @@ class DataKontrakController extends Controller
     {
         $kontrak = DataKontrak::with('attachments')->findOrFail($id);
 
-        // Hapus semua attachment
         foreach ($kontrak->attachments as $att) {
             if ($att->file_path && file_exists(public_path($att->file_path))) {
                 unlink(public_path($att->file_path));
@@ -253,7 +305,6 @@ class DataKontrakController extends Controller
             $att->delete();
         }
 
-        // Hapus bukti single
         if ($kontrak->bukti && file_exists(public_path($kontrak->bukti))) {
             unlink(public_path($kontrak->bukti));
         }
@@ -265,17 +316,18 @@ class DataKontrakController extends Controller
     }
 
     /* ─────────────────────────────────────────────
-       PRIVATE — Generate No Kontrak
+       PRIVATE — Generate Serial Number
+       Format: KTR-YYYYMM-XXXX
     ───────────────────────────────────────────── */
-    private function buatNoKontrak(): string
+    private function buatSerialNumber(): string
     {
         $prefix = 'KTR-' . now()->format('Ym');
-        $last   = DataKontrak::where('no_kontrak', 'like', $prefix . '-%')
-            ->orderByRaw('CAST(RIGHT(no_kontrak, 4) AS UNSIGNED) DESC')
+        $last   = DataKontrak::where('serial_number', 'like', $prefix . '-%')
+            ->orderByRaw('CAST(RIGHT(serial_number, 4) AS UNSIGNED) DESC')
             ->first();
 
-        $nextNumber = $last ? (int) substr($last->no_kontrak, -4) + 1 : 1;
+        $next = $last ? (int) substr($last->serial_number, -4) + 1 : 1;
 
-        return $prefix . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        return $prefix . '-' . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 }

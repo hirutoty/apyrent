@@ -13,6 +13,7 @@ class DataKontrak extends Model
     protected $table = 'data_kontraks';
 
     protected $fillable = [
+        'serial_number',
         'no_kontrak',
         'kendaraan_id',
         'mobil',

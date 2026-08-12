@@ -162,9 +162,17 @@
                                                     <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
 
                                                     @if ($p->sisaHari == 0)
-                                                        Berakhir Hari Ini
+                                                        @if ($p->sisaJam <= 0)
+                                                            Berakhir Hari Ini
+                                                        @else
+                                                            Berakhir dalam {{ $p->sisaJam }} jam
+                                                        @endif
                                                     @elseif ($p->sisaHari == 1)
-                                                        Berakhir Besok
+                                                        @if ($p->periode_satuan === 'hari')
+                                                            Berakhir dalam {{ $p->sisaJam }} jam
+                                                        @else
+                                                            Berakhir Besok
+                                                        @endif
                                                     @else
                                                         Berakhir dalam {{ $p->sisaHari }} hari
                                                     @endif
@@ -401,6 +409,42 @@
                             value="0">
                     </div>
 
+                    <hr class="my-6">
+
+                    {{-- ── KETENTUAN EDITOR (TAMBAH) ── --}}
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-bold text-gray-700">Ketentuan</h4>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="resetKetentuanTambah()"
+                                    class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-50">
+                                    <i class="fa fa-rotate-left"></i> Reset Default
+                                </button>
+                                <button type="button" onclick="tambahBarisKetentuan('tambahKetentuanBody')"
+                                    class="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">
+                                    <i class="fa fa-plus"></i> Tambah Baris
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-400 mb-2">
+                            <i class="fa fa-info-circle"></i>
+                            Sub-item: tulis satu per baris di kolom "Sub-item (opsional)". Kosongkan jika tidak ada.
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full border text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="border p-2 w-8 text-center text-xs">#</th>
+                                        <th class="border p-2 text-left text-xs">Teks Ketentuan</th>
+                                        <th class="border p-2 text-left text-xs w-64">Sub-item (opsional, 1 per baris)</th>
+                                        <th class="border p-2 w-16 text-center text-xs">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tambahKetentuanBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
                 </div>
 
                 <div class="border-t px-6 py-4 flex justify-end gap-2">
@@ -536,6 +580,42 @@
                     <div class="mt-5 text-right">
                         <label class="font-semibold">Total</label>
                         <input id="editGrandTotal" readonly class="border rounded-lg p-2 w-64 text-right font-bold">
+                    </div>
+
+                    <hr class="my-6">
+
+                    {{-- ── KETENTUAN EDITOR (EDIT) ── --}}
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-bold text-gray-700">Ketentuan</h4>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="resetKetentuanEdit()"
+                                    class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-50">
+                                    <i class="fa fa-rotate-left"></i> Reset Default
+                                </button>
+                                <button type="button" onclick="tambahBarisKetentuan('editKetentuanBody')"
+                                    class="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">
+                                    <i class="fa fa-plus"></i> Tambah Baris
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-400 mb-2">
+                            <i class="fa fa-info-circle"></i>
+                            Sub-item: tulis satu per baris di kolom "Sub-item (opsional)". Kosongkan jika tidak ada.
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full border text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="border p-2 w-8 text-center text-xs">#</th>
+                                        <th class="border p-2 text-left text-xs">Teks Ketentuan</th>
+                                        <th class="border p-2 text-left text-xs w-64">Sub-item (opsional, 1 per baris)</th>
+                                        <th class="border p-2 w-16 text-center text-xs">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="editKetentuanBody"></tbody>
+                            </table>
+                        </div>
                     </div>
 
                 </div>
@@ -743,6 +823,109 @@
     @push('scripts')
         <script>
 
+            // ========================= KETENTUAN HELPERS (harus di atas) =========================
+            const DEFAULT_KETENTUAN = [
+                { teks: 'Harga sewa termasuk PPN 11%, diluar BBM, Tol dan Parkir', sub: [] },
+                { teks: 'TOP (Term of payment) min. 2 minggu setelah pengiriman kendaraan dan invoice diterima', sub: [] },
+                { teks: 'Pembatalan kontrak di kenakan penalty sebesar 25% dari sisa nilai kontrak sewa kendaraan', sub: [] },
+                { teks: 'Klaim own risk untuk kerusakan kendaraan sebesar Rp. 350.000,- / kejadian', sub: [] },
+                { teks: 'Klaim own risk untuk kehilangan kendaraan sebesar 10% dari nilai pertanggungan', sub: [] },
+                { teks: 'Harga penawaran ini berlaku selama 2 (dua) minggu sejak tanggal penawaran', sub: [] },
+                { teks: 'Pengiriman Kendaraan 4 (Empat) minggu setelah PO / SPK diterima', sub: [] },
+                { teks: 'Harga sudah termasuk :', sub: [
+                    'Perawatan kendaraan (Maintenance, Sparepart, & Penggantian ban bisa dilakukan di tahun ke-3)',
+                    'Asuransi All Risk (TJH max. 10 jt)',
+                    'Kendaraan pengganti sementara',
+                    'Perpanjangan STNK dan KIR',
+                ]},
+            ];
+
+            function escHtml(str) {
+                return String(str ?? '')
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+
+            function buatBarisKetentuan(no, teks = '', sub = '') {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="border p-1.5 text-center text-xs text-gray-400 align-top no-col">${no}</td>
+                    <td class="border p-1.5 align-top">
+                        <textarea name="ketentuan_teks[]" rows="2"
+                            class="w-full border rounded p-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-300 resize-y"
+                            placeholder="Teks ketentuan...">${escHtml(teks)}</textarea>
+                    </td>
+                    <td class="border p-1.5 align-top">
+                        <textarea name="ketentuan_sub[]" rows="2"
+                            class="w-full border rounded p-1.5 text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-300 resize-y"
+                            placeholder="Sub-item 1&#10;Sub-item 2&#10;...">${escHtml(sub)}</textarea>
+                    </td>
+                    <td class="border p-1.5 text-center align-top">
+                        <div class="flex flex-col gap-1 items-center">
+                            <button type="button" onclick="moveKetentuan(this, -1)"
+                                class="w-7 h-7 flex items-center justify-center rounded border border-gray-200 hover:bg-gray-100 text-gray-500 text-xs" title="Naik">
+                                <i class="fa fa-chevron-up"></i>
+                            </button>
+                            <button type="button" onclick="moveKetentuan(this, 1)"
+                                class="w-7 h-7 flex items-center justify-center rounded border border-gray-200 hover:bg-gray-100 text-gray-500 text-xs" title="Turun">
+                                <i class="fa fa-chevron-down"></i>
+                            </button>
+                            <button type="button" onclick="hapusBarisKetentuan(this)"
+                                class="w-7 h-7 flex items-center justify-center rounded bg-red-100 hover:bg-red-200 text-red-600 text-xs" title="Hapus">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>`;
+                return tr;
+            }
+
+            function renderKetentuan(tbodyId, items) {
+                const tbody = document.getElementById(tbodyId);
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                items.forEach((item, i) => {
+                    const teks = (typeof item === 'string') ? item : (item.teks ?? '');
+                    const sub  = (typeof item === 'string') ? [] : (item.sub ?? []);
+                    tbody.appendChild(buatBarisKetentuan(i + 1, teks, sub.join('\n')));
+                });
+            }
+
+            function tambahBarisKetentuan(tbodyId) {
+                const tbody = document.getElementById(tbodyId);
+                tbody.appendChild(buatBarisKetentuan(tbody.rows.length + 1));
+                tbody.lastElementChild.querySelector('textarea').focus();
+            }
+
+            function hapusBarisKetentuan(btn) {
+                const tr    = btn.closest('tr');
+                const tbody = tr.parentElement;
+                tr.remove();
+                renumberKetentuan(tbody.id);
+            }
+
+            function moveKetentuan(btn, dir) {
+                const tr    = btn.closest('tr');
+                const tbody = tr.parentElement;
+                const rows  = Array.from(tbody.rows);
+                const idx   = rows.indexOf(tr);
+                const target = rows[idx + dir];
+                if (!target) return;
+                if (dir === -1) tbody.insertBefore(tr, target);
+                else tbody.insertBefore(target, tr);
+                renumberKetentuan(tbody.id);
+            }
+
+            function renumberKetentuan(tbodyId) {
+                document.querySelectorAll('#' + tbodyId + ' tr').forEach((tr, i) => {
+                    const c = tr.querySelector('.no-col');
+                    if (c) c.textContent = i + 1;
+                });
+            }
+
+            function resetKetentuanTambah() { renderKetentuan('tambahKetentuanBody', DEFAULT_KETENTUAN); }
+            function resetKetentuanEdit()   { renderKetentuan('editKetentuanBody',   DEFAULT_KETENTUAN); }
+            // ========================= END KETENTUAN HELPERS =========================
+
             function toggleColDropdown() {
         document.getElementById('colDropdown').classList.toggle('hidden');
     }
@@ -902,6 +1085,11 @@
             document.getElementById('btnTambah').onclick = () => {
                 modalTambah.classList.remove('hidden');
                 modalTambah.classList.add('flex');
+                // Init ketentuan default jika belum ada baris
+                const kBody = document.getElementById('tambahKetentuanBody');
+                if (kBody && kBody.rows.length === 0) {
+                    renderKetentuan('tambahKetentuanBody', DEFAULT_KETENTUAN);
+                }
             };
 
             function closeTambah() {
@@ -1040,6 +1228,12 @@
                             document.getElementById('edit_periode_satuan').value = data.periode_satuan ?? 'bulan';
 
                             loadEditItems(data.items ?? []);
+
+                            // Load ketentuan — pakai default jika kosong di DB
+                            const ketentuanData = (data.ketentuan && data.ketentuan.length)
+                                ? data.ketentuan
+                                : DEFAULT_KETENTUAN;
+                            renderKetentuan('editKetentuanBody', ketentuanData);
                         })
                         .catch(err => console.error('Gagal fetch data:', err));
                 });
@@ -1228,6 +1422,7 @@
 
         // Autosuggest customer diaktifkan di modal approve kontrak
     </script>
+
     @endpush
 
 {{-- ========================= MODAL APPROVE ========================= --}}

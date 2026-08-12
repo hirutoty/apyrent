@@ -618,6 +618,12 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   // ── DATA LEASING ────────────────────────────────────────────────────
   Route::get('/data-leasing/template', [DataLeasingController::class, 'exportTemplate'])
     ->name('data-leasing.template');
+  Route::get('/data-leasing/export', [DataLeasingController::class, 'exportData'])
+    ->name('data-leasing.export');
+  Route::get('/data-leasing/export-full', [DataLeasingController::class, 'exportLeasing'])
+    ->name('data-leasing.export-full');
+  Route::get('/data-kontrak/export-full', [DataKontrakController::class, 'exportKontrak'])
+    ->name('data-kontrak.export-full');
   Route::post('/data-leasing/import', [DataLeasingController::class, 'import'])
     ->name('data-leasing.import');
   Route::get('/data-leasing/data-kontrak/{id}/detail', [DataLeasingController::class, 'getDataKontrakDetail'])

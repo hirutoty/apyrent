@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exports\DataLeasingExport;
+use App\Exports\DataLeasingFullExport;
 use App\Http\Controllers\Controller;
 use App\Imports\DataLeasingImport;
 use App\Models\DataKontrak;
@@ -16,24 +17,57 @@ class DataLeasingController extends Controller
     /* ─────────────────────────────────────────────
        INDEX
     ───────────────────────────────────────────── */
-    public function index()
+    public function index(Request $request)
     {
-        $leasings = DataLeasing::with('dataKontrak')
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
+        // ── Data Leasing ──────────────────────────────────────────
+        $leasingQuery = DataLeasing::with('dataKontrak')->latest();
 
-        $dataKontraks = DataKontrak::with('kendaraan')
-            ->latest()
-            ->get();
+        if ($request->filled('leasing_search')) {
+            $s = $request->leasing_search;
+            $leasingQuery->where(function ($q) use ($s) {
+                $q->where('no_kontrak',  'like', "%{$s}%")
+                  ->orWhere('mobil',      'like', "%{$s}%")
+                  ->orWhere('nopol',      'like', "%{$s}%")
+                  ->orWhere('user_leasing','like', "%{$s}%");
+            });
+        }
 
-        $kendaraans = Kendaraan::orderBy('merk')->get();
+        // Filter status cicilan berdasarkan tanggal (DB-level)
+        if ($request->filled('leasing_status')) {
+            $now = now()->startOfMonth()->toDateString();
+            if ($request->leasing_status === 'Lunas') {
+                // periode_selesai sudah lewat dan sudah mulai
+                $leasingQuery->whereNotNull('periode_mulai')
+                             ->whereNotNull('periode_selesai')
+                             ->where('periode_mulai', '<=', $now)
+                             ->where('periode_selesai', '<=', $now);
+            } elseif ($request->leasing_status === 'Partial') {
+                // sudah mulai, belum selesai
+                $leasingQuery->whereNotNull('periode_mulai')
+                             ->whereNotNull('periode_selesai')
+                             ->where('periode_mulai', '<=', $now)
+                             ->where('periode_selesai', '>', $now);
+            }
+        }
 
-        // Data kontrak untuk tab Data Kontrak (paginated)
-        $kontraks = DataKontrak::with(['kendaraan', 'attachments'])
-            ->latest()
-            ->paginate(15, ['*'], 'kontrak_page')
-            ->withQueryString();
+        $leasings = $leasingQuery->paginate(15, ['*'], 'leasing_page')->withQueryString();
+        // ── Data Kontrak ──────────────────────────────────────────
+        $dataKontraks = DataKontrak::with('kendaraan')->latest()->get();
+        $kendaraans   = Kendaraan::orderBy('merk')->get();
+
+        $kontrakQuery = DataKontrak::with(['kendaraan', 'attachments'])->latest();
+
+        if ($request->filled('kontrak_search')) {
+            $s = $request->kontrak_search;
+            $kontrakQuery->where(function ($q) use ($s) {
+                $q->where('no_kontrak',   'like', "%{$s}%")
+                  ->orWhere('mobil',       'like', "%{$s}%")
+                  ->orWhere('nopol',       'like', "%{$s}%")
+                  ->orWhere('user_kontrak','like', "%{$s}%");
+            });
+        }
+
+        $kontraks = $kontrakQuery->paginate(15, ['*'], 'kontrak_page')->withQueryString();
 
         return view('admin.data_leasing.index', compact(
             'leasings',
@@ -90,6 +124,15 @@ class DataLeasingController extends Controller
             'cara_bayar'         => 'nullable|string|max:255',
             'asuransi_leasing'   => 'nullable|string|max:255',
         ]);
+
+        // Cek duplikat: no_kontrak sudah ada di data_leasings
+        if ($request->filled('no_kontrak')) {
+            $exists = DataLeasing::where('no_kontrak', $request->no_kontrak)->exists();
+            if ($exists) {
+                return redirect()->route('data-leasing.index', ['tab' => 'leasing'])
+                    ->with('error', 'Data sudah ada — Nomor Kontrak "' . $request->no_kontrak . '" sudah terdaftar di Data Leasing.');
+            }
+        }
 
         DataLeasing::create([
             'data_kontrak_id'    => $request->data_kontrak_id ?: null,
@@ -158,6 +201,16 @@ class DataLeasingController extends Controller
     }
 
     /* ─────────────────────────────────────────────
+       EXPORT — Download Data Leasing Lengkap
+    ───────────────────────────────────────────── */
+    public function exportLeasing()
+    {
+        $filename = 'data-leasing-' . now()->format('Y-m-d_His') . '.xlsx';
+
+        return Excel::download(new DataLeasingFullExport(), $filename);
+    }
+
+    /* ─────────────────────────────────────────────
        EXPORT — Download Template Excel
     ───────────────────────────────────────────── */
     public function exportTemplate()
@@ -165,6 +218,17 @@ class DataLeasingController extends Controller
         return Excel::download(
             new DataLeasingExport(),
             'template-data-leasing.xlsx'
+        );
+    }
+
+    /* ─────────────────────────────────────────────
+       EXPORT DATA — Download Data Aktual Excel
+    ───────────────────────────────────────────── */
+    public function exportData()
+    {
+        return Excel::download(
+            new \App\Exports\DataLeasingDataExport(),
+            'data-leasing-' . now()->format('Y-m-d') . '.xlsx'
         );
     }
 

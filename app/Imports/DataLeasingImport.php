@@ -19,32 +19,11 @@ class DataLeasingImport implements
 {
     use SkipsErrors, SkipsFailures;
 
-    /** Baris yang berhasil diimport */
+    /** Baris yang berhasil diimport / diupdate */
     public int $importedCount = 0;
 
     /** Baris yang di-skip beserta alasannya */
     public array $skippedRows = [];
-
-    /**
-     * Counter no_kontrak — dimulai dari nomor terakhir di data_leasings + 1
-     * Format: LS-YYYYMM-XXXX (khusus leasing, beda prefix dari KTR)
-     */
-    private ?int $nextNumber = null;
-    private string $prefix;
-
-    public function __construct()
-    {
-        $this->prefix = 'LS-' . now()->format('Ym');
-
-        // Ambil nomor terakhir dari data_leasings untuk prefix bulan ini
-        $last = DataLeasing::where('no_kontrak', 'like', $this->prefix . '-%')
-            ->orderByRaw('CAST(RIGHT(no_kontrak, 4) AS UNSIGNED) DESC')
-            ->first();
-
-        $this->nextNumber = $last
-            ? (int) substr($last->no_kontrak, -4) + 1
-            : 1;
-    }
 
     public function model(array $row): ?DataLeasing
     {
@@ -55,76 +34,149 @@ class DataLeasingImport implements
             return null;
         }
 
-        // ── Validasi per baris ─────────────────────────────────────────
+        // ── Resolve field dari dua versi template ─────────────────────
+        //
+        // Template v2 (baru) — header human-readable, Maatwebsite slug-kan:
+        //   "No Kontrak"            → no_kontrak         ✅ sama
+        //   "Mobil / Merk"          → mobil_merk         ← baru
+        //   "Angsuran / Bulan (Rp)" → angsuran_bulan_rp  ← baru
+        //   "User Leasing"          → user_leasing       ✅ sama
+        //   "Asuransi Leasing"      → asuransi_leasing   ✅ sama
+        //   kolom auto (No, Cicilan, Total, Sisa, Status,
+        //   Serial Kontrak, Dibuat Pada) → diabaikan
+        //
+        // Template v1 (lama) — header snake_case langsung:
+        //   "mobil" → mobil, "angsuran_per_bulan" → angsuran_per_bulan
+        //
+        // Fallback: v2 key → v1 key → kosong
 
+        $noKontrakInput = trim($row['no_kontrak'] ?? '');
+        $mobil          = trim($row['mobil_merk']       ?? $row['mobil']              ?? '');
+        $angsuranRaw    = $row['angsuran_bulan_rp']     ?? $row['angsuran_per_bulan'] ?? null;
+        $userLeasing    = trim($row['user_leasing']     ?? '');
+        $asuransiLeas   = trim($row['asuransi_leasing'] ?? '');
+
+        // ── Validasi: no_kontrak wajib ────────────────────────────────
+        if ($noKontrakInput === '') {
+            $this->skippedRows[] = [
+                'row'    => $rowNum,
+                'data'   => $mobil ?: '(kosong)',
+                'errors' => ['no_kontrak wajib diisi — isi nomor kontrak dari dokumen fisik'],
+            ];
+            return null;
+        }
+
+        // ── Validasi per baris ────────────────────────────────────────
         $errors = [];
 
-        // angsuran_per_bulan: harus numerik
-        $angsuran = $row['angsuran_per_bulan'] ?? null;
-        if ($angsuran !== null && $angsuran !== '' && !is_numeric($angsuran)) {
-            $errors[] = 'angsuran_per_bulan harus berupa angka';
+        // angsuran: harus numerik — strip separator ribuan jika ada (misal "5,000,000")
+        if ($angsuranRaw !== null && $angsuranRaw !== '') {
+            $angsuranClean = str_replace([',', '.', ' '], '', (string) $angsuranRaw);
+            if (!is_numeric($angsuranClean)) {
+                $errors[] = 'Angsuran / Bulan harus berupa angka';
+            }
+            $angsuranInt = (int) $angsuranClean;
+        } else {
+            $angsuranInt = 0;
         }
 
         // jatuh_tempo: 1-31
-        $jatuhTempo = $row['jatuh_tempo'] ?? null;
-        if ($jatuhTempo !== null && $jatuhTempo !== '') {
-            if (!is_numeric($jatuhTempo) || (int) $jatuhTempo < 1 || (int) $jatuhTempo > 31) {
-                $errors[] = 'jatuh_tempo harus angka 1-31';
+        // Export data menulis "Tgl 15" — strip prefix "Tgl " jika ada
+        $jatuhTempoRaw = $row['jatuh_tempo'] ?? null;
+        $jatuhTempo    = null;
+        if ($jatuhTempoRaw !== null && $jatuhTempoRaw !== '') {
+            // Hilangkan prefix "Tgl " (case-insensitive) jika ada
+            $jatuhTempoClean = trim(preg_replace('/^tgl\s*/i', '', (string) $jatuhTempoRaw));
+            if (!is_numeric($jatuhTempoClean) || (int) $jatuhTempoClean < 1 || (int) $jatuhTempoClean > 31) {
+                $errors[] = 'Jatuh Tempo harus angka 1-31 (atau format "Tgl 15")';
+            } else {
+                $jatuhTempo = $jatuhTempoClean;
             }
         }
 
-        // periode_mulai: handle Excel date serial atau string DD/MM/YYYY
+        // periode_mulai
         $periodeMulai = null;
         if (!empty($row['periode_mulai'])) {
             $periodeMulai = $this->parseExcelDate($row['periode_mulai'], $rowNum, 'periode_mulai', $errors);
         }
 
-        // periode_selesai: handle Excel date serial atau string DD/MM/YYYY
+        // periode_selesai
         $periodeSelesai = null;
         if (!empty($row['periode_selesai'])) {
             $periodeSelesai = $this->parseExcelDate($row['periode_selesai'], $rowNum, 'periode_selesai', $errors);
-            if ($periodeMulai && $periodeSelesai && $periodeSelesai < $periodeMulai) {
-                $errors[] = 'periode_selesai harus lebih besar atau sama dengan periode_mulai';
-            }
+        }
+
+        // validasi urutan periode
+        if ($periodeMulai && $periodeSelesai && $periodeSelesai < $periodeMulai) {
+            $errors[] = 'periode_selesai harus lebih besar atau sama dengan periode_mulai';
         }
 
         // Ada error? Skip baris
         if (!empty($errors)) {
             $this->skippedRows[] = [
                 'row'    => $rowNum,
-                'data'   => trim($row['mobil'] ?? '(kosong)'),
+                'data'   => $noKontrakInput,
                 'errors' => $errors,
             ];
             return null;
         }
 
-        // ── Generate no_kontrak otomatis ───────────────────────────────
-        $noKontrak = $this->prefix . '-' . str_pad($this->nextNumber, 4, '0', STR_PAD_LEFT);
-        $this->nextNumber++;
-        $this->importedCount++;
+        // ── Susun data ─────────────────────────────────────────────────
+        // Kolom "Cicilan" di Excel berisi "36x sisa" (dari export data) atau angka murni (dari template)
+        // Strip suffix "x sisa" / "x" lalu ambil angkanya
+        $cicilanRaw    = $row['cicilan'] ?? null;
+        $jumlahCicilan = null;
+        if ($cicilanRaw !== null && (string) $cicilanRaw !== '') {
+            // Hilangkan semua karakter non-digit
+            $cicilanClean = preg_replace('/[^0-9]/', '', (string) $cicilanRaw);
+            if ($cicilanClean !== '' && (int) $cicilanClean > 0) {
+                $jumlahCicilan = (int) $cicilanClean;
+            }
+        }
 
-        return new DataLeasing([
-            'data_kontrak_id'    => null,
-            'no_kontrak'         => $noKontrak,
-            'mobil'              => trim($row['mobil'] ?? ''),
-            'tahun'              => trim($row['tahun'] ?? ''),
-            'nopol'              => trim($row['nopol'] ?? ''),
-            'user_leasing'       => trim($row['user_leasing'] ?? ''),
-            'angsuran_per_bulan' => (int) ($row['angsuran_per_bulan'] ?? 0),
+        $data = [
+            'no_kontrak'         => $noKontrakInput,
+            'mobil'              => $mobil,
+            'tahun'              => trim($row['tahun']            ?? ''),
+            'nopol'              => trim($row['nopol']            ?? ''),
+            'user_leasing'       => $userLeasing,
+            'angsuran_per_bulan' => $angsuranInt,
             'jatuh_tempo'        => $jatuhTempo ? (int) $jatuhTempo : null,
             'periode_mulai'      => $periodeMulai,
             'periode_selesai'    => $periodeSelesai,
-            'personal_account'   => trim($row['personal_account'] ?? ''),
+            'jumlah_cicilan'     => $jumlahCicilan,  // null = hitung otomatis dari periode
+            'personal_account'   => trim($row['personal_account']  ?? ''),
             'sumber_dana_debit'  => trim($row['sumber_dana_debit'] ?? ''),
-            'cara_bayar'         => trim($row['cara_bayar'] ?? ''),
-            'asuransi_leasing'   => trim($row['asuransi_leasing'] ?? ''),
-        ]);
+            'cara_bayar'         => trim($row['cara_bayar']        ?? ''),
+            'asuransi_leasing'   => $asuransiLeas,
+            'data_kontrak_id'    => null,
+        ];
+
+        // ── Upsert: no_kontrak sudah ada → UPDATE, belum ada → INSERT ──
+        $existing = DataLeasing::where('no_kontrak', $noKontrakInput)->first();
+
+        if ($existing) {
+            // Pertahankan data_kontrak_id yang sudah ada, jangan ditimpa null
+            $data['data_kontrak_id'] = $existing->data_kontrak_id;
+            $existing->update($data);
+
+            $this->skippedRows[] = [
+                'row'    => $rowNum,
+                'data'   => $noKontrakInput,
+                'errors' => ['Diperbarui (update existing)'],
+                'warn'   => true,
+            ];
+            $this->importedCount++;
+            return null; // sudah di-update manual, jangan return model baru
+        }
+
+        // INSERT baru
+        $this->importedCount++;
+        return new DataLeasing($data);
     }
 
     /**
-     * Parse tanggal dari Excel — handle dua kasus:
-     * 1. Numeric serial (kolom diformat Date di Excel) → pakai PhpSpreadsheet converter
-     * 2. String DD/MM/YYYY (kolom General) → createFromFormat
+     * Parse tanggal dari Excel — handle numeric serial atau string DD/MM/YYYY.
      */
     private function parseExcelDate(mixed $value, int $rowNum, string $field, array &$errors): ?string
     {
@@ -147,7 +199,7 @@ class DataLeasingImport implements
         try {
             return Carbon::createFromFormat('d/m/Y', $strValue)->format('Y-m-d');
         } catch (\Exception $e) {
-            // Fallback: coba parse bebas (Y-m-d, d-m-Y, dll)
+            // Fallback: parse bebas
             try {
                 return Carbon::parse($strValue)->format('Y-m-d');
             } catch (\Exception $e2) {

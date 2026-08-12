@@ -95,25 +95,56 @@
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800">Service Asuransi</h2>
-                    <p class="text-xs text-gray-400 mt-0.5" id="totalCount">{{ $data->count() }} data</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total data</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <input type="month" id="filterBulan" onchange="setActiveBulan(this.value)"
-                        class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <form method="GET" action="{{ request()->url() }}" class="flex flex-wrap items-center gap-2">
+
+                    {{-- Filter Status --}}
+                    <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                        <a href="{{ request()->fullUrlWithQuery(['status' => '', 'page' => 1]) }}"
+                            class="px-3 py-1.5 font-medium transition-colors {{ !request('status') ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50' }}">
+                            Semua
+                        </a>
+                        <a href="{{ request()->fullUrlWithQuery(['status' => 'bermasalah', 'page' => 1]) }}"
+                            class="px-3 py-1.5 font-medium transition-colors border-l border-gray-200 {{ request('status') === 'bermasalah' ? 'bg-red-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50' }}">
+                            Bermasalah
+                        </a>
+                        <a href="{{ request()->fullUrlWithQuery(['status' => 'selesai', 'page' => 1]) }}"
+                            class="px-3 py-1.5 font-medium transition-colors border-l border-gray-200 {{ request('status') === 'selesai' ? 'bg-green-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50' }}">
+                            Selesai
+                        </a>
+                    </div>
+
+                    {{-- Search --}}
                     <div class="relative">
                         <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-                        <input type="text" id="searchInput" placeholder="Cari kendaraan..."
-                            oninput="applyFilters()"
+                        <input type="text" name="search" placeholder="Cari kendaraan..."
+                            value="{{ request('search') }}"
                             class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
                     </div>
-                </div>
+
+                    <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fa fa-search text-xs"></i> Cari
+                    </button>
+
+                    @if(request('search') || request('status'))
+                        <a href="{{ route('service-asuransi.index') }}"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <i class="fa fa-rotate-left text-xs"></i> Reset
+                        </a>
+                    @endif
+
+                </form>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4 w-10">No</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Kendaraan</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Asuransi</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Keluhan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">KM</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Tanggal</th>
@@ -150,9 +181,10 @@
                                     $attachmentCount = count($attachmentArr);
                                     $attachmentJson = json_encode($attachmentArr);
                                 @endphp
-                            <tr class="border-t border-gray-100 odd:bg-white even:bg-gray-50 hover:bg-blue-50/40 transition-colors duration-100"
-                                data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . $d->keterangan) }}"
-                                data-bulan="{{ $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->format('Y-m-d') : '' }}">
+                            <tr class="border-t border-gray-100 odd:bg-white even:bg-gray-50 hover:bg-blue-50/40 transition-colors duration-100">
+
+                                {{-- NO --}}
+                                <td class="px-5 py-4 text-xs text-gray-400 font-semibold">{{ $data->firstItem() + $loop->index }}</td>
 
                                 {{-- KENDARAAN --}}
                                 <td class="px-5 py-4">
@@ -165,6 +197,23 @@
                                             <p class="text-xs text-gray-500 font-mono">{{ $d->kendaraan->nopol ?? '-' }}</p>
                                         </div>
                                     </div>
+                                </td>
+
+                                {{-- ASURANSI --}}
+                                <td class="px-5 py-4">
+                                    @if($d->nama_asuransi)
+                                        <div class="flex flex-col gap-1">
+                                            <p class="text-sm font-semibold text-gray-800">{{ $d->nama_asuransi }}</p>
+                                            @if($d->jenisAsuransi)
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-50 text-purple-600 border border-purple-200 w-fit">
+                                                        
+                                                    {{ $d->jenisAsuransi->nama_jenis }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-gray-300 text-sm">—</span>
+                                    @endif
                                 </td>
 
                                 {{-- KELUHAN --}}
@@ -291,6 +340,8 @@
                                                 class="btn-edit inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors"
                                                 data-id="{{ $d->id }}"
                                                 data-kendaraan_id="{{ $d->kendaraan_id }}"
+                                                data-nama_asuransi="{{ $d->nama_asuransi ?? '' }}"
+                                                data-jenis_asuransi_id="{{ $d->jenis_asuransi_id ?? '' }}"
                                                 data-tanggal_service="{{ $d->tanggal_service }}"
                                                 data-periode_mulai="{{ $d->periode_mulai }}"
                                                 data-periode_selesai="{{ $d->periode_selesai }}"
@@ -317,7 +368,7 @@
 
                         @empty
                             <tr>
-                                <td colspan="10" class="px-5 py-12 text-center">
+                                <td colspan="11" class="px-5 py-12 text-center">
                                     <p class="text-sm text-gray-500">Belum ada data service asuransi</p>
                                 </td>
                             </tr>
@@ -337,10 +388,7 @@
                 </div>
             </div>
 
-            <div id="tableFooter" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50/50">
-                <p id="showingInfo" class="text-xs text-gray-500"></p>
-                <div id="paginationControls" class="flex items-center gap-1"></div>
-            </div>
+            {{-- Tidak perlu tableFooter JS karena pagination sudah server-side --}}
 
         </div>
     </div>
@@ -376,6 +424,27 @@
                             <option value="{{ $k->id }}">{{ $k->merk }} - {{ $k->nopol }}</option>
                         @endforeach
                     </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Asuransi</label>
+                    <select name="nama_asuransi" id="nama_asuransi" onchange="handleNamaAsuransiChange()"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">-- Pilih Nama Asuransi --</option>
+                        @foreach ($asuransi as $a)
+                            <option value="{{ $a->nama_asuransi }}">{{ $a->nama_asuransi }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">Pilih nama asuransi, jenis akan otomatis terisi</p>
+                </div>
+
+                <div id="jenisAsuransiWrapper" style="display: none;">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Asuransi</label>
+                    <select name="jenis_asuransi_id" id="jenis_asuransi_id"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">-- Pilih Jenis --</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">Jika ada beberapa jenis, pilih yang sesuai</p>
                 </div>
 
                 <div>
@@ -558,6 +627,14 @@
                         <p class="text-sm font-bold text-gray-800">Berhasil!</p>
                         <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ session('success') }}</p>
                     </div>
+                @elseif (session('error'))
+                    <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl">
+                        <i class="fa fa-exclamation-circle"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-gray-800">Terjadi Kesalahan!</p>
+                        <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ session('error') }}</p>
+                    </div>
                 @else
                     <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl">
                         <i class="fa fa-exclamation-circle"></i>
@@ -609,7 +686,11 @@
         document.getElementById('form').action = '/admin/service-asuransi';
         const mp = document.getElementById('method-put');
         if (mp) mp.remove();
+        // Reset jenis asuransi dropdown
+        document.getElementById('jenisAsuransiWrapper').style.display = 'none';
+        document.getElementById('jenis_asuransi_id').innerHTML = '<option value="">-- Pilih Jenis Asuransi --</option>';
         clearBuktiPreview();
+        clearAttachmentPreview();
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     }
@@ -645,6 +726,13 @@
         document.getElementById('periode_mulai').value  = btn.dataset.periode_mulai || '';
         document.getElementById('periode_selesai').value = btn.dataset.periode_selesai || '';
         document.getElementById('kilometer').value      = btn.dataset.kilometer;
+        
+        // Set nama asuransi dan render jenis dropdown
+        const namaAsuransi    = btn.dataset.nama_asuransi    || '';
+        const jenisAsuransiId = btn.dataset.jenis_asuransi_id || '';
+
+        document.getElementById('nama_asuransi').value = namaAsuransi;
+        renderJenisDropdown(namaAsuransi, jenisAsuransiId);
 
         // Tampilkan file yang sudah tersimpan
         clearBuktiPreview();
@@ -666,6 +754,40 @@
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     });
+
+
+    // =================================================================
+    // HANDLE NAMA ASURANSI & JENIS ASURANSI
+    // Data jenis asuransi di-embed langsung dari Blade (tidak perlu AJAX)
+    // =================================================================
+    const ALL_JENIS = @json($jenisAsuransi->map(fn($j) => ['id' => $j->id, 'nama_jenis' => $j->nama_jenis]));
+
+    function handleNamaAsuransiChange() {
+        renderJenisDropdown(
+            document.getElementById('nama_asuransi').value,
+            null
+        );
+    }
+
+    function renderJenisDropdown(namaAsuransi, selectedId) {
+        const wrapper = document.getElementById('jenisAsuransiWrapper');
+        const select  = document.getElementById('jenis_asuransi_id');
+
+        if (!namaAsuransi) {
+            wrapper.style.display = 'none';
+            select.innerHTML = '<option value="">-- Pilih Jenis --</option>';
+            return;
+        }
+
+        // Tampilkan semua jenis dari master (bukan filter per nama asuransi)
+        let options = '<option value="">-- Pilih Jenis Asuransi --</option>';
+        ALL_JENIS.forEach(function(j) {
+            const sel = (selectedId && String(selectedId) === String(j.id)) ? ' selected' : '';
+            options += `<option value="${j.id}"${sel}>${j.nama_jenis}</option>`;
+        });
+        select.innerHTML = options;
+        wrapper.style.display = 'block';
+    }
 
 
     // =================================================================
@@ -1087,115 +1209,6 @@
 
 
     // =================================================================
-    // FILTER + SEARCH (SIMPLIFIED - NO ACCORDION, NO STATUS FILTER)
-    // =================================================================
-    let activeBulan = 'semua';
-    let currentPage = 1;
-
-    function setActiveBulan(bulan) {
-        activeBulan = (bulan && bulan.trim() !== '') ? bulan : 'semua';
-        currentPage = 1;
-        applyFilters();
-    }
-
-    function applyFilters() {
-        const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
-        const perPage = 15;
-
-        const allRows = document.querySelectorAll('#serviceTableBody tr[data-search]');
-
-        const matched = [];
-        allRows.forEach(row => {
-            const matchSearch = !keyword || row.dataset.search.includes(keyword);
-            const tgl = row.dataset.bulan || '';
-            const [rY, rM] = tgl.split('-');
-            const rowYM = rY && rM ? `${rY}-${rM}` : '';
-            const matchBulan = activeBulan === 'semua' || rowYM === activeBulan;
-            if (matchSearch && matchBulan) matched.push(row);
-        });
-
-        const total = matched.length;
-        const totalPages = Math.ceil(total / perPage) || 1;
-        if (currentPage > totalPages) currentPage = 1;
-
-        const start = (currentPage - 1) * perPage;
-        const end = Math.min(start + perPage, total);
-        const pageSet = new Set(matched.slice(start, end));
-
-        allRows.forEach(row => {
-            row.style.display = pageSet.has(row) ? '' : 'none';
-        });
-
-        const showingInfo = document.getElementById('showingInfo');
-        if (showingInfo) {
-            showingInfo.textContent = total === 0
-                ? 'Tidak ada data yang ditampilkan'
-                : `Menampilkan ${start + 1} sampai ${end} dari ${total} data`;
-        }
-
-        renderPagination(totalPages);
-        document.getElementById('totalCount').textContent = total + ' total data';
-
-        const noResult = document.getElementById('noResultRow');
-        if (noResult) noResult.classList.toggle('hidden', total > 0 || allRows.length === 0);
-    }
-
-    function renderPagination(totalPages) {
-        const container = document.getElementById('paginationControls');
-        if (!container) return;
-        container.innerHTML = '';
-        if (totalPages <= 1) return;
-
-        const btnClass    = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
-        const activeClass = 'bg-blue-600 text-white border-blue-600';
-        const normalClass = 'border-gray-200 text-gray-600 hover:bg-gray-50';
-
-        const prev      = document.createElement('button');
-        prev.innerHTML  = '<i class="fa fa-chevron-left text-[10px]"></i>';
-        prev.className  = `${btnClass} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
-        prev.disabled   = currentPage === 1;
-        prev.onclick    = () => { currentPage--; applyFilters(); };
-        container.appendChild(prev);
-
-        const range = 2;
-        for (let i = 1; i <= totalPages; i++) {
-            if (i === 1 || i === totalPages || (i >= currentPage - range && i <= currentPage + range)) {
-                const btn      = document.createElement('button');
-                btn.textContent = i;
-                btn.className  = `${btnClass} ${i === currentPage ? activeClass : normalClass}`;
-                btn.onclick    = (function(page) { return function() { currentPage = page; applyFilters(); }; })(i);
-                container.appendChild(btn);
-            } else if (i === currentPage - range - 1 || i === currentPage + range + 1) {
-                const dots       = document.createElement('span');
-                dots.textContent = '...';
-                dots.className   = 'px-1 text-xs text-gray-400';
-                container.appendChild(dots);
-            }
-        }
-
-        const next     = document.createElement('button');
-        next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
-        next.className = `${btnClass} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : normalClass}`;
-        next.disabled  = currentPage === totalPages;
-        next.onclick   = () => { currentPage++; applyFilters(); };
-        container.appendChild(next);
-    }
-
-    /* TODO: implement PDF export
-    function updatePdfLink() {
-        const keyword = document.getElementById('searchInput').value;
-        const pdfBtn  = document.getElementById('pdfBtn');
-        const params  = new URLSearchParams();
-        if (keyword)               params.set('search', keyword);
-        if (activeStatus !== 'semua') params.set('status', activeStatus);
-        if (activeBulan  !== 'semua') params.set('bulan',  activeBulan);
-        const qs = params.toString();
-        pdfBtn.href = '/admin/service-asuransi/pdf' + (qs ? '?' + qs : '');
-    }
-    */
-
-
-    // =================================================================
     // POPUP ALERT
     // =================================================================
     (function() {
@@ -1222,7 +1235,6 @@
     // STATUS MODAL
     // =================================================================
     // Init
-    applyFilters();
     </script>
 
     {{-- ============================================================
@@ -1250,8 +1262,8 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status Penanganan</label>
                     <select name="status" id="statusSelect"
                         class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="bermasalah">⚠️ Bermasalah — mobil masih bermasalah</option>
-                        <option value="selesai">✅ Selesai — masalah sudah ditangani</option>
+                        <option value="bermasalah"> Bermasalah — mobil masih bermasalah</option>
+                        <option value="selesai"> Selesai — masalah sudah ditangani</option>
                     </select>
                 </div>
 
