@@ -19,6 +19,84 @@ namespace App\Helpers;
  */
 class KontrakHelper
 {
+    /**
+     * Konversi array pasal_ketentuan ke plain text siap tampil di textarea.
+     *
+     * Format output:
+     *   PASAL 1
+     *   DATA-DATA KENDARAAN
+     *
+     *   1. Isi poin pertama...
+     *   2. Isi poin kedua...
+     *
+     *   PASAL 2
+     *   MASA SEWA
+     *   ...
+     *
+     * @param  array   $pasalArr  Array dari defaultPasalKetentuan() atau dari pasal_ketentuan kolom DB
+     * @param  string  $lang      'id' atau 'en'
+     * @return string
+     */
+    public static function pasalToPlainText(array $pasalArr, string $lang = 'id'): string
+    {
+        $lines = [];
+
+        foreach ($pasalArr as $pasal) {
+            $judul = $lang === 'en'
+                ? ($pasal['judul_en'] ?? $pasal['judul_id'] ?? '')
+                : ($pasal['judul_id'] ?? '');
+
+            // Judul pasal (bisa multiline, e.g. "PASAL 1\nDATA-DATA KENDARAAN")
+            if ($judul !== '') {
+                foreach (explode("\n", $judul) as $judulLine) {
+                    $lines[] = strtoupper(trim($judulLine));
+                }
+            }
+
+            $poin = $pasal['poin'] ?? [];
+            $tipe = $pasal['tipe'] ?? 'list';
+
+            foreach ($poin as $i => $p) {
+                $text = $lang === 'en'
+                    ? ($p['en'] ?? $p['id'] ?? '')
+                    : ($p['id'] ?? '');
+
+                if (trim($text) === '') continue;
+
+                if ($tipe === 'paragraf') {
+                    $lines[] = $text;
+                } elseif ($tipe === 'sublist') {
+                    $letter = chr(ord('a') + $i);
+                    $lines[] = $letter . '. ' . $text;
+                } else {
+                    // list (numbered)
+                    $lines[] = ($i + 1) . '. ' . $text;
+                }
+            }
+
+            // Satu baris kosong antar pasal
+            $lines[] = '';
+        }
+
+        // Buang trailing baris kosong
+        while (!empty($lines) && trim(end($lines)) === '') {
+            array_pop($lines);
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Shortcut: konversi default pasal ke plain text.
+     *
+     * @param  string  $lang  'id' atau 'en'
+     * @return string
+     */
+    public static function defaultPlainText(string $lang = 'id'): string
+    {
+        return self::pasalToPlainText(self::defaultPasalKetentuan(), $lang);
+    }
+
     public static function defaultPasalKetentuan(): array
     {
         return [

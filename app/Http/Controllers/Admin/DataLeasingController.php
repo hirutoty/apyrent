@@ -33,20 +33,68 @@ class DataLeasingController extends Controller
         }
 
         // Filter status cicilan berdasarkan tanggal (DB-level)
+        // Sinkron dengan accessor getStatusCicilanAttribute() di model DataLeasing:
+        //
+        //   jumlah_cicilan = kolom manual (jika > 0) ATAU diffInMonths(mulai, selesai)
+        //   sudahLewat     = diffInMonths(periode_mulai_start, now_start)
+        //   tersisa        = jumlah_cicilan - sudahLewat
+        //   Lunas          = tersisa <= 0  →  sudahLewat >= jumlah_cicilan
+        //   Partial        = sudah mulai DAN tersisa > 0
+        //
+        // Untuk filter DB yang akurat:
+        //   - Jika jumlah_cicilan manual (kolom > 0): Lunas saat TIMESTAMPDIFF(MONTH, periode_mulai, now) >= jumlah_cicilan
+        //   - Jika jumlah_cicilan auto (kolom NULL/0): Lunas saat now >= periode_selesai (start of month)
+        //
         if ($request->filled('leasing_status')) {
-            $now = now()->startOfMonth()->toDateString();
+            // Awal bulan ini sebagai batas waktu referensi (sama persis dengan accessor)
+            $nowStart = now()->startOfMonth()->toDateString();
+
             if ($request->leasing_status === 'Lunas') {
-                // periode_selesai sudah lewat dan sudah mulai
+                // Lunas: sudah mulai DAN cicilan habis
+                // Case 1: jumlah_cicilan manual (> 0) → sudahLewat >= jumlah_cicilan
+                // Case 2: jumlah_cicilan auto (0/null) → pakai periode_selesai <= nowStart
                 $leasingQuery->whereNotNull('periode_mulai')
-                             ->whereNotNull('periode_selesai')
-                             ->where('periode_mulai', '<=', $now)
-                             ->where('periode_selesai', '<=', $now);
+                             ->where('periode_mulai', '<=', $nowStart)
+                             ->where(function ($q) use ($nowStart) {
+                                 // Case 1: ada jumlah_cicilan manual → cek via TIMESTAMPDIFF
+                                 $q->where(function ($q2) use ($nowStart) {
+                                     $q2->whereNotNull('jumlah_cicilan')
+                                        ->where('jumlah_cicilan', '>', 0)
+                                        ->whereRaw('TIMESTAMPDIFF(MONTH, DATE_FORMAT(periode_mulai, \'%Y-%m-01\'), ?) >= jumlah_cicilan', [$nowStart]);
+                                 })
+                                 // Case 2: tidak ada jumlah_cicilan manual → gunakan periode_selesai
+                                 ->orWhere(function ($q2) use ($nowStart) {
+                                     $q2->where(function ($q3) {
+                                         $q3->whereNull('jumlah_cicilan')
+                                            ->orWhere('jumlah_cicilan', 0);
+                                     })
+                                     ->whereNotNull('periode_selesai')
+                                     ->where('periode_selesai', '<=', $nowStart);
+                                 });
+                             });
             } elseif ($request->leasing_status === 'Partial') {
-                // sudah mulai, belum selesai
+                // Partial: sudah mulai DAN cicilan belum habis
+                // Case 1: jumlah_cicilan manual (> 0) → sudahLewat < jumlah_cicilan
+                // Case 2: jumlah_cicilan auto (0/null) → periode_selesai > nowStart
                 $leasingQuery->whereNotNull('periode_mulai')
-                             ->whereNotNull('periode_selesai')
-                             ->where('periode_mulai', '<=', $now)
-                             ->where('periode_selesai', '>', $now);
+                             ->where('periode_mulai', '<=', $nowStart)
+                             ->where(function ($q) use ($nowStart) {
+                                 // Case 1: ada jumlah_cicilan manual → cek via TIMESTAMPDIFF
+                                 $q->where(function ($q2) use ($nowStart) {
+                                     $q2->whereNotNull('jumlah_cicilan')
+                                        ->where('jumlah_cicilan', '>', 0)
+                                        ->whereRaw('TIMESTAMPDIFF(MONTH, DATE_FORMAT(periode_mulai, \'%Y-%m-01\'), ?) < jumlah_cicilan', [$nowStart]);
+                                 })
+                                 // Case 2: tidak ada jumlah_cicilan manual → gunakan periode_selesai
+                                 ->orWhere(function ($q2) use ($nowStart) {
+                                     $q2->where(function ($q3) {
+                                         $q3->whereNull('jumlah_cicilan')
+                                            ->orWhere('jumlah_cicilan', 0);
+                                     })
+                                     ->whereNotNull('periode_selesai')
+                                     ->where('periode_selesai', '>', $nowStart);
+                                 });
+                             });
             }
         }
 

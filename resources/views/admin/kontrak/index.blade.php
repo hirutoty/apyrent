@@ -536,7 +536,7 @@
 
             {{-- TAB 2: KETENTUAN --}}
             <div id="createTabContent2" class="hidden">
-            <div class="px-6 py-5 space-y-3">
+            <div class="px-6 py-5 space-y-4">
 
                 <div class="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 flex items-start gap-3">
                     <div class="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -545,23 +545,41 @@
                     <div>
                         <p class="text-xs font-semibold text-blue-800 mb-0.5">Editor Ketentuan Kontrak</p>
                         <p class="text-[11px] text-blue-600 leading-relaxed">
-                            Edit judul & isi tiap pasal dalam dua bahasa (ID + EN).
-                            Bisa tambah/hapus poin dan pasal. Setelah disimpan,
-                            <strong>draft PDF</strong> otomatis di-generate.
+                            Edit isi ketentuan dalam dua bahasa. Default sudah terisi otomatis — ubah sesuai kebutuhan.
+                            Setelah disimpan, <strong>draft PDF</strong> otomatis di-generate.
                         </p>
                     </div>
                 </div>
 
-                {{-- Container pasal --}}
-                <div id="createPasalContainer" class="space-y-3 max-h-[55vh] overflow-y-auto pr-1"></div>
+                {{-- Textarea ID --}}
+                <div>
+                    <label class="flex items-center gap-1.5 text-xs font-bold text-blue-700 mb-1.5 uppercase tracking-wide">
+                        <i class="fa fa-language"></i> Ketentuan Bahasa Indonesia
+                    </label>
+                    <textarea
+                        name="ketentuan_id"
+                        id="create_ketentuan_id"
+                        rows="22"
+                        placeholder="Ketik isi ketentuan kontrak dalam Bahasa Indonesia..."
+                        class="w-full border border-blue-200 rounded-xl px-4 py-3 text-xs font-mono leading-relaxed
+                               focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400
+                               resize-y bg-white text-gray-800"></textarea>
+                </div>
 
-                {{-- Tombol tambah pasal --}}
-                <button type="button" onclick="addPasalBlock('create')"
-                    class="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold
-                           text-indigo-600 border-2 border-dashed border-indigo-200 bg-indigo-50/50
-                           hover:bg-indigo-100 hover:border-indigo-400 px-4 py-3 rounded-xl transition-colors">
-                    <i class="fa fa-plus-circle text-sm"></i> Tambah Pasal Baru
-                </button>
+                {{-- Textarea EN --}}
+                <div>
+                    <label class="flex items-center gap-1.5 text-xs font-bold text-green-700 mb-1.5 uppercase tracking-wide">
+                        <i class="fa fa-globe"></i> Contract Terms (English)
+                    </label>
+                    <textarea
+                        name="ketentuan_en"
+                        id="create_ketentuan_en"
+                        rows="22"
+                        placeholder="Type the contract terms in English..."
+                        class="w-full border border-green-200 rounded-xl px-4 py-3 text-xs font-mono leading-relaxed
+                               focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400
+                               resize-y bg-white text-gray-800"></textarea>
+                </div>
 
             </div>{{-- end px-6 py-5 Tab2 --}}
             <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
@@ -938,7 +956,7 @@
             </div>{{-- end Tab 1 --}}
 
             {{-- ── TAB 2: Ketentuan Pasal ── --}}
-            <div id="editTab2" class="hidden px-6 py-5 space-y-3">
+            <div id="editTab2" class="hidden px-6 py-5 space-y-4">
 
                 <div class="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
                     <div class="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -948,19 +966,40 @@
                         <p class="text-xs font-semibold text-amber-800 mb-0.5">Editor Ketentuan Kontrak</p>
                         <p class="text-[11px] text-amber-700 leading-relaxed">
                             Perubahan langsung mengupdate <strong>draft PDF</strong> saat disimpan.
-                            Edit judul, isi poin, atau tambah/hapus pasal sesuai kebutuhan.
+                            Edit isi ketentuan dalam dua bahasa sesuai kebutuhan.
                         </p>
                     </div>
                 </div>
 
-                <div id="editPasalContainer" class="space-y-3 max-h-[55vh] overflow-y-auto pr-1"></div>
+                {{-- Textarea ID --}}
+                <div>
+                    <label class="flex items-center gap-1.5 text-xs font-bold text-blue-700 mb-1.5 uppercase tracking-wide">
+                        <i class="fa fa-language"></i> Ketentuan Bahasa Indonesia
+                    </label>
+                    <textarea
+                        name="ketentuan_id"
+                        id="edit_ketentuan_id"
+                        rows="22"
+                        placeholder="Ketik isi ketentuan kontrak dalam Bahasa Indonesia..."
+                        class="w-full border border-blue-200 rounded-xl px-4 py-3 text-xs font-mono leading-relaxed
+                               focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400
+                               resize-y bg-white text-gray-800"></textarea>
+                </div>
 
-                <button type="button" onclick="addPasalBlock('edit')"
-                    class="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold
-                           text-indigo-600 border-2 border-dashed border-indigo-200 bg-indigo-50/50
-                           hover:bg-indigo-100 hover:border-indigo-400 px-4 py-3 rounded-xl transition-colors">
-                    <i class="fa fa-plus-circle text-sm"></i> Tambah Pasal Baru
-                </button>
+                {{-- Textarea EN --}}
+                <div>
+                    <label class="flex items-center gap-1.5 text-xs font-bold text-green-700 mb-1.5 uppercase tracking-wide">
+                        <i class="fa fa-globe"></i> Contract Terms (English)
+                    </label>
+                    <textarea
+                        name="ketentuan_en"
+                        id="edit_ketentuan_en"
+                        rows="22"
+                        placeholder="Type the contract terms in English..."
+                        class="w-full border border-green-200 rounded-xl px-4 py-3 text-xs font-mono leading-relaxed
+                               focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400
+                               resize-y bg-white text-gray-800"></textarea>
+                </div>
 
             </div>{{-- end Tab 2 --}}
 
@@ -1344,187 +1383,14 @@
     }
 
     // ══════════════════════════════════════════════════════
-    // PASAL EDITOR  —  create & edit modal
+    // KETENTUAN EDITOR  —  default plain text dari PHP helper
     // ══════════════════════════════════════════════════════
+    const defaultKetentuan = @json([
+        'id' => \App\Helpers\KontrakHelper::defaultPlainText('id'),
+        'en' => \App\Helpers\KontrakHelper::defaultPlainText('en'),
+    ]);
 
-    // Default pasal dari PHP helper (via Blade JSON encoding)
-    const defaultPasalKetentuan = @json(\App\Helpers\KontrakHelper::defaultPasalKetentuan());
-
-    let createPasalIdx = 0;
-    let editPasalIdx   = 0;
-
-    /** Escape special chars untuk value attribute HTML */
-    function escHtml(str) {
-        return String(str ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/"/g, '&quot;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
-
-    /**
-     * Buat satu blok pasal lengkap (header judul+tipe + poin list + tombol tambah poin)
-     */
-    function makePasalBlock(prefix, pIdx, pasal) {
-        pasal = pasal || {};
-        const judulId  = pasal.judul_id || '';
-        const judulEn  = pasal.judul_en || '';
-        const tipe     = pasal.tipe || 'list';
-        const poinList = pasal.poin || [];
-
-        const block = document.createElement('div');
-        block.className = 'pasal-block border border-gray-200 rounded-xl overflow-hidden';
-        block.dataset.pIdx = pIdx;
-
-        const mkOpt = (v, lbl) =>
-            `<option value="${v}"${tipe === v ? ' selected' : ''}>${lbl}</option>`;
-
-        block.innerHTML = `
-            <div class="flex items-start gap-3 bg-indigo-50 border-b border-indigo-100 px-4 py-3">
-                <div class="flex-1 space-y-2">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">
-                                <i class="fa fa-language mr-1"></i>Judul ID
-                            </label>
-                            <textarea
-                                name="pasal[${pIdx}][judul_id]"
-                                rows="2"
-                                placeholder="cth: PASAL 2&#10;MASA SEWA"
-                                class="w-full border border-blue-200 rounded-lg px-2.5 py-1.5 text-xs bg-white font-bold uppercase
-                                       focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 resize-none">${escHtml(judulId)}</textarea>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-green-600 uppercase tracking-wider mb-1">
-                                <i class="fa fa-globe mr-1"></i>Judul EN
-                            </label>
-                            <textarea
-                                name="pasal[${pIdx}][judul_en]"
-                                rows="2"
-                                placeholder="cth: ARTICLE 2&#10;RENTAL PERIOD"
-                                class="w-full border border-green-200 rounded-lg px-2.5 py-1.5 text-xs bg-white font-bold uppercase
-                                       focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400 resize-none">${escHtml(judulEn)}</textarea>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Tipe:</label>
-                        <select name="pasal[${pIdx}][tipe]"
-                            class="border border-gray-200 rounded-lg px-2.5 py-1 text-xs bg-white text-gray-700
-                                   focus:outline-none focus:ring-1 focus:ring-blue-300">
-                            ${mkOpt('list',     'Numbered list (1, 2, 3…)')}
-                            ${mkOpt('paragraf', 'Paragraf biasa')}
-                            ${mkOpt('sublist',  'Sub-list (a, b, c…)')}
-                        </select>
-                    </div>
-                </div>
-                <button type="button" onclick="removePasalBlock(this)"
-                    title="Hapus pasal"
-                    class="mt-0.5 w-7 h-7 flex items-center justify-center rounded-lg
-                           text-red-400 hover:text-white hover:bg-red-500 transition-colors flex-shrink-0">
-                    <i class="fa fa-trash text-xs"></i>
-                </button>
-            </div>
-            <div class="poin-list divide-y divide-gray-100"
-                data-prefix="${prefix}" data-pidx="${pIdx}"></div>
-            <div class="flex items-center px-4 py-2 bg-gray-50 border-t border-gray-100">
-                <button type="button" onclick="addPoinRow(this)"
-                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600
-                           hover:text-blue-800 hover:underline">
-                    <i class="fa fa-plus-circle"></i> Tambah Poin
-                </button>
-            </div>`;
-
-        const poinContainer = block.querySelector('.poin-list');
-        poinList.forEach(function(p) {
-            appendPoinRow(poinContainer, prefix, pIdx, p.id || '', p.en || '');
-        });
-        return block;
-    }
-
-    /** Tambah satu baris poin ke container */
-    function appendPoinRow(container, prefix, pIdx, valId, valEn) {
-        valId = valId || '';
-        valEn = valEn || '';
-        const poinIdx = container.querySelectorAll('.poin-row').length;
-        const num     = poinIdx + 1;
-
-        const row = document.createElement('div');
-        row.className = 'poin-row group relative bg-white hover:bg-gray-50 transition-colors';
-        row.innerHTML = `
-            <div class="flex items-start gap-3 px-4 py-3">
-                <span class="poin-num flex-shrink-0 w-5 h-5 mt-1 rounded-full bg-gray-200 text-gray-600
-                             text-[9px] font-bold flex items-center justify-center">${num}</span>
-                <div class="flex-1 grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[10px] font-semibold text-blue-500 mb-1 uppercase tracking-wide">ID</label>
-                        <textarea name="pasal[${pIdx}][poin][${poinIdx}][id]"
-                            rows="3"
-                            placeholder="Teks poin Bahasa Indonesia…"
-                            class="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs leading-relaxed
-                                   focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400
-                                   resize-y bg-white text-gray-800">${escHtml(valId)}</textarea>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-semibold text-green-500 mb-1 uppercase tracking-wide">EN</label>
-                        <textarea name="pasal[${pIdx}][poin][${poinIdx}][en]"
-                            rows="3"
-                            placeholder="English provision text…"
-                            class="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs leading-relaxed
-                                   focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400
-                                   resize-y bg-white text-gray-800">${escHtml(valEn)}</textarea>
-                    </div>
-                </div>
-                <button type="button" onclick="removePoinRow(this)"
-                    title="Hapus poin"
-                    class="flex-shrink-0 mt-1 w-6 h-6 flex items-center justify-center rounded
-                           text-red-300 hover:text-white hover:bg-red-500 transition-colors opacity-0
-                           group-hover:opacity-100">
-                    <i class="fa fa-times text-[10px]"></i>
-                </button>
-            </div>`;
-        container.appendChild(row);
-        reorderPoinNames(container, pIdx);
-    }
-
-    /** Re-index name attr semua poin setelah hapus, dan update nomor tampilan */
-    function reorderPoinNames(container, pIdx) {
-        container.querySelectorAll('.poin-row').forEach(function(row, i) {
-            // Update name attr textarea
-            row.querySelectorAll('textarea').forEach(function(ta) {
-                ta.name = ta.name.replace(/\[poin\]\[\d+\]/, '[poin][' + i + ']');
-            });
-            // Update nomor badge tampilan
-            const badge = row.querySelector('.poin-num');
-            if (badge) badge.textContent = i + 1;
-        });
-    }
-
-    /** Tambah pasal baru kosong */
-    function addPasalBlock(prefix) {
-        const container = document.getElementById(prefix + 'PasalContainer');
-        const idx = prefix === 'create' ? createPasalIdx++ : editPasalIdx++;
-        container.appendChild(makePasalBlock(prefix, idx, {}));
-    }
-
-    /** Hapus pasal */
-    function removePasalBlock(btn) { btn.closest('.pasal-block').remove(); }
-
-    /** Tambah poin dari tombol di dalam block */
-    function addPoinRow(btn) {
-        const block     = btn.closest('.pasal-block');
-        const container = block.querySelector('.poin-list');
-        appendPoinRow(container, container.dataset.prefix, parseInt(container.dataset.pidx), '', '');
-    }
-
-    /** Hapus poin */
-    function removePoinRow(btn) {
-        const row       = btn.closest('.poin-row');
-        const container = row.closest('.poin-list');
-        row.remove();
-        reorderPoinNames(container, parseInt(container.dataset.pidx));
-    }
-
-    // ── Init Create modal ──────────────────────────
+    // ── Init Create modal Tab 2 ────────────────────────
     function initCreateKetentuan() {
         switchCreateTab(1);
         const t2Btn = document.getElementById('createTab2Btn');
@@ -1532,12 +1398,11 @@
             t2Btn.disabled = true;
             t2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg';
         }
-        const container = document.getElementById('createPasalContainer');
-        container.innerHTML = '';
-        createPasalIdx = 0;
-        defaultPasalKetentuan.forEach(function(pasal) {
-            container.appendChild(makePasalBlock('create', createPasalIdx++, pasal));
-        });
+        // Isi textarea dengan default konten
+        const taId = document.getElementById('create_ketentuan_id');
+        const taEn = document.getElementById('create_ketentuan_en');
+        if (taId) taId.value = defaultKetentuan.id;
+        if (taEn) taEn.value = defaultKetentuan.en;
     }
 
     // ── switchEditTab ──────────────────────────────
@@ -1578,19 +1443,70 @@
         const validStatuses = ['dibuat','pending','approved','active','rejected','expired','completed','terminated','selesai-belum lunas'];
         document.getElementById('edit_status').value = validStatuses.includes(data.status) ? data.status : 'pending';
 
-        // Populate Tab 2: pasal_ketentuan
-        const container = document.getElementById('editPasalContainer');
-        container.innerHTML = '';
-        editPasalIdx = 0;
-        const pasalData = (data.pasal_ketentuan && data.pasal_ketentuan.length > 0)
-            ? data.pasal_ketentuan
-            : defaultPasalKetentuan;
-        pasalData.forEach(function(pasal) {
-            container.appendChild(makePasalBlock('edit', editPasalIdx++, pasal));
-        });
+        // ── Populate Tab 2: textarea ketentuan ──
+        const taId = document.getElementById('edit_ketentuan_id');
+        const taEn = document.getElementById('edit_ketentuan_en');
+
+        if (data.ketentuan_id) {
+            // Data baru (plain text sudah ada di kolom)
+            if (taId) taId.value = data.ketentuan_id;
+            if (taEn) taEn.value = data.ketentuan_en ?? defaultKetentuan.en;
+        } else if (data.pasal_ketentuan && data.pasal_ketentuan.length > 0) {
+            // Data lama (JSON pasal) — konversi ke plain text via helper PHP yang di-pass ke JS
+            const converted = convertPasalToPlainText(data.pasal_ketentuan);
+            if (taId) taId.value = converted.id;
+            if (taEn) taEn.value = converted.en;
+        } else {
+            // Tidak ada data — pakai default
+            if (taId) taId.value = defaultKetentuan.id;
+            if (taEn) taEn.value = defaultKetentuan.en;
+        }
 
         switchEditTab(1);
         openModal('modalEdit');
+    }
+
+    /**
+     * Konversi array pasal JSON ke plain text — versi JS dari KontrakHelper::pasalToPlainText()
+     * Format: judul pasal di atas, poin bernomor, dipisah baris kosong antar pasal.
+     */
+    function convertPasalToPlainText(pasalArr) {
+        const buildText = (lang) => {
+            const lines = [];
+            (pasalArr || []).forEach((pasal) => {
+                const judul = lang === 'en'
+                    ? (pasal.judul_en || pasal.judul_id || '')
+                    : (pasal.judul_id || '');
+
+                // Judul (bisa multiline, pisah \n)
+                judul.split('\n').forEach(line => {
+                    if (line.trim()) lines.push(line.trim().toUpperCase());
+                });
+
+                const poin = pasal.poin || [];
+                const tipe = pasal.tipe || 'list';
+
+                poin.forEach((p, i) => {
+                    const text = lang === 'en' ? (p.en || p.id || '') : (p.id || '');
+                    if (!text.trim()) return;
+                    if (tipe === 'paragraf') {
+                        lines.push(text);
+                    } else if (tipe === 'sublist') {
+                        lines.push(String.fromCharCode(97 + i) + '. ' + text);
+                    } else {
+                        lines.push((i + 1) + '. ' + text);
+                    }
+                });
+
+                lines.push(''); // baris kosong antar pasal
+            });
+
+            // Buang trailing baris kosong
+            while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+            return lines.join('\n');
+        };
+
+        return { id: buildText('id'), en: buildText('en') };
     }
 
     // ── Detail modal ───────────────────────────────

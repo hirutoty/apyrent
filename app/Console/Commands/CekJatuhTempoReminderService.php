@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\ReminderService;
 use App\Models\Setting;
-use App\Http\Controllers\Admin\ReminderServiceController;
 use App\Mail\ReminderServiceMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -201,27 +200,18 @@ class CekJatuhTempoReminderService extends Command
 
 
 
-                    // auto masuk mobil bermasalah
+                    // auto masuk mobil bermasalah (legacy — dinonaktifkan di sistem baru)
+                    // part limit sekarang ditangani oleh CheckServicePartLimit command
 
                     if (!$reminder->sudah_dibuat_masalah) {
-
-
-                        ReminderServiceController::buatServiceDetail($reminder);
-
-
-
+                        // Tandai sudah diproses agar tidak re-trigger
+                        $reminder->update(['sudah_dibuat_masalah' => true]);
                         $count++;
 
-
-
-                        Log::info('Auto create mobil bermasalah', [
-
-                            'id'=>$reminder->id,
-
-                            'kendaraan'=>$reminder->kendaraan->nopol ?? '-'
-
+                        Log::info('Reminder jatuh tempo ditandai sudah diproses', [
+                            'id'        => $reminder->id,
+                            'kendaraan' => $reminder->kendaraan->nopol ?? '-',
                         ]);
-
                     }
 
 

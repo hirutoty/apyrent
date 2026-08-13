@@ -402,8 +402,117 @@
 
         </div>
 
+        {{-- ===================================================
+            SECTION: PART TERPASANG PER KENDARAAN
+        =================================================== --}}
+        @if(isset($partsPerKendaraan) && $partsPerKendaraan->isNotEmpty())
+        <div class="mt-6 space-y-4">
+            <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold text-gray-800">Part Terpasang</h2>
+                <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                    Per kendaraan — dari merk {{ $merk }}
+                </span>
+            </div>
 
+            @foreach ($data as $kendaraan)
+                @php
+                    $parts     = $partsPerKendaraan[$kendaraan->id] ?? collect();
+                    $totalPart = $parts->count();
+                    $limitCount = $parts->where('status', 'Limit')->count();
+                @endphp
 
+                @if ($totalPart > 0)
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    {{-- Header --}}
+                    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                                <i class="fa fa-car text-sm"></i>
+                            </div>
+                            <div>
+                                <span class="font-bold text-gray-800">{{ $kendaraan->merk }}</span>
+                                <span class="ml-2 text-xs font-mono text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $kendaraan->nopol }}</span>
+                            </div>
+                        </div>
+                        {{-- Summary badges --}}
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                                <i class="fa fa-cogs text-[10px]"></i> {{ $totalPart }} Part Aktif
+                            </span>
+                            @if ($limitCount > 0)
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                    <i class="fa fa-exclamation-triangle text-[10px]"></i> {{ $limitCount }} Limit
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                    <i class="fa fa-check text-[10px]"></i> Semua Normal
+                                </span>
+                            @endif
+                            <a href="{{ route('service-history.index', ['kendaraan_id' => $kendaraan->id]) }}"
+                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+                                <i class="fa fa-history text-[10px]"></i> Riwayat Service
+                            </a>
+                        </div>
+                    </div>
+
+                    {{-- Mini Tabel Part --}}
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-100">
+                                    <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase tracking-wide">Nama Part</th>
+                                    <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase tracking-wide">Kategori</th>
+                                    <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase tracking-wide">Posisi</th>
+                                    <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase tracking-wide">Tgl Pasang</th>
+                                    <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase tracking-wide">Interval</th>
+                                    <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase tracking-wide">Tgl Limit</th>
+                                    <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($parts as $part)
+                                    <tr class="border-t border-gray-50 {{ $part->status === 'Limit' ? 'bg-red-50' : 'hover:bg-gray-50' }} transition-colors">
+                                        <td class="px-4 py-3 font-medium text-gray-800">{{ $part->nama_part }}</td>
+                                        <td class="px-4 py-3 text-gray-500">{{ $part->category?->nama ?? '—' }}</td>
+                                        <td class="px-4 py-3 text-gray-500">{{ $part->posisi ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
+                                            {{ $part->tgl_pasang ? \Carbon\Carbon::parse($part->tgl_pasang)->format('d M Y') : '—' }}
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
+                                            {{ $part->interval_nilai }} {{ $part->interval_satuan }}
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap {{ $part->status === 'Limit' ? 'text-red-600 font-semibold' : 'text-gray-600' }}">
+                                            {{ $part->tanggal_limit ? \Carbon\Carbon::parse($part->tanggal_limit)->format('d M Y') : '—' }}
+                                            @if ($part->status === 'Limit')
+                                                <span class="ml-1 text-[10px] text-red-500">(Lewat)</span>
+                                            @else
+                                                @php $sisaHari = \Carbon\Carbon::today()->diffInDays(\Carbon\Carbon::parse($part->tanggal_limit), false); @endphp
+                                                @if ($sisaHari <= 30 && $sisaHari > 0)
+                                                    <span class="ml-1 text-[10px] text-amber-500">({{ $sisaHari }}h)</span>
+                                                @endif
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            @if ($part->status === 'Limit')
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-red-100 text-red-700">
+                                                    <i class="fa fa-exclamation-triangle text-[9px]"></i> Limit
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-700">
+                                                    <i class="fa fa-check text-[9px]"></i> Terpasang
+                                                </span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                @endif
+            @endforeach
+        </div>
+        @endif
 
 
         {{-- ======================================

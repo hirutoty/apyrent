@@ -14,20 +14,24 @@ class ReminderServiceMail extends Mailable
 
     public $reminder;
     public $sisaHari;
-    public $tipe; // 'reminder' atau 'jatuh_tempo'
+    public $tipe;         // 'reminder' | 'jatuh_tempo' | 'part_limit'
+    public $partLimitRows; // array of ['part' => ServicePart, 'reminder' => ReminderService]
 
-    public function __construct($reminder, int $sisaHari, string $tipe = 'reminder')
+    public function __construct($reminder, int $sisaHari, string $tipe = 'reminder', array $partLimitRows = [])
     {
-        $this->reminder  = $reminder;
-        $this->sisaHari  = $sisaHari;
-        $this->tipe      = $tipe;
+        $this->reminder      = $reminder;
+        $this->sisaHari      = $sisaHari;
+        $this->tipe          = $tipe;
+        $this->partLimitRows = $partLimitRows;
     }
 
     public function envelope(): Envelope
     {
-        $subject = $this->tipe === 'jatuh_tempo'
-            ? '⚠ Reminder Service Kendaraan Jatuh Tempo'
-            : '⏰ Reminder Service Kendaraan';
+        $subject = match ($this->tipe) {
+            'jatuh_tempo' => '⚠ Reminder Service Kendaraan Jatuh Tempo',
+            'part_limit'  => '🔔 Part Kendaraan Melewati Batas Interval',
+            default       => '⏰ Reminder Service Kendaraan',
+        };
 
         return new Envelope(subject: $subject);
     }

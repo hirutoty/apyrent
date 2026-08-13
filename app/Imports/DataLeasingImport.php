@@ -122,9 +122,10 @@ class DataLeasingImport implements
         }
 
         // ── Susun data ─────────────────────────────────────────────────
-        // Kolom "Cicilan" di Excel berisi "36x sisa" (dari export data) atau angka murni (dari template)
+        // Kolom "Cicilan" di Excel berisi "36x" (dari export baru), "36x sisa" (dari export lama), atau angka murni (dari template)
         // Strip suffix "x sisa" / "x" lalu ambil angkanya
-        $cicilanRaw    = $row['cicilan'] ?? null;
+        // Coba key 'cicilan' dulu (dari template & export baru), fallback ke 'total_cicilan' (dari export data lama)
+        $cicilanRaw    = $row['cicilan'] ?? $row['total_cicilan'] ?? null;
         $jumlahCicilan = null;
         if ($cicilanRaw !== null && (string) $cicilanRaw !== '') {
             // Hilangkan semua karakter non-digit

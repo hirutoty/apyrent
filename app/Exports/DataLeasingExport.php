@@ -74,7 +74,7 @@ class DataLeasingExport implements
                 15,                     // Jatuh Tempo
                 '01/01/2026',           // Periode Mulai
                 '31/12/2028',           // Periode Selesai
-                '36x sisa',             // Cicilan — auto, abaikan
+                '36x',                  // Cicilan — auto, abaikan
                 180000000,              // Total Cicilan — auto, abaikan
                 180000000,              // Sisa Cicilan — auto, abaikan
                 'Belum Mulai',          // Status — auto, abaikan
@@ -189,9 +189,9 @@ class DataLeasingExport implements
                 ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
         }
 
-        // Center kolom cicilan dummy (J)
+        // Center kolom cicilan dummy (J) - warna hijau untuk format total cicilan
         $sheet->getStyle('J2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('J2')->getFont()->setBold(true)->getColor()->setRGB('EA580C');
+        $sheet->getStyle('J2')->getFont()->setBold(true)->getColor()->setRGB('059669');
 
         // Status dummy (M) — warna biru (Belum Mulai)
         $sheet->getStyle('M2')->applyFromArray([

@@ -432,6 +432,15 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
 
   Route::resource('service', ServiceController::class);
+
+  // Route tambahan Service History — HARUS di atas resource agar tidak bentrok dengan {service_history} param
+  Route::post('service-history/categories', [ServiceHistoryController::class, 'storeCategory'])
+      ->name('service-history.storeCategory');
+  Route::delete('service-history/attachment/{id}', [ServiceHistoryController::class, 'destroyAttachment'])
+      ->name('service-history.attachment.destroy');
+  Route::get('service-history/kendaraan/{id}/data', [ServiceHistoryController::class, 'getKendaraanData'])
+      ->name('service-history.kendaraan-data');
+
   Route::resource('service-history', ServiceHistoryController::class);
   Route::put('service-history/{id}/status', [ServiceHistoryController::class, 'updateStatus'])
     ->name('service-history.update-status');
