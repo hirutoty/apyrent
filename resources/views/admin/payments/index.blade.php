@@ -391,7 +391,8 @@
                             <span class="text-blue-600 text-[10px] font-bold">3</span>
                         </div>
                         <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bukti pembayaran</h3>
-                        <span class="text-xs text-gray-400">(opsional)</span>
+                        <span class="text-red-500">*</span>
+                        
                     </div>
 
                     <div id="dropZoneTambah"

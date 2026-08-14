@@ -128,7 +128,8 @@ class InvKontrakController extends Controller
             'contact_pertama'       => 'nullable|string|max:255',
             'pihak_kedua'           => 'required|string|max:255',
             'contact_kedua'         => 'nullable|string|max:255',
-            'pasal'                 => 'nullable|array',
+            'ketentuan_id'          => 'nullable|string',
+            'ketentuan_en'          => 'nullable|string',
         ]);
 
         // Hitung durasi & tanggal selesai — pakai durasi terpanjang dari semua item
@@ -192,9 +193,16 @@ class InvKontrakController extends Controller
             'status'                => 'pending',
         ];
 
-        // Proses pasal_ketentuan dari form editor
-        $pasalKetentuan = self::processPasalFromRequest($request);
-        $data['pasal_ketentuan'] = $pasalKetentuan;
+        // Simpan plain text ketentuan; fallback ke teks default jika kosong
+        $data['ketentuan_id'] = $request->filled('ketentuan_id')
+            ? $request->ketentuan_id
+            : KontrakHelper::defaultPlainText('id');
+        $data['ketentuan_en'] = $request->filled('ketentuan_en')
+            ? $request->ketentuan_en
+            : KontrakHelper::defaultPlainText('en');
+
+        // Kosongkan pasal_ketentuan (tidak lagi dipakai untuk editor baru)
+        $data['pasal_ketentuan'] = null;
 
         $kontrak = InvKontrak::create($data);
 
@@ -410,13 +418,22 @@ class InvKontrakController extends Controller
             'pihak_kedua'           => 'required|string|max:255',
             'contact_kedua'         => 'nullable|string|max:255',
             'status'                => 'required',
-            'pasal'                 => 'nullable|array',
+            'ketentuan_id'          => 'nullable|string',
+            'ketentuan_en'          => 'nullable|string',
         ]);
 
         $data = $request->except(['file_kontrak', 'file_persyaratan', 'ketentuan', 'pasal']);
 
-        // Proses pasal_ketentuan dari form editor
-        $data['pasal_ketentuan'] = self::processPasalFromRequest($request);
+        // Simpan plain text ketentuan
+        $data['ketentuan_id'] = $request->filled('ketentuan_id')
+            ? $request->ketentuan_id
+            : ($kontrak->ketentuan_id ?? KontrakHelper::defaultPlainText('id'));
+        $data['ketentuan_en'] = $request->filled('ketentuan_en')
+            ? $request->ketentuan_en
+            : ($kontrak->ketentuan_en ?? KontrakHelper::defaultPlainText('en'));
+
+        // Tidak lagi menggunakan pasal_ketentuan JSON untuk editor baru
+        // (pasal_ketentuan tetap ada di DB untuk backward compat, tidak ditimpa)
 
         if ($request->hasFile('file_kontrak')) {
             $file     = $request->file('file_kontrak');

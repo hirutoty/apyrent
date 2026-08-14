@@ -16,6 +16,7 @@ use App\Console\Commands\ReminderHutangVendorCommand;
 use App\Console\Commands\ReminderPenawaranCommand;
 use App\Console\Commands\SendAgingReminder;
 use App\Console\Commands\CekJatuhTempoReminderService;
+use App\Console\Commands\CheckServicePartLimit;
 
 
 Artisan::command('inspire', function () {
@@ -95,4 +96,11 @@ Schedule::call(function () {
 Schedule::call(function () {
     app(CekJatuhTempoReminderService::class)->handle();
 // })->dailyAt('20:46');
+})->everyMinute();
+
+
+// Part Limit Check — cek tanggal_limit tiap part, update status, buat reminder
+Schedule::call(function () {
+    app(CheckServicePartLimit::class)->handle();
+// })->dailyAt('08:00');
 })->everyMinute();

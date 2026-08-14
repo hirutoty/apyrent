@@ -35,14 +35,20 @@ class ServiceHistory extends Model
     }
 
     /**
-     * Relasi ke detail service
+     * Relasi ke detail service (Mobil Bermasalah — legacy)
      */
     public function details()
     {
         return $this->hasMany(ServiceDetail::class);
     }
 
-
+    /**
+     * Relasi ke parts (sistem baru)
+     */
+    public function parts()
+    {
+        return $this->hasMany(ServicePart::class, 'service_history_id');
+    }
 
     public function attachments()
     {

@@ -99,7 +99,7 @@ class DataLeasingFullExport implements
             $row->jatuh_tempo ? 'Tgl ' . $row->jatuh_tempo : '-',
             $row->periode_mulai   ? $row->periode_mulai->format('d/m/Y')   : '-',
             $row->periode_selesai ? $row->periode_selesai->format('d/m/Y') : '-',
-            $tersisa . 'x sisa',                                 // J
+            $jumlah . 'x',                                       // J - ubah dari tersisa ke jumlah
             $jumlah  * ($row->angsuran_per_bulan ?? 0),          // K
             $tersisa * ($row->angsuran_per_bulan ?? 0),          // L
             $row->status_cicilan,
@@ -221,11 +221,11 @@ class DataLeasingFullExport implements
                     ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
             }
 
-            // Warna teks kolom J: merah jika >0, hijau jika 0
+            // Warna teks kolom J: hijau untuk total cicilan (informasi positif)
             for ($r = 2; $r <= $lastRow; $r++) {
                 $val   = $sheet->getCell("J{$r}")->getValue();
-                $sisa  = (int) $val;   // "3x sisa" → intval → 3
-                $color = $sisa > 0 ? 'EA580C' : '059669';
+                $total = (int) $val;   // "36x" → intval → 36
+                $color = $total > 0 ? '059669' : '6B7280'; // hijau jika ada cicilan, abu jika 0
                 $sheet->getStyle("J{$r}")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => $color], 'size' => 9],
                 ]);

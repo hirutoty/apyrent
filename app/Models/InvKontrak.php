@@ -37,6 +37,8 @@ class InvKontrak extends Model
         'status',
         'ketentuan_asuransi',
         'pasal_ketentuan',
+        'ketentuan_id',
+        'ketentuan_en',
     ];
 
     protected $casts = [

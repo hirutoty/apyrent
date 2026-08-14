@@ -130,6 +130,31 @@ class Kendaraan extends Model
     {
         return $this->hasMany(ServiceHistory::class);
     }
+
+    /**
+     * Semua part yang terpasang di kendaraan ini (dari semua service history)
+     */
+    public function serviceParts()
+    {
+        return $this->hasMany(ServicePart::class);
+    }
+
+    /**
+     * Part dengan status Terpasang
+     */
+    public function partsTerpasang()
+    {
+        return $this->hasMany(ServicePart::class)->where('status', 'Terpasang');
+    }
+
+    /**
+     * Part dengan status Limit
+     */
+    public function partsLimit()
+    {
+        return $this->hasMany(ServicePart::class)->where('status', 'Limit');
+    }
+
     /*
     | CASTING
     */

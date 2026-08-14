@@ -105,7 +105,19 @@ class KendaraanController extends Controller
             }
         }
 
-        return view('admin.kendaraan.show', compact('data', 'merk', 'jenis', 'setting', 'members'));
+        // Ambil semua ID kendaraan pada merk ini
+        $kendaraanIds = $data->pluck('id')->toArray();
+
+        // Parts per kendaraan: ambil semua service_parts terbaru (status Terpasang/Limit)
+        // grouped by kendaraan_id
+        $partsPerKendaraan = \App\Models\ServicePart::with('category')
+            ->whereIn('kendaraan_id', $kendaraanIds)
+            ->whereIn('status', ['Terpasang', 'Limit'])
+            ->orderByDesc('tgl_pasang')
+            ->get()
+            ->groupBy('kendaraan_id');
+
+        return view('admin.kendaraan.show', compact('data', 'merk', 'jenis', 'setting', 'members', 'partsPerKendaraan'));
     }
 
     private function getMembers() {

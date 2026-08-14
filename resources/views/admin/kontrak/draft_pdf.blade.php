@@ -126,10 +126,6 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
     $ppn = $setting->ppn_default ?? 11;
     $pph = $setting->pph_default ?? 2;
 
-    $pasalKetentuan = $kontrak->pasal_ketentuan ?: KontrakHelper::defaultPasalKetentuan();
-    $pasal1    = $pasalKetentuan[0] ?? null;
-    $pasalRest = array_slice($pasalKetentuan, 1);
-
     $durasiStr = ($dV && $dS) ? "$dV $dS" : '…………';
     $ph = [
         '{DURASI}'             => $durasiStr,
@@ -155,42 +151,111 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
         return str_replace(array_keys($ph), array_values($ph), $txt);
     };
 
-    // Helper render isi pasal (paragraf/list) — ID atau EN
-    $renderPoin = function(array $poinArr, string $lang, string $tipe, callable $rp): string {
-        $out = '';
-        if ($tipe === 'paragraf') {
-            foreach ($poinArr as $p) {
-                $lines = explode("\n", $rp($p[$lang] ?? ''));
-                $fl    = array_shift($lines);
-                $out  .= '<p style="margin-bottom:3px;">' . htmlspecialchars($fl) . '</p>';
-                foreach ($lines as $line) {
-                    $tr = ltrim($line);
-                    if ($tr === '') {
-                        $out .= '<span class="s4"></span>';
-                    } elseif (preg_match('/^[-a-zA-Z]\.?\s/', $tr)) {
-                        $out .= '<p style="margin:1px 0 1px 12px;font-size:10.5pt;">' . htmlspecialchars($tr) . '</p>';
-                    } else {
-                        $out .= '<p style="margin-bottom:2px;">' . htmlspecialchars($tr) . '</p>';
+    // ── Tentukan sumber ketentuan: plain text (baru) atau pasal JSON (lama) ──
+    $useNewFormat  = !empty($kontrak->ketentuan_id) || !empty($kontrak->ketentuan_en);
+
+    if ($useNewFormat) {
+        // Sumber: plain text dari textarea
+        $ketentuanIdRaw = $kontrak->ketentuan_id
+            ?? KontrakHelper::defaultPlainText('id');
+        $ketentuanEnRaw = $kontrak->ketentuan_en
+            ?? KontrakHelper::defaultPlainText('en');
+
+        // Substitusi placeholder
+        $ketentuanId = $rp($ketentuanIdRaw);
+        $ketentuanEn = $rp($ketentuanEnRaw);
+
+        // Helper: render plain text ke HTML untuk PDF (nl2br dengan pre-wrap style)
+        $renderPlainText = function(string $txt): string {
+            $lines = explode("\n", $txt);
+            $out   = '';
+            foreach ($lines as $line) {
+                $trimmed = trim($line);
+                if ($trimmed === '') {
+                    $out .= '<span class="s8"></span>';
+                    continue;
+                }
+                // Judul pasal: semua caps, tidak dimulai angka/huruf poin
+                if (
+                    strtoupper($trimmed) === $trimmed &&
+                    strlen($trimmed) > 3 &&
+                    !preg_match('/^\d+\./', $trimmed) &&
+                    !preg_match('/^[a-z]\./', $trimmed)
+                ) {
+                    $out .= '<p style="font-weight:bold;text-align:center;margin:6px 0 2px 0;font-size:11pt;">'
+                          . htmlspecialchars($trimmed) . '</p>';
+                }
+                // Poin bernomor: "1. ..." atau "a. ..."
+                elseif (preg_match('/^(\d+|[a-z])\.\s+(.+)/', $trimmed, $m)) {
+                    $out .= '<p style="margin:2px 0 2px 8px;text-align:justify;">'
+                          . htmlspecialchars($m[1]) . '. '
+                          . htmlspecialchars($m[2]) . '</p>';
+                }
+                // Baris indentasi (sub-poin dengan tanda -)
+                elseif (preg_match('/^\s*-\s+/', $line)) {
+                    $out .= '<p style="margin:1px 0 1px 20px;font-size:10.5pt;">'
+                          . htmlspecialchars($trimmed) . '</p>';
+                }
+                // Teks biasa
+                else {
+                    $out .= '<p style="margin-bottom:3px;text-align:justify;">'
+                          . htmlspecialchars($trimmed) . '</p>';
+                }
+            }
+            return $out;
+        };
+
+        // Tidak pakai renderPoin lama — set dummy agar template tetap bisa dipakai
+        $pasal1    = null;
+        $pasalRest = [];
+        $renderPoin = fn() => '';
+
+    } else {
+        // ── Fallback: data pasal JSON lama ──
+        $pasalKetentuan = $kontrak->pasal_ketentuan ?: KontrakHelper::defaultPasalKetentuan();
+        $pasal1         = $pasalKetentuan[0] ?? null;
+        $pasalRest      = array_slice($pasalKetentuan, 1);
+        $ketentuanId    = null;
+        $ketentuanEn    = null;
+        $renderPlainText = fn(string $t) => '';
+
+        // Helper render isi pasal (paragraf/list) — ID atau EN
+        $renderPoin = function(array $poinArr, string $lang, string $tipe, callable $rp): string {
+            $out = '';
+            if ($tipe === 'paragraf') {
+                foreach ($poinArr as $p) {
+                    $lines = explode("\n", $rp($p[$lang] ?? ''));
+                    $fl    = array_shift($lines);
+                    $out  .= '<p style="margin-bottom:3px;">' . htmlspecialchars($fl) . '</p>';
+                    foreach ($lines as $line) {
+                        $tr = ltrim($line);
+                        if ($tr === '') {
+                            $out .= '<span class="s4"></span>';
+                        } elseif (preg_match('/^[-a-zA-Z]\.?\s/', $tr)) {
+                            $out .= '<p style="margin:1px 0 1px 12px;font-size:10.5pt;">' . htmlspecialchars($tr) . '</p>';
+                        } else {
+                            $out .= '<p style="margin-bottom:2px;">' . htmlspecialchars($tr) . '</p>';
+                        }
                     }
+                    $out .= '<span class="s4"></span>';
                 }
-                $out .= '<span class="s4"></span>';
-            }
-        } else {
-            $out .= '<ul class="lst" style="margin:2px 0 4px 0;">';
-            foreach ($poinArr as $pi => $p) {
-                $lines    = explode("\n", $rp($p[$lang] ?? ''));
-                $mt       = array_shift($lines);
-                $subLines = array_filter($lines, fn($l) => trim($l) !== '');
-                $out .= '<li style="margin-bottom:4px;"><span class="nb">' . ($pi + 1) . '.</span><span class="tx">' . htmlspecialchars($mt);
-                foreach ($subLines as $sl) {
-                    $out .= '<br><span style="display:inline-block;padding-left:8px;">' . htmlspecialchars(ltrim($sl)) . '</span>';
+            } else {
+                $out .= '<ul class="lst" style="margin:2px 0 4px 0;">';
+                foreach ($poinArr as $pi => $p) {
+                    $lines    = explode("\n", $rp($p[$lang] ?? ''));
+                    $mt       = array_shift($lines);
+                    $subLines = array_filter($lines, fn($l) => trim($l) !== '');
+                    $out .= '<li style="margin-bottom:4px;"><span class="nb">' . ($pi + 1) . '.</span><span class="tx">' . htmlspecialchars($mt);
+                    foreach ($subLines as $sl) {
+                        $out .= '<br><span style="display:inline-block;padding-left:8px;">' . htmlspecialchars(ltrim($sl)) . '</span>';
+                    }
+                    $out .= '</span></li>';
                 }
-                $out .= '</span></li>';
+                $out .= '</ul>';
             }
-            $out .= '</ul>';
-        }
-        return $out;
-    };
+            return $out;
+        };
+    }
 @endphp
 
 {{-- ═══════════════════════════════════════════════════════
@@ -241,8 +306,8 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
         <td class="r"><p>The Parties hereby agree to enter into the Car Rental Agreement ('Agreement') under the following terms and condition:</p></td>
     </tr>
 
-    {{-- Pasal 1 --}}
-    @if($pasal1)
+    {{-- Pasal 1 (hanya untuk format lama / JSON) --}}
+    @if(!$useNewFormat && $pasal1)
     @php
         $j1Id = strtoupper(str_replace("\n", '<br/>', $pasal1['judul_id'] ?? ''));
         $j1En = strtoupper(str_replace("\n", '<br/>', $pasal1['judul_en'] ?? ''));
@@ -262,12 +327,20 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
 </div>
 
 {{-- ═══════════════════════════════════════════════════════
-     HALAMAN 2+: Pasal 2 dst + TTD (tanpa header kontrak)
+     HALAMAN 2+: Ketentuan + TTD
 ═══════════════════════════════════════════════════════ --}}
 <div>
 
     <table class="tc" style="font-size:10.5pt;line-height:1.38;">
 
+    @if($useNewFormat)
+    {{-- Format baru: render 2 kolom plain text (ID kiri, EN kanan) --}}
+    <tr>
+        <td style="vertical-align:top;padding-right:6px;">{!! $renderPlainText($ketentuanId) !!}</td>
+        <td class="r" style="vertical-align:top;">{!! $renderPlainText($ketentuanEn) !!}</td>
+    </tr>
+    @else
+    {{-- Format lama: render pasal JSON per-pasal --}}
     @foreach($pasalRest as $pi => $pasal)
     @php
         $jId = strtoupper(str_replace("\n", '<br/>', $pasal['judul_id'] ?? ''));
@@ -285,6 +358,7 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
         <td class="r">{!! $renderPoin($pasal['poin'] ?? [], 'en', $pasal['tipe'] ?? 'list', $rp) !!}</td>
     </tr>
     @endforeach
+    @endif
 
     {{-- TTD --}}
     <tr><td colspan="2"><span class="s18"></span></td></tr>

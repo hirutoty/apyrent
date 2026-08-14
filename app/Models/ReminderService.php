@@ -14,6 +14,7 @@ class ReminderService extends Model
 
     protected $fillable = [
         'kendaraan_id',
+        'service_part_id',
         'nama_reminder',
         'tanggal_mulai',
         'interval_nilai',
@@ -31,10 +32,30 @@ class ReminderService extends Model
         'sudah_dibuat_masalah' => 'boolean',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | RELASI
+    |--------------------------------------------------------------------------
+    */
+
     public function kendaraan()
     {
         return $this->belongsTo(Kendaraan::class, 'kendaraan_id');
     }
+
+    /**
+     * Relasi ke part yang memicu reminder ini (nullable — sistem baru)
+     */
+    public function servicePart()
+    {
+        return $this->belongsTo(ServicePart::class, 'service_part_id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | HELPERS
+    |--------------------------------------------------------------------------
+    */
 
     /**
      * Hitung tanggal jatuh tempo berdasarkan tanggal_mulai + interval
