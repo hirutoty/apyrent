@@ -213,8 +213,6 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
     } else {
         // ── Fallback: data pasal JSON lama ──
         $pasalKetentuan = $kontrak->pasal_ketentuan ?: KontrakHelper::defaultPasalKetentuan();
-        $pasal1         = $pasalKetentuan[0] ?? null;
-        $pasalRest      = array_slice($pasalKetentuan, 1);
         $ketentuanId    = null;
         $ketentuanEn    = null;
         $renderPlainText = fn(string $t) => '';
@@ -259,9 +257,10 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
 @endphp
 
 {{-- ═══════════════════════════════════════════════════════
-     HALAMAN 1: Para Pihak + Pasal 1
+     DOKUMEN: Para Pihak + Seluruh Ketentuan + TTD
+     (konten mengalir natural, tidak ada page-break paksa)
 ═══════════════════════════════════════════════════════ --}}
-<div style="page-break-after:always;">
+<div>
 
     <div class="doc-title">
         <span class="t1">PERJANJIAN SEWA MENYEWA KENDARAAN</span>
@@ -305,34 +304,9 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
         <td><p>Para Pihak sepakat untuk mengadakan Perjanjian Sewa Menyewa Kendaraan ('Perjanjian') dengan kondisi sebagai berikut:</p></td>
         <td class="r"><p>The Parties hereby agree to enter into the Car Rental Agreement ('Agreement') under the following terms and condition:</p></td>
     </tr>
-
-    {{-- Pasal 1 (hanya untuk format lama / JSON) --}}
-    @if(!$useNewFormat && $pasal1)
-    @php
-        $j1Id = strtoupper(str_replace("\n", '<br/>', $pasal1['judul_id'] ?? ''));
-        $j1En = strtoupper(str_replace("\n", '<br/>', $pasal1['judul_en'] ?? ''));
-    @endphp
     <tr><td colspan="2"><span class="s12"></span></td></tr>
-    <tr>
-        <td style="text-align:center;font-weight:bold;font-size:11pt;padding:6px 10px 3px 0;line-height:1.5;">{!! $j1Id !!}</td>
-        <td style="text-align:center;font-weight:bold;font-size:11pt;padding:6px 0 3px 10px;line-height:1.5;">{!! $j1En !!}</td>
-    </tr>
-    <tr>
-        <td>{!! $renderPoin($pasal1['poin'] ?? [], 'id', $pasal1['tipe'] ?? 'paragraf', $rp) !!}</td>
-        <td class="r">{!! $renderPoin($pasal1['poin'] ?? [], 'en', $pasal1['tipe'] ?? 'paragraf', $rp) !!}</td>
-    </tr>
-    @endif
 
-    </table>
-</div>
-
-{{-- ═══════════════════════════════════════════════════════
-     HALAMAN 2+: Ketentuan + TTD
-═══════════════════════════════════════════════════════ --}}
-<div>
-
-    <table class="tc" style="font-size:10.5pt;line-height:1.38;">
-
+    {{-- ── KETENTUAN ── --}}
     @if($useNewFormat)
     {{-- Format baru: render 2 kolom plain text (ID kiri, EN kanan) --}}
     <tr>
@@ -340,8 +314,8 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
         <td class="r" style="vertical-align:top;">{!! $renderPlainText($ketentuanEn) !!}</td>
     </tr>
     @else
-    {{-- Format lama: render pasal JSON per-pasal --}}
-    @foreach($pasalRest as $pi => $pasal)
+    {{-- Format lama: render semua pasal JSON (pasal 1 s/d terakhir) --}}
+    @foreach($pasalKetentuan as $pi => $pasal)
     @php
         $jId = strtoupper(str_replace("\n", '<br/>', $pasal['judul_id'] ?? ''));
         $jEn = strtoupper(str_replace("\n", '<br/>', $pasal['judul_en'] ?? ''));
@@ -350,12 +324,12 @@ p { text-align: justify; margin-bottom: 5px; font-size: 11pt; }
     <tr><td colspan="2"><span class="s12"></span></td></tr>
     @endif
     <tr>
-        <td style="text-align:center;font-weight:bold;font-size:11pt;padding:6px 10px 3px 0;line-height:1.5;">{!! $jId !!}</td>
-        <td style="text-align:center;font-weight:bold;font-size:11pt;padding:6px 0 3px 10px;line-height:1.5;">{!! $jEn !!}</td>
+        <td style="text-align:center;font-weight:bold;font-size:11pt;padding:4px 10px 2px 0;line-height:1.5;">{!! $jId !!}</td>
+        <td style="text-align:center;font-weight:bold;font-size:11pt;padding:4px 0 2px 10px;line-height:1.5;">{!! $jEn !!}</td>
     </tr>
     <tr>
-        <td>{!! $renderPoin($pasal['poin'] ?? [], 'id', $pasal['tipe'] ?? 'list', $rp) !!}</td>
-        <td class="r">{!! $renderPoin($pasal['poin'] ?? [], 'en', $pasal['tipe'] ?? 'list', $rp) !!}</td>
+        <td style="font-size:10.5pt;line-height:1.38;">{!! $renderPoin($pasal['poin'] ?? [], 'id', $pasal['tipe'] ?? 'list', $rp) !!}</td>
+        <td class="r" style="font-size:10.5pt;line-height:1.38;">{!! $renderPoin($pasal['poin'] ?? [], 'en', $pasal['tipe'] ?? 'list', $rp) !!}</td>
     </tr>
     @endforeach
     @endif

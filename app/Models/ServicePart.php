@@ -28,6 +28,10 @@ class ServicePart extends Model
         'interval_satuan',
         'tanggal_limit',
         'biaya',
+        'bukti',
+        'keterangan',
+        'replaced_at',
+        'replaced_by_part_id',
     ];
 
     protected $casts = [
@@ -36,6 +40,8 @@ class ServicePart extends Model
         'kilometer_pasang' => 'integer',
         'biaya'          => 'integer',
         'interval_nilai' => 'integer',
+        'bukti'          => 'array',
+        'replaced_at'    => 'datetime',
     ];
 
     /*
@@ -62,6 +68,11 @@ class ServicePart extends Model
     public function reminder()
     {
         return $this->hasOne(ReminderService::class, 'service_part_id');
+    }
+
+    public function replacedBy()
+    {
+        return $this->belongsTo(ServicePart::class, 'replaced_by_part_id');
     }
 
     /*

@@ -438,8 +438,24 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       ->name('service-history.storeCategory');
   Route::delete('service-history/attachment/{id}', [ServiceHistoryController::class, 'destroyAttachment'])
       ->name('service-history.attachment.destroy');
+  Route::delete('service-parts/{id}/bukti', [ServiceHistoryController::class, 'deletePartBukti'])
+      ->name('service-parts.bukti.delete');
   Route::get('service-history/kendaraan/{id}/data', [ServiceHistoryController::class, 'getKendaraanData'])
       ->name('service-history.kendaraan-data');
+
+  // Request Part routes
+  Route::get('service-history/request/create', [ServiceHistoryController::class, 'requestCreate'])
+      ->name('service-history.request.create');
+  Route::post('service-history/request', [ServiceHistoryController::class, 'requestStore'])
+      ->name('service-history.request.store');
+  Route::get('service-history/{id}/edit-request', [ServiceHistoryController::class, 'editRequest'])
+      ->name('service-history.request.edit');
+  Route::put('service-history/{id}/edit-request', [ServiceHistoryController::class, 'updateRequest'])
+      ->name('service-history.request.update');
+  Route::post('service-history/{id}/approve', [ServiceHistoryController::class, 'approve'])
+      ->name('service-history.approve');
+  Route::post('service-history/{id}/reject', [ServiceHistoryController::class, 'reject'])
+      ->name('service-history.reject');
 
   Route::resource('service-history', ServiceHistoryController::class);
   Route::put('service-history/{id}/status', [ServiceHistoryController::class, 'updateStatus'])

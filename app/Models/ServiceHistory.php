@@ -24,6 +24,13 @@ class ServiceHistory extends Model
         'biaya_tahunan',
         'status_pengeluaran',
         'bukti_pembayaran',
+        'status_approval',
+        'approval_by',
+        'approval_at',
+    ];
+
+    protected $casts = [
+        'approval_at' => 'datetime',
     ];
 
     /**
@@ -54,5 +61,10 @@ class ServiceHistory extends Model
     {
         return $this->hasMany(Attachment::class, 'relation_id')
             ->where('relation_type', 'service');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approval_by');
     }
 }

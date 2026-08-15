@@ -1,0 +1,353 @@
+Heat Ultimate Patch
+Endorsements
+1,563
+Unique DLs
+34,507
+Total DLs
+108,837
+Total views
+393,890
+Version
+3.5.2
+Add media
+Track
+Endorse
+Vote
+Download:
+Manual
+Last updated
+16 May 2026, 7:02AM
+Original upload
+05 August 2020, 10:22AM
+Created by
+AntiLoser
+Uploaded by
+AntiLoser
+Virus scan
+Safe to use
+Tags for this mod
+Compilation
+Performance Optimization
+Gameplay
+Replacer
+Fair and balanced
+English
+Animation - Modified
+Sound FX
+View more... Tag this mod
+Description
+Files 16
+Images 10
+Videos 2
+Posts 931
+Bugs 0
+Logs
+Stats
+About this mod
+You haven't downloaded this mod yet
+Adds Hidden Parts, new parts, more performance
+Enhanced Graphics
+
+Share
+Report Abuse
+Requirements
+Nexus requirements
+Mod name
+Notes
+NFS Heat Frosty Key	Only Required if first time use Frosty Mod Manager
+Off-site requirements
+Mod name
+Notes
+Frosty Fix for non-Origin users	
+Frosty Mod Manager 1.0.6.1 or later	
+Permissions and credits
+Credits and distribution permission
+Other user's assets
+Some assets in this file belong to other authors. You will need to seek permission from these authors before you can use their assets
+ 
+Upload permission
+You are not allowed to upload this file to other sites under any circumstances
+ 
+Modification permission
+You must get permission from me before you are allowed to modify my files to improve it
+ 
+Conversion permission
+You are not allowed to convert this file to work on other games under any circumstances
+ 
+Asset use permission
+You must get permission from me before you are allowed to use any of the assets in this file
+ 
+Asset use permission in mods/files that are being sold
+You are not allowed to use assets from this file in any mods/files that are being sold, for money, on Steam Workshop or other platforms
+ 
+Asset use permission in mods/files that earn donation points
+You are not allowed to earn Donation Points for your mods if they use my assets
+Author notes
+This author has not provided any additional notes regarding file permissions
+
+File credits
+Project United Mod (originally created by Gzilla) at Discord https://discord.gg/GCRMfJ for the graphics enhancement
+Dimitri (also works on Project United) on discord for collaboration with adding engine swaps
+
+Donation Points system
+This mod is opted-in to receive Donation Points
+
+Mirrors
+Name
+NFS Mods
+Changelogs
+Version 3.4.8
+Fixed some cars with "no parts available"
+Version 3.4.7
+Fixed "no parts available" on Ferraris
+Added missing high-end engines to RSR
+More cars have all calipers
+Version 3.4.6
+Fixed missing turbos
+Version 3.4.5
+Fixed crashes in free roam
+Fixed ride height on a few cars when using air suspension
+Fixed RSR not having all engine swaps
+Fixed some cars showing wrong thumbnail icon
+Version 3.4.4
+Fixed an issue causing a crash when trying to select RSX-S while in online mode
+Version 3.4.3
+Fixed issue with some performance parts not showing up in shop
+Version 3.4.1
+Added Calipers on more cars (all cars alphabetically up to Dodge Challenger done)
+Added mirrorable decals on top, front and rear windows and bumpers
+Version 3.3.8
+Added more Calipers to cars (Currently up to BMW's in alphabetical order)
+Fixed wraps not showing up on Eddie's car and Rachael's car
+Version 3.3.7
+Added Eddie's kit to Skyline
+Added hidden Rear bumper to Huracan
+Separated Graphics further
+Started adding all calipers to all cars WIP
+Changed to mod manager alpha 2
+Version 3.3.6HF
+Fixed Graphics (removed color banding in sky)
+Version 3.3.6
+Added Chapters to story mode versions
+Removed performance changes so that you can use Unite's standalone handling mod
+Version 3.3.4
+Graphics portion of mod separated
+Mods using this mod (2)
+Filter by mod name…
+Search
+Mod name
+Notes
+No Overpowered Cops Online (Unite Remix and Others)
+Not required, but highly recommended!
+No Overpowered Racers Online (Unite Remix and Others)
+Not required, but highly recommended!
+Donations
+Hidden Parts
+
+Nissan 350Z: Rachael's Mantis Kit and Ana Rivera's Kit (Ana's kit not available in story version)
+Corvette GS: KS Kit, Cop Kit
+Polestar: KS Kit
+Nissan 370Z: Nismo Kit
+Nissan GTR: Nismo Kit
+Aston Martin DB11: Volante Black Market Kit
+BMW i8: KS Kit
+Mercedes C63 AMG: KS Kit
+Mazda RX7: Hidden Hood
+Mitsubishi EvoX : KS Kit
+Ferrari 488 GTB: Pista Parts
+BMW M4: M4 GTS Parts
+Honda NSX: Kakimoto Parts
+Mercedes AMG GT: GTR parts, Roadster Parts
+Huracan: Performante Parts including visual engine part, Spyder parts, Performante Spyder parts, hidden rear bumper
+Huracan Spyder: Performante Spyder Parts
+LaFerrari: FXXK-Evo Parts including visual engine part (looks identical, might be different i don't know, but there was two so i put it in)
+Porsche 718 Cayman GTS: Cayman GT4 Parts
+McLaren 570S: 600LT Parts
+Nissan Skyline R34: Eddie's Kit
+Camaro SS: Blower part (from Roberto's Camaro) and Hood. (Not available in story version)
+Various Ferrari's: Hidden Canards, spoilers, and diffusers
+License Plates: NFSMW, Underground, Underground 2, Police
+Character: Hidden clothes
+
+New parts
+
+Some new parts will not be available in story mode. This is due to some cutscenes requiring a vanilla car.
+
+Huracan: Cop lightbar on roof
+918 Spyder:  Police llightbar on roof
+Charger 69: Blower on hood (go to Hoods and Part set if engine does not appear above hood interaction point)
+2015 MX5: 2 New roofs (decal placement might be distorted when using new roofs as this wasn't intended), and Rachael's spoiler
+Porsche 911 Carrera GTS: Siren
+911 Turbo: Siren
+Diablo: Siren, Morohoshi Kit
+Audi R8: Big Country Labs Spoiler
+Mazda RX7: Rachael's Spoiler (not available in story mode)
+TransAm: Blower (available in hood part sets)
+Cougar: Blower
+BMW M4Z40i: Blower
+
+Gameplay
+
+All cars unlocked (DLC Cars separated, Deluxe not included)
+Car Dealer Alphabetized for easier finding
+Ride Height for offroad cars will only change when equipping Suspension
+Added Air control ECU option (can steer/turn while in air)
+Added Drivetrain Slider (FWD to AWD to RWD. You will need Ultimate Nos Equipped to see it, weird I know but that is where i put the slider)
+Hidden Events (Separated)
+
+
+Customization
+
+No Part Restrictions (visual parts will not show message saying restricted by another part when trying to equip)
+Removable parts (option may be available only in solo mode, removed parts will still be same when going online)
+Labeled parts (Visual parts will show name on the icon in the menu)
+Labeled Engine (tells you which car it came from)
+Hidden Parts have unique icon to let you know that it is not available in vanilla game(AntiLoser's Ultimate Patch)
+Deluxe Parts available to everyone (KS parts from Corvette GS, BMW i8, Evo X, C63 AMG)
+All Calipers on all Cars (WIP)
+Mirrorable decals on top sections of car (back out of current section and back in again to see it in layers menu)
+
+Stance
+
+No forced camber when lowering car (Separtated in case you want to use different ride height mods)
+New Track Width Sliders (replaces Traction control and Steer rate sliders. Separated)
+
+Engine Swaps﻿﻿
+
+All Cars with All engines (some high end cars won't have low-end engines)
+Sorted by Potential Horsepower (Lowest to Highest)
+
+Performance
+
+More Gear options for all cars
+All stock turbos on all engines (may not be purchasable in Online mode, try in solo mode. Items purchased in solo mode will work online. Will only improve performance if you use the regera turbo)
+All engine items on all engines (does not improve performance of any car. It just adds all vanilla performance items to all engines)
+All Drivetrain items on all Cars (does not improve performance of any car. It just adds all vanilla performance items to all cars)
+All Chassis items on all Cars (does not improve performance of any car. It just adds all vanilla performance items to all cars)
+
+Hidden Cars/DLC Cars
+
+Red Bull 370Z (Will appear in garage automatically, Separated)
+McLaren F1 (Separated. Also see notes below if issues occur)
+
+Graphics (Separated)
+
+Removed film grain
+Reduced sun intensity
+Reduced Lens Flares
+Virtual Warehouse effects
+
+Graphics assets were imported from an Earlier version of the Project United Mod﻿, I take no credit for that portion of the mod.
+
+Engine Sounds
+
+Nissan 350Z Legends Edition Engine: 350Z Engine sound from underground 2 (copied from Heat+/Project United mod)
+
+Neon
+
+Two Color Wave neons changed to match blinking speed of the single color wave neons
+A duplicate neon from the black market update changed to a new neon color (candy pink & mint)
+Replaced some similar color neons with new neon colors (You will need to use my hidden vanity  tutorial to get some of the neons)
+
+Story Mode Affected Cars
+
+Here is a list to use in conjunction with the Story mode chapters. Under each chapter are the cars that will have full customization from that chapter onward.
+To use the chapter version have main mod and the chapter you are currently on only . You remove previous chapter and add the new chapter. If you don't feel like changing it use the full compaitbility version. Alternatively you can add all chapters and remove them upon completion.
+
+Chapter 1
+Polestar 1 Hero edition
+Subaru Impreza WRX 2010
+Chapter 2
+Acura RSXS
+BMW i8
+Ford Mustang 1965
+Ford Mustang Foxbody
+Ford Mustang GT 2015
+Honda S2000
+Infiniti Q60S
+Mazda MX5 1996
+Mercedes Benz AMG A45
+Nissan 180SX
+Chapter 3
+Honda Civic Type R 2015
+Chapter 4
+Audi S5
+BMW M3E30 Evo2
+BMW X6 M
+Chevrolet Camaro Z28
+Ford F150 Raptor
+Ford Focus RS
+Nissan Skyline 1971
+Polestar 1
+SRT Viper GTS
+Volkswagen Golf 1974
+Volkswagen Golf 2016
+Chapter 5 (Story Complete)
+BMW M3 GTR
+Ferrari F40
+Honda Civic Type R 2000
+Mitsubishi Evolution X 2008
+Nissan GTR
+Subaru BRZ
+Volvo 242 DL
+Used in Driving Stories (Won't have full Customization in Story Mode because it would be too difficult to do chapters for these)
+BMW M3 E46
+BMW M3 E92
+Chevrolet C10 Pickup
+Chevrolet Camaro SS
+Chevrolet Colorado ZR2
+Mazda RX7
+Nissan 350Z
+Nissan Skyline R32
+Nissan Skyline R34 Eddie Edition
+Porsche 911 Carrera S 993
+
+All other cars will have full customization in story mode
+
+Here is a mission list to check which chapter you are currently on.
+
+Chapter 1
+
+Campaign Story Mission: Introduction
+Campaign Story Mission: Make A Name
+Campaign Story Mission: Get Noticed
+Chapter 2
+
+Campaign Story Mission: Let It Slide
+Campaign Story Mission: Take On Oscar
+Campaign Story Mission: Take On Nari
+Campaign Story Mission: Race Jordyn's Crew
+Campaign Story Mission: Got our Back
+Chapter 3
+
+Campaign Story Mission: Friend In Need
+Campaign Story Mission: Proposition
+Campaign Story Mission: Follow The Law
+Campaign Story Mission: Party Crashers
+Chapter 4
+
+Campaign Story Mission: Upload
+Campaign Story Mission: Breaking The Law
+
+
+Directions
+
+Place .fbmod file in FrostyModManager\Mods\NeedForSpeedHeat
+Open Frosty Mod Manager
+Apply mod
+Press Launch
+Enjoy Mod
+
+Notes:
+
+Cracked Version is not supported and will not run with Frosty Editor
+Do not try to obtain Ivory Nos with my Vanity PDF, it may corrupt your save. Back up save before attempting!
+As this is my project file, you will be able to change settings yourself as well.
+This is still an alpha so some things may not work perfectly, I wanted to put more into the mod but it was unsupported.
+Story Mode version may lack some of the customization that the normal version has. This was a side effect of getting the mod compatible with the story/cutscenes. Also recommended to finish prologue before using mod.
+Some portions of this mod may not work when playing in online mode. Mod was tested using solo mode.
+May only work with Origin or Steam versions of the game (EA Desktop, X-Box gamepass or EA play will not work)
+You may need to run game without mods to get McLaren F1 DLC once to get it fully working. You can then launch it with mods afterward. If you are acquring it with my mod only use that mod and acquire it. Then apply the other mods (keep the McLaren mod active).
+
+
+For other issues visit the Frosty Discord

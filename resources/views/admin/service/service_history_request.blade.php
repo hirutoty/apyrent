@@ -1,6 +1,6 @@
 @extends('admin.layouts.app')
 
-@section('title', 'Tambah Service')
+@section('title', 'Request Part')
 
 @section('content')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
@@ -14,41 +14,22 @@
             <i class="fa fa-arrow-left text-sm"></i>
         </a>
         <div>
-            <h1 class="text-xl font-bold text-gray-800">
-                {{ $prefill ? 'Selesaikan Reminder Service' : 'Tambah Service Kendaraan' }}
-            </h1>
-            <p class="text-xs text-gray-500 mt-0.5">
-                {{ $prefill ? 'Form pre-filled dari reminder — perbarui data part yang diganti' : 'Isi header service lalu tambahkan part yang dipasang' }}
-            </p>
+            <h1 class="text-xl font-bold text-gray-800">Request Part</h1>
+            <p class="text-xs text-gray-500 mt-0.5">Request akan menunggu approval sebelum diproses</p>
         </div>
     </div>
 
-    {{-- PREFILL NOTICE --}}
-    @if ($prefill)
-        <div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-start gap-3">
-            <i class="fa fa-bell text-amber-500 mt-0.5"></i>
-            <div>
-                <p class="text-sm font-semibold text-amber-800">Dari Reminder: Part Limit</p>
-                <p class="text-xs text-amber-700 mt-0.5">
-                    Part <strong>{{ $prefill['part']['nama_part'] }}</strong> pada kendaraan
-                    <strong>{{ $prefill['kendaraan']->merk }} — {{ $prefill['kendaraan']->nopol }}</strong>
-                    telah melewati limit interval. Perbarui Serial Number dan Tanggal Pasang untuk part baru.
-                </p>
-            </div>
+    {{-- INFO NOTICE --}}
+    <div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-start gap-3">
+        <i class="fa fa-info-circle text-amber-500 mt-0.5"></i>
+        <div>
+            <p class="text-sm font-semibold text-amber-800">Request Part — Menunggu Approval</p>
+            <p class="text-xs text-amber-700 mt-0.5">Data akan masuk ke service history dengan status <strong>Pending</strong> hingga disetujui.</p>
         </div>
-        <input type="hidden" id="prefill_reminder_id" value="{{ $prefill['reminder_id'] }}">
-        <input type="hidden" id="prefill_kendaraan_id" value="{{ $prefill['kendaraan_id'] }}">
-    @endif
+    </div>
 
-    <form action="{{ route('service-history.store') }}" method="POST" enctype="multipart/form-data">
+    <form action="{{ route('service-history.request.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
-
-        @if ($prefill)
-            <input type="hidden" name="from_reminder" value="{{ $prefill['reminder_id'] }}">
-            @if(isset($prefill['service_history_id']))
-                <input type="hidden" name="service_history_id" value="{{ $prefill['service_history_id'] }}">
-            @endif
-        @endif
 
         {{-- SECTION 1: HEADER SERVICE --}}
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
@@ -193,9 +174,9 @@
                 Batal
             </a>
             <button type="submit"
-                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-colors">
-                <i class="fa fa-save text-sm"></i>
-                {{ $prefill ? 'Simpan & Tutup Reminder' : 'Simpan Service' }}
+                class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-colors">
+                <i class="fa fa-paper-plane text-sm"></i>
+                Kirim Request
             </button>
         </div>
 
@@ -224,7 +205,7 @@
 <script>
 // ── Data dari blade ──────────────────────────────────────────
 const categories = @json($categories->map(fn($c) => ['id' => $c->id, 'nama' => $c->nama]));
-const prefillData = @json($prefill ? $prefill['part'] : null);
+const prefillData = null;
 let partIndex = 0;
 let _currentCategoryTarget = null; // select yang trigger modal kategori
 
@@ -518,57 +499,8 @@ document.getElementById('kilometer').addEventListener('input', function() {
 
 // ── Init prefill (dari reminder) ─────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
-    @if ($prefill)
-        // Set kendaraan dan trigger auto-fill KM
-        const kendaraanSelect = document.getElementById('kendaraan_id');
-        kendaraanSelect.value = '{{ $prefill["kendaraan_id"] }}';
-        onKendaraanChange('{{ $prefill["kendaraan_id"] }}');
-
-        // Tambah row pre-filled
-        addPartRow({
-            nama_part:        '{{ addslashes($prefill["part"]["nama_part"]) }}',
-            category_id:      '{{ $prefill["part"]["category_id"] }}',
-            posisi:           '{{ addslashes($prefill["part"]["posisi"] ?? "") }}',
-            part_number:      '{{ addslashes($prefill["part"]["part_number"] ?? "") }}',
-            interval_nilai:   '{{ $prefill["part"]["interval_nilai"] }}',
-            interval_satuan:  '{{ $prefill["part"]["interval_satuan"] }}',
-            biaya:            '{{ $prefill["part"]["biaya"] ?? 0 }}',
-        });
-    @endif
+    // Request form — no prefill needed
 });
 </script>
-
-{{-- ALERT POPUP --}}
-@if (session('success') || session('error') || $errors->any())
-<div id="alertOverlay" class="fixed inset-0 z-[9999] flex items-start justify-center pt-6"
-    style="background:rgba(0,0,0,0.18);opacity:0;transition:opacity 0.2s;pointer-events:none">
-    <div id="alertBox" class="bg-white rounded-xl shadow-xl border border-gray-100 px-5 py-4 flex items-start gap-3 w-full max-w-md mx-4"
-        style="transform:translateY(-16px);transition:transform 0.25s">
-        @if (session('success'))
-            <div class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0 text-green-600 text-xl"><i class="fa fa-check-circle"></i></div>
-            <div class="flex-1"><p class="text-sm font-bold text-gray-800">Berhasil!</p><p class="text-xs text-gray-500 mt-0.5">{{ session('success') }}</p></div>
-        @elseif (session('error'))
-            <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl"><i class="fa fa-exclamation-circle"></i></div>
-            <div class="flex-1"><p class="text-sm font-bold text-gray-800">Error!</p><p class="text-xs text-gray-500 mt-0.5">{{ session('error') }}</p></div>
-        @else
-            <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl"><i class="fa fa-exclamation-circle"></i></div>
-            <div class="flex-1"><p class="text-sm font-bold text-gray-800">Validasi Error!</p><ul class="text-xs text-gray-500 mt-0.5 list-disc ml-4">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
-        @endif
-        <button onclick="closeAlert()" class="text-gray-400 hover:text-gray-600 text-lg"><i class="fa fa-times"></i></button>
-    </div>
-</div>
-
-<script>
-(function() {
-    const overlay = document.getElementById('alertOverlay');
-    if (!overlay) return;
-    const box = document.getElementById('alertBox');
-    setTimeout(() => { overlay.style.opacity='1'; overlay.style.pointerEvents='auto'; box.style.transform='translateY(0)'; }, 50);
-    const timer = setTimeout(() => closeAlert(), 5000);
-    function closeAlert() { clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
-    window.closeAlert = closeAlert;
-})();
-</script>
-@endif
 
 @endsection

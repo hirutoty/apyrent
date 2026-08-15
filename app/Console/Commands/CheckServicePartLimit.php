@@ -31,6 +31,7 @@ class CheckServicePartLimit extends Command
             }
 
             // Ambil semua part yang masih Terpasang dan sudah melewati tanggal limit
+            // Note: Part dengan status "Diganti" atau "Limit" otomatis ter-exclude
             $partsLimit = ServicePart::with(['kendaraan', 'category'])
                 ->where('status', 'Terpasang')
                 ->whereNotNull('tanggal_limit')

@@ -57,7 +57,7 @@
         <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-slate-500">Jatuh Tempo</p>
+                    <p class="text-sm text-slate-500">Perawatan Kembali</p>
                     <h3 class="text-3xl font-bold text-red-600 mt-2">{{ $totalJatuhTempo }}</h3>
                 </div>
                 <div class="w-14 h-14 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center">
@@ -90,7 +90,7 @@
             <div class="flex flex-wrap items-center gap-2">
                 {{-- Filter Status --}}
                 <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-                    @foreach (['' => 'Semua', 'aktif' => 'Aktif', 'jatuh_tempo' => 'Jatuh Tempo', 'selesai' => 'Selesai'] as $val => $label)
+                    @foreach (['' => 'Semua', 'aktif' => 'Aktif', 'jatuh_tempo' => 'Perawatan Kembali', 'selesai' => 'Selesai'] as $val => $label)
                         <a href="{{ url('/admin/reminder-service' . ($val ? '?status=' . $val : '')) }}"
                             class="px-3 py-1 text-xs font-medium rounded-md transition-colors
                                 {{ request('status') == $val ? 'bg-white text-' . ($val === 'aktif' ? 'blue' : ($val === 'jatuh_tempo' ? 'red' : ($val === 'selesai' ? 'emerald' : 'gray'))) . '-600 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
