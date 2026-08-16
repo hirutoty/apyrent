@@ -28,6 +28,7 @@ class ServicePart extends Model
         'interval_satuan',
         'tanggal_limit',
         'biaya',
+        'status_pengeluaran',
         'bukti',
         'keterangan',
         'replaced_at',

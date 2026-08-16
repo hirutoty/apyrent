@@ -13,8 +13,35 @@ class ServiceCategory extends Model
 
     protected $fillable = ['nama'];
 
+    /*
+    |--------------------------------------------------------------------------
+    | RELASI
+    |--------------------------------------------------------------------------
+    */
+
     public function parts()
     {
         return $this->hasMany(ServicePart::class, 'category_id');
+    }
+
+    public function limits()
+    {
+        return $this->hasMany(ServiceCategoryLimit::class, 'category_id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | HELPERS
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Cek apakah kategori masih dipakai oleh ServicePart yang aktif.
+     */
+    public function hasActiveParts(): bool
+    {
+        return $this->parts()
+            ->whereIn('status', ['Terpasang', 'Limit'])
+            ->exists();
     }
 }

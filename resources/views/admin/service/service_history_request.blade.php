@@ -89,18 +89,6 @@
                     @error('kilometer')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
 
-                {{-- Status --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Status <span class="text-red-500">*</span>
-                    </label>
-                    <select name="status" required
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="proses" {{ old('status', $prefill['status'] ?? '') == 'proses' ? 'selected' : '' }}>Proses</option>
-                        <option value="selesai" {{ old('status', $prefill['status'] ?? '') == 'selesai' ? 'selected' : '' }}>Selesai</option>
-                    </select>
-                </div>
-
                 {{-- Keluhan --}}
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keluhan</label>
@@ -314,10 +302,10 @@ function addPartRow(data = null) {
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Interval <span class="text-red-400">*</span></label>
                 <div class="flex gap-1">
-                    <input type="number" name="parts[${idx}][interval_nilai]" required min="1"
+                    <input type="number" name="parts[${idx}][interval_nilai]" id="interval-nilai-${idx}" required min="1"
                         value="${data?.interval_nilai || 12}"
                         class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                    <select name="parts[${idx}][interval_satuan]"
+                    <select name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}"
                         class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="hari"   ${data?.interval_satuan === 'hari'   ? 'selected' : ''}>Hari</option>
                         <option value="minggu" ${data?.interval_satuan === 'minggu' ? 'selected' : ''}>Minggu</option>
@@ -325,6 +313,9 @@ function addPartRow(data = null) {
                         <option value="tahun"  ${data?.interval_satuan === 'tahun'  ? 'selected' : ''}>Tahun</option>
                     </select>
                 </div>
+                <p id="interval-hint-${idx}" class="text-[10px] text-blue-500 mt-1 hidden">
+                    <i class="fa fa-circle-info text-[9px]"></i> Auto-fill dari limit rule kategori
+                </p>
             </div>
 
             <!-- Kondisi -->
@@ -338,13 +329,24 @@ function addPartRow(data = null) {
                 </select>
             </div>
 
+            <!-- Status Part -->
+            <div>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Status Part</label>
+                <select name="parts[${idx}][status]"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <option value="Proses" ${data?.status === 'Proses' ? 'selected' : 'selected'}>Proses</option>
+                    <option value="Terpasang" ${data?.status === 'Terpasang' ? 'selected' : ''}>Terpasang</option>
+                </select>
+            </div>
+
             <!-- Biaya -->
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
-                <input type="number" name="parts[${idx}][biaya]" min="0"
+                <input type="number" name="parts[${idx}][biaya]" id="biaya-${idx}" min="0"
                     value="${data?.biaya || 0}"
                     onchange="recalcTotal()" oninput="recalcTotal()"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <p id="biaya-hint-${idx}" class="text-[10px] text-gray-400 mt-1 hidden"></p>
             </div>
 
             <!-- Keterangan (full width) -->
@@ -403,7 +405,47 @@ function onCategoryChange(select, idx) {
         document.getElementById('kategori_error').classList.add('hidden');
         const m = document.getElementById('modalKategori');
         m.classList.remove('hidden'); m.classList.add('flex');
+        return;
     }
+    // Auto-fill limit rule
+    const kendaraanId = document.getElementById('kendaraan_id').value;
+    if (kendaraanId && select.value) {
+        fetchLimitRule(kendaraanId, select.value, idx);
+    }
+}
+
+// ── Fetch limit rule dari server lalu auto-fill interval & hint harga ─────
+function fetchLimitRule(kendaraanId, categoryId, idx) {
+    if (!kendaraanId || !categoryId || categoryId === '__new__') return;
+    fetch('{{ route("service-categories.limit-for") }}?kendaraan_id=' + kendaraanId + '&category_id=' + categoryId, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var h  = document.getElementById('interval-hint-' + idx);
+        var bh = document.getElementById('biaya-hint-' + idx);
+        if (!data) {
+            if (h)  { h.classList.add('hidden'); }
+            if (bh) { bh.classList.add('hidden'); }
+            return;
+        }
+        var nilaiEl  = document.getElementById('interval-nilai-' + idx);
+        var satuanEl = document.getElementById('interval-satuan-' + idx);
+        if (nilaiEl)  { nilaiEl.value  = data.limit_nilai;  }
+        if (satuanEl) { satuanEl.value = data.limit_satuan; }
+        if (h)        { h.classList.remove('hidden'); }
+        if (bh) {
+            if (data.limit_price) {
+                bh.innerHTML = '<i class="fa fa-triangle-exclamation text-[9px] text-amber-500"></i>'
+                    + ' Batas harga kategori ini: <strong class="text-amber-600">'
+                    + data.limit_price_formatted + '</strong>';
+                bh.classList.remove('hidden');
+            } else {
+                bh.classList.add('hidden');
+            }
+        }
+    })
+    .catch(function() {});
 }
 
 function closeModalKategori() {
@@ -486,6 +528,17 @@ function onKendaraanChange(val) {
         document.getElementById('km-badge').classList.remove('hidden');
     } else {
         document.getElementById('km-badge').classList.add('hidden');
+    }
+    // Re-fetch limit rules untuk semua part row yang sudah ada
+    if (val) {
+        document.querySelectorAll('[id^="cat-select-"]').forEach(function(catSel) {
+            var idxMatch = catSel.id.match(/cat-select-(\d+)/);
+            if (!idxMatch) return;
+            var rowIdx = idxMatch[1];
+            if (catSel.value && catSel.value !== '__new__') {
+                fetchLimitRule(val, catSel.value, rowIdx);
+            }
+        });
     }
 }
 

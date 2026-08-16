@@ -27,6 +27,7 @@ class ServiceHistory extends Model
         'status_approval',
         'approval_by',
         'approval_at',
+        'is_request',
     ];
 
     protected $casts = [

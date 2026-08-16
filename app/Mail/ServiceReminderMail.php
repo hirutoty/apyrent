@@ -2,20 +2,25 @@
 
 namespace App\Mail;
 
-use App\Models\ServiceHistory;
+use App\Models\Kendaraan;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Collection;
 
 class ServiceReminderMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $service;
+    public Kendaraan $kendaraan;
 
-    public function __construct(ServiceHistory $service)
+    /** @var Collection<\App\Models\ServicePart> */
+    public Collection $parts;
+
+    public function __construct(Kendaraan $kendaraan, Collection $parts)
     {
-        $this->service = $service;
+        $this->kendaraan = $kendaraan;
+        $this->parts     = $parts;
     }
 
     public function build()

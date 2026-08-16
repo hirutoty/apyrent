@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\ServiceHistory;
 use App\Models\ServicePart;
 use App\Models\ServiceCategory;
+use App\Models\ServiceCategoryLimit;
 use App\Models\ServiceDetail;
 use App\Models\Kendaraan;
 use App\Models\Keuangan;
@@ -36,6 +37,7 @@ class ServiceHistoryController extends Controller
             ->when($approvalStatus === 'pending', fn($q) => $q->where('status_approval', 'pending'))
             ->when($approvalStatus === 'approved', fn($q) => $q->where('status_approval', 'approved'))
             ->when($approvalStatus === 'rejected', fn($q) => $q->where('status_approval', 'rejected'))
+            ->when($approvalStatus === 'limit', fn($q) => $q->where('status', 'limit'))
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('keluhan', 'like', "%{$search}%")
@@ -80,13 +82,17 @@ class ServiceHistoryController extends Controller
         }
 
         return view('admin.service.service_history', [
-            'data'       => $data,
-            'kendaraan'  => $kendaraan,
-            'categories' => $categories,
-            'bulan'      => $bulan,
-            'aman'       => $aman,
-            'hampir'     => $hampir,
-            'habis'      => $habis,
+            'data'               => $data,
+            'kendaraan'          => $kendaraan,
+            'categories'         => $categories,
+            'bulan'              => $bulan,
+            'aman'               => $aman,
+            'hampir'             => $hampir,
+            'habis'              => $habis,
+            // Map limit price: "{kendaraan_id}_{category_id}" => limit_price
+            // Dipakai di view untuk badge "Melebihi Limit" tanpa N+1 query
+            'categoryLimitsMap'  => ServiceCategoryLimit::all()
+                ->keyBy(fn($r) => $r->kendaraan_id . '_' . $r->category_id),
         ]);
     }
 
@@ -95,7 +101,7 @@ class ServiceHistoryController extends Controller
      */
     public function create(Request $request)
     {
-        $kendaraan  = Kendaraan::whereNotIn('status_kendaraan', ['disewa'])->orderBy('merk')->get();
+        $kendaraan  = Kendaraan::orderBy('merk')->get();
         $categories = ServiceCategory::orderBy('nama')->get();
         $prefill    = null;
 
@@ -138,7 +144,7 @@ class ServiceHistoryController extends Controller
      */
     public function requestCreate(Request $request)
     {
-        $kendaraan  = Kendaraan::whereNotIn('status_kendaraan', ['disewa'])->orderBy('merk')->get();
+        $kendaraan  = Kendaraan::orderBy('merk')->get();
         $categories = ServiceCategory::orderBy('nama')->get();
         return view('admin.service.service_history_request', compact('kendaraan', 'categories'));
     }
@@ -152,7 +158,7 @@ class ServiceHistoryController extends Controller
             'kendaraan_id'                 => 'required|exists:kendaraan,id',
             'tanggal_service'              => 'required|date',
             'kilometer'                    => 'required|integer|min:0',
-            'status'                       => 'required|in:proses,selesai',
+            'status'                       => 'nullable|in:proses,selesai',
             'keluhan'                      => 'nullable|string',
             'total_biaya_override'         => 'nullable|numeric|min:0',
             'bukti_pembayaran'             => 'nullable|file|max:5120',
@@ -166,6 +172,7 @@ class ServiceHistoryController extends Controller
             'parts.*.tgl_pasang'           => 'required_with:parts|date',
             'parts.*.kilometer_pasang'     => 'nullable|integer|min:0',
             'parts.*.kondisi'              => 'nullable|in:Baik,Rusak,Perlu Ganti',
+            'parts.*.status'               => 'nullable|in:Terpasang,Proses',
             'parts.*.interval_nilai'       => 'required_with:parts|integer|min:1',
             'parts.*.interval_satuan'      => 'required_with:parts|in:hari,minggu,bulan,tahun',
             'parts.*.biaya'                => 'nullable|numeric|min:0',
@@ -176,14 +183,14 @@ class ServiceHistoryController extends Controller
 
         $kendaraan     = Kendaraan::findOrFail($request->kendaraan_id);
         $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
+
+        // Tentukan status_pengeluaran per-part berdasarkan limit_price kategori
+        $partStatuses  = $this->resolvePartStatusPengeluaran($resolvedParts, $request->kendaraan_id);
+
         $sumBiayaParts = collect($resolvedParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
         $totalBiaya    = filled($request->total_biaya_override) && (int)$request->total_biaya_override > 0
             ? (int)$request->total_biaya_override
             : $sumBiayaParts;
-
-        [$sisaLimit, $maksBulanan, $biayaTahunan, $statusPengeluaran] = $this->hitungLimitStatus(
-            $kendaraan, $request->tanggal_service, $totalBiaya
-        );
 
         $buktiBayarMeta  = $this->prepBuktiBayar($request);
         $attachmentsMeta = $this->prepAttachments($request);
@@ -191,8 +198,7 @@ class ServiceHistoryController extends Controller
 
         try {
             \Illuminate\Support\Facades\DB::transaction(function () use (
-                $request, $kendaraan, $totalBiaya, $sisaLimit, $maksBulanan,
-                $biayaTahunan, $statusPengeluaran, $buktiBayarMeta, $attachmentsMeta,
+                $request, $kendaraan, $totalBiaya, $partStatuses, $buktiBayarMeta, $attachmentsMeta,
                 $resolvedParts, &$movedFiles
             ) {
                 $buktiBayar = null;
@@ -203,21 +209,35 @@ class ServiceHistoryController extends Controller
                     $movedFiles[] = public_path($buktiBayar);
                 }
 
-                // Buat service history dengan status_approval = pending
-                $service = ServiceHistory::create([
-                    'kendaraan_id'       => $request->kendaraan_id,
-                    'keluhan'            => $request->keluhan,
-                    'kilometer'          => $request->kilometer,
-                    'total_biaya'        => $totalBiaya,
-                    'status'             => $request->status,
-                    'tanggal_service'    => $request->tanggal_service,
-                    'sisa_limit'         => $sisaLimit,
-                    'maks_bulanan'       => $maksBulanan,
-                    'biaya_tahunan'      => $biayaTahunan,
-                    'status_pengeluaran' => $statusPengeluaran,
-                    'bukti_pembayaran'   => $buktiBayar,
-                    'status_approval'    => 'pending',
-                ]);
+                // Merge ke service history yang ada, atau buat baru jika belum ada
+                $existing = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
+                    ->latest()
+                    ->first();
+
+                if ($existing) {
+                    $existing->update([
+                        'keluhan'         => $request->keluhan,
+                        'kilometer'       => $request->kilometer,
+                        'total_biaya'     => $existing->total_biaya + $totalBiaya,
+                        'status'          => $this->deriveServiceStatus($resolvedParts),
+                        'tanggal_service' => $request->tanggal_service,
+                        'bukti_pembayaran' => $buktiBayar ?: $existing->bukti_pembayaran,
+                    ]);
+                    $service = $existing;
+                } else {
+                    // Buat service history baru dengan status_approval = pending
+                    $service = ServiceHistory::create([
+                        'kendaraan_id'    => $request->kendaraan_id,
+                        'keluhan'         => $request->keluhan,
+                        'kilometer'       => $request->kilometer,
+                        'total_biaya'     => $totalBiaya,
+                        'status'          => $this->deriveServiceStatus($resolvedParts),
+                        'tanggal_service' => $request->tanggal_service,
+                        'bukti_pembayaran' => $buktiBayar,
+                        'status_approval' => 'pending',
+                        'is_request'      => true,
+                    ]);
+                }
 
                 // Simpan semua parts sebagai pending (no duplicate check)
                 foreach ($resolvedParts as $idx => $partData) {
@@ -232,23 +252,24 @@ class ServiceHistoryController extends Controller
                     }
 
                     ServicePart::create([
-                        'service_history_id' => $service->id,
-                        'kendaraan_id'       => $request->kendaraan_id,
-                        'category_id'        => $partData['category_id'] ?? null,
-                        'nama_part'          => $partData['nama_part'],
-                        'part_number'        => $partData['part_number'] ?? null,
-                        'serial_number'      => $partData['serial_number'] ?? null,
-                        'posisi'             => $partData['posisi'] ?? null,
-                        'tgl_pasang'         => $tglPasang->toDateString(),
-                        'kilometer_pasang'   => $partData['kilometer_pasang'] ?? $request->kilometer,
-                        'kondisi'            => $partData['kondisi'] ?? 'Baik',
-                        'status'             => 'Terpasang',
-                        'interval_nilai'     => (int)$partData['interval_nilai'],
-                        'interval_satuan'    => $partData['interval_satuan'],
-                        'tanggal_limit'      => $tanggalLimit->toDateString(),
-                        'biaya'              => (int)($partData['biaya'] ?? 0),
-                        'bukti'              => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
-                        'keterangan'         => $partData['keterangan'] ?? null,
+                        'service_history_id'  => $service->id,
+                        'kendaraan_id'        => $request->kendaraan_id,
+                        'category_id'         => $partData['category_id'] ?? null,
+                        'nama_part'           => $partData['nama_part'],
+                        'part_number'         => $partData['part_number'] ?? null,
+                        'serial_number'       => $partData['serial_number'] ?? null,
+                        'posisi'              => $partData['posisi'] ?? null,
+                        'tgl_pasang'          => $tglPasang->toDateString(),
+                        'kilometer_pasang'    => $partData['kilometer_pasang'] ?? $request->kilometer,
+                        'kondisi'             => $partData['kondisi'] ?? 'Baik',
+                        'status'              => in_array($partData['status'] ?? '', ['Terpasang','Proses','Diganti']) ? $partData['status'] : 'Proses',
+                        'interval_nilai'      => (int)$partData['interval_nilai'],
+                        'interval_satuan'     => $partData['interval_satuan'],
+                        'tanggal_limit'       => $tanggalLimit->toDateString(),
+                        'biaya'               => (int)($partData['biaya'] ?? 0),
+                        'status_pengeluaran'  => $partStatuses[$idx] ?? 'stabil',
+                        'bukti'               => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
+                        'keterangan'          => $partData['keterangan'] ?? null,
                     ]);
                 }
 
@@ -312,7 +333,7 @@ class ServiceHistoryController extends Controller
             'kendaraan_id'                 => 'required|exists:kendaraan,id',
             'tanggal_service'              => 'required|date',
             'kilometer'                    => 'required|integer|min:0',
-            'status'                       => 'required|in:proses,selesai',
+            'status'                       => 'nullable|in:proses,selesai',
             'keluhan'                      => 'nullable|string',
             'total_biaya_override'         => 'nullable|numeric|min:0',
             'bukti_pembayaran'             => 'nullable|file|max:5120',
@@ -326,6 +347,7 @@ class ServiceHistoryController extends Controller
             'parts.*.tgl_pasang'           => 'required_with:parts|date',
             'parts.*.kilometer_pasang'     => 'nullable|integer|min:0',
             'parts.*.kondisi'              => 'nullable|in:Baik,Rusak,Perlu Ganti',
+            'parts.*.status'               => 'nullable|in:Terpasang,Proses',
             'parts.*.interval_nilai'       => 'required_with:parts|integer|min:1',
             'parts.*.interval_satuan'      => 'required_with:parts|in:hari,minggu,bulan,tahun',
             'parts.*.biaya'                => 'nullable|numeric|min:0',
@@ -336,14 +358,14 @@ class ServiceHistoryController extends Controller
 
         $kendaraan     = Kendaraan::findOrFail($request->kendaraan_id);
         $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
+
+        // Tentukan status_pengeluaran per-part berdasarkan limit_price kategori
+        $partStatuses  = $this->resolvePartStatusPengeluaran($resolvedParts, $request->kendaraan_id);
+
         $sumBiayaParts = collect($resolvedParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
         $totalBiaya    = filled($request->total_biaya_override) && (int)$request->total_biaya_override > 0
             ? (int)$request->total_biaya_override
             : $sumBiayaParts;
-
-        [$sisaLimit, $maksBulanan, $biayaTahunan, $statusPengeluaran] = $this->hitungLimitStatus(
-            $kendaraan, $request->tanggal_service, $totalBiaya
-        );
 
         $buktiBayarMeta  = $this->prepBuktiBayar($request);
         $attachmentsMeta = $this->prepAttachments($request);
@@ -351,8 +373,7 @@ class ServiceHistoryController extends Controller
 
         try {
             \Illuminate\Support\Facades\DB::transaction(function () use (
-                $request, $service, $kendaraan, $totalBiaya, $sisaLimit, $maksBulanan,
-                $biayaTahunan, $statusPengeluaran, $buktiBayarMeta, $attachmentsMeta,
+                $request, $service, $kendaraan, $totalBiaya, $partStatuses, $buktiBayarMeta, $attachmentsMeta,
                 $resolvedParts, &$movedFiles
             ) {
                 // Update bukti pembayaran jika ada
@@ -370,17 +391,13 @@ class ServiceHistoryController extends Controller
 
                 // Update service history
                 $service->update([
-                    'kendaraan_id'       => $request->kendaraan_id,
-                    'keluhan'            => $request->keluhan,
-                    'kilometer'          => $request->kilometer,
-                    'total_biaya'        => $totalBiaya,
-                    'status'             => $request->status,
-                    'tanggal_service'    => $request->tanggal_service,
-                    'sisa_limit'         => $sisaLimit,
-                    'maks_bulanan'       => $maksBulanan,
-                    'biaya_tahunan'      => $biayaTahunan,
-                    'status_pengeluaran' => $statusPengeluaran,
-                    'bukti_pembayaran'   => $buktiBayar,
+                    'kendaraan_id'    => $request->kendaraan_id,
+                    'keluhan'         => $request->keluhan,
+                    'kilometer'       => $request->kilometer,
+                    'total_biaya'     => $totalBiaya,
+                    'status'          => $this->deriveServiceStatus($resolvedParts),
+                    'tanggal_service' => $request->tanggal_service,
+                    'bukti_pembayaran' => $buktiBayar,
                 ]);
 
                 // Hapus parts lama
@@ -411,23 +428,24 @@ class ServiceHistoryController extends Controller
                     }
 
                     ServicePart::create([
-                        'service_history_id' => $service->id,
-                        'kendaraan_id'       => $request->kendaraan_id,
-                        'category_id'        => $partData['category_id'] ?? null,
-                        'nama_part'          => $partData['nama_part'],
-                        'part_number'        => $partData['part_number'] ?? null,
-                        'serial_number'      => $partData['serial_number'] ?? null,
-                        'posisi'             => $partData['posisi'] ?? null,
-                        'tgl_pasang'         => $tglPasang->toDateString(),
-                        'kilometer_pasang'   => $partData['kilometer_pasang'] ?? $request->kilometer,
-                        'kondisi'            => $partData['kondisi'] ?? 'Baik',
-                        'status'             => 'Terpasang',
-                        'interval_nilai'     => (int)$partData['interval_nilai'],
-                        'interval_satuan'    => $partData['interval_satuan'],
-                        'tanggal_limit'      => $tanggalLimit->toDateString(),
-                        'biaya'              => (int)($partData['biaya'] ?? 0),
-                        'bukti'              => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
-                        'keterangan'         => $partData['keterangan'] ?? null,
+                        'service_history_id'  => $service->id,
+                        'kendaraan_id'        => $request->kendaraan_id,
+                        'category_id'         => $partData['category_id'] ?? null,
+                        'nama_part'           => $partData['nama_part'],
+                        'part_number'         => $partData['part_number'] ?? null,
+                        'serial_number'       => $partData['serial_number'] ?? null,
+                        'posisi'              => $partData['posisi'] ?? null,
+                        'tgl_pasang'          => $tglPasang->toDateString(),
+                        'kilometer_pasang'    => $partData['kilometer_pasang'] ?? $request->kilometer,
+                        'kondisi'             => $partData['kondisi'] ?? 'Baik',
+                        'status'              => in_array($partData['status'] ?? '', ['Terpasang','Proses','Diganti']) ? $partData['status'] : 'Proses',
+                        'interval_nilai'      => (int)$partData['interval_nilai'],
+                        'interval_satuan'     => $partData['interval_satuan'],
+                        'tanggal_limit'       => $tanggalLimit->toDateString(),
+                        'biaya'               => (int)($partData['biaya'] ?? 0),
+                        'status_pengeluaran'  => $partStatuses[$idx] ?? 'stabil',
+                        'bukti'               => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
+                        'keterangan'          => $partData['keterangan'] ?? null,
                     ]);
                 }
 
@@ -495,7 +513,7 @@ class ServiceHistoryController extends Controller
             'kendaraan_id'                 => 'required|exists:kendaraan,id',
             'tanggal_service'              => 'required|date',
             'kilometer'                    => 'required|integer|min:0',
-            'status'                       => 'required|in:proses,selesai',
+            'status'                       => 'nullable|in:proses,selesai',
             'keluhan'                      => 'nullable|string',
             'total_biaya_override'         => 'nullable|numeric|min:0',
             'bukti_pembayaran'             => 'nullable|file|max:5120',
@@ -512,6 +530,7 @@ class ServiceHistoryController extends Controller
             'parts.*.tgl_pasang'           => 'required_with:parts|date',
             'parts.*.kilometer_pasang'     => 'nullable|integer|min:0',
             'parts.*.kondisi'              => 'nullable|in:Baik,Rusak,Perlu Ganti',
+            'parts.*.status'               => 'nullable|in:Terpasang,Proses',
             'parts.*.interval_nilai'       => 'required_with:parts|integer|min:1',
             'parts.*.interval_satuan'      => 'required_with:parts|in:hari,minggu,bulan,tahun',
             'parts.*.biaya'                => 'nullable|numeric|min:0',
@@ -522,10 +541,6 @@ class ServiceHistoryController extends Controller
 
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 
-        if ($kendaraan->status_kendaraan === 'disewa') {
-            return back()->withErrors(['kendaraan_id' => 'Kendaraan sedang disewa.'])->withInput();
-        }
-
         $serviceAktif = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
             ->where('status', 'proses')->exists();
         if ($serviceAktif) {
@@ -535,31 +550,32 @@ class ServiceHistoryController extends Controller
         // Resolusi kategori per part (buat baru jika inline)
         $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
 
-        // Check duplicate parts - only if not from service_history_id (not updating existing)
-        $duplicateCheck = $this->checkDuplicateParts($resolvedParts, $request->kendaraan_id);
-        $validParts = collect($duplicateCheck['valid'])->pluck('data')->toArray();
-        $duplicateParts = $duplicateCheck['duplicate'];
+        // Tentukan status_pengeluaran per-part berdasarkan limit_price kategori
+        $partStatuses = $this->resolvePartStatusPengeluaran($resolvedParts, $request->kendaraan_id);
 
-        // If all parts are duplicate and no service_history_id, reject completely
-        if (empty($validParts) && !$request->filled('service_history_id')) {
-            $duplicateList = collect($duplicateParts)->pluck('label')->join(', ');
-            return back()->with('error', "Semua part sudah ada: {$duplicateList}. Gunakan Request Part untuk menambahkan part yang sudah terpasang.")
-                ->withInput();
+        // Check duplicate parts - only if not from service_history_id and not from reminder
+        // Skip jika dari reminder karena konteksnya penggantian part (bukan tambah baru)
+        if (!$request->filled('from_reminder')) {
+            $duplicateCheck = $this->checkDuplicateParts($resolvedParts, $request->kendaraan_id);
+            $validParts     = collect($duplicateCheck['valid'])->pluck('data')->toArray();
+            $duplicateParts = $duplicateCheck['duplicate'];
+
+            // If all parts are duplicate and no service_history_id, reject completely
+            if (empty($validParts) && !$request->filled('service_history_id')) {
+                $duplicateList = collect($duplicateParts)->pluck('label')->join(', ');
+                return back()->with('error', "Semua part sudah ada: {$duplicateList}. Gunakan Request Part untuk menambahkan part yang sudah terpasang.")
+                    ->withInput();
+            }
+
+            // Use only valid parts for processing
+            $resolvedParts = $validParts;
         }
-
-        // Use only valid parts for processing
-        $resolvedParts = $validParts;
 
         // Total biaya: auto-sum dari parts, atau override jika diisi
         $sumBiayaParts = collect($resolvedParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
         $totalBiaya    = filled($request->total_biaya_override) && (int)$request->total_biaya_override > 0
             ? (int)$request->total_biaya_override
             : $sumBiayaParts;
-
-        // Kalkulasi limit bulanan/tahunan
-        [$sisaLimit, $maksBulanan, $biayaTahunan, $statusPengeluaran] = $this->hitungLimitStatus(
-            $kendaraan, $request->tanggal_service, $totalBiaya
-        );
 
         // Siapkan metadata file
         $buktiBayarMeta  = $this->prepBuktiBayar($request);
@@ -568,8 +584,7 @@ class ServiceHistoryController extends Controller
 
         try {
             \Illuminate\Support\Facades\DB::transaction(function () use (
-                $request, $kendaraan, $totalBiaya, $sisaLimit, $maksBulanan,
-                $biayaTahunan, $statusPengeluaran, $buktiBayarMeta, $attachmentsMeta,
+                $request, $kendaraan, $totalBiaya, $partStatuses, $buktiBayarMeta, $attachmentsMeta,
                 $resolvedParts, &$movedFiles
             ) {
                 $buktiBayar = null;
@@ -582,36 +597,47 @@ class ServiceHistoryController extends Controller
 
                 // Check apakah update existing service history atau create baru
                 if ($request->filled('service_history_id')) {
-                    // UPDATE existing service history
+                    // UPDATE existing service history (dari edit request)
                     $service = ServiceHistory::findOrFail($request->service_history_id);
                     $service->update([
-                        'kendaraan_id'       => $request->kendaraan_id,
-                        'keluhan'            => $request->keluhan,
-                        'kilometer'          => $request->kilometer,
-                        'total_biaya'        => $totalBiaya,
-                        'status'             => $request->status,
-                        'tanggal_service'    => $request->tanggal_service,
-                        'sisa_limit'         => $sisaLimit,
-                        'maks_bulanan'       => $maksBulanan,
-                        'biaya_tahunan'      => $biayaTahunan,
-                        'status_pengeluaran' => $statusPengeluaran,
-                        'bukti_pembayaran'   => $buktiBayar ?: $service->bukti_pembayaran,
+                        'kendaraan_id'    => $request->kendaraan_id,
+                        'keluhan'         => $request->keluhan,
+                        'kilometer'       => $request->kilometer,
+                        'total_biaya'     => $totalBiaya,
+                        'status'          => $this->deriveServiceStatus($resolvedParts),
+                        'tanggal_service' => $request->tanggal_service,
+                        'bukti_pembayaran' => $buktiBayar ?: $service->bukti_pembayaran,
                     ]);
                 } else {
-                    // CREATE service history baru
-                    $service = ServiceHistory::create([
-                        'kendaraan_id'       => $request->kendaraan_id,
-                        'keluhan'            => $request->keluhan,
-                        'kilometer'          => $request->kilometer,
-                        'total_biaya'        => $totalBiaya,
-                        'status'             => $request->status,
-                        'tanggal_service'    => $request->tanggal_service,
-                        'sisa_limit'         => $sisaLimit,
-                        'maks_bulanan'       => $maksBulanan,
-                        'biaya_tahunan'      => $biayaTahunan,
-                        'status_pengeluaran' => $statusPengeluaran,
-                        'bukti_pembayaran'   => $buktiBayar,
-                    ]);
+                    // Cek apakah kendaraan sudah punya service history (1 kendaraan = 1 service history)
+                    $existing = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
+                        ->latest()
+                        ->first();
+
+                    if ($existing) {
+                        // MERGE ke service history yang sudah ada — update header dengan nilai terbaru
+                        $existing->update([
+                            'keluhan'         => $request->keluhan,
+                            'kilometer'       => $request->kilometer,
+                            'total_biaya'     => $existing->total_biaya + $totalBiaya,
+                            'status'          => $this->deriveServiceStatus($resolvedParts),
+                            'tanggal_service' => $request->tanggal_service,
+                            'bukti_pembayaran' => $buktiBayar ?: $existing->bukti_pembayaran,
+                        ]);
+                        $service = $existing;
+                    } else {
+                        // CREATE service history baru (kendaraan belum punya)
+                        $service = ServiceHistory::create([
+                            'kendaraan_id'    => $request->kendaraan_id,
+                            'keluhan'         => $request->keluhan,
+                            'kilometer'       => $request->kilometer,
+                            'total_biaya'     => $totalBiaya,
+                            'status'          => $this->deriveServiceStatus($resolvedParts),
+                            'tanggal_service' => $request->tanggal_service,
+                            'bukti_pembayaran' => $buktiBayar,
+                            'status_approval' => 'approved',
+                        ]);
+                    }
                 }
 
                 // Simpan parts
@@ -641,23 +667,24 @@ class ServiceHistoryController extends Controller
                     }
 
                     $part = ServicePart::create([
-                        'service_history_id' => $service->id,
-                        'kendaraan_id'       => $request->kendaraan_id,
-                        'category_id'        => $partData['category_id'] ?? null,
-                        'nama_part'          => $partData['nama_part'],
-                        'part_number'        => $partData['part_number'] ?? null,
-                        'serial_number'      => $partData['serial_number'] ?? null,
-                        'posisi'             => $partData['posisi'] ?? null,
-                        'tgl_pasang'         => $tglPasang->toDateString(),
-                        'kilometer_pasang'   => $partData['kilometer_pasang'] ?? $request->kilometer,
-                        'kondisi'            => $partData['kondisi'] ?? 'Baik',
-                        'status'             => 'Terpasang',
-                        'interval_nilai'     => (int)$partData['interval_nilai'],
-                        'interval_satuan'    => $partData['interval_satuan'],
-                        'tanggal_limit'      => $tanggalLimit->toDateString(),
-                        'biaya'              => (int)($partData['biaya'] ?? 0),
-                        'bukti'              => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
-                        'keterangan'         => $partData['keterangan'] ?? null,
+                        'service_history_id'  => $service->id,
+                        'kendaraan_id'        => $request->kendaraan_id,
+                        'category_id'         => $partData['category_id'] ?? null,
+                        'nama_part'           => $partData['nama_part'],
+                        'part_number'         => $partData['part_number'] ?? null,
+                        'serial_number'       => $partData['serial_number'] ?? null,
+                        'posisi'              => $partData['posisi'] ?? null,
+                        'tgl_pasang'          => $tglPasang->toDateString(),
+                        'kilometer_pasang'    => $partData['kilometer_pasang'] ?? $request->kilometer,
+                        'kondisi'             => $partData['kondisi'] ?? 'Baik',
+                        'status'              => in_array($partData['status'] ?? '', ['Terpasang','Proses','Diganti']) ? $partData['status'] : 'Proses',
+                        'interval_nilai'      => (int)$partData['interval_nilai'],
+                        'interval_satuan'     => $partData['interval_satuan'],
+                        'tanggal_limit'       => $tanggalLimit->toDateString(),
+                        'biaya'               => (int)($partData['biaya'] ?? 0),
+                        'status_pengeluaran'  => $partStatuses[$idx] ?? 'stabil',
+                        'bukti'               => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
+                        'keterangan'          => $partData['keterangan'] ?? null,
                     ]);
 
                     // Jika ini part pertama dari reminder (replacement), archive part lama
@@ -744,7 +771,7 @@ class ServiceHistoryController extends Controller
             'kendaraan_id'                 => 'required|exists:kendaraan,id',
             'tanggal_service'              => 'required|date',
             'kilometer'                    => 'required|integer|min:0',
-            'status'                       => 'required|in:proses,selesai',
+            'status'                       => 'nullable|in:proses,selesai',
             'keluhan'                      => 'nullable|string',
             'total_biaya_override'         => 'nullable|numeric|min:0',
             'bukti_pembayaran'             => 'nullable|file|max:5120',
@@ -761,6 +788,7 @@ class ServiceHistoryController extends Controller
             'parts.*.tgl_pasang'           => 'required_with:parts|date',
             'parts.*.kilometer_pasang'     => 'nullable|integer|min:0',
             'parts.*.kondisi'              => 'nullable|in:Baik,Rusak,Perlu Ganti',
+            'parts.*.status'               => 'nullable|in:Terpasang,Proses',
             'parts.*.interval_nilai'       => 'required_with:parts|integer|min:1',
             'parts.*.interval_satuan'      => 'required_with:parts|in:hari,minggu,bulan,tahun',
             'parts.*.biaya'                => 'nullable|numeric|min:0',
@@ -773,14 +801,14 @@ class ServiceHistoryController extends Controller
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 
         $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
+
+        // Tentukan status_pengeluaran per-part berdasarkan limit_price kategori
+        $partStatuses  = $this->resolvePartStatusPengeluaran($resolvedParts, $request->kendaraan_id);
+
         $sumBiayaParts = collect($resolvedParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
         $totalBiaya    = filled($request->total_biaya_override) && (int)$request->total_biaya_override > 0
             ? (int)$request->total_biaya_override
             : $sumBiayaParts;
-
-        [$sisaLimit, $maksBulanan, $biayaTahunan, $statusPengeluaran] = $this->hitungLimitStatus(
-            $kendaraan, $request->tanggal_service, $totalBiaya, $id
-        );
 
         $buktiBayarMeta  = $this->prepBuktiBayar($request);
         $attachmentsMeta = $this->prepAttachments($request);
@@ -789,8 +817,7 @@ class ServiceHistoryController extends Controller
 
         try {
             \Illuminate\Support\Facades\DB::transaction(function () use (
-                $request, $id, $service, $kendaraan, $totalBiaya, $sisaLimit, $maksBulanan,
-                $biayaTahunan, $statusPengeluaran, $buktiBayarMeta, $attachmentsMeta,
+                $request, $id, $service, $kendaraan, $totalBiaya, $partStatuses, $buktiBayarMeta, $attachmentsMeta,
                 $resolvedParts, &$movedFiles, &$deletedFiles
             ) {
                 $buktiBayar = $service->bukti_pembayaran;
@@ -807,17 +834,13 @@ class ServiceHistoryController extends Controller
                 }
 
                 $service->update([
-                    'kendaraan_id'       => $request->kendaraan_id,
-                    'keluhan'            => $request->keluhan,
-                    'kilometer'          => $request->kilometer,
-                    'total_biaya'        => $totalBiaya,
-                    'status'             => $request->status,
-                    'tanggal_service'    => $request->tanggal_service,
-                    'sisa_limit'         => $sisaLimit,
-                    'maks_bulanan'       => $maksBulanan,
-                    'biaya_tahunan'      => $biayaTahunan,
-                    'status_pengeluaran' => $statusPengeluaran,
-                    'bukti_pembayaran'   => $buktiBayar,
+                    'kendaraan_id'    => $request->kendaraan_id,
+                    'keluhan'         => $request->keluhan,
+                    'kilometer'       => $request->kilometer,
+                    'total_biaya'     => $totalBiaya,
+                    'status'          => $this->deriveServiceStatus($resolvedParts),
+                    'tanggal_service' => $request->tanggal_service,
+                    'bukti_pembayaran' => $buktiBayar,
                 ]);
 
                 // Replace semua parts lama → hapus, buat ulang
@@ -837,23 +860,24 @@ class ServiceHistoryController extends Controller
                     }
 
                     $part = ServicePart::create([
-                        'service_history_id' => $service->id,
-                        'kendaraan_id'       => $request->kendaraan_id,
-                        'category_id'        => $partData['category_id'] ?? null,
-                        'nama_part'          => $partData['nama_part'],
-                        'part_number'        => $partData['part_number'] ?? null,
-                        'serial_number'      => $partData['serial_number'] ?? null,
-                        'posisi'             => $partData['posisi'] ?? null,
-                        'tgl_pasang'         => $tglPasang->toDateString(),
-                        'kilometer_pasang'   => $partData['kilometer_pasang'] ?? $request->kilometer,
-                        'kondisi'            => $partData['kondisi'] ?? 'Baik',
-                        'status'             => 'Terpasang',
-                        'interval_nilai'     => (int)$partData['interval_nilai'],
-                        'interval_satuan'    => $partData['interval_satuan'],
-                        'tanggal_limit'      => $tanggalLimit->toDateString(),
-                        'biaya'              => (int)($partData['biaya'] ?? 0),
-                        'bukti'              => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
-                        'keterangan'         => $partData['keterangan'] ?? null,
+                        'service_history_id'  => $service->id,
+                        'kendaraan_id'        => $request->kendaraan_id,
+                        'category_id'         => $partData['category_id'] ?? null,
+                        'nama_part'           => $partData['nama_part'],
+                        'part_number'         => $partData['part_number'] ?? null,
+                        'serial_number'       => $partData['serial_number'] ?? null,
+                        'posisi'              => $partData['posisi'] ?? null,
+                        'tgl_pasang'          => $tglPasang->toDateString(),
+                        'kilometer_pasang'    => $partData['kilometer_pasang'] ?? $request->kilometer,
+                        'kondisi'             => $partData['kondisi'] ?? 'Baik',
+                        'status'              => in_array($partData['status'] ?? '', ['Terpasang','Proses','Diganti']) ? $partData['status'] : 'Proses',
+                        'interval_nilai'      => (int)$partData['interval_nilai'],
+                        'interval_satuan'     => $partData['interval_satuan'],
+                        'tanggal_limit'       => $tanggalLimit->toDateString(),
+                        'biaya'               => (int)($partData['biaya'] ?? 0),
+                        'status_pengeluaran'  => $partStatuses[$idx] ?? 'stabil',
+                        'bukti'               => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
+                        'keterangan'          => $partData['keterangan'] ?? null,
                     ]);
 
                     $this->autoCloseReminderPart($kendaraan->id, $part);
@@ -906,7 +930,9 @@ class ServiceHistoryController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        $request->validate(['status' => 'required|in:proses,selesai']);
+        // 'limit' diizinkan agar cron bisa set via direct update,
+        // tapi tidak ditampilkan sebagai opsi di modal admin
+        $request->validate(['status' => 'required|in:proses,selesai,limit']);
 
         $service   = ServiceHistory::findOrFail($id);
         $kendaraan = $service->kendaraan;
@@ -1095,7 +1121,56 @@ class ServiceHistoryController extends Controller
 
     /**
      * Resolve category per part: buat category baru jika nama_category_baru diisi
+
+    /**
+     * Update status per-part (Proses ↔ Terpasang), lalu recalculate header ServiceHistory.
      */
+    public function updatePartStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:Terpasang,Proses',
+        ]);
+
+        $part = ServicePart::findOrFail($id);
+
+        // Terpasang tidak bisa diubah lagi
+        if ($part->status === 'Terpasang') {
+            return back()->with('error', 'Part yang sudah Terpasang tidak bisa diubah statusnya.');
+        }
+
+        $part->update(['status' => $request->status]);
+
+        // Recalculate header status dari semua parts di service history ini
+        $sh = ServiceHistory::with('parts')->find($part->service_history_id);
+        if ($sh) {
+            $adaProses = $sh->parts->contains('status', 'Proses');
+            $newStatus = $adaProses ? 'proses' : 'selesai';
+            // Jangan override jika ada part Limit dan tidak ada Proses
+            if (!$adaProses && $sh->parts->contains('status', 'Limit')) {
+                $newStatus = 'limit';
+            }
+            $sh->update(['status' => $newStatus]);
+        }
+
+        return back()->with('success', 'Status part berhasil diperbarui.');
+    }
+
+    /**
+     * Turunkan status ServiceHistory dari komposisi status part-partnya.
+     * Prioritas: ada Proses → 'proses', tidak ada Proses → 'selesai'.
+     * (Status 'limit' dihandle terpisah oleh cron CheckServicePartLimit)
+     */
+    private function deriveServiceStatus(array $parts): string
+    {
+        foreach ($parts as $part) {
+            if (($part['status'] ?? '') === 'Proses') {
+                return 'proses';
+            }
+        }
+        return 'selesai';
+    }
+
+
     private function resolvePartsCategory(array $parts): array
     {
         return array_map(function ($part) {
@@ -1110,6 +1185,39 @@ class ServiceHistoryController extends Controller
     /**
      * Hitung tanggal limit part dari tgl_pasang + interval
      */
+
+    /**
+     * Tentukan status_pengeluaran per part berdasarkan limit_price kategori kendaraan.
+     * Return array berindeks sama dengan $parts:
+     *   ['stabil'|'overservice', ...]
+     * Tidak pernah menolak — hanya memberi label.
+     */
+    private function resolvePartStatusPengeluaran(array $parts, int $kendaraanId): array
+    {
+        // Pre-load semua limit rules untuk kendaraan ini agar tidak N+1
+        $rules = ServiceCategoryLimit::where('kendaraan_id', $kendaraanId)
+            ->whereNotNull('limit_price')
+            ->get()
+            ->keyBy('category_id');
+
+        $statuses = [];
+        foreach ($parts as $part) {
+            $categoryId = $part['category_id'] ?? null;
+            $biaya      = (int)($part['biaya'] ?? 0);
+
+            if ($categoryId && $biaya > 0 && isset($rules[$categoryId])) {
+                $statuses[] = $biaya > $rules[$categoryId]->limit_price
+                    ? 'overservice'
+                    : 'stabil';
+            } else {
+                $statuses[] = 'stabil';
+            }
+        }
+
+        return $statuses;
+    }
+
+
     private function hitungTanggalLimitPart(Carbon $tglPasang, int $nilai, string $satuan): Carbon
     {
         return match ($satuan) {

@@ -37,9 +37,10 @@
         <nav class="inline-flex gap-1 bg-gray-100 rounded-xl p-1">
             @php
                 $navItems = [
-                    ['label' => 'Service History',  'url' => '/admin/service-history', 'icon' => 'bi bi-clock-history'],
-                    ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi','icon' => 'bi bi-shield-fill-check'],
-                    ['label' => 'Reminder Service', 'url' => '/admin/reminder-service','icon' => 'bi bi-bell-fill'],
+                    ['label' => 'Service History',  'url' => '/admin/service-history',    'icon' => 'bi bi-clock-history'],
+                    ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check'],
+                    ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill'],
+                    ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill'],
                 ];
             @endphp
             @foreach ($navItems as $item)
@@ -126,6 +127,10 @@
                     class="px-4 py-2 text-xs font-semibold rounded-lg transition-colors {{ request('approval_status') === 'rejected' ? 'bg-red-100 text-red-700' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fa fa-times text-[10px] mr-1"></i> Rejected
                 </a>
+                <a href="{{ route('service-history.index', array_merge(request()->all(), ['approval_status' => 'limit'])) }}"
+                    class="px-4 py-2 text-xs font-semibold rounded-lg transition-colors {{ request('approval_status') === 'limit' ? 'bg-red-100 text-red-700' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fa fa-triangle-exclamation text-[10px] mr-1"></i> Limit
+                </a>
             </div>
 
             {{-- FILTER FORM --}}
@@ -177,7 +182,6 @@
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Parts</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Total Biaya</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Status</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Pengeluaran</th>
                         <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Aksi</th>
                     </tr>
                 </thead>
@@ -232,38 +236,49 @@
                             </td>
                             <td class="px-4 py-4">
                                 <div class="flex flex-col gap-1.5">
-                                    <button type="button" onclick="event.stopPropagation(); ubahStatus({{ $d->id }}, '{{ $d->status }}')"
-                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors hover:opacity-80
-                                            {{ $d->status == 'proses' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }}">
-                                        <span class="w-1.5 h-1.5 rounded-full {{ $d->status == 'proses' ? 'bg-amber-400' : 'bg-emerald-500' }}"></span>
-                                        {{ $d->status == 'proses' ? 'Proses' : 'Selesai' }}
-                                    </button>
-                                    @if ($d->status_approval === 'pending')
-                                        <button type="button" onclick="event.stopPropagation(); openApprovalModal({{ $d->id }})"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100 transition-colors">
-                                            <i class="fa fa-clock text-[10px]"></i> Pending
-                                        </button>
-                                    @elseif ($d->status_approval === 'approved')
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-300">
-                                            <i class="fa fa-check text-[10px]"></i> Approved
+                                    {{-- Badge status header — readonly, hanya sistem & per-item yang mengubah --}}
+                                    @if($d->status === 'limit')
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-red-50 text-red-700 border-red-200 cursor-default"
+                                            title="Status diatur otomatis oleh sistem. Ganti part yang limit untuk mengembalikan status.">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                            <i class="fa fa-triangle-exclamation text-[9px]"></i> Limit
                                         </span>
-                                    @elseif ($d->status_approval === 'rejected')
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-300">
-                                            <i class="fa fa-times text-[10px]"></i> Rejected
+                                    @elseif($d->status === 'proses')
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 cursor-default"
+                                            title="Status dihitung otomatis dari status part">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                                            Proses
                                         </span>
+                                    @else
+                                        @php $jumlahPartLimit = $d->parts->where('status', 'Limit')->count(); @endphp
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default"
+                                            title="Status dihitung otomatis dari status part">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                            Selesai
+                                        </span>
+                                        @if($jumlahPartLimit > 0)
+                                            <span class="text-[10px] text-red-500 font-medium">
+                                                <i class="fa fa-triangle-exclamation text-[9px]"></i> {{ $jumlahPartLimit }} part limit
+                                            </span>
+                                        @endif
+                                    @endif
+                                    @if ($d->is_request)
+                                        @if ($d->status_approval === 'pending')
+                                            <button type="button" onclick="event.stopPropagation(); openApprovalModal({{ $d->id }})"
+                                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100 transition-colors">
+                                                <i class="fa fa-clock text-[10px]"></i> Pending
+                                            </button>
+                                        @elseif ($d->status_approval === 'approved')
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-300">
+                                                <i class="fa fa-check text-[10px]"></i> Approved
+                                            </span>
+                                        @elseif ($d->status_approval === 'rejected')
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-300">
+                                                <i class="fa fa-times text-[10px]"></i> Rejected
+                                            </span>
+                                        @endif
                                     @endif
                                 </div>
-                            </td>
-                            <td class="px-4 py-4">
-                                @if ($d->status_pengeluaran === 'overservice')
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-                                        <i class="fa fa-triangle-exclamation text-[10px]"></i> Over
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                        <i class="fa fa-check text-[10px]"></i> Stabil
-                                    </span>
-                                @endif
                             </td>
                             <td class="px-4 py-4" onclick="event.stopPropagation()">
                                 <div class="flex items-center justify-center gap-1.5">
@@ -287,7 +302,7 @@
 
                         {{-- EXPANDABLE PARTS ROW --}}
                         <tr id="{{ $rowId }}" style="display:none;" class="bg-slate-50 border-t border-slate-100">
-                            <td colspan="10" class="px-6 py-4">
+                            <td colspan="9" class="px-6 py-4">
                                 @if ($partCount > 0)
                                     {{-- Keluhan header --}}
                                     @if ($d->keluhan)
@@ -311,6 +326,7 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Tgl Limit</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Kondisi</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Status</th>
+                                                    <th class="text-left px-3 py-2 font-semibold">Pengeluaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Keterangan</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Bukti</th>
                                                     <th class="text-right px-3 py-2 font-semibold">Biaya</th>
@@ -320,9 +336,10 @@
                                                 @foreach ($d->parts as $part)
                                                     @php
                                                         $rowBgClass = match($part->status) {
-                                                            'Limit' => 'bg-red-50',
+                                                            'Limit'   => 'bg-red-50',
                                                             'Diganti' => 'bg-gray-100',
-                                                            default => 'bg-white'
+                                                            'Proses'  => 'bg-amber-50',
+                                                            default   => 'bg-white'
                                                         };
                                                     @endphp
                                                     <tr class="border-t border-slate-100 {{ $rowBgClass }}">
@@ -366,16 +383,37 @@
                                                         </td>
                                                         <td class="px-3 py-2">
                                                             @if ($part->status === 'Limit')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700 cursor-default"
+                                                                    title="Part melewati tanggal limit, perlu diganti">
                                                                     <i class="fa fa-exclamation-triangle text-[9px]"></i> Limit
                                                                 </span>
                                                             @elseif ($part->status === 'Diganti')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600">
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600 cursor-default">
                                                                     <i class="fa fa-history text-[9px]"></i> Diganti
                                                                 </span>
+                                                            @elseif ($part->status === 'Proses')
+                                                                <button type="button"
+                                                                    onclick="event.stopPropagation(); openModalPartStatus({{ $part->id }}, 'Proses')"
+                                                                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors cursor-pointer">
+                                                                    <i class="fa fa-clock text-[9px]"></i> Proses
+                                                                </button>
                                                             @else
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 cursor-default"
+                                                                    title="Part sudah terpasang, tidak bisa diubah">
                                                                     <i class="fa fa-check text-[9px]"></i> Terpasang
+                                                                </span>
+                                                            @endif
+                                                        </td>
+                                                        {{-- Pengeluaran Column --}}
+                                                        <td class="px-3 py-2">
+                                                            @if($part->status_pengeluaran === 'overservice')
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-200"
+                                                                    title="Biaya part melebihi batas limit harga kategori">
+                                                                    <i class="fa fa-triangle-exclamation text-[9px]"></i> Over
+                                                                </span>
+                                                            @else
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                    <i class="fa fa-check text-[9px]"></i> Stabil
                                                                 </span>
                                                             @endif
                                                         </td>
@@ -425,7 +463,18 @@
                                                             @endif
                                                         </td>
                                                         <td class="px-3 py-2 text-right font-semibold whitespace-nowrap {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-700' }}">
+                                                            @php
+                                                                $mapKey   = ($d->kendaraan_id ?? 0) . '_' . ($part->category_id ?? 0);
+                                                                $limitRule = $categoryLimitsMap->get($mapKey);
+                                                                $melebihi  = $limitRule && $limitRule->limit_price && $part->biaya > $limitRule->limit_price;
+                                                            @endphp
                                                             Rp {{ number_format($part->biaya, 0, ',', '.') }}
+                                                            @if($melebihi)
+                                                                <span class="inline-flex items-center gap-0.5 ml-1 bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+                                                                    title="Melebihi batas harga kategori {{ optional($part->category)->nama }} (maks Rp {{ number_format($limitRule->limit_price, 0, ',', '.') }})">
+                                                                    <i class="fa fa-triangle-exclamation text-[9px]"></i> Limit
+                                                                </span>
+                                                            @endif
                                                         </td>
                                                     </tr>
                                                 @endforeach
@@ -467,7 +516,7 @@
 
                     @empty
                         <tr>
-                            <td colspan="10" class="px-5 py-16 text-center">
+                            <td colspan="9" class="px-5 py-16 text-center">
                                 <div class="flex flex-col items-center gap-3">
                                     <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                         <i class="fa fa-screwdriver-wrench text-2xl text-gray-300"></i>
@@ -640,6 +689,7 @@ function collapseAllRows() {
 // Status modal
 let _statusId = null;
 function ubahStatus(id, current) {
+    if (current === 'limit') return; // status limit hanya diubah oleh sistem
     _statusId = id;
     document.getElementById('msvc-desc').textContent = 'Status saat ini: ' + (current === 'proses' ? 'Proses' : 'Selesai');
     document.querySelectorAll('input[name="msvc_status"]').forEach(r => r.checked = r.value === current);
@@ -759,6 +809,139 @@ function deletePartBukti(partId, filePath) {
     function closeAlert() { clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
     window.closeAlert = closeAlert;
 })();
+</script>
+
+{{-- ===================== MODAL: EDIT STATUS PART ===================== --}}
+<div id="modal-part-status"
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+                <h3 class="font-bold text-gray-800 text-base">Ubah Status Part</h3>
+                <p id="mps-current" class="text-xs text-gray-400 mt-0.5"></p>
+            </div>
+            <button onclick="closeModalPartStatus()"
+                class="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div class="px-6 py-5 space-y-3">
+            {{-- Opsi Proses --}}
+            <label id="mps-opt-proses"
+                class="flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all select-none border-gray-200 hover:border-amber-300 hover:bg-amber-50">
+                <input type="radio" name="mps_status" value="Proses" class="hidden">
+                <div class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <i class="fa fa-clock text-amber-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-800">Proses</p>
+                    <p class="text-xs text-gray-400">Service sedang berjalan</p>
+                </div>
+            </label>
+            {{-- Opsi Selesai (Terpasang) --}}
+            <label id="mps-opt-terpasang"
+                class="flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all select-none border-gray-200 hover:border-emerald-300 hover:bg-emerald-50">
+                <input type="radio" name="mps_status" value="Terpasang" class="hidden">
+                <div class="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <i class="fa fa-check text-emerald-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-800">Selesai (Terpasang)</p>
+                    <p class="text-xs text-gray-400">Part sudah terpasang</p>
+                </div>
+            </label>
+        </div>
+        <div class="flex justify-end gap-2 px-6 pb-5">
+            <button type="button" onclick="closeModalPartStatus()"
+                class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                Batal
+            </button>
+            <button type="button" onclick="submitPartStatus()"
+                class="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors">
+                <i class="fa fa-floppy-disk text-xs mr-1"></i> Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Modal Edit Status Part ─────────────────────────────────────────────────
+var _mpsPartId = null;
+
+function openModalPartStatus(partId, currentStatus) {
+    _mpsPartId = partId;
+    document.getElementById('mps-current').textContent = 'Status saat ini: ' + currentStatus;
+
+    // Highlight opsi aktif
+    var labels = { 'Proses': 'mps-opt-proses', 'Terpasang': 'mps-opt-terpasang' };
+    Object.keys(labels).forEach(function(val) {
+        var lbl = document.getElementById(labels[val]);
+        var radio = lbl.querySelector('input[type="radio"]');
+        radio.checked = (val === currentStatus);
+        if (val === currentStatus) {
+            lbl.classList.add('border-blue-500', 'bg-blue-50');
+            lbl.classList.remove('border-gray-200');
+        } else {
+            lbl.classList.remove('border-blue-500', 'bg-blue-50');
+            lbl.classList.add('border-gray-200');
+        }
+    });
+
+    // Click label → highlight
+    document.querySelectorAll('input[name="mps_status"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('input[name="mps_status"]').forEach(function(r) {
+                var l = r.closest('label');
+                if (r.checked) {
+                    l.classList.add('border-blue-500', 'bg-blue-50');
+                    l.classList.remove('border-gray-200');
+                } else {
+                    l.classList.remove('border-blue-500', 'bg-blue-50');
+                    l.classList.add('border-gray-200');
+                }
+            });
+        });
+    });
+
+    var m = document.getElementById('modal-part-status');
+    m.classList.remove('hidden'); m.classList.add('flex');
+}
+
+function closeModalPartStatus() {
+    var m = document.getElementById('modal-part-status');
+    m.classList.add('hidden'); m.classList.remove('flex');
+    _mpsPartId = null;
+}
+
+function submitPartStatus() {
+    var sel = document.querySelector('input[name="mps_status"]:checked');
+    if (!sel || !_mpsPartId) return;
+
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/admin/service-parts/' + _mpsPartId + '/status';
+
+    var csrf = document.createElement('input');
+    csrf.type = 'hidden'; csrf.name = '_token';
+    csrf.value = '{{ csrf_token() }}';
+    form.appendChild(csrf);
+
+    var method = document.createElement('input');
+    method.type = 'hidden'; method.name = '_method'; method.value = 'PUT';
+    form.appendChild(method);
+
+    var status = document.createElement('input');
+    status.type = 'hidden'; status.name = 'status'; status.value = sel.value;
+    form.appendChild(status);
+
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Tutup modal saat klik backdrop
+document.getElementById('modal-part-status').addEventListener('click', function(e) {
+    if (e.target === this) closeModalPartStatus();
+});
 </script>
 
 @endsection
