@@ -396,26 +396,28 @@ class InvPenawaranController
 
     private function parseKetentuan(Request $request): ?array
     {
-        $teks = $request->input('ketentuan_teks', []);
-        if (empty($teks)) {
+        $plain = trim($request->input('ketentuan_plain', ''));
+        if ($plain === '') {
             return null; // null → blade akan pakai default
         }
 
-        $subAll = $request->input('ketentuan_sub', []);
+        $lines  = explode("\n", $plain);
         $result = [];
 
-        foreach ($teks as $i => $t) {
-            $t = trim($t);
-            if ($t === '') continue;
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') continue; // abaikan baris kosong
 
-            // Sub-item: dikirim sebagai string multi-baris, pisahkan per baris non-kosong
-            $subRaw = $subAll[$i] ?? '';
-            $sub = array_values(array_filter(
-                array_map('trim', explode("\n", $subRaw)),
-                fn($s) => $s !== ''
-            ));
-
-            $result[] = ['teks' => $t, 'sub' => $sub];
+            if (str_starts_with($line, '- ')) {
+                // Sub-item dari poin terakhir
+                $subText = trim(substr($line, 2));
+                if ($subText !== '' && !empty($result)) {
+                    $result[count($result) - 1]['sub'][] = $subText;
+                }
+            } else {
+                // Poin baru
+                $result[] = ['teks' => $line, 'sub' => []];
+            }
         }
 
         return empty($result) ? null : $result;

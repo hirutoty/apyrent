@@ -92,7 +92,7 @@ class ReminderService extends Model
     {
         return match ($this->status) {
             'aktif'        => 'Aktif',
-            'jatuh_tempo'  => 'Jatuh Tempo',
+            'jatuh_tempo'  => 'Perawatan Kembali',
             'selesai'      => 'Selesai',
             default        => $this->status,
         };

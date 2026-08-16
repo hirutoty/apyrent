@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\ServiceHistoryController;
 use App\Http\Controllers\Admin\ServiceDetailController;
 use App\Http\Controllers\Admin\ServiceAsuransiController;
+use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ReminderServiceController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\UserController;
@@ -438,8 +439,26 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       ->name('service-history.storeCategory');
   Route::delete('service-history/attachment/{id}', [ServiceHistoryController::class, 'destroyAttachment'])
       ->name('service-history.attachment.destroy');
+  Route::delete('service-parts/{id}/bukti', [ServiceHistoryController::class, 'deletePartBukti'])
+      ->name('service-parts.bukti.delete');
+  Route::put('service-parts/{id}/status', [ServiceHistoryController::class, 'updatePartStatus'])
+      ->name('service-parts.update-status');
   Route::get('service-history/kendaraan/{id}/data', [ServiceHistoryController::class, 'getKendaraanData'])
       ->name('service-history.kendaraan-data');
+
+  // Request Part routes
+  Route::get('service-history/request/create', [ServiceHistoryController::class, 'requestCreate'])
+      ->name('service-history.request.create');
+  Route::post('service-history/request', [ServiceHistoryController::class, 'requestStore'])
+      ->name('service-history.request.store');
+  Route::get('service-history/{id}/edit-request', [ServiceHistoryController::class, 'editRequest'])
+      ->name('service-history.request.edit');
+  Route::put('service-history/{id}/edit-request', [ServiceHistoryController::class, 'updateRequest'])
+      ->name('service-history.request.update');
+  Route::post('service-history/{id}/approve', [ServiceHistoryController::class, 'approve'])
+      ->name('service-history.approve');
+  Route::post('service-history/{id}/reject', [ServiceHistoryController::class, 'reject'])
+      ->name('service-history.reject');
 
   Route::resource('service-history', ServiceHistoryController::class);
   Route::put('service-history/{id}/status', [ServiceHistoryController::class, 'updateStatus'])
@@ -465,6 +484,18 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::resource('reminder-service', ReminderServiceController::class);
   Route::put('reminder-service/{id}/status', [ReminderServiceController::class, 'updateStatus'])
       ->name('reminder-service.update-status');
+
+  // Service Categories CRUD + Limit Rules
+  // Ajax endpoint HARUS di atas resource agar tidak bentrok dengan {service_category} param
+  Route::get('service-categories/limit-for',       [ServiceCategoryController::class, 'getLimitFor'])
+      ->name('service-categories.limit-for');
+  Route::resource('service-categories', ServiceCategoryController::class)->except(['show', 'create', 'edit']);
+  Route::post('service-categories/{id}/limits',    [ServiceCategoryController::class, 'storeLimitRule'])
+      ->name('service-categories.limits.store');
+  Route::put('service-categories/limits/{limitId}', [ServiceCategoryController::class, 'updateLimitRule'])
+      ->name('service-categories.limits.update');
+  Route::delete('service-categories/limits/{limitId}', [ServiceCategoryController::class, 'destroyLimitRule'])
+      ->name('service-categories.limits.destroy');
 
 
 

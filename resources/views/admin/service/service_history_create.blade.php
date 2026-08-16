@@ -45,6 +45,9 @@
 
         @if ($prefill)
             <input type="hidden" name="from_reminder" value="{{ $prefill['reminder_id'] }}">
+            @if(isset($prefill['service_history_id']))
+                <input type="hidden" name="service_history_id" value="{{ $prefill['service_history_id'] }}">
+            @endif
         @endif
 
         {{-- SECTION 1: HEADER SERVICE --}}
@@ -84,7 +87,7 @@
                         Tanggal Service <span class="text-red-500">*</span>
                     </label>
                     <input type="date" name="tanggal_service" required
-                        value="{{ old('tanggal_service', now()->format('Y-m-d')) }}"
+                        value="{{ old('tanggal_service', $prefill['tanggal_service'] ?? now()->format('Y-m-d')) }}"
                         class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     @error('tanggal_service')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
@@ -96,7 +99,7 @@
                     </label>
                     <div class="relative">
                         <input type="number" name="kilometer" id="kilometer" required
-                            value="{{ old('kilometer') }}" placeholder="Auto dari kendaraan"
+                            value="{{ old('kilometer', $prefill['kilometer'] ?? '') }}" placeholder="Auto dari kendaraan"
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 pr-24">
                         <span id="km-badge" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5">
                             <i class="fa fa-database text-[9px]"></i> Auto
@@ -105,23 +108,11 @@
                     @error('kilometer')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
 
-                {{-- Status --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Status <span class="text-red-500">*</span>
-                    </label>
-                    <select name="status" required
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="proses" {{ old('status') == 'proses' ? 'selected' : '' }}>Proses</option>
-                        <option value="selesai" {{ old('status') == 'selesai' ? 'selected' : '' }}>Selesai</option>
-                    </select>
-                </div>
-
                 {{-- Keluhan --}}
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keluhan</label>
                     <textarea name="keluhan" rows="2" placeholder="Deskripsikan keluhan kendaraan..."
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keluhan') }}</textarea>
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keluhan', $prefill['keluhan'] ?? '') }}</textarea>
                 </div>
 
                 {{-- Bukti Pembayaran --}}
@@ -330,10 +321,10 @@ function addPartRow(data = null) {
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Interval <span class="text-red-400">*</span></label>
                 <div class="flex gap-1">
-                    <input type="number" name="parts[${idx}][interval_nilai]" required min="1"
+                    <input type="number" name="parts[${idx}][interval_nilai]" id="interval-nilai-${idx}" required min="1"
                         value="${data?.interval_nilai || 12}"
                         class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                    <select name="parts[${idx}][interval_satuan]"
+                    <select name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}"
                         class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="hari"   ${data?.interval_satuan === 'hari'   ? 'selected' : ''}>Hari</option>
                         <option value="minggu" ${data?.interval_satuan === 'minggu' ? 'selected' : ''}>Minggu</option>
@@ -341,6 +332,9 @@ function addPartRow(data = null) {
                         <option value="tahun"  ${data?.interval_satuan === 'tahun'  ? 'selected' : ''}>Tahun</option>
                     </select>
                 </div>
+                <p id="interval-hint-${idx}" class="text-[10px] text-blue-500 mt-1 hidden">
+                    <i class="fa fa-circle-info text-[9px]"></i> Auto-fill dari limit rule kategori
+                </p>
             </div>
 
             <!-- Kondisi -->
@@ -354,13 +348,40 @@ function addPartRow(data = null) {
                 </select>
             </div>
 
+            <!-- Status Part -->
+            <div>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Status Part</label>
+                <select name="parts[${idx}][status]"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <option value="Proses" ${data?.status === 'Proses' ? 'selected' : 'selected'}>Proses</option>
+                    <option value="Terpasang" ${data?.status === 'Terpasang' ? 'selected' : ''}>Terpasang</option>
+                </select>
+            </div>
+
             <!-- Biaya -->
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
-                <input type="number" name="parts[${idx}][biaya]" min="0"
+                <input type="number" name="parts[${idx}][biaya]" id="biaya-${idx}" min="0"
                     value="${data?.biaya || 0}"
                     onchange="recalcTotal()" oninput="recalcTotal()"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <p id="biaya-hint-${idx}" class="text-[10px] text-gray-400 mt-1 hidden"></p>
+            </div>
+
+            <!-- Keterangan (full width) -->
+            <div class="md:col-span-3">
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Keterangan</label>
+                <textarea name="parts[${idx}][keterangan]" rows="2"
+                    placeholder="Catatan kondisi, alasan ganti, dll..."
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none">${data?.keterangan || ''}</textarea>
+            </div>
+
+            <!-- Bukti (full width) -->
+            <div class="md:col-span-3">
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Bukti (Foto/Video)</label>
+                <input type="file" name="parts[${idx}][bukti][]" multiple accept="image/*,video/mp4,video/mov"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                <p class="text-[10px] text-gray-400 mt-1">Format: JPG, PNG, MP4, MOV</p>
             </div>
 
         </div>
@@ -403,7 +424,54 @@ function onCategoryChange(select, idx) {
         document.getElementById('kategori_error').classList.add('hidden');
         const m = document.getElementById('modalKategori');
         m.classList.remove('hidden'); m.classList.add('flex');
+        return;
     }
+    // Auto-fill limit rule
+    const kendaraanId = document.getElementById('kendaraan_id').value;
+    if (kendaraanId && select.value) {
+        fetchLimitRule(kendaraanId, select.value, idx);
+    }
+}
+
+// ── Fetch limit rule dari server lalu auto-fill interval & hint harga ─────
+function fetchLimitRule(kendaraanId, categoryId, idx) {
+    if (!kendaraanId || !categoryId || categoryId === '__new__') return;
+    fetch('{{ route("service-categories.limit-for") }}?kendaraan_id=' + kendaraanId + '&category_id=' + categoryId, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data) {
+            // Tidak ada rule — sembunyikan hint
+            var h = document.getElementById('interval-hint-' + idx);
+            var bh = document.getElementById('biaya-hint-' + idx);
+            if (h)  { h.classList.add('hidden'); }
+            if (bh) { bh.classList.add('hidden'); }
+            return;
+        }
+        // Auto-fill interval
+        var nilaiEl   = document.getElementById('interval-nilai-' + idx);
+        var satuanEl  = document.getElementById('interval-satuan-' + idx);
+        var hintEl    = document.getElementById('interval-hint-' + idx);
+        var biayaHint = document.getElementById('biaya-hint-' + idx);
+
+        if (nilaiEl)  { nilaiEl.value  = data.limit_nilai;  }
+        if (satuanEl) { satuanEl.value = data.limit_satuan; }
+        if (hintEl)   { hintEl.classList.remove('hidden');  }
+
+        // Tampilkan batas harga di bawah field biaya
+        if (biayaHint) {
+            if (data.limit_price) {
+                biayaHint.innerHTML = '<i class="fa fa-triangle-exclamation text-[9px] text-amber-500"></i>'
+                    + ' Batas harga kategori ini: <strong class="text-amber-600">'
+                    + data.limit_price_formatted + '</strong>';
+                biayaHint.classList.remove('hidden');
+            } else {
+                biayaHint.classList.add('hidden');
+            }
+        }
+    })
+    .catch(function() { /* silent fail */ });
 }
 
 function closeModalKategori() {
@@ -487,6 +555,17 @@ function onKendaraanChange(val) {
     } else {
         document.getElementById('km-badge').classList.add('hidden');
     }
+    // Re-fetch limit rules untuk semua part row yang sudah ada
+    if (val) {
+        document.querySelectorAll('[id^="cat-select-"]').forEach(function(sel) {
+            var idxMatch = sel.id.match(/cat-select-(\d+)/);
+            if (!idxMatch) return;
+            var rowIdx = idxMatch[1];
+            if (sel.value && sel.value !== '__new__') {
+                fetchLimitRule(val, sel.value, rowIdx);
+            }
+        });
+    }
 }
 
 document.getElementById('kilometer').addEventListener('input', function() {
@@ -518,5 +597,38 @@ document.addEventListener('DOMContentLoaded', function() {
     @endif
 });
 </script>
+
+{{-- ALERT POPUP --}}
+@if (session('success') || session('error') || $errors->any())
+<div id="alertOverlay" class="fixed inset-0 z-[9999] flex items-start justify-center pt-6"
+    style="background:rgba(0,0,0,0.18);opacity:0;transition:opacity 0.2s;pointer-events:none">
+    <div id="alertBox" class="bg-white rounded-xl shadow-xl border border-gray-100 px-5 py-4 flex items-start gap-3 w-full max-w-md mx-4"
+        style="transform:translateY(-16px);transition:transform 0.25s">
+        @if (session('success'))
+            <div class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0 text-green-600 text-xl"><i class="fa fa-check-circle"></i></div>
+            <div class="flex-1"><p class="text-sm font-bold text-gray-800">Berhasil!</p><p class="text-xs text-gray-500 mt-0.5">{{ session('success') }}</p></div>
+        @elseif (session('error'))
+            <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl"><i class="fa fa-exclamation-circle"></i></div>
+            <div class="flex-1"><p class="text-sm font-bold text-gray-800">Error!</p><p class="text-xs text-gray-500 mt-0.5">{{ session('error') }}</p></div>
+        @else
+            <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl"><i class="fa fa-exclamation-circle"></i></div>
+            <div class="flex-1"><p class="text-sm font-bold text-gray-800">Validasi Error!</p><ul class="text-xs text-gray-500 mt-0.5 list-disc ml-4">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
+        @endif
+        <button onclick="closeAlert()" class="text-gray-400 hover:text-gray-600 text-lg"><i class="fa fa-times"></i></button>
+    </div>
+</div>
+
+<script>
+(function() {
+    const overlay = document.getElementById('alertOverlay');
+    if (!overlay) return;
+    const box = document.getElementById('alertBox');
+    setTimeout(() => { overlay.style.opacity='1'; overlay.style.pointerEvents='auto'; box.style.transform='translateY(0)'; }, 50);
+    const timer = setTimeout(() => closeAlert(), 5000);
+    function closeAlert() { clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
+    window.closeAlert = closeAlert;
+})();
+</script>
+@endif
 
 @endsection
