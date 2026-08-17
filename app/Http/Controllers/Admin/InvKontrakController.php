@@ -495,6 +495,52 @@ class InvKontrakController extends Controller
     }
 
     /* ─────────────────────────────────────────────
+       DRAFT PRINT — halaman HTML untuk Ctrl+P
+    ───────────────────────────────────────────── */
+    public function draftPrint($id)
+    {
+        $kontrak = InvKontrak::with('penawaran.items.kendaraan')->findOrFail($id);
+        $setting = Setting::first();
+        return view('admin.kontrak.draft_print', compact('kontrak', 'setting'));
+    }
+
+    /* ─────────────────────────────────────────────
+       REGENERATE DRAFT PDF
+    ───────────────────────────────────────────── */
+    public function regenerateDraft($id)
+    {
+        $kontrak = InvKontrak::with('penawaran.items.kendaraan')->findOrFail($id);
+        $setting  = Setting::first();
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        $logoSrc  = '';
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
+        $pdfFilename = 'draft_' . $kontrak->no_kontrak . '.pdf';
+        $savePath    = public_path('uploads/kontrak/' . $pdfFilename);
+
+        if (!is_dir(public_path('uploads/kontrak'))) {
+            mkdir(public_path('uploads/kontrak'), 0755, true);
+        }
+
+        // Hapus file lama jika ada
+        if (file_exists($savePath)) {
+            unlink($savePath);
+        }
+
+        $pdf = Pdf::loadView('admin.kontrak.draft_pdf', compact('kontrak', 'setting', 'logoSrc'))
+            ->setPaper('a4', 'portrait');
+        $pdf->save($savePath);
+        $kontrak->update(['file_draft' => 'uploads/kontrak/' . $pdfFilename]);
+
+        return response()->download($savePath, $pdfFilename, [
+            'Content-Type' => 'application/pdf',
+        ]);
+    }
+
+    /* ─────────────────────────────────────────────
        EXPORT PDF (LAPORAN TABEL)
     ───────────────────────────────────────────── */
     public function pdf(Request $request)

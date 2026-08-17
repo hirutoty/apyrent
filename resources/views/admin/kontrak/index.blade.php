@@ -137,13 +137,23 @@
                         <td class="px-4 py-3.5">
                             <span class="font-mono text-xs font-semibold text-blue-700">{{ $k->no_kontrak }}</span>
                             <div class="text-[10px] text-gray-400 mt-0.5">{{ $k->tanggal_kontrak?->format('d M Y') }}</div>
-                            {{-- Draft PDF badge --}}
+                            <!-- {{-- Draft PDF badge --}}
                             @if($k->file_draft)
                             <a href="/{{ $k->file_draft }}" target="_blank"
                                 class="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">
                                 <i class="fa fa-file-pdf text-[10px]"></i> Draft
                             </a>
                             @endif
+                            <a href="{{ route('kontrak.regenerate-draft', $k->id) }}"
+                                class="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+                                title="Regenerate & Download Draft PDF">
+                                <i class="fa fa-sync text-[10px]"></i> Regen
+                            </a> -->
+                            <a href="{{ route('kontrak.draft-print', $k->id) }}" target="_blank"
+                                class="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-600 border border-green-200 hover:bg-green-100"
+                                title="Buka halaman print (Ctrl+P)">
+                                <i class="fa fa-print text-[10px]"></i> Print
+                            </a>
                         </td>
 
                         {{-- Penawaran --}}
@@ -936,22 +946,6 @@
                     </select>
                 </div>
 
-                {{-- File upload --}}
-                <div>
-                    <p class="text-xs text-gray-400 mb-2">File baru akan menggantikan file lama (opsional)</p>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">File Kontrak</label>
-                            <input type="file" name="file_kontrak" accept=".pdf"
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">File Persyaratan</label>
-                            <input type="file" name="file_persyaratan" accept=".pdf"
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                        </div>
-                    </div>
-                </div>
 
             </div>{{-- end Tab 1 --}}
 
