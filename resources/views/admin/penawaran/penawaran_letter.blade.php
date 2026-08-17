@@ -6,9 +6,9 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 
-/* Reserve space at bottom for the fixed footer (~22mm) */
+/* Reserve space at bottom for the fixed footer (~30mm) */
 @page {
-    margin: 0mm 0mm 22mm 0mm;
+    margin: 0mm 0mm 30mm 0mm;
     size: A4 portrait;
 }
 
@@ -83,13 +83,27 @@ body {
     left: 0;
     right: 0;
     text-align: center;
-    border-top: 1.5px solid #000;
-    padding: 2px 18mm 3px;
+    padding: 6px 18mm 10px;
     background: #fff;
 }
-.footer-company { font-weight:bold; font-size:9.5pt; }
-.footer-addr    { font-size:8pt; color:#222; }
-.footer-web     { font-size:8pt; color:#1a56db; text-decoration:underline; }
+.footer-company {
+    font-weight: bold;
+    font-size: 13pt;
+    color: #1a3a8f;
+    letter-spacing: 0.3px;
+}
+.footer-addr {
+    font-size: 8.5pt;
+    color: #1a3a8f;
+    margin-top: 1px;
+}
+.footer-web {
+    font-size: 11pt;
+    color: #1a3a8f;
+    font-weight: bold;
+    text-decoration: underline;
+    margin-top: 1px;
+}
 </style>
 </head>
 <body>
@@ -109,9 +123,8 @@ body {
 <div class="page-footer">
     <div class="footer-company">{{ strtoupper($namaPerush) }}</div>
     <div class="footer-addr">
-        Head Office : {{ $alamat }}
-        &nbsp;&nbsp; Ph. {{ $telepon }}
-        @if($fax) &nbsp;&nbsp; Fax. {{ $fax }} @endif
+        Head Office : {{ $alamat }}&nbsp;&nbsp;
+        {{ $telepon }}@if($fax), {{ $fax }}@endif
     </div>
     <div class="footer-web">{{ $website }}</div>
 </div>
