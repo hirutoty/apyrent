@@ -33,16 +33,22 @@ class ServicePart extends Model
         'keterangan',
         'replaced_at',
         'replaced_by_part_id',
+        'is_request',
+        'status_approval',
+        'approval_by',
+        'approval_at',
     ];
 
     protected $casts = [
-        'tgl_pasang'     => 'date',
-        'tanggal_limit'  => 'date',
-        'kilometer_pasang' => 'integer',
-        'biaya'          => 'integer',
-        'interval_nilai' => 'integer',
-        'bukti'          => 'array',
-        'replaced_at'    => 'datetime',
+        'tgl_pasang'      => 'date',
+        'tanggal_limit'   => 'date',
+        'kilometer_pasang'=> 'integer',
+        'biaya'           => 'integer',
+        'interval_nilai'  => 'integer',
+        'bukti'           => 'array',
+        'replaced_at'     => 'datetime',
+        'is_request'      => 'boolean',
+        'approval_at'     => 'datetime',
     ];
 
     /*

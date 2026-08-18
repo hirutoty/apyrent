@@ -190,19 +190,6 @@
     </form>
 </div>
 
-{{-- MODAL TAMBAH KATEGORI INLINE --}}
-<div id="modalKategori" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4" style="backdrop-filter:blur(2px)">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
-        <h2 class="text-base font-bold text-gray-800">Tambah Kategori Baru</h2>
-        <input type="text" id="input_nama_kategori" placeholder="Nama kategori (misal: Kaki-kaki)"
-            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-        <div id="kategori_error" class="hidden text-xs text-red-500"></div>
-        <div class="flex gap-3">
-            <button onclick="closeModalKategori()" class="flex-1 border border-gray-200 text-gray-600 text-sm py-2.5 rounded-xl hover:bg-gray-50">Batal</button>
-            <button onclick="submitKategoriBaru()" class="flex-1 bg-blue-600 text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-blue-700">Simpan</button>
-        </div>
-    </div>
-</div>
 
 <style>
 @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
@@ -214,7 +201,6 @@
 const categories = @json($categories->map(fn($c) => ['id' => $c->id, 'nama' => $c->nama]));
 const prefillData = @json($prefill ? $prefill['part'] : null);
 let partIndex = 0;
-let _currentCategoryTarget = null; // select yang trigger modal kategori
 
 // ── Tambah row part ──────────────────────────────────────────
 function addPartRow(data = null) {
@@ -232,7 +218,6 @@ function addPartRow(data = null) {
     categories.forEach(c => {
         catOptions += `<option value="${c.id}" ${data?.category_id == c.id ? 'selected' : ''}>${c.nama}</option>`;
     });
-    catOptions += '<option value="__new__">+ Tambah Kategori Baru...</option>';
 
     const tglPasang = data?.tgl_pasang || '{{ now()->format("Y-m-d") }}';
     const kmPasang  = data?.kilometer_pasang || '';
@@ -271,10 +256,211 @@ function addPartRow(data = null) {
             <!-- Posisi -->
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Posisi</label>
-                <input type="text" name="parts[${idx}][posisi]"
-                    value="${data?.posisi || ''}"
-                    placeholder="cth: Depan Kanan"
+                <select name="parts[${idx}][posisi]"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <option value="">-- Pilih Posisi --</option>
+                    <optgroup label="🚗 Eksterior Depan">
+                        <option value="Bumper Depan" ${data?.posisi === 'Bumper Depan' ? 'selected' : ''}>Bumper Depan</option>
+                        <option value="Grill Depan" ${data?.posisi === 'Grill Depan' ? 'selected' : ''}>Grill Depan</option>
+                        <option value="Kap Mesin" ${data?.posisi === 'Kap Mesin' ? 'selected' : ''}>Kap Mesin</option>
+                        <option value="Lampu Depan Kiri" ${data?.posisi === 'Lampu Depan Kiri' ? 'selected' : ''}>Lampu Depan Kiri</option>
+                        <option value="Lampu Depan Kanan" ${data?.posisi === 'Lampu Depan Kanan' ? 'selected' : ''}>Lampu Depan Kanan</option>
+                        <option value="Fog Lamp Kiri" ${data?.posisi === 'Fog Lamp Kiri' ? 'selected' : ''}>Fog Lamp Kiri</option>
+                        <option value="Fog Lamp Kanan" ${data?.posisi === 'Fog Lamp Kanan' ? 'selected' : ''}>Fog Lamp Kanan</option>
+                        <option value="Spion Kiri" ${data?.posisi === 'Spion Kiri' ? 'selected' : ''}>Spion Kiri</option>
+                        <option value="Spion Kanan" ${data?.posisi === 'Spion Kanan' ? 'selected' : ''}>Spion Kanan</option>
+                    </optgroup>
+                    <optgroup label="🚗 Eksterior Samping">
+                        <option value="Pintu Depan Kiri" ${data?.posisi === 'Pintu Depan Kiri' ? 'selected' : ''}>Pintu Depan Kiri</option>
+                        <option value="Pintu Depan Kanan" ${data?.posisi === 'Pintu Depan Kanan' ? 'selected' : ''}>Pintu Depan Kanan</option>
+                        <option value="Pintu Belakang Kiri" ${data?.posisi === 'Pintu Belakang Kiri' ? 'selected' : ''}>Pintu Belakang Kiri</option>
+                        <option value="Pintu Belakang Kanan" ${data?.posisi === 'Pintu Belakang Kanan' ? 'selected' : ''}>Pintu Belakang Kanan</option>
+                        <option value="Fender Depan Kiri" ${data?.posisi === 'Fender Depan Kiri' ? 'selected' : ''}>Fender Depan Kiri</option>
+                        <option value="Fender Depan Kanan" ${data?.posisi === 'Fender Depan Kanan' ? 'selected' : ''}>Fender Depan Kanan</option>
+                        <option value="Fender Belakang Kiri" ${data?.posisi === 'Fender Belakang Kiri' ? 'selected' : ''}>Fender Belakang Kiri</option>
+                        <option value="Fender Belakang Kanan" ${data?.posisi === 'Fender Belakang Kanan' ? 'selected' : ''}>Fender Belakang Kanan</option>
+                        <option value="Running Board Kiri" ${data?.posisi === 'Running Board Kiri' ? 'selected' : ''}>Running Board Kiri</option>
+                        <option value="Running Board Kanan" ${data?.posisi === 'Running Board Kanan' ? 'selected' : ''}>Running Board Kanan</option>
+                    </optgroup>
+                    <optgroup label="🚗 Eksterior Belakang">
+                        <option value="Bumper Belakang" ${data?.posisi === 'Bumper Belakang' ? 'selected' : ''}>Bumper Belakang</option>
+                        <option value="Bagasi" ${data?.posisi === 'Bagasi' ? 'selected' : ''}>Bagasi</option>
+                        <option value="Lampu Belakang Kiri" ${data?.posisi === 'Lampu Belakang Kiri' ? 'selected' : ''}>Lampu Belakang Kiri</option>
+                        <option value="Lampu Belakang Kanan" ${data?.posisi === 'Lampu Belakang Kanan' ? 'selected' : ''}>Lampu Belakang Kanan</option>
+                        <option value="Lampu Rem Atas" ${data?.posisi === 'Lampu Rem Atas' ? 'selected' : ''}>Lampu Rem Atas</option>
+                        <option value="Wiper Belakang" ${data?.posisi === 'Wiper Belakang' ? 'selected' : ''}>Wiper Belakang</option>
+                    </optgroup>
+                    <optgroup label="🚗 Atap & Kaca">
+                        <option value="Atap" ${data?.posisi === 'Atap' ? 'selected' : ''}>Atap</option>
+                        <option value="Sunroof" ${data?.posisi === 'Sunroof' ? 'selected' : ''}>Sunroof</option>
+                        <option value="Roof Rack" ${data?.posisi === 'Roof Rack' ? 'selected' : ''}>Roof Rack</option>
+                        <option value="Kaca Depan" ${data?.posisi === 'Kaca Depan' ? 'selected' : ''}>Kaca Depan</option>
+                        <option value="Kaca Belakang" ${data?.posisi === 'Kaca Belakang' ? 'selected' : ''}>Kaca Belakang</option>
+                        <option value="Kaca Pintu Depan Kiri" ${data?.posisi === 'Kaca Pintu Depan Kiri' ? 'selected' : ''}>Kaca Pintu Depan Kiri</option>
+                        <option value="Kaca Pintu Depan Kanan" ${data?.posisi === 'Kaca Pintu Depan Kanan' ? 'selected' : ''}>Kaca Pintu Depan Kanan</option>
+                        <option value="Kaca Pintu Belakang Kiri" ${data?.posisi === 'Kaca Pintu Belakang Kiri' ? 'selected' : ''}>Kaca Pintu Belakang Kiri</option>
+                        <option value="Kaca Pintu Belakang Kanan" ${data?.posisi === 'Kaca Pintu Belakang Kanan' ? 'selected' : ''}>Kaca Pintu Belakang Kanan</option>
+                        <option value="Wiper Depan" ${data?.posisi === 'Wiper Depan' ? 'selected' : ''}>Wiper Depan</option>
+                    </optgroup>
+                    <optgroup label="⚙️ Mesin">
+                        <option value="Mesin" ${data?.posisi === 'Mesin' ? 'selected' : ''}>Mesin</option>
+                        <option value="Radiator" ${data?.posisi === 'Radiator' ? 'selected' : ''}>Radiator</option>
+                        <option value="Kipas Radiator" ${data?.posisi === 'Kipas Radiator' ? 'selected' : ''}>Kipas Radiator</option>
+                        <option value="Alternator" ${data?.posisi === 'Alternator' ? 'selected' : ''}>Alternator</option>
+                        <option value="Starter" ${data?.posisi === 'Starter' ? 'selected' : ''}>Starter</option>
+                        <option value="Aki/Battery" ${data?.posisi === 'Aki/Battery' ? 'selected' : ''}>Aki/Battery</option>
+                        <option value="Busi" ${data?.posisi === 'Busi' ? 'selected' : ''}>Busi</option>
+                        <option value="Koil" ${data?.posisi === 'Koil' ? 'selected' : ''}>Koil</option>
+                        <option value="Filter Udara" ${data?.posisi === 'Filter Udara' ? 'selected' : ''}>Filter Udara</option>
+                        <option value="Filter Oli" ${data?.posisi === 'Filter Oli' ? 'selected' : ''}>Filter Oli</option>
+                        <option value="Filter Bensin" ${data?.posisi === 'Filter Bensin' ? 'selected' : ''}>Filter Bensin</option>
+                        <option value="Timing Belt" ${data?.posisi === 'Timing Belt' ? 'selected' : ''}>Timing Belt</option>
+                        <option value="Fan Belt" ${data?.posisi === 'Fan Belt' ? 'selected' : ''}>Fan Belt</option>
+                        <option value="Drive Belt" ${data?.posisi === 'Drive Belt' ? 'selected' : ''}>Drive Belt</option>
+                        <option value="Tensioner Belt" ${data?.posisi === 'Tensioner Belt' ? 'selected' : ''}>Tensioner Belt</option>
+                        <option value="Water Pump" ${data?.posisi === 'Water Pump' ? 'selected' : ''}>Water Pump</option>
+                        <option value="Thermostat" ${data?.posisi === 'Thermostat' ? 'selected' : ''}>Thermostat</option>
+                        <option value="Injector" ${data?.posisi === 'Injector' ? 'selected' : ''}>Injector</option>
+                        <option value="Throttle Body" ${data?.posisi === 'Throttle Body' ? 'selected' : ''}>Throttle Body</option>
+                    </optgroup>
+                    <optgroup label="🔧 Transmisi & Drivetrain">
+                        <option value="Transmisi" ${data?.posisi === 'Transmisi' ? 'selected' : ''}>Transmisi</option>
+                        <option value="Kopling" ${data?.posisi === 'Kopling' ? 'selected' : ''}>Kopling</option>
+                        <option value="Gardan" ${data?.posisi === 'Gardan' ? 'selected' : ''}>Gardan</option>
+                        <option value="CV Joint Depan Kiri" ${data?.posisi === 'CV Joint Depan Kiri' ? 'selected' : ''}>CV Joint Depan Kiri</option>
+                        <option value="CV Joint Depan Kanan" ${data?.posisi === 'CV Joint Depan Kanan' ? 'selected' : ''}>CV Joint Depan Kanan</option>
+                        <option value="CV Joint Belakang Kiri" ${data?.posisi === 'CV Joint Belakang Kiri' ? 'selected' : ''}>CV Joint Belakang Kiri</option>
+                        <option value="CV Joint Belakang Kanan" ${data?.posisi === 'CV Joint Belakang Kanan' ? 'selected' : ''}>CV Joint Belakang Kanan</option>
+                        <option value="Propeller Shaft" ${data?.posisi === 'Propeller Shaft' ? 'selected' : ''}>Propeller Shaft</option>
+                        <option value="Transfer Case" ${data?.posisi === 'Transfer Case' ? 'selected' : ''}>Transfer Case (4WD)</option>
+                    </optgroup>
+                    <optgroup label="🛞 Ban & Velg">
+                        <option value="Ban Depan Kiri" ${data?.posisi === 'Ban Depan Kiri' ? 'selected' : ''}>Ban Depan Kiri</option>
+                        <option value="Ban Depan Kanan" ${data?.posisi === 'Ban Depan Kanan' ? 'selected' : ''}>Ban Depan Kanan</option>
+                        <option value="Ban Belakang Kiri" ${data?.posisi === 'Ban Belakang Kiri' ? 'selected' : ''}>Ban Belakang Belakang Kiri</option>
+                        <option value="Ban Belakang Kanan" ${data?.posisi === 'Ban Belakang Kanan' ? 'selected' : ''}>Ban Belakang Kanan</option>
+                        <option value="Ban Serep" ${data?.posisi === 'Ban Serep' ? 'selected' : ''}>Ban Serep</option>
+                        <option value="Velg Depan Kiri" ${data?.posisi === 'Velg Depan Kiri' ? 'selected' : ''}>Velg Depan Kiri</option>
+                        <option value="Velg Depan Kanan" ${data?.posisi === 'Velg Depan Kanan' ? 'selected' : ''}>Velg Depan Kanan</option>
+                        <option value="Velg Belakang Kiri" ${data?.posisi === 'Velg Belakang Kiri' ? 'selected' : ''}>Velg Belakang Kiri</option>
+                        <option value="Velg Belakang Kanan" ${data?.posisi === 'Velg Belakang Kanan' ? 'selected' : ''}>Velg Belakang Kanan</option>
+                    </optgroup>
+                    <optgroup label="🔩 Kaki-kaki & Suspensi">
+                        <option value="Shock Absorber Depan Kiri" ${data?.posisi === 'Shock Absorber Depan Kiri' ? 'selected' : ''}>Shock Absorber Depan Kiri</option>
+                        <option value="Shock Absorber Depan Kanan" ${data?.posisi === 'Shock Absorber Depan Kanan' ? 'selected' : ''}>Shock Absorber Depan Kanan</option>
+                        <option value="Shock Absorber Belakang Kiri" ${data?.posisi === 'Shock Absorber Belakang Kiri' ? 'selected' : ''}>Shock Absorber Belakang Kiri</option>
+                        <option value="Shock Absorber Belakang Kanan" ${data?.posisi === 'Shock Absorber Belakang Kanan' ? 'selected' : ''}>Shock Absorber Belakang Kanan</option>
+                        <option value="Per Depan Kiri" ${data?.posisi === 'Per Depan Kiri' ? 'selected' : ''}>Per Depan Kiri</option>
+                        <option value="Per Depan Kanan" ${data?.posisi === 'Per Depan Kanan' ? 'selected' : ''}>Per Depan Kanan</option>
+                        <option value="Per Belakang Kiri" ${data?.posisi === 'Per Belakang Kiri' ? 'selected' : ''}>Per Belakang Kiri</option>
+                        <option value="Per Belakang Kanan" ${data?.posisi === 'Per Belakang Kanan' ? 'selected' : ''}>Per Belakang Kanan</option>
+                        <option value="Lower Arm Depan Kiri" ${data?.posisi === 'Lower Arm Depan Kiri' ? 'selected' : ''}>Lower Arm Depan Kiri</option>
+                        <option value="Lower Arm Depan Kanan" ${data?.posisi === 'Lower Arm Depan Kanan' ? 'selected' : ''}>Lower Arm Depan Kanan</option>
+                        <option value="Upper Arm Depan Kiri" ${data?.posisi === 'Upper Arm Depan Kiri' ? 'selected' : ''}>Upper Arm Depan Kiri</option>
+                        <option value="Upper Arm Depan Kanan" ${data?.posisi === 'Upper Arm Depan Kanan' ? 'selected' : ''}>Upper Arm Depan Kanan</option>
+                        <option value="Tie Rod Depan Kiri" ${data?.posisi === 'Tie Rod Depan Kiri' ? 'selected' : ''}>Tie Rod Depan Kiri</option>
+                        <option value="Tie Rod Depan Kanan" ${data?.posisi === 'Tie Rod Depan Kanan' ? 'selected' : ''}>Tie Rod Depan Kanan</option>
+                        <option value="Long Tie Rod" ${data?.posisi === 'Long Tie Rod' ? 'selected' : ''}>Long Tie Rod</option>
+                        <option value="Ball Joint Atas Kiri" ${data?.posisi === 'Ball Joint Atas Kiri' ? 'selected' : ''}>Ball Joint Atas Kiri</option>
+                        <option value="Ball Joint Atas Kanan" ${data?.posisi === 'Ball Joint Atas Kanan' ? 'selected' : ''}>Ball Joint Atas Kanan</option>
+                        <option value="Ball Joint Bawah Kiri" ${data?.posisi === 'Ball Joint Bawah Kiri' ? 'selected' : ''}>Ball Joint Bawah Kiri</option>
+                        <option value="Ball Joint Bawah Kanan" ${data?.posisi === 'Ball Joint Bawah Kanan' ? 'selected' : ''}>Ball Joint Bawah Kanan</option>
+                        <option value="Stabilizer Link Depan Kiri" ${data?.posisi === 'Stabilizer Link Depan Kiri' ? 'selected' : ''}>Stabilizer Link Depan Kiri</option>
+                        <option value="Stabilizer Link Depan Kanan" ${data?.posisi === 'Stabilizer Link Depan Kanan' ? 'selected' : ''}>Stabilizer Link Depan Kanan</option>
+                        <option value="Bushing Stabilizer Depan" ${data?.posisi === 'Bushing Stabilizer Depan' ? 'selected' : ''}>Bushing Stabilizer Depan</option>
+                        <option value="Bushing Stabilizer Belakang" ${data?.posisi === 'Bushing Stabilizer Belakang' ? 'selected' : ''}>Bushing Stabilizer Belakang</option>
+                    </optgroup>
+                    <optgroup label="🛑 Rem">
+                        <option value="Brake Pad Depan" ${data?.posisi === 'Brake Pad Depan' ? 'selected' : ''}>Brake Pad Depan</option>
+                        <option value="Brake Pad Belakang" ${data?.posisi === 'Brake Pad Belakang' ? 'selected' : ''}>Brake Pad Belakang</option>
+                        <option value="Brake Shoe Belakang" ${data?.posisi === 'Brake Shoe Belakang' ? 'selected' : ''}>Brake Shoe Belakang</option>
+                        <option value="Disc Brake Depan Kiri" ${data?.posisi === 'Disc Brake Depan Kiri' ? 'selected' : ''}>Disc Brake Depan Kiri</option>
+                        <option value="Disc Brake Depan Kanan" ${data?.posisi === 'Disc Brake Depan Kanan' ? 'selected' : ''}>Disc Brake Depan Kanan</option>
+                        <option value="Disc Brake Belakang Kiri" ${data?.posisi === 'Disc Brake Belakang Kiri' ? 'selected' : ''}>Disc Brake Belakang Kiri</option>
+                        <option value="Disc Brake Belakang Kanan" ${data?.posisi === 'Disc Brake Belakang Kanan' ? 'selected' : ''}>Disc Brake Belakang Kanan</option>
+                        <option value="Caliper Depan Kiri" ${data?.posisi === 'Caliper Depan Kiri' ? 'selected' : ''}>Caliper Depan Kiri</option>
+                        <option value="Caliper Depan Kanan" ${data?.posisi === 'Caliper Depan Kanan' ? 'selected' : ''}>Caliper Depan Kanan</option>
+                        <option value="Caliper Belakang Kiri" ${data?.posisi === 'Caliper Belakang Kiri' ? 'selected' : ''}>Caliper Belakang Kiri</option>
+                        <option value="Caliper Belakang Kanan" ${data?.posisi === 'Caliper Belakang Kanan' ? 'selected' : ''}>Caliper Belakang Kanan</option>
+                        <option value="Master Rem" ${data?.posisi === 'Master Rem' ? 'selected' : ''}>Master Rem</option>
+                        <option value="Booster Rem" ${data?.posisi === 'Booster Rem' ? 'selected' : ''}>Booster Rem</option>
+                        <option value="Minyak Rem" ${data?.posisi === 'Minyak Rem' ? 'selected' : ''}>Minyak Rem</option>
+                        <option value="Hand Brake" ${data?.posisi === 'Hand Brake' ? 'selected' : ''}>Hand Brake</option>
+                    </optgroup>
+                    <optgroup label="🎛️ Sistem Kemudi">
+                        <option value="Stir/Setir" ${data?.posisi === 'Stir/Setir' ? 'selected' : ''}>Stir/Setir</option>
+                        <option value="Power Steering Pump" ${data?.posisi === 'Power Steering Pump' ? 'selected' : ''}>Power Steering Pump</option>
+                        <option value="Rack Steer" ${data?.posisi === 'Rack Steer' ? 'selected' : ''}>Rack Steer</option>
+                        <option value="Steering Column" ${data?.posisi === 'Steering Column' ? 'selected' : ''}>Steering Column</option>
+                        <option value="Universal Joint Steer" ${data?.posisi === 'Universal Joint Steer' ? 'selected' : ''}>Universal Joint Steer</option>
+                    </optgroup>
+                    <optgroup label="❄️ AC & Interior">
+                        <option value="Kompresor AC" ${data?.posisi === 'Kompresor AC' ? 'selected' : ''}>Kompresor AC</option>
+                        <option value="Kondensor AC" ${data?.posisi === 'Kondensor AC' ? 'selected' : ''}>Kondensor AC</option>
+                        <option value="Evaporator AC" ${data?.posisi === 'Evaporator AC' ? 'selected' : ''}>Evaporator AC</option>
+                        <option value="Blower AC" ${data?.posisi === 'Blower AC' ? 'selected' : ''}>Blower AC</option>
+                        <option value="Filter Cabin" ${data?.posisi === 'Filter Cabin' ? 'selected' : ''}>Filter Cabin</option>
+                        <option value="Refrigerant/Freon AC" ${data?.posisi === 'Refrigerant/Freon AC' ? 'selected' : ''}>Refrigerant/Freon AC</option>
+                        <option value="Expansion Valve AC" ${data?.posisi === 'Expansion Valve AC' ? 'selected' : ''}>Expansion Valve AC</option>
+                        <option value="Dashboard" ${data?.posisi === 'Dashboard' ? 'selected' : ''}>Dashboard</option>
+                        <option value="Speedometer" ${data?.posisi === 'Speedometer' ? 'selected' : ''}>Speedometer</option>
+                        <option value="Jok Depan Kiri" ${data?.posisi === 'Jok Depan Kiri' ? 'selected' : ''}>Jok Depan Kiri</option>
+                        <option value="Jok Depan Kanan" ${data?.posisi === 'Jok Depan Kanan' ? 'selected' : ''}>Jok Depan Kanan</option>
+                        <option value="Jok Belakang" ${data?.posisi === 'Jok Belakang' ? 'selected' : ''}>Jok Belakang</option>
+                        <option value="Karpet" ${data?.posisi === 'Karpet' ? 'selected' : ''}>Karpet</option>
+                        <option value="Plafon" ${data?.posisi === 'Plafon' ? 'selected' : ''}>Plafon</option>
+                        <option value="Door Trim Depan Kiri" ${data?.posisi === 'Door Trim Depan Kiri' ? 'selected' : ''}>Door Trim Depan Kiri</option>
+                        <option value="Door Trim Depan Kanan" ${data?.posisi === 'Door Trim Depan Kanan' ? 'selected' : ''}>Door Trim Depan Kanan</option>
+                        <option value="Door Trim Belakang Kiri" ${data?.posisi === 'Door Trim Belakang Kiri' ? 'selected' : ''}>Door Trim Belakang Kiri</option>
+                        <option value="Door Trim Belakang Kanan" ${data?.posisi === 'Door Trim Belakang Kanan' ? 'selected' : ''}>Door Trim Belakang Kanan</option>
+                    </optgroup>
+                    <optgroup label="🔊 Audio & Elektronik">
+                        <option value="Head Unit" ${data?.posisi === 'Head Unit' ? 'selected' : ''}>Head Unit</option>
+                        <option value="Speaker Depan Kiri" ${data?.posisi === 'Speaker Depan Kiri' ? 'selected' : ''}>Speaker Depan Kiri</option>
+                        <option value="Speaker Depan Kanan" ${data?.posisi === 'Speaker Depan Kanan' ? 'selected' : ''}>Speaker Depan Kanan</option>
+                        <option value="Speaker Belakang Kiri" ${data?.posisi === 'Speaker Belakang Kiri' ? 'selected' : ''}>Speaker Belakang Kiri</option>
+                        <option value="Speaker Belakang Kanan" ${data?.posisi === 'Speaker Belakang Kanan' ? 'selected' : ''}>Speaker Belakang Kanan</option>
+                        <option value="Subwoofer" ${data?.posisi === 'Subwoofer' ? 'selected' : ''}>Subwoofer</option>
+                        <option value="Amplifier" ${data?.posisi === 'Amplifier' ? 'selected' : ''}>Amplifier</option>
+                        <option value="Antena" ${data?.posisi === 'Antena' ? 'selected' : ''}>Antena</option>
+                        <option value="Klakson" ${data?.posisi === 'Klakson' ? 'selected' : ''}>Klakson</option>
+                        <option value="ECU" ${data?.posisi === 'ECU' ? 'selected' : ''}>ECU</option>
+                        <option value="TCU" ${data?.posisi === 'TCU' ? 'selected' : ''}>TCU</option>
+                        <option value="Sensor Parkir" ${data?.posisi === 'Sensor Parkir' ? 'selected' : ''}>Sensor Parkir</option>
+                        <option value="Kamera Mundur" ${data?.posisi === 'Kamera Mundur' ? 'selected' : ''}>Kamera Mundur</option>
+                        <option value="Dashcam" ${data?.posisi === 'Dashcam' ? 'selected' : ''}>Dashcam</option>
+                        <option value="GPS Tracker" ${data?.posisi === 'GPS Tracker' ? 'selected' : ''}>GPS Tracker</option>
+                    </optgroup>
+                    <optgroup label="⛽ Sistem Bahan Bakar & Knalpot">
+                        <option value="Tangki Bensin" ${data?.posisi === 'Tangki Bensin' ? 'selected' : ''}>Tangki Bensin</option>
+                        <option value="Pompa Bensin" ${data?.posisi === 'Pompa Bensin' ? 'selected' : ''}>Pompa Bensin</option>
+                        <option value="Knalpot Depan" ${data?.posisi === 'Knalpot Depan' ? 'selected' : ''}>Knalpot Depan</option>
+                        <option value="Knalpot Tengah" ${data?.posisi === 'Knalpot Tengah' ? 'selected' : ''}>Knalpot Tengah</option>
+                        <option value="Knalpot Belakang" ${data?.posisi === 'Knalpot Belakang' ? 'selected' : ''}>Knalpot Belakang</option>
+                        <option value="Catalytic Converter" ${data?.posisi === 'Catalytic Converter' ? 'selected' : ''}>Catalytic Converter</option>
+                        <option value="Muffler" ${data?.posisi === 'Muffler' ? 'selected' : ''}>Muffler</option>
+                        <option value="Resonator" ${data?.posisi === 'Resonator' ? 'selected' : ''}>Resonator</option>
+                    </optgroup>
+                    <optgroup label="🔋 Kelistrikan">
+                        <option value="Fuse Box" ${data?.posisi === 'Fuse Box' ? 'selected' : ''}>Fuse Box</option>
+                        <option value="Relay" ${data?.posisi === 'Relay' ? 'selected' : ''}>Relay</option>
+                        <option value="Wiring Harness" ${data?.posisi === 'Wiring Harness' ? 'selected' : ''}>Wiring Harness</option>
+                        <option value="Switch Lampu" ${data?.posisi === 'Switch Lampu' ? 'selected' : ''}>Switch Lampu</option>
+                        <option value="Switch Wiper" ${data?.posisi === 'Switch Wiper' ? 'selected' : ''}>Switch Wiper</option>
+                        <option value="Switch Power Window" ${data?.posisi === 'Switch Power Window' ? 'selected' : ''}>Switch Power Window</option>
+                    </optgroup>
+                    <optgroup label="🧴 Cairan & Fluida">
+                        <option value="Oli Mesin" ${data?.posisi === 'Oli Mesin' ? 'selected' : ''}>Oli Mesin</option>
+                        <option value="Oli Transmisi" ${data?.posisi === 'Oli Transmisi' ? 'selected' : ''}>Oli Transmisi</option>
+                        <option value="Oli Gardan" ${data?.posisi === 'Oli Gardan' ? 'selected' : ''}>Oli Gardan</option>
+                        <option value="Oli Power Steering" ${data?.posisi === 'Oli Power Steering' ? 'selected' : ''}>Oli Power Steering</option>
+                        <option value="Coolant/Air Radiator" ${data?.posisi === 'Coolant/Air Radiator' ? 'selected' : ''}>Coolant/Air Radiator</option>
+                    </optgroup>
+                    <optgroup label="🔧 Lain-lain">
+                        <option value="Umum" ${data?.posisi === 'Umum' ? 'selected' : ''}>Umum</option>
+                        <option value="Keseluruhan" ${data?.posisi === 'Keseluruhan' ? 'selected' : ''}>Keseluruhan</option>
+                    </optgroup>
+                </select>
             </div>
 
             <!-- Part Number -->
@@ -319,18 +505,25 @@ function addPartRow(data = null) {
 
             <!-- Interval Nilai -->
             <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Interval <span class="text-red-400">*</span></label>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">
+                    Interval <span class="text-red-400">*</span>
+                    <span class="text-blue-500 text-[10px] font-normal ml-1">
+                        <i class="fa fa-lock text-[9px]"></i> Auto dari kategori
+                    </span>
+                </label>
                 <div class="flex gap-1">
                     <input type="number" name="parts[${idx}][interval_nilai]" id="interval-nilai-${idx}" required min="1"
-                        value="${data?.interval_nilai || 12}"
-                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                    <select name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}"
-                        class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        value="${data?.interval_nilai || 12}" readonly
+                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
+                    <select id="interval-satuan-select-${idx}" disabled
+                        class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
                         <option value="hari"   ${data?.interval_satuan === 'hari'   ? 'selected' : ''}>Hari</option>
                         <option value="minggu" ${data?.interval_satuan === 'minggu' ? 'selected' : ''}>Minggu</option>
                         <option value="bulan"  ${!data || data?.interval_satuan === 'bulan' ? 'selected' : ''}>Bulan</option>
                         <option value="tahun"  ${data?.interval_satuan === 'tahun'  ? 'selected' : ''}>Tahun</option>
                     </select>
+                    <!-- Hidden input untuk submit karena disabled select tidak tersubmit -->
+                    <input type="hidden" name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}" value="${data?.interval_satuan || 'bulan'}">
                 </div>
                 <p id="interval-hint-${idx}" class="text-[10px] text-blue-500 mt-1 hidden">
                     <i class="fa fa-circle-info text-[9px]"></i> Auto-fill dari limit rule kategori
@@ -418,14 +611,6 @@ function syncKmPasang(idx) {
 
 // ── Kategori inline ───────────────────────────────────────────
 function onCategoryChange(select, idx) {
-    if (select.value === '__new__') {
-        _currentCategoryTarget = { select, idx };
-        document.getElementById('input_nama_kategori').value = '';
-        document.getElementById('kategori_error').classList.add('hidden');
-        const m = document.getElementById('modalKategori');
-        m.classList.remove('hidden'); m.classList.add('flex');
-        return;
-    }
     // Auto-fill limit rule
     const kendaraanId = document.getElementById('kendaraan_id').value;
     if (kendaraanId && select.value) {
@@ -442,22 +627,45 @@ function fetchLimitRule(kendaraanId, categoryId, idx) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (!data) {
-            // Tidak ada rule — sembunyikan hint
+            // Tidak ada rule — sembunyikan hint, reset to default
             var h = document.getElementById('interval-hint-' + idx);
             var bh = document.getElementById('biaya-hint-' + idx);
             if (h)  { h.classList.add('hidden'); }
             if (bh) { bh.classList.add('hidden'); }
+            
+            // Set default interval jika tidak ada rule
+            var nilaiEl = document.getElementById('interval-nilai-' + idx);
+            var satuanSelectEl = document.getElementById('interval-satuan-select-' + idx);
+            var hiddenSatuan = document.getElementById('interval-satuan-' + idx);
+            if (nilaiEl) { nilaiEl.value = 12; }
+            if (satuanSelectEl) { satuanSelectEl.value = 'bulan'; }
+            if (hiddenSatuan) { hiddenSatuan.value = 'bulan'; }
             return;
         }
-        // Auto-fill interval
+        // Auto-fill interval dari kategori (readonly)
         var nilaiEl   = document.getElementById('interval-nilai-' + idx);
-        var satuanEl  = document.getElementById('interval-satuan-' + idx);
+        var satuanSelectEl  = document.getElementById('interval-satuan-select-' + idx);
+        var hiddenSatuan = document.getElementById('interval-satuan-' + idx);
         var hintEl    = document.getElementById('interval-hint-' + idx);
         var biayaHint = document.getElementById('biaya-hint-' + idx);
 
-        if (nilaiEl)  { nilaiEl.value  = data.limit_nilai;  }
-        if (satuanEl) { satuanEl.value = data.limit_satuan; }
-        if (hintEl)   { hintEl.classList.remove('hidden');  }
+        if (nilaiEl)  { 
+            nilaiEl.value = data.limit_nilai;
+            nilaiEl.readOnly = true; // Enforce readonly
+            nilaiEl.classList.add('bg-gray-50', 'text-gray-600', 'cursor-not-allowed');
+        }
+        if (satuanSelectEl) { 
+            satuanSelectEl.value = data.limit_satuan;
+            satuanSelectEl.disabled = true; // Disable select
+            satuanSelectEl.classList.add('bg-gray-50', 'text-gray-600', 'cursor-not-allowed');
+        }
+        // Sync ke hidden input untuk submit (karena disabled select tidak tersubmit)
+        if (hiddenSatuan) {
+            hiddenSatuan.value = data.limit_satuan;
+        }
+        if (hintEl) { 
+            hintEl.classList.remove('hidden');
+        }
 
         // Tampilkan batas harga di bawah field biaya
         if (biayaHint) {
@@ -474,60 +682,6 @@ function fetchLimitRule(kendaraanId, categoryId, idx) {
     .catch(function() { /* silent fail */ });
 }
 
-function closeModalKategori() {
-    const m = document.getElementById('modalKategori');
-    m.classList.add('hidden'); m.classList.remove('flex');
-    if (_currentCategoryTarget) {
-        _currentCategoryTarget.select.value = '';
-    }
-}
-
-function submitKategoriBaru() {
-    const nama = document.getElementById('input_nama_kategori').value.trim();
-    if (!nama) {
-        document.getElementById('kategori_error').textContent = 'Nama kategori wajib diisi.';
-        document.getElementById('kategori_error').classList.remove('hidden');
-        return;
-    }
-
-    fetch('{{ route("service-history.storeCategory") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ nama })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.id) {
-            // Tambah ke semua dropdown kategori yang ada
-            const option = new Option(data.nama, data.id, true, true);
-            categories.push({ id: data.id, nama: data.nama });
-
-            document.querySelectorAll('[id^="cat-select-"]').forEach(sel => {
-                // Tambah sebelum option "__new__"
-                const newOpt = new Option(data.nama, data.id);
-                const lastOpt = Array.from(sel.options).find(o => o.value === '__new__');
-                if (lastOpt) sel.insertBefore(newOpt, lastOpt);
-            });
-
-            // Set nilai ke select yang trigger
-            if (_currentCategoryTarget) {
-                _currentCategoryTarget.select.value = data.id;
-            }
-
-            closeModalKategori();
-        } else {
-            document.getElementById('kategori_error').textContent = data.message || 'Gagal menyimpan kategori.';
-            document.getElementById('kategori_error').classList.remove('hidden');
-        }
-    })
-    .catch(() => {
-        document.getElementById('kategori_error').textContent = 'Terjadi kesalahan, coba lagi.';
-        document.getElementById('kategori_error').classList.remove('hidden');
-    });
-}
 
 // ── Total biaya auto-sum ──────────────────────────────────────
 function recalcTotal() {

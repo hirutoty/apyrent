@@ -12,17 +12,14 @@
             <h1 class="text-2xl font-bold text-gray-800">Pengadaan</h1>
             <p class="text-sm text-gray-500 mt-0.5">Kelola pengajuan permintaan pembelian barang &amp; jasa</p>
         </div>
-        @if ($role !== 'superadmin')
-        <button onclick="openModal()"
+        <a href="{{ route('purchasero.create') }}"
             class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors">
             <i class="fa fa-plus"></i> Tambah Pengadaan
-        </button>
-        @endif
+        </a>
     </div>
 
     {{-- STAT CARDS --}}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        @if ($role !== 'superadmin')
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Total Pengadaan</p>
             <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $totalPR }}</h2>
@@ -31,7 +28,6 @@
             <p class="text-sm text-gray-500">Pending</p>
             <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $totalPending }}</h2>
         </div>
-        @endif
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Diajukan</p>
             <h2 class="text-3xl font-bold text-indigo-600 mt-2">{{ $totalDiajukan }}</h2>
@@ -44,7 +40,7 @@
             <p class="text-sm text-gray-500">Ditolak</p>
             <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $totalDitolak }}</h2>
         </div>
-        <div class="bg-white rounded-2xl border border-gray-100 p-5 col-span-2 md:col-span-4">
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 col-span-2 md:col-span-3">
             <p class="text-sm text-gray-500">Total Nominal (Diajukan + Disetujui)</p>
             <h2 class="text-2xl font-bold text-emerald-600 mt-2">
                 Rp {{ number_format($totalNominal, 0, ',', '.') }}
@@ -137,6 +133,8 @@
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Departemen</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Pemohon</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Items</th>
+                        <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Nominal</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
                         <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
                     </tr>
@@ -167,6 +165,17 @@
                             </td>
                             <td class="px-4 py-3.5 text-sm text-gray-700">{{ $d->pemohon ?? '-' }}</td>
                             <td class="px-4 py-3.5">
+                                <span class="inline-flex items-center gap-1 text-sm font-medium text-gray-600">
+                                    <i class="fa fa-boxes text-blue-400 text-xs"></i>
+                                    {{ $d->items->count() > 0 ? $d->items->count() : '1' }} item{{ ($d->items->count() > 1) ? 's' : '' }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3.5 text-right">
+                                <span class="text-sm font-semibold text-emerald-600">
+                                    Rp {{ number_format($d->total_nominal ?? 0, 0, ',', '.') }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3.5">
                                 <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium {{ $bc }}">
                                     <i class="fa fa-circle text-[6px]"></i> {{ $d->status ?? '-' }}
                                 </span>
@@ -176,24 +185,7 @@
 
                                     {{-- Detail selalu tampil --}}
                                     <button type="button"
-                                        onclick="openDetailModal(
-                                            '{{ $d->no_pr }}',
-                                            '{{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d M Y') : '-' }}',
-                                            '{{ addslashes($d->departemen ?? '-') }}',
-                                            '{{ addslashes($d->pemohon ?? '-') }}',
-                                            '{{ addslashes($d->barang_jasa ?? '-') }}',
-                                            '{{ $d->kode_barang ?? '-' }}',
-                                            '{{ $d->qty ?? '-' }}',
-                                            '{{ $d->satuan ?? '-' }}',
-                                            '{{ addslashes($d->alasan_permintaan ?? '-') }}',
-                                            '{{ $d->nominal ? number_format($d->nominal, 0, ',', '.') : '-' }}',
-                                            '{{ $d->status ?? '-' }}',
-                                            '{{ $bc }}',
-                                            '{{ addslashes($d->disetujui_oleh ?? '') }}',
-                                            '{{ $d->tanggal_persetujuan ? \Carbon\Carbon::parse($d->tanggal_persetujuan)->format('d M Y') : '-' }}',
-                                            '{{ addslashes($d->catatan ?? '') }}',
-                                            '{{ $d->terakhir_diajukan ? \Carbon\Carbon::parse($d->terakhir_diajukan)->format('d M Y H:i') : '-' }}'
-                                        )"
+                                        onclick="openDetailModal({{ $d->id }})"
                                         class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors border border-blue-200">
                                         <i class="fa fa-eye text-[10px]"></i> Detail
                                     </button>
@@ -220,21 +212,10 @@
                                     @else
                                         {{-- Non-superadmin: Edit + Hapus (hanya jika belum diajukan/disetujui) --}}
                                         @if(!in_array($d->status, ['Diajukan', 'Disetujui']))
-                                            <button
-                                                data-action="{{ route('purchasero.update', $d->id) }}"
-                                                data-no_pr="{{ $d->no_pr }}"
-                                                data-tanggal="{{ $d->tanggal }}"
-                                                data-pemohon="{{ $d->pemohon }}"
-                                                data-barang_jasa="{{ $d->barang_jasa }}"
-                                                data-kode_barang="{{ $d->kode_barang }}"
-                                                data-qty="{{ $d->qty }}"
-                                                data-satuan="{{ $d->satuan }}"
-                                                data-alasan_permintaan="{{ $d->alasan_permintaan }}"
-                                                data-nominal="{{ $d->nominal }}"
-                                                onclick="triggerEdit(this)"
+                                            <a href="{{ route('purchasero.edit', $d->id) }}"
                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors border border-yellow-200">
                                                 <i class="fa fa-edit text-[10px]"></i> Edit
-                                            </button>
+                                            </a>
                                             <button type="button"
                                                 data-action="{{ route('purchasero.destroy', $d->id) }}"
                                                 data-name="{{ $d->no_pr }}"
@@ -262,7 +243,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center py-12 text-gray-400 text-sm">
+                            <td colspan="8" class="text-center py-12 text-gray-400 text-sm">
                                 <i class="fa fa-inbox text-3xl mb-3 block text-gray-300"></i>
                                 Belum ada data Pengadaan
                             </td>
@@ -319,12 +300,17 @@
                 </div>
             </div>
 
-            {{-- Detail Barang --}}
+            {{-- Detail Barang - Multiple Items --}}
             <div class="border border-gray-100 rounded-xl overflow-hidden">
                 <div class="bg-gray-50 px-4 py-2 border-b border-gray-100">
-                    <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detail Barang / Jasa</p>
+                    <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detail Items</p>
                 </div>
-                <div class="grid grid-cols-3 divide-x divide-y divide-gray-100">
+                <div id="d_items_container" class="divide-y divide-gray-100">
+                    <!-- Items will be populated by JavaScript -->
+                </div>
+                
+                <!-- Fallback for old structure (single item) -->
+                <div id="d_old_structure" class="hidden grid grid-cols-3 divide-x divide-y divide-gray-100">
                     <div class="px-4 py-2.5 col-span-2">
                         <p class="text-[10px] text-gray-400 mb-0.5">Barang/Jasa</p>
                         <p id="d_barang_jasa" class="text-sm font-medium text-gray-700"></p>
@@ -343,13 +329,27 @@
                     </div>
                     <div class="px-4 py-2.5">
                         <p class="text-[10px] text-gray-400 mb-0.5">Nominal</p>
-                        <p id="d_nominal" class="text-sm font-semibold text-emerald-700"></p>
-                    </div>
-                    <div class="px-4 py-2.5 col-span-3">
-                        <p class="text-[10px] text-gray-400 mb-0.5">Alasan Permintaan</p>
-                        <p id="d_alasan" class="text-sm text-gray-700"></p>
+                        <p id="d_nominal_old" class="text-sm font-semibold text-emerald-700"></p>
                     </div>
                 </div>
+            </div>
+
+            {{-- Total & Alasan Permintaan --}}
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-emerald-50 rounded-xl px-3 py-2.5 border border-emerald-100">
+                    <p class="text-[10px] text-emerald-400 font-semibold uppercase tracking-wide mb-0.5">Total Nominal</p>
+                    <p id="d_total_nominal" class="text-base font-bold text-emerald-700"></p>
+                </div>
+                <div class="bg-gray-50 rounded-xl px-3 py-2.5">
+                    <p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Total Items</p>
+                    <p id="d_total_items" class="text-base font-semibold text-gray-700"></p>
+                </div>
+            </div>
+
+            {{-- Alasan Permintaan --}}
+            <div class="bg-blue-50 rounded-xl px-4 py-3 border border-blue-100">
+                <p class="text-[10px] text-blue-400 font-semibold uppercase tracking-wide mb-1">Alasan Permintaan</p>
+                <p id="d_alasan" class="text-sm text-blue-700"></p>
             </div>
 
             {{-- Info tambahan: persetujuan + catatan + terakhir diajukan dalam 1 baris --}}
@@ -418,112 +418,6 @@
 </div>
 @endif
 
-{{-- ===== MODAL TAMBAH / EDIT (non-superadmin) ===== --}}
-@if ($role !== 'superadmin')
-<div id="purchaseroModal" class="fixed inset-0 z-50 hidden items-start justify-center bg-black/50 p-4 overflow-y-auto" style="backdrop-filter:blur(2px)">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 my-6" style="animation:slideUp .2s ease">
-
-        <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
-            <div>
-                <h2 id="modalTitle" class="text-base font-bold text-gray-800">Tambah Pengadaan</h2>
-                <p class="text-xs text-gray-500 mt-0.5">Departemen: <span class="font-semibold text-blue-600">{{ $deptLabel }}</span> &nbsp;&middot;&nbsp; Bisa tambah banyak item sekaligus</p>
-            </div>
-            <button onclick="closeModal()" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center flex-shrink-0">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-
-        {{-- Form Tambah --}}
-        <form id="purchaseroForm" action="{{ route('purchasero.store') }}" method="POST" class="px-6 py-5">
-            @csrf
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-5 mb-5 border-b border-gray-100">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" id="f_tanggal" required value="{{ old('tanggal') }}"
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pemohon <span class="text-red-500">*</span></label>
-                    <input type="text" name="pemohon" id="f_pemohon" required placeholder="Nama pemohon" value="{{ old('pemohon') }}"
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-            </div>
-            <div class="mb-4">
-                <div class="flex items-center justify-between mb-3">
-                    <p class="text-sm font-semibold text-gray-700">Daftar Item</p>
-                    <span class="text-xs text-gray-400">Bisa tambah lebih dari 1</span>
-                </div>
-                <div id="itemsContainer" class="space-y-3"></div>
-                <button type="button" id="btnTambahItem"
-                    class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Item
-                </button>
-            </div>
-            <div class="flex gap-3 pt-4 border-t border-gray-100">
-                <button type="button" onclick="closeModal()" class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">Batal</button>
-                <button type="submit" id="btnSimpanPR" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <i class="fa fa-save"></i> Simpan
-                </button>
-            </div>
-        </form>
-
-        {{-- Form Edit --}}
-        <form id="purchaseroEditForm" action="" method="POST" class="px-6 py-5 hidden">
-            @csrf
-            <input type="hidden" name="_method" value="PUT">
-            <div class="mb-4 pb-4 border-b border-gray-100">
-                <label class="block text-xs font-semibold text-gray-600 mb-1">No PR</label>
-                <span id="f_no_pr_display" class="font-mono text-xs text-gray-600 bg-gray-100 px-3 py-2 rounded-lg border border-gray-200 inline-block"></span>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" id="e_tanggal" required class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pemohon <span class="text-red-500">*</span></label>
-                    <input type="text" name="pemohon" id="e_pemohon" required placeholder="Nama pemohon" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Barang/Jasa <span class="text-red-500">*</span></label>
-                    <input type="text" name="barang_jasa" id="e_barang_jasa" required placeholder="Contoh: Label Baju" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kode Barang <span class="text-red-500">*</span></label>
-                    <input type="text" name="kode_barang" id="e_kode_barang" required placeholder="Contoh: BRG-001" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Qty <span class="text-red-500">*</span></label>
-                    <input type="number" min="1" name="qty" id="e_qty" required placeholder="500" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Satuan <span class="text-red-500">*</span></label>
-                    <input type="text" name="satuan" id="e_satuan" required placeholder="pcs" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alasan Permintaan <span class="text-red-500">*</span></label>
-                    <input type="text" name="alasan_permintaan" id="e_alasan" required placeholder="Contoh: Stok habis" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal <span class="text-gray-400 font-normal">(opsional)</span></label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">Rp</span>
-                        <input type="number" min="0" name="nominal" id="e_nominal" placeholder="0" class="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    </div>
-                </div>
-            </div>
-            <div class="flex gap-3 pt-5 mt-4 border-t border-gray-100">
-                <button type="button" onclick="closeModal()" class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">Batal</button>
-                <button type="submit" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <i class="fa fa-save"></i> Update
-                </button>
-            </div>
-        </form>
-
-    </div>
-</div>
-@endif
-
 {{-- ===== MODAL HAPUS ===== --}}
 <div id="deleteModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40" style="backdrop-filter:blur(2px)">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4" style="animation:slideUp .2s ease">
@@ -575,31 +469,130 @@
 
 <script>
 // ── Detail Modal ──────────────────────────────────────────────
-function openDetailModal(no_pr, tanggal, departemen, pemohon, barang_jasa, kode_barang, qty, satuan, alasan, nominal, status, status_class, disetujui_oleh, tgl_persetujuan, catatan, terakhir_diajukan) {
-    document.getElementById('d_no_pr').innerText            = no_pr;
-    document.getElementById('d_tanggal').innerText          = tanggal;
-    document.getElementById('d_pemohon').innerText          = pemohon;
-    document.getElementById('d_departemen').innerText       = departemen;
-    document.getElementById('d_barang_jasa').innerText      = barang_jasa;
-    document.getElementById('d_kode_barang').innerText      = kode_barang;
-    document.getElementById('d_qty').innerText              = qty;
-    document.getElementById('d_satuan').innerText           = satuan;
-    document.getElementById('d_alasan').innerText           = alasan;
-    document.getElementById('d_nominal').innerText          = nominal !== '-' ? 'Rp ' + nominal : '-';
-    document.getElementById('d_disetujui_oleh').innerText   = disetujui_oleh || '-';
-    document.getElementById('d_tgl_persetujuan').innerText  = tgl_persetujuan;
-    document.getElementById('d_catatan').innerText          = catatan;
-    document.getElementById('d_terakhir_diajukan').innerText = terakhir_diajukan;
+function openDetailModal(purchaseroId) {
+    // Show modal immediately with loading state
+    var modal = document.getElementById('detailModal');
+    modal.classList.remove('hidden'); 
+    modal.classList.add('flex');
+    
+    // Show loading state
+    document.getElementById('d_no_pr').innerText = 'Loading...';
+    document.getElementById('d_items_container').innerHTML = '<div class="px-4 py-6 text-center text-gray-400"><i class="fa fa-spinner fa-spin mr-2"></i>Loading items...</div>';
+    
+    // Fetch data via AJAX
+    fetch('/admin/purchasero/' + purchaseroId + '/details')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                populateDetailModal(data.purchasero);
+            } else {
+                alert('Gagal memuat detail: ' + (data.message || 'Unknown error'));
+                closeDetailModal();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan saat memuat detail');
+            closeDetailModal();
+        });
+}
 
-    var badge = document.getElementById('d_status_badge');
-    badge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ' + status_class;
-    badge.innerHTML = '<i class="fa fa-circle text-[6px]"></i> ' + status;
-
-    document.getElementById('d_approval_section').classList.toggle('hidden', !disetujui_oleh || disetujui_oleh === '-');
-    document.getElementById('d_catatan_section').classList.toggle('hidden', !catatan || catatan.trim() === '');
-
-    var m = document.getElementById('detailModal');
-    m.classList.remove('hidden'); m.classList.add('flex');
+function populateDetailModal(pr) {
+    // Basic info
+    document.getElementById('d_no_pr').innerText = pr.no_pr;
+    document.getElementById('d_tanggal').innerText = pr.tanggal_formatted;
+    document.getElementById('d_pemohon').innerText = pr.pemohon;
+    document.getElementById('d_departemen').innerText = pr.departemen;
+    document.getElementById('d_alasan').innerText = pr.alasan_permintaan || '-';
+    document.getElementById('d_terakhir_diajukan').innerText = pr.terakhir_diajukan_formatted || '-';
+    
+    // Status badge
+    var statusBadge = document.getElementById('d_status_badge');
+    statusBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ' + pr.status_class;
+    statusBadge.innerHTML = '<i class="fa fa-circle text-[6px]"></i> ' + pr.status;
+    
+    // Total info
+    document.getElementById('d_total_nominal').innerText = 'Rp ' + pr.total_nominal_formatted;
+    document.getElementById('d_total_items').innerText = pr.total_items + ' item' + (pr.total_items > 1 ? 's' : '');
+    
+    // Items container
+    var itemsContainer = document.getElementById('d_items_container');
+    var oldStructure = document.getElementById('d_old_structure');
+    
+    if (pr.items && pr.items.length > 0) {
+        // New structure: multiple items
+        itemsContainer.innerHTML = '';
+        oldStructure.classList.add('hidden');
+        
+        pr.items.forEach(function(item, index) {
+            var itemDiv = document.createElement('div');
+            itemDiv.className = 'p-4';
+            
+            itemDiv.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">Item #${index + 1}</span>
+                    ${item.subtotal ? '<span class="text-sm font-semibold text-emerald-600">Rp ' + item.subtotal_formatted + '</span>' : ''}
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                    <div>
+                        <p class="text-[10px] text-gray-400 mb-0.5 uppercase">Nama Barang</p>
+                        <p class="text-sm font-medium text-gray-700">${item.nama_barang}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-400 mb-0.5 uppercase">Kategori</p>
+                        <p class="text-sm text-gray-600">${item.kategori || '-'}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-400 mb-0.5 uppercase">Qty</p>
+                        <p class="text-sm font-medium text-gray-700">${item.qty} ${item.satuan || ''}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-400 mb-0.5 uppercase">Harga Satuan</p>
+                        <p class="text-sm text-gray-600">${item.harga_satuan ? 'Rp ' + item.harga_satuan_formatted : '-'}</p>
+                    </div>
+                </div>
+                ${item.part_number || item.serial_number || item.spesifikasi || item.merk || item.keterangan ? `
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                    ${item.part_number ? '<div><span class="text-gray-400">Part#:</span> <span class="text-gray-600">' + item.part_number + '</span></div>' : ''}
+                    ${item.serial_number ? '<div><span class="text-gray-400">Serial#:</span> <span class="text-gray-600">' + item.serial_number + '</span></div>' : ''}
+                    ${item.spesifikasi ? '<div><span class="text-gray-400">Spesifikasi:</span> <span class="text-gray-600">' + item.spesifikasi + '</span></div>' : ''}
+                    ${item.merk ? '<div><span class="text-gray-400">Merk:</span> <span class="text-gray-600">' + item.merk + '</span></div>' : ''}
+                    ${item.posisi ? '<div><span class="text-gray-400">Posisi:</span> <span class="text-gray-600">' + item.posisi + '</span></div>' : ''}
+                    ${item.keterangan ? '<div class="col-span-full"><span class="text-gray-400">Keterangan:</span> <span class="text-gray-600">' + item.keterangan + '</span></div>' : ''}
+                </div>` : ''}
+            `;
+            
+            itemsContainer.appendChild(itemDiv);
+        });
+    } else {
+        // Old structure: fallback for legacy data
+        oldStructure.classList.remove('hidden');
+        itemsContainer.innerHTML = '';
+        document.getElementById('d_barang_jasa').innerText = pr.barang_jasa || '-';
+        document.getElementById('d_kode_barang').innerText = pr.kode_barang || '-';
+        document.getElementById('d_qty').innerText = pr.qty || '-';
+        document.getElementById('d_satuan').innerText = pr.satuan || '-';
+        document.getElementById('d_nominal_old').innerText = pr.nominal ? 'Rp ' + pr.nominal_formatted : '-';
+    }
+    
+    // Approval section
+    var approvalSection = document.getElementById('d_approval_section');
+    if (pr.disetujui_oleh) {
+        document.getElementById('d_disetujui_oleh').innerText = pr.disetujui_oleh;
+        document.getElementById('d_tgl_persetujuan').innerText = pr.tanggal_persetujuan_formatted || '-';
+        approvalSection.classList.remove('hidden');
+    } else {
+        approvalSection.classList.add('hidden');
+    }
+    
+    // Catatan section
+    var catatanSection = document.getElementById('d_catatan_section');
+    if (pr.catatan && pr.catatan.trim()) {
+        document.getElementById('d_catatan').innerText = pr.catatan;
+        catatanSection.classList.remove('hidden');
+    } else {
+        catatanSection.classList.add('hidden');
+    }
 }
 function closeDetailModal() {
     var m = document.getElementById('detailModal');
@@ -622,137 +615,6 @@ function closeTolakModal() {
     tolakModal.classList.add('hidden'); tolakModal.classList.remove('flex');
 }
 tolakModal.addEventListener('click', function(e) { if (e.target === this) closeTolakModal(); });
-@endif
-
-// ── Tambah/Edit Modal ─────────────────────────────────────────
-@if ($role !== 'superadmin')
-var purchaseroModal    = document.getElementById('purchaseroModal');
-var purchaseroForm     = document.getElementById('purchaseroForm');
-var purchaseroEditForm = document.getElementById('purchaseroEditForm');
-var itemCount          = 0;
-
-function buatItemRow(idx) {
-    var wrap = document.createElement('div');
-    wrap.id        = 'item-' + idx;
-    wrap.className = 'border border-gray-200 rounded-xl overflow-hidden';
-
-    var header = document.createElement('div');
-    header.className = 'flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200';
-    header.innerHTML = '<span class="text-xs font-semibold text-gray-500 item-label">Item #' + (idx + 1) + '</span>';
-
-    var hapusBtn = document.createElement('button');
-    hapusBtn.type      = 'button';
-    hapusBtn.className = 'w-6 h-6 rounded-md bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 transition inline-flex items-center justify-center hapus-item-btn';
-    hapusBtn.innerHTML = '<i class="fa-solid fa-times text-xs"></i>';
-    hapusBtn.onclick   = function() { hapusItem(idx); };
-    header.appendChild(hapusBtn);
-    wrap.appendChild(header);
-
-    var body = document.createElement('div');
-    body.className = 'px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-3';
-
-    var fields = [
-        { name: 'barang_jasa',       label: 'Barang/Jasa',       type: 'text',   placeholder: 'Contoh: Label Baju', required: true,  span: false },
-        { name: 'kode_barang',       label: 'Kode Barang',       type: 'text',   placeholder: 'Contoh: BRG-001',   required: true,  span: false },
-        { name: 'qty',               label: 'Qty',               type: 'number', placeholder: '500',               required: true,  span: false, min: '1' },
-        { name: 'satuan',            label: 'Satuan',            type: 'text',   placeholder: 'pcs',               required: true,  span: false },
-        { name: 'alasan_permintaan', label: 'Alasan Permintaan', type: 'text',   placeholder: 'Contoh: Stok habis', required: true,  span: true  },
-        { name: 'nominal',           label: 'Nominal (opsional)',type: 'number', placeholder: '0',                 required: false, span: true, min: '0' },
-    ];
-
-    fields.forEach(function(f) {
-        var col = document.createElement('div');
-        if (f.span) col.className = 'sm:col-span-2';
-
-        var lbl = document.createElement('label');
-        lbl.className = 'text-xs font-semibold text-gray-500 mb-1 block';
-        lbl.innerHTML = f.label + (f.required ? ' <span class="text-red-400">*</span>' : '');
-        col.appendChild(lbl);
-
-        var inp = document.createElement('input');
-        inp.type        = f.type;
-        inp.name        = 'items[' + idx + '][' + f.name + ']';
-        inp.placeholder = f.placeholder;
-        inp.className   = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none';
-        if (f.required) inp.required = true;
-        if (f.min !== undefined) inp.min = f.min;
-        col.appendChild(inp);
-
-        body.appendChild(col);
-    });
-
-    wrap.appendChild(body);
-    return wrap;
-}
-
-function tambahItem() {
-    var idx       = itemCount++;
-    var container = document.getElementById('itemsContainer');
-    container.appendChild(buatItemRow(idx));
-    updateItemNumbers();
-}
-
-function hapusItem(idx) {
-    var el = document.getElementById('item-' + idx);
-    if (el) el.remove();
-    updateItemNumbers();
-}
-
-function updateItemNumbers() {
-    var items = document.querySelectorAll('#itemsContainer > div');
-    items.forEach(function(div, i) {
-        var lbl = div.querySelector('.item-label');
-        if (lbl) lbl.textContent = 'Item #' + (i + 1);
-        var btn = div.querySelector('.hapus-item-btn');
-        if (btn) btn.style.visibility = items.length <= 1 ? 'hidden' : 'visible';
-    });
-}
-
-document.getElementById('btnTambahItem').addEventListener('click', tambahItem);
-
-function openModal() {
-    document.getElementById('modalTitle').innerText = 'Tambah Pengadaan';
-    purchaseroForm.reset();
-    purchaseroForm.classList.remove('hidden');
-    purchaseroEditForm.classList.add('hidden');
-    document.getElementById('itemsContainer').innerHTML = '';
-    itemCount = 0;
-    tambahItem();
-    purchaseroModal.classList.remove('hidden'); purchaseroModal.classList.add('flex');
-}
-function closeModal() {
-    purchaseroModal.classList.add('hidden'); purchaseroModal.classList.remove('flex');
-}
-purchaseroModal.addEventListener('click', function(e) { if (e.target === this) closeModal(); });
-
-purchaseroForm.addEventListener('submit', function() {
-    var btn = document.getElementById('btnSimpanPR');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Menyimpan...';
-    btn.classList.add('opacity-60', 'cursor-not-allowed');
-});
-
-@if ($errors->any() && !session('success'))
-document.addEventListener('DOMContentLoaded', function() { openModal(); });
-@endif
-
-function triggerEdit(btn) {
-    document.getElementById('modalTitle').innerText = 'Edit Pengadaan';
-    purchaseroForm.classList.add('hidden');
-    purchaseroEditForm.classList.remove('hidden');
-    purchaseroEditForm.action = btn.dataset.action;
-    document.getElementById('f_no_pr_display').innerText = btn.dataset.no_pr;
-    document.getElementById('e_tanggal').value    = btn.dataset.tanggal    || '';
-    document.getElementById('e_pemohon').value    = btn.dataset.pemohon    || '';
-    document.getElementById('e_barang_jasa').value= btn.dataset.barang_jasa|| '';
-    document.getElementById('e_kode_barang').value= btn.dataset.kode_barang|| '';
-    document.getElementById('e_qty').value        = btn.dataset.qty        || '';
-    document.getElementById('e_satuan').value     = btn.dataset.satuan     || '';
-    document.getElementById('e_alasan').value     = btn.dataset.alasan_permintaan || '';
-    var raw = btn.dataset.nominal || '';
-    document.getElementById('e_nominal').value = (raw && raw !== '0') ? parseInt(raw, 10) || '' : '';
-    purchaseroModal.classList.remove('hidden'); purchaseroModal.classList.add('flex');
-}
 @endif
 
 // ── Delete Modal ──────────────────────────────────────────────

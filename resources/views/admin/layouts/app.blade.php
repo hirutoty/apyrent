@@ -20,6 +20,11 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
+    {{-- Chart.js Library --}}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ asset('css/chart-styles.css') }}">
+    <script src="{{ asset('js/chart-manager.js') }}"></script>
+
     <script>
         tailwind.config = {
             theme: {

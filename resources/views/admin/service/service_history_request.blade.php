@@ -213,7 +213,6 @@ function addPartRow(data = null) {
     categories.forEach(c => {
         catOptions += `<option value="${c.id}" ${data?.category_id == c.id ? 'selected' : ''}>${c.nama}</option>`;
     });
-    catOptions += '<option value="__new__">+ Tambah Kategori Baru...</option>';
 
     const tglPasang = data?.tgl_pasang || '{{ now()->format("Y-m-d") }}';
     const kmPasang  = data?.kilometer_pasang || '';
@@ -252,10 +251,102 @@ function addPartRow(data = null) {
             <!-- Posisi -->
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Posisi</label>
-                <input type="text" name="parts[${idx}][posisi]"
-                    value="${data?.posisi || ''}"
-                    placeholder="cth: Depan Kanan"
+                <select name="parts[${idx}][posisi]"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <option value="">-- Pilih Posisi --</option>
+                    <optgroup label="🚗 Eksterior Depan">
+                        <option value="Bumper Depan">Bumper Depan</option>
+                        <option value="Grill Depan">Grill Depan</option>
+                        <option value="Kap Mesin">Kap Mesin</option>
+                        <option value="Lampu Depan Kiri">Lampu Depan Kiri</option>
+                        <option value="Lampu Depan Kanan">Lampu Depan Kanan</option>
+                        <option value="Fog Lamp Kiri">Fog Lamp Kiri</option>
+                        <option value="Fog Lamp Kanan">Fog Lamp Kanan</option>
+                        <option value="Spion Kiri">Spion Kiri</option>
+                        <option value="Spion Kanan">Spion Kanan</option>
+                    </optgroup>
+                    <optgroup label="🚗 Eksterior Samping">
+                        <option value="Pintu Depan Kiri">Pintu Depan Kiri</option>
+                        <option value="Pintu Depan Kanan">Pintu Depan Kanan</option>
+                        <option value="Pintu Belakang Kiri">Pintu Belakang Kiri</option>
+                        <option value="Pintu Belakang Kanan">Pintu Belakang Kanan</option>
+                        <option value="Fender Depan Kiri">Fender Depan Kiri</option>
+                        <option value="Fender Depan Kanan">Fender Depan Kanan</option>
+                        <option value="Running Board Kiri">Running Board Kiri</option>
+                        <option value="Running Board Kanan">Running Board Kanan</option>
+                    </optgroup>
+                    <optgroup label="🚗 Eksterior Belakang">
+                        <option value="Bumper Belakang">Bumper Belakang</option>
+                        <option value="Bagasi">Bagasi</option>
+                        <option value="Lampu Belakang Kiri">Lampu Belakang Kiri</option>
+                        <option value="Lampu Belakang Kanan">Lampu Belakang Kanan</option>
+                        <option value="Wiper Belakang">Wiper Belakang</option>
+                    </optgroup>
+                    <optgroup label="🚗 Atap & Kaca">
+                        <option value="Atap">Atap</option>
+                        <option value="Sunroof">Sunroof</option>
+                        <option value="Kaca Depan">Kaca Depan</option>
+                        <option value="Kaca Belakang">Kaca Belakang</option>
+                        <option value="Wiper Depan">Wiper Depan</option>
+                    </optgroup>
+                    <optgroup label="⚙️ Mesin">
+                        <option value="Mesin">Mesin</option>
+                        <option value="Radiator">Radiator</option>
+                        <option value="Aki/Battery">Aki/Battery</option>
+                        <option value="Busi">Busi</option>
+                        <option value="Filter Udara">Filter Udara</option>
+                        <option value="Filter Oli">Filter Oli</option>
+                        <option value="Timing Belt">Timing Belt</option>
+                        <option value="Fan Belt">Fan Belt</option>
+                    </optgroup>
+                    <optgroup label="🔧 Transmisi">
+                        <option value="Transmisi">Transmisi</option>
+                        <option value="Kopling">Kopling</option>
+                        <option value="Gardan">Gardan</option>
+                    </optgroup>
+                    <optgroup label="🛞 Ban & Velg">
+                        <option value="Ban Depan Kiri">Ban Depan Kiri</option>
+                        <option value="Ban Depan Kanan">Ban Depan Kanan</option>
+                        <option value="Ban Belakang Kiri">Ban Belakang Kiri</option>
+                        <option value="Ban Belakang Kanan">Ban Belakang Kanan</option>
+                        <option value="Ban Serep">Ban Serep</option>
+                    </optgroup>
+                    <optgroup label="🔩 Kaki-kaki">
+                        <option value="Shock Absorber Depan Kiri">Shock Depan Kiri</option>
+                        <option value="Shock Absorber Depan Kanan">Shock Depan Kanan</option>
+                        <option value="Shock Absorber Belakang Kiri">Shock Belakang Kiri</option>
+                        <option value="Shock Absorber Belakang Kanan">Shock Belakang Kanan</option>
+                        <option value="Ball Joint Depan Kiri">Ball Joint Depan Kiri</option>
+                        <option value="Ball Joint Depan Kanan">Ball Joint Depan Kanan</option>
+                        <option value="Tie Rod Kiri">Tie Rod Kiri</option>
+                        <option value="Tie Rod Kanan">Tie Rod Kanan</option>
+                    </optgroup>
+                    <optgroup label="🛑 Rem">
+                        <option value="Brake Pad Depan">Brake Pad Depan</option>
+                        <option value="Brake Pad Belakang">Brake Pad Belakang</option>
+                        <option value="Disc Brake Depan">Disc Brake Depan</option>
+                        <option value="Master Rem">Master Rem</option>
+                        <option value="Minyak Rem">Minyak Rem</option>
+                    </optgroup>
+                    <optgroup label="❄️ AC & Interior">
+                        <option value="Kompresor AC">Kompresor AC</option>
+                        <option value="Blower AC">Blower AC</option>
+                        <option value="Filter Cabin">Filter Cabin</option>
+                        <option value="Freon AC">Freon AC</option>
+                        <option value="Jok Depan">Jok Depan</option>
+                        <option value="Jok Belakang">Jok Belakang</option>
+                    </optgroup>
+                    <optgroup label="🧴 Cairan">
+                        <option value="Oli Mesin">Oli Mesin</option>
+                        <option value="Oli Transmisi">Oli Transmisi</option>
+                        <option value="Oli Gardan">Oli Gardan</option>
+                        <option value="Coolant">Coolant/Air Radiator</option>
+                    </optgroup>
+                    <optgroup label="🔧 Lain-lain">
+                        <option value="Umum">Umum</option>
+                        <option value="Keseluruhan">Keseluruhan</option>
+                    </optgroup>
+                </select>
             </div>
 
             <!-- Part Number -->
@@ -300,18 +391,24 @@ function addPartRow(data = null) {
 
             <!-- Interval Nilai -->
             <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Interval <span class="text-red-400">*</span></label>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">
+                    Interval <span class="text-red-400">*</span>
+                    <span class="text-blue-500 text-[10px] font-normal ml-1">
+                        <i class="fa fa-lock text-[9px]"></i> Auto dari kategori
+                    </span>
+                </label>
                 <div class="flex gap-1">
                     <input type="number" name="parts[${idx}][interval_nilai]" id="interval-nilai-${idx}" required min="1"
-                        value="${data?.interval_nilai || 12}"
-                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                    <select name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}"
-                        class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        value="${data?.interval_nilai || 12}" readonly
+                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
+                    <select id="interval-satuan-select-${idx}" disabled
+                        class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
                         <option value="hari"   ${data?.interval_satuan === 'hari'   ? 'selected' : ''}>Hari</option>
                         <option value="minggu" ${data?.interval_satuan === 'minggu' ? 'selected' : ''}>Minggu</option>
                         <option value="bulan"  ${!data || data?.interval_satuan === 'bulan' ? 'selected' : ''}>Bulan</option>
                         <option value="tahun"  ${data?.interval_satuan === 'tahun'  ? 'selected' : ''}>Tahun</option>
                     </select>
+                    <input type="hidden" name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}" value="${data?.interval_satuan || 'bulan'}">
                 </div>
                 <p id="interval-hint-${idx}" class="text-[10px] text-blue-500 mt-1 hidden">
                     <i class="fa fa-circle-info text-[9px]"></i> Auto-fill dari limit rule kategori

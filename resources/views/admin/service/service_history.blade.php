@@ -37,22 +37,36 @@
         <nav class="inline-flex gap-1 bg-gray-100 rounded-xl p-1">
             @php
                 $navItems = [
-                    ['label' => 'Service History',  'url' => '/admin/service-history',    'icon' => 'bi bi-clock-history'],
-                    ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check'],
-                    ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill'],
-                    ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill'],
+                    ['label' => 'Service History',  'url' => '/admin/service-history',    'icon' => 'bi bi-clock-history', 'role' => null],
+                    ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check', 'role' => null],
+                    ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill', 'role' => null],
+                    ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill', 'role' => 'superadmin'],
                 ];
             @endphp
             @foreach ($navItems as $item)
-                @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
-                <a href="{{ $item['url'] }}"
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
-                        {{ $isActiveTab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60' }}">
-                    <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
-                </a>
+                @if(!isset($item['role']) || (isset($item['role']) && auth()->user()->role === $item['role']))
+                    @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
+                    <a href="{{ $item['url'] }}"
+                        class="flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
+                            {{ $isActiveTab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60' }}">
+                        <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
+                    </a>
+                @endif
             @endforeach
         </nav>
     </div>
+
+    {{-- CHART FILTER --}}
+    <x-chart-filter id="serviceHistoryChartFilter" defaultFilter="month" :showCustomRange="true" />
+
+    {{-- CHART CONTAINER --}}
+    <x-chart-container
+        id="serviceHistoryChartContainer"
+        pieTitle="Biaya per Kategori" pieId="serviceHistoryPieChart"
+        barTitle="Biaya Service per Bulan" barId="serviceHistoryBarChart"
+        lineTitle="Trend Biaya Service" lineId="serviceHistoryLineChart"
+        :showStats="true" :statsData="[]"
+    />
 
     {{-- SUMMARY CARDS --}}
     <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -93,7 +107,7 @@
                     <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} data</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <a href="{{ route('service-history.pdf', ['bulan' => request('bulan'), 'search' => request('search')]) }}"
+                    <a href="{{ route('service-history.pdf', ['bulan' => request('bulan'), 'category_id' => request('category_id')]) }}"
                         target="_blank"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
                         <i class="fa fa-file-pdf"></i> PDF
@@ -111,7 +125,7 @@
 
             {{-- APPROVAL FILTER TABS --}}
             <div class="flex items-center gap-2 border-b border-gray-200 pb-3 mb-4">
-                <a href="{{ route('service-history.index', array_merge(request()->except('approval_status'), ['bulan' => request('bulan'), 'kendaraan_id' => request('kendaraan_id'), 'search' => request('search')])) }}"
+                <a href="{{ route('service-history.index', array_merge(request()->except('approval_status'), ['bulan' => request('bulan'), 'kendaraan_id' => request('kendaraan_id'), 'category_id' => request('category_id')])) }}"
                     class="px-4 py-2 text-xs font-semibold rounded-lg transition-colors {{ !request('approval_status') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fa fa-list-ul text-[10px] mr-1"></i> Semua
                 </a>
@@ -149,18 +163,21 @@
                     @endforeach
                 </select>
 
-                <div class="relative">
-                    <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-                    <input type="text" name="search" value="{{ request('search') }}"
-                        placeholder="Nopol, part, kategori, serial..."
-                        class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-56">
-                </div>
+                <select name="category_id"
+                    class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <option value="">Semua Kategori</option>
+                    @foreach ($categories as $cat)
+                        <option value="{{ $cat->id }}" {{ request('category_id') == $cat->id ? 'selected' : '' }}>
+                            {{ $cat->nama }}
+                        </option>
+                    @endforeach
+                </select>
 
                 <button type="submit"
                     class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
                     Filter
                 </button>
-                @if(request('bulan') || request('search') || request('kendaraan_id'))
+                @if(request('bulan') || request('category_id') || request('kendaraan_id'))
                     <a href="{{ url('/admin/service-history') }}"
                         class="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
                         Reset
@@ -282,12 +299,11 @@
                             </td>
                             <td class="px-4 py-4" onclick="event.stopPropagation()">
                                 <div class="flex items-center justify-center gap-1.5">
-                                    @if ($d->status_approval === 'pending')
-                                        <a href="{{ route('service-history.request.edit', $d->id) }}"
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
-                                            <i class="fa fa-pencil text-xs"></i> Edit
-                                        </a>
-                                    @endif
+                                    <a href="{{ route('kendaraan.service-history', $d->kendaraan_id) }}"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors"
+                                        title="Lihat detail service kendaraan ini">
+                                        Detail
+                                    </a>
                                     <form action="{{ route('service-history.destroy', $d->id) }}" method="POST"
                                         onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
                                         @csrf @method('DELETE')
@@ -330,6 +346,9 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Keterangan</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Bukti</th>
                                                     <th class="text-right px-3 py-2 font-semibold">Biaya</th>
+                                                    @if ($d->parts->contains('is_request', true) && auth()->user()->role === 'superadmin')
+                                                        <th class="text-center px-3 py-2 font-semibold">Approval</th>
+                                                    @endif
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -392,11 +411,18 @@
                                                                     <i class="fa fa-history text-[9px]"></i> Diganti
                                                                 </span>
                                                             @elseif ($part->status === 'Proses')
-                                                                <button type="button"
-                                                                    onclick="event.stopPropagation(); openModalPartStatus({{ $part->id }}, 'Proses')"
-                                                                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors cursor-pointer">
-                                                                    <i class="fa fa-clock text-[9px]"></i> Proses
-                                                                </button>
+                                                                @if ($part->is_request && $part->status_approval !== 'approved')
+                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-400 border border-amber-200 cursor-not-allowed"
+                                                                        title="Tidak bisa diubah — menunggu approval superadmin">
+                                                                        <i class="fa fa-lock text-[9px]"></i> Proses
+                                                                    </span>
+                                                                @else
+                                                                    <button type="button"
+                                                                        onclick="event.stopPropagation(); openModalPartStatus({{ $part->id }}, 'Proses')"
+                                                                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors cursor-pointer">
+                                                                        <i class="fa fa-clock text-[9px]"></i> Proses
+                                                                    </button>
+                                                                @endif
                                                             @else
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 cursor-default"
                                                                     title="Part sudah terpasang, tidak bisa diubah">
@@ -476,12 +502,44 @@
                                                                 </span>
                                                             @endif
                                                         </td>
+                                                        @if ($d->parts->contains('is_request', true) && auth()->user()->role === 'superadmin')
+                                                            <td class="px-3 py-2 text-center whitespace-nowrap">
+                                                                @if ($part->is_request && $part->status_approval === 'pending')
+                                                                    <div class="flex items-center justify-center gap-1">
+                                                                        <form action="{{ route('service-parts.approve', $part->id) }}" method="POST" class="inline" onclick="event.stopPropagation()">
+                                                                            @csrf
+                                                                            <button type="submit"
+                                                                                class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
+                                                                                <i class="fa fa-check text-[9px]"></i> Setuju
+                                                                            </button>
+                                                                        </form>
+                                                                        <form action="{{ route('service-parts.reject', $part->id) }}" method="POST" class="inline" onclick="event.stopPropagation()" onsubmit="return confirm('Yakin tolak part ini?')">
+                                                                            @csrf
+                                                                            <button type="submit"
+                                                                                class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
+                                                                                <i class="fa fa-times text-[9px]"></i> Tolak
+                                                                            </button>
+                                                                        </form>
+                                                                    </div>
+                                                                @elseif ($part->is_request && $part->status_approval === 'approved')
+                                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
+                                                                        <i class="fa fa-check text-[9px]"></i> Approved
+                                                                    </span>
+                                                                @elseif ($part->is_request && $part->status_approval === 'rejected')
+                                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
+                                                                        <i class="fa fa-times text-[9px]"></i> Rejected
+                                                                    </span>
+                                                                @else
+                                                                    <span class="text-xs text-gray-400">—</span>
+                                                                @endif
+                                                            </td>
+                                                        @endif
                                                     </tr>
                                                 @endforeach
                                             </tbody>
                                             <tfoot>
                                                 <tr class="bg-slate-100 border-t border-slate-200">
-                                                    <td colspan="12" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
+                                                    <td colspan="{{ ($d->parts->contains('is_request', true) && auth()->user()->role === 'superadmin') ? 15 : 14 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
                                                     <td class="px-3 py-2 text-right text-xs font-bold text-gray-800">
                                                         Rp {{ number_format($d->parts->sum('biaya'), 0, ',', '.') }}
                                                     </td>
@@ -738,6 +796,17 @@ function openApprovalModal(id) {
     m.classList.remove('hidden'); m.classList.add('flex');
 }
 
+// Alias untuk tombol approve dari expandable row (baris part)
+function openPartApprovalModal(id) {
+    openApprovalModal(id);
+}
+
+// Alias untuk tombol tolak dari expandable row (baris part)
+function submitPartReject(id) {
+    _approvalId = id;
+    submitReject();
+}
+
 function closeApprovalModal() {
     const m = document.getElementById('modalApproval');
     m.classList.add('hidden'); m.classList.remove('flex');
@@ -942,6 +1011,52 @@ function submitPartStatus() {
 document.getElementById('modal-part-status').addEventListener('click', function(e) {
     if (e.target === this) closeModalPartStatus();
 });
+
+// ========================================
+// CHART INITIALIZATION
+// ========================================
+const chartManager = new ChartManager();
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize charts with default filter (month)
+    initServiceHistoryCharts({ filter_type: 'month' });
+    
+    // Listen for filter changes
+    document.addEventListener('chartFilterChange', function(e) {
+        if (e.detail.filterId === 'serviceHistoryChartFilter') {
+            const filters = {
+                filter_type: e.detail.filterType,
+                start_date: e.detail.startDate,
+                end_date: e.detail.endDate
+            };
+            updateServiceHistoryCharts(filters);
+        }
+    });
+});
+
+async function initServiceHistoryCharts(filters) {
+    try {
+        await chartManager.initChartsFromAPI('service-history', {
+            pie: 'serviceHistoryPieChart',
+            bar: 'serviceHistoryBarChart',
+            line: 'serviceHistoryLineChart'
+        }, filters);
+    } catch (error) {
+        console.error('Error loading service history charts:', error);
+    }
+}
+
+async function updateServiceHistoryCharts(filters) {
+    try {
+        await chartManager.updateChartsFromAPI('service-history', {
+            pie: 'serviceHistoryPieChart',
+            bar: 'serviceHistoryBarChart',
+            line: 'serviceHistoryLineChart'
+        }, filters);
+    } catch (error) {
+        console.error('Error updating service history charts:', error);
+    }
+}
 </script>
 
 @endsection

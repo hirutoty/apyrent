@@ -23,7 +23,7 @@ class ServiceHistoryController extends Controller
     public function index(Request $request)
     {
         $bulan           = $request->bulan ?? now()->format('Y-m');
-        $search          = $request->search;
+        $categoryId      = $request->category_id;
         $kendaraanId     = $request->kendaraan_id;
         $approvalStatus  = $request->approval_status; // all, pending, approved, rejected
 
@@ -38,25 +38,7 @@ class ServiceHistoryController extends Controller
             ->when($approvalStatus === 'approved', fn($q) => $q->where('status_approval', 'approved'))
             ->when($approvalStatus === 'rejected', fn($q) => $q->where('status_approval', 'rejected'))
             ->when($approvalStatus === 'limit', fn($q) => $q->where('status', 'limit'))
-            ->when($search, function ($q) use ($search) {
-                $q->where(function ($q) use ($search) {
-                    $q->where('keluhan', 'like', "%{$search}%")
-                        ->orWhere('status', 'like', "%{$search}%")
-                        ->orWhere('kilometer', 'like', "%{$search}%")
-                        ->orWhereHas('kendaraan', fn($k) =>
-                            $k->where('merk', 'like', "%{$search}%")
-                              ->orWhere('nopol', 'like', "%{$search}%")
-                        )
-                        ->orWhereHas('parts', fn($p) =>
-                            $p->where('nama_part', 'like', "%{$search}%")
-                              ->orWhere('part_number', 'like', "%{$search}%")
-                              ->orWhere('serial_number', 'like', "%{$search}%")
-                              ->orWhereHas('category', fn($c) =>
-                                  $c->where('nama', 'like', "%{$search}%")
-                              )
-                        );
-                });
-            })
+            ->when($categoryId, fn($q) => $q->whereHas('parts', fn($p) => $p->where('category_id', $categoryId)))
             ->latest()
             ->paginate($request->per_page ?? 50)->withQueryString();
 
@@ -270,6 +252,8 @@ class ServiceHistoryController extends Controller
                         'status_pengeluaran'  => $partStatuses[$idx] ?? 'stabil',
                         'bukti'               => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
                         'keterangan'          => $partData['keterangan'] ?? null,
+                        'is_request'          => true,
+                        'status_approval'     => 'pending',
                     ]);
                 }
 
@@ -1053,6 +1037,54 @@ class ServiceHistoryController extends Controller
     }
 
     /**
+     * Approve satu part (per-part approval, superadmin only)
+     */
+    public function approvePart(Request $request, $id)
+    {
+        $part = ServicePart::findOrFail($id);
+
+        if (!$part->is_request) {
+            return back()->with('error', 'Part ini bukan request part.');
+        }
+
+        if ($part->status_approval !== 'pending') {
+            return back()->with('error', 'Part ini sudah diproses sebelumnya.');
+        }
+
+        $part->update([
+            'status_approval' => 'approved',
+            'approval_by'     => auth()->id(),
+            'approval_at'     => now(),
+        ]);
+
+        return back()->with('success', 'Part "' . $part->nama_part . '" berhasil disetujui.');
+    }
+
+    /**
+     * Reject satu part (per-part approval, superadmin only)
+     */
+    public function rejectPart($id)
+    {
+        $part = ServicePart::findOrFail($id);
+
+        if (!$part->is_request) {
+            return back()->with('error', 'Part ini bukan request part.');
+        }
+
+        if ($part->status_approval !== 'pending') {
+            return back()->with('error', 'Part ini sudah diproses sebelumnya.');
+        }
+
+        $part->update([
+            'status_approval' => 'rejected',
+            'approval_by'     => auth()->id(),
+            'approval_at'     => now(),
+        ]);
+
+        return back()->with('success', 'Part "' . $part->nama_part . '" telah ditolak.');
+    }
+
+    /**
      * Hapus satu file bukti dari service part
      */
     public function deletePartBukti(Request $request, $id)
@@ -1086,21 +1118,12 @@ class ServiceHistoryController extends Controller
 
     public function pdf(Request $request)
     {
-        $search = $request->search;
-        $bulan  = $request->bulan;
+        $categoryId = $request->category_id;
+        $bulan      = $request->bulan;
 
         $data = ServiceHistory::with(['kendaraan.jenis', 'attachments', 'parts.category'])
             ->when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(tanggal_service, '%Y-%m') = ?", [$bulan]))
-            ->when($search, function ($q) use ($search) {
-                $q->where(function ($q) use ($search) {
-                    $q->where('keluhan', 'like', "%$search%")
-                        ->orWhere('status', 'like', "%$search%")
-                        ->orWhereHas('kendaraan', fn($k) =>
-                            $k->where('merk', 'like', "%$search%")
-                              ->orWhere('nopol', 'like', "%$search%")
-                        );
-                });
-            })
+            ->when($categoryId, fn($q) => $q->whereHas('parts', fn($p) => $p->where('category_id', $categoryId)))
             ->latest()->get();
 
         $setting = Setting::first();
@@ -1111,7 +1134,7 @@ class ServiceHistoryController extends Controller
             $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
         }
 
-        $pdf = Pdf::loadView('admin.service.pdf_history', compact('data', 'search', 'bulan', 'setting', 'logoSrc'));
+        $pdf = Pdf::loadView('admin.service.pdf_history', compact('data', 'categoryId', 'bulan', 'setting', 'logoSrc'));
         return $pdf->stream('service-history.pdf');
     }
 
@@ -1136,6 +1159,11 @@ class ServiceHistoryController extends Controller
         // Terpasang tidak bisa diubah lagi
         if ($part->status === 'Terpasang') {
             return back()->with('error', 'Part yang sudah Terpasang tidak bisa diubah statusnya.');
+        }
+
+        // Jika part ini adalah request part, wajib sudah di-approve terlebih dahulu
+        if ($part->is_request && $part->status_approval !== 'approved') {
+            return back()->with('error', 'Status part tidak bisa diubah sebelum part ini disetujui oleh superadmin.');
         }
 
         $part->update(['status' => $request->status]);
