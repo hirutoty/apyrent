@@ -355,18 +355,25 @@ function addPartRow(data = null) {
                         <i class="fa fa-lock text-[9px]"></i> Auto dari kategori
                     </span>
                 </label>
-                <div class="flex gap-1">
-                    <input type="number" name="parts[${idx}][interval_nilai]" required min="1"
-                        value="${data?.interval_nilai || 12}" readonly
-                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
-                    <select id="interval-satuan-select-${idx}" disabled
-                        class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
-                        <option value="hari"   ${data?.interval_satuan === 'hari'   ? 'selected' : ''}>Hari</option>
-                        <option value="minggu" ${data?.interval_satuan === 'minggu' ? 'selected' : ''}>Minggu</option>
-                        <option value="bulan"  ${!data || data?.interval_satuan === 'bulan' ? 'selected' : ''}>Bulan</option>
-                        <option value="tahun"  ${data?.interval_satuan === 'tahun'  ? 'selected' : ''}>Tahun</option>
+                <div class="flex gap-1 items-center">
+                    <div id="interval-nilai-display-${idx}"
+                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 text-center">
+                        ${data?.interval_nilai || 12}
+                    </div>
+                    <div id="interval-satuan-display-${idx}"
+                        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600">
+                        ${ ({'hari':'Hari','minggu':'Minggu','bulan':'Bulan','tahun':'Tahun'})[data?.interval_satuan || 'bulan'] || 'Bulan' }
+                    </div>
+                    <input type="hidden" name="parts[${idx}][interval_nilai]" id="interval-nilai-${idx}"
+                        value="${data?.interval_nilai || 12}">
+                    <input type="hidden" name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}"
+                        value="${(data?.interval_satuan && ['hari','minggu','bulan','tahun'].includes(data.interval_satuan)) ? data.interval_satuan : 'bulan'}">
+                    <select id="interval-satuan-select-${idx}" class="hidden" disabled>
+                        <option value="hari"   ${(data?.interval_satuan||'') === 'hari'   ? 'selected':''}>Hari</option>
+                        <option value="minggu" ${(data?.interval_satuan||'') === 'minggu' ? 'selected':''}>Minggu</option>
+                        <option value="bulan"  ${(!data?.interval_satuan||data?.interval_satuan==='bulan') ? 'selected':''}>Bulan</option>
+                        <option value="tahun"  ${(data?.interval_satuan||'') === 'tahun'  ? 'selected':''}>Tahun</option>
                     </select>
-                    <input type="hidden" name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}" value="${data?.interval_satuan || 'bulan'}">
                 </div>
             </div>
 

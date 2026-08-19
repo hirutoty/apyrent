@@ -513,6 +513,8 @@ class PaymentsController extends Controller
             'method'          => 'required|string|max:100',
             'status'          => 'required|in:Pending,Verified,Rejected',
             'file_pembayaran' => 'required|file|mimes:pdf,jpg,jpeg,png|max:4096',
+            'attachment'      => 'nullable|array',
+            'attachment.*'    => 'file|max:5120',
         ]);
 
         // Validasi overpayment sebelum simpan
@@ -542,13 +544,36 @@ class PaymentsController extends Controller
 
             $data['transaction_id'] = $this->generateTransactionId();
 
-            // Upload file
+            // Pastikan folder uploads/payment ada
+            if (!file_exists(public_path('uploads/payment'))) {
+                mkdir(public_path('uploads/payment'), 0777, true);
+            }
+
+            // Upload bukti pembayaran (single)
             if ($request->hasFile('file_pembayaran')) {
                 $file     = $request->file('file_pembayaran');
                 $namaFile = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('uploads/payment'), $namaFile);
                 $data['file_pembayaran']      = 'uploads/payment/' . $namaFile;
                 $data['file_pembayaran_name'] = $file->getClientOriginalName();
+            }
+
+            // Upload attachment (multiple)
+            if ($request->hasFile('attachment')) {
+                $attachments = [];
+                foreach ($request->file('attachment') as $att) {
+                    if (!$att->isValid()) continue;
+                    $attName = time() . '_' . uniqid() . '.' . $att->getClientOriginalExtension();
+                    $att->move(public_path('uploads/payment'), $attName);
+                    $attachments[] = [
+                        'path' => 'uploads/payment/' . $attName,
+                        'name' => $att->getClientOriginalName(),
+                        'type' => $att->getClientOriginalExtension(),
+                    ];
+                }
+                $data['attachment'] = !empty($attachments) ? json_encode($attachments) : null;
+            } else {
+                $data['attachment'] = null;
             }
 
             $payment = InvoicePayment::create($data);
@@ -620,6 +645,8 @@ class PaymentsController extends Controller
             'method'          => 'required|string|max:100',
             'status'          => 'required|in:Pending,Verified,Rejected',
             'file_pembayaran' => 'nullable|file|max:4096',
+            'attachment'      => 'nullable|array',
+            'attachment.*'    => 'file|max:5120',
         ]);
 
         // Validasi overpayment sebelum update
@@ -647,9 +674,9 @@ class PaymentsController extends Controller
         DB::beginTransaction();
 
         try {
-            $data = $request->except('file_pembayaran');
+            $data = $request->except(['file_pembayaran', 'attachment']);
 
-            // Upload file baru
+            // Upload file bukti baru (jika ada)
             if ($request->hasFile('file_pembayaran')) {
                 // MEDIUM #7 — hapus file lama dengan file_exists + unlink
                 if ($payment->file_pembayaran && file_exists(public_path($payment->file_pembayaran))) {
@@ -661,6 +688,40 @@ class PaymentsController extends Controller
                 $file->move(public_path('uploads/payment'), $namaFile);
                 $data['file_pembayaran']      = 'uploads/payment/' . $namaFile;
                 $data['file_pembayaran_name'] = $file->getClientOriginalName();
+            }
+
+            // Upload attachment baru (jika ada — replace semua attachment lama)
+            if ($request->hasFile('attachment')) {
+                // Hapus attachment lama
+                if ($payment->attachment) {
+                    $oldAtts = is_string($payment->attachment)
+                        ? json_decode($payment->attachment, true)
+                        : $payment->attachment;
+                    if (is_array($oldAtts)) {
+                        foreach ($oldAtts as $old) {
+                            if (isset($old['path']) && file_exists(public_path($old['path']))) {
+                                unlink(public_path($old['path']));
+                            }
+                        }
+                    }
+                }
+
+                if (!file_exists(public_path('uploads/payment'))) {
+                    mkdir(public_path('uploads/payment'), 0777, true);
+                }
+
+                $attachments = [];
+                foreach ($request->file('attachment') as $att) {
+                    if (!$att->isValid()) continue;
+                    $attName = time() . '_' . uniqid() . '.' . $att->getClientOriginalExtension();
+                    $att->move(public_path('uploads/payment'), $attName);
+                    $attachments[] = [
+                        'path' => 'uploads/payment/' . $attName,
+                        'name' => $att->getClientOriginalName(),
+                        'type' => $att->getClientOriginalExtension(),
+                    ];
+                }
+                $data['attachment'] = !empty($attachments) ? json_encode($attachments) : null;
             }
 
             $payment->update($data);

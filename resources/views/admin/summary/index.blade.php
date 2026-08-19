@@ -262,6 +262,8 @@
                                             <th class="px-4 py-2 text-right">Total</th>
                                             <th class="px-4 py-2 text-right">Dibayar</th>
                                             <th class="px-4 py-2 text-right">Sisa Bayar</th>
+                                            <th class="px-4 py-2 text-left">Bukti</th>
+                                            <th class="px-4 py-2 text-left">Attachment</th>
                                             <th class="px-4 py-2 text-center">Status</th>
                                             <th class="px-4 py-2 text-center">Aksi</th>
                                         </tr>
@@ -330,6 +332,45 @@
                                                 <td class="px-4 py-3 text-right text-xs font-semibold text-gray-800">Rp {{ number_format($s->total_amount,0,',','.') }}</td>
                                                 <td class="px-4 py-3 text-right text-xs font-semibold text-green-700">Rp {{ number_format($s->paid_amount,0,',','.') }}</td>
                                                 <td class="px-4 py-3 text-right text-xs {{ $sisaColor }}">Rp {{ number_format($s->remaining_amount,0,',','.') }}</td>
+
+                                                {{-- Bukti & Attachment dari payment invoice --}}
+                                                @php
+                                                    $invoicePayments = $s->invoice?->payments ?? collect();
+                                                    // Ambil payment Verified terbaru, fallback ke payment terbaru apapun
+                                                    $latestPayment = $invoicePayments->where('status', 'Verified')->sortByDesc('id')->first()
+                                                        ?? $invoicePayments->sortByDesc('id')->first();
+                                                    $payAtts = $latestPayment?->attachment;
+                                                    if (is_string($payAtts)) $payAtts = json_decode($payAtts, true);
+                                                @endphp
+                                                <td class="px-4 py-3">
+                                                    @if($latestPayment?->file_pembayaran)
+                                                        <a href="{{ asset($latestPayment->file_pembayaran) }}" target="_blank"
+                                                            class="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:underline max-w-[140px]"
+                                                            title="{{ $latestPayment->file_pembayaran_name ?? basename($latestPayment->file_pembayaran) }}">
+                                                            <i class="fa fa-file text-[10px] flex-shrink-0"></i>
+                                                            <span class="truncate">{{ $latestPayment->file_pembayaran_name ?? basename($latestPayment->file_pembayaran) }}</span>
+                                                        </a>
+                                                    @else
+                                                        <span class="text-xs text-gray-400">—</span>
+                                                    @endif
+                                                </td>
+                                                <td class="px-4 py-3">
+                                                    @if(!empty($payAtts) && is_array($payAtts))
+                                                        <div class="flex flex-col gap-0.5">
+                                                            @foreach($payAtts as $att)
+                                                                <a href="{{ asset($att['path'] ?? '') }}" target="_blank"
+                                                                    class="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline max-w-[140px]"
+                                                                    title="{{ $att['name'] ?? '' }}">
+                                                                    <i class="fa fa-paperclip text-[10px] flex-shrink-0"></i>
+                                                                    <span class="truncate">{{ $att['name'] ?? basename($att['path'] ?? '') }}</span>
+                                                                </a>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <span class="text-xs text-gray-400">—</span>
+                                                    @endif
+                                                </td>
+
                                                 <td class="px-4 py-3 text-center">
                                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $sc }}">{{ ucfirst($s->payment_status) }}</span>
                                                 </td>

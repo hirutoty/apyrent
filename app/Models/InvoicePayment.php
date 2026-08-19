@@ -19,12 +19,14 @@ class InvoicePayment extends Model
         'transaction_id',
         'file_pembayaran',
         'file_pembayaran_name',
+        'attachment',
         'status',
     ];
 
     protected $casts = [
         'payment_date' => 'date',
-        'amount' => 'decimal:2',
+        'amount'       => 'decimal:2',
+        'attachment'   => 'array',
     ];
 
     public function invoice()

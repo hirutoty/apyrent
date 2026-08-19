@@ -511,19 +511,28 @@ function addPartRow(data = null) {
                         <i class="fa fa-lock text-[9px]"></i> Auto dari kategori
                     </span>
                 </label>
-                <div class="flex gap-1">
-                    <input type="number" name="parts[${idx}][interval_nilai]" id="interval-nilai-${idx}" required min="1"
-                        value="${data?.interval_nilai || 12}" readonly
-                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
-                    <select id="interval-satuan-select-${idx}" disabled
-                        class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
-                        <option value="hari"   ${data?.interval_satuan === 'hari'   ? 'selected' : ''}>Hari</option>
-                        <option value="minggu" ${data?.interval_satuan === 'minggu' ? 'selected' : ''}>Minggu</option>
-                        <option value="bulan"  ${!data || data?.interval_satuan === 'bulan' ? 'selected' : ''}>Bulan</option>
-                        <option value="tahun"  ${data?.interval_satuan === 'tahun'  ? 'selected' : ''}>Tahun</option>
+                <div class="flex gap-1 items-center">
+                    {{-- Tampilan visual nilai interval (tidak di-submit) --}}
+                    <div id="interval-nilai-display-${idx}"
+                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 text-center">
+                        ${data?.interval_nilai || 12}
+                    </div>
+                    <div id="interval-satuan-display-${idx}"
+                        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600">
+                        ${ ({'hari':'Hari','minggu':'Minggu','bulan':'Bulan','tahun':'Tahun'})[data?.interval_satuan || 'bulan'] || 'Bulan' }
+                    </div>
+                    {{-- Hidden inputs yang benar-benar di-submit --}}
+                    <input type="hidden" name="parts[${idx}][interval_nilai]" id="interval-nilai-${idx}"
+                        value="${data?.interval_nilai || 12}">
+                    <input type="hidden" name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}"
+                        value="${(data?.interval_satuan && ['hari','minggu','bulan','tahun'].includes(data.interval_satuan)) ? data.interval_satuan : 'bulan'}">
+                    {{-- Ini tetap ada untuk fetchLimitRule yang set .value dan .disabled --}}
+                    <select id="interval-satuan-select-${idx}" class="hidden" disabled>
+                        <option value="hari"   ${(data?.interval_satuan||'') === 'hari'   ? 'selected':''}>Hari</option>
+                        <option value="minggu" ${(data?.interval_satuan||'') === 'minggu' ? 'selected':''}>Minggu</option>
+                        <option value="bulan"  ${(!data?.interval_satuan||data?.interval_satuan==='bulan') ? 'selected':''}>Bulan</option>
+                        <option value="tahun"  ${(data?.interval_satuan||'') === 'tahun'  ? 'selected':''}>Tahun</option>
                     </select>
-                    <!-- Hidden input untuk submit karena disabled select tidak tersubmit -->
-                    <input type="hidden" name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}" value="${data?.interval_satuan || 'bulan'}">
                 </div>
                 <p id="interval-hint-${idx}" class="text-[10px] text-blue-500 mt-1 hidden">
                     <i class="fa fa-circle-info text-[9px]"></i> Auto-fill dari limit rule kategori
@@ -571,10 +580,21 @@ function addPartRow(data = null) {
 
             <!-- Bukti (full width) -->
             <div class="md:col-span-3">
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Bukti (Foto/Video)</label>
-                <input type="file" name="parts[${idx}][bukti][]" multiple accept="image/*,video/mp4,video/mov"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">
+                    Bukti / Attachment
+                    <span class="text-[10px] font-normal text-gray-400 ml-1">(bisa lebih dari 1 file)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 hover:border-blue-400 bg-gray-50 hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors group">
+                    <i class="fa fa-paperclip text-gray-400 group-hover:text-blue-500 text-sm transition-colors"></i>
+                    <span class="text-xs text-gray-500 group-hover:text-blue-600 transition-colors">Klik untuk pilih file...</span>
+                    <input type="file" id="bukti-input-${idx}" name="parts[${idx}][bukti][]"
+                        multiple accept="image/*,video/mp4,video/mov"
+                        onchange="updateFileList(${idx})"
+                        class="hidden">
+                </label>
                 <p class="text-[10px] text-gray-400 mt-1">Format: JPG, PNG, MP4, MOV</p>
+                <!-- Daftar nama file yang dipilih -->
+                <div id="bukti-list-${idx}" class="mt-2 space-y-1"></div>
             </div>
 
         </div>
@@ -586,6 +606,63 @@ function addPartRow(data = null) {
     syncKmPasang(idx);
 
     recalcTotal();
+}
+
+// ── Bukti per-part: render daftar nama file ───────────────────
+function updateFileList(idx) {
+    const input   = document.getElementById('bukti-input-' + idx);
+    const listEl  = document.getElementById('bukti-list-' + idx);
+    if (!input || !listEl) return;
+
+    const files = Array.from(input.files);
+    listEl.innerHTML = '';
+
+    if (files.length === 0) return;
+
+    files.forEach(function(file, fileIdx) {
+        const isImage = file.type.startsWith('image/');
+        const isVideo = file.type.startsWith('video/');
+
+        // Format ukuran file
+        const size = file.size < 1024 * 1024
+            ? (file.size / 1024).toFixed(1) + ' KB'
+            : (file.size / 1024 / 1024).toFixed(1) + ' MB';
+
+        const icon = isImage
+            ? '<i class="fa fa-image text-blue-400 text-xs w-4 text-center"></i>'
+            : isVideo
+                ? '<i class="fa fa-film text-purple-400 text-xs w-4 text-center"></i>'
+                : '<i class="fa fa-file text-gray-400 text-xs w-4 text-center"></i>';
+
+        const item = document.createElement('div');
+        item.id        = 'bukti-item-' + idx + '-' + fileIdx;
+        item.className = 'flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs';
+        item.innerHTML =
+            icon +
+            '<span class="flex-1 truncate text-gray-700 font-medium" title="' + file.name + '">' + file.name + '</span>' +
+            '<span class="text-gray-400 text-[10px] flex-shrink-0">' + size + '</span>' +
+            '<button type="button" onclick="removePartFile(' + idx + ', ' + fileIdx + ')" ' +
+                'class="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">' +
+                '<i class="fa fa-times text-[10px]"></i>' +
+            '</button>';
+
+        listEl.appendChild(item);
+    });
+}
+
+// Hapus satu file dari input (per index) — pakai DataTransfer
+function removePartFile(idx, fileIdx) {
+    const input = document.getElementById('bukti-input-' + idx);
+    if (!input) return;
+
+    const dt    = new DataTransfer();
+    const files = Array.from(input.files);
+    files.forEach(function(file, i) {
+        if (i !== fileIdx) dt.items.add(file);
+    });
+
+    input.files = dt.files;
+    updateFileList(idx); // re-render
 }
 
 function removePartRow(idx) {
@@ -626,46 +703,41 @@ function fetchLimitRule(kendaraanId, categoryId, idx) {
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
+        var labelMap = {hari:'Hari', minggu:'Minggu', bulan:'Bulan', tahun:'Tahun'};
+
+        // Ambil elemen display dan hidden
+        var nilaiHidden       = document.getElementById('interval-nilai-' + idx);
+        var satuanHidden      = document.getElementById('interval-satuan-' + idx);
+        var nilaiDisplay      = document.getElementById('interval-nilai-display-' + idx);
+        var satuanDisplay     = document.getElementById('interval-satuan-display-' + idx);
+        var hintEl            = document.getElementById('interval-hint-' + idx);
+        var biayaHint         = document.getElementById('biaya-hint-' + idx);
+
         if (!data) {
-            // Tidak ada rule — sembunyikan hint, reset to default
+            // Tidak ada rule — reset ke default
             var h = document.getElementById('interval-hint-' + idx);
             var bh = document.getElementById('biaya-hint-' + idx);
             if (h)  { h.classList.add('hidden'); }
             if (bh) { bh.classList.add('hidden'); }
-            
-            // Set default interval jika tidak ada rule
-            var nilaiEl = document.getElementById('interval-nilai-' + idx);
-            var satuanSelectEl = document.getElementById('interval-satuan-select-' + idx);
-            var hiddenSatuan = document.getElementById('interval-satuan-' + idx);
-            if (nilaiEl) { nilaiEl.value = 12; }
-            if (satuanSelectEl) { satuanSelectEl.value = 'bulan'; }
-            if (hiddenSatuan) { hiddenSatuan.value = 'bulan'; }
+            if (nilaiHidden)  { nilaiHidden.value  = 12; }
+            if (satuanHidden) { satuanHidden.value = 'bulan'; }
+            if (nilaiDisplay)  { nilaiDisplay.textContent  = '12'; }
+            if (satuanDisplay) { satuanDisplay.textContent = 'Bulan'; }
             return;
         }
-        // Auto-fill interval dari kategori (readonly)
-        var nilaiEl   = document.getElementById('interval-nilai-' + idx);
-        var satuanSelectEl  = document.getElementById('interval-satuan-select-' + idx);
-        var hiddenSatuan = document.getElementById('interval-satuan-' + idx);
-        var hintEl    = document.getElementById('interval-hint-' + idx);
-        var biayaHint = document.getElementById('biaya-hint-' + idx);
 
-        if (nilaiEl)  { 
-            nilaiEl.value = data.limit_nilai;
-            nilaiEl.readOnly = true; // Enforce readonly
-            nilaiEl.classList.add('bg-gray-50', 'text-gray-600', 'cursor-not-allowed');
-        }
-        if (satuanSelectEl) { 
-            satuanSelectEl.value = data.limit_satuan;
-            satuanSelectEl.disabled = true; // Disable select
-            satuanSelectEl.classList.add('bg-gray-50', 'text-gray-600', 'cursor-not-allowed');
-        }
-        // Sync ke hidden input untuk submit (karena disabled select tidak tersubmit)
-        if (hiddenSatuan) {
-            hiddenSatuan.value = data.limit_satuan;
-        }
-        if (hintEl) { 
-            hintEl.classList.remove('hidden');
-        }
+        // Ada rule — set hidden inputs (yang benar-benar di-submit)
+        var validSatuan = ['hari','minggu','bulan','tahun'].includes(data.limit_satuan)
+            ? data.limit_satuan : 'bulan';
+
+        if (nilaiHidden)  { nilaiHidden.value  = data.limit_nilai || 12; }
+        if (satuanHidden) { satuanHidden.value = validSatuan; }
+
+        // Update tampilan visual
+        if (nilaiDisplay)  { nilaiDisplay.textContent  = data.limit_nilai || 12; }
+        if (satuanDisplay) { satuanDisplay.textContent = labelMap[validSatuan] || 'Bulan'; }
+
+        if (hintEl) { hintEl.classList.remove('hidden'); }
 
         // Tampilkan batas harga di bawah field biaya
         if (biayaHint) {

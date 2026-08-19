@@ -397,18 +397,25 @@ function addPartRow(data = null) {
                         <i class="fa fa-lock text-[9px]"></i> Auto dari kategori
                     </span>
                 </label>
-                <div class="flex gap-1">
-                    <input type="number" name="parts[${idx}][interval_nilai]" id="interval-nilai-${idx}" required min="1"
-                        value="${data?.interval_nilai || 12}" readonly
-                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
-                    <select id="interval-satuan-select-${idx}" disabled
-                        class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
-                        <option value="hari"   ${data?.interval_satuan === 'hari'   ? 'selected' : ''}>Hari</option>
-                        <option value="minggu" ${data?.interval_satuan === 'minggu' ? 'selected' : ''}>Minggu</option>
-                        <option value="bulan"  ${!data || data?.interval_satuan === 'bulan' ? 'selected' : ''}>Bulan</option>
-                        <option value="tahun"  ${data?.interval_satuan === 'tahun'  ? 'selected' : ''}>Tahun</option>
+                <div class="flex gap-1 items-center">
+                    <div id="interval-nilai-display-${idx}"
+                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 text-center">
+                        ${data?.interval_nilai || 12}
+                    </div>
+                    <div id="interval-satuan-display-${idx}"
+                        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600">
+                        ${ ({'hari':'Hari','minggu':'Minggu','bulan':'Bulan','tahun':'Tahun'})[data?.interval_satuan || 'bulan'] || 'Bulan' }
+                    </div>
+                    <input type="hidden" name="parts[${idx}][interval_nilai]" id="interval-nilai-${idx}"
+                        value="${data?.interval_nilai || 12}">
+                    <input type="hidden" name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}"
+                        value="${(data?.interval_satuan && ['hari','minggu','bulan','tahun'].includes(data.interval_satuan)) ? data.interval_satuan : 'bulan'}">
+                    <select id="interval-satuan-select-${idx}" class="hidden" disabled>
+                        <option value="hari"   ${(data?.interval_satuan||'') === 'hari'   ? 'selected':''}>Hari</option>
+                        <option value="minggu" ${(data?.interval_satuan||'') === 'minggu' ? 'selected':''}>Minggu</option>
+                        <option value="bulan"  ${(!data?.interval_satuan||data?.interval_satuan==='bulan') ? 'selected':''}>Bulan</option>
+                        <option value="tahun"  ${(data?.interval_satuan||'') === 'tahun'  ? 'selected':''}>Tahun</option>
                     </select>
-                    <input type="hidden" name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}" value="${data?.interval_satuan || 'bulan'}">
                 </div>
                 <p id="interval-hint-${idx}" class="text-[10px] text-blue-500 mt-1 hidden">
                     <i class="fa fa-circle-info text-[9px]"></i> Auto-fill dari limit rule kategori
@@ -519,17 +526,29 @@ function fetchLimitRule(kendaraanId, categoryId, idx) {
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
+        var labelMap = {hari:'Hari', minggu:'Minggu', bulan:'Bulan', tahun:'Tahun'};
         var h  = document.getElementById('interval-hint-' + idx);
         var bh = document.getElementById('biaya-hint-' + idx);
+        var nilaiHidden   = document.getElementById('interval-nilai-' + idx);
+        var satuanHidden  = document.getElementById('interval-satuan-' + idx);
+        var nilaiDisplay  = document.getElementById('interval-nilai-display-' + idx);
+        var satuanDisplay = document.getElementById('interval-satuan-display-' + idx);
+
         if (!data) {
             if (h)  { h.classList.add('hidden'); }
             if (bh) { bh.classList.add('hidden'); }
+            if (nilaiHidden)  { nilaiHidden.value  = 12; }
+            if (satuanHidden) { satuanHidden.value = 'bulan'; }
+            if (nilaiDisplay)  { nilaiDisplay.textContent  = '12'; }
+            if (satuanDisplay) { satuanDisplay.textContent = 'Bulan'; }
             return;
         }
-        var nilaiEl  = document.getElementById('interval-nilai-' + idx);
-        var satuanEl = document.getElementById('interval-satuan-' + idx);
-        if (nilaiEl)  { nilaiEl.value  = data.limit_nilai;  }
-        if (satuanEl) { satuanEl.value = data.limit_satuan; }
+        var validSatuan = ['hari','minggu','bulan','tahun'].includes(data.limit_satuan)
+            ? data.limit_satuan : 'bulan';
+        if (nilaiHidden)  { nilaiHidden.value  = data.limit_nilai || 12; }
+        if (satuanHidden) { satuanHidden.value = validSatuan; }
+        if (nilaiDisplay)  { nilaiDisplay.textContent  = data.limit_nilai || 12; }
+        if (satuanDisplay) { satuanDisplay.textContent = labelMap[validSatuan] || 'Bulan'; }
         if (h)        { h.classList.remove('hidden'); }
         if (bh) {
             if (data.limit_price) {
