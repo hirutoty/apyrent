@@ -42,6 +42,26 @@
         </a>
     </div>
 
+    {{-- CHART FILTER --}}
+    <x-chart-filter 
+        id="paymentsChartFilter" 
+        defaultFilter="month"
+        :showCustomRange="true"
+    />
+
+    {{-- CHART CONTAINER --}}
+    <x-chart-container
+        id="paymentsChartContainer"
+        pieTitle="Status Pembayaran"
+        pieId="paymentsPieChart"
+        barTitle="Pembayaran per Bulan"
+        barId="paymentsBarChart"
+        lineTitle="Trend Pembayaran"
+        lineId="paymentsLineChart"
+        :showStats="true"
+        :statsData="[]"
+    />
+
     {{-- SUMMARY CARDS --}}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
@@ -821,6 +841,58 @@
 
     initDrop('dropZoneTambah', 'fileTambah');
     initDrop('dropZoneEdit',   'fileEdit');
+
+    // ================= CHART INITIALIZATION =================
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize charts with default filter (month)
+        initPaymentsCharts({ filter_type: 'month' });
+
+        // Listen to filter changes
+        document.addEventListener('chartFilterChange', function(e) {
+            if (e.detail.filterId === 'paymentsChartFilter') {
+                const filters = {
+                    filter_type: e.detail.filterType
+                };
+
+                if (e.detail.filterType === 'custom') {
+                    filters.start_date = e.detail.startDate;
+                    filters.end_date = e.detail.endDate;
+                }
+
+                updatePaymentsCharts(filters);
+            }
+        });
+    });
+
+    async function initPaymentsCharts(filters) {
+        const canvasIds = {
+            pie: 'paymentsPieChart',
+            bar: 'paymentsBarChart',
+            line: 'paymentsLineChart'
+        };
+
+        try {
+            await window.chartManager.initChartsFromAPI('payments', canvasIds, filters);
+            console.log('✅ Payments charts initialized');
+        } catch (error) {
+            console.error('❌ Failed to initialize payments charts:', error);
+        }
+    }
+
+    async function updatePaymentsCharts(filters) {
+        const canvasIds = {
+            pie: 'paymentsPieChart',
+            bar: 'paymentsBarChart',
+            line: 'paymentsLineChart'
+        };
+
+        try {
+            await window.chartManager.updateChartsFromAPI('payments', canvasIds, filters);
+            console.log('✅ Payments charts updated');
+        } catch (error) {
+            console.error('❌ Failed to update payments charts:', error);
+        }
+    }
 </script>
 @endpush
 

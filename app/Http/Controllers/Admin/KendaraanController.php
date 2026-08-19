@@ -513,4 +513,38 @@ class KendaraanController extends Controller
             ]);
         }
     }
+
+    /**
+     * Display service history for specific kendaraan
+     */
+    public function serviceHistory($id)
+    {
+        $kendaraan = Kendaraan::with(['jenis'])->findOrFail($id);
+        
+        $serviceHistory = \App\Models\ServiceHistory::with([
+                'kendaraan.jenis',
+                'attachments',
+                'parts.category',
+            ])
+            ->where('kendaraan_id', $id)
+            ->latest('tanggal_service')
+            ->paginate(20);
+
+        // Summary stats untuk kendaraan ini
+        $totalService = \App\Models\ServiceHistory::where('kendaraan_id', $id)->count();
+        $totalBiaya = \App\Models\ServiceHistory::where('kendaraan_id', $id)->sum('total_biaya');
+        $lastService = \App\Models\ServiceHistory::where('kendaraan_id', $id)
+            ->latest('tanggal_service')
+            ->first();
+        $avgBiaya = $totalService > 0 ? $totalBiaya / $totalService : 0;
+
+        return view('admin.kendaraan.service_history', compact(
+            'kendaraan',
+            'serviceHistory',
+            'totalService',
+            'totalBiaya',
+            'lastService',
+            'avgBiaya'
+        ));
+    }
 }

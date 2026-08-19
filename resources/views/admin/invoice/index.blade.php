@@ -59,6 +59,26 @@
             </nav>
         </div>
 
+        {{-- CHART FILTER --}}
+        <x-chart-filter 
+            id="invoiceChartFilter" 
+            defaultFilter="month"
+            :showCustomRange="true"
+        />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="invoiceChartContainer"
+            pieTitle="Status Invoice"
+            pieId="invoicePieChart"
+            barTitle="Invoice per Bulan"
+            barId="invoiceBarChart"
+            lineTitle="Trend Invoice"
+            lineId="invoiceLineChart"
+            :showStats="true"
+            :statsData="[]"
+        />
+
         {{-- STAT CARDS --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
@@ -3074,7 +3094,57 @@
         if (typeof openModalTambah === 'function') openModalTambah();
         @endif
 
+        // ================= CHART INITIALIZATION =================
+        // Initialize charts with default filter (month)
+        initInvoiceCharts({ filter_type: 'month' });
+
+        // Listen to filter changes
+        document.addEventListener('chartFilterChange', function(e) {
+            if (e.detail.filterId === 'invoiceChartFilter') {
+                const filters = {
+                    filter_type: e.detail.filterType
+                };
+
+                if (e.detail.filterType === 'custom') {
+                    filters.start_date = e.detail.startDate;
+                    filters.end_date = e.detail.endDate;
+                }
+
+                updateInvoiceCharts(filters);
+            }
+        });
+
         }); // end DOMContentLoaded
+
+    async function initInvoiceCharts(filters) {
+        const canvasIds = {
+            pie: 'invoicePieChart',
+            bar: 'invoiceBarChart',
+            line: 'invoiceLineChart'
+        };
+
+        try {
+            await window.chartManager.initChartsFromAPI('invoice', canvasIds, filters);
+            console.log('✅ Invoice charts initialized');
+        } catch (error) {
+            console.error('❌ Failed to initialize invoice charts:', error);
+        }
+    }
+
+    async function updateInvoiceCharts(filters) {
+        const canvasIds = {
+            pie: 'invoicePieChart',
+            bar: 'invoiceBarChart',
+            line: 'invoiceLineChart'
+        };
+
+        try {
+            await window.chartManager.updateChartsFromAPI('invoice', canvasIds, filters);
+            console.log('✅ Invoice charts updated');
+        } catch (error) {
+            console.error('❌ Failed to update invoice charts:', error);
+        }
+    }
 </script>
     @endpush
 

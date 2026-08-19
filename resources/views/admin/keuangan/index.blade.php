@@ -51,6 +51,26 @@
     <div id="content-cashflow">
         <div class="space-y-6 pt-6">
 
+            {{-- CHART FILTER --}}
+            <x-chart-filter 
+                id="keuanganChartFilter" 
+                defaultFilter="month"
+                :showCustomRange="true"
+            />
+
+            {{-- CHART CONTAINER --}}
+            <x-chart-container
+                id="keuanganChartContainer"
+                pieTitle="Distribusi Keuangan"
+                pieId="keuanganPieChart"
+                barTitle="Perbandingan Bulanan"
+                barId="keuanganBarChart"
+                lineTitle="Trend Net Income"
+                lineId="keuanganLineChart"
+                :showStats="true"
+                :statsData="[]"
+            />
+
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   
@@ -408,6 +428,26 @@
                 </button>
             </div>
 
+            {{-- CHART FILTER --}}
+            <x-chart-filter 
+                id="agingApChartFilter" 
+                defaultFilter="month"
+                :showCustomRange="true"
+            />
+
+            {{-- CHART CONTAINER --}}
+            <x-chart-container
+                id="agingApChartContainer"
+                pieTitle="Kategori Aging"
+                pieId="agingApPieChart"
+                barTitle="Hutang per Bulan"
+                barId="agingApBarChart"
+                lineTitle="Trend AP"
+                lineId="agingApLineChart"
+                :showStats="true"
+                :statsData="[]"
+            />
+
             {{-- FILTER AGING AP --}}
             <form method="GET" action="{{ route('keuangan.index') }}">
                 <input type="hidden" name="tab" value="aging-ap">
@@ -665,6 +705,34 @@
                     <p class="text-sm text-slate-500 mt-1">Monitoring umur piutang (accounts receivable) customer</p>
                 </div>
                 <button type="button" onclick="openModalAr()"
+                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+  text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
+                    <i class="fa fa-plus text-sm"></i> Tambah Data
+                </button>
+            </div>
+
+            {{-- CHART FILTER --}}
+            <x-chart-filter 
+                id="agingArChartFilter" 
+                defaultFilter="month"
+                :showCustomRange="true"
+            />
+
+            {{-- CHART CONTAINER --}}
+            <x-chart-container
+                id="agingArChartContainer"
+                pieTitle="Kategori Aging"
+                pieId="agingArPieChart"
+                barTitle="Outstanding per Bulan"
+                barId="agingArBarChart"
+                lineTitle="Trend AR"
+                lineId="agingArLineChart"
+                :showStats="true"
+                :statsData="[]"
+            />
+
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div></div>
                     class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl
   shadow-sm transition-colors duration-150">
                     <i class="fa fa-plus text-sm"></i> Tambah Data
@@ -1495,6 +1563,151 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
+        // ================= CHART INITIALIZATION =================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize charts with default filter (month)
+            initKeuanganCharts({ filter_type: 'month' });
+            initAgingApCharts({ filter_type: 'month' });
+            initAgingArCharts({ filter_type: 'month' });
+
+            // Listen to filter changes for Keuangan
+            document.addEventListener('chartFilterChange', function(e) {
+                if (e.detail.filterId === 'keuanganChartFilter') {
+                    const filters = {
+                        filter_type: e.detail.filterType
+                    };
+
+                    if (e.detail.filterType === 'custom') {
+                        filters.start_date = e.detail.startDate;
+                        filters.end_date = e.detail.endDate;
+                    }
+
+                    updateKeuanganCharts(filters);
+                }
+
+                // Aging AP filter
+                if (e.detail.filterId === 'agingApChartFilter') {
+                    const filters = {
+                        filter_type: e.detail.filterType
+                    };
+
+                    if (e.detail.filterType === 'custom') {
+                        filters.start_date = e.detail.startDate;
+                        filters.end_date = e.detail.endDate;
+                    }
+
+                    updateAgingApCharts(filters);
+                }
+
+                // Aging AR filter
+                if (e.detail.filterId === 'agingArChartFilter') {
+                    const filters = {
+                        filter_type: e.detail.filterType
+                    };
+
+                    if (e.detail.filterType === 'custom') {
+                        filters.start_date = e.detail.startDate;
+                        filters.end_date = e.detail.endDate;
+                    }
+
+                    updateAgingArCharts(filters);
+                }
+            });
+        });
+
+        async function initKeuanganCharts(filters) {
+            const canvasIds = {
+                pie: 'keuanganPieChart',
+                bar: 'keuanganBarChart',
+                line: 'keuanganLineChart'
+            };
+
+            try {
+                await window.chartManager.initChartsFromAPI('keuangan', canvasIds, filters);
+                console.log('✅ Keuangan charts initialized');
+            } catch (error) {
+                console.error('❌ Failed to initialize keuangan charts:', error);
+            }
+        }
+
+        async function updateKeuanganCharts(filters) {
+            const canvasIds = {
+                pie: 'keuanganPieChart',
+                bar: 'keuanganBarChart',
+                line: 'keuanganLineChart'
+            };
+
+            try {
+                await window.chartManager.updateChartsFromAPI('keuangan', canvasIds, filters);
+                console.log('✅ Keuangan charts updated');
+            } catch (error) {
+                console.error('❌ Failed to update keuangan charts:', error);
+            }
+        }
+
+        // ================= AGING AP CHARTS =================
+        async function initAgingApCharts(filters) {
+            const canvasIds = {
+                pie: 'agingApPieChart',
+                bar: 'agingApBarChart',
+                line: 'agingApLineChart'
+            };
+
+            try {
+                await window.chartManager.initChartsFromAPI('aging-ap', canvasIds, filters);
+                console.log('✅ Aging AP charts initialized');
+            } catch (error) {
+                console.error('❌ Failed to initialize aging AP charts:', error);
+            }
+        }
+
+        async function updateAgingApCharts(filters) {
+            const canvasIds = {
+                pie: 'agingApPieChart',
+                bar: 'agingApBarChart',
+                line: 'agingApLineChart'
+            };
+
+            try {
+                await window.chartManager.updateChartsFromAPI('aging-ap', canvasIds, filters);
+                console.log('✅ Aging AP charts updated');
+            } catch (error) {
+                console.error('❌ Failed to update aging AP charts:', error);
+            }
+        }
+
+        // ================= AGING AR CHARTS =================
+        async function initAgingArCharts(filters) {
+            const canvasIds = {
+                pie: 'agingArPieChart',
+                bar: 'agingArBarChart',
+                line: 'agingArLineChart'
+            };
+
+            try {
+                await window.chartManager.initChartsFromAPI('aging-ar', canvasIds, filters);
+                console.log('✅ Aging AR charts initialized');
+            } catch (error) {
+                console.error('❌ Failed to initialize aging AR charts:', error);
+            }
+        }
+
+        async function updateAgingArCharts(filters) {
+            const canvasIds = {
+                pie: 'agingArPieChart',
+                bar: 'agingArBarChart',
+                line: 'agingArLineChart'
+            };
+
+            try {
+                await window.chartManager.updateChartsFromAPI('aging-ar', canvasIds, filters);
+                console.log('✅ Aging AR charts updated');
+            } catch (error) {
+                console.error('❌ Failed to update aging AR charts:', error);
+            }
+        }
+
+        // ================= TAB SWITCHING =================
         function switchTab(tab) {
             ['cashflow', 'aging-ap', 'aging-ar', 'reminder', 'lunas'].forEach(t => {
                 document.getElementById('content-' + t).classList.add('hidden');

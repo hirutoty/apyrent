@@ -385,7 +385,10 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->except(['create', 'edit', 'show']); // Form CRUD With Modal
 
   Route::resource('purchasero', PurchaseroController::class) // Pengadaan
-    ->except(['create', 'edit', 'show']); // Form CRUD With Modal
+    ->except(['show']); // Multiple items structure dengan create.blade.php dan edit.blade.php
+
+  Route::get('purchasero/{purchasero}/details', [PurchaseroController::class, 'details'])
+    ->name('purchasero.details');
 
   Route::post('purchasero/{purchasero}/ajukan', [PurchaseroController::class, 'ajukan'])
     ->name('purchasero.ajukan');
@@ -404,7 +407,22 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+  // Test Chart System (Development only)
+  Route::get('/test-chart', function () {
+      return view('admin.test-chart');
+  })->name('test-chart');
+
+  // Chart Data API
+  Route::get('/chart-data/{page}', [App\Http\Controllers\Admin\ChartDataController::class, 'getData'])
+    ->name('chart.data');
+
   Route::resource('kendaraan', KendaraanController::class);
+
+  // Service History per Kendaraan
+  Route::get(
+    '/kendaraan/{id}/service-history',
+    [KendaraanController::class, 'serviceHistory']
+  )->name('kendaraan.service-history');
 
   Route::patch(
     '/kendaraan/{kendaraan}/status',
@@ -460,6 +478,14 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::post('service-history/{id}/reject', [ServiceHistoryController::class, 'reject'])
       ->name('service-history.reject');
 
+  // Approve / Reject per part (superadmin only)
+  Route::middleware(['role:superadmin'])->group(function () {
+      Route::post('service-parts/{id}/approve', [ServiceHistoryController::class, 'approvePart'])
+          ->name('service-parts.approve');
+      Route::post('service-parts/{id}/reject', [ServiceHistoryController::class, 'rejectPart'])
+          ->name('service-parts.reject');
+  });
+
   Route::resource('service-history', ServiceHistoryController::class);
   Route::put('service-history/{id}/status', [ServiceHistoryController::class, 'updateStatus'])
     ->name('service-history.update-status');
@@ -486,16 +512,20 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       ->name('reminder-service.update-status');
 
   // Service Categories CRUD + Limit Rules
-  // Ajax endpoint HARUS di atas resource agar tidak bentrok dengan {service_category} param
-  Route::get('service-categories/limit-for',       [ServiceCategoryController::class, 'getLimitFor'])
-      ->name('service-categories.limit-for');
-  Route::resource('service-categories', ServiceCategoryController::class)->except(['show', 'create', 'edit']);
-  Route::post('service-categories/{id}/limits',    [ServiceCategoryController::class, 'storeLimitRule'])
-      ->name('service-categories.limits.store');
-  Route::put('service-categories/limits/{limitId}', [ServiceCategoryController::class, 'updateLimitRule'])
-      ->name('service-categories.limits.update');
-  Route::delete('service-categories/limits/{limitId}', [ServiceCategoryController::class, 'destroyLimitRule'])
-      ->name('service-categories.limits.destroy');
+  // Service Categories - Superadmin Only
+  Route::middleware(['role:superadmin'])->group(function () {
+      // Ajax endpoint HARUS di atas resource agar tidak bentrok dengan {service_category} param
+      Route::get('service-categories/limit-for',       [ServiceCategoryController::class, 'getLimitFor'])
+          ->withoutMiddleware('role:superadmin') // Allow all users untuk get limit (dipake di form)
+          ->name('service-categories.limit-for');
+      Route::resource('service-categories', ServiceCategoryController::class)->except(['show', 'create', 'edit']);
+      Route::post('service-categories/{id}/limits',    [ServiceCategoryController::class, 'storeLimitRule'])
+          ->name('service-categories.limits.store');
+      Route::put('service-categories/limits/{limitId}', [ServiceCategoryController::class, 'updateLimitRule'])
+          ->name('service-categories.limits.update');
+      Route::delete('service-categories/limits/{limitId}', [ServiceCategoryController::class, 'destroyLimitRule'])
+          ->name('service-categories.limits.destroy');
+  });
 
 
 

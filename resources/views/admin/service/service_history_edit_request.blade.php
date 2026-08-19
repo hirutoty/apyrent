@@ -242,7 +242,6 @@ function addPartRow(data = null) {
     categories.forEach(c => {
         catOptions += `<option value="${c.id}" ${data?.category_id == c.id ? 'selected' : ''}>${c.nama}</option>`;
     });
-    catOptions += '<option value="__new__">+ Tambah Kategori Baru...</option>';
 
     const tglPasang = data?.tgl_pasang || '{{ now()->format("Y-m-d") }}';
     const kmPasang  = data?.kilometer_pasang || '';
@@ -281,10 +280,31 @@ function addPartRow(data = null) {
             <!-- Posisi -->
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Posisi</label>
-                <input type="text" name="parts[${idx}][posisi]"
-                    value="${data?.posisi || ''}"
-                    placeholder="cth: Depan Kanan"
+                <select name="parts[${idx}][posisi]"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <option value="">-- Pilih Posisi --</option>
+                    <option value="Bumper Depan" ${data?.posisi === 'Bumper Depan' ? 'selected' : ''}>Bumper Depan</option>
+                    <option value="Kap Mesin" ${data?.posisi === 'Kap Mesin' ? 'selected' : ''}>Kap Mesin</option>
+                    <option value="Lampu Depan Kiri" ${data?.posisi === 'Lampu Depan Kiri' ? 'selected' : ''}>Lampu Depan Kiri</option>
+                    <option value="Lampu Depan Kanan" ${data?.posisi === 'Lampu Depan Kanan' ? 'selected' : ''}>Lampu Depan Kanan</option>
+                    <option value="Spion Kiri" ${data?.posisi === 'Spion Kiri' ? 'selected' : ''}>Spion Kiri</option>
+                    <option value="Spion Kanan" ${data?.posisi === 'Spion Kanan' ? 'selected' : ''}>Spion Kanan</option>
+                    <option value="Ban Depan Kiri" ${data?.posisi === 'Ban Depan Kiri' ? 'selected' : ''}>Ban Depan Kiri</option>
+                    <option value="Ban Depan Kanan" ${data?.posisi === 'Ban Depan Kanan' ? 'selected' : ''}>Ban Depan Kanan</option>
+                    <option value="Ban Belakang Kiri" ${data?.posisi === 'Ban Belakang Kiri' ? 'selected' : ''}>Ban Belakang Kiri</option>
+                    <option value="Ban Belakang Kanan" ${data?.posisi === 'Ban Belakang Kanan' ? 'selected' : ''}>Ban Belakang Kanan</option>
+                    <option value="Shock Depan Kiri" ${data?.posisi === 'Shock Depan Kiri' ? 'selected' : ''}>Shock Depan Kiri</option>
+                    <option value="Shock Depan Kanan" ${data?.posisi === 'Shock Depan Kanan' ? 'selected' : ''}>Shock Depan Kanan</option>
+                    <option value="Brake Pad Depan" ${data?.posisi === 'Brake Pad Depan' ? 'selected' : ''}>Brake Pad Depan</option>
+                    <option value="Brake Pad Belakang" ${data?.posisi === 'Brake Pad Belakang' ? 'selected' : ''}>Brake Pad Belakang</option>
+                    <option value="Aki/Battery" ${data?.posisi === 'Aki/Battery' ? 'selected' : ''}>Aki/Battery</option>
+                    <option value="Radiator" ${data?.posisi === 'Radiator' ? 'selected' : ''}>Radiator</option>
+                    <option value="Filter Oli" ${data?.posisi === 'Filter Oli' ? 'selected' : ''}>Filter Oli</option>
+                    <option value="Filter Udara" ${data?.posisi === 'Filter Udara' ? 'selected' : ''}>Filter Udara</option>
+                    <option value="Oli Mesin" ${data?.posisi === 'Oli Mesin' ? 'selected' : ''}>Oli Mesin</option>
+                    <option value="Kompresor AC" ${data?.posisi === 'Kompresor AC' ? 'selected' : ''}>Kompresor AC</option>
+                    <option value="Umum" ${data?.posisi === 'Umum' ? 'selected' : ''}>Umum</option>
+                </select>
             </div>
 
             <!-- Part Number -->
@@ -329,18 +349,24 @@ function addPartRow(data = null) {
 
             <!-- Interval Nilai -->
             <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Interval <span class="text-red-400">*</span></label>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">
+                    Interval <span class="text-red-400">*</span>
+                    <span class="text-blue-500 text-[10px] font-normal ml-1">
+                        <i class="fa fa-lock text-[9px]"></i> Auto dari kategori
+                    </span>
+                </label>
                 <div class="flex gap-1">
                     <input type="number" name="parts[${idx}][interval_nilai]" required min="1"
-                        value="${data?.interval_nilai || 12}"
-                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                    <select name="parts[${idx}][interval_satuan]"
-                        class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        value="${data?.interval_nilai || 12}" readonly
+                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
+                    <select id="interval-satuan-select-${idx}" disabled
+                        class="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
                         <option value="hari"   ${data?.interval_satuan === 'hari'   ? 'selected' : ''}>Hari</option>
                         <option value="minggu" ${data?.interval_satuan === 'minggu' ? 'selected' : ''}>Minggu</option>
                         <option value="bulan"  ${!data || data?.interval_satuan === 'bulan' ? 'selected' : ''}>Bulan</option>
                         <option value="tahun"  ${data?.interval_satuan === 'tahun'  ? 'selected' : ''}>Tahun</option>
                     </select>
+                    <input type="hidden" name="parts[${idx}][interval_satuan]" id="interval-satuan-${idx}" value="${data?.interval_satuan || 'bulan'}">
                 </div>
             </div>
 
