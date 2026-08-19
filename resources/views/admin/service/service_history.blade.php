@@ -462,26 +462,18 @@
                                                                 }
                                                             @endphp
                                                             @if($buktiData && is_array($buktiData) && count($buktiData) > 0)
-                                                                <div class="flex gap-1">
+                                                                <div class="flex flex-col gap-1">
                                                                     @foreach($buktiData as $file)
                                                                         @php
                                                                             $filePath = $file['path'] ?? '';
                                                                             $fileName = $file['name'] ?? basename($filePath);
-                                                                            $fileType = $file['type'] ?? pathinfo($filePath, PATHINFO_EXTENSION);
-                                                                            $isImage = in_array(strtolower($fileType), ['jpg', 'jpeg', 'png', 'gif']);
                                                                         @endphp
-                                                                        @if($isImage)
-                                                                            <a href="{{ asset($filePath) }}" target="_blank" title="{{ $fileName }}">
-                                                                                <img src="{{ asset($filePath) }}" 
-                                                                                    alt="{{ $fileName }}"
-                                                                                    class="w-12 h-12 object-cover rounded border border-gray-300 hover:border-blue-400">
-                                                                            </a>
-                                                                        @else
-                                                                            <a href="{{ asset($filePath) }}" target="_blank" title="{{ $fileName }}"
-                                                                                class="w-12 h-12 flex items-center justify-center bg-gray-100 rounded border border-gray-300 hover:border-blue-400">
-                                                                                <i class="fa fa-file text-gray-400"></i>
-                                                                            </a>
-                                                                        @endif
+                                                                        <a href="{{ asset($filePath) }}" target="_blank"
+                                                                            class="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline truncate max-w-[160px]"
+                                                                            title="{{ $fileName }}">
+                                                                            <i class="fa fa-paperclip text-[10px] flex-shrink-0"></i>
+                                                                            <span class="truncate">{{ $fileName }}</span>
+                                                                        </a>
                                                                     @endforeach
                                                                 </div>
                                                             @else

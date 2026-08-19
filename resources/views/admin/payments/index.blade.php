@@ -160,6 +160,9 @@
                         <input type="checkbox" checked onchange="toggleColumn('col-bukti', this.checked)" class="rounded"> Bukti
                     </label>
                     <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
+                        <input type="checkbox" checked onchange="toggleColumn('col-attachment', this.checked)" class="rounded"> Attachment
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
                         <input type="checkbox" checked onchange="toggleColumn('col-status', this.checked)" class="rounded"> Status
                     </label>
                     <label class="flex items-center gap-2 text-xs text-gray-700 py-1 cursor-pointer hover:text-gray-900">
@@ -181,7 +184,8 @@
                         <th data-col="col-tanggal" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
                         <th data-col="col-metode" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Metode</th>
                         <th data-col="col-jumlah" class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jumlah</th>
-                        <th data-col="col-bukti" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Bukti</th>
+                        <th data-col="col-bukti" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Bukti</th>
+                        <th data-col="col-attachment" class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Attachment</th>
                         <th data-col="col-status" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
                         <th data-col="col-aksi" class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
                     </tr>
@@ -223,13 +227,33 @@
                                     Rp {{ number_format($pay->amount, 0, ',', '.') }}
                                 </span>
                             </td>
-                            <td data-col="col-bukti" class="px-4 py-3.5 text-center">
+                            <td data-col="col-bukti" class="px-4 py-3.5">
                                 @if ($pay->file_pembayaran)
                                     <a href="{{ asset($pay->file_pembayaran) }}" target="_blank"
-                                        class="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg text-indigo-700 transition-colors max-w-[160px]">
+                                        class="inline-flex items-center gap-1.5 text-xs text-indigo-700 hover:underline max-w-[160px]">
                                         <i class="fa fa-file text-xs flex-shrink-0"></i>
                                         <span class="truncate">{{ $pay->file_pembayaran_name ?? basename($pay->file_pembayaran) }}</span>
                                     </a>
+                                @else
+                                    <span class="text-xs text-gray-400">—</span>
+                                @endif
+                            </td>
+                            <td data-col="col-attachment" class="px-4 py-3.5">
+                                @php
+                                    $atts = $pay->attachment;
+                                    if (is_string($atts)) $atts = json_decode($atts, true);
+                                @endphp
+                                @if(!empty($atts) && is_array($atts))
+                                    <div class="flex flex-col gap-1">
+                                        @foreach($atts as $att)
+                                            <a href="{{ asset($att['path'] ?? '') }}" target="_blank"
+                                                class="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline max-w-[160px]"
+                                                title="{{ $att['name'] ?? '' }}">
+                                                <i class="fa fa-paperclip text-[10px] flex-shrink-0"></i>
+                                                <span class="truncate">{{ $att['name'] ?? basename($att['path'] ?? '') }}</span>
+                                            </a>
+                                        @endforeach
+                                    </div>
                                 @else
                                     <span class="text-xs text-gray-400">—</span>
                                 @endif
@@ -412,7 +436,6 @@
                         </div>
                         <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bukti pembayaran</h3>
                         <span class="text-red-500">*</span>
-                        
                     </div>
 
                     <div id="dropZoneTambah"
@@ -432,6 +455,28 @@
                     <div class="mt-3 flex justify-center">
                         <img id="previewTambah" class="hidden w-32 h-32 object-cover rounded-lg border border-blue-300" alt="Preview">
                     </div>
+                </div>
+
+                <div class="border-t border-gray-100"></div>
+
+                {{-- SEKSI 4: ATTACHMENT TAMBAHAN --}}
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <span class="text-gray-500 text-[10px] font-bold">4</span>
+                        </div>
+                        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Attachment tambahan</h3>
+                        <span class="text-xs text-gray-400">(opsional, bisa lebih dari 1)</span>
+                    </div>
+
+                    <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 hover:border-blue-400 bg-gray-50 hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors group">
+                        <i class="fa fa-paperclip text-gray-400 group-hover:text-blue-500 text-sm transition-colors"></i>
+                        <span class="text-xs text-gray-500 group-hover:text-blue-600">Klik untuk pilih file attachment...</span>
+                        <input type="file" id="attachmentTambah" name="attachment[]" multiple
+                            class="hidden"
+                            onchange="renderAttachmentList('attachmentTambah','attachmentListTambah')">
+                    </label>
+                    <div id="attachmentListTambah" class="mt-2 space-y-1"></div>
                 </div>
 
             </div>
@@ -597,6 +642,34 @@
                     </div>
                 </div>
 
+                <div class="border-t border-gray-100"></div>
+
+                {{-- SEKSI 4: ATTACHMENT TAMBAHAN --}}
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <span class="text-gray-500 text-[10px] font-bold">4</span>
+                        </div>
+                        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Attachment tambahan</h3>
+                        <span class="text-xs text-gray-400">(opsional — kosongkan jika tidak diganti)</span>
+                    </div>
+
+                    {{-- Attachment lama --}}
+                    <div id="existingAttachmentWrap" class="hidden mb-3 space-y-1">
+                        <p class="text-xs font-semibold text-gray-500 mb-1">Attachment saat ini:</p>
+                        <div id="existingAttachmentList"></div>
+                    </div>
+
+                    <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 hover:border-blue-400 bg-gray-50 hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors group">
+                        <i class="fa fa-paperclip text-gray-400 group-hover:text-blue-500 text-sm transition-colors"></i>
+                        <span class="text-xs text-gray-500 group-hover:text-blue-600">Klik untuk pilih file baru (akan mengganti semua attachment lama)...</span>
+                        <input type="file" id="attachmentEdit" name="attachment[]" multiple
+                            class="hidden"
+                            onchange="renderAttachmentList('attachmentEdit','attachmentListEdit')">
+                    </label>
+                    <div id="attachmentListEdit" class="mt-2 space-y-1"></div>
+                </div>
+
             </div>
 
             {{-- FOOTER --}}
@@ -758,14 +831,39 @@
             if (data.file_pembayaran) {
                 existingBlock.classList.remove('hidden');
                 existingLink.href        = '/' + data.file_pembayaran;
-                existingLink.textContent = data.file_pembayaran.split('/').pop();
+                existingLink.textContent = data.file_pembayaran_name || data.file_pembayaran.split('/').pop();
             } else {
                 existingBlock.classList.add('hidden');
+            }
+
+            // Attachment lama
+            const attWrap = document.getElementById('existingAttachmentWrap');
+            const attList = document.getElementById('existingAttachmentList');
+            let attachments = data.attachment;
+            if (typeof attachments === 'string') {
+                try { attachments = JSON.parse(attachments); } catch(e) { attachments = null; }
+            }
+            if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+                attWrap.classList.remove('hidden');
+                attList.innerHTML = '';
+                attachments.forEach(function(att) {
+                    const a = document.createElement('a');
+                    a.href   = '/' + att.path;
+                    a.target = '_blank';
+                    a.className = 'inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline max-w-full';
+                    a.title = att.name || '';
+                    a.innerHTML = '<i class="fa fa-paperclip text-[10px] flex-shrink-0"></i><span class="truncate">' + (att.name || att.path.split('/').pop()) + '</span>';
+                    attList.appendChild(a);
+                });
+            } else {
+                attWrap.classList.add('hidden');
+                if (attList) attList.innerHTML = '';
             }
 
             // Reset preview upload baru
             document.getElementById('previewEdit').classList.add('hidden');
             document.getElementById('fileEdit').value = '';
+            document.getElementById('attachmentListEdit').innerHTML = '';
 
             modalEdit.classList.remove('hidden');
             modalEdit.classList.add('flex');
@@ -818,8 +916,32 @@
         } else {
             preview.classList.add('hidden');
             const label = drop.querySelector('p.text-sm');
-            if (label) label.textContent = '? ' + file.name;
+            if (label) label.textContent = '✓ ' + file.name;
         }
+    }
+
+    /* -- Render daftar attachment yang dipilih -- */
+    function renderAttachmentList(inputId, listId) {
+        const input  = document.getElementById(inputId);
+        const listEl = document.getElementById(listId);
+        if (!input || !listEl) return;
+
+        const files = Array.from(input.files);
+        listEl.innerHTML = '';
+        if (files.length === 0) return;
+
+        files.forEach(function(file, idx) {
+            const size = file.size < 1024 * 1024
+                ? (file.size / 1024).toFixed(1) + ' KB'
+                : (file.size / 1024 / 1024).toFixed(1) + ' MB';
+            const item = document.createElement('div');
+            item.className = 'flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs';
+            item.innerHTML =
+                '<i class="fa fa-paperclip text-gray-400 text-[10px] w-4 text-center flex-shrink-0"></i>' +
+                '<span class="flex-1 truncate text-gray-700 font-medium" title="' + file.name + '">' + file.name + '</span>' +
+                '<span class="text-gray-400 text-[10px] flex-shrink-0">' + size + '</span>';
+            listEl.appendChild(item);
+        });
     }
 
     function initDrop(dropId, inputId) {
