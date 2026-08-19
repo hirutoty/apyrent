@@ -17,7 +17,7 @@
 {{-- Modal Overlay --}}
 <div id="slideshowModal"
      class="fixed inset-0 z-[9999] flex items-center justify-center"
-     style="display:none !important;"
+     style="display:none;"
      role="dialog"
      aria-modal="true"
      aria-label="Slideshow gambar">
@@ -118,25 +118,16 @@
 </div>
 
 <style>
-    #slideshowModal {
-        /* Override inline style="display:none" saat aktif */
-    }
-    #slideshowModal.ss-open {
-        display: flex !important;
-    }
-    /* Prevent body scroll saat modal terbuka */
     body.ss-modal-open {
         overflow: hidden !important;
     }
-    /* Animasi masuk */
     @keyframes ss-fade-in {
         from { opacity: 0; transform: scale(0.96); }
         to   { opacity: 1; transform: scale(1); }
     }
-    #slideshowModal.ss-open > div:not(#slideshowBackdrop) {
+    #slideshowModal > div:not(#slideshowBackdrop) {
         animation: ss-fade-in 200ms ease forwards;
     }
-    /* Transisi gambar */
     #slideshowImg.ss-fade {
         opacity: 0 !important;
     }
@@ -173,7 +164,7 @@
         if (!_images.length) return;
 
         var modal = document.getElementById('slideshowModal');
-        modal.classList.add('ss-open');
+        modal.style.display = 'flex';
         document.body.classList.add('ss-modal-open');
 
         buildDots();
@@ -183,7 +174,7 @@
     /* ── Close ── */
     window.closeSlideshow = function () {
         var modal = document.getElementById('slideshowModal');
-        modal.classList.remove('ss-open');
+        modal.style.display = 'none';
         document.body.classList.remove('ss-modal-open');
         _images  = [];
         _current = 0;

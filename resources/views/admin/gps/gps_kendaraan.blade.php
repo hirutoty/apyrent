@@ -298,7 +298,8 @@
                                     @if ($d->bukti_bayar)
                                         @php $gpsBukti = [['path' => asset($d->bukti_bayar), 'name' => basename($d->bukti_bayar)]]; @endphp
                                         <button type="button"
-                                            onclick="openSlideshow({{ json_encode($gpsBukti) }}, 0)"
+                                            onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
+                                            data-imgs="{!! json_encode($gpsBukti, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
                                             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
                                             <i class="bi bi-image text-sm"></i>
                                             Lihat Bukti
@@ -314,7 +315,8 @@
                                             $gpsAtts = $d->attachments->map(fn($a) => ['path' => asset($a->file_path), 'name' => $a->file_name])->values()->toArray();
                                         @endphp
                                         <button type="button"
-                                            onclick="openSlideshow({{ json_encode($gpsAtts) }}, 0)"
+                                            onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
+                                            data-imgs="{!! json_encode($gpsAtts, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
                                             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
                                             <i class="bi bi-images text-sm"></i>
                                             Lihat ({{ $d->attachments->count() }})

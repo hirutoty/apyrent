@@ -269,7 +269,8 @@
                                                 @endforeach
                                             </div>
                                             <button type="button"
-                                                onclick="openSlideshow({{ $buktiJson }}, 0)"
+                                                onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
+                                                data-imgs="{!! $buktiJson !!}"
                                                 class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-500 hover:bg-blue-100 border border-blue-200 transition-colors">
                                                 <i class="bi bi-images text-[9px]"></i> Lihat Semua
                                             </button>
@@ -302,7 +303,8 @@
                                                 @endforeach
                                             </div>
                                             <button type="button"
-                                                onclick="openSlideshow({{ $attachmentJson }}, 0)"
+                                                onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
+                                                data-imgs="{!! $attachmentJson !!}"
                                                 class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-500 hover:bg-purple-100 border border-purple-200 transition-colors">
                                                 <i class="bi bi-images text-[9px]"></i> Lihat Semua
                                             </button>

@@ -242,20 +242,32 @@
                                 @php
                                     $atts = $pay->attachment;
                                     if (is_string($atts)) $atts = json_decode($atts, true);
+                                    if (is_string($atts)) $atts = json_decode($atts, true);
                                     $attsNorm = [];
                                     if (!empty($atts) && is_array($atts)) {
                                         foreach ($atts as $att) {
-                                            $attsNorm[] = ['path' => asset($att['path'] ?? ''), 'name' => $att['name'] ?? basename($att['path'] ?? '')];
+                                            $rawPath = $att['path'] ?? '';
+                                            $cleanPath = str_replace('\\/', '/', $rawPath);
+                                            $attsNorm[] = [
+                                                'path' => asset($cleanPath),
+                                                'name' => $att['name'] ?? basename($cleanPath),
+                                            ];
                                         }
                                     }
                                 @endphp
                                 @if(!empty($attsNorm))
                                     <button type="button"
-                                        onclick="openSlideshow({{ json_encode($attsNorm) }}, 0)"
+                                        onclick="openPaymentAttachment({{ $pay->id }})"
+                                        data-pay-id="{{ $pay->id }}"
                                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
                                         <i class="bi bi-images text-sm"></i>
                                         Lihat ({{ count($attsNorm) }})
                                     </button>
+                                    {{-- Store attachment data safely in script tag --}}
+                                    <script>
+                                    window.__payAtts = window.__payAtts || {};
+                                    window.__payAtts[{{ $pay->id }}] = @json($attsNorm);
+                                    </script>
                                 @else
                                     <span class="text-xs text-gray-400">—</span>
                                 @endif
@@ -1017,6 +1029,15 @@
             console.error('❌ Failed to update payments charts:', error);
         }
     }
+</script>
+
+<script>
+function openPaymentAttachment(payId) {
+    var imgs = (window.__payAtts || {})[payId];
+    if (imgs && imgs.length) {
+        openSlideshow(imgs, 0);
+    }
+}
 </script>
 @endpush
 
