@@ -1,8 +1,10 @@
 @props([
     'id' => 'chartFilter',
-    'defaultFilter' => 'month', // today, week, month, year, custom
+    'defaultFilter' => 'month',
     'showCustomRange' => true,
-    'containerClass' => ''
+    'containerClass' => '',
+    'categories' => [],        // array of {id, nama} untuk filter kategori
+    'showCategoryFilter' => false,
 ])
 
 <div {{ $attributes->merge(['class' => 'bg-white rounded-xl border border-gray-100 p-4 ' . $containerClass]) }} id="{{ $id }}">
@@ -14,7 +16,7 @@
             <span class="text-sm font-semibold text-gray-700">Filter Periode:</span>
         </div>
 
-        {{-- Filter Buttons --}}
+        {{-- Filter Buttons + Category --}}
         <div class="flex flex-wrap items-center gap-2">
             
             {{-- Quick Filter Buttons --}}
@@ -55,7 +57,6 @@
             </button>
 
             @if($showCustomRange)
-            {{-- Custom Range Toggle --}}
             <button 
                 type="button"
                 data-filter="custom"
@@ -65,6 +66,26 @@
                 <i class="fa fa-calendar-range text-xs mr-1"></i>
                 Custom
             </button>
+            @endif
+
+            {{-- ── CATEGORY FILTER DROPDOWN ── --}}
+            @if($showCategoryFilter && count($categories) > 0)
+            <div class="flex items-center gap-1.5 ml-1 pl-3 border-l border-gray-200">
+                <i class="fa fa-tags text-gray-400 text-xs"></i>
+                <select
+                    id="{{ $id }}_categoryFilter"
+                    onchange="applyChartCategoryFilter('{{ $id }}')"
+                    class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700
+                           focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400
+                           hover:border-gray-300 transition-colors cursor-pointer">
+                    <option value="">Semua Kategori</option>
+                    @foreach($categories as $cat)
+                        <option value="{{ $cat->id ?? $cat['id'] }}">
+                            {{ $cat->nama ?? $cat['nama'] }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
             @endif
 
         </div>
@@ -186,12 +207,11 @@
                     filterId: filterId,
                     filterType: filterType,
                     startDate: null,
-                    endDate: null
+                    endDate: null,
+                    categoryId: document.getElementById(`${filterId}_categoryFilter`)?.value ?? ''
                 }
             });
             document.dispatchEvent(event);
-            
-            console.log(`Chart filter changed: ${filterType}`);
         });
     });
 })();
@@ -233,19 +253,35 @@ function applyCustomRange(filterId) {
         return;
     }
     
-    // Dispatch custom event
     const event = new CustomEvent('chartFilterChange', {
         detail: {
             filterId: filterId,
             filterType: 'custom',
             startDate: startDate,
-            endDate: endDate
+            endDate: endDate,
+            categoryId: document.getElementById(`${filterId}_categoryFilter`)?.value ?? ''
         }
     });
     document.dispatchEvent(event);
-    
-    console.log(`Custom range applied: ${startDate} - ${endDate}`);
 }
 @endif
+
+// Re-dispatch current active filter + new category
+function applyChartCategoryFilter(filterId) {
+    const categorySelect = document.getElementById(`${filterId}_categoryFilter`);
+    const categoryId     = categorySelect ? categorySelect.value : '';
+    const activeBtn      = document.querySelector(`#${filterId} .chart-filter-btn.active`);
+    const filterType     = activeBtn ? activeBtn.getAttribute('data-filter') : 'month';
+
+    let startDate = null, endDate = null;
+    if (filterType === 'custom') {
+        startDate = document.getElementById(`${filterId}_startDate`)?.value ?? null;
+        endDate   = document.getElementById(`${filterId}_endDate`)?.value ?? null;
+    }
+
+    document.dispatchEvent(new CustomEvent('chartFilterChange', {
+        detail: { filterId, filterType, startDate, endDate, categoryId }
+    }));
+}
 </script>
 @endpush

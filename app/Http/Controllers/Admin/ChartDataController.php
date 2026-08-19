@@ -34,7 +34,8 @@ class ChartDataController extends Controller
             'filter_type' => 'nullable|in:today,week,month,year,custom',
             'start_date' => 'nullable|string',
             'end_date' => 'nullable|string',
-            'kendaraan_id' => 'nullable|integer|exists:kendaraan,id'
+            'kendaraan_id' => 'nullable|integer|exists:kendaraan,id',
+            'category_id'  => 'nullable|integer',
         ]);
 
         try {
@@ -43,6 +44,7 @@ class ChartDataController extends Controller
             $startDate = $request->input('start_date');
             $endDate = $request->input('end_date');
             $kendaraanId = $request->input('kendaraan_id');
+            $categoryId  = $request->input('category_id');
             $customDates = ($filterType === 'custom' && $startDate && $endDate) 
                 ? [$startDate, $endDate] 
                 : [];
@@ -50,10 +52,10 @@ class ChartDataController extends Controller
             // Create cache key based on request parameters (include kendaraan_id)
             $cacheKey = 'chart_' . $page . '_' . $filterType . '_' . 
                         ($startDate ?? 'null') . '_' . ($endDate ?? 'null') . '_' .
-                        ($kendaraanId ?? 'all');
+                        ($kendaraanId ?? 'all') . '_cat' . ($categoryId ?? '0');
 
             // Cache for 5 minutes (300 seconds)
-            $chartData = \Cache::remember($cacheKey, 300, function () use ($page, $filterType, $customDates, $kendaraanId) {
+            $chartData = \Cache::remember($cacheKey, 300, function () use ($page, $filterType, $customDates, $kendaraanId, $categoryId) {
                 // Get chart config and query based on page
                 $config = $this->getPageChartConfig($page);
                 $query = $this->getPageQuery($page);
@@ -65,6 +67,11 @@ class ChartDataController extends Controller
                 // Apply kendaraan filter if provided
                 if ($kendaraanId) {
                     $query->where('kendaraan_id', $kendaraanId);
+                }
+
+                // Apply category filter for service-history page
+                if ($categoryId && $page === 'service-history') {
+                    $query->whereHas('parts', fn($p) => $p->where('category_id', $categoryId));
                 }
 
                 // Apply date filter
@@ -1858,13 +1865,18 @@ class ChartDataController extends Controller
                 'colors' => ['#4f6ef7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
             ],
             'bar' => [
-                'title' => 'Biaya Service per Bulan',
-                'groupBy' => 'month',
-                'valueColumns' => ['total_biaya'],
-                'aggregation' => 'sum',
-                'dateColumn' => 'tanggal_service',
-                'limit' => 6,
-                'labels' => ['Total Biaya']
+                'title'        => 'Biaya Service per Bulan',
+                'groupBy'      => 'month',
+                'valueColumns' => [
+                    'total_biaya',
+                    'maks_bulanan',
+                    ['computed' => ['op' => 'subtract', 'a' => 'maks_bulanan', 'b' => 'total_biaya']],
+                ],
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'tanggal_service',
+                'limit'        => 6,
+                'labels'       => ['Biaya', 'Limit', 'Sisa'],
+                'colors'       => ['#ef4444', '#f59e0b', '#10b981'],
             ],
             'line' => [
                 'title' => 'Trend Biaya Service',

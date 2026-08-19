@@ -181,7 +181,11 @@
                                 <td class="px-4 py-2">
                                     <span class="text-sm font-bold text-green-600"> 
                                         @if ($item->bukti_pembayaran)
-                                            <a href="{{ asset($item->bukti_pembayaran) }}" target="_blank" class="text-blue-600 hover:underline">Lihat</a>
+                                            <button type="button"
+                                                onclick="openSlideshow([{path:'{{ asset($item->bukti_pembayaran) }}', name:'{{ addslashes(basename($item->bukti_pembayaran)) }}'}], 0)"
+                                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                                <i class="bi bi-image text-sm"></i> Lihat
+                                            </button>
                                         @else
                                             Tidak ada
                                         @endif

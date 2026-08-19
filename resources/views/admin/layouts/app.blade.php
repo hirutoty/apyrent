@@ -1381,6 +1381,9 @@
 
     </div>
 
+    {{-- ══ GLOBAL: Image Slideshow Modal ══ --}}
+    @include('admin.partials._image_slideshow_modal')
+
     {{-- ══ SCRIPTS ══ --}}
     <script>
         // ── Date header ──
