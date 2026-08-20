@@ -83,22 +83,30 @@ class ChartDataService
      */
     public function getBarChartData(Builder $query, array $config)
     {
-        $groupBy = $config['groupBy'] ?? 'month'; // month, week, day, category
-        $valueColumns = $config['valueColumns'] ?? ['amount']; // Multiple columns for multiple bars
-        $aggregation = $config['aggregation'] ?? 'sum';
-        $dateColumn = $config['dateColumn'] ?? 'created_at';
-        $limit = $config['limit'] ?? 12; // Default 12 months
-        $labels = $config['labels'] ?? [];
+        $groupBy      = $config['groupBy'] ?? 'month';
+        $valueColumns = $config['valueColumns'] ?? ['amount'];
+        $aggregation  = $config['aggregation'] ?? 'sum';
+        $dateColumn   = $config['dateColumn'] ?? 'created_at';
+        $limit        = $config['limit'] ?? 12;
+        $labels       = $config['labels'] ?? [];
+        $colors       = $config['colors'] ?? [];
 
         if ($groupBy === 'month') {
-            return $this->getMonthlyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
+            $data = $this->getMonthlyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
         } elseif ($groupBy === 'week') {
-            return $this->getWeeklyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
+            $data = $this->getWeeklyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
         } elseif ($groupBy === 'day') {
-            return $this->getDailyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
+            $data = $this->getDailyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
         } else {
-            return $this->getCategoryBarData($query, $groupBy, $valueColumns, $aggregation, $labels);
+            $data = $this->getCategoryBarData($query, $groupBy, $valueColumns, $aggregation, $labels);
         }
+
+        // Pass colors to JS
+        if (!empty($colors)) {
+            $data['colors'] = $colors;
+        }
+
+        return $data;
     }
 
     /**
@@ -271,33 +279,52 @@ class ChartDataService
 
         // Generate last N months
         for ($i = $limit - 1; $i >= 0; $i--) {
-            $months[] = Carbon::now()->subMonths($i)->format('M');
+            $months[] = Carbon::now()->subMonths($i)->format('M Y');
         }
 
         // Get data for each value column (each column = one bar series)
         foreach ($valueColumns as $index => $column) {
             $columnData = [];
-            
-            for ($i = $limit - 1; $i >= 0; $i--) {
-                $date = Carbon::now()->subMonths($i);
-                
-                $value = (clone $query)
-                    ->whereMonth($dateColumn, $date->month)
-                    ->whereYear($dateColumn, $date->year)
-                    ->sum($column);
-                
-                $columnData[] = (float) $value;
+
+            // Support computed column: ['computed' => ['op' => 'subtract', 'a' => 'colA', 'b' => 'colB']]
+            if (is_array($column) && isset($column['computed'])) {
+                $op   = $column['computed']['op'] ?? 'subtract';
+                $colA = $column['computed']['a'];
+                $colB = $column['computed']['b'];
+
+                for ($i = $limit - 1; $i >= 0; $i--) {
+                    $date = Carbon::now()->subMonths($i);
+                    $valA = (float)(clone $query)
+                        ->whereMonth($dateColumn, $date->month)
+                        ->whereYear($dateColumn, $date->year)
+                        ->sum($colA);
+                    $valB = (float)(clone $query)
+                        ->whereMonth($dateColumn, $date->month)
+                        ->whereYear($dateColumn, $date->year)
+                        ->sum($colB);
+                    $columnData[] = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
+                }
+            } else {
+                for ($i = $limit - 1; $i >= 0; $i--) {
+                    $date = Carbon::now()->subMonths($i);
+                    $value = (clone $query)
+                        ->whereMonth($dateColumn, $date->month)
+                        ->whereYear($dateColumn, $date->year)
+                        ->sum($column);
+                    $columnData[] = (float) $value;
+                }
             }
 
+            $labelFallback = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
             $datasets[] = [
-                'label' => $labels[$index] ?? ucfirst($column),
-                'data' => $columnData
+                'label' => $labels[$index] ?? $labelFallback,
+                'data'  => $columnData,
             ];
         }
 
         return [
-            'labels' => $months,
-            'datasets' => $datasets
+            'labels'   => $months,
+            'datasets' => $datasets,
         ];
     }
 

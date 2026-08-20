@@ -571,7 +571,7 @@ class PaymentsController extends Controller
                         'type' => $att->getClientOriginalExtension(),
                     ];
                 }
-                $data['attachment'] = !empty($attachments) ? json_encode($attachments) : null;
+                $data['attachment'] = !empty($attachments) ? $attachments : null;
             } else {
                 $data['attachment'] = null;
             }
@@ -721,7 +721,7 @@ class PaymentsController extends Controller
                         'type' => $att->getClientOriginalExtension(),
                     ];
                 }
-                $data['attachment'] = !empty($attachments) ? json_encode($attachments) : null;
+                $data['attachment'] = !empty($attachments) ? $attachments : null;
             }
 
             $payment->update($data);

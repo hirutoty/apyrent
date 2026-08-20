@@ -159,7 +159,7 @@ function createItemRow(index, item = null) {
                     placeholder="100000" onchange="calculateSubtotal(${index})"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
-            <div>
+            <div class="hidden">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Subtotal</label>
                 <input type="number" name="items[${index}][subtotal]" value="${item?.subtotal || ''}" readonly
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none">

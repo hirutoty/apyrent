@@ -349,23 +349,27 @@
                                 {{-- Lampiran --}}
                                 <td class="px-4 py-3.5">
                                     @if($d->attachments->isNotEmpty())
-                                        <div class="flex flex-col gap-1">
+                                        @php
+                                            $kirAtts = $d->attachments->map(fn($a) => ['path' => asset($a->file_path), 'name' => $a->file_name])->values()->toArray();
+                                        @endphp
+                                        <button type="button"
+                                            onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
+                                            data-imgs="{!! json_encode($kirAtts, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                            <i class="bi bi-images text-sm"></i>
+                                            Lihat ({{ $d->attachments->count() }})
+                                        </button>
+                                        <div class="mt-1 flex flex-col gap-0.5">
                                             @foreach ($d->attachments as $att)
-                                                <div class="flex items-center gap-1">
-                                                    <a href="{{ asset($att->file_path) }}" target="_blank"
-                                                        class="text-blue-500 underline text-[11px] hover:text-blue-700">
-                                                        {{ $att->file_name }}
-                                                    </a>
-                                                    <form action="{{ route('kir.attachment.destroy', $att->id) }}" method="POST"
-                                                        onsubmit="return confirm('Hapus lampiran ini?')" class="inline">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit"
-                                                            class="text-red-400 hover:text-red-600 text-[10px]">
-                                                            <i class="fa fa-times"></i>
-                                                        </button>
-                                                    </form>
-                                                </div>
+                                                <form action="{{ route('kir.attachment.destroy', $att->id) }}" method="POST"
+                                                    onsubmit="return confirm('Hapus lampiran ini?')" class="inline">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit"
+                                                        class="text-red-400 hover:text-red-600 text-[10px]">
+                                                        <i class="fa fa-times"></i> {{ $att->file_name }}
+                                                    </button>
+                                                </form>
                                             @endforeach
                                         </div>
                                     @else

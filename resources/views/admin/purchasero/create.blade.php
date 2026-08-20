@@ -258,7 +258,7 @@ function addItemRow(data = null) {
             </div>
 
             <!-- Subtotal -->
-            <div>
+            <div class="hidden">
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Subtotal</label>
                 <input type="number" name="items[${idx}][subtotal]" id="subtotal-${idx}" readonly
                     value="${data?.subtotal || 0}"

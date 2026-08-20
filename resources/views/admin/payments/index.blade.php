@@ -242,18 +242,32 @@
                                 @php
                                     $atts = $pay->attachment;
                                     if (is_string($atts)) $atts = json_decode($atts, true);
+                                    if (is_string($atts)) $atts = json_decode($atts, true);
+                                    $attsNorm = [];
+                                    if (!empty($atts) && is_array($atts)) {
+                                        foreach ($atts as $att) {
+                                            $rawPath = $att['path'] ?? '';
+                                            $cleanPath = str_replace('\\/', '/', $rawPath);
+                                            $attsNorm[] = [
+                                                'path' => asset($cleanPath),
+                                                'name' => $att['name'] ?? basename($cleanPath),
+                                            ];
+                                        }
+                                    }
                                 @endphp
-                                @if(!empty($atts) && is_array($atts))
-                                    <div class="flex flex-col gap-1">
-                                        @foreach($atts as $att)
-                                            <a href="{{ asset($att['path'] ?? '') }}" target="_blank"
-                                                class="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline max-w-[160px]"
-                                                title="{{ $att['name'] ?? '' }}">
-                                                <i class="fa fa-paperclip text-[10px] flex-shrink-0"></i>
-                                                <span class="truncate">{{ $att['name'] ?? basename($att['path'] ?? '') }}</span>
-                                            </a>
-                                        @endforeach
-                                    </div>
+                                @if(!empty($attsNorm))
+                                    <button type="button"
+                                        onclick="openPaymentAttachment({{ $pay->id }})"
+                                        data-pay-id="{{ $pay->id }}"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                        <i class="bi bi-images text-sm"></i>
+                                        Lihat ({{ count($attsNorm) }})
+                                    </button>
+                                    {{-- Store attachment data safely in script tag --}}
+                                    <script>
+                                    window.__payAtts = window.__payAtts || {};
+                                    window.__payAtts[{{ $pay->id }}] = @json($attsNorm);
+                                    </script>
                                 @else
                                     <span class="text-xs text-gray-400">—</span>
                                 @endif
@@ -1015,6 +1029,15 @@
             console.error('❌ Failed to update payments charts:', error);
         }
     }
+</script>
+
+<script>
+function openPaymentAttachment(payId) {
+    var imgs = (window.__payAtts || {})[payId];
+    if (imgs && imgs.length) {
+        openSlideshow(imgs, 0);
+    }
+}
 </script>
 @endpush
 

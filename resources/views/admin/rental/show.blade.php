@@ -623,9 +623,11 @@
                                     <p class="text-xs font-bold text-green-600 mb-2 flex items-center gap-1">
                                         <i class="fa fa-check-circle"></i> Bukti Lunas
                                     </p>
-                                    <a href="{{ asset($rental->bukti_lunas) }}" target="_blank" class="proof-link">
-                                        <i class="fa fa-paperclip"></i> {{ basename($rental->bukti_lunas) }}
-                                    </a>
+                                    <button type="button"
+                                        onclick="openSlideshow([{path:'{{ asset($rental->bukti_lunas) }}', name:'{{ basename($rental->bukti_lunas) }}'}], 0)"
+                                        class="proof-link inline-flex items-center gap-1.5">
+                                        <i class="bi bi-image"></i> {{ basename($rental->bukti_lunas) }}
+                                    </button>
                                     <p class="text-xs text-gray-400 mt-1">Klik untuk perbesar</p>
                                 </div>
                             @else
@@ -663,9 +665,11 @@
                                     @endif
                                 </p>
                                 @if ($rental->bukti_dp)
-                                    <a href="{{ asset($rental->bukti_dp) }}" target="_blank" class="proof-link">
-                                        <i class="fa fa-paperclip"></i> {{ basename($rental->bukti_dp) }}
-                                    </a>
+                                    <button type="button"
+                                        onclick="openSlideshow([{path:'{{ asset($rental->bukti_dp) }}', name:'{{ basename($rental->bukti_dp) }}'}], 0)"
+                                        class="proof-link inline-flex items-center gap-1.5">
+                                        <i class="bi bi-image"></i> {{ basename($rental->bukti_dp) }}
+                                    </button>
                                 @else
                                     <div
                                         class="flex flex-col items-center gap-2 py-4 bg-yellow-50 rounded-xl border border-yellow-100 mb-3">
@@ -709,9 +713,11 @@
                                 @endif
                             </p>
                             @if ($rental->bukti_pelunasan)
-                                <a href="{{ asset($rental->bukti_pelunasan) }}" target="_blank" class="proof-link mb-3">
-                                    <i class="fa fa-paperclip"></i> {{ basename($rental->bukti_pelunasan) }}
-                                </a>
+                                <button type="button"
+                                    onclick="openSlideshow([{path:'{{ asset($rental->bukti_pelunasan) }}', name:'{{ basename($rental->bukti_pelunasan) }}'}], 0)"
+                                    class="proof-link mb-3 inline-flex items-center gap-1.5">
+                                    <i class="bi bi-image"></i> {{ basename($rental->bukti_pelunasan) }}
+                                </button>
                             @endif
 
                             @if ($rental->status == 'aktif')

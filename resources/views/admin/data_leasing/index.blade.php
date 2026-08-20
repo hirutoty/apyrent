@@ -454,24 +454,27 @@
                                 <td class="px-4 py-3 text-xs">{{ $item->nama_asuransi ?? '-' }}</td>
                                 <td class="px-4 py-3 text-center">
                                     @if($item->bukti)
-                                    <a href="{{ asset($item->bukti) }}" target="_blank"
-                                        class="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-800">
-                                        <i class="fa fa-file"></i> {{ basename($item->bukti) }}
-                                    </a>
+                                    <button type="button"
+                                        onclick="openSlideshow([{path:'{{ asset($item->bukti) }}', name:'{{ addslashes(basename($item->bukti)) }}'}], 0)"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                        <i class="bi bi-image text-sm"></i> {{ basename($item->bukti) }}
+                                    </button>
                                     @else
                                     <span class="text-gray-400 text-xs">-</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     @if($item->attachments->count() > 0)
-                                    <div class="flex flex-col gap-1">
-                                        @foreach($item->attachments as $att)
-                                        <a href="{{ asset($att->file_path) }}" target="_blank"
-                                            class="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-blue-700">
-                                            <i class="fa fa-paperclip text-gray-400"></i> {{ $att->file_name }}
-                                        </a>
-                                        @endforeach
-                                    </div>
+                                        @php
+                                            $leasingAtts = $item->attachments->map(fn($a) => ['path' => asset($a->file_path), 'name' => $a->file_name])->values()->toArray();
+                                        @endphp
+                                        <button type="button"
+                                            onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
+                                            data-imgs="{!! json_encode($leasingAtts, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                            <i class="bi bi-images text-sm"></i>
+                                            Lihat ({{ $item->attachments->count() }})
+                                        </button>
                                     @else
                                     <span class="text-gray-400 text-xs">-</span>
                                     @endif

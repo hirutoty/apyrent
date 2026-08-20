@@ -404,10 +404,13 @@ class ChartManager {
                     processedDataset.pointBorderColor = '#ffffff';
                     processedDataset.pointBorderWidth = 2;
                 } else {
-                    processedDataset.backgroundColor = this.colorPalette[index % this.colorPalette.length];
-                    processedDataset.borderColor = this.colorPalette[index % this.colorPalette.length];
-                    processedDataset.borderWidth = 2;
-                    processedDataset.borderRadius = 6;
+                    // Use colors array from data if provided (e.g. grouped bar)
+                    const palette = (data.colors && data.colors[index]) ? data.colors[index] : this.colorPalette[index % this.colorPalette.length];
+                    processedDataset.backgroundColor = this.hexToRgba(palette, 0.85);
+                    processedDataset.borderColor = palette;
+                    processedDataset.borderWidth = 1;
+                    processedDataset.borderRadius = 5;
+                    processedDataset.borderSkipped = false;
                 }
             }
 

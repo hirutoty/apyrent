@@ -1157,10 +1157,11 @@
                                     </td>
                                     <td class="px-5 py-4 text-center">
                                         @if ($d->bukti)
-                                            <a href="{{ asset('bukti/' . $d->bukti) }}" target="_blank"
-                                                class="text-blue-600 hover:underline text-xs font-medium">
-                                                <i class="fa-solid fa-image"></i> {{ $d->bukti }}
-                                            </a>
+                                            <button type="button"
+                                                onclick="openSlideshow([{path:'{{ asset('bukti/' . $d->bukti) }}', name:'{{ addslashes($d->bukti) }}'}], 0)"
+                                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                                <i class="bi bi-image text-sm"></i> {{ $d->bukti }}
+                                            </button>
                                         @else
                                             <span class="text-slate-400 text-xs">Tidak ada bukti</span>
                                         @endif

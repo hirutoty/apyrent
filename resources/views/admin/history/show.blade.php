@@ -256,25 +256,28 @@
                                 <td class="px-4 py-3.5">
                                     <div class="flex flex-col gap-1.5">
                                         @if ($r->bukti_lunas)
-                                            <a href="{{ asset($r->bukti_lunas) }}" target="_blank"
+                                            <button type="button"
+                                                onclick="openSlideshow([{path:'{{ asset($r->bukti_lunas) }}', name:'Bukti Lunas'}], 0)"
                                                 class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 hover:underline">
-                                                <i class="fa fa-paperclip text-[10px]"></i>
+                                                <i class="bi bi-image text-[10px]"></i>
                                                 Lunas: {{ basename($r->bukti_lunas) }}
-                                            </a>
+                                            </button>
                                         @endif
                                         @if ($r->bukti_dp)
-                                            <a href="{{ asset($r->bukti_dp) }}" target="_blank"
+                                            <button type="button"
+                                                onclick="openSlideshow([{path:'{{ asset($r->bukti_dp) }}', name:'Bukti DP'}], 0)"
                                                 class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 hover:underline">
-                                                <i class="fa fa-paperclip text-[10px]"></i>
+                                                <i class="bi bi-image text-[10px]"></i>
                                                 DP: {{ basename($r->bukti_dp) }}
-                                            </a>
+                                            </button>
                                         @endif
                                         @if ($r->bukti_pelunasan)
-                                            <a href="{{ asset($r->bukti_pelunasan) }}" target="_blank"
+                                            <button type="button"
+                                                onclick="openSlideshow([{path:'{{ asset($r->bukti_pelunasan) }}', name:'Bukti Pelunasan'}], 0)"
                                                 class="inline-flex items-center gap-1 text-[11px] text-green-600 hover:text-green-800 hover:underline">
-                                                <i class="fa fa-paperclip text-[10px]"></i>
+                                                <i class="bi bi-image text-[10px]"></i>
                                                 Pelunasan: {{ basename($r->bukti_pelunasan) }}
-                                            </a>
+                                            </button>
                                         @endif
                                         @if (!$r->bukti_lunas && !$r->bukti_dp && !$r->bukti_pelunasan)
                                             <span class="text-xs text-gray-300">-</span>

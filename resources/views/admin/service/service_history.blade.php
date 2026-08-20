@@ -57,7 +57,8 @@
     </div>
 
     {{-- CHART FILTER --}}
-    <x-chart-filter id="serviceHistoryChartFilter" defaultFilter="month" :showCustomRange="true" />
+    <x-chart-filter id="serviceHistoryChartFilter" defaultFilter="month" :showCustomRange="true"
+        :showCategoryFilter="true" :categories="$categories" />
 
     {{-- CHART CONTAINER --}}
     <x-chart-container
@@ -541,19 +542,25 @@
                                     </div>
 
                                     {{-- Bukti & Lampiran --}}
-                                    <div class="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+                                    <div class="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
                                         @if ($d->bukti_pembayaran)
-                                            <a href="{{ asset($d->bukti_pembayaran) }}" target="_blank"
-                                                class="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
-                                                <i class="fa fa-file"></i> Bukti Pembayaran
-                                            </a>
+                                            <button type="button"
+                                                onclick="openSlideshow([{path:'{{ asset($d->bukti_pembayaran) }}', name:'Bukti Pembayaran'}], 0)"
+                                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                                <i class="bi bi-image"></i> Bukti Pembayaran
+                                            </button>
                                         @endif
-                                        @foreach ($d->attachments as $att)
-                                            <a href="{{ asset($att->file_path) }}" target="_blank"
-                                                class="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
-                                                <i class="fa fa-paperclip"></i> {{ $att->file_name }}
-                                            </a>
-                                        @endforeach
+                                        @if ($d->attachments->isNotEmpty())
+                                            @php
+                                                $shAtts = $d->attachments->map(fn($a) => ['path' => asset($a->file_path), 'name' => $a->file_name])->values()->toArray();
+                                            @endphp
+                                            <button type="button"
+                                                onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
+                                                data-imgs="{!! json_encode($shAtts, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
+                                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                                <i class="bi bi-images"></i> Lampiran ({{ $d->attachments->count() }})
+                                            </button>
+                                        @endif
                                     </div>
                                 @else
                                     <div class="text-center py-4 text-xs text-gray-400">
@@ -1019,7 +1026,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const filters = {
                 filter_type: e.detail.filterType,
                 start_date: e.detail.startDate,
-                end_date: e.detail.endDate
+                end_date: e.detail.endDate,
+                category_id: e.detail.categoryId ?? ''
             };
             updateServiceHistoryCharts(filters);
         }
