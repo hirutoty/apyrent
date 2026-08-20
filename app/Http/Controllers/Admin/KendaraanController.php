@@ -538,13 +538,16 @@ class KendaraanController extends Controller
             ->first();
         $avgBiaya = $totalService > 0 ? $totalBiaya / $totalService : 0;
 
+        $categories = \App\Models\ServiceCategory::orderBy('nama')->get();
+
         return view('admin.kendaraan.service_history', compact(
             'kendaraan',
             'serviceHistory',
             'totalService',
             'totalBiaya',
             'lastService',
-            'avgBiaya'
+            'avgBiaya',
+            'categories'
         ));
     }
 }

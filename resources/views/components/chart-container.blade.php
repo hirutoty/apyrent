@@ -9,12 +9,71 @@
     'lineId' => 'lineChart',
     'showStats' => true,
     'statsData' => [],
-    'containerClass' => ''
+    'containerClass' => '',
+    'layout' => 'grid',
 ])
 
 <div id="{{ $id }}" class="{{ $containerClass }}">
-    
-    {{-- 3 CHARTS GRID --}}
+
+    @if($layout === 'bar-top')
+    {{-- ── BAR-TOP LAYOUT: bar full-width atas, pie+line berdampingan bawah ── --}}
+
+        {{-- BAR CHART — full width --}}
+        <div class="chart-card chart-fade-in mb-4">
+            <div class="chart-card-header">
+                <div>
+                    <h3 class="chart-card-title">{{ $barTitle }}</h3>
+                </div>
+                <div class="chart-card-icon bg-green-50 text-green-600">
+                    <i class="fa fa-chart-bar"></i>
+                </div>
+            </div>
+            {{-- Scroll outer: overflow-x auto, tinggi fixed --}}
+            <div id="{{ $barId }}_scrollOuter" class="chart-scroll-outer" style="max-height: 220px; overflow-x: auto; overflow-y: hidden;">
+                {{-- Scroll inner: lebarnya di-set dinamis oleh JS saat scrollable --}}
+                <div id="{{ $barId }}_scrollInner" style="min-width: 100%; height: 220px; position: relative;">
+                    <canvas id="{{ $barId }}" class="chart-canvas" style="height: 220px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        {{-- PIE + LINE — dua kolom --}}
+        <div class="grid grid-cols-2 gap-4 mb-6">
+
+            {{-- PIE/DONUT CHART --}}
+            <div class="chart-card chart-fade-in" style="animation-delay: 0.1s">
+                <div class="chart-card-header">
+                    <div>
+                        <h3 class="chart-card-title">{{ $pieTitle }}</h3>
+                    </div>
+                    <div class="chart-card-icon bg-blue-50 text-blue-600">
+                        <i class="fa fa-chart-pie"></i>
+                    </div>
+                </div>
+                <div class="chart-canvas-wrapper" style="max-width: 300px; margin: 0 auto; max-height: 220px; overflow: hidden;">
+                    <canvas id="{{ $pieId }}" class="chart-canvas" style="height: 220px;"></canvas>
+                </div>
+            </div>
+
+            {{-- LINE CHART --}}
+            <div class="chart-card chart-fade-in" style="animation-delay: 0.2s">
+                <div class="chart-card-header">
+                    <div>
+                        <h3 class="chart-card-title">{{ $lineTitle }}</h3>
+                    </div>
+                    <div class="chart-card-icon bg-purple-50 text-purple-600">
+                        <i class="fa fa-chart-line"></i>
+                    </div>
+                </div>
+                <div class="chart-canvas-wrapper" style="max-height: 220px; overflow: hidden;">
+                    <canvas id="{{ $lineId }}" class="chart-canvas" style="height: 220px;"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+    @else
+    {{-- ── DEFAULT GRID LAYOUT: 3 kolom sejajar ── --}}
     <div class="chart-grid grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         
         {{-- PIE/DONUT CHART --}}
@@ -63,6 +122,7 @@
         </div>
 
     </div>
+    @endif
 
     {{-- STATS CARDS SECTION (Below Charts) --}}
     @if($showStats && !empty($statsData))

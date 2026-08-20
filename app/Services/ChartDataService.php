@@ -90,8 +90,21 @@ class ChartDataService
         $limit        = $config['limit'] ?? 12;
         $labels       = $config['labels'] ?? [];
         $colors       = $config['colors'] ?? [];
+        $filterType   = $config['filter_type'] ?? null;
+        $autoDaily    = $config['autoDaily'] ?? false;
 
-        if ($groupBy === 'month') {
+        // Auto-switch ke daily per tanggal saat filter bulan ini
+        if ($autoDaily && $filterType === 'today') {
+            $data = $this->getTodayBarData($query, $valueColumns, $dateColumn, $labels);
+        } elseif ($autoDaily && $filterType === 'week') {
+            $data = $this->getCurrentWeekDailyBarData($query, $valueColumns, $dateColumn, $labels);
+        } elseif ($autoDaily && $filterType === 'month' && $groupBy === 'month') {
+            $data = $this->getCurrentMonthDailyBarData($query, $valueColumns, $dateColumn, $labels);
+        } elseif ($autoDaily && $filterType === 'year' && $groupBy === 'month') {
+            $data = $this->getCurrentYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels);
+        } elseif ($autoDaily && $filterType === 'custom' && !empty($config['start_date']) && !empty($config['end_date'])) {
+            $data = $this->getCustomRangeBarData($query, $valueColumns, $dateColumn, $labels, $config['start_date'], $config['end_date']);
+        } elseif ($groupBy === 'month') {
             $data = $this->getMonthlyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
         } elseif ($groupBy === 'week') {
             $data = $this->getWeeklyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
@@ -107,6 +120,235 @@ class ChartDataService
         }
 
         return $data;
+    }
+
+    /**
+     * Get daily bar data for current month (tanggal 1 s/d akhir bulan)
+     *
+     * @param Builder $query  Query yang sudah difilter ke bulan ini
+     * @param array   $valueColumns
+     * @param string  $dateColumn
+     * @param array   $labels
+     * @return array
+     */
+    private function getCurrentMonthDailyBarData($query, $valueColumns, $dateColumn, $labels)
+    {
+        $now       = Carbon::now();
+        $daysInMonth = $now->daysInMonth;
+        $year      = $now->year;
+        $month     = $now->month;
+
+        // Label tanggal: 1, 2, 3, ... 31
+        $dayLabels = range(1, $daysInMonth);
+
+        $datasets = [];
+
+        foreach ($valueColumns as $index => $column) {
+            $columnData = [];
+
+            if (is_array($column) && isset($column['computed'])) {
+                $op   = $column['computed']['op'] ?? 'subtract';
+                $colA = $column['computed']['a'];
+                $colB = $column['computed']['b'];
+
+                for ($d = 1; $d <= $daysInMonth; $d++) {
+                    $date = Carbon::create($year, $month, $d)->toDateString();
+                    $valA = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colA);
+                    $valB = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colB);
+                    $columnData[] = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
+                }
+            } else {
+                for ($d = 1; $d <= $daysInMonth; $d++) {
+                    $date = Carbon::create($year, $month, $d)->toDateString();
+                    $value = (float)(clone $query)->whereDate($dateColumn, $date)->sum($column);
+                    $columnData[] = $value;
+                }
+            }
+
+            $labelFallback = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
+            $datasets[] = [
+                'label' => $labels[$index] ?? $labelFallback,
+                'data'  => $columnData,
+            ];
+        }
+
+        return [
+            'labels'   => $dayLabels,
+            'datasets' => $datasets,
+        ];
+    }
+
+    /**
+     * Get bar data untuk hari ini — satu label tanggal hari ini
+     */
+    private function getTodayBarData($query, $valueColumns, $dateColumn, $labels)
+    {
+        $today     = Carbon::now();
+        $dateStr   = $today->toDateString();
+        $dayLabel  = $today->format('d M Y');
+
+        $datasets = [];
+
+        foreach ($valueColumns as $index => $column) {
+            if (is_array($column) && isset($column['computed'])) {
+                $op   = $column['computed']['op'] ?? 'subtract';
+                $colA = $column['computed']['a'];
+                $colB = $column['computed']['b'];
+                $valA = (float)(clone $query)->whereDate($dateColumn, $dateStr)->sum($colA);
+                $valB = (float)(clone $query)->whereDate($dateColumn, $dateStr)->sum($colB);
+                $value = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
+            } else {
+                $value = (float)(clone $query)->whereDate($dateColumn, $dateStr)->sum($column);
+            }
+
+            $fallback   = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
+            $datasets[] = [
+                'label' => $labels[$index] ?? $fallback,
+                'data'  => [$value],
+            ];
+        }
+
+        return [
+            'labels'   => [$dayLabel],
+            'datasets' => $datasets,
+        ];
+    }
+
+    /**
+     * Get bar data untuk minggu ini — Sen s/d Min (7 hari)
+     */
+    private function getCurrentWeekDailyBarData($query, $valueColumns, $dateColumn, $labels)
+    {
+        $startOfWeek = Carbon::now()->startOfWeek(); // Senin
+        $endOfWeek   = Carbon::now()->endOfWeek();   // Minggu
+
+        $periodLabels = [];
+        $periods      = [];
+        $current = $startOfWeek->copy();
+        while ($current->lte($endOfWeek)) {
+            $periodLabels[] = $current->format('D, d M'); // Sen, 18 Agu
+            $periods[]      = $current->toDateString();
+            $current->addDay();
+        }
+
+        $datasets = [];
+        foreach ($valueColumns as $index => $column) {
+            $columnData = [];
+            if (is_array($column) && isset($column['computed'])) {
+                $op   = $column['computed']['op'] ?? 'subtract';
+                $colA = $column['computed']['a'];
+                $colB = $column['computed']['b'];
+                foreach ($periods as $date) {
+                    $valA = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colA);
+                    $valB = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colB);
+                    $columnData[] = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
+                }
+            } else {
+                foreach ($periods as $date) {
+                    $columnData[] = (float)(clone $query)->whereDate($dateColumn, $date)->sum($column);
+                }
+            }
+            $fallback   = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
+            $datasets[] = ['label' => $labels[$index] ?? $fallback, 'data' => $columnData];
+        }
+
+        return [
+            'labels'   => $periodLabels,
+            'datasets' => $datasets,
+        ];
+    }
+
+    /**
+     *
+     * @param Builder $query  Query yang sudah difilter ke tahun ini
+     * @param array   $valueColumns
+     * @param string  $dateColumn
+     * @param array   $labels
+     * @return array
+     */
+    private function getCurrentYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels)
+    {
+        $year       = Carbon::now()->year;
+        $monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+        $datasets = [];
+
+        foreach ($valueColumns as $index => $column) {
+            $columnData = [];
+
+            if (is_array($column) && isset($column['computed'])) {
+                $op   = $column['computed']['op'] ?? 'subtract';
+                $colA = $column['computed']['a'];
+                $colB = $column['computed']['b'];
+
+                for ($m = 1; $m <= 12; $m++) {
+                    $valA = (float)(clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year)->sum($colA);
+                    $valB = (float)(clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year)->sum($colB);
+                    $columnData[] = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
+                }
+            } else {
+                for ($m = 1; $m <= 12; $m++) {
+                    $value = (float)(clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year)->sum($column);
+                    $columnData[] = $value;
+                }
+            }
+
+            $labelFallback = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
+            $datasets[] = [
+                'label' => $labels[$index] ?? $labelFallback,
+                'data'  => $columnData,
+            ];
+        }
+
+        return [
+            'labels'   => $monthNames,
+            'datasets' => $datasets,
+        ];
+    }
+
+    /**
+     * Get bar data untuk custom date range dengan auto granularitas:
+     * - ≤ 31 hari  → per tanggal
+     * - 32–90 hari → per minggu
+     * - > 90 hari  → per bulan
+     */
+    private function getCustomRangeBarData($query, $valueColumns, $dateColumn, $labels, $startDateStr, $endDateStr)
+    {
+        $start = Carbon::createFromFormat('d-m-Y', $startDateStr)->startOfDay();
+        $end   = Carbon::createFromFormat('d-m-Y', $endDateStr)->endOfDay();
+
+        // Selalu per tanggal — scrollable di frontend yang handle range panjang
+        $periodLabels = [];
+        $periods      = [];
+        $current = $start->copy();
+        while ($current->lte($end)) {
+            $periodLabels[] = $current->format('d M');
+            $periods[]      = $current->toDateString();
+            $current->addDay();
+        }
+
+        $datasets = [];
+        foreach ($valueColumns as $index => $column) {
+            $columnData = [];
+            if (is_array($column) && isset($column['computed'])) {
+                $op   = $column['computed']['op'] ?? 'subtract';
+                $colA = $column['computed']['a'];
+                $colB = $column['computed']['b'];
+                foreach ($periods as $date) {
+                    $valA = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colA);
+                    $valB = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colB);
+                    $columnData[] = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
+                }
+            } else {
+                foreach ($periods as $date) {
+                    $columnData[] = (float)(clone $query)->whereDate($dateColumn, $date)->sum($column);
+                }
+            }
+            $fallback   = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
+            $datasets[] = ['label' => $labels[$index] ?? $fallback, 'data' => $columnData];
+        }
+
+        return ['labels' => $periodLabels, 'datasets' => $datasets];
     }
 
     /**

@@ -55,7 +55,24 @@ class ChartManager {
                             family: "'Plus Jakarta Sans', sans-serif"
                         },
                         usePointStyle: true,
-                        pointStyle: 'circle'
+                        pointStyle: 'circle',
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            const total = data.datasets[0]?.data.reduce((a, b) => a + b, 0) || 0;
+                            return data.labels.map((label, i) => {
+                                const value = data.datasets[0]?.data[i] || 0;
+                                const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return {
+                                    text: `${label} (${pct}%)`,
+                                    fillStyle: data.datasets[0]?.backgroundColor[i],
+                                    strokeStyle: data.datasets[0]?.backgroundColor[i],
+                                    fontColor: data.datasets[0]?.backgroundColor[i],
+                                    pointStyle: 'circle',
+                                    hidden: false,
+                                    index: i
+                                };
+                            });
+                        }
                     }
                 },
                 tooltip: {
@@ -74,18 +91,15 @@ class ChartManager {
                     displayColors: true,
                     callbacks: {
                         label: function(context) {
-                            let label = context.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
-                            if (context.parsed !== null) {
-                                // Format number with thousand separator
-                                label += new Intl.NumberFormat('id-ID').format(context.parsed);
-                            }
-                            return label;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const value = context.parsed;
+                            const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            const formatted = new Intl.NumberFormat('id-ID').format(value);
+                            return ` ${context.label}: ${formatted} (${pct}%)`;
                         }
                     }
-                }
+                },
+                datalabels: false
             }
         };
 
@@ -115,9 +129,34 @@ class ChartManager {
             return null;
         }
 
+        // ── Scrollable mode ──────────────────────────────────────────
+        const scrollable = options.scrollable ?? false;
+        const scrollInner = document.getElementById(canvasId + '_scrollInner');
+        const scrollOuter = document.getElementById(canvasId + '_scrollOuter');
+
+        const processedData = this.processChartData(data, 'bar');
+        const labelCount = processedData.labels?.length ?? 0;
+
+        if (scrollable && labelCount > 0 && scrollInner && scrollOuter) {
+            const barWidth   = 37;
+            const minWidth   = scrollOuter.clientWidth;
+            const canvasWidth = Math.max(labelCount * barWidth, minWidth);
+
+            scrollInner.style.width  = canvasWidth + 'px';
+            ctx.style.width          = canvasWidth + 'px';
+            ctx.width                = canvasWidth;
+            scrollOuter.classList.add('chart-scroll-active');
+        } else {
+            // Reset ke normal saat bukan custom
+            if (scrollInner) scrollInner.style.width = '100%';
+            if (scrollOuter) scrollOuter.classList.remove('chart-scroll-active');
+            ctx.style.width = '100%';
+        }
+        // ─────────────────────────────────────────────────────────────
+
         const defaultOptions = {
-            responsive: true,
-            maintainAspectRatio: true,
+            responsive: !scrollable,
+            maintainAspectRatio: false,
             scales: {
                 y: {
                     beginAtZero: true,
@@ -126,6 +165,7 @@ class ChartManager {
                         drawBorder: false
                     },
                     ticks: {
+                        maxTicksLimit: 10,
                         font: {
                             size: 11,
                             family: "'Plus Jakarta Sans', sans-serif"
@@ -133,10 +173,10 @@ class ChartManager {
                         callback: function(value) {
                             // Format large numbers
                             if (value >= 1000000) {
-                                return (value / 1000000).toFixed(1) + 'M';
-                            } else if (value >= 1000) {
-                                return (value / 1000).toFixed(0) + 'K';
-                            }
+                                                            return (value / 1000000).toFixed(1) + ' JT';
+                                                        } else if (value >= 1000) {
+                                                            return (value / 1000).toFixed(0) + ' RB';
+                                                        }
                             return value;
                         }
                     }
@@ -199,7 +239,7 @@ class ChartManager {
 
         this.charts[canvasId] = new Chart(ctx, {
             type: 'bar',
-            data: this.processChartData(data, 'bar'),
+            data: processedData,
             options: mergedOptions
         });
 
@@ -223,7 +263,7 @@ class ChartManager {
 
         const defaultOptions = {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             scales: {
                 y: {
                     beginAtZero: true,
@@ -239,9 +279,9 @@ class ChartManager {
                         callback: function(value) {
                             // Format large numbers
                             if (value >= 1000000) {
-                                return 'Rp ' + (value / 1000000).toFixed(1) + 'M';
+                                return 'Rp ' + (value / 1000000).toFixed(1) + ' JT';
                             } else if (value >= 1000) {
-                                return 'Rp ' + (value / 1000).toFixed(0) + 'K';
+                                return 'Rp ' + (value / 1000).toFixed(0) + ' RB';
                             }
                             return 'Rp ' + value;
                         }
@@ -616,24 +656,27 @@ class ChartManager {
      * @param {object} canvasIds - Object with pie, bar, line canvas IDs
      * @param {object} filters - Filter parameters
      */
-    async updateChartsFromAPI(page, canvasIds, filters = {}) {
+    async updateChartsFromAPI(page, canvasIds, filters = {}, barOptions = {}) {
         const { pie, bar, line } = canvasIds;
 
         try {
             // Fetch new data
             const data = await this.fetchChartData(page, filters);
 
-            // Update charts
+            // Destroy dan re-init agar label/kolom ikut update (bukan sekadar update data)
             if (pie && data.pie) {
-                this.updateChart(pie, data.pie);
+                this.destroyChart(pie);
+                this.initPieChart(pie, data.pie);
             }
 
             if (bar && data.bar) {
-                this.updateChart(bar, data.bar);
+                this.destroyChart(bar);
+                this.initBarChart(bar, data.bar, barOptions);
             }
 
             if (line && data.line) {
-                this.updateChart(line, data.line);
+                this.destroyChart(line);
+                this.initLineChart(line, data.line);
             }
 
             // Update stats if provided

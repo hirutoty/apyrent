@@ -55,7 +55,7 @@ class ChartDataController extends Controller
                         ($kendaraanId ?? 'all') . '_cat' . ($categoryId ?? '0');
 
             // Cache for 5 minutes (300 seconds)
-            $chartData = \Cache::remember($cacheKey, 300, function () use ($page, $filterType, $customDates, $kendaraanId, $categoryId) {
+            $chartData = \Cache::remember($cacheKey, 300, function () use ($page, $filterType, $customDates, $kendaraanId, $categoryId, $startDate, $endDate) {
                 // Get chart config and query based on page
                 $config = $this->getPageChartConfig($page);
                 $query = $this->getPageQuery($page);
@@ -91,7 +91,11 @@ class ChartDataController extends Controller
 
                 $barData = $this->chartDataService->getBarChartData(
                     clone $filteredQuery,
-                    $config['bar'] ?? []
+                    array_merge($config['bar'] ?? [], [
+                        'filter_type' => $filterType,
+                        'start_date'  => $startDate,
+                        'end_date'    => $endDate,
+                    ])
                 );
 
                 $lineData = $this->chartDataService->getLineChartData(
@@ -1867,6 +1871,7 @@ class ChartDataController extends Controller
             'bar' => [
                 'title'        => 'Biaya Service per Bulan',
                 'groupBy'      => 'month',
+                'autoDaily'    => true,
                 'valueColumns' => [
                     'total_biaya',
                     'maks_bulanan',
