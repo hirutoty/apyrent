@@ -63,6 +63,7 @@
     {{-- CHART CONTAINER --}}
     <x-chart-container
         id="serviceHistoryChartContainer"
+        layout="bar-top"
         pieTitle="Biaya per Kategori" pieId="serviceHistoryPieChart"
         barTitle="Biaya Service per Bulan" barId="serviceHistoryBarChart"
         lineTitle="Trend Biaya Service" lineId="serviceHistoryLineChart"
@@ -1048,11 +1049,12 @@ async function initServiceHistoryCharts(filters) {
 
 async function updateServiceHistoryCharts(filters) {
     try {
+        const barOptions = { scrollable: filters.filter_type === 'custom' };
         await chartManager.updateChartsFromAPI('service-history', {
             pie: 'serviceHistoryPieChart',
             bar: 'serviceHistoryBarChart',
             line: 'serviceHistoryLineChart'
-        }, filters);
+        }, filters, barOptions);
     } catch (error) {
         console.error('Error updating service history charts:', error);
     }
