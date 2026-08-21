@@ -28,7 +28,7 @@
     {{-- CHART CONTAINER --}}
     <x-chart-container
         id="kendaraanServiceChartContainer"
-        layout="bar-top"
+        layout="stacked"
         pieTitle="Biaya per Kategori" pieId="kendaraanServicePieChart"
         barTitle="Timeline Biaya Service" barId="kendaraanServiceBarChart"
         lineTitle="Trend Biaya" lineId="kendaraanServiceLineChart"
@@ -438,7 +438,7 @@ async function initKendaraanServiceCharts(filters) {
             pie: 'kendaraanServicePieChart',
             bar: 'kendaraanServiceBarChart',
             line: 'kendaraanServiceLineChart'
-        }, filters);
+        }, filters, { accentLine: true });
     } catch (error) {
         console.error('Error loading kendaraan service charts:', error);
     }
@@ -446,12 +446,14 @@ async function initKendaraanServiceCharts(filters) {
 
 async function updateKendaraanServiceCharts(filters) {
     try {
-        const barOptions = { scrollable: filters.filter_type === 'custom' };
+        const isScrollable = filters.filter_type === 'custom';
+        const barOptions  = { scrollable: isScrollable, accentLine: true };
+        const lineOptions = { scrollable: isScrollable };
         await chartManager.updateChartsFromAPI('service-history', {
             pie: 'kendaraanServicePieChart',
             bar: 'kendaraanServiceBarChart',
             line: 'kendaraanServiceLineChart'
-        }, filters, barOptions);
+        }, filters, barOptions, lineOptions);
     } catch (error) {
         console.error('Error updating kendaraan service charts:', error);
     }

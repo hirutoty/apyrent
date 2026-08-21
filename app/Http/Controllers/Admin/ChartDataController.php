@@ -31,34 +31,37 @@ class ChartDataController extends Controller
     {
         // Validate request
         $validated = $request->validate([
-            'filter_type' => 'nullable|in:today,week,month,year,custom',
-            'start_date' => 'nullable|string',
-            'end_date' => 'nullable|string',
+            'filter_type'  => 'nullable|in:today,week,month,year,custom',
+            'start_date'   => 'nullable|string',
+            'end_date'     => 'nullable|string',
             'kendaraan_id' => 'nullable|integer|exists:kendaraan,id',
             'category_id'  => 'nullable|integer',
+            'departemen'   => 'nullable|string',
         ]);
 
         try {
             // Get filter parameters
-            $filterType = $request->input('filter_type', 'month');
-            $startDate = $request->input('start_date');
-            $endDate = $request->input('end_date');
+            $filterType  = $request->input('filter_type', 'month');
+            $startDate   = $request->input('start_date');
+            $endDate     = $request->input('end_date');
             $kendaraanId = $request->input('kendaraan_id');
             $categoryId  = $request->input('category_id');
-            $customDates = ($filterType === 'custom' && $startDate && $endDate) 
-                ? [$startDate, $endDate] 
+            $departemen  = $request->input('departemen');
+            $customDates = ($filterType === 'custom' && $startDate && $endDate)
+                ? [$startDate, $endDate]
                 : [];
 
-            // Create cache key based on request parameters (include kendaraan_id)
-            $cacheKey = 'chart_' . $page . '_' . $filterType . '_' . 
+            // Create cache key
+            $cacheKey = 'chart_' . $page . '_' . $filterType . '_' .
                         ($startDate ?? 'null') . '_' . ($endDate ?? 'null') . '_' .
-                        ($kendaraanId ?? 'all') . '_cat' . ($categoryId ?? '0');
+                        ($kendaraanId ?? 'all') . '_cat' . ($categoryId ?? '0') .
+                        '_dept' . ($departemen ?? 'all');
 
             // Cache for 5 minutes (300 seconds)
-            $chartData = \Cache::remember($cacheKey, 300, function () use ($page, $filterType, $customDates, $kendaraanId, $categoryId, $startDate, $endDate) {
+            $chartData = \Cache::remember($cacheKey, 300, function () use ($page, $filterType, $customDates, $kendaraanId, $categoryId, $startDate, $endDate, $departemen) {
                 // Get chart config and query based on page
                 $config = $this->getPageChartConfig($page);
-                $query = $this->getPageQuery($page);
+                $query  = $this->getPageQuery($page);
 
                 if (!$query) {
                     throw new \Exception('Invalid page identifier');
@@ -72,6 +75,11 @@ class ChartDataController extends Controller
                 // Apply category filter for service-history page
                 if ($categoryId && $page === 'service-history') {
                     $query->whereHas('parts', fn($p) => $p->where('category_id', $categoryId));
+                }
+
+                // Apply departemen filter for purchasero page
+                if ($departemen && $page === 'purchasero') {
+                    $query->where('departemen', $departemen);
                 }
 
                 // Apply date filter
@@ -100,7 +108,11 @@ class ChartDataController extends Controller
 
                 $lineData = $this->chartDataService->getLineChartData(
                     clone $filteredQuery,
-                    $config['line'] ?? []
+                    array_merge($config['line'] ?? [], [
+                        'filter_type' => $filterType,
+                        'start_date'  => $startDate,
+                        'end_date'    => $endDate,
+                    ])
                 );
 
                 $statsData = $this->chartDataService->getStatsData(
@@ -172,6 +184,7 @@ class ChartDataController extends Controller
             'pajak-kendaraan' => $this->getPajakKendaraanConfig(),
             'stnk' => $this->getStnkConfig(),
             'service-history' => $this->getServiceHistoryConfig(),
+            'purchasero'      => $this->getPurchaseroConfig(),
             // Add more as needed
         ];
 
@@ -210,6 +223,7 @@ class ChartDataController extends Controller
             'pajak-kendaraan' => \App\Models\PajakKendaraan::query(),
             'stnk' => \App\Models\Stnk::query(),
             'service-history' => \App\Models\ServiceHistory::query(),
+            'purchasero'      => \App\Models\Purchasero::query(),
             // Add more as needed
         ];
 
@@ -1340,13 +1354,15 @@ class ChartDataController extends Controller
                 'colors' => ['#10b981', '#f59e0b', '#ef4444']
             ],
             'bar' => [
-                'title' => 'Monthly Revenue',
+                'title' => 'Pendapatan Rental per Bulan',
                 'groupBy' => 'month',
+                'autoDaily' => true,
                 'valueColumns' => ['total_biaya'],
                 'aggregation' => 'sum',
                 'dateColumn' => 'tanggal_mulai',
                 'limit' => 6,
-                'labels' => ['Total']
+                'labels' => ['Total Biaya'],
+                'colors' => ['#3b82f6'],
             ],
             'line' => [
                 'title' => 'Rental Trend',
@@ -1884,14 +1900,15 @@ class ChartDataController extends Controller
                 'colors'       => ['#ef4444', '#f59e0b', '#10b981'],
             ],
             'line' => [
-                'title' => 'Trend Biaya Service',
-                'groupBy' => 'month',
+                'title'       => 'Trend Biaya Service',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
                 'valueColumn' => 'total_biaya',
                 'aggregation' => 'sum',
-                'dateColumn' => 'tanggal_service',
-                'limit' => 12,
-                'label' => 'Biaya',
-                'color' => '#ef4444'
+                'dateColumn'  => 'tanggal_service',
+                'limit'       => 12,
+                'label'       => 'Biaya',
+                'color'       => '#ef4444'
             ],
             'stats' => [
                 [
@@ -1934,6 +1951,85 @@ class ChartDataController extends Controller
                     'icon' => 'fa fa-clock'
                 ]
             ]
+        ];
+    }
+
+    /**
+     * Chart config for Purchasero (Pengadaan) page
+     */
+    protected function getPurchaseroConfig(): array
+    {
+        return [
+            'dateColumn' => 'tanggal',
+            'pie' => [
+                'title'       => 'Distribusi Status',
+                'groupBy'     => 'status',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels'      => [],
+                'colors'      => ['#3b82f6', '#f59e0b', '#10b981', '#ef4444'],
+            ],
+            'bar' => [
+                'title'        => 'Nominal Pengadaan per Bulan',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => ['nominal'],
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'tanggal',
+                'limit'        => 6,
+                'labels'       => ['Nominal'],
+                'colors'       => ['#3b82f6'],
+            ],
+            'line' => [
+                'title'       => 'Trend Nominal Pengadaan',
+                'groupBy'     => 'month',
+                'valueColumn' => 'nominal',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'tanggal',
+                'limit'       => 12,
+                'label'       => 'Nominal',
+                'color'       => '#8b5cf6',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Pengadaan',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#3b82f6',
+                    'iconBg' => '#dbeafe',
+                    'icon'   => 'fa fa-shopping-cart',
+                ],
+                [
+                    'label'  => 'Total Nominal',
+                    'type'   => 'sum',
+                    'column' => 'nominal',
+                    'format' => 'currency',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'  => 'Disetujui',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'Disetujui'],
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-check-circle',
+                ],
+                [
+                    'label'  => 'Pending',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'Pending'],
+                    'format' => 'number',
+                    'color'  => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon'   => 'fa fa-clock',
+                ],
+            ],
         ];
     }
 }
