@@ -307,8 +307,8 @@ class KontrakHelper
                 'tipe'     => 'paragraf',
                 'poin'     => [
                     [
-                        'id' => "Segala pemberitahuan, permintaan dan komunikasi lainnya sehubungan dengan perjanjian ini, harus dibuat secara tertulis dan disampaikan secara pribadi atau dikirim melalui jasa kurir atau faksimili kepada para pihak dengan alamat:\n\nPIHAK PERTAMA\n{NAMA_PERUSAHAAN}\n{ALAMAT_PERUSAHAAN}\nTelp. {TELEPON_PERUSAHAAN}\nFax.  {FAX_PERUSAHAAN}\n\nPIHAK KEDUA\n{NAMA_PIHAK_KEDUA}\n{ALAMAT_PIHAK_KEDUA}\nHp. {KONTAK_PIHAK_KEDUA}",
-                        'en' => "Any notice, request and other communications relating to this agreement must be made in writing and submitted in person or delivered through courier or facsimile to parties in the following addresses:\n\nTHE FIRST PARTY\n{NAMA_PERUSAHAAN}\n{ALAMAT_PERUSAHAAN}\nTelp. {TELEPON_PERUSAHAAN}\nFax.  {FAX_PERUSAHAAN}\n\nTHE SECOND PARTY\n{NAMA_PIHAK_KEDUA}\n{ALAMAT_PIHAK_KEDUA}\nHp. {KONTAK_PIHAK_KEDUA}",
+                        'id' => "Segala pemberitahuan, permintaan dan komunikasi lainnya sehubungan dengan perjanjian ini, harus dibuat secara tertulis dan disampaikan secara pribadi atau dikirim melalui jasa kurir atau faksimili kepada para pihak dengan alamat:\n\nPIHAK PERTAMA\n{NAMA_PERUSAHAAN}\n{ALAMAT_PERUSAHAAN}\nTelp. {TELEPON_PERUSAHAAN}\nFax.  {FAX_PERUSAHAAN}\n\nPIHAK KEDUA\n{NAMA_PIHAK_KEDUA}\n{ALAMAT_PIHAK_KEDUA}",
+                        'en' => "Any notice, request and other communications relating to this agreement must be made in writing and submitted in person or delivered through courier or facsimile to parties in the following addresses:\n\nTHE FIRST PARTY\n{NAMA_PERUSAHAAN}\n{ALAMAT_PERUSAHAAN}\nTelp. {TELEPON_PERUSAHAAN}\nFax.  {FAX_PERUSAHAAN}\n\nTHE SECOND PARTY\n{NAMA_PIHAK_KEDUA}\n{ALAMAT_PIHAK_KEDUA}",
                     ],
                 ],
             ],

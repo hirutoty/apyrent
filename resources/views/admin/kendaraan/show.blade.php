@@ -1964,19 +1964,20 @@
 
             document.addEventListener('DOMContentLoaded', function () {
                 if (typeof chartManager !== 'undefined') {
-                    chartManager.initChartsFromAPI('kendaraan-show', KDR_SHOW_CHART_IDS, { filter_type: 'year' });
+                    chartManager.initChartsFromAPI('kendaraan-show', KDR_SHOW_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
                 }
 
                 var showFilter = document.getElementById('kendaraanShowChartFilter');
                 if (showFilter) {
-                    showFilter.addEventListener('chartFilterChange', function (e) {
+                    document.addEventListener('chartFilterChange', function (e) {
+                        if (e.detail.filterId !== 'kendaraanShowChartFilter') return;
                         const { filterType, startDate, endDate } = e.detail;
                         const filters = { filter_type: filterType };
                         if (filterType === 'custom' && startDate && endDate) {
                             filters.start_date = startDate;
                             filters.end_date   = endDate;
                         }
-                        chartManager.updateChartsFromAPI('kendaraan-show', KDR_SHOW_CHART_IDS, filters);
+                        chartManager.updateChartsFromAPI('kendaraan-show', KDR_SHOW_CHART_IDS, filters, { accentLine: true });
                     });
                 }
             });

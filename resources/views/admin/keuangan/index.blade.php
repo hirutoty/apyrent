@@ -1624,7 +1624,7 @@
             };
 
             try {
-                await window.chartManager.initChartsFromAPI('keuangan', canvasIds, filters);
+                await window.chartManager.initChartsFromAPI('keuangan', canvasIds, filters, { accentLine: true });
                 console.log('✅ Keuangan charts initialized');
             } catch (error) {
                 console.error('❌ Failed to initialize keuangan charts:', error);
@@ -1639,7 +1639,7 @@
             };
 
             try {
-                await window.chartManager.updateChartsFromAPI('keuangan', canvasIds, filters);
+                await window.chartManager.updateChartsFromAPI('keuangan', canvasIds, filters, { accentLine: true });
                 console.log('✅ Keuangan charts updated');
             } catch (error) {
                 console.error('❌ Failed to update keuangan charts:', error);
@@ -1655,7 +1655,7 @@
             };
 
             try {
-                await window.chartManager.initChartsFromAPI('aging-ap', canvasIds, filters);
+                await window.chartManager.initChartsFromAPI('aging-ap', canvasIds, filters, { accentLine: true });
                 console.log('✅ Aging AP charts initialized');
             } catch (error) {
                 console.error('❌ Failed to initialize aging AP charts:', error);
@@ -1670,7 +1670,7 @@
             };
 
             try {
-                await window.chartManager.updateChartsFromAPI('aging-ap', canvasIds, filters);
+                await window.chartManager.updateChartsFromAPI('aging-ap', canvasIds, filters, { accentLine: true });
                 console.log('✅ Aging AP charts updated');
             } catch (error) {
                 console.error('❌ Failed to update aging AP charts:', error);
@@ -1686,7 +1686,7 @@
             };
 
             try {
-                await window.chartManager.initChartsFromAPI('aging-ar', canvasIds, filters);
+                await window.chartManager.initChartsFromAPI('aging-ar', canvasIds, filters, { accentLine: true });
                 console.log('✅ Aging AR charts initialized');
             } catch (error) {
                 console.error('❌ Failed to initialize aging AR charts:', error);
@@ -1701,7 +1701,7 @@
             };
 
             try {
-                await window.chartManager.updateChartsFromAPI('aging-ar', canvasIds, filters);
+                await window.chartManager.updateChartsFromAPI('aging-ar', canvasIds, filters, { accentLine: true });
                 console.log('✅ Aging AR charts updated');
             } catch (error) {
                 console.error('❌ Failed to update aging AR charts:', error);

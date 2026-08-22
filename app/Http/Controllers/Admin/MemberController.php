@@ -24,8 +24,20 @@ class MemberController extends Controller
             });
         }
 
+        $totalMember     = Member::count();
+        $totalPerorangan = Member::where('jenis_member', 'perorangan')->count();
+        $totalPerusahaan = Member::where('jenis_member', 'perusahaan')->count();
+        $totalKendaraan  = \App\Models\Kendaraan::whereNotNull('member_id')->count();
+        $baroBulanIni    = Member::whereMonth('created_at', now()->month)
+                                 ->whereYear('created_at', now()->year)->count();
+
         return view('admin.members.index', [
-            'data' => $query->paginate(15)->withQueryString(),
+            'data'            => $query->paginate(15)->withQueryString(),
+            'totalMember'     => $totalMember,
+            'totalPerorangan' => $totalPerorangan,
+            'totalPerusahaan' => $totalPerusahaan,
+            'totalKendaraan'  => $totalKendaraan,
+            'baroBulanIni'    => $baroBulanIni,
         ]);
     }
 

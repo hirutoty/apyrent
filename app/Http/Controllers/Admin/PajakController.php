@@ -177,6 +177,41 @@ class PajakController extends Controller
             'bukti' => $bukti,
         ]);
 
+        // Catat ke keuangan hanya jika status sudah_bayar
+        if ($request->status === 'sudah_bayar') {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($request, $pajak, $kendaraan) {
+                $lastSaldo   = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                $pengeluaran = (float) $request->nominal;
+                $kodeJurnal  = 'PAJAK-' . $pajak->id . '-' . now()->timestamp;
+
+                Keuangan::create([
+                    'tanggal'     => now(),
+                    'reference'   => $kodeJurnal,
+                    'user_id'     => auth()->id(),
+                    'kategori'    => 'Pengeluaran',
+                    'metode'      => 'Cash',
+                    'keterangan'  => 'Pembayaran pajak kendaraan baru: ' . $pajak->jenis_pajak . ' - ' . $kendaraan->nopol,
+                    'pemasukan'   => 0,
+                    'pengeluaran' => $pengeluaran,
+                    'saldo'       => $lastSaldo - $pengeluaran,
+                    'sumber'      => 'auto',
+                ]);
+
+                $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                Bukubesar::create([
+                    'kode_jurnal' => $kodeJurnal,
+                    'transaksi'   => 'Beban Pajak - ' . $pajak->jenis_pajak,
+                    'kategori'    => 'Beban',
+                    'tanggal'     => now()->toDateString(),
+                    'debit'       => $pengeluaran,
+                    'kredit'      => 0,
+                    'saldo'       => $saldoBBTerakhir - $pengeluaran,
+                    'aktivitas'   => 'Operasi',
+                    'keterangan'  => 'Auto-posting: Pembayaran pajak kendaraan baru ' . $kendaraan->nopol,
+                ]);
+            });
+        }
+
         // upload attachment tambahan (bisa lebih dari satu, SETELAH ADA ID)
         if ($request->hasFile('bukti_attachment')) {
             $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id);

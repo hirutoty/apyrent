@@ -192,22 +192,59 @@ class AsuransiKendaraanController extends Controller
             $buktiBayar = 'asuransi/bukti_bayar/' . $filename;
         }
 
-        $asuransiKendaraan = AsuransiKendaraan::create([
-            'kendaraan_id'      => $request->kendaraan_id,
-            'asuransi_id'       => $request->asuransi_id,
-            'jenis_asuransi_id' => $request->jenis_asuransi_id,
-            'tgl_mulai'         => $request->tgl_mulai,
-            'tgl_berakhir'      => $request->tgl_berakhir,
-            'durasi_bulan'      => $request->durasi_bulan,
-            'biaya'             => $request->biaya,
-            'bukti_bayar'       => $buktiBayar,
-            'status_kendaraan'  => 'aktif',
-        ]);
+        $asuransiKendaraan = null;
 
-        // upload attachment tambahan (bisa lebih dari satu, SETELAH ADA ID)
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $asuransiKendaraan->id);
-        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $buktiBayar, $kendaraan, &$asuransiKendaraan) {
+            $asuransiKendaraan = AsuransiKendaraan::create([
+                'kendaraan_id'      => $request->kendaraan_id,
+                'asuransi_id'       => $request->asuransi_id,
+                'jenis_asuransi_id' => $request->jenis_asuransi_id,
+                'tgl_mulai'         => $request->tgl_mulai,
+                'tgl_berakhir'      => $request->tgl_berakhir,
+                'durasi_bulan'      => $request->durasi_bulan,
+                'biaya'             => $request->biaya,
+                'bukti_bayar'       => $buktiBayar,
+                'status_kendaraan'  => 'aktif',
+            ]);
+
+            // --- Catat ke Keuangan ---
+            $jenisAsuransi = JenisAsuransi::find($request->jenis_asuransi_id);
+            $lastSaldo     = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            $pengeluaran   = (float) $request->biaya;
+            $kodeJurnal    = 'ASURANSI-' . $asuransiKendaraan->id . '-' . now()->timestamp;
+
+            Keuangan::create([
+                'tanggal'     => now(),
+                'reference'   => $kodeJurnal,
+                'user_id'     => auth()->id(),
+                'kategori'    => 'Pengeluaran',
+                'metode'      => 'Cash',
+                'keterangan'  => 'Pembayaran asuransi kendaraan baru: ' . ($jenisAsuransi->nama_jenis ?? '-') . ' - ' . $kendaraan->nopol,
+                'pemasukan'   => 0,
+                'pengeluaran' => $pengeluaran,
+                'saldo'       => $lastSaldo - $pengeluaran,
+                'sumber'      => 'auto',
+            ]);
+
+            // --- Auto-posting ke Buku Besar ---
+            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban Asuransi - ' . ($jenisAsuransi->nama_jenis ?? '-'),
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $pengeluaran,
+                'kredit'      => 0,
+                'saldo'       => $saldoBBTerakhir - $pengeluaran,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Pembayaran asuransi kendaraan baru ' . $kendaraan->nopol,
+            ]);
+
+            // upload attachment tambahan (bisa lebih dari satu, SETELAH ADA ID)
+            if (request()->hasFile('bukti_attachment')) {
+                $this->simpanAttachments(request()->file('bukti_attachment'), $asuransiKendaraan->id);
+            }
+        });
 
         return back()->with('success', 'Data berhasil ditambahkan');
     }

@@ -19,7 +19,66 @@
             </button>
         </div>
 
+        {{-- SUMMARY CARDS --}}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-slate-500">Total Pelanggan</p>
+                        <h3 class="text-3xl font-bold text-slate-800 mt-2">{{ $totalPelanggan ?? 0 }}</h3>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                        <i class="fa fa-users text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-slate-500">Perorangan</p>
+                        <h3 class="text-3xl font-bold text-emerald-600 mt-2">{{ $totalPerorangan ?? 0 }}</h3>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                        <i class="fa fa-user text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-slate-500">Perusahaan</p>
+                        <h3 class="text-3xl font-bold text-amber-600 mt-2">{{ $totalPerusahaan ?? 0 }}</h3>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                        <i class="fa fa-building text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-slate-500">Baru Bulan Ini</p>
+                        <h3 class="text-3xl font-bold text-purple-600 mt-2">{{ $baroBulanIni ?? 0 }}</h3>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center">
+                        <i class="fa fa-user-plus text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
 
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="pelangganChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="pelangganChartContainer"
+            layout="bar-top"
+            pieTitle="Distribusi Jenis Pelanggan"        pieId="pelangganPieChart"
+            barTitle="Pendaftaran Pelanggan per Periode" barId="pelangganBarChart"
+            lineTitle="Trend Pendaftaran Pelanggan"      lineId="pelangganLineChart"
+            :showStats="true" :statsData="[]"
+        />
 
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -415,6 +474,27 @@
             else if (typeof openModal === 'function') openModal();
         });
         @endif
+</script>
+
+<script>
+const pelangganChartManager = new ChartManager();
+const PELANGGAN_CHART_IDS = { pie: 'pelangganPieChart', bar: 'pelangganBarChart', line: 'pelangganLineChart' };
+
+document.addEventListener('DOMContentLoaded', function () {
+    pelangganChartManager.initChartsFromAPI('pelanggan', PELANGGAN_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
+
+    document.addEventListener('chartFilterChange', function (e) {
+        if (e.detail.filterId !== 'pelangganChartFilter') return;
+        const filters = { filter_type: e.detail.filterType };
+        if (e.detail.filterType === 'custom' && e.detail.startDate && e.detail.endDate) {
+            filters.start_date = e.detail.startDate;
+            filters.end_date   = e.detail.endDate;
+        }
+        const scrollable = e.detail.filterType === 'custom';
+        pelangganChartManager.updateChartsFromAPI('pelanggan', PELANGGAN_CHART_IDS, filters,
+            { accentLine: true, scrollable }, { scrollable });
+    });
+});
 </script>
 
 @endsection

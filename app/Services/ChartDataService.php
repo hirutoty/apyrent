@@ -91,7 +91,7 @@ class ChartDataService
         $labels       = $config['labels'] ?? [];
         $colors       = $config['colors'] ?? [];
         $filterType   = $config['filter_type'] ?? null;
-        $autoDaily    = $config['autoDaily'] ?? false;
+        $autoDaily    = $config['autoDaily'] ?? true; // default true agar semua chart responsive terhadap filter_type
 
         // Auto-switch ke daily per tanggal saat filter bulan ini
         if ($autoDaily && $filterType === 'today') {
@@ -367,7 +367,7 @@ class ChartDataService
         $limit       = $config['limit'] ?? 12;
         $label       = $config['label'] ?? 'Trend';
         $color       = $config['color'] ?? '#8b5cf6';
-        $autoDaily   = $config['autoDaily'] ?? false;
+        $autoDaily   = $config['autoDaily'] ?? true; // default true agar semua chart responsive terhadap filter_type
         $filterType  = $config['filter_type'] ?? null;
         $startDate   = $config['start_date'] ?? null;
         $endDate     = $config['end_date'] ?? null;

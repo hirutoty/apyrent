@@ -193,6 +193,40 @@ class KirController extends Controller
 
         $kir = Kir::create($data);
 
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $kir, $kendaraan) {
+            // --- Catat ke Keuangan ---
+            $lastSaldo   = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            $pengeluaran = (float) $request->biaya;
+            $kodeJurnal  = 'KIR-' . $kir->id . '-' . now()->timestamp;
+
+            Keuangan::create([
+                'tanggal'     => now(),
+                'reference'   => $kodeJurnal,
+                'user_id'     => auth()->id(),
+                'kategori'    => 'Pengeluaran',
+                'metode'      => 'Cash',
+                'keterangan'  => 'Pembayaran KIR baru: ' . $kendaraan->nopol . ' - No Uji: ' . $request->no_uji,
+                'pemasukan'   => 0,
+                'pengeluaran' => $pengeluaran,
+                'saldo'       => $lastSaldo - $pengeluaran,
+                'sumber'      => 'auto',
+            ]);
+
+            // --- Auto-posting ke Buku Besar ---
+            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Beban KIR - ' . $kendaraan->nopol,
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $pengeluaran,
+                'kredit'      => 0,
+                'saldo'       => $saldoBBTerakhir - $pengeluaran,
+                'aktivitas'   => 'Operasi',
+                'keterangan'  => 'Auto-posting: Pembayaran KIR baru ' . $kendaraan->nopol,
+            ]);
+        });
+
         if ($request->hasFile('bukti_attachment')) {
             $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
         }

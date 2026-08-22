@@ -27,6 +27,32 @@ class PajakHistoryController extends Controller
         return view('admin.pajak_kendaraan.history', compact('data', 'bulan', 'tahun', 'tahunList'));
     }
 
+    public function kendaraan($id)
+    {
+        $kendaraan = \App\Models\Kendaraan::with(['jenis'])->findOrFail($id);
+
+        $history = PajakHistory::with(['kendaraan', 'attachments'])
+            ->where('kendaraan_id', $id)
+            ->latest('diperpanjang_pada')
+            ->paginate(20);
+
+        $totalData  = PajakHistory::where('kendaraan_id', $id)->count();
+        $totalBiaya = PajakHistory::where('kendaraan_id', $id)->sum('nominal');
+        $lastHistory = PajakHistory::where('kendaraan_id', $id)
+            ->latest('diperpanjang_pada')
+            ->first();
+        $avgBiaya = $totalData > 0 ? $totalBiaya / $totalData : 0;
+
+        return view('admin.kendaraan.pajak_history', compact(
+            'kendaraan',
+            'history',
+            'totalData',
+            'totalBiaya',
+            'lastHistory',
+            'avgBiaya'
+        ));
+    }
+
     public function destroy($id)
     {
         $data = PajakHistory::findOrFail($id);
