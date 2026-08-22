@@ -344,6 +344,73 @@ class GpsKendaraanController extends Controller
         return back()->with('success', 'Lampiran berhasil dihapus');
     }
 
+    /**
+     * AJAX: detail per record GPS kendaraan + chart perpanjangan Jan-Des
+     */
+    public function detail(Request $request, $id)
+    {
+        $gps   = GpsKendaraan::with(['kendaraan','gps','attachments'])->findOrFail($id);
+        $tahun = (int) $request->input('tahun', now()->year);
+
+        $histories = GpsKendaraanHistory::with('gps')
+            ->where('gps_kendaraan_id', $id)
+            ->orderBy('diperpanjang_pada', 'desc')
+            ->get()
+            ->map(fn($h) => [
+                'id'               => $h->id,
+                'nama_gps'         => $h->gps->nama_gps ?? '-',
+                'type'             => $h->type,
+                'biaya_sewa'       => $h->biaya_sewa,
+                'durasi_bulan'     => $h->durasi_bulan,
+                'tanggal_pasang'   => $h->tanggal_pasang?->format('d M Y'),
+                'tanggal_habis'    => $h->tanggal_habis?->format('d M Y'),
+                'status_sewa'      => $h->status_sewa,
+                'bukti_bayar'      => $h->bukti_bayar ? asset($h->bukti_bayar) : null,
+                'diperpanjang_pada'=> $h->diperpanjang_pada?->format('d M Y'),
+            ]);
+
+        $bulanLabels = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+        $chartData   = [];
+        for ($b = 1; $b <= 12; $b++) {
+            $chartData[] = (float) GpsKendaraanHistory::where('gps_kendaraan_id', $id)
+                ->whereYear('diperpanjang_pada', $tahun)
+                ->whereMonth('diperpanjang_pada', $b)
+                ->sum('biaya_sewa');
+        }
+
+        $availableYears = GpsKendaraanHistory::where('gps_kendaraan_id', $id)
+            ->selectRaw('YEAR(diperpanjang_pada) as yr')
+            ->whereNotNull('diperpanjang_pada')
+            ->distinct()
+            ->orderBy('yr', 'desc')
+            ->pluck('yr');
+
+        return response()->json([
+            'success' => true,
+            'record'  => [
+                'id'           => $gps->id,
+                'nopol'        => $gps->kendaraan->nopol ?? '-',
+                'merk'         => $gps->kendaraan->merk ?? '-',
+                'nama_gps'     => $gps->gps->nama_gps ?? '-',
+                'type'         => $gps->type,
+                'biaya_sewa'   => $gps->biaya_sewa,
+                'durasi_bulan' => $gps->durasi_bulan,
+                'tanggal_pasang'=> $gps->tanggal_pasang ? \Carbon\Carbon::parse($gps->tanggal_pasang)->format('d M Y') : '-',
+                'tanggal_habis' => $gps->tanggal_habis ? \Carbon\Carbon::parse($gps->tanggal_habis)->format('d M Y') : '-',
+                'status_gps'   => $gps->status_gps,
+                'status_sewa'  => $gps->status_sewa,
+                'bukti_bayar'  => $gps->bukti_bayar ? asset($gps->bukti_bayar) : null,
+            ],
+            'histories'       => $histories,
+            'chart'           => [
+                'labels' => $bulanLabels,
+                'data'   => $chartData,
+                'tahun'  => $tahun,
+            ],
+            'available_years' => $availableYears,
+        ]);
+    }
+
     public function exportPdf(Request $request)
     {
         $search = $request->search;

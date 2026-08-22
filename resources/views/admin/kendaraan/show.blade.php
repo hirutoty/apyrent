@@ -75,6 +75,19 @@
 
             </div>
 
+            {{-- CHART FILTER --}}
+            <x-chart-filter id="kendaraanShowChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+            {{-- CHART CONTAINER --}}
+            <x-chart-container
+                id="kendaraanShowChartContainer"
+                layout="bar-top"
+                pieTitle="Status Unit Kendaraan" pieId="kendaraanShowPieChart"
+                barTitle="Biaya Service per Bulan" barId="kendaraanShowBarChart"
+                lineTitle="Trend Unit" lineId="kendaraanShowLineChart"
+                :showStats="true" :statsData="[]"
+            />
+
             {{-- TABLE CARD --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
@@ -1945,6 +1958,28 @@
                 }
                 window.closeAlert = closeAlert;
             })();
+
+            // ── CHART KENDARAAN SHOW ─────────────────────────────────────────
+            const KDR_SHOW_CHART_IDS = { pie: 'kendaraanShowPieChart', bar: 'kendaraanShowBarChart', line: 'kendaraanShowLineChart' };
+
+            document.addEventListener('DOMContentLoaded', function () {
+                if (typeof chartManager !== 'undefined') {
+                    chartManager.initChartsFromAPI('kendaraan-show', KDR_SHOW_CHART_IDS, { filter_type: 'year' });
+                }
+
+                var showFilter = document.getElementById('kendaraanShowChartFilter');
+                if (showFilter) {
+                    showFilter.addEventListener('chartFilterChange', function (e) {
+                        const { filterType, startDate, endDate } = e.detail;
+                        const filters = { filter_type: filterType };
+                        if (filterType === 'custom' && startDate && endDate) {
+                            filters.start_date = startDate;
+                            filters.end_date   = endDate;
+                        }
+                        chartManager.updateChartsFromAPI('kendaraan-show', KDR_SHOW_CHART_IDS, filters);
+                    });
+                }
+            });
         </script>
 
         

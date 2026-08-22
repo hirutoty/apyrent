@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Data Pajak Kendaraan')
 
@@ -74,6 +74,19 @@
             </div>
 
         </div>
+
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="pajakChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="pajakChartContainer"
+            layout="bar-top"
+            pieTitle="Distribusi Status Pajak" pieId="pajakPieChart"
+            barTitle="Nominal Pajak per Bulan" barId="pajakBarChart"
+            lineTitle="Trend Nominal Pajak" lineId="pajakLineChart"
+            :showStats="true" :statsData="[]"
+        />
 
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -304,13 +317,14 @@
                                 </td>
                                 <td class="px-4 py-3.5">
                                     @if ($item->bukti)
-                                        @php $filename = basename($item->bukti); @endphp
-                                        <button type="button"
-                                            onclick="openSlideshow([{path:'{{ asset($item->bukti) }}', name:'{{ addslashes(basename($item->bukti)) }}'}], 0)"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                                            <i class="bi bi-image text-sm"></i>
-                                            Lihat Bukti
-                                        </button>
+                                        @php
+                                            $pajakBuktiName = preg_replace('/^\d+_/', '', basename($item->bukti));
+                                        @endphp
+                                        <a href="{{ asset($item->bukti) }}" target="_blank"
+                                            class="text-blue-600 underline text-xs hover:text-blue-800 block truncate max-w-[140px]"
+                                            title="{{ $pajakBuktiName }}">
+                                            {{ $pajakBuktiName }}
+                                        </a>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
@@ -398,16 +412,20 @@
                                             onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
                                             @csrf
                                             @method('DELETE')
-
                                             <button type="submit"
                                                 class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
-
                                                 <i class="fa fa-trash text-xs"></i>
                                                 Hapus
-
                                             </button>
-
                                         </form>
+
+                                        {{-- Detail --}}
+                                        <button type="button"
+                                            onclick="openDetailModal('pajak', {{ $item->id }}); event.stopPropagation()"
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
+                                            <i class="fa fa-eye text-xs"></i>
+                                            Detail
+                                        </button>
 
                                     </div>
                                 </td>
@@ -1338,6 +1356,36 @@ MODAL PERPANJANG
                 btn.classList.add('opacity-60', 'cursor-not-allowed');
             });
         })();
+
+        // ── CHART PAJAK ──────────────────────────────────────────────────────
+        const PAJAK_CHART_IDS = { pie: 'pajakPieChart', bar: 'pajakBarChart', line: 'pajakLineChart' };
+
+        function initPajakCharts(filters) {
+            if (typeof chartManager !== 'undefined') {
+                chartManager.initChartsFromAPI('pajak-kendaraan', PAJAK_CHART_IDS, filters);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            initPajakCharts({ filter_type: 'year' });
+
+            document.getElementById('pajakChartFilter').addEventListener('chartFilterChange', function (e) {
+                const { filterType, startDate, endDate } = e.detail;
+                const filters = { filter_type: filterType };
+                if (filterType === 'custom' && startDate && endDate) {
+                    filters.start_date = startDate;
+                    filters.end_date   = endDate;
+                }
+                chartManager.updateChartsFromAPI('pajak-kendaraan', PAJAK_CHART_IDS, filters);
+            });
+        });
+
+        // ── EXPAND ROW PAJAK ─────────────────────────────────────────────────
+        function togglePajakRow(id, rowEl) {
+            // deprecated — replaced by openDetailModal
+        }
 </script>
+
+@include('admin.partials.detail-modal')
 
 @endsection

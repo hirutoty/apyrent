@@ -108,6 +108,19 @@
 
         </div>
 
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="kirChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="kirChartContainer"
+            layout="bar-top"
+            pieTitle="Distribusi Status KIR" pieId="kirPieChart"
+            barTitle="Biaya KIR per Bulan" barId="kirBarChart"
+            lineTitle="Trend KIR" lineId="kirLineChart"
+            :showStats="true" :statsData="[]"
+        />
+
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
@@ -336,9 +349,10 @@
                                 {{-- Bukti --}}
                                 <td class="px-4 py-3.5">
                                     @if ($d->image)
-                                        @php $filename = basename($d->image); @endphp
+                                        @php $filename = preg_replace('/^\d+_/', '', basename($d->image)); @endphp
                                         <a href="{{ asset($d->image) }}" target="_blank"
-                                            class="text-blue-600 underline text-xs hover:text-blue-800 block">
+                                            class="text-blue-600 underline text-xs hover:text-blue-800 block truncate max-w-[140px]"
+                                            title="{{ $filename }}">
                                             {{ $filename }}
                                         </a>
                                     @else
@@ -413,10 +427,17 @@
                                                 <i class="fa fa-trash text-xs"></i> Hapus
                                             </button>
                                         </form>
+                                        <button type="button"
+                                            onclick="openDetailModal('kir', {{ $d->id }}); event.stopPropagation()"
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
+                                            <i class="fa fa-eye text-xs"></i> Detail
+                                        </button>
                                     </div>
                                 </td>
 
                             </tr>
+
+
                         @empty
                             <tr>
                                 <td colspan="12" class="px-5 py-12 text-center">
@@ -1229,11 +1250,35 @@
             });
         })();
 
-        // Fungsi render list attachment
+        // ── CHART KIR ────────────────────────────────────────────────────────
+        const KIR_CHART_IDS = { pie: 'kirPieChart', bar: 'kirBarChart', line: 'kirLineChart' };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof chartManager !== 'undefined') {
+                chartManager.initChartsFromAPI('kir', KIR_CHART_IDS, { filter_type: 'year' });
+            }
+
+            var kirFilter = document.getElementById('kirChartFilter');
+            if (kirFilter) {
+                kirFilter.addEventListener('chartFilterChange', function (e) {
+                    const { filterType, startDate, endDate } = e.detail;
+                    const filters = { filter_type: filterType };
+                    if (filterType === 'custom' && startDate && endDate) {
+                        filters.start_date = startDate;
+                        filters.end_date   = endDate;
+                    }
+                    chartManager.updateChartsFromAPI('kir', KIR_CHART_IDS, filters);
+                });
+            }
+        });
+
+        // ── EXPAND ROW KIR (deprecated) ─────────────────────────────────────
+        function toggleKirRow(id, rowEl) { /* replaced by openDetailModal */ }
+
         window.renderListAttachment = function(input, listId) {
             const list = document.getElementById(listId);
+            if (!list) return;
             list.innerHTML = '';
-
             Array.from(input.files).forEach(file => {
                 const li = document.createElement('li');
                 li.className = 'flex items-center gap-1.5';
@@ -1242,5 +1287,7 @@
             });
         };
     </script>
+
+@include('admin.partials.detail-modal')
 
 @endsection

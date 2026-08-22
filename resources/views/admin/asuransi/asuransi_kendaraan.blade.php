@@ -19,6 +19,7 @@
         $expired = $data
             ->filter(fn($d) => $d->tgl_berakhir && \Carbon\Carbon::parse($d->tgl_berakhir)->lte(now()))
             ->count();
+        $totalBiaya = $data->sum('biaya');
     @endphp
 
     <div class="space-y-6">
@@ -37,7 +38,7 @@
         </div>
 
         {{-- SUMMARY CARDS --}}
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
 
             {{-- Total Asuransi --}}
             <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
@@ -91,7 +92,36 @@
                 </div>
             </div>
 
+            {{-- Total Biaya --}}
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm col-span-2 md:col-span-1">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-slate-500">Total Biaya</p>
+                        <h3 class="text-xl font-bold text-emerald-600 mt-2">
+                            Rp {{ number_format($totalBiaya, 0, ',', '.') }}
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">dari {{ $totalAsuransi }} polis aktif</p>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-wallet text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
         </div>
+
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="asuransiChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="asuransiChartContainer"
+            layout="bar-top"
+            pieTitle="Distribusi Status Asuransi" pieId="asuransiPieChart"
+            barTitle="Nominal Asuransi per Bulan" barId="asuransiBarChart"
+            lineTitle="Trend Nominal Asuransi" lineId="asuransiLineChart"
+            :showStats="true" :statsData="[]"
+        />
 
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -297,14 +327,14 @@
 
                                 <td class="px-4 py-3.5">
                                     @if ($d->bukti_bayar)
-                                        @php $asBuktiBayar = [['path' => asset($d->bukti_bayar), 'name' => basename($d->bukti_bayar)]]; @endphp
-                                        <button type="button"
-                                            onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
-                                            data-imgs="{!! json_encode($asBuktiBayar, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                                            <i class="bi bi-image text-sm"></i>
-                                            Lihat Bukti
-                                        </button>
+                                        @php
+                                            $asBuktiName = preg_replace('/^\d+_/', '', basename($d->bukti_bayar));
+                                        @endphp
+                                        <a href="{{ asset($d->bukti_bayar) }}" target="_blank"
+                                            class="text-blue-600 underline text-xs hover:text-blue-800 block truncate max-w-[140px]"
+                                            title="{{ $asBuktiName }}">
+                                            {{ $asBuktiName }}
+                                        </a>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
@@ -388,6 +418,11 @@
                                                 <i class="fa fa-trash text-xs"></i> Hapus
                                             </button>
                                         </form>
+                                        <button type="button"
+                                            onclick="openDetailModal('asuransi', {{ $d->id }}); event.stopPropagation()"
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
+                                            <i class="fa fa-eye text-xs"></i> Detail
+                                        </button>
                                     </div>
                                 </td>
 
@@ -1444,6 +1479,33 @@
                 ul.appendChild(li);
             });
         }
+
+        // ── CHART ASURANSI KENDARAAN ─────────────────────────────────────────
+        const ASURANSI_CHART_IDS = { pie: 'asuransiPieChart', bar: 'asuransiBarChart', line: 'asuransiLineChart' };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof chartManager !== 'undefined') {
+                chartManager.initChartsFromAPI('asuransi-kendaraan', ASURANSI_CHART_IDS, { filter_type: 'year' });
+            }
+
+            var asFilter = document.getElementById('asuransiChartFilter');
+            if (asFilter) {
+                asFilter.addEventListener('chartFilterChange', function (e) {
+                    const { filterType, startDate, endDate } = e.detail;
+                    const filters = { filter_type: filterType };
+                    if (filterType === 'custom' && startDate && endDate) {
+                        filters.start_date = startDate;
+                        filters.end_date   = endDate;
+                    }
+                    chartManager.updateChartsFromAPI('asuransi-kendaraan', ASURANSI_CHART_IDS, filters);
+                });
+            }
+        });
+
+        // ── EXPAND ROW ASURANSI (deprecated) ────────────────────────────────
+        function toggleAsuransiRow(id, rowEl) { /* replaced by openDetailModal */ }
     </script>
+
+@include('admin.partials.detail-modal')
 
 @endsection

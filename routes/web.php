@@ -757,6 +757,12 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::delete('/kir/attachment/{id}', [KirController::class, 'destroyAttachment'])->name('kir.attachment.destroy');
   Route::delete('/service-history/attachment/{id}', [ServiceHistoryController::class, 'destroyAttachment'])->name('service-history.attachment.destroy');
 
+  // ── DETAIL AJAX (modal per-record) ──────────────────────────────────────
+  Route::get('/pajak/{id}/detail',             [PajakController::class,             'detail'])->name('pajak.detail');
+  Route::get('/asuransi-kendaraan/{id}/detail',[AsuransiKendaraanController::class, 'detail'])->name('asuransi-kendaraan.detail');
+  Route::get('/gps-kendaraan/{id}/detail',     [GpsKendaraanController::class,      'detail'])->name('gps-kendaraan.detail');
+  Route::get('/kir/{id}/detail',               [KirController::class,               'detail'])->name('kir.detail');
+
   // AutoSuggest
   Route::get('/ajax/pelanggan', [AgingArController::class, 'searchMember']);
   Route::get('/ajax/invoices', [AgingArController::class, 'searchInvoice']);
@@ -878,4 +884,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::resource('asset/dokumentasi',  DokumentasiAssetController::class,  ['as' => 'asset'])->except(['create', 'edit', 'show']);
   Route::resource('asset/pj',           PenanggungJawabController::class,   ['as' => 'asset'])->except(['create', 'edit', 'show']);
   Route::resource('asset/audit',        AuditAssetController::class,        ['as' => 'asset'])->except(['create', 'edit', 'show']);
+
+  // ── CHART DATA (centralized AJAX endpoint) ──────────────────────────────
+  Route::get('/chart-data/{page}', [\App\Http\Controllers\Admin\ChartDataController::class, 'getData'])
+    ->name('chart-data');
 });

@@ -408,6 +408,72 @@ class PajakController extends Controller
         return back()->with('success', 'Lampiran berhasil dihapus');
     }
 
+    /**
+     * AJAX: detail per record pajak + data chart perpanjangan Jan-Des
+     */
+    public function detail(Request $request, $id)
+    {
+        $pajak = PajakKendaraan::with(['kendaraan', 'attachments'])->findOrFail($id);
+        $tahun = (int) $request->input('tahun', now()->year);
+
+        // History perpanjangan untuk tabel
+        $histories = PajakHistory::where('pajak_kendaraan_id', $id)
+            ->orderBy('diperpanjang_pada', 'desc')
+            ->get()
+            ->map(fn($h) => [
+                'id'               => $h->id,
+                'jenis_pajak'      => $h->jenis_pajak,
+                'nominal'          => $h->nominal,
+                'tanggal_bayar'    => $h->tanggal_bayar?->format('d M Y'),
+                'jatuh_tempo'      => $h->jatuh_tempo?->format('d M Y'),
+                'status'           => $h->status,
+                'keterangan'       => $h->keterangan,
+                'bukti'            => $h->bukti ? asset($h->bukti) : null,
+                'diperpanjang_pada'=> $h->diperpanjang_pada?->format('d M Y'),
+            ]);
+
+        // Chart: nominal perpanjangan per bulan (Jan-Des) tahun terpilih
+        $bulanLabels = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+        $chartData   = [];
+        for ($b = 1; $b <= 12; $b++) {
+            $chartData[] = (float) PajakHistory::where('pajak_kendaraan_id', $id)
+                ->whereYear('diperpanjang_pada', $tahun)
+                ->whereMonth('diperpanjang_pada', $b)
+                ->sum('nominal');
+        }
+
+        // Tahun-tahun yang ada di history untuk dropdown filter
+        $availableYears = PajakHistory::where('pajak_kendaraan_id', $id)
+            ->selectRaw('YEAR(diperpanjang_pada) as yr')
+            ->whereNotNull('diperpanjang_pada')
+            ->distinct()
+            ->orderBy('yr', 'desc')
+            ->pluck('yr');
+
+        return response()->json([
+            'success' => true,
+            'record'  => [
+                'id'           => $pajak->id,
+                'nopol'        => $pajak->kendaraan->nopol ?? '-',
+                'merk'         => $pajak->kendaraan->merk ?? '-',
+                'jenis_pajak'  => $pajak->jenis_pajak,
+                'nominal'      => $pajak->nominal,
+                'tanggal_bayar'=> $pajak->tanggal_bayar ? \Carbon\Carbon::parse($pajak->tanggal_bayar)->format('d M Y') : '-',
+                'jatuh_tempo'  => $pajak->jatuh_tempo ? \Carbon\Carbon::parse($pajak->jatuh_tempo)->format('d M Y') : '-',
+                'status'       => $pajak->status,
+                'keterangan'   => $pajak->keterangan,
+                'bukti'        => $pajak->bukti ? asset($pajak->bukti) : null,
+            ],
+            'histories'      => $histories,
+            'chart'          => [
+                'labels' => $bulanLabels,
+                'data'   => $chartData,
+                'tahun'  => $tahun,
+            ],
+            'available_years' => $availableYears,
+        ]);
+    }
+
     public function exportPdf(Request $request)
     {
         $search = $request->search;

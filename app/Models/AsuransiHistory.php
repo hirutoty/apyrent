@@ -25,6 +25,13 @@ class AsuransiHistory extends Model
             'tanggal_bayar',
         ];
 
+        protected $casts = [
+            'tgl_mulai'         => 'date',
+            'tgl_berakhir'      => 'date',
+            'tanggal_bayar'     => 'date',
+            'diperpanjang_pada' => 'datetime',
+        ];
+
         public function kendaraan()
         {
             return $this->belongsTo(Kendaraan::class);
