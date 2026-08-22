@@ -235,6 +235,38 @@ class ChartManager {
             }
         };
 
+        // ── Accent Line (overlay line pada dataset 0 / Biaya) ────────
+        // Cabut flag dari options sebelum di-merge agar tidak konflik
+        const showAccentLine = options.accentLine ?? false;
+        if ('accentLine' in options) delete options.accentLine;
+
+        // Jika accentLine aktif, duplikasi dataset 0 sebagai overlay line
+        // supaya bar dataset 0 tetap ada tapi ada garis di atasnya
+        if (showAccentLine && processedData.datasets && processedData.datasets.length > 0) {
+            const src   = processedData.datasets[0];
+            const color = '#ef4444'; // merah — kontras dengan bar biaya
+
+            // Overlay line dataset — clone data dari dataset 0
+            const overlayLine = {
+                type            : 'line',
+                label           : src.label + ' (trend)',
+                data            : [...src.data],
+                borderColor     : color,
+                backgroundColor : 'transparent',
+                borderWidth     : 2.5,
+                pointRadius     : 3,
+                pointBackgroundColor : color,
+                pointBorderColor     : '#fff',
+                pointBorderWidth     : 1.5,
+                tension         : 0.4,
+                fill            : false,
+                order           : 0,  // render di atas bar
+            };
+
+            processedData.datasets.push(overlayLine);
+        }
+        // ─────────────────────────────────────────────────────────────
+
         const mergedOptions = this.deepMerge(defaultOptions, options);
 
         this.charts[canvasId] = new Chart(ctx, {
@@ -261,8 +293,32 @@ class ChartManager {
             return null;
         }
 
+        // ── Scrollable mode (sama seperti bar) ───────────────────────────────
+        const scrollable  = options.scrollable ?? false;
+        const scrollInner = document.getElementById(canvasId + '_scrollInner');
+        const scrollOuter = document.getElementById(canvasId + '_scrollOuter');
+
+        const processedData = this.processChartData(data, 'line');
+        const labelCount    = processedData.labels?.length ?? 0;
+
+        if (scrollable && labelCount > 0 && scrollInner && scrollOuter) {
+            const pointWidth  = 40;
+            const minWidth    = scrollOuter.clientWidth;
+            const canvasWidth = Math.max(labelCount * pointWidth, minWidth);
+
+            scrollInner.style.width = canvasWidth + 'px';
+            ctx.style.width         = canvasWidth + 'px';
+            ctx.width               = canvasWidth;
+            scrollOuter.classList.add('chart-scroll-active');
+        } else {
+            if (scrollInner) scrollInner.style.width = '100%';
+            if (scrollOuter) scrollOuter.classList.remove('chart-scroll-active');
+            ctx.style.width = '100%';
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         const defaultOptions = {
-            responsive: true,
+            responsive: !scrollable,
             maintainAspectRatio: false,
             scales: {
                 y: {
@@ -277,7 +333,6 @@ class ChartManager {
                             family: "'Plus Jakarta Sans', sans-serif"
                         },
                         callback: function(value) {
-                            // Format large numbers
                             if (value >= 1000000) {
                                 return 'Rp ' + (value / 1000000).toFixed(1) + ' JT';
                             } else if (value >= 1000) {
@@ -328,9 +383,7 @@ class ChartManager {
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
+                            if (label) label += ': ';
                             if (context.parsed.y !== null) {
                                 label += 'Rp ' + new Intl.NumberFormat('id-ID').format(context.parsed.y);
                             }
@@ -341,7 +394,7 @@ class ChartManager {
             },
             elements: {
                 line: {
-                    tension: 0.4, // Smooth curve
+                    tension: 0.4,
                     borderWidth: 3
                 },
                 point: {
@@ -357,7 +410,7 @@ class ChartManager {
 
         this.charts[canvasId] = new Chart(ctx, {
             type: 'line',
-            data: this.processChartData(data, 'line'),
+            data: processedData,
             options: mergedOptions
         });
 
@@ -605,8 +658,10 @@ class ChartManager {
      * @param {string} page - Page identifier
      * @param {object} canvasIds - Object with pie, bar, line canvas IDs
      * @param {object} filters - Initial filter parameters
+     * @param {object} barOptions - Extra options for bar chart
+     * @param {object} lineOptions - Extra options for line chart
      */
-    async initChartsFromAPI(page, canvasIds, filters = {}) {
+    async initChartsFromAPI(page, canvasIds, filters = {}, barOptions = {}, lineOptions = {}) {
         const { pie, bar, line } = canvasIds;
 
         try {
@@ -624,11 +679,11 @@ class ChartManager {
             }
 
             if (bar && data.bar) {
-                this.initBarChart(bar, data.bar);
+                this.initBarChart(bar, data.bar, barOptions);
             }
 
             if (line && data.line) {
-                this.initLineChart(line, data.line);
+                this.initLineChart(line, data.line, lineOptions);
             }
 
             // Update stats if provided
@@ -655,8 +710,10 @@ class ChartManager {
      * @param {string} page - Page identifier
      * @param {object} canvasIds - Object with pie, bar, line canvas IDs
      * @param {object} filters - Filter parameters
+     * @param {object} barOptions - Extra options for bar chart
+     * @param {object} lineOptions - Extra options for line chart
      */
-    async updateChartsFromAPI(page, canvasIds, filters = {}, barOptions = {}) {
+    async updateChartsFromAPI(page, canvasIds, filters = {}, barOptions = {}, lineOptions = {}) {
         const { pie, bar, line } = canvasIds;
 
         try {
@@ -676,7 +733,7 @@ class ChartManager {
 
             if (line && data.line) {
                 this.destroyChart(line);
-                this.initLineChart(line, data.line);
+                this.initLineChart(line, data.line, lineOptions);
             }
 
             // Update stats if provided

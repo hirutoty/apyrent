@@ -15,7 +15,59 @@
 
 <div id="{{ $id }}" class="{{ $containerClass }}">
 
-    @if($layout === 'bar-top')
+    @if($layout === 'stacked')
+    {{-- ── STACKED LAYOUT: 3 chart full-width berurutan vertikal (Bar → Pie → Line) ── --}}
+
+        {{-- BAR CHART — full width --}}
+        <div class="chart-card chart-fade-in mb-4">
+            <div class="chart-card-header">
+                <div>
+                    <h3 class="chart-card-title">{{ $barTitle }}</h3>
+                </div>
+                <div class="chart-card-icon bg-green-50 text-green-600">
+                    <i class="fa fa-chart-bar"></i>
+                </div>
+            </div>
+            <div id="{{ $barId }}_scrollOuter" class="chart-scroll-outer" style="max-height: 260px; overflow-x: auto; overflow-y: hidden;">
+                <div id="{{ $barId }}_scrollInner" style="min-width: 100%; height: 260px; position: relative;">
+                    <canvas id="{{ $barId }}" class="chart-canvas" style="height: 260px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        {{-- PIE/DONUT CHART — full width --}}
+        <div class="chart-card chart-fade-in mb-4" style="animation-delay: 0.1s">
+            <div class="chart-card-header">
+                <div>
+                    <h3 class="chart-card-title">{{ $pieTitle }}</h3>
+                </div>
+                <div class="chart-card-icon bg-blue-50 text-blue-600">
+                    <i class="fa fa-chart-pie"></i>
+                </div>
+            </div>
+            <div style="max-width: 380px; margin: 0 auto; height: 260px; overflow: hidden;">
+                <canvas id="{{ $pieId }}" class="chart-canvas" style="height: 260px;"></canvas>
+            </div>
+        </div>
+
+        {{-- LINE CHART — full width --}}
+        <div class="chart-card chart-fade-in mb-6" style="animation-delay: 0.2s">
+            <div class="chart-card-header">
+                <div>
+                    <h3 class="chart-card-title">{{ $lineTitle }}</h3>
+                </div>
+                <div class="chart-card-icon bg-purple-50 text-purple-600">
+                    <i class="fa fa-chart-line"></i>
+                </div>
+            </div>
+            <div id="{{ $lineId }}_scrollOuter" class="chart-scroll-outer" style="max-height: 260px; overflow-x: auto; overflow-y: hidden;">
+                <div id="{{ $lineId }}_scrollInner" style="min-width: 100%; height: 260px; position: relative;">
+                    <canvas id="{{ $lineId }}" class="chart-canvas" style="height: 260px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+    @elseif($layout === 'bar-top')
     {{-- ── BAR-TOP LAYOUT: bar full-width atas, pie+line berdampingan bawah ── --}}
 
         {{-- BAR CHART — full width --}}

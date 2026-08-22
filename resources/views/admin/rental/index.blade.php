@@ -129,6 +129,19 @@
 
         </div>
 
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="rentalChartFilter" defaultFilter="month" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="rentalChartContainer"
+            layout="bar-top"
+            pieTitle="Distribusi Status Pembayaran" pieId="rentalPieChart"
+            barTitle="Pendapatan Rental per Bulan" barId="rentalBarChart"
+            lineTitle="Trend Pendapatan Rental" lineId="rentalLineChart"
+            :showStats="true" :statsData="[]"
+        />
+
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
@@ -2045,7 +2058,52 @@
         }
     </script>
 
+<script>
+// ========================================
+// CHART INITIALIZATION
+// ========================================
+const rentalChartManager = new ChartManager();
 
+document.addEventListener('DOMContentLoaded', function() {
+    initRentalCharts({ filter_type: 'month' });
+
+    document.addEventListener('chartFilterChange', function(e) {
+        if (e.detail.filterId === 'rentalChartFilter') {
+            const filters = {
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+            };
+            updateRentalCharts(filters);
+        }
+    });
+});
+
+async function initRentalCharts(filters) {
+    try {
+        await rentalChartManager.initChartsFromAPI('rental', {
+            pie:  'rentalPieChart',
+            bar:  'rentalBarChart',
+            line: 'rentalLineChart',
+        }, filters);
+    } catch (error) {
+        console.error('Error loading rental charts:', error);
+    }
+}
+
+async function updateRentalCharts(filters) {
+    try {
+        const barOptions = { scrollable: filters.filter_type === 'custom' };
+        await rentalChartManager.updateChartsFromAPI('rental', {
+            pie:  'rentalPieChart',
+            bar:  'rentalBarChart',
+            line: 'rentalLineChart',
+        }, filters, barOptions);
+    } catch (error) {
+        console.error('Error updating rental charts:', error);
+    }
+}
+</script>
 
 @endsection
 

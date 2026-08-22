@@ -360,15 +360,30 @@ class ChartDataService
      */
     public function getLineChartData(Builder $query, array $config)
     {
-        $groupBy = $config['groupBy'] ?? 'month';
+        $groupBy     = $config['groupBy'] ?? 'month';
         $valueColumn = $config['valueColumn'] ?? 'amount';
         $aggregation = $config['aggregation'] ?? 'sum';
-        $dateColumn = $config['dateColumn'] ?? 'created_at';
-        $limit = $config['limit'] ?? 12;
-        $label = $config['label'] ?? 'Trend';
-        $color = $config['color'] ?? '#8b5cf6';
+        $dateColumn  = $config['dateColumn'] ?? 'created_at';
+        $limit       = $config['limit'] ?? 12;
+        $label       = $config['label'] ?? 'Trend';
+        $color       = $config['color'] ?? '#8b5cf6';
+        $autoDaily   = $config['autoDaily'] ?? false;
+        $filterType  = $config['filter_type'] ?? null;
+        $startDate   = $config['start_date'] ?? null;
+        $endDate     = $config['end_date'] ?? null;
 
-        if ($groupBy === 'month') {
+        // Auto-switch groupBy tergantung filter_type (sama seperti bar)
+        if ($autoDaily && $filterType === 'today') {
+            $data = $this->getTodayLineTrendData($query, $valueColumn, $dateColumn);
+        } elseif ($autoDaily && $filterType === 'week') {
+            $data = $this->getCurrentWeekDailyLineTrendData($query, $valueColumn, $dateColumn);
+        } elseif ($autoDaily && $filterType === 'month' && $groupBy === 'month') {
+            $data = $this->getCurrentMonthDailyLineTrendData($query, $valueColumn, $dateColumn);
+        } elseif ($autoDaily && $filterType === 'year' && $groupBy === 'month') {
+            $data = $this->getCurrentYearMonthlyLineTrendData($query, $valueColumn, $dateColumn);
+        } elseif ($autoDaily && $filterType === 'custom' && $startDate && $endDate) {
+            $data = $this->getCustomRangeLineTrendData($query, $valueColumn, $dateColumn, $startDate, $endDate);
+        } elseif ($groupBy === 'month') {
             $data = $this->getMonthlyTrendData($query, $valueColumn, $aggregation, $dateColumn, $limit);
         } elseif ($groupBy === 'week') {
             $data = $this->getWeeklyTrendData($query, $valueColumn, $aggregation, $dateColumn, $limit);
@@ -380,13 +395,98 @@ class ChartDataService
             'labels' => $data['labels'],
             'datasets' => [
                 [
-                    'label' => $label,
-                    'data' => $data['values'],
-                    'borderColor' => $color,
+                    'label'           => $label,
+                    'data'            => $data['values'],
+                    'borderColor'     => $color,
                     'backgroundColor' => $this->hexToRgba($color, 0.1)
                 ]
             ]
         ];
+    }
+
+    // ── Line autoDaily helpers ─────────────────────────────────────────────────
+
+    /**
+     * Line trend: hari ini — satu titik
+     */
+    private function getTodayLineTrendData($query, $valueColumn, $dateColumn): array
+    {
+        $today  = Carbon::now();
+        $value  = (float)(clone $query)->whereDate($dateColumn, $today->toDateString())->sum($valueColumn);
+        return [
+            'labels' => [$today->format('d M Y')],
+            'values' => [$value],
+        ];
+    }
+
+    /**
+     * Line trend: minggu ini — Sen s/d Min (7 titik)
+     */
+    private function getCurrentWeekDailyLineTrendData($query, $valueColumn, $dateColumn): array
+    {
+        $start  = Carbon::now()->startOfWeek();
+        $end    = Carbon::now()->endOfWeek();
+        $labels = [];
+        $values = [];
+        $cur    = $start->copy();
+        while ($cur->lte($end)) {
+            $labels[] = $cur->format('D, d M');
+            $values[] = (float)(clone $query)->whereDate($dateColumn, $cur->toDateString())->sum($valueColumn);
+            $cur->addDay();
+        }
+        return ['labels' => $labels, 'values' => $values];
+    }
+
+    /**
+     * Line trend: bulan ini — per tanggal (1 s/d akhir bulan)
+     */
+    private function getCurrentMonthDailyLineTrendData($query, $valueColumn, $dateColumn): array
+    {
+        $now         = Carbon::now();
+        $daysInMonth = $now->daysInMonth;
+        $labels      = [];
+        $values      = [];
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $date     = Carbon::create($now->year, $now->month, $d)->toDateString();
+            $labels[] = (string) $d;
+            $values[] = (float)(clone $query)->whereDate($dateColumn, $date)->sum($valueColumn);
+        }
+        return ['labels' => $labels, 'values' => $values];
+    }
+
+    /**
+     * Line trend: tahun ini — per bulan (12 titik)
+     */
+    private function getCurrentYearMonthlyLineTrendData($query, $valueColumn, $dateColumn): array
+    {
+        $year       = Carbon::now()->year;
+        $monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+        $values     = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $values[] = (float)(clone $query)
+                ->whereMonth($dateColumn, $m)
+                ->whereYear($dateColumn, $year)
+                ->sum($valueColumn);
+        }
+        return ['labels' => $monthNames, 'values' => $values];
+    }
+
+    /**
+     * Line trend: custom range — per tanggal
+     */
+    private function getCustomRangeLineTrendData($query, $valueColumn, $dateColumn, $startDateStr, $endDateStr): array
+    {
+        $start  = Carbon::createFromFormat('d-m-Y', $startDateStr)->startOfDay();
+        $end    = Carbon::createFromFormat('d-m-Y', $endDateStr)->endOfDay();
+        $labels = [];
+        $values = [];
+        $cur    = $start->copy();
+        while ($cur->lte($end)) {
+            $labels[] = $cur->format('d M');
+            $values[] = (float)(clone $query)->whereDate($dateColumn, $cur->toDateString())->sum($valueColumn);
+            $cur->addDay();
+        }
+        return ['labels' => $labels, 'values' => $values];
     }
 
     /**

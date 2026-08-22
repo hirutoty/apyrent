@@ -15,20 +15,23 @@ class PurchaseroController extends Controller
     {
         $role = auth()->user()->role;
         $sort = $request->input('sort', 'terbaru');
+        $bulan = $request->input('bulan'); // format: Y-m
+        $deptFilter = $request->input('departemen'); // hanya untuk superadmin
 
         $query = Purchasero::query();
 
         if ($role === 'superadmin') {
-            // Superadmin: tab Pending / Diajukan / Disetujui / Ditolak
             $tab = $request->input('tab', 'Diajukan');
             if (in_array($tab, ['Pending', 'Diajukan', 'Disetujui', 'Ditolak'])) {
                 $query->where('status', $tab);
             } else {
                 $query->whereIn('status', ['Pending', 'Diajukan', 'Disetujui', 'Ditolak']);
             }
+            // Filter departemen (superadmin saja)
+            if ($deptFilter) {
+                $query->where('departemen', $deptFilter);
+            }
         } else {
-            // Non-superadmin: filter per departemen sesuai role
-            // Role name = nama departemen (keuangan → Keuangan, produksi → Produksi, dst.)
             $deptMap = [
                 'keuangan'  => 'Keuangan',
                 'produksi'  => 'Produksi',
@@ -48,16 +51,21 @@ class PurchaseroController extends Controller
             }
         }
 
+        // Filter bulan
+        if ($bulan) {
+            [$y, $m] = explode('-', $bulan);
+            $query->whereYear('tanggal', $y)->whereMonth('tanggal', $m);
+        }
+
         if ($sort === 'terlama') {
             $query->oldest('id');
         } else {
             $query->latest('id');
         }
 
-        // Eager load items relation untuk new structure
         $data = $query->with('items')->paginate(15)->withQueryString();
 
-        // Hitung stats per departemen juga (untuk non-superadmin scope)
+        // Stats (scope sama dengan query utama tapi tanpa pagination)
         $baseQuery = Purchasero::query();
         if ($role !== 'superadmin') {
             $deptMap = [
@@ -72,6 +80,13 @@ class PurchaseroController extends Controller
             if (isset($deptMap[$role])) {
                 $baseQuery->where('departemen', $deptMap[$role]);
             }
+        }
+        if ($role === 'superadmin' && $deptFilter) {
+            $baseQuery->where('departemen', $deptFilter);
+        }
+        if ($bulan) {
+            [$y, $m] = explode('-', $bulan);
+            $baseQuery->whereYear('tanggal', $y)->whereMonth('tanggal', $m);
         }
 
         $totalPR        = (clone $baseQuery)->count();
@@ -94,7 +109,7 @@ class PurchaseroController extends Controller
         };
 
         return view('admin.purchasero.index', compact(
-            'data', 'role', 'tab', 'sort', 'deptLabel',
+            'data', 'role', 'tab', 'sort', 'deptLabel', 'bulan', 'deptFilter',
             'totalPR', 'totalDisetujui', 'totalPending', 'totalDitolak', 'totalDiajukan', 'totalNominal'
         ));
     }

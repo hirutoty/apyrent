@@ -48,6 +48,24 @@
         </div>
     </div>
 
+    {{-- CHART FILTER --}}
+    @php
+        $deptList = collect(['Keuangan','Produksi','HRD','Purchase','Sales','Marketing','IT'])
+            ->map(fn($d) => ['id' => $d, 'nama' => $d]);
+    @endphp
+    <x-chart-filter id="purchaseroChartFilter" defaultFilter="month" :showCustomRange="true"
+        :showCategoryFilter="true" :categories="$deptList" />
+
+    {{-- CHART CONTAINER --}}
+    <x-chart-container
+        id="purchaseroChartContainer"
+        layout="bar-top"
+        pieTitle="Distribusi Status" pieId="purchaseroPieChart"
+        barTitle="Nominal Pengadaan per Bulan" barId="purchaseroBarChart"
+        lineTitle="Trend Nominal Pengadaan" lineId="purchaseroLineChart"
+        :showStats="true" :statsData="[]"
+    />
+
     {{-- TABLE CARD --}}
     <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
 
@@ -104,23 +122,57 @@
         </div>
 
         {{-- TOOLBAR --}}
-        <div class="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/50">
-            <div class="flex-1 text-xs text-gray-500">
-                Menampilkan <span class="font-semibold text-gray-700">{{ $data->total() }}</span> data
+        <div class="flex flex-col gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex-1 text-xs text-gray-500">
+                    Menampilkan <span class="font-semibold text-gray-700">{{ $data->total() }}</span> data
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-500 whitespace-nowrap">Urutkan:</span>
+                    <a href="{{ route('purchasero.index', array_merge(request()->except('sort'), ['sort' => 'terbaru'])) }}"
+                        class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+                            {{ $sort === 'terbaru' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
+                        <i class="bi bi-sort-down"></i> Terbaru
+                    </a>
+                    <a href="{{ route('purchasero.index', array_merge(request()->except('sort'), ['sort' => 'terlama'])) }}"
+                        class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+                            {{ $sort === 'terlama' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
+                        <i class="bi bi-sort-up"></i> Terlama
+                    </a>
+                </div>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 whitespace-nowrap">Urutkan:</span>
-                <a href="{{ route('purchasero.index', ['tab' => $tab, 'sort' => 'terbaru']) }}"
-                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
-                        {{ $sort === 'terbaru' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
-                    <i class="bi bi-sort-down"></i> Terbaru
-                </a>
-                <a href="{{ route('purchasero.index', ['tab' => $tab, 'sort' => 'terlama']) }}"
-                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
-                        {{ $sort === 'terlama' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
-                    <i class="bi bi-sort-up"></i> Terlama
-                </a>
-            </div>
+
+            {{-- FILTER FORM --}}
+            <form method="GET" class="flex flex-wrap items-center gap-2">
+                <input type="hidden" name="tab" value="{{ $tab }}">
+                <input type="hidden" name="sort" value="{{ $sort }}">
+
+                {{-- Filter Bulan --}}
+                <input type="month" name="bulan" value="{{ $bulan ?? '' }}"
+                    class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+
+                {{-- Filter Departemen (superadmin saja) --}}
+                @if($role === 'superadmin')
+                <select name="departemen"
+                    class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <option value="">Semua Departemen</option>
+                    @foreach(['Keuangan','Produksi','HRD','Purchase','Sales','Marketing','IT'] as $dept)
+                        <option value="{{ $dept }}" {{ ($deptFilter ?? '') === $dept ? 'selected' : '' }}>{{ $dept }}</option>
+                    @endforeach
+                </select>
+                @endif
+
+                <button type="submit"
+                    class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                    <i class="fa fa-filter text-xs mr-1"></i> Filter
+                </button>
+                @if($bulan || $deptFilter)
+                    <a href="{{ route('purchasero.index', ['tab' => $tab, 'sort' => $sort]) }}"
+                        class="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                        Reset
+                    </a>
+                @endif
+            </form>
         </div>
 
         {{-- TABLE --}}
@@ -648,6 +700,52 @@ deleteModal.addEventListener('click', function(e) { if (e.target === this) close
     }
     window.closeAlert = closeAlert;
 })();
+
+// ========================================
+// CHART INITIALIZATION
+// ========================================
+const purchaseroChartManager = new ChartManager();
+
+document.addEventListener('DOMContentLoaded', function() {
+    initPurchaseroCharts({ filter_type: 'month' });
+
+    document.addEventListener('chartFilterChange', function(e) {
+        if (e.detail.filterId === 'purchaseroChartFilter') {
+            const filters = {
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+                departemen:  e.detail.categoryId ?? '',
+            };
+            updatePurchaseroCharts(filters);
+        }
+    });
+});
+
+async function initPurchaseroCharts(filters) {
+    try {
+        await purchaseroChartManager.initChartsFromAPI('purchasero', {
+            pie:  'purchaseroPieChart',
+            bar:  'purchaseroBarChart',
+            line: 'purchaseroLineChart',
+        }, filters);
+    } catch (error) {
+        console.error('Error loading purchasero charts:', error);
+    }
+}
+
+async function updatePurchaseroCharts(filters) {
+    try {
+        const barOptions = { scrollable: filters.filter_type === 'custom' };
+        await purchaseroChartManager.updateChartsFromAPI('purchasero', {
+            pie:  'purchaseroPieChart',
+            bar:  'purchaseroBarChart',
+            line: 'purchaseroLineChart',
+        }, filters, barOptions);
+    } catch (error) {
+        console.error('Error updating purchasero charts:', error);
+    }
+}
 </script>
 
 @endsection
