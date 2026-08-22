@@ -80,6 +80,19 @@
 
         </div>
 
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="kendaraanChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="kendaraanChartContainer"
+            layout="bar-top"
+            pieTitle="Distribusi Status Kendaraan" pieId="kendaraanPieChart"
+            barTitle="Jumlah per Merk" barId="kendaraanBarChart"
+            lineTitle="Trend Penambahan Kendaraan" lineId="kendaraanLineChart"
+            :showStats="true" :statsData="[]"
+        />
+
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
@@ -1628,6 +1641,28 @@
             }
             window.closeAlert = closeAlert;
         })();
+
+        // ── CHART KENDARAAN INDEX ────────────────────────────────────────────
+        const KDR_CHART_IDS = { pie: 'kendaraanPieChart', bar: 'kendaraanBarChart', line: 'kendaraanLineChart' };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof chartManager !== 'undefined') {
+                chartManager.initChartsFromAPI('kendaraan', KDR_CHART_IDS, { filter_type: 'year' });
+            }
+
+            var kdrFilter = document.getElementById('kendaraanChartFilter');
+            if (kdrFilter) {
+                kdrFilter.addEventListener('chartFilterChange', function (e) {
+                    const { filterType, startDate, endDate } = e.detail;
+                    const filters = { filter_type: filterType };
+                    if (filterType === 'custom' && startDate && endDate) {
+                        filters.start_date = startDate;
+                        filters.end_date   = endDate;
+                    }
+                    chartManager.updateChartsFromAPI('kendaraan', KDR_CHART_IDS, filters);
+                });
+            }
+        });
     </script>
 
 @endsection

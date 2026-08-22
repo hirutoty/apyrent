@@ -325,6 +325,70 @@ class KirController extends Controller
 
 
 
+    /**
+     * AJAX: detail per record KIR + chart perpanjangan Jan-Des
+     */
+    public function detail(Request $request, $id)
+    {
+        $kir   = Kir::with(['kendaraan','attachments'])->findOrFail($id);
+        $tahun = (int) $request->input('tahun', now()->year);
+
+        $histories = KirHistory::where('kir_id', $id)
+            ->orderBy('diperpanjang_pada', 'desc')
+            ->get()
+            ->map(fn($h) => [
+                'id'               => $h->id,
+                'no_uji'           => $h->no_uji,
+                'biaya'            => $h->biaya,
+                'masa_berlaku'     => $h->masa_berlaku ? \Carbon\Carbon::parse($h->masa_berlaku)->format('d M Y') : '-',
+                'tanggal_bayar'    => isset($h->tanggal_bayar) ? \Carbon\Carbon::parse($h->tanggal_bayar)->format('d M Y') : '-',
+                'image'            => $h->image ? asset($h->image) : null,
+                'diperpanjang_pada'=> $h->diperpanjang_pada ? \Carbon\Carbon::parse($h->diperpanjang_pada)->format('d M Y') : '-',
+            ]);
+
+        $bulanLabels = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+        $chartData   = [];
+        for ($b = 1; $b <= 12; $b++) {
+            $chartData[] = (float) KirHistory::where('kir_id', $id)
+                ->whereYear('diperpanjang_pada', $tahun)
+                ->whereMonth('diperpanjang_pada', $b)
+                ->sum('biaya');
+        }
+
+        $availableYears = KirHistory::where('kir_id', $id)
+            ->selectRaw('YEAR(diperpanjang_pada) as yr')
+            ->whereNotNull('diperpanjang_pada')
+            ->distinct()
+            ->orderBy('yr', 'desc')
+            ->pluck('yr');
+
+        return response()->json([
+            'success' => true,
+            'record'  => [
+                'id'          => $kir->id,
+                'nopol'       => $kir->kendaraan->nopol ?? '-',
+                'merk'        => $kir->kendaraan->merk ?? '-',
+                'no_uji'      => $kir->no_uji,
+                'no_ktp'      => $kir->no_ktp,
+                'nama_ktp'    => $kir->nama_ktp,
+                'lokasi_uji'  => $kir->lokasi_uji,
+                'penguji'     => $kir->penguji,
+                'status_uji'  => $kir->status_uji,
+                'biaya'       => $kir->biaya,
+                'masa_berlaku'=> $kir->masa_berlaku ? \Carbon\Carbon::parse($kir->masa_berlaku)->format('d M Y') : '-',
+                'tanggal_bayar'=> $kir->tanggal_bayar ? \Carbon\Carbon::parse($kir->tanggal_bayar)->format('d M Y') : '-',
+                'image'       => $kir->image ? asset($kir->image) : null,
+            ],
+            'histories'       => $histories,
+            'chart'           => [
+                'labels' => $bulanLabels,
+                'data'   => $chartData,
+                'tahun'  => $tahun,
+            ],
+            'available_years' => $availableYears,
+        ]);
+    }
+
     public function pdf(Request $request)
     {
         $search = $request->search;

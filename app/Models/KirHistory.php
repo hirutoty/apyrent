@@ -18,7 +18,14 @@ class KirHistory extends Model
         'masa_berlaku',
         'biaya',
         'image',
+        'tanggal_bayar',
         'diperpanjang_pada',
+    ];
+
+    protected $casts = [
+        'masa_berlaku'      => 'date',
+        'tanggal_bayar'     => 'date',
+        'diperpanjang_pada' => 'datetime',
     ];
 
     public function kendaraan()

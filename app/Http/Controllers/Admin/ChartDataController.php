@@ -185,6 +185,10 @@ class ChartDataController extends Controller
             'stnk' => $this->getStnkConfig(),
             'service-history' => $this->getServiceHistoryConfig(),
             'purchasero'      => $this->getPurchaseroConfig(),
+            'kendaraan' => $this->getKendaraanConfig(),
+            'kendaraan-show' => $this->getKendaraanShowConfig(),
+            'asuransi-kendaraan' => $this->getAsuransiKendaraanConfig(),
+            'gps-kendaraan' => $this->getGpsKendaraanConfig(),
             // Add more as needed
         ];
 
@@ -224,6 +228,10 @@ class ChartDataController extends Controller
             'stnk' => \App\Models\Stnk::query(),
             'service-history' => \App\Models\ServiceHistory::query(),
             'purchasero'      => \App\Models\Purchasero::query(),
+            'kendaraan' => \App\Models\Kendaraan::query(),
+            'kendaraan-show' => \App\Models\Kendaraan::query(),
+            'asuransi-kendaraan' => \App\Models\AsuransiKendaraan::query(),
+            'gps-kendaraan' => \App\Models\GpsKendaraan::query(),
             // Add more as needed
         ];
 
@@ -1649,35 +1657,39 @@ class ChartDataController extends Controller
         return [
             'dateColumn' => 'tanggal_bayar',
             'pie' => [
-                'title' => 'KIR Status',
+                'title' => 'Distribusi Status KIR',
                 'groupBy' => 'status_uji',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
-                'labels' => [],
-                'colors' => ['#10b981', '#f59e0b', '#ef4444']
+                'labels' => [
+                    'uji berkala' => 'Uji Berkala',
+                    'uji pertama' => 'Uji Pertama',
+                ],
+                'colors' => ['#3b82f6', '#8b5cf6', '#f59e0b']
             ],
             'bar' => [
-                'title' => 'KIR Cost',
+                'title' => 'Biaya KIR per Bulan',
                 'groupBy' => 'month',
                 'valueColumns' => ['biaya'],
                 'aggregation' => 'sum',
                 'dateColumn' => 'tanggal_bayar',
-                'limit' => 6,
-                'labels' => ['Cost']
+                'limit' => 12,
+                'labels' => ['Biaya KIR'],
+                'colors' => ['#f59e0b'],
             ],
             'line' => [
-                'title' => 'KIR Trend',
+                'title' => 'Trend KIR',
                 'groupBy' => 'month',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
                 'dateColumn' => 'tanggal_bayar',
                 'limit' => 12,
-                'label' => 'KIR Tests',
+                'label' => 'Jumlah KIR',
                 'color' => '#3b82f6'
             ],
             'stats' => [
                 [
-                    'label' => 'Total Tests',
+                    'label' => 'Total KIR',
                     'type' => 'count',
                     'column' => 'id',
                     'format' => 'number',
@@ -1686,7 +1698,7 @@ class ChartDataController extends Controller
                     'icon' => 'fa fa-clipboard-check'
                 ],
                 [
-                    'label' => 'Total Cost',
+                    'label' => 'Total Biaya',
                     'type' => 'sum',
                     'column' => 'biaya',
                     'format' => 'currency',
@@ -1695,24 +1707,25 @@ class ChartDataController extends Controller
                     'icon' => 'fa fa-money-bill-wave'
                 ],
                 [
-                    'label' => 'Passed',
+                    'label' => 'Uji Berkala',
                     'type' => 'count_where',
                     'column' => 'id',
-                    'where' => ['status_uji' => 'lulus'],
+                    'where' => ['status_uji' => 'uji berkala'],
                     'format' => 'number',
-                    'color' => '#10b981',
-                    'iconBg' => '#d1fae5',
-                    'icon' => 'fa fa-check-circle'
+                    'color' => '#3b82f6',
+                    'iconBg' => '#dbeafe',
+                    'icon' => 'fa fa-rotate'
                 ],
                 [
-                    'label' => 'Avg. Cost',
-                    'type' => 'avg',
-                    'column' => 'biaya',
-                    'format' => 'currency',
-                    'color' => '#f59e0b',
-                    'iconBg' => '#fef3c7',
-                    'icon' => 'fa fa-calculator'
-                ]
+                    'label' => 'Uji Pertama',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_uji' => 'uji pertama'],
+                    'format' => 'number',
+                    'color' => '#8b5cf6',
+                    'iconBg' => '#ede9fe',
+                    'icon' => 'fa fa-star'
+                ],
             ]
         ];
     }
@@ -2028,6 +2041,336 @@ class ChartDataController extends Controller
                     'color'  => '#f59e0b',
                     'iconBg' => '#fef3c7',
                     'icon'   => 'fa fa-clock',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Kendaraan Index page (per-merk grouping)
+     */
+    protected function getKendaraanConfig(): array
+    {
+        return [
+            'dateColumn' => 'created_at',
+            'pie' => [
+                'title' => 'Distribusi Status Kendaraan',
+                'groupBy' => 'status_kendaraan',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels' => [
+                    'tersedia'   => 'Tersedia',
+                    'disewa'     => 'Disewa',
+                    'service'    => 'Service',
+                    'bermasalah' => 'Bermasalah',
+                ],
+                'colors' => ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
+            ],
+            'bar' => [
+                'title' => 'Jumlah Kendaraan per Merk',
+                'groupBy' => 'merk',
+                'valueColumns' => ['id'],
+                'aggregation' => 'count',
+                'dateColumn' => 'created_at',
+                'limit' => 10,
+                'labels' => ['Unit'],
+                'colors' => ['#4f6ef7'],
+            ],
+            'line' => [
+                'title' => 'Trend Penambahan Kendaraan',
+                'groupBy' => 'month',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'dateColumn' => 'created_at',
+                'limit' => 12,
+                'label' => 'Kendaraan Baru',
+                'color' => '#8b5cf6',
+            ],
+            'stats' => [
+                [
+                    'label' => 'Total Kendaraan',
+                    'type' => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color' => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon' => 'fa fa-car',
+                ],
+                [
+                    'label' => 'Tersedia',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_kendaraan' => 'tersedia'],
+                    'format' => 'number',
+                    'color' => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon' => 'fa fa-check-circle',
+                ],
+                [
+                    'label' => 'Disewa',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_kendaraan' => 'disewa'],
+                    'format' => 'number',
+                    'color' => '#3b82f6',
+                    'iconBg' => '#dbeafe',
+                    'icon' => 'fa fa-key',
+                ],
+                [
+                    'label' => 'Bermasalah',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_kendaraan' => 'bermasalah'],
+                    'format' => 'number',
+                    'color' => '#ef4444',
+                    'iconBg' => '#fee2e2',
+                    'icon' => 'fa fa-exclamation-triangle',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Kendaraan Show page (per-unit dari merk tertentu)
+     */
+    protected function getKendaraanShowConfig(): array
+    {
+        return [
+            'dateColumn' => 'created_at',
+            'pie' => [
+                'title' => 'Status Unit Kendaraan',
+                'groupBy' => 'status_kendaraan',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels' => [
+                    'tersedia'   => 'Tersedia',
+                    'disewa'     => 'Disewa',
+                    'service'    => 'Service',
+                    'bermasalah' => 'Bermasalah',
+                ],
+                'colors' => ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
+            ],
+            'bar' => [
+                'title' => 'Biaya Service per Bulan',
+                'groupBy' => 'month',
+                'valueColumns' => ['batas_biaya'],
+                'aggregation' => 'sum',
+                'dateColumn' => 'created_at',
+                'limit' => 6,
+                'labels' => ['Batas Biaya'],
+                'colors' => ['#ef4444'],
+            ],
+            'line' => [
+                'title' => 'Trend Unit per Status',
+                'groupBy' => 'month',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'dateColumn' => 'created_at',
+                'limit' => 12,
+                'label' => 'Unit',
+                'color' => '#8b5cf6',
+            ],
+            'stats' => [
+                [
+                    'label' => 'Total Unit',
+                    'type' => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color' => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon' => 'fa fa-car',
+                ],
+                [
+                    'label' => 'Tersedia',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_kendaraan' => 'tersedia'],
+                    'format' => 'number',
+                    'color' => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon' => 'fa fa-check-circle',
+                ],
+                [
+                    'label' => 'Disewa',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_kendaraan' => 'disewa'],
+                    'format' => 'number',
+                    'color' => '#3b82f6',
+                    'iconBg' => '#dbeafe',
+                    'icon' => 'fa fa-key',
+                ],
+                [
+                    'label' => 'Service',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_kendaraan' => 'service'],
+                    'format' => 'number',
+                    'color' => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon' => 'fa fa-wrench',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Asuransi Kendaraan page
+     */
+    protected function getAsuransiKendaraanConfig(): array
+    {
+        return [
+            'dateColumn' => 'tgl_mulai',
+            'pie' => [
+                'title' => 'Distribusi Status Asuransi',
+                'groupBy' => 'status_kendaraan',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels' => [
+                    'aktif'   => 'Aktif',
+                    'expired' => 'Expired',
+                ],
+                'colors' => ['#10b981', '#ef4444'],
+            ],
+            'bar' => [
+                'title' => 'Nominal Asuransi per Bulan',
+                'groupBy' => 'month',
+                'valueColumns' => ['biaya'],
+                'aggregation' => 'sum',
+                'dateColumn' => 'tgl_mulai',
+                'limit' => 6,
+                'labels' => ['Nominal'],
+                'colors' => ['#4f6ef7'],
+            ],
+            'line' => [
+                'title' => 'Trend Nominal Asuransi',
+                'groupBy' => 'month',
+                'valueColumn' => 'biaya',
+                'aggregation' => 'sum',
+                'dateColumn' => 'tgl_mulai',
+                'limit' => 12,
+                'label' => 'Total Nominal',
+                'color' => '#4f6ef7',
+            ],
+            'stats' => [
+                [
+                    'label' => 'Total Asuransi',
+                    'type' => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color' => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon' => 'fa fa-shield-halved',
+                ],
+                [
+                    'label' => 'Total Nominal',
+                    'type' => 'sum',
+                    'column' => 'biaya',
+                    'format' => 'currency',
+                    'color' => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon' => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label' => 'Aktif',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_kendaraan' => 'aktif'],
+                    'format' => 'number',
+                    'color' => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon' => 'fa fa-check-circle',
+                ],
+                [
+                    'label' => 'Expired',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_kendaraan' => 'expired'],
+                    'format' => 'number',
+                    'color' => '#ef4444',
+                    'iconBg' => '#fee2e2',
+                    'icon' => 'fa fa-times-circle',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for GPS Kendaraan page
+     */
+    protected function getGpsKendaraanConfig(): array
+    {
+        return [
+            'dateColumn' => 'tanggal_pasang',
+            'pie' => [
+                'title' => 'Distribusi Status GPS',
+                'groupBy' => 'status_gps',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels' => [
+                    'aktif'    => 'Aktif',
+                    'nonaktif' => 'Nonaktif',
+                ],
+                'colors' => ['#10b981', '#ef4444'],
+            ],
+            'bar' => [
+                'title' => 'Biaya GPS per Bulan',
+                'groupBy' => 'month',
+                'valueColumns' => ['biaya_sewa'],
+                'aggregation' => 'sum',
+                'dateColumn' => 'tanggal_pasang',
+                'limit' => 6,
+                'labels' => ['Biaya Sewa'],
+                'colors' => ['#6366f1'],
+            ],
+            'line' => [
+                'title' => 'Trend GPS Aktif',
+                'groupBy' => 'month',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'dateColumn' => 'tanggal_pasang',
+                'limit' => 12,
+                'label' => 'Jumlah GPS',
+                'color' => '#6366f1',
+            ],
+            'stats' => [
+                [
+                    'label' => 'Total GPS',
+                    'type' => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color' => '#6366f1',
+                    'iconBg' => '#ede9fe',
+                    'icon' => 'fa fa-satellite-dish',
+                ],
+                [
+                    'label' => 'Total Biaya',
+                    'type' => 'sum',
+                    'column' => 'biaya_sewa',
+                    'format' => 'currency',
+                    'color' => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon' => 'fa fa-wallet',
+                ],
+                [
+                    'label' => 'Aktif',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_gps' => 'aktif'],
+                    'format' => 'number',
+                    'color' => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon' => 'fa fa-check-circle',
+                ],
+                [
+                    'label' => 'Nonaktif',
+                    'type' => 'count_where',
+                    'column' => 'id',
+                    'where' => ['status_gps' => 'nonaktif'],
+                    'format' => 'number',
+                    'color' => '#ef4444',
+                    'iconBg' => '#fee2e2',
+                    'icon' => 'fa fa-times-circle',
                 ],
             ],
         ];
