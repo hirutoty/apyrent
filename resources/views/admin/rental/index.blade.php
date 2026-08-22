@@ -33,6 +33,19 @@
             </button>
         </div>
 
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="rentalChartFilter" defaultFilter="month" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="rentalChartContainer"
+            layout="stacked"
+            pieTitle="Distribusi Status Pembayaran" pieId="rentalPieChart"
+            barTitle="Pendapatan Rental per Periode" barId="rentalBarChart"
+            lineTitle="Trend Pendapatan Rental" lineId="rentalLineChart"
+            :showStats="true" :statsData="[]"
+        />
+
         {{-- SUMMARY CARDS --}}
         <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
 
@@ -128,19 +141,6 @@
             </div>
 
         </div>
-
-        {{-- CHART FILTER --}}
-        <x-chart-filter id="rentalChartFilter" defaultFilter="month" :showCustomRange="true" />
-
-        {{-- CHART CONTAINER --}}
-        <x-chart-container
-            id="rentalChartContainer"
-            layout="bar-top"
-            pieTitle="Distribusi Status Pembayaran" pieId="rentalPieChart"
-            barTitle="Pendapatan Rental per Bulan" barId="rentalBarChart"
-            lineTitle="Trend Pendapatan Rental" lineId="rentalLineChart"
-            :showStats="true" :statsData="[]"
-        />
 
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -2085,7 +2085,7 @@ async function initRentalCharts(filters) {
             pie:  'rentalPieChart',
             bar:  'rentalBarChart',
             line: 'rentalLineChart',
-        }, filters);
+        }, filters, { accentLine: true });
     } catch (error) {
         console.error('Error loading rental charts:', error);
     }
@@ -2093,12 +2093,14 @@ async function initRentalCharts(filters) {
 
 async function updateRentalCharts(filters) {
     try {
-        const barOptions = { scrollable: filters.filter_type === 'custom' };
+        const isScrollable = filters.filter_type === 'custom';
+        const barOptions  = { scrollable: isScrollable, accentLine: true };
+        const lineOptions = { scrollable: isScrollable };
         await rentalChartManager.updateChartsFromAPI('rental', {
             pie:  'rentalPieChart',
             bar:  'rentalBarChart',
             line: 'rentalLineChart',
-        }, filters, barOptions);
+        }, filters, barOptions, lineOptions);
     } catch (error) {
         console.error('Error updating rental charts:', error);
     }

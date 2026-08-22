@@ -178,6 +178,8 @@ class ChartDataController extends Controller
             'summary' => $this->getSummaryConfig(),
             'rental' => $this->getRentalConfig(),
             'service' => $this->getServiceConfig(),
+            'history' => $this->getHistoryConfig(),
+            'data-leasing' => $this->getDataLeasingConfig(),
             'asuransi' => $this->getAsuransiConfig(),
             'gps' => $this->getGpsConfig(),
             'kir' => $this->getKirConfig(),
@@ -221,6 +223,8 @@ class ChartDataController extends Controller
             'summary' => \App\Models\InvSummary::query(),
             'rental' => \App\Models\Rental::query(),
             'service' => \App\Models\Service::query(),
+            'history' => \App\Models\Rental::query(),
+            'data-leasing' => \App\Models\DataLeasing::query(),
             'asuransi' => \App\Models\Asuransi::query(),
             'gps' => \App\Models\Gps::query(),
             'kir' => \App\Models\Kir::query(),
@@ -1362,25 +1366,30 @@ class ChartDataController extends Controller
                 'colors' => ['#10b981', '#f59e0b', '#ef4444']
             ],
             'bar' => [
-                'title' => 'Pendapatan Rental per Bulan',
-                'groupBy' => 'month',
-                'autoDaily' => true,
-                'valueColumns' => ['total_biaya'],
-                'aggregation' => 'sum',
-                'dateColumn' => 'tanggal_mulai',
-                'limit' => 6,
-                'labels' => ['Total Biaya'],
-                'colors' => ['#3b82f6'],
+                'title'        => 'Pendapatan Rental per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => [
+                    'total_biaya',
+                    ['where' => ['status_pembayaran' => 'lunas'],                                    'column' => 'total_biaya', 'label' => 'Lunas'],
+                    ['where' => ['status_pembayaran' => ['belum_bayar', 'dp', 'partial']], 'column' => 'total_biaya', 'label' => 'Belum Lunas'],
+                ],
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'tanggal_mulai',
+                'limit'        => 6,
+                'labels'       => ['Total', 'Lunas', 'Belum Lunas'],
+                'colors'       => ['#3b82f6', '#10b981', '#ef4444'],
             ],
             'line' => [
-                'title' => 'Rental Trend',
-                'groupBy' => 'month',
-                'valueColumn' => 'id',
-                'aggregation' => 'count',
-                'dateColumn' => 'tanggal_mulai',
-                'limit' => 12,
-                'label' => 'Rentals',
-                'color' => '#3b82f6'
+                'title'       => 'Trend Pendapatan Rental',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'total_biaya',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'tanggal_mulai',
+                'limit'       => 12,
+                'label'       => 'Pendapatan',
+                'color'       => '#3b82f6'
             ],
             'stats' => [
                 [
@@ -1421,6 +1430,178 @@ class ChartDataController extends Controller
                     'icon' => 'fa fa-calculator'
                 ]
             ]
+        ];
+    }
+
+    /**
+     * Chart config for History Rental page
+     */
+    protected function getHistoryConfig(): array
+    {
+        return [
+            'dateColumn' => 'tanggal_mulai',
+            'pie' => [
+                'title'       => 'Distribusi Status Rental',
+                'groupBy'     => 'status',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels'      => [
+                    'aktif'   => 'Aktif',
+                    'selesai' => 'Selesai',
+                    'booking' => 'Booking',
+                    'Pending' => 'Pending',
+                    'batal'   => 'Batal',
+                ],
+                'colors' => ['#10b981', '#3b82f6', '#f59e0b', '#6b7280', '#ef4444'],
+            ],
+            'bar' => [
+                'title'        => 'Pendapatan History Rental per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => [
+                    'total_biaya',
+                    ['where' => ['status_pembayaran' => 'lunas'],                                    'column' => 'total_biaya', 'label' => 'Lunas'],
+                    ['where' => ['status_pembayaran' => ['belum_bayar', 'dp', 'partial']], 'column' => 'total_biaya', 'label' => 'Belum Lunas'],
+                ],
+                'aggregation' => 'sum',
+                'dateColumn'  => 'tanggal_mulai',
+                'limit'       => 6,
+                'labels'      => ['Total', 'Lunas', 'Belum Lunas'],
+                'colors'      => ['#3b82f6', '#10b981', '#ef4444'],
+            ],
+            'line' => [
+                'title'       => 'Trend Pendapatan History Rental',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'total_biaya',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'tanggal_mulai',
+                'limit'       => 12,
+                'label'       => 'Pendapatan',
+                'color'       => '#3b82f6',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Rental',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon'   => 'fa fa-car',
+                ],
+                [
+                    'label'  => 'Total Pendapatan',
+                    'type'   => 'sum',
+                    'column' => 'total_biaya',
+                    'format' => 'currency',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'  => 'Sudah Lunas',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status_pembayaran' => 'lunas'],
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-check-circle',
+                ],
+                [
+                    'label'  => 'Belum Lunas',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'aktif'],
+                    'format' => 'number',
+                    'color'  => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon'   => 'fa fa-clock',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Data Leasing page
+     */
+    protected function getDataLeasingConfig(): array
+    {
+        return [
+            'dateColumn' => 'periode_mulai',
+            'pie' => [
+                'title'       => 'Distribusi Cara Bayar',
+                'groupBy'     => 'cara_bayar',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels'      => [],
+                'colors'      => ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'],
+            ],
+            'bar' => [
+                'title'        => 'Total Angsuran per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => [
+                    'angsuran_per_bulan',
+                    ['where' => ['cara_bayar' => 'Auto Debit'], 'column' => 'angsuran_per_bulan', 'label' => 'Auto Debit'],
+                    ['where' => ['cara_bayar' => 'Transfer'],   'column' => 'angsuran_per_bulan', 'label' => 'Transfer'],
+                ],
+                'aggregation' => 'sum',
+                'dateColumn'  => 'periode_mulai',
+                'limit'       => 6,
+                'labels'      => ['Total Angsuran', 'Auto Debit', 'Transfer'],
+                'colors'      => ['#3b82f6', '#10b981', '#f59e0b'],
+            ],
+            'line' => [
+                'title'       => 'Trend Total Angsuran',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'angsuran_per_bulan',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'periode_mulai',
+                'limit'       => 12,
+                'label'       => 'Angsuran',
+                'color'       => '#3b82f6',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Data',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon'   => 'fa fa-bank',
+                ],
+                [
+                    'label'  => 'Total Angsuran/Bln',
+                    'type'   => 'sum',
+                    'column' => 'angsuran_per_bulan',
+                    'format' => 'currency',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'  => 'Avg Angsuran',
+                    'type'   => 'avg',
+                    'column' => 'angsuran_per_bulan',
+                    'format' => 'currency',
+                    'color'  => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon'   => 'fa fa-calculator',
+                ],
+                [
+                    'label'  => 'Total Cicilan',
+                    'type'   => 'sum',
+                    'column' => 'jumlah_cicilan',
+                    'format' => 'number',
+                    'color'  => '#8b5cf6',
+                    'iconBg' => '#f3e8ff',
+                    'icon'   => 'fa fa-list-ol',
+                ],
+            ],
         ];
     }
 

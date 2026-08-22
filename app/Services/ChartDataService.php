@@ -131,49 +131,87 @@ class ChartDataService
      * @param array   $labels
      * @return array
      */
+    /**
+     * Apply conditional where clauses to a query clone based on column config.
+     * Supports: ['where' => ['col' => 'val']] and ['where' => ['col' => ['a','b']]] (whereIn).
+     */
+    private function applyColumnWhere(Builder $baseQuery, array $whereConditions): Builder
+    {
+        $q = clone $baseQuery;
+        foreach ($whereConditions as $col => $val) {
+            if (is_array($val)) {
+                $q->whereIn($col, $val);
+            } else {
+                $q->where($col, $val);
+            }
+        }
+        return $q;
+    }
+
+    /**
+     * Resolve a single value from a query+column config for one period,
+     * given an already date-scoped query clone.
+     *
+     * Supported column shapes:
+     *   - string                            → sum(column)
+     *   - ['where'=>[...], 'column'=>'...'] → conditional sum
+     *   - ['computed'=>['op','a','b']]      → a ± b
+     */
+    private function resolveColumnValue(Builder $periodQuery, $column): float
+    {
+        if (is_string($column)) {
+            return (float)(clone $periodQuery)->sum($column);
+        }
+
+        if (isset($column['where'])) {
+            $col = $column['column'] ?? 'id';
+            return (float)$this->applyColumnWhere(clone $periodQuery, $column['where'])->sum($col);
+        }
+
+        if (isset($column['computed'])) {
+            $op   = $column['computed']['op'] ?? 'subtract';
+            $valA = (float)(clone $periodQuery)->sum($column['computed']['a']);
+            $valB = (float)(clone $periodQuery)->sum($column['computed']['b']);
+            return $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Get label fallback for a column config entry.
+     */
+    private function columnLabel($column, int $index, array $labels): string
+    {
+        if (isset($labels[$index])) return $labels[$index];
+        if (is_array($column)) return $column['label'] ?? 'Dataset';
+        return ucfirst($column);
+    }
+
     private function getCurrentMonthDailyBarData($query, $valueColumns, $dateColumn, $labels)
     {
-        $now       = Carbon::now();
+        $now         = Carbon::now();
         $daysInMonth = $now->daysInMonth;
-        $year      = $now->year;
-        $month     = $now->month;
-
-        // Label tanggal: 1, 2, 3, ... 31
-        $dayLabels = range(1, $daysInMonth);
+        $year        = $now->year;
+        $month       = $now->month;
 
         $datasets = [];
 
         foreach ($valueColumns as $index => $column) {
             $columnData = [];
-
-            if (is_array($column) && isset($column['computed'])) {
-                $op   = $column['computed']['op'] ?? 'subtract';
-                $colA = $column['computed']['a'];
-                $colB = $column['computed']['b'];
-
-                for ($d = 1; $d <= $daysInMonth; $d++) {
-                    $date = Carbon::create($year, $month, $d)->toDateString();
-                    $valA = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colA);
-                    $valB = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colB);
-                    $columnData[] = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
-                }
-            } else {
-                for ($d = 1; $d <= $daysInMonth; $d++) {
-                    $date = Carbon::create($year, $month, $d)->toDateString();
-                    $value = (float)(clone $query)->whereDate($dateColumn, $date)->sum($column);
-                    $columnData[] = $value;
-                }
+            for ($d = 1; $d <= $daysInMonth; $d++) {
+                $date        = Carbon::create($year, $month, $d)->toDateString();
+                $periodQuery = (clone $query)->whereDate($dateColumn, $date);
+                $columnData[] = $this->resolveColumnValue($periodQuery, $column);
             }
-
-            $labelFallback = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
             $datasets[] = [
-                'label' => $labels[$index] ?? $labelFallback,
+                'label' => $this->columnLabel($column, $index, $labels),
                 'data'  => $columnData,
             ];
         }
 
         return [
-            'labels'   => $dayLabels,
+            'labels'   => range(1, $daysInMonth),
             'datasets' => $datasets,
         ];
     }
@@ -183,33 +221,19 @@ class ChartDataService
      */
     private function getTodayBarData($query, $valueColumns, $dateColumn, $labels)
     {
-        $today     = Carbon::now();
-        $dateStr   = $today->toDateString();
-        $dayLabel  = $today->format('d M Y');
+        $today       = Carbon::now();
+        $periodQuery = (clone $query)->whereDate($dateColumn, $today->toDateString());
 
         $datasets = [];
-
         foreach ($valueColumns as $index => $column) {
-            if (is_array($column) && isset($column['computed'])) {
-                $op   = $column['computed']['op'] ?? 'subtract';
-                $colA = $column['computed']['a'];
-                $colB = $column['computed']['b'];
-                $valA = (float)(clone $query)->whereDate($dateColumn, $dateStr)->sum($colA);
-                $valB = (float)(clone $query)->whereDate($dateColumn, $dateStr)->sum($colB);
-                $value = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
-            } else {
-                $value = (float)(clone $query)->whereDate($dateColumn, $dateStr)->sum($column);
-            }
-
-            $fallback   = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
             $datasets[] = [
-                'label' => $labels[$index] ?? $fallback,
-                'data'  => [$value],
+                'label' => $this->columnLabel($column, $index, $labels),
+                'data'  => [$this->resolveColumnValue($periodQuery, $column)],
             ];
         }
 
         return [
-            'labels'   => [$dayLabel],
+            'labels'   => [$today->format('d M Y')],
             'datasets' => $datasets,
         ];
     }
@@ -219,14 +243,14 @@ class ChartDataService
      */
     private function getCurrentWeekDailyBarData($query, $valueColumns, $dateColumn, $labels)
     {
-        $startOfWeek = Carbon::now()->startOfWeek(); // Senin
-        $endOfWeek   = Carbon::now()->endOfWeek();   // Minggu
+        $startOfWeek = Carbon::now()->startOfWeek();
+        $endOfWeek   = Carbon::now()->endOfWeek();
 
         $periodLabels = [];
         $periods      = [];
         $current = $startOfWeek->copy();
         while ($current->lte($endOfWeek)) {
-            $periodLabels[] = $current->format('D, d M'); // Sen, 18 Agu
+            $periodLabels[] = $current->format('D, d M');
             $periods[]      = $current->toDateString();
             $current->addDay();
         }
@@ -234,22 +258,14 @@ class ChartDataService
         $datasets = [];
         foreach ($valueColumns as $index => $column) {
             $columnData = [];
-            if (is_array($column) && isset($column['computed'])) {
-                $op   = $column['computed']['op'] ?? 'subtract';
-                $colA = $column['computed']['a'];
-                $colB = $column['computed']['b'];
-                foreach ($periods as $date) {
-                    $valA = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colA);
-                    $valB = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colB);
-                    $columnData[] = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
-                }
-            } else {
-                foreach ($periods as $date) {
-                    $columnData[] = (float)(clone $query)->whereDate($dateColumn, $date)->sum($column);
-                }
+            foreach ($periods as $date) {
+                $periodQuery  = (clone $query)->whereDate($dateColumn, $date);
+                $columnData[] = $this->resolveColumnValue($periodQuery, $column);
             }
-            $fallback   = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
-            $datasets[] = ['label' => $labels[$index] ?? $fallback, 'data' => $columnData];
+            $datasets[] = [
+                'label' => $this->columnLabel($column, $index, $labels),
+                'data'  => $columnData,
+            ];
         }
 
         return [
@@ -259,12 +275,7 @@ class ChartDataService
     }
 
     /**
-     *
      * @param Builder $query  Query yang sudah difilter ke tahun ini
-     * @param array   $valueColumns
-     * @param string  $dateColumn
-     * @param array   $labels
-     * @return array
      */
     private function getCurrentYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels)
     {
@@ -272,30 +283,14 @@ class ChartDataService
         $monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
         $datasets = [];
-
         foreach ($valueColumns as $index => $column) {
             $columnData = [];
-
-            if (is_array($column) && isset($column['computed'])) {
-                $op   = $column['computed']['op'] ?? 'subtract';
-                $colA = $column['computed']['a'];
-                $colB = $column['computed']['b'];
-
-                for ($m = 1; $m <= 12; $m++) {
-                    $valA = (float)(clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year)->sum($colA);
-                    $valB = (float)(clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year)->sum($colB);
-                    $columnData[] = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
-                }
-            } else {
-                for ($m = 1; $m <= 12; $m++) {
-                    $value = (float)(clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year)->sum($column);
-                    $columnData[] = $value;
-                }
+            for ($m = 1; $m <= 12; $m++) {
+                $periodQuery  = (clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year);
+                $columnData[] = $this->resolveColumnValue($periodQuery, $column);
             }
-
-            $labelFallback = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
             $datasets[] = [
-                'label' => $labels[$index] ?? $labelFallback,
+                'label' => $this->columnLabel($column, $index, $labels),
                 'data'  => $columnData,
             ];
         }
@@ -307,17 +302,13 @@ class ChartDataService
     }
 
     /**
-     * Get bar data untuk custom date range dengan auto granularitas:
-     * - ≤ 31 hari  → per tanggal
-     * - 32–90 hari → per minggu
-     * - > 90 hari  → per bulan
+     * Get bar data untuk custom date range — selalu per tanggal (scrollable di frontend)
      */
     private function getCustomRangeBarData($query, $valueColumns, $dateColumn, $labels, $startDateStr, $endDateStr)
     {
         $start = Carbon::createFromFormat('d-m-Y', $startDateStr)->startOfDay();
         $end   = Carbon::createFromFormat('d-m-Y', $endDateStr)->endOfDay();
 
-        // Selalu per tanggal — scrollable di frontend yang handle range panjang
         $periodLabels = [];
         $periods      = [];
         $current = $start->copy();
@@ -330,22 +321,14 @@ class ChartDataService
         $datasets = [];
         foreach ($valueColumns as $index => $column) {
             $columnData = [];
-            if (is_array($column) && isset($column['computed'])) {
-                $op   = $column['computed']['op'] ?? 'subtract';
-                $colA = $column['computed']['a'];
-                $colB = $column['computed']['b'];
-                foreach ($periods as $date) {
-                    $valA = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colA);
-                    $valB = (float)(clone $query)->whereDate($dateColumn, $date)->sum($colB);
-                    $columnData[] = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
-                }
-            } else {
-                foreach ($periods as $date) {
-                    $columnData[] = (float)(clone $query)->whereDate($dateColumn, $date)->sum($column);
-                }
+            foreach ($periods as $date) {
+                $periodQuery  = (clone $query)->whereDate($dateColumn, $date);
+                $columnData[] = $this->resolveColumnValue($periodQuery, $column);
             }
-            $fallback   = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
-            $datasets[] = ['label' => $labels[$index] ?? $fallback, 'data' => $columnData];
+            $datasets[] = [
+                'label' => $this->columnLabel($column, $index, $labels),
+                'data'  => $columnData,
+            ];
         }
 
         return ['labels' => $periodLabels, 'datasets' => $datasets];
@@ -617,49 +600,24 @@ class ChartDataService
     private function getMonthlyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels)
     {
         $months = [];
-        $datasets = [];
 
-        // Generate last N months
+        // Generate last N months labels
         for ($i = $limit - 1; $i >= 0; $i--) {
             $months[] = Carbon::now()->subMonths($i)->format('M Y');
         }
 
-        // Get data for each value column (each column = one bar series)
+        $datasets = [];
         foreach ($valueColumns as $index => $column) {
             $columnData = [];
-
-            // Support computed column: ['computed' => ['op' => 'subtract', 'a' => 'colA', 'b' => 'colB']]
-            if (is_array($column) && isset($column['computed'])) {
-                $op   = $column['computed']['op'] ?? 'subtract';
-                $colA = $column['computed']['a'];
-                $colB = $column['computed']['b'];
-
-                for ($i = $limit - 1; $i >= 0; $i--) {
-                    $date = Carbon::now()->subMonths($i);
-                    $valA = (float)(clone $query)
-                        ->whereMonth($dateColumn, $date->month)
-                        ->whereYear($dateColumn, $date->year)
-                        ->sum($colA);
-                    $valB = (float)(clone $query)
-                        ->whereMonth($dateColumn, $date->month)
-                        ->whereYear($dateColumn, $date->year)
-                        ->sum($colB);
-                    $columnData[] = $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
-                }
-            } else {
-                for ($i = $limit - 1; $i >= 0; $i--) {
-                    $date = Carbon::now()->subMonths($i);
-                    $value = (clone $query)
-                        ->whereMonth($dateColumn, $date->month)
-                        ->whereYear($dateColumn, $date->year)
-                        ->sum($column);
-                    $columnData[] = (float) $value;
-                }
+            for ($i = $limit - 1; $i >= 0; $i--) {
+                $date        = Carbon::now()->subMonths($i);
+                $periodQuery = (clone $query)
+                    ->whereMonth($dateColumn, $date->month)
+                    ->whereYear($dateColumn, $date->year);
+                $columnData[] = $this->resolveColumnValue($periodQuery, $column);
             }
-
-            $labelFallback = is_array($column) ? ($column['label'] ?? 'Dataset') : ucfirst($column);
             $datasets[] = [
-                'label' => $labels[$index] ?? $labelFallback,
+                'label' => $this->columnLabel($column, $index, $labels),
                 'data'  => $columnData,
             ];
         }
