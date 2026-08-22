@@ -233,6 +233,39 @@ class GpsKendaraanController extends Controller
                     'keterangan'     => $request->keterangan,
                 ]);
 
+                // --- Catat ke Keuangan (per item GPS) ---
+                $kendaraan   = Kendaraan::find($kendaraanId);
+                $lastSaldo   = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                $pengeluaran = (int) $item['biaya_sewa'];
+                $kodeJurnal  = 'GPS-' . $gpsKendaraan->id . '-' . now()->timestamp;
+
+                Keuangan::create([
+                    'tanggal'     => now(),
+                    'reference'   => $kodeJurnal,
+                    'user_id'     => auth()->id(),
+                    'kategori'    => 'Pengeluaran',
+                    'metode'      => 'Cash',
+                    'keterangan'  => 'Pasang GPS baru: ' . trim($item['type']) . ' - ' . ($kendaraan->nopol ?? '-'),
+                    'pemasukan'   => 0,
+                    'pengeluaran' => $pengeluaran,
+                    'saldo'       => $lastSaldo - $pengeluaran,
+                    'sumber'      => 'auto',
+                ]);
+
+                // --- Auto-posting ke Buku Besar ---
+                $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                Bukubesar::create([
+                    'kode_jurnal' => $kodeJurnal,
+                    'transaksi'   => 'Beban GPS - ' . trim($item['type']),
+                    'kategori'    => 'Beban',
+                    'tanggal'     => now()->toDateString(),
+                    'debit'       => $pengeluaran,
+                    'kredit'      => 0,
+                    'saldo'       => $saldoBBTerakhir - $pengeluaran,
+                    'aktivitas'   => 'Operasi',
+                    'keterangan'  => 'Auto-posting: Pasang GPS baru ' . ($kendaraan->nopol ?? '-'),
+                ]);
+
                 // Lampiran per-GPS
                 if ($request->hasFile("gps_items.{$idx}.lampiran")) {
                     $this->simpanAttachments($request->file("gps_items.{$idx}.lampiran"), $gpsKendaraan->id);

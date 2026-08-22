@@ -4,12 +4,12 @@
 
 @section('content')
 
-<div class="space-y-4">
+<div class="space-y-6">
 
-    {{-- Page Header --}}
+    {{-- PAGE HEADER --}}
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-xl font-bold text-gray-800">History Perpanjangan GPS Kendaraan</h1>
+            <h1 class="text-2xl font-bold text-gray-800">History Perpanjangan GPS Kendaraan</h1>
             <p class="text-sm text-gray-500 mt-0.5">Riwayat seluruh data GPS kendaraan yang telah diperpanjang.</p>
         </div>
         <a href="{{ route('gps-kendaraan-history.export', request()->query()) }}" target="_blank"
@@ -18,7 +18,7 @@
         </a>
     </div>
 
-    {{-- Flash Message --}}
+    {{-- FLASH MESSAGE --}}
     @if(session('success'))
         <div class="flex items-center gap-2 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
             <i class="fa fa-check-circle"></i>
@@ -26,12 +26,44 @@
         </div>
     @endif
 
-    {{-- Filter + Search Bar --}}
+    {{-- SUMMARY CARDS --}}
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Data</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $data->total() }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">perpanjangan tercatat</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Biaya</p>
+            <p class="text-2xl font-bold text-indigo-600 mt-1">Rp {{ number_format($totalBiaya, 0, ',', '.') }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">
+                @if(request('bulan') || request('tahun'))
+                    periode yang dipilih
+                @else
+                    semua periode
+                @endif
+            </p>
+        </div>
+    </div>
+
+    {{-- CHART FILTER --}}
+    <x-chart-filter id="gpsHistoryChartFilter" defaultFilter="month" :showCustomRange="true" />
+
+    {{-- CHART CONTAINER --}}
+    <x-chart-container
+        id="gpsHistoryChartContainer"
+        layout="stacked"
+        pieTitle="Distribusi Type GPS"       pieId="gpsHistoryPieChart"
+        barTitle="Biaya GPS per Periode"     barId="gpsHistoryBarChart"
+        lineTitle="Trend Biaya Sewa GPS"     lineId="gpsHistoryLineChart"
+        :showStats="true" :statsData="[]"
+    />
+
+    {{-- FILTER + SEARCH BAR --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-5 py-4">
         <form method="GET" action="{{ route('gps-kendaraan-history.index') }}"
               class="flex flex-wrap items-end gap-3">
 
-            {{-- Search --}}
             <div class="flex flex-col gap-1 w-64">
                 <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Cari</label>
                 <div class="relative">
@@ -42,7 +74,6 @@
                 </div>
             </div>
 
-            {{-- Bulan --}}
             <div class="flex flex-col gap-1">
                 <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Bulan</label>
                 <select name="bulan"
@@ -60,7 +91,6 @@
                 </select>
             </div>
 
-            {{-- Tahun --}}
             <div class="flex flex-col gap-1">
                 <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tahun</label>
                 <select name="tahun"
@@ -74,7 +104,6 @@
                 </select>
             </div>
 
-            {{-- Buttons --}}
             <div class="flex items-end gap-2">
                 <button type="submit"
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition">
@@ -91,31 +120,10 @@
         </form>
     </div>
 
-    {{-- Summary Cards --}}
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4">
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Data</p>
-            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $data->count() }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">perpanjangan tercatat</p>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4">
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Biaya</p>
-            <p class="text-2xl font-bold text-blue-600 mt-1">Rp {{ number_format($totalBiaya, 0, ',', '.') }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">
-                @if(request('bulan') || request('tahun'))
-                    periode yang dipilih
-                @else
-                    semua periode
-                @endif
-            </p>
-        </div>
-    </div>
-
-    {{-- Table --}}
+    {{-- TABLE --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
-
                 <thead>
                     <tr class="bg-gray-50 border-b border-gray-200">
                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-10">No</th>
@@ -128,7 +136,7 @@
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Diperpanjang</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Bukti</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Lampiran</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-20">Aksi</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-28">Aksi</th>
                     </tr>
                 </thead>
 
@@ -155,7 +163,7 @@
                             </td>
 
                             <td class="px-4 py-3">
-                                <span class="inline-block px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                                <span class="inline-block px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium">
                                     {{ $item->type }}
                                 </span>
                             </td>
@@ -177,22 +185,18 @@
                                 </div>
                             </td>
 
-                            <td>
-                                    @if ($item->bukti_bayar)
-                                        @php
-                                            $filename = basename($item->bukti_bayar);
-                                        @endphp
-
-                                        <button type="button"
-                                            onclick="openSlideshow([{path:'{{ asset($item->bukti_bayar) }}', name:'{{ addslashes(basename($item->bukti_bayar)) }}'}], 0)"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                                            <i class="bi bi-image text-sm"></i>
-                                            {{ basename($item->bukti_bayar) }}
-                                        </button>
-                                    @else
-                                        <span class="text-gray-400 text-xs">-</span>
-                                    @endif
-                                </td>
+                            <td class="px-4 py-3 text-center">
+                                @if($item->bukti_bayar)
+                                    <button type="button"
+                                        onclick="openSlideshow([{path:'{{ asset($item->bukti_bayar) }}', name:'{{ addslashes(basename($item->bukti_bayar)) }}'}], 0)"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                        <i class="bi bi-image text-sm"></i>
+                                        {{ basename($item->bukti_bayar) }}
+                                    </button>
+                                @else
+                                    <span class="text-gray-400 text-xs">-</span>
+                                @endif
+                            </td>
 
                             <td class="px-4 py-3 text-center">
                                 @if($item->attachments->isNotEmpty())
@@ -210,18 +214,26 @@
                             </td>
 
                             <td class="px-4 py-3 text-center">
-                                <form action="{{ route('history.gpskendaraan.destroy', $item->id) }}"
-                                      method="POST"
-                                      onsubmit="return confirm('Yakin ingin menghapus history GPS ini?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg
-                                                   text-xs font-medium bg-red-50 text-red-600
-                                                   hover:bg-red-100 transition">
-                                        <i class="fa fa-trash"></i>
-                                    </button>
-                                </form>
+                                <div class="flex items-center justify-center gap-1.5">
+                                    @if($item->kendaraan_id)
+                                        <a href="{{ route('kendaraan.gps-history', $item->kendaraan_id) }}"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition">
+                                            <i class="fa fa-eye text-[9px]"></i> Detail
+                                        </a>
+                                    @endif
+                                    <form action="{{ route('history.gpskendaraan.destroy', $item->id) }}"
+                                          method="POST"
+                                          onsubmit="return confirm('Yakin ingin menghapus history GPS ini?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg
+                                                       text-xs font-medium bg-red-50 text-red-600
+                                                       hover:bg-red-100 transition">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
 
                         </tr>
@@ -246,7 +258,6 @@
             </div>
         </div>
 
-        {{-- Table Footer --}}
         @if($data->count())
         <div class="px-5 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
             <span>Menampilkan <strong class="text-gray-700">{{ $data->count() }}</strong> data</span>
@@ -257,5 +268,44 @@
     </div>
 
 </div>
+
+<script>
+const chartManager = new ChartManager();
+
+document.addEventListener('DOMContentLoaded', function () {
+    initGpsHistoryCharts({ filter_type: 'month' });
+
+    document.addEventListener('chartFilterChange', function (e) {
+        if (e.detail.filterId === 'gpsHistoryChartFilter') {
+            updateGpsHistoryCharts({
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+            });
+        }
+    });
+});
+
+async function initGpsHistoryCharts(filters) {
+    try {
+        await chartManager.initChartsFromAPI('gps-kendaraan-history', {
+            pie:  'gpsHistoryPieChart',
+            bar:  'gpsHistoryBarChart',
+            line: 'gpsHistoryLineChart',
+        }, filters, { accentLine: true });
+    } catch (e) { console.error('Error loading GPS history charts:', e); }
+}
+
+async function updateGpsHistoryCharts(filters) {
+    try {
+        const scrollable = filters.filter_type === 'custom';
+        await chartManager.updateChartsFromAPI('gps-kendaraan-history', {
+            pie:  'gpsHistoryPieChart',
+            bar:  'gpsHistoryBarChart',
+            line: 'gpsHistoryLineChart',
+        }, filters, { scrollable, accentLine: true }, { scrollable });
+    } catch (e) { console.error('Error updating GPS history charts:', e); }
+}
+</script>
 
 @endsection

@@ -4,17 +4,17 @@
 <meta charset="UTF-8">
 <title>Perjanjian Sewa Menyewa - {{ $kontrak->no_kontrak }}</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin: 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word; }
 @page { margin: 5mm 25mm 5mm 25mm; size: A4; }
 body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #000; background: #fff; line-height: 1.55; }
 .doc-title { text-align: center; margin-bottom: 10px; }
 .doc-title .t1 { font-size: 13pt; font-weight: bold; text-transform: uppercase; display: block; }
 .doc-title .t2 { font-size: 12pt; font-weight: bold; text-transform: uppercase; display: block; margin-top: 2px; }
 .doc-title .t3 { font-size: 11pt; font-weight: normal; display: block; margin-top: 3px; }
-/* A4=210mm, margin 25mm×2=50mm → konten=160mm ≈ 605px */
-.tc { width: 605px; border-collapse: collapse; table-layout: fixed; margin-bottom: 0; }
-.tc td { width: 300px; vertical-align: top; text-align: justify; padding: 0 4px 0 0; font-size: 11pt; line-height: 1.55; }
-.tc td.r { padding: 0 0 0 4px; }
+/* A4=210mm, margin 25mm×2=50mm → konten=160mm */
+.tc { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 0; }
+.tc td { width: 50%; vertical-align: top; text-align: justify; padding: 0 5px 0 0; font-size: 11pt; line-height: 1.55; word-wrap: break-word; overflow-wrap: break-word; }
+.tc td.r { padding: 0 0 0 5px; }
 p { text-align: justify; margin-bottom: 4px; font-size: 11pt; line-height: 1.55; }
 .sub { margin: 1px 0 2px 14px; font-size: 10.5pt; line-height: 1.5; }
 .gap4  { height: 4px; }
@@ -114,7 +114,6 @@ $parsePasal = function(string $raw) use ($rp) {
     $cur    = null;
     foreach (explode("\n", $raw) as $line) {
         $tr = trim($line);
-        if ($tr === '') continue;
         // "PASAL N" atau "ARTICLE N"
         if (preg_match('/^(?:PASAL|ARTICLE)\s+(\d+)$/i', $tr, $m)) {
             if ($cur !== null) $pasals[$curNum] = $cur;
@@ -132,6 +131,11 @@ $parsePasal = function(string $raw) use ($rp) {
             $cur['judul'] .= "\n" . $tr;
             continue;
         }
+        // Baris kosong → simpan sebagai blank
+        if ($tr === '') {
+            $cur['items'][] = ['type' => 'blank'];
+            continue;
+        }
         // Poin bernomor
         if (preg_match('/^(\d+|[a-z])\.\s+(.+)/u', $tr, $m)) {
             $cur['items'][] = ['type' => 'poin', 'num' => $m[1], 'text' => $rp($m[2])];
@@ -140,6 +144,16 @@ $parsePasal = function(string $raw) use ($rp) {
         // Sub-poin
         if (preg_match('/^-\s+(.+)/u', $tr, $m)) {
             $cur['items'][] = ['type' => 'sub', 'text' => $rp($m[1])];
+            continue;
+        }
+        // Baris lanjutan — cari poin terakhir (lewati sub di antaranya, stop di blank)
+        $lastPoinIdx = null;
+        for ($li = count($cur['items']) - 1; $li >= 0; $li--) {
+            if ($cur['items'][$li]['type'] === 'poin') { $lastPoinIdx = $li; break; }
+            if ($cur['items'][$li]['type'] === 'blank') break;
+        }
+        if ($lastPoinIdx !== null) {
+            $cur['items'][$lastPoinIdx]['text'] .= "\n" . $rp($tr);
             continue;
         }
         // Teks biasa
@@ -151,17 +165,36 @@ $parsePasal = function(string $raw) use ($rp) {
 
 // ── Render satu item → HTML ──
 $renderItem = function(array $item) {
-    $t = htmlspecialchars($item['text'] ?? '');
+    if ($item['type'] === 'blank') {
+        return '<p style="margin:4px 0;"> </p>';
+    }
+    $raw = $item['text'] ?? '';
+    // Hilangkan baris yang dimulai dengan "Hp."
+    if (preg_match('/^Hp\./i', trim($raw))) {
+        return '';
+    }
     if ($item['type'] === 'poin') {
-        $n = htmlspecialchars($item['num'] ?? '');
+        $n     = htmlspecialchars($item['num'] ?? '');
+        $lines = explode("\n", $raw);
+        $first = htmlspecialchars(array_shift($lines));
+        $rest  = '';
+        foreach ($lines as $ln) {
+            $ln = trim($ln);
+            if ($ln === '') continue;
+            $rest .= '<br>' . htmlspecialchars($ln);
+        }
         return '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">'
-             . '<tr><td style="width:18px;vertical-align:top;white-space:nowrap;padding:0;">' . $n . '.</td>'
-             . '<td style="vertical-align:top;text-align:justify;padding:0;">' . $t . '</td></tr></table>';
+             . '<tr><td style="width:16px;vertical-align:top;white-space:nowrap;padding:0;">' . $n . '.</td>'
+             . '<td style="vertical-align:top;text-align:justify;padding:0 0 0 3px;">' . $first . $rest . '</td></tr></table>';
     }
     if ($item['type'] === 'sub') {
-        return '<p class="sub">- ' . $t . '</p>';
+        return '<p class="sub">- ' . htmlspecialchars($raw) . '</p>';
     }
-    return '<p>' . $t . '</p>';
+    // teks all-caps → bold
+    if (strtoupper($raw) === $raw && strlen(trim($raw)) > 3) {
+        return '<p style="font-weight:bold;">' . htmlspecialchars($raw) . '</p>';
+    }
+    return '<p>' . htmlspecialchars($raw) . '</p>';
 };
 
 // ── Render format lama (pasal JSON) ──
@@ -188,7 +221,7 @@ $renderPoin = function(array $poinArr, string $lang, string $tipe, callable $rp)
             $mt       = array_shift($lines);
             $subLines = array_filter($lines, function($l) { return trim($l) !== ''; });
             $out .= '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">'
-                  . '<tr><td style="width:18px;vertical-align:top;white-space:nowrap;padding:0;">' . ($pi+1) . '.</td>'
+                  . '<tr><td style="width:22px;vertical-align:top;white-space:nowrap;padding:0;">' . ($pi+1) . '.</td>'
                   . '<td style="vertical-align:top;text-align:justify;padding:0;">' . htmlspecialchars($mt);
             foreach ($subLines as $sl) {
                 $out .= '<br><span style="display:inline-block;padding-left:10px;font-size:10.5pt;">'

@@ -1008,7 +1008,7 @@
         };
 
         try {
-            await window.chartManager.initChartsFromAPI('payments', canvasIds, filters);
+            await window.chartManager.initChartsFromAPI('payments', canvasIds, filters, { accentLine: true });
             console.log('✅ Payments charts initialized');
         } catch (error) {
             console.error('❌ Failed to initialize payments charts:', error);
@@ -1023,7 +1023,7 @@
         };
 
         try {
-            await window.chartManager.updateChartsFromAPI('payments', canvasIds, filters);
+            await window.chartManager.updateChartsFromAPI('payments', canvasIds, filters, { accentLine: true });
             console.log('✅ Payments charts updated');
         } catch (error) {
             console.error('❌ Failed to update payments charts:', error);

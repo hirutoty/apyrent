@@ -63,8 +63,7 @@ body {
 .ketentuan ul { margin:0.5mm 0 1mm 4mm; padding:0; list-style:none; }
 .ketentuan ul li { margin-bottom:0.5mm; padding-left:10px; text-indent:-10px; }
 .ketentuan ul li::before { content:"• "; }
-.ketentuan ol { margin:0.5mm 0 1mm 12mm; }
-.ketentuan ol li { margin-bottom:0.5mm; }
+
 
 /* ── INFO KONTAK ── */
 .info-kontak { font-size:9.5pt; margin-bottom:3mm; line-height:1.3; }
@@ -88,8 +87,8 @@ body {
 }
 .footer-company {
     font-weight: bold;
-    font-size: 13pt;
-    color: #1a3a8f;
+    font-size: 10pt;
+    color: #0d2a6e;
     letter-spacing: 0.3px;
 }
 .footer-addr {
@@ -98,7 +97,7 @@ body {
     margin-top: 1px;
 }
 .footer-web {
-    font-size: 11pt;
+    font-size: 9.5pt;
     color: #1a3a8f;
     font-weight: bold;
     text-decoration: underline;
@@ -223,11 +222,11 @@ body {
             <li>
                 {{ $teks }}
                 @if(!empty($sub))
-                    <ol>
-                        @foreach($sub as $subItem)
-                            <li>{{ $subItem }}</li>
+                    <div style="margin:1mm 0 1mm 5mm;">
+                        @foreach($sub as $idx => $subItem)
+                            <div style="margin-bottom:0.5mm;">{{ $idx + 1 }}. {{ $subItem }}</div>
                         @endforeach
-                    </ol>
+                    </div>
                 @endif
             </li>
         @endforeach

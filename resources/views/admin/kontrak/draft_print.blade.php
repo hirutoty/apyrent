@@ -92,8 +92,8 @@ p { text-align: justify; margin-bottom: 4px; font-size: 12pt; line-height: 1.45;
 
 /* poin bernomor */
 .poin-row { display: table; width: 100%; margin-bottom: 4px; }
-.poin-num { display: table-cell; width: 24px; vertical-align: top; white-space: nowrap; font-size: 12pt; line-height: 1.45; }
-.poin-txt { display: table-cell; vertical-align: top; text-align: justify; font-size: 12pt; line-height: 1.45; }
+.poin-num { display: table-cell; width: 16px; vertical-align: top; white-space: nowrap; font-size: 12pt; line-height: 1.45; }
+.poin-txt { display: table-cell; vertical-align: top; text-align: justify; font-size: 12pt; line-height: 1.45; padding-left: 3px; }
 
 /* spacer */
 .gap4  { height: 4px;  display: block; }
@@ -236,7 +236,6 @@ $parsePasal = function(string $raw) use ($rp) {
     $cur    = null;
     foreach (explode("\n", $raw) as $line) {
         $tr = trim($line);
-        if ($tr === '') continue;
         if (preg_match('/^(?:PASAL|ARTICLE)\s+(\d+)$/i', $tr, $m)) {
             if ($cur !== null) $pasals[$curNum] = $cur;
             $curNum = (int)$m[1];
@@ -249,12 +248,27 @@ $parsePasal = function(string $raw) use ($rp) {
             $cur['judul'] .= "\n" . $tr;
             continue;
         }
+        // Baris kosong → simpan sebagai blank agar gap ter-render
+        if ($tr === '') {
+            $cur['items'][] = ['type' => 'blank'];
+            continue;
+        }
         if (preg_match('/^(\d+|[a-z])\.\s+(.+)/u', $tr, $m)) {
             $cur['items'][] = ['type' => 'poin', 'num' => $m[1], 'text' => $rp($m[2])];
             continue;
         }
         if (preg_match('/^-\s+(.+)/u', $tr, $m)) {
             $cur['items'][] = ['type' => 'sub', 'text' => $rp($m[1])];
+            continue;
+        }
+        // Baris lanjutan — cari poin terakhir (lewati sub di antaranya, stop di blank)
+        $lastPoinIdx = null;
+        for ($li = count($cur['items']) - 1; $li >= 0; $li--) {
+            if ($cur['items'][$li]['type'] === 'poin') { $lastPoinIdx = $li; break; }
+            if ($cur['items'][$li]['type'] === 'blank') break;
+        }
+        if ($lastPoinIdx !== null) {
+            $cur['items'][$lastPoinIdx]['text'] .= "\n" . $rp($tr);
             continue;
         }
         $cur['items'][] = ['type' => 'teks', 'text' => $rp($tr)];
@@ -265,15 +279,35 @@ $parsePasal = function(string $raw) use ($rp) {
 
 // ── Render satu item → HTML ──
 $renderItem = function(array $item) {
-    $t = htmlspecialchars($item['text'] ?? '');
+    if ($item['type'] === 'blank') {
+        return '<div class="gap8"></div>';
+    }
+    $raw = $item['text'] ?? '';
+    // Hilangkan baris yang dimulai dengan "Hp."
+    if (preg_match('/^Hp\./i', trim($raw))) {
+        return '';
+    }
     if ($item['type'] === 'poin') {
         $n = htmlspecialchars($item['num'] ?? '');
-        return '<div class="poin-row"><span class="poin-num">' . $n . '.</span><span class="poin-txt">' . $t . '</span></div>';
+        // Render multi-line: baris pertama lanjut, baris berikutnya indent sejajar
+        $lines = explode("\n", $raw);
+        $first = htmlspecialchars(array_shift($lines));
+        $rest  = '';
+        foreach ($lines as $ln) {
+            $ln = trim($ln);
+            if ($ln === '') continue;
+            $rest .= '<br><span style="display:inline-block;">' . htmlspecialchars($ln) . '</span>';
+        }
+        return '<div class="poin-row"><span class="poin-num">' . $n . '.</span><span class="poin-txt">' . $first . $rest . '</span></div>';
     }
     if ($item['type'] === 'sub') {
-        return '<p class="sub">- ' . $t . '</p>';
+        return '<p class="sub">- ' . htmlspecialchars($raw) . '</p>';
     }
-    return '<p>' . $t . '</p>';
+    // teks all-caps (seperti PIHAK PERTAMA / THE FIRST PARTY) → bold
+    if (strtoupper($raw) === $raw && strlen(trim($raw)) > 3) {
+        return '<p style="font-weight:bold;">' . htmlspecialchars($raw) . '</p>';
+    }
+    return '<p>' . htmlspecialchars($raw) . '</p>';
 };
 
 // ── Render format lama (pasal JSON) ──
@@ -282,15 +316,28 @@ $renderPoin = function(array $poinArr, string $lang, string $tipe, callable $rp)
     if ($tipe === 'paragraf') {
         foreach ($poinArr as $p) {
             $lines = explode("\n", $rp($p[$lang] ?? ''));
+            $prevBlank = false;
             foreach ($lines as $idx => $line) {
                 $tr = trim($line);
-                if ($tr === '') { $out .= '<span class="gap4"></span>'; continue; }
-                if ($idx > 0 && preg_match('/^-\s+(.+)/u', $tr, $m))
+                if ($tr === '') {
+                    $prevBlank = true;
+                    continue;
+                }
+                // Jika baris sebelumnya kosong & teks ini all-caps (seperti PIHAK PERTAMA/THE FIRST PARTY),
+                // tambahkan margin top lebih besar
+                $isAllCaps = (strtoupper($tr) === $tr && strlen($tr) > 3);
+                if ($prevBlank && $isAllCaps) {
+                    $out .= '<p style="margin-top:10px;font-weight:bold;">' . htmlspecialchars($tr) . '</p>';
+                } elseif ($prevBlank) {
+                    $out .= '<p style="margin-top:10px;">' . htmlspecialchars($tr) . '</p>';
+                } elseif ($idx > 0 && preg_match('/^-\s+(.+)/u', $tr, $m)) {
                     $out .= '<p class="sub">- ' . htmlspecialchars($m[1]) . '</p>';
-                elseif ($idx > 0 && preg_match('/^[A-Za-z]\.\s/', $tr))
+                } elseif ($idx > 0 && preg_match('/^[A-Za-z]\.\s/', $tr)) {
                     $out .= '<p class="sub">' . htmlspecialchars($tr) . '</p>';
-                else
+                } else {
                     $out .= '<p>' . htmlspecialchars($tr) . '</p>';
+                }
+                $prevBlank = false;
             }
             $out .= '<span class="gap4"></span>';
         }
@@ -427,12 +474,12 @@ if ($useNewFormat) {
     </div>
     <div class="gap8"></div>
     <div class="two-col">
-        <div class="col-l"><p>PIHAK PERTAMA/THE FIRST PARTY</p></div>
-        <div class="col-r"><p>PIHAK KEDUA/THE SECOND PARTY</p></div>
+        <div class="col-l"><p style="margin-top:4px;font-weight:bold;font-size:10pt;">PIHAK PERTAMA/THE FIRST PARTY</p></div>
+        <div class="col-r"><p style="margin-top:4px;font-weight:bold;font-size:10pt;">PIHAK KEDUA/THE SECOND PARTY</p></div>
     </div>
     <div class="two-col">
-        <div class="col-l"><div class="sline"></div><p>{{ $kontrak->pihak_pertama }}</p></div>
-        <div class="col-r"><div class="sline"></div><p>{{ $namaP2 }}</p></div>
+        <div class="col-l"><div class="sline" style="margin-top:70px;"></div><p>{{ $kontrak->pihak_pertama }}</p></div>
+        <div class="col-r"><div class="sline" style="margin-top:70px;"></div><p>{{ $kontrak->penawaran->up ?? $namaP2 }}</p></div>
     </div>
 
 </div>{{-- /page-wrap --}}

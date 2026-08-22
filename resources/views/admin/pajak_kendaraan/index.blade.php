@@ -1362,21 +1362,22 @@ MODAL PERPANJANG
 
         function initPajakCharts(filters) {
             if (typeof chartManager !== 'undefined') {
-                chartManager.initChartsFromAPI('pajak-kendaraan', PAJAK_CHART_IDS, filters);
+                chartManager.initChartsFromAPI('pajak-kendaraan', PAJAK_CHART_IDS, filters, { accentLine: true });
             }
         }
 
         document.addEventListener('DOMContentLoaded', function () {
             initPajakCharts({ filter_type: 'year' });
 
-            document.getElementById('pajakChartFilter').addEventListener('chartFilterChange', function (e) {
+            document.addEventListener('chartFilterChange', function (e) {
+                if (e.detail.filterId !== 'pajakChartFilter') return;
                 const { filterType, startDate, endDate } = e.detail;
                 const filters = { filter_type: filterType };
                 if (filterType === 'custom' && startDate && endDate) {
                     filters.start_date = startDate;
                     filters.end_date   = endDate;
                 }
-                chartManager.updateChartsFromAPI('pajak-kendaraan', PAJAK_CHART_IDS, filters);
+                chartManager.updateChartsFromAPI('pajak-kendaraan', PAJAK_CHART_IDS, filters, { accentLine: true });
             });
         });
 

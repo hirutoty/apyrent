@@ -2086,6 +2086,7 @@ async function initRentalCharts(filters) {
             bar:  'rentalBarChart',
             line: 'rentalLineChart',
         }, filters, { accentLine: true });
+        }, filters, { accentLine: true });
     } catch (error) {
         console.error('Error loading rental charts:', error);
     }

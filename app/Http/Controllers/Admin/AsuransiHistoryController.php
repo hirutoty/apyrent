@@ -29,6 +29,32 @@ class AsuransiHistoryController extends Controller
         return view('admin.asuransi.history', compact('data', 'bulan', 'tahun', 'tahunList'));
     }
 
+    public function kendaraan($id)
+    {
+        $kendaraan = \App\Models\Kendaraan::with(['jenis'])->findOrFail($id);
+
+        $history = AsuransiHistory::with(['kendaraan', 'asuransi', 'jenisAsuransi', 'attachments'])
+            ->where('kendaraan_id', $id)
+            ->latest('diperpanjang_pada')
+            ->paginate(20);
+
+        $totalData  = AsuransiHistory::where('kendaraan_id', $id)->count();
+        $totalBiaya = AsuransiHistory::where('kendaraan_id', $id)->sum('biaya');
+        $lastHistory = AsuransiHistory::where('kendaraan_id', $id)
+            ->latest('diperpanjang_pada')
+            ->first();
+        $avgBiaya = $totalData > 0 ? $totalBiaya / $totalData : 0;
+
+        return view('admin.kendaraan.asuransi_history', compact(
+            'kendaraan',
+            'history',
+            'totalData',
+            'totalBiaya',
+            'lastHistory',
+            'avgBiaya'
+        ));
+    }
+
     public function destroy($id)
     {
         $data = AsuransiHistory::findOrFail($id);

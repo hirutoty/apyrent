@@ -12,8 +12,18 @@ class PelangganController extends Controller
 {
     public function index()
     {
+        $totalPelanggan  = \App\Models\Pelanggan::count();
+        $totalPerorangan = \App\Models\Pelanggan::where('jenis_pelanggan', 'perorangan')->count();
+        $totalPerusahaan = \App\Models\Pelanggan::where('jenis_pelanggan', 'perusahaan')->count();
+        $baroBulanIni    = \App\Models\Pelanggan::whereMonth('created_at', now()->month)
+                                                ->whereYear('created_at', now()->year)->count();
+
         return view('admin.pelanggan.index', [
-            'data' => Pelanggan::latest()->paginate(15)->withQueryString()
+            'data'            => Pelanggan::latest()->paginate(15)->withQueryString(),
+            'totalPelanggan'  => $totalPelanggan,
+            'totalPerorangan' => $totalPerorangan,
+            'totalPerusahaan' => $totalPerusahaan,
+            'baroBulanIni'    => $baroBulanIni,
         ]);
     }
 
