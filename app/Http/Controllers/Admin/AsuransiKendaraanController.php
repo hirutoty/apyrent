@@ -317,6 +317,72 @@ class AsuransiKendaraanController extends Controller
         return back()->with('success', 'Lampiran berhasil dihapus');
     }
 
+    /**
+     * AJAX: detail per record asuransi kendaraan + chart perpanjangan Jan-Des
+     */
+    public function detail(Request $request, $id)
+    {
+        $asuransi = AsuransiKendaraan::with(['kendaraan','asuransi','jenisAsuransi','attachments'])->findOrFail($id);
+        $tahun    = (int) $request->input('tahun', now()->year);
+
+        $histories = AsuransiHistory::with(['asuransi','jenisAsuransi'])
+            ->where('asuransi_kendaraan_id', $id)
+            ->orderBy('diperpanjang_pada', 'desc')
+            ->get()
+            ->map(fn($h) => [
+                'id'               => $h->id,
+                'perusahaan'       => $h->asuransi->nama_asuransi ?? '-',
+                'jenis'            => $h->jenisAsuransi->nama_jenis ?? '-',
+                'biaya'            => $h->biaya,
+                'tgl_mulai'        => $h->tgl_mulai ? \Carbon\Carbon::parse($h->tgl_mulai)->format('d M Y') : '-',
+                'tgl_berakhir'     => $h->tgl_berakhir ? \Carbon\Carbon::parse($h->tgl_berakhir)->format('d M Y') : '-',
+                'durasi_bulan'     => $h->durasi_bulan,
+                'tanggal_bayar'    => $h->tanggal_bayar ? \Carbon\Carbon::parse($h->tanggal_bayar)->format('d M Y') : '-',
+                'bukti_bayar'      => $h->bukti_bayar ? asset($h->bukti_bayar) : null,
+                'diperpanjang_pada'=> $h->diperpanjang_pada ? \Carbon\Carbon::parse($h->diperpanjang_pada)->format('d M Y') : '-',
+            ]);
+
+        $bulanLabels = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+        $chartData   = [];
+        for ($b = 1; $b <= 12; $b++) {
+            $chartData[] = (float) AsuransiHistory::where('asuransi_kendaraan_id', $id)
+                ->whereYear('diperpanjang_pada', $tahun)
+                ->whereMonth('diperpanjang_pada', $b)
+                ->sum('biaya');
+        }
+
+        $availableYears = AsuransiHistory::where('asuransi_kendaraan_id', $id)
+            ->selectRaw('YEAR(diperpanjang_pada) as yr')
+            ->whereNotNull('diperpanjang_pada')
+            ->distinct()
+            ->orderBy('yr', 'desc')
+            ->pluck('yr');
+
+        return response()->json([
+            'success' => true,
+            'record'  => [
+                'id'          => $asuransi->id,
+                'nopol'       => $asuransi->kendaraan->nopol ?? '-',
+                'merk'        => $asuransi->kendaraan->merk ?? '-',
+                'perusahaan'  => $asuransi->asuransi->nama_asuransi ?? '-',
+                'jenis'       => $asuransi->jenisAsuransi->nama_jenis ?? '-',
+                'biaya'       => $asuransi->biaya,
+                'tgl_mulai'   => $asuransi->tgl_mulai ? \Carbon\Carbon::parse($asuransi->tgl_mulai)->format('d M Y') : '-',
+                'tgl_berakhir'=> $asuransi->tgl_berakhir ? \Carbon\Carbon::parse($asuransi->tgl_berakhir)->format('d M Y') : '-',
+                'durasi_bulan'=> $asuransi->durasi_bulan,
+                'status'      => $asuransi->status_kendaraan,
+                'bukti_bayar' => $asuransi->bukti_bayar ? asset($asuransi->bukti_bayar) : null,
+            ],
+            'histories'       => $histories,
+            'chart'           => [
+                'labels' => $bulanLabels,
+                'data'   => $chartData,
+                'tahun'  => $tahun,
+            ],
+            'available_years' => $availableYears,
+        ]);
+    }
+
     public function exportPdf(Request $request)
     {
         $search = $request->search;

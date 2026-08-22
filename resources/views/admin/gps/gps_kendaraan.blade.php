@@ -85,6 +85,19 @@
 
 
 
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="gpsChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="gpsChartContainer"
+            layout="bar-top"
+            pieTitle="Distribusi Status GPS" pieId="gpsPieChart"
+            barTitle="Biaya GPS per Bulan" barId="gpsBarChart"
+            lineTitle="Trend GPS" lineId="gpsLineChart"
+            :showStats="true" :statsData="[]"
+        />
+
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
 
@@ -296,14 +309,14 @@
 
                                 <td class="px-5 py-4">
                                     @if ($d->bukti_bayar)
-                                        @php $gpsBukti = [['path' => asset($d->bukti_bayar), 'name' => basename($d->bukti_bayar)]]; @endphp
-                                        <button type="button"
-                                            onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
-                                            data-imgs="{!! json_encode($gpsBukti, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                                            <i class="bi bi-image text-sm"></i>
-                                            Lihat Bukti
-                                        </button>
+                                        @php
+                                            $gpsBuktiName = preg_replace('/^\d+_/', '', basename($d->bukti_bayar));
+                                        @endphp
+                                        <a href="{{ asset($d->bukti_bayar) }}" target="_blank"
+                                            class="text-blue-600 underline text-xs hover:text-blue-800 block truncate max-w-[140px]"
+                                            title="{{ $gpsBuktiName }}">
+                                            {{ $gpsBuktiName }}
+                                        </a>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
@@ -399,10 +412,16 @@
                                                 <i class="fa-solid fa-trash text-xs"></i> Hapus
                                             </button>
                                         </form>
+                                        <button type="button"
+                                            onclick="openDetailModal('gps', {{ $d->id }}); event.stopPropagation()"
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
+                                            <i class="fa fa-eye text-xs"></i> Detail
+                                        </button>
                                     </div>
                                 </td>
 
                             </tr>
+
                         @empty
                             <tr>
                                 <td colspan="13" class="text-center py-12 text-slate-400">
@@ -1014,5 +1033,33 @@
                 list.appendChild(li);
             });
         };
+
+        // ── CHART GPS KENDARAAN ──────────────────────────────────────────────
+        const GPS_CHART_IDS = { pie: 'gpsPieChart', bar: 'gpsBarChart', line: 'gpsLineChart' };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof chartManager !== 'undefined') {
+                chartManager.initChartsFromAPI('gps-kendaraan', GPS_CHART_IDS, { filter_type: 'year' });
+            }
+
+            var gpsFilter = document.getElementById('gpsChartFilter');
+            if (gpsFilter) {
+                gpsFilter.addEventListener('chartFilterChange', function (e) {
+                    const { filterType, startDate, endDate } = e.detail;
+                    const filters = { filter_type: filterType };
+                    if (filterType === 'custom' && startDate && endDate) {
+                        filters.start_date = startDate;
+                        filters.end_date   = endDate;
+                    }
+                    chartManager.updateChartsFromAPI('gps-kendaraan', GPS_CHART_IDS, filters);
+                });
+            }
+        });
+
+        // ── EXPAND ROW GPS (deprecated) ─────────────────────────────────────
+        function toggleGpsRow(id, rowEl) { /* replaced by openDetailModal */ }
     </script>
+
+@include('admin.partials.detail-modal')
+
 @endsection
