@@ -1485,19 +1485,20 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             if (typeof chartManager !== 'undefined') {
-                chartManager.initChartsFromAPI('asuransi-kendaraan', ASURANSI_CHART_IDS, { filter_type: 'year' });
+                chartManager.initChartsFromAPI('asuransi-kendaraan', ASURANSI_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
             }
 
             var asFilter = document.getElementById('asuransiChartFilter');
             if (asFilter) {
-                asFilter.addEventListener('chartFilterChange', function (e) {
+                document.addEventListener('chartFilterChange', function (e) {
+                    if (e.detail.filterId !== 'asuransiChartFilter') return;
                     const { filterType, startDate, endDate } = e.detail;
                     const filters = { filter_type: filterType };
                     if (filterType === 'custom' && startDate && endDate) {
                         filters.start_date = startDate;
                         filters.end_date   = endDate;
                     }
-                    chartManager.updateChartsFromAPI('asuransi-kendaraan', ASURANSI_CHART_IDS, filters);
+                    chartManager.updateChartsFromAPI('asuransi-kendaraan', ASURANSI_CHART_IDS, filters, { accentLine: true });
                 });
             }
         });

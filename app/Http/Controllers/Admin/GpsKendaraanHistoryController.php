@@ -67,6 +67,32 @@ class GpsKendaraanHistoryController extends Controller
         return view('admin.gps.gps_kendaraan_history', compact('data', 'totalBiaya', 'tahunList', 'setting', 'logoSrc'));
     }
 
+    public function kendaraan($id)
+    {
+        $kendaraan = \App\Models\Kendaraan::with(['jenis'])->findOrFail($id);
+
+        $history = GpsKendaraanHistory::with(['kendaraan', 'gps', 'attachments'])
+            ->where('kendaraan_id', $id)
+            ->latest('diperpanjang_pada')
+            ->paginate(20);
+
+        $totalData  = GpsKendaraanHistory::where('kendaraan_id', $id)->count();
+        $totalBiaya = GpsKendaraanHistory::where('kendaraan_id', $id)->sum('biaya_sewa');
+        $lastHistory = GpsKendaraanHistory::where('kendaraan_id', $id)
+            ->latest('diperpanjang_pada')
+            ->first();
+        $avgBiaya = $totalData > 0 ? $totalBiaya / $totalData : 0;
+
+        return view('admin.kendaraan.gps_history', compact(
+            'kendaraan',
+            'history',
+            'totalData',
+            'totalBiaya',
+            'lastHistory',
+            'avgBiaya'
+        ));
+    }
+
     public function exportPdf(Request $request)
     {
         $query = GpsKendaraanHistory::with(['kendaraan', 'gps', 'attachments']);

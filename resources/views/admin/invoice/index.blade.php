@@ -3124,7 +3124,7 @@
         };
 
         try {
-            await window.chartManager.initChartsFromAPI('invoice', canvasIds, filters);
+            await window.chartManager.initChartsFromAPI('invoice', canvasIds, filters, { accentLine: true });
             console.log('✅ Invoice charts initialized');
         } catch (error) {
             console.error('❌ Failed to initialize invoice charts:', error);
@@ -3139,7 +3139,7 @@
         };
 
         try {
-            await window.chartManager.updateChartsFromAPI('invoice', canvasIds, filters);
+            await window.chartManager.updateChartsFromAPI('invoice', canvasIds, filters, { accentLine: true });
             console.log('✅ Invoice charts updated');
         } catch (error) {
             console.error('❌ Failed to update invoice charts:', error);

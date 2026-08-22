@@ -1255,19 +1255,20 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             if (typeof chartManager !== 'undefined') {
-                chartManager.initChartsFromAPI('kir', KIR_CHART_IDS, { filter_type: 'year' });
+                chartManager.initChartsFromAPI('kir', KIR_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
             }
 
             var kirFilter = document.getElementById('kirChartFilter');
             if (kirFilter) {
-                kirFilter.addEventListener('chartFilterChange', function (e) {
+                document.addEventListener('chartFilterChange', function (e) {
+                    if (e.detail.filterId !== 'kirChartFilter') return;
                     const { filterType, startDate, endDate } = e.detail;
                     const filters = { filter_type: filterType };
                     if (filterType === 'custom' && startDate && endDate) {
                         filters.start_date = startDate;
                         filters.end_date   = endDate;
                     }
-                    chartManager.updateChartsFromAPI('kir', KIR_CHART_IDS, filters);
+                    chartManager.updateChartsFromAPI('kir', KIR_CHART_IDS, filters, { accentLine: true });
                 });
             }
         });

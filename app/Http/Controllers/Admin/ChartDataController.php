@@ -189,6 +189,19 @@ class ChartDataController extends Controller
             'kendaraan-show' => $this->getKendaraanShowConfig(),
             'asuransi-kendaraan' => $this->getAsuransiKendaraanConfig(),
             'gps-kendaraan' => $this->getGpsKendaraanConfig(),
+            // Member & Pelanggan
+            'member' => $this->getMemberConfig(),
+            'pelanggan' => $this->getPelangganConfig(),
+            // History list pages
+            'pajak-history' => $this->getPajakHistoryConfig(),
+            'asuransi-history' => $this->getAsuransiHistoryConfig(),
+            'kir-history' => $this->getKirHistoryConfig(),
+            'gps-kendaraan-history' => $this->getGpsKendaraanHistoryConfig(),
+            // History per-kendaraan detail pages
+            'pajak-history-kendaraan' => $this->getPajakHistoryConfig(),
+            'asuransi-history-kendaraan' => $this->getAsuransiHistoryConfig(),
+            'kir-history-kendaraan' => $this->getKirHistoryConfig(),
+            'gps-history-kendaraan' => $this->getGpsKendaraanHistoryConfig(),
             // Add more as needed
         ];
 
@@ -232,6 +245,19 @@ class ChartDataController extends Controller
             'kendaraan-show' => \App\Models\Kendaraan::query(),
             'asuransi-kendaraan' => \App\Models\AsuransiKendaraan::query(),
             'gps-kendaraan' => \App\Models\GpsKendaraan::query(),
+            // Member & Pelanggan
+            'member' => \App\Models\Member::query(),
+            'pelanggan' => \App\Models\Pelanggan::query(),
+            // History list pages
+            'pajak-history' => \App\Models\PajakHistory::query(),
+            'asuransi-history' => \App\Models\AsuransiHistory::query(),
+            'kir-history' => \App\Models\KirHistory::query(),
+            'gps-kendaraan-history' => \App\Models\GpsKendaraanHistory::query(),
+            // History per-kendaraan detail pages
+            'pajak-history-kendaraan' => \App\Models\PajakHistory::query(),
+            'asuransi-history-kendaraan' => \App\Models\AsuransiHistory::query(),
+            'kir-history-kendaraan' => \App\Models\KirHistory::query(),
+            'gps-history-kendaraan' => \App\Models\GpsKendaraanHistory::query(),
             // Add more as needed
         ];
 
@@ -2296,6 +2322,321 @@ class ChartDataController extends Controller
     }
 
     /**
+     * Chart config for Pajak History list/detail page
+     */
+    protected function getPajakHistoryConfig(): array
+    {
+        return [
+            'dateColumn' => 'diperpanjang_pada',
+            'pie' => [
+                'title'       => 'Distribusi Jenis Pajak',
+                'groupBy'     => 'jenis_pajak',
+                'valueColumn' => 'nominal',
+                'aggregation' => 'sum',
+                'labels'      => [],
+                'colors'      => ['#4f6ef7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+            ],
+            'bar' => [
+                'title'        => 'Biaya Pajak per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => ['nominal'],
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'diperpanjang_pada',
+                'limit'        => 12,
+                'labels'       => ['Nominal Pajak'],
+                'colors'       => ['#4f6ef7'],
+            ],
+            'line' => [
+                'title'       => 'Trend Biaya Pajak',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'nominal',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'diperpanjang_pada',
+                'limit'       => 12,
+                'label'       => 'Nominal',
+                'color'       => '#4f6ef7',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Perpanjangan',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon'   => 'fa fa-file-invoice-dollar',
+                ],
+                [
+                    'label'  => 'Total Biaya',
+                    'type'   => 'sum',
+                    'column' => 'nominal',
+                    'format' => 'currency',
+                    'color'  => '#ef4444',
+                    'iconBg' => '#fee2e2',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'  => 'Rata-rata Biaya',
+                    'type'   => 'avg',
+                    'column' => 'nominal',
+                    'format' => 'currency',
+                    'color'  => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon'   => 'fa fa-calculator',
+                ],
+                [
+                    'label'  => 'Kendaraan Terdaftar',
+                    'type'   => 'count',
+                    'column' => 'kendaraan_id',
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-car',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Asuransi History list/detail page
+     */
+    protected function getAsuransiHistoryConfig(): array
+    {
+        return [
+            'dateColumn' => 'diperpanjang_pada',
+            'pie' => [
+                'title'       => 'Distribusi Status Asuransi',
+                'groupBy'     => 'status_kendaraan',
+                'valueColumn' => 'biaya',
+                'aggregation' => 'sum',
+                'labels'      => [
+                    'aktif'   => 'Aktif',
+                    'expired' => 'Expired',
+                ],
+                'colors'      => ['#10b981', '#ef4444'],
+            ],
+            'bar' => [
+                'title'        => 'Biaya Asuransi per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => ['biaya'],
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'diperpanjang_pada',
+                'limit'        => 12,
+                'labels'       => ['Biaya Asuransi'],
+                'colors'       => ['#3b82f6'],
+            ],
+            'line' => [
+                'title'       => 'Trend Biaya Asuransi',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'biaya',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'diperpanjang_pada',
+                'limit'       => 12,
+                'label'       => 'Biaya',
+                'color'       => '#3b82f6',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Perpanjangan',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon'   => 'fa fa-shield-halved',
+                ],
+                [
+                    'label'  => 'Total Biaya',
+                    'type'   => 'sum',
+                    'column' => 'biaya',
+                    'format' => 'currency',
+                    'color'  => '#3b82f6',
+                    'iconBg' => '#dbeafe',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'  => 'Rata-rata Biaya',
+                    'type'   => 'avg',
+                    'column' => 'biaya',
+                    'format' => 'currency',
+                    'color'  => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon'   => 'fa fa-calculator',
+                ],
+                [
+                    'label'  => 'Kendaraan Terdaftar',
+                    'type'   => 'count',
+                    'column' => 'kendaraan_id',
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-car',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for KIR History list/detail page
+     */
+    protected function getKirHistoryConfig(): array
+    {
+        return [
+            'dateColumn' => 'diperpanjang_pada',
+            'pie' => [
+                'title'       => 'Distribusi Status KIR',
+                'groupBy'     => 'no_uji',
+                'valueColumn' => 'biaya',
+                'aggregation' => 'sum',
+                'labels'      => [],
+                'colors'      => ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'],
+            ],
+            'bar' => [
+                'title'        => 'Biaya KIR per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => ['biaya'],
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'diperpanjang_pada',
+                'limit'        => 12,
+                'labels'       => ['Biaya KIR'],
+                'colors'       => ['#f59e0b'],
+            ],
+            'line' => [
+                'title'       => 'Trend Biaya KIR',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'biaya',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'diperpanjang_pada',
+                'limit'       => 12,
+                'label'       => 'Biaya',
+                'color'       => '#f59e0b',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Perpanjangan',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon'   => 'fa fa-clipboard-check',
+                ],
+                [
+                    'label'  => 'Total Biaya',
+                    'type'   => 'sum',
+                    'column' => 'biaya',
+                    'format' => 'currency',
+                    'color'  => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'  => 'Rata-rata Biaya',
+                    'type'   => 'avg',
+                    'column' => 'biaya',
+                    'format' => 'currency',
+                    'color'  => '#8b5cf6',
+                    'iconBg' => '#ede9fe',
+                    'icon'   => 'fa fa-calculator',
+                ],
+                [
+                    'label'  => 'Kendaraan Terdaftar',
+                    'type'   => 'count',
+                    'column' => 'kendaraan_id',
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-car',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for GPS Kendaraan History list/detail page
+     */
+    protected function getGpsKendaraanHistoryConfig(): array
+    {
+        return [
+            'dateColumn' => 'diperpanjang_pada',
+            'pie' => [
+                'title'       => 'Distribusi Type GPS',
+                'groupBy'     => 'type',
+                'valueColumn' => 'biaya_sewa',
+                'aggregation' => 'sum',
+                'labels'      => [],
+                'colors'      => ['#6366f1', '#10b981', '#f59e0b', '#ef4444'],
+            ],
+            'bar' => [
+                'title'        => 'Biaya GPS per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => ['biaya_sewa'],
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'diperpanjang_pada',
+                'limit'        => 12,
+                'labels'       => ['Biaya Sewa GPS'],
+                'colors'       => ['#6366f1'],
+            ],
+            'line' => [
+                'title'       => 'Trend Biaya GPS',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'biaya_sewa',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'diperpanjang_pada',
+                'limit'       => 12,
+                'label'       => 'Biaya Sewa',
+                'color'       => '#6366f1',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Perpanjangan',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#6366f1',
+                    'iconBg' => '#ede9fe',
+                    'icon'   => 'fa fa-satellite-dish',
+                ],
+                [
+                    'label'  => 'Total Biaya',
+                    'type'   => 'sum',
+                    'column' => 'biaya_sewa',
+                    'format' => 'currency',
+                    'color'  => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'  => 'Rata-rata Biaya',
+                    'type'   => 'avg',
+                    'column' => 'biaya_sewa',
+                    'format' => 'currency',
+                    'color'  => '#8b5cf6',
+                    'iconBg' => '#ede9fe',
+                    'icon'   => 'fa fa-calculator',
+                ],
+                [
+                    'label'  => 'Kendaraan Terdaftar',
+                    'type'   => 'count',
+                    'column' => 'kendaraan_id',
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-car',
+                ],
+            ],
+        ];
+    }
+
+    /**
      * Chart config for GPS Kendaraan page
      */
     protected function getGpsKendaraanConfig(): array
@@ -2375,4 +2716,37 @@ class ChartDataController extends Controller
             ],
         ];
     }
+
+    protected function getMemberConfig(): array
+    {
+        return [
+            'dateColumn' => 'created_at',
+            'pie'  => ['title' => 'Jenis Member',  'groupBy' => 'jenis_member',  'valueColumn' => 'id', 'aggregation' => 'count', 'labels' => ['perorangan' => 'Perorangan', 'perusahaan' => 'Perusahaan'], 'colors' => ['#4f6ef7', '#10b981']],
+            'bar'  => ['title' => 'Pendaftaran Member per Periode', 'groupBy' => 'month', 'valueColumns' => ['id'], 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'labels' => ['Jumlah Member'], 'colors' => ['#4f6ef7']],
+            'line' => ['title' => 'Trend Member', 'groupBy' => 'month', 'valueColumn' => 'id', 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'label' => 'Member', 'color' => '#4f6ef7'],
+            'stats' => [
+                ['label' => 'Total Member',   'type' => 'count',       'column' => 'id', 'format' => 'number', 'color' => '#4f6ef7', 'iconBg' => '#eef1ff', 'icon' => 'fa fa-users'],
+                ['label' => 'Perorangan',     'type' => 'count_where', 'column' => 'id', 'where' => ['jenis_member' => 'perorangan'], 'format' => 'number', 'color' => '#10b981', 'iconBg' => '#d1fae5', 'icon' => 'fa fa-user'],
+                ['label' => 'Perusahaan',     'type' => 'count_where', 'column' => 'id', 'where' => ['jenis_member' => 'perusahaan'], 'format' => 'number', 'color' => '#f59e0b', 'iconBg' => '#fef3c7', 'icon' => 'fa fa-building'],
+                ['label' => 'Baru Bulan Ini', 'type' => 'count',       'column' => 'id', 'format' => 'number', 'color' => '#8b5cf6', 'iconBg' => '#ede9fe', 'icon' => 'fa fa-user-plus'],
+            ],
+        ];
+    }
+
+    protected function getPelangganConfig(): array
+    {
+        return [
+            'dateColumn' => 'created_at',
+            'pie'  => ['title' => 'Jenis Pelanggan', 'groupBy' => 'jenis_pelanggan', 'valueColumn' => 'id', 'aggregation' => 'count', 'labels' => ['perorangan' => 'Perorangan', 'perusahaan' => 'Perusahaan'], 'colors' => ['#3b82f6', '#f59e0b']],
+            'bar'  => ['title' => 'Pendaftaran Pelanggan per Periode', 'groupBy' => 'month', 'valueColumns' => ['id'], 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'labels' => ['Jumlah Pelanggan'], 'colors' => ['#3b82f6']],
+            'line' => ['title' => 'Trend Pelanggan', 'groupBy' => 'month', 'valueColumn' => 'id', 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'label' => 'Pelanggan', 'color' => '#3b82f6'],
+            'stats' => [
+                ['label' => 'Total Pelanggan', 'type' => 'count',       'column' => 'id', 'format' => 'number', 'color' => '#3b82f6', 'iconBg' => '#dbeafe', 'icon' => 'fa fa-users'],
+                ['label' => 'Perorangan',      'type' => 'count_where', 'column' => 'id', 'where' => ['jenis_pelanggan' => 'perorangan'], 'format' => 'number', 'color' => '#10b981', 'iconBg' => '#d1fae5', 'icon' => 'fa fa-user'],
+                ['label' => 'Perusahaan',      'type' => 'count_where', 'column' => 'id', 'where' => ['jenis_pelanggan' => 'perusahaan'], 'format' => 'number', 'color' => '#f59e0b', 'iconBg' => '#fef3c7', 'icon' => 'fa fa-building'],
+                ['label' => 'Baru Bulan Ini',  'type' => 'count',       'column' => 'id', 'format' => 'number', 'color' => '#8b5cf6', 'iconBg' => '#ede9fe', 'icon' => 'fa fa-user-plus'],
+            ],
+        ];
+    }
+
 }

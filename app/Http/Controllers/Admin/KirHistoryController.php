@@ -28,6 +28,32 @@ class KirHistoryController extends Controller
         return view('admin.kir.history', compact('data', 'bulan', 'tahun', 'tahunList'));
     }
 
+    public function kendaraan($id)
+    {
+        $kendaraan = \App\Models\Kendaraan::with(['jenis'])->findOrFail($id);
+
+        $history = KirHistory::with(['kendaraan', 'kir', 'attachments'])
+            ->where('kendaraan_id', $id)
+            ->latest('diperpanjang_pada')
+            ->paginate(20);
+
+        $totalData  = KirHistory::where('kendaraan_id', $id)->count();
+        $totalBiaya = KirHistory::where('kendaraan_id', $id)->sum('biaya');
+        $lastHistory = KirHistory::where('kendaraan_id', $id)
+            ->latest('diperpanjang_pada')
+            ->first();
+        $avgBiaya = $totalData > 0 ? $totalBiaya / $totalData : 0;
+
+        return view('admin.kendaraan.kir_history', compact(
+            'kendaraan',
+            'history',
+            'totalData',
+            'totalBiaya',
+            'lastHistory',
+            'avgBiaya'
+        ));
+    }
+
     public function destroy($id)
     {
         $data = KirHistory::findOrFail($id);

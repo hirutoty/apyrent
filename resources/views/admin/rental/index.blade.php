@@ -2085,7 +2085,7 @@ async function initRentalCharts(filters) {
             pie:  'rentalPieChart',
             bar:  'rentalBarChart',
             line: 'rentalLineChart',
-        }, filters);
+        }, filters, { accentLine: true });
     } catch (error) {
         console.error('Error loading rental charts:', error);
     }
@@ -2093,7 +2093,7 @@ async function initRentalCharts(filters) {
 
 async function updateRentalCharts(filters) {
     try {
-        const barOptions = { scrollable: filters.filter_type === 'custom' };
+        const barOptions = { scrollable: filters.filter_type === 'custom', accentLine: true };
         await rentalChartManager.updateChartsFromAPI('rental', {
             pie:  'rentalPieChart',
             bar:  'rentalBarChart',

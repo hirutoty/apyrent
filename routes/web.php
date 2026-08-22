@@ -424,6 +424,27 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     [KendaraanController::class, 'serviceHistory']
   )->name('kendaraan.service-history');
 
+  // Pajak / Asuransi / KIR / GPS History per Kendaraan
+  Route::get(
+    '/kendaraan/{id}/pajak-history',
+    [PajakHistoryController::class, 'kendaraan']
+  )->name('kendaraan.pajak-history');
+
+  Route::get(
+    '/kendaraan/{id}/asuransi-history',
+    [AsuransiHistoryController::class, 'kendaraan']
+  )->name('kendaraan.asuransi-history');
+
+  Route::get(
+    '/kendaraan/{id}/kir-history',
+    [KirHistoryController::class, 'kendaraan']
+  )->name('kendaraan.kir-history');
+
+  Route::get(
+    '/kendaraan/{id}/gps-history',
+    [GpsKendaraanHistoryController::class, 'kendaraan']
+  )->name('kendaraan.gps-history');
+
   Route::patch(
     '/kendaraan/{kendaraan}/status',
     [KendaraanController::class, 'updateStatus']

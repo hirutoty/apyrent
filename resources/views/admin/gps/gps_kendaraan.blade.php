@@ -1039,19 +1039,20 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             if (typeof chartManager !== 'undefined') {
-                chartManager.initChartsFromAPI('gps-kendaraan', GPS_CHART_IDS, { filter_type: 'year' });
+                chartManager.initChartsFromAPI('gps-kendaraan', GPS_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
             }
 
             var gpsFilter = document.getElementById('gpsChartFilter');
             if (gpsFilter) {
-                gpsFilter.addEventListener('chartFilterChange', function (e) {
+                document.addEventListener('chartFilterChange', function (e) {
+                    if (e.detail.filterId !== 'gpsChartFilter') return;
                     const { filterType, startDate, endDate } = e.detail;
                     const filters = { filter_type: filterType };
                     if (filterType === 'custom' && startDate && endDate) {
                         filters.start_date = startDate;
                         filters.end_date   = endDate;
                     }
-                    chartManager.updateChartsFromAPI('gps-kendaraan', GPS_CHART_IDS, filters);
+                    chartManager.updateChartsFromAPI('gps-kendaraan', GPS_CHART_IDS, filters, { accentLine: true });
                 });
             }
         });

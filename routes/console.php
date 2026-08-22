@@ -17,6 +17,7 @@ use App\Console\Commands\ReminderPenawaranCommand;
 use App\Console\Commands\SendAgingReminder;
 use App\Console\Commands\CekJatuhTempoReminderService;
 use App\Console\Commands\CheckServicePartLimit;
+use App\Console\Commands\CatatCicilanLeasingCommand;
 
 
 Artisan::command('inspire', function () {
@@ -104,3 +105,13 @@ Schedule::call(function () {
     app(CheckServicePartLimit::class)->handle();
 // })->dailyAt('08:00');
 })->everyMinute();
+
+
+// Catat Cicilan Leasing — backfill + catat bulan berjalan ke keuangan & buku besar
+Schedule::call(function () {
+    app(CatatCicilanLeasingCommand::class)->handle();
+// })->dailyAt('01:00');
+})->everyMinute();
+
+
+// php artisan schedule:run

@@ -1647,19 +1647,20 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             if (typeof chartManager !== 'undefined') {
-                chartManager.initChartsFromAPI('kendaraan', KDR_CHART_IDS, { filter_type: 'year' });
+                chartManager.initChartsFromAPI('kendaraan', KDR_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
             }
 
             var kdrFilter = document.getElementById('kendaraanChartFilter');
             if (kdrFilter) {
-                kdrFilter.addEventListener('chartFilterChange', function (e) {
+                document.addEventListener('chartFilterChange', function (e) {
+                    if (e.detail.filterId !== 'kendaraanChartFilter') return;
                     const { filterType, startDate, endDate } = e.detail;
                     const filters = { filter_type: filterType };
                     if (filterType === 'custom' && startDate && endDate) {
                         filters.start_date = startDate;
                         filters.end_date   = endDate;
                     }
-                    chartManager.updateChartsFromAPI('kendaraan', KDR_CHART_IDS, filters);
+                    chartManager.updateChartsFromAPI('kendaraan', KDR_CHART_IDS, filters, { accentLine: true });
                 });
             }
         });
