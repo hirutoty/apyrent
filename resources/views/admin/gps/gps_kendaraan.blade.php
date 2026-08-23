@@ -91,7 +91,7 @@
         {{-- CHART CONTAINER --}}
         <x-chart-container
             id="gpsChartContainer"
-            layout="bar-top"
+            layout="stacked"
             pieTitle="Distribusi Status GPS" pieId="gpsPieChart"
             barTitle="Biaya GPS per Bulan" barId="gpsBarChart"
             lineTitle="Trend GPS" lineId="gpsLineChart"
@@ -1035,27 +1035,51 @@
         };
 
         // ── CHART GPS KENDARAAN ──────────────────────────────────────────────
-        const GPS_CHART_IDS = { pie: 'gpsPieChart', bar: 'gpsBarChart', line: 'gpsLineChart' };
+        const chartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
-            if (typeof chartManager !== 'undefined') {
-                chartManager.initChartsFromAPI('gps-kendaraan', GPS_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
-            }
+            // Initialize charts with default filter (year)
+            initGpsCharts({ filter_type: 'year' });
 
-            var gpsFilter = document.getElementById('gpsChartFilter');
-            if (gpsFilter) {
-                document.addEventListener('chartFilterChange', function (e) {
-                    if (e.detail.filterId !== 'gpsChartFilter') return;
-                    const { filterType, startDate, endDate } = e.detail;
-                    const filters = { filter_type: filterType };
-                    if (filterType === 'custom' && startDate && endDate) {
-                        filters.start_date = startDate;
-                        filters.end_date   = endDate;
-                    }
-                    chartManager.updateChartsFromAPI('gps-kendaraan', GPS_CHART_IDS, filters, { accentLine: true });
-                });
-            }
+            // Listen for filter changes
+            document.addEventListener('chartFilterChange', function (e) {
+                if (e.detail.filterId === 'gpsChartFilter') {
+                    const filters = {
+                        filter_type: e.detail.filterType,
+                        start_date: e.detail.startDate,
+                        end_date: e.detail.endDate,
+                    };
+                    updateGpsCharts(filters);
+                }
+            });
         });
+
+        async function initGpsCharts(filters) {
+            try {
+                await chartManager.initChartsFromAPI('gps-kendaraan', {
+                    pie: 'gpsPieChart',
+                    bar: 'gpsBarChart',
+                    line: 'gpsLineChart'
+                }, filters, { accentLine: true });
+            } catch (error) {
+                console.error('Error loading GPS charts:', error);
+            }
+        }
+
+        async function updateGpsCharts(filters) {
+            try {
+                const isScrollable = filters.filter_type === 'custom';
+                const barOptions  = { scrollable: isScrollable, accentLine: true };
+                const lineOptions = { scrollable: isScrollable };
+                await chartManager.updateChartsFromAPI('gps-kendaraan', {
+                    pie: 'gpsPieChart',
+                    bar: 'gpsBarChart',
+                    line: 'gpsLineChart'
+                }, filters, barOptions, lineOptions);
+            } catch (error) {
+                console.error('Error updating GPS charts:', error);
+            }
+        }
 
         // ── EXPAND ROW GPS (deprecated) ─────────────────────────────────────
         function toggleGpsRow(id, rowEl) { /* replaced by openDetailModal */ }

@@ -86,7 +86,7 @@
         {{-- CHART CONTAINER --}}
         <x-chart-container
             id="kendaraanChartContainer"
-            layout="bar-top"
+            layout="stacked"
             pieTitle="Distribusi Status Kendaraan" pieId="kendaraanPieChart"
             barTitle="Jumlah per Merk" barId="kendaraanBarChart"
             lineTitle="Trend Penambahan Kendaraan" lineId="kendaraanLineChart"
@@ -1643,27 +1643,51 @@
         })();
 
         // ── CHART KENDARAAN INDEX ────────────────────────────────────────────
-        const KDR_CHART_IDS = { pie: 'kendaraanPieChart', bar: 'kendaraanBarChart', line: 'kendaraanLineChart' };
+        const chartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
-            if (typeof chartManager !== 'undefined') {
-                chartManager.initChartsFromAPI('kendaraan', KDR_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
-            }
+            // Initialize charts with default filter (year)
+            initKendaraanCharts({ filter_type: 'year' });
 
-            var kdrFilter = document.getElementById('kendaraanChartFilter');
-            if (kdrFilter) {
-                document.addEventListener('chartFilterChange', function (e) {
-                    if (e.detail.filterId !== 'kendaraanChartFilter') return;
-                    const { filterType, startDate, endDate } = e.detail;
-                    const filters = { filter_type: filterType };
-                    if (filterType === 'custom' && startDate && endDate) {
-                        filters.start_date = startDate;
-                        filters.end_date   = endDate;
-                    }
-                    chartManager.updateChartsFromAPI('kendaraan', KDR_CHART_IDS, filters, { accentLine: true });
-                });
-            }
+            // Listen for filter changes
+            document.addEventListener('chartFilterChange', function (e) {
+                if (e.detail.filterId === 'kendaraanChartFilter') {
+                    const filters = {
+                        filter_type: e.detail.filterType,
+                        start_date: e.detail.startDate,
+                        end_date: e.detail.endDate,
+                    };
+                    updateKendaraanCharts(filters);
+                }
+            });
         });
+
+        async function initKendaraanCharts(filters) {
+            try {
+                await chartManager.initChartsFromAPI('kendaraan', {
+                    pie: 'kendaraanPieChart',
+                    bar: 'kendaraanBarChart',
+                    line: 'kendaraanLineChart'
+                }, filters, { accentLine: true });
+            } catch (error) {
+                console.error('Error loading kendaraan charts:', error);
+            }
+        }
+
+        async function updateKendaraanCharts(filters) {
+            try {
+                const isScrollable = filters.filter_type === 'custom';
+                const barOptions  = { scrollable: isScrollable, accentLine: true };
+                const lineOptions = { scrollable: isScrollable };
+                await chartManager.updateChartsFromAPI('kendaraan', {
+                    pie: 'kendaraanPieChart',
+                    bar: 'kendaraanBarChart',
+                    line: 'kendaraanLineChart'
+                }, filters, barOptions, lineOptions);
+            } catch (error) {
+                console.error('Error updating kendaraan charts:', error);
+            }
+        }
     </script>
 
 @endsection

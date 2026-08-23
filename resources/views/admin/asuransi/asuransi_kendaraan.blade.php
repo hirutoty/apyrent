@@ -116,7 +116,7 @@
         {{-- CHART CONTAINER --}}
         <x-chart-container
             id="asuransiChartContainer"
-            layout="bar-top"
+            layout="stacked"
             pieTitle="Distribusi Status Asuransi" pieId="asuransiPieChart"
             barTitle="Nominal Asuransi per Bulan" barId="asuransiBarChart"
             lineTitle="Trend Nominal Asuransi" lineId="asuransiLineChart"
@@ -1481,27 +1481,51 @@
         }
 
         // ── CHART ASURANSI KENDARAAN ─────────────────────────────────────────
-        const ASURANSI_CHART_IDS = { pie: 'asuransiPieChart', bar: 'asuransiBarChart', line: 'asuransiLineChart' };
+        const chartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
-            if (typeof chartManager !== 'undefined') {
-                chartManager.initChartsFromAPI('asuransi-kendaraan', ASURANSI_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
-            }
+            // Initialize charts with default filter (year)
+            initAsuransiCharts({ filter_type: 'year' });
 
-            var asFilter = document.getElementById('asuransiChartFilter');
-            if (asFilter) {
-                document.addEventListener('chartFilterChange', function (e) {
-                    if (e.detail.filterId !== 'asuransiChartFilter') return;
-                    const { filterType, startDate, endDate } = e.detail;
-                    const filters = { filter_type: filterType };
-                    if (filterType === 'custom' && startDate && endDate) {
-                        filters.start_date = startDate;
-                        filters.end_date   = endDate;
-                    }
-                    chartManager.updateChartsFromAPI('asuransi-kendaraan', ASURANSI_CHART_IDS, filters, { accentLine: true });
-                });
-            }
+            // Listen for filter changes
+            document.addEventListener('chartFilterChange', function (e) {
+                if (e.detail.filterId === 'asuransiChartFilter') {
+                    const filters = {
+                        filter_type: e.detail.filterType,
+                        start_date: e.detail.startDate,
+                        end_date: e.detail.endDate,
+                    };
+                    updateAsuransiCharts(filters);
+                }
+            });
         });
+
+        async function initAsuransiCharts(filters) {
+            try {
+                await chartManager.initChartsFromAPI('asuransi-kendaraan', {
+                    pie: 'asuransiPieChart',
+                    bar: 'asuransiBarChart',
+                    line: 'asuransiLineChart'
+                }, filters, { accentLine: true });
+            } catch (error) {
+                console.error('Error loading asuransi charts:', error);
+            }
+        }
+
+        async function updateAsuransiCharts(filters) {
+            try {
+                const isScrollable = filters.filter_type === 'custom';
+                const barOptions  = { scrollable: isScrollable, accentLine: true };
+                const lineOptions = { scrollable: isScrollable };
+                await chartManager.updateChartsFromAPI('asuransi-kendaraan', {
+                    pie: 'asuransiPieChart',
+                    bar: 'asuransiBarChart',
+                    line: 'asuransiLineChart'
+                }, filters, barOptions, lineOptions);
+            } catch (error) {
+                console.error('Error updating asuransi charts:', error);
+            }
+        }
 
         // ── EXPAND ROW ASURANSI (deprecated) ────────────────────────────────
         function toggleAsuransiRow(id, rowEl) { /* replaced by openDetailModal */ }

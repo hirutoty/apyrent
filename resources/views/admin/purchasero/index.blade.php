@@ -59,7 +59,7 @@
     {{-- CHART CONTAINER --}}
     <x-chart-container
         id="purchaseroChartContainer"
-        layout="bar-top"
+        layout="stacked"
         pieTitle="Distribusi Status" pieId="purchaseroPieChart"
         barTitle="Nominal Pengadaan per Bulan" barId="purchaseroBarChart"
         lineTitle="Trend Nominal Pengadaan" lineId="purchaseroLineChart"

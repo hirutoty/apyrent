@@ -61,6 +61,7 @@
             {{-- CHART CONTAINER --}}
             <x-chart-container
                 id="keuanganChartContainer"
+                layout="stacked"
                 pieTitle="Distribusi Keuangan"
                 pieId="keuanganPieChart"
                 barTitle="Perbandingan Bulanan"
@@ -438,6 +439,7 @@
             {{-- CHART CONTAINER --}}
             <x-chart-container
                 id="agingApChartContainer"
+                layout="stacked"
                 pieTitle="Kategori Aging"
                 pieId="agingApPieChart"
                 barTitle="Hutang per Bulan"
@@ -721,6 +723,7 @@
             {{-- CHART CONTAINER --}}
             <x-chart-container
                 id="agingArChartContainer"
+                layout="stacked"
                 pieTitle="Kategori Aging"
                 pieId="agingArPieChart"
                 barTitle="Outstanding per Bulan"

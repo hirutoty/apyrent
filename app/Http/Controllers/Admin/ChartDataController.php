@@ -293,13 +293,13 @@ class ChartDataController extends Controller
                 'labels' => ['Pemasukan', 'Pengeluaran']
             ],
             'line' => [
-                'title' => 'Trend Net Income',
+                'title' => 'Trend Saldo',
                 'groupBy' => 'month',
-                'valueColumn' => 'net_income',
-                'aggregation' => 'custom',
+                'valueColumn' => 'saldo',
+                'aggregation' => 'sum',
                 'dateColumn' => 'tanggal',
                 'limit' => 12,
-                'label' => 'Net Income',
+                'label' => 'Saldo',
                 'color' => '#8b5cf6'
             ],
             'stats' => [
@@ -1303,35 +1303,39 @@ class ChartDataController extends Controller
         return [
             'dateColumn' => 'created_at',
             'pie' => [
-                'title' => 'Revenue Distribution',
-                'groupBy' => 'status',
-                'valueColumn' => 'total_amount',
-                'aggregation' => 'sum',
-                'labels' => [],
-                'colors' => ['#10b981', '#f59e0b', '#ef4444', '#3b82f6']
+                'title' => 'Distribusi Status Pembayaran',
+                'groupBy' => 'payment_status',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels' => [
+                    'Paid'    => 'Paid',
+                    'Partial' => 'Partial',
+                    'Unpaid'  => 'Unpaid',
+                ],
+                'colors' => ['#10b981', '#f59e0b', '#ef4444']
             ],
             'bar' => [
-                'title' => 'Monthly Revenue',
+                'title' => 'Total Tagihan per Periode',
                 'groupBy' => 'month',
                 'valueColumns' => ['total_amount'],
                 'aggregation' => 'sum',
                 'dateColumn' => 'created_at',
-                'limit' => 6,
-                'labels' => ['Revenue']
+                'limit' => 12,
+                'labels' => ['Total Tagihan']
             ],
             'line' => [
-                'title' => 'Revenue Trend',
+                'title' => 'Trend Tagihan',
                 'groupBy' => 'month',
                 'valueColumn' => 'total_amount',
                 'aggregation' => 'sum',
                 'dateColumn' => 'created_at',
                 'limit' => 12,
-                'label' => 'Amount',
+                'label' => 'Total Tagihan',
                 'color' => '#10b981'
             ],
             'stats' => [
                 [
-                    'label' => 'Total Revenue',
+                    'label' => 'Total Tagihan',
                     'type' => 'sum',
                     'column' => 'total_amount',
                     'format' => 'currency',
@@ -1342,7 +1346,7 @@ class ChartDataController extends Controller
                     'dateColumn' => 'created_at'
                 ],
                 [
-                    'label' => 'Total Items',
+                    'label' => 'Total Data',
                     'type' => 'count',
                     'column' => 'id',
                     'format' => 'number',
@@ -1353,24 +1357,22 @@ class ChartDataController extends Controller
                     'dateColumn' => 'created_at'
                 ],
                 [
-                    'label' => 'Average Value',
-                    'type' => 'avg',
-                    'column' => 'total_amount',
+                    'label' => 'Sudah Dibayar',
+                    'type' => 'sum',
+                    'column' => 'paid_amount',
                     'format' => 'currency',
-                    'color' => '#f59e0b',
-                    'iconBg' => '#fef3c7',
-                    'icon' => 'fa fa-calculator'
+                    'color' => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon' => 'fa fa-check-circle'
                 ],
                 [
-                    'label' => 'Growth',
-                    'type' => 'count',
-                    'column' => 'id',
-                    'format' => 'number',
-                    'color' => '#8b5cf6',
-                    'iconBg' => '#f3e8ff',
-                    'icon' => 'fa fa-chart-line',
-                    'trendComparison' => 'last_month',
-                    'dateColumn' => 'created_at'
+                    'label' => 'Sisa Tagihan',
+                    'type' => 'sum',
+                    'column' => 'remaining_amount',
+                    'format' => 'currency',
+                    'color' => '#ef4444',
+                    'iconBg' => '#fee2e2',
+                    'icon' => 'fa fa-clock'
                 ]
             ]
         ];
