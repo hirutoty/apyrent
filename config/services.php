@@ -39,4 +39,8 @@ return [
         'key' => env('REMOVE_BG_API_KEY', ''),
     ],
 
+    'deepl' => [
+        'key' => env('DEEPL_API_KEY', ''),
+    ],
+
 ];

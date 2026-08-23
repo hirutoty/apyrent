@@ -224,6 +224,12 @@
                                             </a>
                                         @endif
 
+                                        {{-- Print preview --}}
+                                        <a href="{{ route('penawaran.print', $p->id) }}" target="_blank"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors">
+                                            <i class="fa fa-print text-xs"></i> Print
+                                        </a>
+
                                         @if (!in_array($p->status, ['approved', 'rejected', 'expired']))
                                             {{-- Approve — buka modal upload --}}
                                             <button type="button"

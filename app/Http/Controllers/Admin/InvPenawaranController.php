@@ -341,6 +341,21 @@ class InvPenawaranController
         return back()->with('success', 'Data berhasil dihapus.');
     }
 
+    public function printView($id)
+    {
+        $penawaran = InvPenawaran::with('items.kendaraan')->findOrFail($id);
+        $setting   = \App\Models\Setting::first();
+
+        $logoSrc  = '';
+        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
+        if (file_exists($logoPath)) {
+            $mime    = mime_content_type($logoPath) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
+        return view('admin.penawaran.print', compact('penawaran', 'setting', 'logoSrc'));
+    }
+
     public function downloadDraft($id)
     {
         $penawaran = InvPenawaran::with('items.kendaraan')->findOrFail($id);
