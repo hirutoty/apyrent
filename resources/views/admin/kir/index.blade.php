@@ -114,7 +114,7 @@
         {{-- CHART CONTAINER --}}
         <x-chart-container
             id="kirChartContainer"
-            layout="bar-top"
+            layout="stacked"
             pieTitle="Distribusi Status KIR" pieId="kirPieChart"
             barTitle="Biaya KIR per Bulan" barId="kirBarChart"
             lineTitle="Trend KIR" lineId="kirLineChart"
@@ -1251,27 +1251,51 @@
         })();
 
         // ── CHART KIR ────────────────────────────────────────────────────────
-        const KIR_CHART_IDS = { pie: 'kirPieChart', bar: 'kirBarChart', line: 'kirLineChart' };
+        const chartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
-            if (typeof chartManager !== 'undefined') {
-                chartManager.initChartsFromAPI('kir', KIR_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
-            }
+            // Initialize charts with default filter (year)
+            initKirCharts({ filter_type: 'year' });
 
-            var kirFilter = document.getElementById('kirChartFilter');
-            if (kirFilter) {
-                document.addEventListener('chartFilterChange', function (e) {
-                    if (e.detail.filterId !== 'kirChartFilter') return;
-                    const { filterType, startDate, endDate } = e.detail;
-                    const filters = { filter_type: filterType };
-                    if (filterType === 'custom' && startDate && endDate) {
-                        filters.start_date = startDate;
-                        filters.end_date   = endDate;
-                    }
-                    chartManager.updateChartsFromAPI('kir', KIR_CHART_IDS, filters, { accentLine: true });
-                });
-            }
+            // Listen for filter changes
+            document.addEventListener('chartFilterChange', function (e) {
+                if (e.detail.filterId === 'kirChartFilter') {
+                    const filters = {
+                        filter_type: e.detail.filterType,
+                        start_date: e.detail.startDate,
+                        end_date: e.detail.endDate,
+                    };
+                    updateKirCharts(filters);
+                }
+            });
         });
+
+        async function initKirCharts(filters) {
+            try {
+                await chartManager.initChartsFromAPI('kir', {
+                    pie: 'kirPieChart',
+                    bar: 'kirBarChart',
+                    line: 'kirLineChart'
+                }, filters, { accentLine: true });
+            } catch (error) {
+                console.error('Error loading KIR charts:', error);
+            }
+        }
+
+        async function updateKirCharts(filters) {
+            try {
+                const isScrollable = filters.filter_type === 'custom';
+                const barOptions  = { scrollable: isScrollable, accentLine: true };
+                const lineOptions = { scrollable: isScrollable };
+                await chartManager.updateChartsFromAPI('kir', {
+                    pie: 'kirPieChart',
+                    bar: 'kirBarChart',
+                    line: 'kirLineChart'
+                }, filters, barOptions, lineOptions);
+            } catch (error) {
+                console.error('Error updating KIR charts:', error);
+            }
+        }
 
         // ── EXPAND ROW KIR (deprecated) ─────────────────────────────────────
         function toggleKirRow(id, rowEl) { /* replaced by openDetailModal */ }

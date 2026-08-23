@@ -71,7 +71,7 @@
     {{-- CHART CONTAINER --}}
     <x-chart-container
         id="memberChartContainer"
-        layout="bar-top"
+        layout="stacked"
         pieTitle="Distribusi Jenis Member"          pieId="memberPieChart"
         barTitle="Pendaftaran Member per Periode"   barId="memberBarChart"
         lineTitle="Trend Pendaftaran Member"        lineId="memberLineChart"
@@ -532,22 +532,47 @@ function previewMultipleFiles(input, listId, countId, color) {
 
 <script>
 const memberChartManager = new ChartManager();
-const MEMBER_CHART_IDS = { pie: 'memberPieChart', bar: 'memberBarChart', line: 'memberLineChart' };
 
 document.addEventListener('DOMContentLoaded', function () {
-    memberChartManager.initChartsFromAPI('member', MEMBER_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
+    initMemberCharts({ filter_type: 'year' });
 
     document.addEventListener('chartFilterChange', function (e) {
-        if (e.detail.filterId !== 'memberChartFilter') return;
-        const filters = { filter_type: e.detail.filterType };
-        if (e.detail.filterType === 'custom' && e.detail.startDate && e.detail.endDate) {
-            filters.start_date = e.detail.startDate;
-            filters.end_date   = e.detail.endDate;
+        if (e.detail.filterId === 'memberChartFilter') {
+            const filters = {
+                filter_type: e.detail.filterType,
+                start_date: e.detail.startDate,
+                end_date: e.detail.endDate,
+            };
+            updateMemberCharts(filters);
         }
-        const scrollable = e.detail.filterType === 'custom';
-        memberChartManager.updateChartsFromAPI('member', MEMBER_CHART_IDS, filters,
-            { accentLine: true, scrollable }, { scrollable });
     });
 });
+
+async function initMemberCharts(filters) {
+    try {
+        await memberChartManager.initChartsFromAPI('member', {
+            pie:  'memberPieChart',
+            bar:  'memberBarChart',
+            line: 'memberLineChart',
+        }, filters, { accentLine: true });
+    } catch (error) {
+        console.error('Error loading member charts:', error);
+    }
+}
+
+async function updateMemberCharts(filters) {
+    try {
+        const isScrollable = filters.filter_type === 'custom';
+        const barOptions  = { scrollable: isScrollable, accentLine: true };
+        const lineOptions = { scrollable: isScrollable };
+        await memberChartManager.updateChartsFromAPI('member', {
+            pie:  'memberPieChart',
+            bar:  'memberBarChart',
+            line: 'memberLineChart',
+        }, filters, barOptions, lineOptions);
+    } catch (error) {
+        console.error('Error updating member charts:', error);
+    }
+}
 </script>
 @endsection

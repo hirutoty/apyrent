@@ -89,6 +89,19 @@
 
 
 
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="summaryChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="summaryChartContainer"
+            layout="stacked"
+            pieTitle="Distribusi Status Pembayaran" pieId="summaryPieChart"
+            barTitle="Total Tagihan per Periode" barId="summaryBarChart"
+            lineTitle="Trend Tagihan" lineId="summaryLineChart"
+            :showStats="true" :statsData="[]"
+        />
+
         {{-- SUMMARY CARDS --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
@@ -735,6 +748,51 @@
             // modal tambah sudah dihapus, tidak ada aksi
         });
         @endif
+
+        // ── CHART SUMMARY ─────────────────────────────────────────────────────
+        const summaryChartManager = new ChartManager();
+
+        document.addEventListener('DOMContentLoaded', function () {
+            initSummaryCharts({ filter_type: 'year' });
+
+            document.addEventListener('chartFilterChange', function (e) {
+                if (e.detail.filterId === 'summaryChartFilter') {
+                    const filters = {
+                        filter_type: e.detail.filterType,
+                        start_date: e.detail.startDate,
+                        end_date: e.detail.endDate,
+                    };
+                    updateSummaryCharts(filters);
+                }
+            });
+        });
+
+        async function initSummaryCharts(filters) {
+            try {
+                await summaryChartManager.initChartsFromAPI('summary', {
+                    pie:  'summaryPieChart',
+                    bar:  'summaryBarChart',
+                    line: 'summaryLineChart',
+                }, filters, { accentLine: true });
+            } catch (error) {
+                console.error('Error loading summary charts:', error);
+            }
+        }
+
+        async function updateSummaryCharts(filters) {
+            try {
+                const isScrollable = filters.filter_type === 'custom';
+                const barOptions  = { scrollable: isScrollable, accentLine: true };
+                const lineOptions = { scrollable: isScrollable };
+                await summaryChartManager.updateChartsFromAPI('summary', {
+                    pie:  'summaryPieChart',
+                    bar:  'summaryBarChart',
+                    line: 'summaryLineChart',
+                }, filters, barOptions, lineOptions);
+            } catch (error) {
+                console.error('Error updating summary charts:', error);
+            }
+        }
 </script>
     @endpush
 

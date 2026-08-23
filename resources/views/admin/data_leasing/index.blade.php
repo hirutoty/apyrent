@@ -129,6 +129,33 @@
                 </div>
             </div>
 
+
+            {{-- CHART FILTER --}}
+            <x-chart-filter id="leasingChartFilter" defaultFilter="month" :showCustomRange="true" />
+
+            {{-- CHART CONTAINER --}}
+            <x-chart-container
+                id="leasingChartContainer"
+                layout="stacked"
+                pieTitle="Distribusi Cara Bayar" pieId="leasingPieChart"
+                barTitle="Total Angsuran per Periode" barId="leasingBarChart"
+                lineTitle="Trend Total Angsuran" lineId="leasingLineChart"
+                :showStats="true" :statsData="[]"
+            />
+
+            {{-- CHART FILTER --}}
+            <x-chart-filter id="leasingChartFilter" defaultFilter="month" :showCustomRange="true" />
+
+            {{-- CHART CONTAINER --}}
+            <x-chart-container
+                id="leasingChartContainer"
+                layout="stacked"
+                pieTitle="Distribusi Cara Bayar" pieId="leasingPieChart"
+                barTitle="Total Angsuran per Periode" barId="leasingBarChart"
+                lineTitle="Trend Total Angsuran" lineId="leasingLineChart"
+                :showStats="true" :statsData="[]"
+            />
+
             {{-- STAT CARDS --}}
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
                 <div class="bg-white rounded-2xl border border-gray-100 p-5">
@@ -1908,4 +1935,55 @@ function deleteAttachment(id) {
     .catch(e => console.error('Error delete attachment:', e));
 }
 </script>
+
+<script>
+// ========================================
+// CHART INITIALIZATION — DATA LEASING
+// ========================================
+const leasingChartManager = new ChartManager();
+
+document.addEventListener('DOMContentLoaded', function () {
+    initLeasingCharts({ filter_type: 'month' });
+
+    document.addEventListener('chartFilterChange', function (e) {
+        if (e.detail.filterId === 'leasingChartFilter') {
+            const filters = {
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+            };
+            updateLeasingCharts(filters);
+        }
+    });
+});
+
+async function initLeasingCharts(filters) {
+    try {
+        await leasingChartManager.initChartsFromAPI('data-leasing', {
+            pie:  'leasingPieChart',
+            bar:  'leasingBarChart',
+            line: 'leasingLineChart',
+        }, filters, { accentLine: true });
+    } catch (error) {
+        console.error('Error loading leasing charts:', error);
+    }
+}
+
+async function updateLeasingCharts(filters) {
+    try {
+        const isScrollable = filters.filter_type === 'custom';
+        const barOptions   = { scrollable: isScrollable, accentLine: true };
+        const lineOptions  = { scrollable: isScrollable };
+        await leasingChartManager.updateChartsFromAPI('data-leasing', {
+            pie:  'leasingPieChart',
+            bar:  'leasingBarChart',
+            line: 'leasingLineChart',
+        }, filters, barOptions, lineOptions);
+    } catch (error) {
+        console.error('Error updating leasing charts:', error);
+    }
+}
+</script>
+
+
 @endsection

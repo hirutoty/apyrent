@@ -73,7 +73,7 @@
         {{-- CHART CONTAINER --}}
         <x-chart-container
             id="pelangganChartContainer"
-            layout="bar-top"
+            layout="stacked"
             pieTitle="Distribusi Jenis Pelanggan"        pieId="pelangganPieChart"
             barTitle="Pendaftaran Pelanggan per Periode" barId="pelangganBarChart"
             lineTitle="Trend Pendaftaran Pelanggan"      lineId="pelangganLineChart"
@@ -478,23 +478,48 @@
 
 <script>
 const pelangganChartManager = new ChartManager();
-const PELANGGAN_CHART_IDS = { pie: 'pelangganPieChart', bar: 'pelangganBarChart', line: 'pelangganLineChart' };
 
 document.addEventListener('DOMContentLoaded', function () {
-    pelangganChartManager.initChartsFromAPI('pelanggan', PELANGGAN_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
+    initPelangganCharts({ filter_type: 'year' });
 
     document.addEventListener('chartFilterChange', function (e) {
-        if (e.detail.filterId !== 'pelangganChartFilter') return;
-        const filters = { filter_type: e.detail.filterType };
-        if (e.detail.filterType === 'custom' && e.detail.startDate && e.detail.endDate) {
-            filters.start_date = e.detail.startDate;
-            filters.end_date   = e.detail.endDate;
+        if (e.detail.filterId === 'pelangganChartFilter') {
+            const filters = {
+                filter_type: e.detail.filterType,
+                start_date: e.detail.startDate,
+                end_date: e.detail.endDate,
+            };
+            updatePelangganCharts(filters);
         }
-        const scrollable = e.detail.filterType === 'custom';
-        pelangganChartManager.updateChartsFromAPI('pelanggan', PELANGGAN_CHART_IDS, filters,
-            { accentLine: true, scrollable }, { scrollable });
     });
 });
+
+async function initPelangganCharts(filters) {
+    try {
+        await pelangganChartManager.initChartsFromAPI('pelanggan', {
+            pie:  'pelangganPieChart',
+            bar:  'pelangganBarChart',
+            line: 'pelangganLineChart',
+        }, filters, { accentLine: true });
+    } catch (error) {
+        console.error('Error loading pelanggan charts:', error);
+    }
+}
+
+async function updatePelangganCharts(filters) {
+    try {
+        const isScrollable = filters.filter_type === 'custom';
+        const barOptions  = { scrollable: isScrollable, accentLine: true };
+        const lineOptions = { scrollable: isScrollable };
+        await pelangganChartManager.updateChartsFromAPI('pelanggan', {
+            pie:  'pelangganPieChart',
+            bar:  'pelangganBarChart',
+            line: 'pelangganLineChart',
+        }, filters, barOptions, lineOptions);
+    } catch (error) {
+        console.error('Error updating pelanggan charts:', error);
+    }
+}
 </script>
 
 @endsection

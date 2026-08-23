@@ -81,7 +81,7 @@
         {{-- CHART CONTAINER --}}
         <x-chart-container
             id="pajakChartContainer"
-            layout="bar-top"
+            layout="stacked"
             pieTitle="Distribusi Status Pajak" pieId="pajakPieChart"
             barTitle="Nominal Pajak per Bulan" barId="pajakBarChart"
             lineTitle="Trend Nominal Pajak" lineId="pajakLineChart"
@@ -1358,28 +1358,51 @@ MODAL PERPANJANG
         })();
 
         // ── CHART PAJAK ──────────────────────────────────────────────────────
-        const PAJAK_CHART_IDS = { pie: 'pajakPieChart', bar: 'pajakBarChart', line: 'pajakLineChart' };
+        const chartManager = new ChartManager();
 
-        function initPajakCharts(filters) {
-            if (typeof chartManager !== 'undefined') {
-                chartManager.initChartsFromAPI('pajak-kendaraan', PAJAK_CHART_IDS, filters, { accentLine: true });
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize charts with default filter (year)
+            initPajakCharts({ filter_type: 'year' });
+
+            // Listen for filter changes
+            document.addEventListener('chartFilterChange', function (e) {
+                if (e.detail.filterId === 'pajakChartFilter') {
+                    const filters = {
+                        filter_type: e.detail.filterType,
+                        start_date: e.detail.startDate,
+                        end_date: e.detail.endDate,
+                    };
+                    updatePajakCharts(filters);
+                }
+            });
+        });
+
+        async function initPajakCharts(filters) {
+            try {
+                await chartManager.initChartsFromAPI('pajak-kendaraan', {
+                    pie: 'pajakPieChart',
+                    bar: 'pajakBarChart',
+                    line: 'pajakLineChart'
+                }, filters, { accentLine: true });
+            } catch (error) {
+                console.error('Error loading pajak charts:', error);
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
-            initPajakCharts({ filter_type: 'year' });
-
-            document.addEventListener('chartFilterChange', function (e) {
-                if (e.detail.filterId !== 'pajakChartFilter') return;
-                const { filterType, startDate, endDate } = e.detail;
-                const filters = { filter_type: filterType };
-                if (filterType === 'custom' && startDate && endDate) {
-                    filters.start_date = startDate;
-                    filters.end_date   = endDate;
-                }
-                chartManager.updateChartsFromAPI('pajak-kendaraan', PAJAK_CHART_IDS, filters, { accentLine: true });
-            });
-        });
+        async function updatePajakCharts(filters) {
+            try {
+                const isScrollable = filters.filter_type === 'custom';
+                const barOptions  = { scrollable: isScrollable, accentLine: true };
+                const lineOptions = { scrollable: isScrollable };
+                await chartManager.updateChartsFromAPI('pajak-kendaraan', {
+                    pie: 'pajakPieChart',
+                    bar: 'pajakBarChart',
+                    line: 'pajakLineChart'
+                }, filters, barOptions, lineOptions);
+            } catch (error) {
+                console.error('Error updating pajak charts:', error);
+            }
+        }
 
         // ── EXPAND ROW PAJAK ─────────────────────────────────────────────────
         function togglePajakRow(id, rowEl) {

@@ -12,6 +12,19 @@
         <p class="text-sm text-gray-500 mt-0.5">Rekap total rental & pendapatan kendaraan</p>
     </div>
 
+    {{-- CHART FILTER --}}
+    <x-chart-filter id="historyChartFilter" defaultFilter="month" :showCustomRange="true" />
+
+    {{-- CHART CONTAINER --}}
+    <x-chart-container
+        id="historyChartContainer"
+        layout="stacked"
+        pieTitle="Distribusi Status Rental" pieId="historyPieChart"
+        barTitle="Pendapatan Rental per Periode" barId="historyBarChart"
+        lineTitle="Trend Pendapatan Rental" lineId="historyLineChart"
+        :showStats="true" :statsData="[]"
+    />
+
     {{-- SUMMARY CARDS --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
@@ -333,6 +346,104 @@ document.addEventListener('DOMContentLoaded', applyFilters);
     }
     window.closeAlert = closeAlert;
 })();
+</script>
+
+<script>
+// ========================================
+// CHART INITIALIZATION
+// ========================================
+const historyChartManager = new ChartManager();
+
+document.addEventListener('DOMContentLoaded', function () {
+    initHistoryCharts({ filter_type: 'month' });
+
+    document.addEventListener('chartFilterChange', function (e) {
+        if (e.detail.filterId === 'historyChartFilter') {
+            const filters = {
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+            };
+            updateHistoryCharts(filters);
+        }
+    });
+});
+
+async function initHistoryCharts(filters) {
+    try {
+        await historyChartManager.initChartsFromAPI('history', {
+            pie:  'historyPieChart',
+            bar:  'historyBarChart',
+            line: 'historyLineChart',
+        }, filters, { accentLine: true });
+    } catch (error) {
+        console.error('Error loading history charts:', error);
+    }
+}
+
+async function updateHistoryCharts(filters) {
+    try {
+        const isScrollable = filters.filter_type === 'custom';
+        const barOptions   = { scrollable: isScrollable, accentLine: true };
+        const lineOptions  = { scrollable: isScrollable };
+        await historyChartManager.updateChartsFromAPI('history', {
+            pie:  'historyPieChart',
+            bar:  'historyBarChart',
+            line: 'historyLineChart',
+        }, filters, barOptions, lineOptions);
+    } catch (error) {
+        console.error('Error updating history charts:', error);
+    }
+}
+</script>
+
+<script>
+// ========================================
+// CHART INITIALIZATION
+// ========================================
+const historyChartManager = new ChartManager();
+
+document.addEventListener('DOMContentLoaded', function () {
+    initHistoryCharts({ filter_type: 'month' });
+
+    document.addEventListener('chartFilterChange', function (e) {
+        if (e.detail.filterId === 'historyChartFilter') {
+            const filters = {
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+            };
+            updateHistoryCharts(filters);
+        }
+    });
+});
+
+async function initHistoryCharts(filters) {
+    try {
+        await historyChartManager.initChartsFromAPI('history', {
+            pie:  'historyPieChart',
+            bar:  'historyBarChart',
+            line: 'historyLineChart',
+        }, filters, { accentLine: true });
+    } catch (error) {
+        console.error('Error loading history charts:', error);
+    }
+}
+
+async function updateHistoryCharts(filters) {
+    try {
+        const isScrollable = filters.filter_type === 'custom';
+        const barOptions   = { scrollable: isScrollable, accentLine: true };
+        const lineOptions  = { scrollable: isScrollable };
+        await historyChartManager.updateChartsFromAPI('history', {
+            pie:  'historyPieChart',
+            bar:  'historyBarChart',
+            line: 'historyLineChart',
+        }, filters, barOptions, lineOptions);
+    } catch (error) {
+        console.error('Error updating history charts:', error);
+    }
+}
 </script>
 
 @endsection
