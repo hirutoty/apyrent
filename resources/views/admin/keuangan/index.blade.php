@@ -54,7 +54,7 @@
             {{-- CHART FILTER --}}
             <x-chart-filter 
                 id="keuanganChartFilter" 
-                defaultFilter="month"
+                defaultFilter="year"
                 :showCustomRange="true"
             />
 
@@ -1569,8 +1569,8 @@
     <script>
         // ================= CHART INITIALIZATION =================
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize charts with default filter (month)
-            initKeuanganCharts({ filter_type: 'month' });
+            // Initialize charts with default filter (year)
+            initKeuanganCharts({ filter_type: 'year' });
             initAgingApCharts({ filter_type: 'month' });
             initAgingArCharts({ filter_type: 'month' });
 
@@ -1627,7 +1627,7 @@
             };
 
             try {
-                await window.chartManager.initChartsFromAPI('keuangan', canvasIds, filters, { accentLine: true });
+                await window.chartManager.initChartsFromAPI('keuangan', canvasIds, filters, { accentLine: true, accentLineIndex: 2 });
                 console.log('✅ Keuangan charts initialized');
             } catch (error) {
                 console.error('❌ Failed to initialize keuangan charts:', error);
@@ -1642,7 +1642,7 @@
             };
 
             try {
-                await window.chartManager.updateChartsFromAPI('keuangan', canvasIds, filters, { accentLine: true });
+                await window.chartManager.updateChartsFromAPI('keuangan', canvasIds, filters, { accentLine: true, accentLineIndex: 2 });
                 console.log('✅ Keuangan charts updated');
             } catch (error) {
                 console.error('❌ Failed to update keuangan charts:', error);

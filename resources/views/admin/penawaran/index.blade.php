@@ -211,18 +211,7 @@
                                 <td class="px-4 py-3.5" data-col="col-penawaran">
                                     <div class="flex items-center justify-center gap-1.5 flex-wrap">
 
-                                        {{-- Download draft PDF --}}
-                                        @if($p->file_penawaran)
-                                            <a href="{{ asset($p->file_penawaran) }}" target="_blank"
-                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
-                                                <i class="fa fa-file-pdf text-xs"></i> Draft
-                                            </a>
-                                        @else
-                                            <a href="{{ route('penawaran.download-draft', $p->id) }}"
-                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
-                                                <i class="fa fa-file-pdf text-xs"></i> Draft
-                                            </a>
-                                        @endif
+                                        
 
                                         {{-- Print preview --}}
                                         <a href="{{ route('penawaran.print', $p->id) }}" target="_blank"
