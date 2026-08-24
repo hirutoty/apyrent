@@ -286,11 +286,16 @@ class ChartDataController extends Controller
             'bar' => [
                 'title' => 'Perbandingan Bulanan',
                 'groupBy' => 'month',
-                'valueColumns' => ['pemasukan', 'pengeluaran'],
+                'valueColumns' => [
+                    'pemasukan',
+                    'pengeluaran',
+                    ['computed' => ['op' => 'subtract', 'a' => 'pemasukan', 'b' => 'pengeluaran', 'allowNegative' => true]],
+                ],
                 'aggregation' => 'sum',
                 'dateColumn' => 'tanggal',
                 'limit' => 6,
-                'labels' => ['Pemasukan', 'Pengeluaran']
+                'labels' => ['Pemasukan', 'Pengeluaran', 'Sisa Saldo'],
+                'colors' => ['#10b981', '#ef4444', '#3b82f6'],
             ],
             'line' => [
                 'title' => 'Trend Saldo',
