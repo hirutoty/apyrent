@@ -235,32 +235,33 @@ class ChartManager {
             }
         };
 
-        // ── Accent Line (overlay line pada dataset 0 / Biaya) ────────
+        // ── Accent Line (overlay line pada dataset tertentu) ─────────
         // Cabut flag dari options sebelum di-merge agar tidak konflik
-        const showAccentLine = options.accentLine ?? false;
-        if ('accentLine' in options) delete options.accentLine;
+        const showAccentLine  = options.accentLine ?? false;
+        const accentLineIndex = options.accentLineIndex ?? 0; // default dataset[0]
+        if ('accentLine'      in options) delete options.accentLine;
+        if ('accentLineIndex' in options) delete options.accentLineIndex;
 
-        // Jika accentLine aktif, duplikasi dataset 0 sebagai overlay line
-        // supaya bar dataset 0 tetap ada tapi ada garis di atasnya
+        // Jika accentLine aktif, duplikasi dataset[accentLineIndex] sebagai overlay line
         if (showAccentLine && processedData.datasets && processedData.datasets.length > 0) {
-            const src   = processedData.datasets[0];
-            const color = '#ef4444'; // merah — kontras dengan bar biaya
+            const targetIndex = Math.min(accentLineIndex, processedData.datasets.length - 1);
+            const src         = processedData.datasets[targetIndex];
+            const color       = '#ef4444'; // merah
 
-            // Overlay line dataset — clone data dari dataset 0
             const overlayLine = {
-                type            : 'line',
-                label           : src.label + ' (trend)',
-                data            : [...src.data],
-                borderColor     : color,
-                backgroundColor : 'transparent',
-                borderWidth     : 2.5,
-                pointRadius     : 3,
+                type                 : 'line',
+                label                : src.label + ' (trend)',
+                data                 : [...src.data],
+                borderColor          : color,
+                backgroundColor      : 'transparent',
+                borderWidth          : 2.5,
+                pointRadius          : 3,
                 pointBackgroundColor : color,
                 pointBorderColor     : '#fff',
                 pointBorderWidth     : 1.5,
-                tension         : 0.4,
-                fill            : false,
-                order           : 0,  // render di atas bar
+                tension              : 0.4,
+                fill                 : false,
+                order                : 0,  // render di atas bar
             };
 
             processedData.datasets.push(overlayLine);

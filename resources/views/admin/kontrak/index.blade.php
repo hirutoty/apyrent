@@ -600,19 +600,24 @@
                                resize-y bg-white text-gray-800"></textarea>
                 </div>
 
-                {{-- Textarea EN --}}
+                {{-- Textarea EN — readonly, auto-translate dari ID --}}
                 <div>
-                    <label class="flex items-center gap-1.5 text-xs font-bold text-green-700 mb-1.5 uppercase tracking-wide">
-                        <i class="fa fa-globe"></i> Contract Terms (English)
-                    </label>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="flex items-center gap-1.5 text-xs font-bold text-green-700 uppercase tracking-wide">
+                            <i class="fa fa-globe"></i> Contract Terms (English)
+                        </label>
+                        <span id="create_translate_status" class="text-[10px] text-gray-400 flex items-center gap-1">
+                            <i class="fa fa-magic text-green-400"></i> Auto-translate dari Bahasa Indonesia
+                        </span>
+                    </div>
                     <textarea
                         name="ketentuan_en"
                         id="create_ketentuan_en"
                         rows="22"
-                        placeholder="Type the contract terms in English..."
+                        readonly
+                        placeholder="Terjemahan otomatis akan muncul di sini..."
                         class="w-full border border-green-200 rounded-xl px-4 py-3 text-xs font-mono leading-relaxed
-                               focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400
-                               resize-y bg-white text-gray-800"></textarea>
+                               resize-y bg-gray-50 text-gray-600 cursor-not-allowed"></textarea>
                 </div>
 
             </div>{{-- end px-6 py-5 Tab2 --}}
@@ -1047,19 +1052,24 @@
                                resize-y bg-white text-gray-800"></textarea>
                 </div>
 
-                {{-- Textarea EN --}}
+                {{-- Textarea EN — readonly, auto-translate dari ID --}}
                 <div>
-                    <label class="flex items-center gap-1.5 text-xs font-bold text-green-700 mb-1.5 uppercase tracking-wide">
-                        <i class="fa fa-globe"></i> Contract Terms (English)
-                    </label>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="flex items-center gap-1.5 text-xs font-bold text-green-700 uppercase tracking-wide">
+                            <i class="fa fa-globe"></i> Contract Terms (English)
+                        </label>
+                        <span id="edit_translate_status" class="text-[10px] text-gray-400 flex items-center gap-1">
+                            <i class="fa fa-magic text-green-400"></i> Auto-translate dari Bahasa Indonesia
+                        </span>
+                    </div>
                     <textarea
                         name="ketentuan_en"
                         id="edit_ketentuan_en"
                         rows="22"
-                        placeholder="Type the contract terms in English..."
+                        readonly
+                        placeholder="Terjemahan otomatis akan muncul di sini..."
                         class="w-full border border-green-200 rounded-xl px-4 py-3 text-xs font-mono leading-relaxed
-                               focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400
-                               resize-y bg-white text-gray-800"></textarea>
+                               resize-y bg-gray-50 text-gray-600 cursor-not-allowed"></textarea>
                 </div>
 
             </div>{{-- end Tab 2 --}}
@@ -1863,5 +1873,94 @@
         document.getElementById('create_email_kedua'),
         document.getElementById('create_contact_kedua')
     );
+
+    // ── AUTO-TRANSLATE: ID → EN via DeepL proxy ────────────────
+    const _translateUrl = "{{ route('translate') }}";
+    const _csrfToken    = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+    function setTranslateStatus(prefix, msg, color = 'text-gray-400') {
+        const el = document.getElementById(prefix + '_translate_status');
+        if (el) {
+            el.innerHTML = msg;
+            el.className = `text-[10px] ${color} flex items-center gap-1`;
+        }
+    }
+
+    function setupAutoTranslate(idTextareaId, enTextareaId, statusPrefix) {
+        const taId = document.getElementById(idTextareaId);
+        const taEn = document.getElementById(enTextareaId);
+        if (!taId || !taEn) return;
+
+        let translateTimer = null;
+
+        taId.addEventListener('input', function () {
+            clearTimeout(translateTimer);
+            setTranslateStatus(statusPrefix,
+                '<i class="fa fa-clock text-yellow-400"></i> Menunggu selesai mengetik...',
+                'text-yellow-500'
+            );
+
+            // Debounce 1.5 detik setelah berhenti mengetik
+            translateTimer = setTimeout(async () => {
+                const text = taId.value;
+
+                if (!text.trim()) {
+                    taEn.value = '';
+                    setTranslateStatus(statusPrefix,
+                        '<i class="fa fa-magic text-green-400"></i> Auto-translate dari Bahasa Indonesia',
+                        'text-gray-400'
+                    );
+                    return;
+                }
+
+                setTranslateStatus(statusPrefix,
+                    '<i class="fa fa-spinner fa-spin text-blue-400"></i> Menerjemahkan dengan DeepL...',
+                    'text-blue-500'
+                );
+
+                try {
+                    const res = await fetch(_translateUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': _csrfToken,
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            text:        text,
+                            source_lang: 'ID',
+                            target_lang: 'EN-GB',
+                        }),
+                    });
+
+                    const data = await res.json();
+
+                    if (!res.ok || data.error) {
+                        setTranslateStatus(statusPrefix,
+                            `<i class="fa fa-exclamation-triangle text-red-400"></i> ${data.error ?? 'Gagal menerjemahkan'}`,
+                            'text-red-500'
+                        );
+                        return;
+                    }
+
+                    taEn.value = data.translated ?? '';
+                    setTranslateStatus(statusPrefix,
+                        '<i class="fa fa-check text-green-500"></i> Terjemahan DeepL selesai',
+                        'text-green-600'
+                    );
+
+                } catch (e) {
+                    setTranslateStatus(statusPrefix,
+                        '<i class="fa fa-exclamation-triangle text-red-400"></i> Gagal menghubungi server',
+                        'text-red-500'
+                    );
+                }
+            }, 1500);
+        });
+    }
+
+    // Aktifkan auto-translate untuk create dan edit
+    setupAutoTranslate('create_ketentuan_id', 'create_ketentuan_en', 'create');
+    setupAutoTranslate('edit_ketentuan_id',   'edit_ketentuan_en',   'edit');
 </script>
 @endsection

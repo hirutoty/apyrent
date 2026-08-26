@@ -169,10 +169,12 @@ class ChartDataService
         }
 
         if (isset($column['computed'])) {
-            $op   = $column['computed']['op'] ?? 'subtract';
-            $valA = (float)(clone $periodQuery)->sum($column['computed']['a']);
-            $valB = (float)(clone $periodQuery)->sum($column['computed']['b']);
-            return $op === 'subtract' ? max(0, $valA - $valB) : $valA + $valB;
+            $op           = $column['computed']['op'] ?? 'subtract';
+            $allowNeg     = $column['computed']['allowNegative'] ?? false;
+            $valA         = (float)(clone $periodQuery)->sum($column['computed']['a']);
+            $valB         = (float)(clone $periodQuery)->sum($column['computed']['b']);
+            $result       = $op === 'subtract' ? $valA - $valB : $valA + $valB;
+            return ($op === 'subtract' && !$allowNeg) ? max(0, $result) : $result;
         }
 
         return 0.0;
@@ -250,7 +252,7 @@ class ChartDataService
         $periods      = [];
         $current = $startOfWeek->copy();
         while ($current->lte($endOfWeek)) {
-            $periodLabels[] = $current->format('D, d M');
+            $periodLabels[] = $current->format('D, d M Y');
             $periods[]      = $current->toDateString();
             $current->addDay();
         }
@@ -280,7 +282,11 @@ class ChartDataService
     private function getCurrentYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels)
     {
         $year       = Carbon::now()->year;
-        $monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+        $monthNames = [
+            "Jan $year","Feb $year","Mar $year","Apr $year",
+            "Mei $year","Jun $year","Jul $year","Agu $year",
+            "Sep $year","Okt $year","Nov $year","Des $year",
+        ];
 
         $datasets = [];
         foreach ($valueColumns as $index => $column) {
@@ -313,7 +319,7 @@ class ChartDataService
         $periods      = [];
         $current = $start->copy();
         while ($current->lte($end)) {
-            $periodLabels[] = $current->format('d M');
+            $periodLabels[] = $current->format('d M Y');
             $periods[]      = $current->toDateString();
             $current->addDay();
         }
@@ -413,7 +419,7 @@ class ChartDataService
         $values = [];
         $cur    = $start->copy();
         while ($cur->lte($end)) {
-            $labels[] = $cur->format('D, d M');
+            $labels[] = $cur->format('D, d M Y');
             $values[] = (float)(clone $query)->whereDate($dateColumn, $cur->toDateString())->sum($valueColumn);
             $cur->addDay();
         }
@@ -443,7 +449,11 @@ class ChartDataService
     private function getCurrentYearMonthlyLineTrendData($query, $valueColumn, $dateColumn): array
     {
         $year       = Carbon::now()->year;
-        $monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+        $monthNames = [
+            "Jan $year","Feb $year","Mar $year","Apr $year",
+            "Mei $year","Jun $year","Jul $year","Agu $year",
+            "Sep $year","Okt $year","Nov $year","Des $year",
+        ];
         $values     = [];
         for ($m = 1; $m <= 12; $m++) {
             $values[] = (float)(clone $query)
@@ -465,7 +475,7 @@ class ChartDataService
         $values = [];
         $cur    = $start->copy();
         while ($cur->lte($end)) {
-            $labels[] = $cur->format('d M');
+            $labels[] = $cur->format('d M Y');
             $values[] = (float)(clone $query)->whereDate($dateColumn, $cur->toDateString())->sum($valueColumn);
             $cur->addDay();
         }
@@ -670,7 +680,7 @@ class ChartDataService
         $datasets = [];
 
         for ($i = $limit - 1; $i >= 0; $i--) {
-            $days[] = Carbon::now()->subDays($i)->format('d M');
+            $days[] = Carbon::now()->subDays($i)->format('d M Y');
         }
 
         foreach ($valueColumns as $index => $column) {
@@ -740,7 +750,7 @@ class ChartDataService
         if ($valueColumn === 'net_income' && $aggregation === 'custom') {
             for ($i = $limit - 1; $i >= 0; $i--) {
                 $date = Carbon::now()->subMonths($i);
-                $labels[] = $date->format('M');
+                $labels[] = $date->format('M Y');
                 
                 $pemasukan = (clone $query)
                     ->whereMonth($dateColumn, $date->month)
@@ -761,7 +771,7 @@ class ChartDataService
         // Standard aggregation
         for ($i = $limit - 1; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
-            $labels[] = $date->format('M');
+            $labels[] = $date->format('M Y');
             
             $value = (clone $query)
                 ->whereMonth($dateColumn, $date->month)
@@ -803,7 +813,7 @@ class ChartDataService
 
         for ($i = $limit - 1; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
-            $labels[] = $date->format('d M');
+            $labels[] = $date->format('d M Y');
             
             $value = (clone $query)
                 ->whereDate($dateColumn, $date->toDateString())
