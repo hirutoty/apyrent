@@ -20,6 +20,116 @@ namespace App\Helpers;
 class KontrakHelper
 {
     /**
+     * Bangun array mapping placeholder ke nilai nyata dari objek setting
+     * dan data kontrak-spesifik opsional.
+     *
+     * Placeholder setting (selalu tersedia):
+     *   {NAMA_PERUSAHAAN}, {ALAMAT_PERUSAHAAN}, {TELEPON_PERUSAHAAN}, {FAX_PERUSAHAAN}
+     *   {NAMA_BANK}, {NO_REKENING}, {ATAS_NAMA}, {PPN}, {PPH}
+     *
+     * Placeholder kontrak-spesifik (diberikan via $kontrakData):
+     *   {DURASI}, {TANGGAL_MULAI}, {TANGGAL_SELESAI}
+     *   {TANGGAL_MULAI_EN}, {TANGGAL_SELESAI_EN}
+     *   {NAMA_PIHAK_KEDUA}, {ALAMAT_PIHAK_KEDUA}, {KONTAK_PIHAK_KEDUA}
+     *
+     * @param  object|null  $setting      Objek model Setting
+     * @param  array        $kontrakData  Data kontrak-spesifik (opsional)
+     * @return array<string,string>
+     */
+    public static function buildReplacements(?object $setting, array $kontrakData = []): array
+    {
+        $replacements = [
+            '{NAMA_PERUSAHAAN}'    => $setting->nama_perusahaan    ?? 'PT. Anugerah Panca Yoga',
+            '{ALAMAT_PERUSAHAAN}'  => $setting->alamat             ?? 'Jl. Catur No. 16, Menteng Dalam, Tebet, Jakarta Selatan 12870',
+            '{TELEPON_PERUSAHAAN}' => $setting->telepon            ?? '021 - 83792927',
+            '{FAX_PERUSAHAAN}'     => $setting->fax                ?? '021 - 8354565',
+            '{NAMA_BANK}'          => $setting->nama_bank          ?? 'BCA',
+            '{NO_REKENING}'        => $setting->nomor_rekening     ?? '272-1420-878',
+            '{ATAS_NAMA}'          => $setting->atas_nama_rekening ?? ($setting->nama_perusahaan ?? 'PT. Anugerah Panca Yoga'),
+            '{PPN}'                => (string) ($setting->ppn_default ?? 11),
+            '{PPH}'                => (string) ($setting->pph_default ?? 2),
+        ];
+
+        if (!empty($kontrakData)) {
+            $replacements['{DURASI}']             = $kontrakData['durasi']             ?? '';
+            $replacements['{TANGGAL_MULAI}']      = $kontrakData['tanggal_mulai']      ?? '';
+            $replacements['{TANGGAL_SELESAI}']    = $kontrakData['tanggal_selesai']    ?? '';
+            $replacements['{TANGGAL_MULAI_EN}']   = $kontrakData['tanggal_mulai_en']   ?? '';
+            $replacements['{TANGGAL_SELESAI_EN}'] = $kontrakData['tanggal_selesai_en'] ?? '';
+            $replacements['{NAMA_PIHAK_KEDUA}']   = $kontrakData['nama_pihak_kedua']   ?? '';
+            $replacements['{ALAMAT_PIHAK_KEDUA}'] = $kontrakData['alamat_pihak_kedua'] ?? '';
+            $replacements['{KONTAK_PIHAK_KEDUA}'] = $kontrakData['kontak_pihak_kedua'] ?? '';
+        }
+
+        return $replacements;
+    }
+
+    /**
+     * Bangun array $kontrakData dari objek InvKontrak — siap di-pass ke buildReplacements().
+     *
+     * @param  \App\Models\InvKontrak  $kontrak
+     * @return array
+     */
+    public static function buildKontrakData(object $kontrak): array
+    {
+        \Carbon\Carbon::setLocale('id');
+
+        $mulai   = $kontrak->tanggal_kontrak
+            ? \Carbon\Carbon::parse($kontrak->tanggal_kontrak)
+            : null;
+        $selesai = $kontrak->tanggal_selesai
+            ? \Carbon\Carbon::parse($kontrak->tanggal_selesai)
+            : null;
+
+        $mulaiId   = $mulai   ? $mulai->isoFormat('D MMMM YYYY')                    : '';
+        $selesaiId = $selesai ? $selesai->isoFormat('D MMMM YYYY')                   : '';
+        $mulaiEn   = $mulai   ? $mulai->locale('en')->isoFormat('D MMMM YYYY')       : '';
+        $selesaiEn = $selesai ? $selesai->locale('en')->isoFormat('D MMMM YYYY')     : '';
+        \Carbon\Carbon::setLocale('id');
+
+        $dV = $kontrak->durasi_value  ?? '';
+        $dS = $kontrak->durasi_satuan ? ucfirst($kontrak->durasi_satuan) : '';
+        $durasiStr = ($dV && $dS) ? "$dV $dS" : '';
+
+        // Coba ambil alamat pihak kedua dari pelanggan jika kosong di kontrak
+        $namaP2   = $kontrak->pihak_kedua  ?? '';
+        $alamatP2 = $kontrak->alamat_kedua ?? '';
+        if (empty($alamatP2) && !empty($namaP2)) {
+            $pel      = \App\Models\Pelanggan::where('nama_pelanggan', $namaP2)->first();
+            $alamatP2 = $pel?->alamat ?? '';
+        }
+
+        return [
+            'durasi'             => $durasiStr,
+            'tanggal_mulai'      => $mulaiId,
+            'tanggal_selesai'    => $selesaiId,
+            'tanggal_mulai_en'   => $mulaiEn,
+            'tanggal_selesai_en' => $selesaiEn,
+            'nama_pihak_kedua'   => $namaP2,
+            'alamat_pihak_kedua' => $alamatP2,
+            'kontak_pihak_kedua' => $kontrak->contact_kedua ?? '',
+        ];
+    }
+
+
+    /**
+     * Ganti semua placeholder dalam string dengan nilai nyata.
+     *
+     * @param  string               $text         Teks yang mengandung placeholder
+     * @param  array<string,string> $replacements  Map dari buildReplacements()
+     * @return string
+     */
+    public static function resolvePlaceholders(string $text, array $replacements): string
+    {
+        if (empty($replacements)) {
+            return $text;
+        }
+
+        return str_replace(array_keys($replacements), array_values($replacements), $text);
+    }
+
+
+    /**
      * Konversi array pasal_ketentuan ke plain text siap tampil di textarea.
      *
      * Format output:
@@ -89,12 +199,194 @@ class KontrakHelper
     /**
      * Shortcut: konversi default pasal ke plain text.
      *
-     * @param  string  $lang  'id' atau 'en'
+     * Jika $replacements diberikan (hasil buildReplacements()), semua placeholder
+     * setting ({NAMA_PERUSAHAAN}, {PPN}, dll.) akan langsung diganti dengan nilai
+     * nyata sebelum teks dikembalikan — sehingga yang tersimpan ke DB sudah bersih.
+     *
+     * @param  string               $lang          'id' atau 'en'
+     * @param  array<string,string> $replacements  Opsional — dari buildReplacements()
      * @return string
      */
-    public static function defaultPlainText(string $lang = 'id'): string
+    public static function defaultPlainText(string $lang = 'id', array $replacements = []): string
     {
-        return self::pasalToPlainText(self::defaultPasalKetentuan(), $lang);
+        $text = self::pasalToPlainText(self::defaultPasalKetentuan(), $lang);
+
+        if (!empty($replacements)) {
+            $text = self::resolvePlaceholders($text, $replacements);
+        }
+
+        return $text;
+    }
+
+    /**
+     * Format tanggal ke format terbilang/legal untuk dokumen kontrak.
+     *
+     * Bahasa Indonesia:
+     *   "Senin, tanggal Dua puluh enam bulan Agustus tahun Dua ribu dua puluh enam"
+     *
+     * English:
+     *   "Monday, the twenty-sixth of August two thousand twenty-six"
+     *
+     * @param  \Carbon\Carbon|string  $date  Tanggal kontrak
+     * @param  string                 $lang  'id' atau 'en'
+     * @return string
+     */
+    public static function formatTanggalTerbilang($date, string $lang = 'id'): string
+    {
+        if (!$date) return '';
+        
+        $carbon = $date instanceof \Carbon\Carbon ? $date : \Carbon\Carbon::parse($date);
+        
+        $day   = $carbon->day;
+        $month = $carbon->month;
+        $year  = $carbon->year;
+        
+        if ($lang === 'en') {
+            // Nama hari English
+            $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            $dayName  = $dayNames[$carbon->dayOfWeek];
+            
+            // Nama bulan English
+            $monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+            $monthName  = $monthNames[$month - 1];
+            
+            // Ordinal untuk tanggal (1st, 2nd, 3rd, ... 31st) dalam kata
+            $ordinals = [
+                1 => 'first', 2 => 'second', 3 => 'third', 4 => 'fourth', 5 => 'fifth',
+                6 => 'sixth', 7 => 'seventh', 8 => 'eighth', 9 => 'ninth', 10 => 'tenth',
+                11 => 'eleventh', 12 => 'twelfth', 13 => 'thirteenth', 14 => 'fourteenth', 15 => 'fifteenth',
+                16 => 'sixteenth', 17 => 'seventeenth', 18 => 'eighteenth', 19 => 'nineteenth', 20 => 'twentieth',
+                21 => 'twenty-first', 22 => 'twenty-second', 23 => 'twenty-third', 24 => 'twenty-fourth', 25 => 'twenty-fifth',
+                26 => 'twenty-sixth', 27 => 'twenty-seventh', 28 => 'twenty-eighth', 29 => 'twenty-ninth', 30 => 'thirtieth',
+                31 => 'thirty-first',
+            ];
+            $dayOrdinal = $ordinals[$day] ?? (string) $day;
+            
+            // Tahun dalam kata: "two thousand twenty-six"
+            $yearWords = self::numberToWordsEnglish($year);
+            
+            return "$dayName, the $dayOrdinal of $monthName $yearWords";
+        }
+        
+        // ── Bahasa Indonesia ──
+        $dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        $dayName  = $dayNames[$carbon->dayOfWeek];
+        
+        $monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        $monthName  = $monthNames[$month - 1];
+        
+        $dayWords  = self::numberToWordsIndonesia($day);
+        $yearWords = self::numberToWordsIndonesia($year);
+        
+        return "$dayName, tanggal $dayWords bulan $monthName tahun $yearWords";
+    }
+    
+    /**
+     * Konversi angka ke terbilang Bahasa Indonesia.
+     * Contoh: 26 → "Dua puluh enam", 2026 → "Dua ribu dua puluh enam"
+     *
+     * @param  int  $num
+     * @return string
+     */
+    private static function numberToWordsIndonesia(int $num): string
+    {
+        if ($num === 0) return 'Nol';
+        
+        $ones = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan'];
+        $teens = ['Sepuluh', 'Sebelas', 'Dua belas', 'Tiga belas', 'Empat belas', 'Lima belas',
+                  'Enam belas', 'Tujuh belas', 'Delapan belas', 'Sembilan belas'];
+        
+        if ($num < 10) {
+            return $ones[$num];
+        }
+        
+        if ($num >= 10 && $num < 20) {
+            return $teens[$num - 10];
+        }
+        
+        if ($num >= 20 && $num < 100) {
+            $tens = (int)($num / 10);
+            $remainder = $num % 10;
+            return $ones[$tens] . ' puluh' . ($remainder > 0 ? ' ' . $ones[$remainder] : '');
+        }
+        
+        if ($num >= 100 && $num < 200) {
+            $remainder = $num - 100;
+            return 'Seratus' . ($remainder > 0 ? ' ' . self::numberToWordsIndonesia($remainder) : '');
+        }
+        
+        if ($num >= 200 && $num < 1000) {
+            $hundreds = (int)($num / 100);
+            $remainder = $num % 100;
+            return $ones[$hundreds] . ' ratus' . ($remainder > 0 ? ' ' . self::numberToWordsIndonesia($remainder) : '');
+        }
+        
+        if ($num >= 1000 && $num < 2000) {
+            $remainder = $num - 1000;
+            return 'Seribu' . ($remainder > 0 ? ' ' . self::numberToWordsIndonesia($remainder) : '');
+        }
+        
+        if ($num >= 2000 && $num < 10000) {
+            $thousands = (int)($num / 1000);
+            $remainder = $num % 1000;
+            return $ones[$thousands] . ' ribu' . ($remainder > 0 ? ' ' . self::numberToWordsIndonesia($remainder) : '');
+        }
+        
+        // For larger numbers (e.g., year 10000+), basic fallback
+        return (string) $num;
+    }
+    
+    /**
+     * Konversi angka tahun ke terbilang English.
+     * Contoh: 2026 → "two thousand twenty-six"
+     *
+     * @param  int  $num
+     * @return string
+     */
+    private static function numberToWordsEnglish(int $num): string
+    {
+        if ($num === 0) return 'zero';
+        
+        $ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+        $teens = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
+                  'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+        $tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+        
+        if ($num < 10) {
+            return $ones[$num];
+        }
+        
+        if ($num >= 10 && $num < 20) {
+            return $teens[$num - 10];
+        }
+        
+        if ($num >= 20 && $num < 100) {
+            $t = (int)($num / 10);
+            $remainder = $num % 10;
+            return $tens[$t] . ($remainder > 0 ? '-' . $ones[$remainder] : '');
+        }
+        
+        if ($num >= 100 && $num < 1000) {
+            $hundreds = (int)($num / 100);
+            $remainder = $num % 100;
+            return $ones[$hundreds] . ' hundred' . ($remainder > 0 ? ' ' . self::numberToWordsEnglish($remainder) : '');
+        }
+        
+        if ($num >= 1000 && $num < 10000) {
+            $thousands = (int)($num / 1000);
+            $remainder = $num % 1000;
+            return $ones[$thousands] . ' thousand' . ($remainder > 0 ? ' ' . self::numberToWordsEnglish($remainder) : '');
+        }
+        
+        // For year 2026: "two thousand twenty-six"
+        if ($num >= 2000 && $num < 3000) {
+            $remainder = $num - 2000;
+            return 'two thousand' . ($remainder > 0 ? ' ' . self::numberToWordsEnglish($remainder) : '');
+        }
+        
+        return (string) $num;
     }
 
     public static function defaultPasalKetentuan(): array

@@ -37,6 +37,7 @@ class ChartDataController extends Controller
             'kendaraan_id' => 'nullable|integer|exists:kendaraan,id',
             'category_id'  => 'nullable|integer',
             'departemen'   => 'nullable|string',
+            'kontrak_id'   => 'nullable|integer',
         ]);
 
         try {
@@ -47,6 +48,7 @@ class ChartDataController extends Controller
             $kendaraanId = $request->input('kendaraan_id');
             $categoryId  = $request->input('category_id');
             $departemen  = $request->input('departemen');
+            $kontrakId   = $request->input('kontrak_id');
             $customDates = ($filterType === 'custom' && $startDate && $endDate)
                 ? [$startDate, $endDate]
                 : [];
@@ -55,10 +57,11 @@ class ChartDataController extends Controller
             $cacheKey = 'chart_' . $page . '_' . $filterType . '_' .
                         ($startDate ?? 'null') . '_' . ($endDate ?? 'null') . '_' .
                         ($kendaraanId ?? 'all') . '_cat' . ($categoryId ?? '0') .
-                        '_dept' . ($departemen ?? 'all');
+                        '_dept' . ($departemen ?? 'all') .
+                        '_kontrak' . ($kontrakId ?? '0');
 
             // Cache for 5 minutes (300 seconds)
-            $chartData = \Cache::remember($cacheKey, 300, function () use ($page, $filterType, $customDates, $kendaraanId, $categoryId, $startDate, $endDate, $departemen) {
+            $chartData = \Cache::remember($cacheKey, 300, function () use ($page, $filterType, $customDates, $kendaraanId, $categoryId, $startDate, $endDate, $departemen, $kontrakId) {
                 // Get chart config and query based on page
                 $config = $this->getPageChartConfig($page);
                 $query  = $this->getPageQuery($page);
@@ -80,6 +83,11 @@ class ChartDataController extends Controller
                 // Apply departemen filter for purchasero page
                 if ($departemen && $page === 'purchasero') {
                     $query->where('departemen', $departemen);
+                }
+
+                // Apply kontrak_id filter for summary page
+                if ($kontrakId && $page === 'summary') {
+                    $query->where('kontrak_id', $kontrakId);
                 }
 
                 // Apply date filter
@@ -1322,11 +1330,12 @@ class ChartDataController extends Controller
             'bar' => [
                 'title' => 'Total Tagihan per Periode',
                 'groupBy' => 'month',
-                'valueColumns' => ['total_amount'],
+                'valueColumns' => ['total_amount', 'paid_amount', 'remaining_amount'],
                 'aggregation' => 'sum',
                 'dateColumn' => 'created_at',
                 'limit' => 12,
-                'labels' => ['Total Tagihan']
+                'labels' => ['Total Tagihan', 'Dibayar', 'Sisa Bayar'],
+                'colors' => ['#3b82f6', '#10b981', '#ef4444'],
             ],
             'line' => [
                 'title' => 'Trend Tagihan',

@@ -53,6 +53,8 @@ class InvKontrakController extends Controller
             default  => $setting->batas_reminder,
         };
 
+        $resolvedKetentuan = [];
+
         foreach ($kontraks->getCollection() as $k) {
             $perjanjian   = Carbon::parse($k->perjanjian_pembayaran)->startOfDay();
             $k->sisaHari  = (int) now()->startOfDay()->diffInDays($perjanjian, false);
@@ -61,9 +63,32 @@ class InvKontrakController extends Controller
             $k->showReminder = !in_array($k->status, [
                 'completed', 'approved', 'rejected', 'active', 'expired', 'selesai-belum lunas',
             ]);
+
+            // Resolve semua placeholder server-side untuk textarea editor
+            $kontrakData     = KontrakHelper::buildKontrakData($k);
+            $allReplacements = KontrakHelper::buildReplacements($setting, $kontrakData);
+
+            $rawId = $k->ketentuan_id
+                ?? ($k->pasal_ketentuan ? KontrakHelper::pasalToPlainText($k->pasal_ketentuan, 'id') : null)
+                ?? KontrakHelper::defaultPlainText('id');
+            $rawEn = $k->ketentuan_en
+                ?? ($k->pasal_ketentuan ? KontrakHelper::pasalToPlainText($k->pasal_ketentuan, 'en') : null)
+                ?? KontrakHelper::defaultPlainText('en');
+
+            $resolvedKetentuan[$k->id] = [
+                'id' => KontrakHelper::resolvePlaceholders($rawId, $allReplacements),
+                'en' => KontrakHelper::resolvePlaceholders($rawEn, $allReplacements),
+            ];
         }
 
-        return view('admin.kontrak.index', compact('kontraks', 'penawarans', 'reminder', 'setting'));
+        // Build default ketentuan text dengan placeholder sudah teresolusi (setting only, untuk modal Create)
+        $replacements     = KontrakHelper::buildReplacements($setting);
+        $defaultKetentuan = [
+            'id' => KontrakHelper::defaultPlainText('id', $replacements),
+            'en' => KontrakHelper::defaultPlainText('en', $replacements),
+        ];
+
+        return view('admin.kontrak.index', compact('kontraks', 'penawarans', 'reminder', 'setting', 'defaultKetentuan', 'resolvedKetentuan'));
     }
 
     /* ─────────────────────────────────────────────
@@ -128,8 +153,18 @@ class InvKontrakController extends Controller
             'contact_pertama'       => 'nullable|string|max:255',
             'pihak_kedua'           => 'required|string|max:255',
             'contact_kedua'         => 'nullable|string|max:255',
+            'jenis_pelanggan'       => 'nullable|string|in:perorangan,perusahaan',
+            'perwakilan_pihak_kedua'=> 'nullable|string|max:255',
+            'jabatan_pihak_kedua'   => 'nullable|string|max:100',
             'ketentuan_id'          => 'nullable|string',
             'ketentuan_en'          => 'nullable|string',
+        ]);
+
+        // ── DEBUG: Log request data untuk field perwakilan ──
+        \Log::info('Kontrak Store - Perwakilan Data:', [
+            'jenis_pelanggan'        => $request->jenis_pelanggan,
+            'perwakilan_pihak_kedua' => $request->perwakilan_pihak_kedua,
+            'jabatan_pihak_kedua'    => $request->jabatan_pihak_kedua,
         ]);
 
         // Hitung durasi & tanggal selesai — pakai durasi terpanjang dari semua item
@@ -190,21 +225,66 @@ class InvKontrakController extends Controller
             'email_kedua'           => $request->email_kedua,
             'jenis_pelanggan'       => $request->jenis_pelanggan,
             'alamat_kedua'          => $request->alamat_kedua,
+            'perwakilan_pihak_kedua'=> $request->perwakilan_pihak_kedua,
+            'jabatan_pihak_kedua'   => $request->jabatan_pihak_kedua,
             'status'                => 'pending',
         ];
 
         // Simpan plain text ketentuan; fallback ke teks default jika kosong
+        // Ambil setting untuk resolve placeholder {NAMA_PERUSAHAAN}, {PPN}, dll.
+        $settingForReplace  = \App\Models\Setting::first();
+
+        // Format tanggal untuk substitusi
+        Carbon::setLocale('id');
+        $mulaiId   = $mulai->isoFormat('D MMMM YYYY');
+        $selesaiId = $selesai->isoFormat('D MMMM YYYY');
+        $mulaiEn   = $mulai->locale('en')->isoFormat('D MMMM YYYY');
+        $selesaiEn = $selesai->locale('en')->isoFormat('D MMMM YYYY');
+        Carbon::setLocale('id');
+
+        $durasiStr = $durasiValue . ' ' . ucfirst($durasiSat);
+
+        // Resolve data pihak kedua (cek pelanggan jika alamat kosong)
+        $namaP2   = $request->pihak_kedua ?? '';
+        $alamatP2 = $request->alamat_kedua ?? '';
+        if (empty($alamatP2)) {
+            $pelP2    = \App\Models\Pelanggan::where('nama_pelanggan', $namaP2)->first();
+            $alamatP2 = $pelP2?->alamat ?? '';
+        }
+
+        $kontrakData = [
+            'durasi'              => $durasiStr,
+            'tanggal_mulai'       => $mulaiId,
+            'tanggal_selesai'     => $selesaiId,
+            'tanggal_mulai_en'    => $mulaiEn,
+            'tanggal_selesai_en'  => $selesaiEn,
+            'nama_pihak_kedua'    => $namaP2,
+            'alamat_pihak_kedua'  => $alamatP2,
+            'kontak_pihak_kedua'  => $request->contact_kedua ?? '',
+        ];
+
+        $replacements = KontrakHelper::buildReplacements($settingForReplace, $kontrakData);
+
         $data['ketentuan_id'] = $request->filled('ketentuan_id')
-            ? $request->ketentuan_id
-            : KontrakHelper::defaultPlainText('id');
+            ? KontrakHelper::resolvePlaceholders($request->ketentuan_id, $replacements)
+            : KontrakHelper::defaultPlainText('id', $replacements);
         $data['ketentuan_en'] = $request->filled('ketentuan_en')
-            ? $request->ketentuan_en
-            : KontrakHelper::defaultPlainText('en');
+            ? KontrakHelper::resolvePlaceholders($request->ketentuan_en, $replacements)
+            : KontrakHelper::defaultPlainText('en', $replacements);
 
         // Kosongkan pasal_ketentuan (tidak lagi dipakai untuk editor baru)
         $data['pasal_ketentuan'] = null;
 
         $kontrak = InvKontrak::create($data);
+
+        // ── DEBUG: Verify data tersimpan di database ──
+        \Log::info('Kontrak Created - Saved Data:', [
+            'id'                     => $kontrak->id,
+            'no_kontrak'             => $kontrak->no_kontrak,
+            'jenis_pelanggan'        => $kontrak->jenis_pelanggan,
+            'perwakilan_pihak_kedua' => $kontrak->perwakilan_pihak_kedua,
+            'jabatan_pihak_kedua'    => $kontrak->jabatan_pihak_kedua,
+        ]);
 
         // Generate draft PDF via DomPDF
         $kontrak->load('penawaran.items.kendaraan');
@@ -270,12 +350,14 @@ class InvKontrakController extends Controller
             }
 
             $kontrak->update([
-                'file_kontrak'   => 'uploads/kontrak/' . $filename,
-                'status'         => 'approved',
-                'no_ktp_kedua'   => $request->no_ktp_kedua   ?? $kontrak->no_ktp_kedua,
-                'email_kedua'    => $request->email_kedua    ?? $kontrak->email_kedua,
-                'jenis_pelanggan'=> $request->jenis_pelanggan ?? $kontrak->jenis_pelanggan,
-                'alamat_kedua'   => $request->alamat_kedua   ?? $kontrak->alamat_kedua,
+                'file_kontrak'          => 'uploads/kontrak/' . $filename,
+                'status'                => 'approved',
+                'no_ktp_kedua'          => $request->no_ktp_kedua   ?? $kontrak->no_ktp_kedua,
+                'email_kedua'           => $request->email_kedua    ?? $kontrak->email_kedua,
+                'jenis_pelanggan'       => $request->jenis_pelanggan ?? $kontrak->jenis_pelanggan,
+                'alamat_kedua'          => $request->alamat_kedua   ?? $kontrak->alamat_kedua,
+                'perwakilan_pihak_kedua'=> $request->perwakilan_pihak_kedua ?? $kontrak->perwakilan_pihak_kedua,
+                'jabatan_pihak_kedua'   => $request->jabatan_pihak_kedua   ?? $kontrak->jabatan_pihak_kedua,
             ]);
 
             // Auto-create Rental
@@ -424,13 +506,50 @@ class InvKontrakController extends Controller
 
         $data = $request->except(['file_kontrak', 'file_persyaratan', 'ketentuan', 'pasal']);
 
+        // Resolve placeholder {NAMA_PERUSAHAAN}, {PPN}, dll. sebelum simpan ke DB
+        $settingForReplace  = Setting::first();
+
+        // Format tanggal dari request atau fallback ke data kontrak lama
+        Carbon::setLocale('id');
+        $tglMulai   = Carbon::parse($request->tanggal_kontrak ?? $kontrak->tanggal_kontrak);
+        $tglSelesai = Carbon::parse($kontrak->tanggal_selesai);
+        $mulaiId    = $tglMulai->isoFormat('D MMMM YYYY');
+        $selesaiId  = $tglSelesai->isoFormat('D MMMM YYYY');
+        $mulaiEn    = $tglMulai->locale('en')->isoFormat('D MMMM YYYY');
+        $selesaiEn  = $tglSelesai->locale('en')->isoFormat('D MMMM YYYY');
+        Carbon::setLocale('id');
+
+        $durasiVal = $kontrak->durasi_value  ?? '';
+        $durasiSat = $kontrak->durasi_satuan ? ucfirst($kontrak->durasi_satuan) : '';
+        $durasiStr = ($durasiVal && $durasiSat) ? "$durasiVal $durasiSat" : '';
+
+        $namaP2   = $request->pihak_kedua  ?? $kontrak->pihak_kedua  ?? '';
+        $alamatP2 = $request->alamat_kedua ?? $kontrak->alamat_kedua ?? '';
+        if (empty($alamatP2)) {
+            $pelP2    = \App\Models\Pelanggan::where('nama_pelanggan', $namaP2)->first();
+            $alamatP2 = $pelP2?->alamat ?? '';
+        }
+
+        $kontrakData = [
+            'durasi'             => $durasiStr,
+            'tanggal_mulai'      => $mulaiId,
+            'tanggal_selesai'    => $selesaiId,
+            'tanggal_mulai_en'   => $mulaiEn,
+            'tanggal_selesai_en' => $selesaiEn,
+            'nama_pihak_kedua'   => $namaP2,
+            'alamat_pihak_kedua' => $alamatP2,
+            'kontak_pihak_kedua' => $request->contact_kedua ?? $kontrak->contact_kedua ?? '',
+        ];
+
+        $replacements = KontrakHelper::buildReplacements($settingForReplace, $kontrakData);
+
         // Simpan plain text ketentuan
         $data['ketentuan_id'] = $request->filled('ketentuan_id')
-            ? $request->ketentuan_id
-            : ($kontrak->ketentuan_id ?? KontrakHelper::defaultPlainText('id'));
+            ? KontrakHelper::resolvePlaceholders($request->ketentuan_id, $replacements)
+            : ($kontrak->ketentuan_id ?? KontrakHelper::defaultPlainText('id', $replacements));
         $data['ketentuan_en'] = $request->filled('ketentuan_en')
-            ? $request->ketentuan_en
-            : ($kontrak->ketentuan_en ?? KontrakHelper::defaultPlainText('en'));
+            ? KontrakHelper::resolvePlaceholders($request->ketentuan_en, $replacements)
+            : ($kontrak->ketentuan_en ?? KontrakHelper::defaultPlainText('en', $replacements));
 
         // Tidak lagi menggunakan pasal_ketentuan JSON untuk editor baru
         // (pasal_ketentuan tetap ada di DB untuk backward compat, tidak ditimpa)

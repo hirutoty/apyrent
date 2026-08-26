@@ -485,6 +485,19 @@
                 </div>
             </div>
 
+            {{-- Jenis Pelanggan (dipindahkan ke atas) --}}
+            <div class="grid grid-cols-1 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan <span class="text-red-500">*</span></label>
+                    <select name="jenis_pelanggan" id="create_jenis_pelanggan"
+                        onchange="togglePerwakilanFields('create')"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                        <option value="perorangan" selected>Perorangan</option>
+                        <option value="perusahaan">Perusahaan</option>
+                    </select>
+                </div>
+            </div>
+
             {{-- Nama Customer --}}
             <div class="grid grid-cols-1 gap-3">
                 <div>
@@ -497,6 +510,26 @@
                         <ul id="create_customer_list"
                             class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm"></ul>
                     </div>
+                </div>
+            </div>
+
+            {{-- Field Perwakilan Perusahaan (conditional - hidden by default) --}}
+            <div id="create_perwakilan_wrapper" class="grid grid-cols-2 gap-3 hidden">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Diwakili Oleh <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="perwakilan_pihak_kedua" id="create_perwakilan_pihak_kedua"
+                        placeholder="Nama perwakilan perusahaan..."
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Jabatan <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="jabatan_pihak_kedua" id="create_jabatan_pihak_kedua"
+                        placeholder="Misal: Direktur Utama"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>
 
@@ -515,15 +548,6 @@
                     <input type="email" name="email_kedua" id="create_email_kedua"
                         placeholder="email@example.com"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
-                    <select name="jenis_pelanggan" id="create_jenis_pelanggan"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="">-- Pilih --</option>
-                        <option value="perorangan">Perorangan</option>
-                        <option value="perusahaan">Perusahaan</option>
-                    </select>
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua</label>
@@ -699,6 +723,15 @@
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan <span class="text-red-500">*</span></label>
+                            <select name="jenis_pelanggan" id="approve_jenis_pelanggan"
+                                onchange="togglePerwakilanFields('approve')"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                                <option value="perorangan" selected>Perorangan</option>
+                                <option value="perusahaan">Perusahaan</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Customer <span class="text-red-500">*</span></label>
                             <div class="relative">
                                 <input type="text" name="customer_name" id="approve_customer_name"
@@ -709,6 +742,27 @@
                                     class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm"></ul>
                             </div>
                         </div>
+
+                        {{-- Field Perwakilan Perusahaan (conditional - hidden by default) --}}
+                        <div id="approve_perwakilan_wrapper" class="col-span-2 grid grid-cols-2 gap-3 hidden">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                    Diwakili Oleh <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="perwakilan_pihak_kedua" id="approve_perwakilan_pihak_kedua"
+                                    placeholder="Nama perwakilan perusahaan..."
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                    Jabatan <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="jabatan_pihak_kedua" id="approve_jabatan_pihak_kedua"
+                                    placeholder="Misal: Direktur Utama"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Kontak</label>
                             <input type="text" name="contact_person" id="approve_contact_person"
@@ -725,20 +779,11 @@
                                 placeholder="16 digit No KTP"
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         </div>
-                        <div>
+                        <div class="col-span-2">
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email</label>
                             <input type="email" name="email_kedua" id="approve_email_kedua"
                                 placeholder="email@example.com"
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
-                            <select name="jenis_pelanggan" id="approve_jenis_pelanggan"
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="">-- Pilih --</option>
-                                <option value="perorangan">Perorangan</option>
-                                <option value="perusahaan">Perusahaan</option>
-                            </select>
                         </div>
                         <div class="col-span-2">
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat</label>
@@ -896,6 +941,16 @@
 
                 {{-- Pihak 2 --}}
                 <div class="grid grid-cols-2 gap-3">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
+                        <select name="jenis_pelanggan" id="edit_jenis_pelanggan"
+                            onchange="togglePerwakilanFields('edit')"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            <option value="">-- Pilih --</option>
+                            <option value="perorangan">Perorangan</option>
+                            <option value="perusahaan">Perusahaan</option>
+                        </select>
+                    </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Kedua</label>
                         <input type="text" name="pihak_kedua" id="edit_pihak_kedua"
@@ -909,6 +964,27 @@
                             placeholder="08xx-xxxx-xxxx"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
+
+                    {{-- Field Perwakilan Perusahaan (conditional - hidden by default) --}}
+                    <div id="edit_perwakilan_wrapper" class="col-span-2 grid grid-cols-2 gap-3 hidden">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                Diwakili Oleh <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="perwakilan_pihak_kedua" id="edit_perwakilan_pihak_kedua"
+                                placeholder="Nama perwakilan perusahaan..."
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                Jabatan <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="jabatan_pihak_kedua" id="edit_jabatan_pihak_kedua"
+                                placeholder="Misal: Direktur Utama"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        </div>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
                         <input type="text" name="no_ktp_kedua" id="edit_no_ktp_kedua"
@@ -922,15 +998,6 @@
                         <input type="email" name="email_kedua" id="edit_email_kedua"
                             placeholder="email@example.com"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
-                        <select name="jenis_pelanggan" id="edit_jenis_pelanggan"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                            <option value="">-- Pilih --</option>
-                            <option value="perorangan">Perorangan</option>
-                            <option value="perusahaan">Perusahaan</option>
-                        </select>
                     </div>
                     <div class="col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua</label>
@@ -1321,6 +1388,23 @@
             }
         });
         if (!valid) { alert('Harap lengkapi semua field yang wajib diisi terlebih dahulu.'); return; }
+
+        // ── Auto-resolve placeholder kontrak-spesifik di textarea Tab 2 ──
+        const taId = document.getElementById('create_ketentuan_id');
+        const taEn = document.getElementById('create_ketentuan_en');
+
+        // Hanya resolve jika textarea masih default (belum diedit manual)
+        // Cek apakah nilai textarea sama dengan defaultKetentuan (artinya belum diubah user)
+        const isIdDefault = taId && (taId.value === defaultKetentuan.id || taId.value.trim() === '');
+        const isEnDefault = taEn && (taEn.value === defaultKetentuan.en || taEn.value.trim() === '');
+
+        if (isIdDefault && taId) {
+            taId.value = resolveKontrakPlaceholders(defaultKetentuan.id);
+        }
+        if (isEnDefault && taEn) {
+            taEn.value = resolveKontrakPlaceholders(defaultKetentuan.en);
+        }
+
         // Aktifkan tab 2
         const t2Btn = document.getElementById('createTab2Btn');
         if (t2Btn) { t2Btn.disabled = false; t2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-600 hover:text-blue-600 rounded-tr-lg'; }
@@ -1389,10 +1473,132 @@
     // ══════════════════════════════════════════════════════
     // KETENTUAN EDITOR  —  default plain text dari PHP helper
     // ══════════════════════════════════════════════════════
-    const defaultKetentuan = @json([
-        'id' => \App\Helpers\KontrakHelper::defaultPlainText('id'),
-        'en' => \App\Helpers\KontrakHelper::defaultPlainText('en'),
-    ]);
+    // Default ketentuan kontrak — placeholder sudah teresolusi dari setting
+    const defaultKetentuan = @json($defaultKetentuan);
+
+    // Ketentuan per kontrak — sudah fully resolved server-side (setting + kontrak-spesifik)
+    // Key = kontrak ID, value = { id: '...', en: '...' }
+    const resolvedKetentuan = @json($resolvedKetentuan);
+    // DEBUG — hapus setelah dicek
+    console.log('[resolvedKetentuan]', resolvedKetentuan);
+
+    // Map placeholder → nilai nyata (untuk resolve teks lama di textarea Edit)
+    @php
+        $jsReplacements = [
+            '{NAMA_PERUSAHAAN}'    => $setting?->nama_perusahaan    ?? 'PT. Anugerah Panca Yoga',
+            '{ALAMAT_PERUSAHAAN}'  => $setting?->alamat             ?? 'Jl. Catur No. 16, Menteng Dalam, Tebet, Jakarta Selatan 12870',
+            '{TELEPON_PERUSAHAAN}' => $setting?->telepon            ?? '021 - 83792927',
+            '{FAX_PERUSAHAAN}'     => $setting?->fax                ?? '021 - 8354565',
+            '{NAMA_BANK}'          => $setting?->nama_bank          ?? 'BCA',
+            '{NO_REKENING}'        => $setting?->nomor_rekening     ?? '272-1420-878',
+            '{ATAS_NAMA}'          => $setting?->atas_nama_rekening ?? $setting?->nama_perusahaan ?? 'PT. Anugerah Panca Yoga',
+            '{PPN}'                => (string)($setting?->ppn_default ?? 11),
+            '{PPH}'                => (string)($setting?->pph_default ?? 2),
+        ];
+    @endphp
+    const settingReplacements = @json($jsReplacements);
+
+    /**
+     * Ganti semua placeholder setting dalam teks dengan nilai nyata.
+     * Digunakan saat mengisi textarea Edit modal agar tidak tampil literal.
+     */
+    function resolveSettingPlaceholders(text) {
+        if (!text) return text;
+        let result = text;
+        for (const [key, val] of Object.entries(settingReplacements)) {
+            // Escape karakter { dan } agar RegExp aman
+            const escaped = key.replace(/[{()}]/g, '\\$&');
+            result = result.split(key).join(val);
+        }
+        return result;
+    }
+
+    /**
+     * Format tanggal ke bahasa Indonesia atau English tanpa library eksternal.
+     * @param {Date} date - Objek Date
+     * @param {string} lang - 'id' atau 'en'
+     * @returns {string} - Format: "26 Agustus 2026" atau "26 August 2026"
+     */
+    function formatTanggalIndonesia(date, lang = 'id') {
+        if (!date || !(date instanceof Date) || isNaN(date)) return '';
+        
+        const bulanId = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const bulanEn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        
+        const day   = date.getDate();
+        const month = lang === 'en' ? bulanEn[date.getMonth()] : bulanId[date.getMonth()];
+        const year  = date.getFullYear();
+        
+        return `${day} ${month} ${year}`;
+    }
+
+    /**
+     * Ganti placeholder kontrak-spesifik dalam teks dengan nilai dari form Create Tab 1.
+     * Placeholder: {DURASI}, {TANGGAL_MULAI}, {TANGGAL_SELESAI}, {TANGGAL_MULAI_EN}, {TANGGAL_SELESAI_EN},
+     *              {NAMA_PIHAK_KEDUA}, {ALAMAT_PIHAK_KEDUA}, {KONTAK_PIHAK_KEDUA}
+     * @param {string} text - Teks yang mengandung placeholder kontrak-spesifik
+     * @returns {string} - Teks dengan placeholder tergantikan
+     */
+    function resolveKontrakPlaceholders(text) {
+        if (!text) return text;
+
+        // Ambil data dari form Tab 1
+        const tglKontrakStr = document.getElementById('create_tanggal_kontrak')?.value || '';
+        const durasiValue   = parseInt(document.getElementById('hidden_durasi_value')?.value) || 1;
+        const durasiSatuan  = (document.getElementById('hidden_durasi_satuan')?.value || 'bulan').toLowerCase();
+        const namaPihak2    = document.getElementById('create_pihak_kedua')?.value || '';
+        const alamatPihak2  = document.getElementById('create_alamat_kedua')?.value || '';
+        const kontakPihak2  = document.getElementById('create_contact_kedua')?.value || '';
+
+        if (!tglKontrakStr) {
+            // Jika tanggal kontrak belum diisi, kembalikan teks original tanpa replace
+            return text;
+        }
+
+        // Parse tanggal mulai
+        const mulai = new Date(tglKontrakStr);
+        if (isNaN(mulai)) return text;
+
+        // Hitung tanggal selesai berdasarkan durasi (sama seperti logik calcTanggalSelesai)
+        let selesai = new Date(mulai);
+        if (durasiSatuan === 'hari') {
+            selesai.setDate(selesai.getDate() + durasiValue);
+        } else if (durasiSatuan === 'tahun') {
+            selesai.setFullYear(selesai.getFullYear() + durasiValue);
+        } else {
+            // bulan (default)
+            selesai.setMonth(selesai.getMonth() + durasiValue);
+        }
+
+        // Format tanggal
+        const mulaiId   = formatTanggalIndonesia(mulai, 'id');
+        const selesaiId = formatTanggalIndonesia(selesai, 'id');
+        const mulaiEn   = formatTanggalIndonesia(mulai, 'en');
+        const selesaiEn = formatTanggalIndonesia(selesai, 'en');
+
+        // Format durasi string: "12 Bulan", "2 Tahun", "30 Hari"
+        const satuanLabel = durasiSatuan === 'tahun' ? 'Tahun' : durasiSatuan === 'hari' ? 'Hari' : 'Bulan';
+        const durasiStr   = `${durasiValue} ${satuanLabel}`;
+
+        // Build replacement map
+        const replacements = {
+            '{DURASI}':             durasiStr,
+            '{TANGGAL_MULAI}':      mulaiId,
+            '{TANGGAL_SELESAI}':    selesaiId,
+            '{TANGGAL_MULAI_EN}':   mulaiEn,
+            '{TANGGAL_SELESAI_EN}': selesaiEn,
+            '{NAMA_PIHAK_KEDUA}':   namaPihak2,
+            '{ALAMAT_PIHAK_KEDUA}': alamatPihak2,
+            '{KONTAK_PIHAK_KEDUA}': kontakPihak2,
+        };
+
+        let result = text;
+        for (const [key, val] of Object.entries(replacements)) {
+            result = result.split(key).join(val);
+        }
+
+        return result;
+    }
 
     // ── Init Create modal Tab 2 ────────────────────────
     function initCreateKetentuan() {
@@ -1407,6 +1613,35 @@
         const taEn = document.getElementById('create_ketentuan_en');
         if (taId) taId.value = defaultKetentuan.id;
         if (taEn) taEn.value = defaultKetentuan.en;
+    }
+
+    /**
+     * Toggle visibility field perwakilan perusahaan berdasarkan jenis_pelanggan
+     * @param {string} prefix - 'create', 'approve', atau 'edit'
+     */
+    function togglePerwakilanFields(prefix) {
+        const jenisPelanggan = document.getElementById(`${prefix}_jenis_pelanggan`)?.value;
+        const perwakilanWrapper = document.getElementById(`${prefix}_perwakilan_wrapper`);
+        const perwakilanInput = document.getElementById(`${prefix}_perwakilan_pihak_kedua`);
+        const jabatanInput = document.getElementById(`${prefix}_jabatan_pihak_kedua`);
+
+        if (jenisPelanggan === 'perusahaan') {
+            // Show fields dan set required
+            if (perwakilanWrapper) perwakilanWrapper.classList.remove('hidden');
+            if (perwakilanInput) perwakilanInput.setAttribute('required', 'required');
+            if (jabatanInput) jabatanInput.setAttribute('required', 'required');
+        } else {
+            // Hide fields dan remove required
+            if (perwakilanWrapper) perwakilanWrapper.classList.add('hidden');
+            if (perwakilanInput) {
+                perwakilanInput.removeAttribute('required');
+                perwakilanInput.value = ''; // Clear value
+            }
+            if (jabatanInput) {
+                jabatanInput.removeAttribute('required');
+                jabatanInput.value = ''; // Clear value
+            }
+        }
     }
 
     // ── switchEditTab ──────────────────────────────
@@ -1444,27 +1679,24 @@
         document.getElementById('edit_email_kedua').value           = data.email_kedua ?? '';
         document.getElementById('edit_jenis_pelanggan').value       = data.jenis_pelanggan ?? '';
         document.getElementById('edit_alamat_kedua').value          = data.alamat_kedua ?? '';
+        
+        // ── Pre-fill perwakilan fields ──
+        document.getElementById('edit_perwakilan_pihak_kedua').value = data.perwakilan_pihak_kedua ?? '';
+        document.getElementById('edit_jabatan_pihak_kedua').value    = data.jabatan_pihak_kedua ?? '';
+        
         const validStatuses = ['dibuat','pending','approved','active','rejected','expired','completed','terminated','selesai-belum lunas'];
         document.getElementById('edit_status').value = validStatuses.includes(data.status) ? data.status : 'pending';
 
+        // ── Trigger toggle untuk show/hide field perwakilan based on jenis_pelanggan ──
+        togglePerwakilanFields('edit');
+
         // ── Populate Tab 2: textarea ketentuan ──
+        // Lookup dari resolvedKetentuan yang sudah di-resolve sepenuhnya di server (PHP)
         const taId = document.getElementById('edit_ketentuan_id');
         const taEn = document.getElementById('edit_ketentuan_en');
-
-        if (data.ketentuan_id) {
-            // Data baru (plain text sudah ada di kolom)
-            if (taId) taId.value = data.ketentuan_id;
-            if (taEn) taEn.value = data.ketentuan_en ?? defaultKetentuan.en;
-        } else if (data.pasal_ketentuan && data.pasal_ketentuan.length > 0) {
-            // Data lama (JSON pasal) — konversi ke plain text via helper PHP yang di-pass ke JS
-            const converted = convertPasalToPlainText(data.pasal_ketentuan);
-            if (taId) taId.value = converted.id;
-            if (taEn) taEn.value = converted.en;
-        } else {
-            // Tidak ada data — pakai default
-            if (taId) taId.value = defaultKetentuan.id;
-            if (taEn) taEn.value = defaultKetentuan.en;
-        }
+        const resolved = resolvedKetentuan[data.id] ?? null;
+        if (taId) taId.value = resolved ? resolved.id : defaultKetentuan.id;
+        if (taEn) taEn.value = resolved ? resolved.en : defaultKetentuan.en;
 
         switchEditTab(1);
         openModal('modalEdit');

@@ -33,10 +33,9 @@ use App\Helpers\KontrakHelper;
 Carbon::setLocale('id');
 
 $tgl    = Carbon::parse($kontrak->tanggal_kontrak);
-$hariId = $tgl->isoFormat('dddd');
-$tglId  = $tgl->isoFormat('D MMMM YYYY');
-$hariEn = $tgl->locale('en')->isoFormat('dddd');
-$tglEn  = $tgl->locale('en')->isoFormat('D MMMM YYYY');
+// Format terbilang untuk pembukaan kontrak
+$tglTerbilangId = KontrakHelper::formatTanggalTerbilang($tgl, 'id');
+$tglTerbilangEn = KontrakHelper::formatTanggalTerbilang($tgl, 'en');
 Carbon::setLocale('id');
 
 $dV = $kontrak->durasi_value  ?? '';
@@ -146,6 +145,13 @@ $parsePasal = function(string $raw) use ($rp) {
             $cur['items'][] = ['type' => 'sub', 'text' => $rp($m[1])];
             continue;
         }
+        // ── Special case: "Dan tidak termasuk" atau "And exclude" ──
+        // Treat as separate text item, not as continuation
+        if (preg_match('/^Dan tidak termasuk\s*:?$/i', $tr) || 
+            preg_match('/^And exclude\s*:?$/i', $tr)) {
+            $cur['items'][] = ['type' => 'teks', 'text' => $rp($tr)];
+            continue;
+        }
         // Baris lanjutan — cari poin terakhir (lewati sub di antaranya, stop di blank)
         $lastPoinIdx = null;
         for ($li = count($cur['items']) - 1; $li >= 0; $li--) {
@@ -188,7 +194,22 @@ $renderItem = function(array $item) {
              . '<td style="vertical-align:top;text-align:justify;padding:0 0 0 3px;">' . $first . $rest . '</td></tr></table>';
     }
     if ($item['type'] === 'sub') {
-        return '<p class="sub">- ' . htmlspecialchars($raw) . '</p>';
+        // ── Special case: "Dan tidak termasuk" atau "And exclude" ──
+        // Render sebagai teks biasa dengan spacing (bukan sub-item dengan tanda "-")
+        $trimmed = trim($raw);
+        if (preg_match('/^Dan tidak termasuk\s*:?$/i', $trimmed) || 
+            preg_match('/^And exclude\s*:?$/i', $trimmed)) {
+            return '<p style="margin:10px 0 4px 14px;font-weight:normal;">' . htmlspecialchars($raw) . '</p>';
+        }
+        // Regular sub-item dengan indentasi konsisten
+        return '<p style="margin:2px 0 2px 14px;font-size:10.5pt;line-height:1.5;">- ' . htmlspecialchars($raw) . '</p>';
+    }
+    // ── Handle type 'teks' ──
+    // Special case: "Dan tidak termasuk" atau "And exclude"
+    $trimmed = trim($raw);
+    if (preg_match('/^Dan tidak termasuk\s*:?$/i', $trimmed) || 
+        preg_match('/^And exclude\s*:?$/i', $trimmed)) {
+        return '<p style="margin:10px 0 4px 0;font-weight:normal;">' . htmlspecialchars($raw) . '</p>';
     }
     // teks all-caps → bold
     if (strtoupper($raw) === $raw && strlen(trim($raw)) > 3) {
@@ -257,8 +278,8 @@ if ($useNewFormat) {
 </div>
 
 <table class="tc"><tr>
-    <td><p>Pada hari ini, {{ $hariId }}, tanggal {{ $tglId }}, kami yang bertanda tangan dibawah ini, masing-masing:</p></td>
-    <td class="r"><p>On this day, {{ $hariEn }}, {{ $tglEn }}, we the undersigned, respectively:</p></td>
+    <td><p>Pada hari ini, {{ $tglTerbilangId }}, kami yang bertanda tangan dibawah ini, masing-masing:</p></td>
+    <td class="r"><p>On this day, {{ $tglTerbilangEn }}, we the undersigned, respectively:</p></td>
 </tr></table>
 <div class="gap8"></div>
 
@@ -269,8 +290,25 @@ if ($useNewFormat) {
 <div class="gap8"></div>
 
 <table class="tc"><tr>
-    <td><p><strong>2. {{ $namaP2 }},</strong> yang beralamat di {{ $alamatP2 }}, pemegang KTP No. {{ $noktp2 }}, selanjutnya disebut sebagai "Pihak Kedua".</p></td>
-    <td class="r"><p><strong>2. {{ $namaP2 }},</strong> domiciled at {{ $alamatP2 }}, holder of identity card no. {{ $noktp2 }}, hereinafter referred to as the "Second Party".</p></td>
+    @php
+    $isPihak2Perusahaan = strtolower($kontrak->jenis_pelanggan ?? 'perorangan') === 'perusahaan';
+    $perwakilan2 = $kontrak->perwakilan_pihak_kedua ?? null;
+    $jabatan2    = $kontrak->jabatan_pihak_kedua ?? null;
+    @endphp
+
+    @if($isPihak2Perusahaan && $perwakilan2 && $jabatan2)
+        {{-- Format lengkap perusahaan dengan perwakilan --}}
+        <td><p><strong>2. {{ $namaP2 }},</strong> suatu perseroan terbatas yang memiliki kantor terdaftar di {{ $alamatP2 }}, dalam hal ini diwakili oleh <strong>{{ $perwakilan2 }}</strong> dalam jabatannya selaku {{ $jabatan2 }}, pemegang KTP No. {{ $noktp2 }}, selanjutnya disebut sebagai "Pihak Kedua".</p></td>
+        <td class="r"><p><strong>2. {{ $namaP2 }},</strong> a limited liability company, having its registered office at {{ $alamatP2 }}, in this matter represented by <strong>{{ $perwakilan2 }}</strong>, acting as {{ $jabatan2 }}, a holder of identity card no. {{ $noktp2 }}, hereinafter referred to as the "Second Party".</p></td>
+    @elseif($isPihak2Perusahaan)
+        {{-- Format perusahaan tanpa perwakilan (skip "diwakili oleh") --}}
+        <td><p><strong>2. {{ $namaP2 }},</strong> suatu perseroan terbatas yang memiliki kantor terdaftar di {{ $alamatP2 }}, pemegang KTP No. {{ $noktp2 }}, selanjutnya disebut sebagai "Pihak Kedua".</p></td>
+        <td class="r"><p><strong>2. {{ $namaP2 }},</strong> a limited liability company, having its registered office at {{ $alamatP2 }}, holder of identity card no. {{ $noktp2 }}, hereinafter referred to as the "Second Party".</p></td>
+    @else
+        {{-- Format perorangan (existing) --}}
+        <td><p><strong>2. {{ $namaP2 }},</strong> yang beralamat di {{ $alamatP2 }}, pemegang KTP No. {{ $noktp2 }}, selanjutnya disebut sebagai "Pihak Kedua".</p></td>
+        <td class="r"><p><strong>2. {{ $namaP2 }},</strong> domiciled at {{ $alamatP2 }}, holder of identity card no. {{ $noktp2 }}, hereinafter referred to as the "Second Party".</p></td>
+    @endif
 </tr></table>
 <div class="gap8"></div>
 

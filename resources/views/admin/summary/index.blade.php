@@ -248,6 +248,12 @@
 
                                 {{-- Tombol hapus semua per kontrak --}}
                                 @if($kontrak)
+                                <button type="button"
+                                    onclick="openDetailKontrak({{ $kontrak->id }}, '{{ addslashes($noKontrak) }}')"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors">
+                                    <i class="fa fa-chart-bar text-[10px]"></i>
+                                    <span class="hidden sm:inline">Detail</span>
+                                </button>
                                 <form action="{{ route('summary.destroyByKontrak', $kontrak->id) }}"
                                     method="POST"
                                     onsubmit="return confirm('Hapus semua {{ $totalPeriode }} data summary untuk kontrak {{ $noKontrak }}?')"
@@ -420,6 +426,240 @@
             <div class="py-3 border-t border-gray-100">
                 <x-pagination :paginator="$paginator" />
             </div>
+
+        </div>
+    </div>
+
+    {{-- ================================================================
+     MODAL DETAIL KONTRAK
+================================================================ --}}
+    <div id="modalDetailKontrak" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50"
+        style="backdrop-filter:blur(3px)">
+        <div class="bg-white w-full h-full flex flex-col overflow-hidden" style="animation:slideUp .2s ease">
+
+            {{-- HEADER --}}
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <i class="fa fa-chart-bar text-blue-600 text-sm"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-gray-800" id="detailModalTitle">Detail Kontrak</h2>
+                        <p class="text-xs text-gray-400" id="detailModalSubtitle">Loading...</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeDetailKontrak()"
+                    class="text-gray-400 hover:text-red-500 transition-colors text-xl leading-none">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+
+            {{-- BODY (scrollable) --}}
+            <div class="flex-1 overflow-y-auto p-6 space-y-6" id="detailModalBody">
+
+                {{-- LOADING STATE --}}
+                <div id="detailLoadingState" class="flex items-center justify-center py-24">
+                    <div class="text-center">
+                        <i class="fa fa-spinner fa-spin text-3xl text-blue-400 mb-3 block"></i>
+                        <p class="text-sm text-gray-500">Memuat data...</p>
+                    </div>
+                </div>
+
+                {{-- CONTENT (hidden until loaded) --}}
+                <div id="detailContent" class="hidden space-y-6">
+
+                    {{-- INFO KONTRAK --}}
+                    <div class="bg-gray-50 rounded-xl border border-gray-100 p-5">
+                        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
+                            <i class="fa fa-file-contract mr-1"></i> Informasi Kontrak
+                        </h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase tracking-wide">No. Kontrak</p>
+                                <p class="text-sm font-bold text-blue-700 mt-0.5" id="di_no_kontrak">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase tracking-wide">Tgl. Kontrak</p>
+                                <p class="text-sm font-semibold text-gray-700 mt-0.5" id="di_tanggal_kontrak">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase tracking-wide">Tgl. Selesai</p>
+                                <p class="text-sm font-semibold text-gray-700 mt-0.5" id="di_tanggal_selesai">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase tracking-wide">Durasi</p>
+                                <p class="text-sm font-semibold text-gray-700 mt-0.5" id="di_durasi">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase tracking-wide">Pihak Pertama</p>
+                                <p class="text-sm font-semibold text-gray-700 mt-0.5" id="di_pihak_pertama">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase tracking-wide">Pihak Kedua</p>
+                                <p class="text-sm font-semibold text-gray-700 mt-0.5" id="di_pihak_kedua">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase tracking-wide">Status</p>
+                                <p class="text-sm font-semibold mt-0.5" id="di_status_kontrak">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase tracking-wide">Periode</p>
+                                <p class="text-sm font-semibold text-gray-700 mt-0.5" id="di_periode">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- STATS CARDS --}}
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-white rounded-xl border border-gray-100 p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs text-gray-500">Total Tagihan</p>
+                                    <p class="text-xl font-bold text-blue-600 mt-1" id="di_grand_total">-</p>
+                                </div>
+                                <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                                    <i class="fa fa-file-invoice text-blue-500 text-sm"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-gray-100 p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs text-gray-500">Sudah Dibayar</p>
+                                    <p class="text-xl font-bold text-green-600 mt-1" id="di_total_paid">-</p>
+                                </div>
+                                <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                                    <i class="fa fa-check-circle text-green-500 text-sm"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-gray-100 p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs text-gray-500">Sisa Bayar</p>
+                                    <p class="text-xl font-bold text-red-500 mt-1" id="di_total_remaining">-</p>
+                                </div>
+                                <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                                    <i class="fa fa-clock text-red-400 text-sm"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-gray-100 p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs text-gray-500">Status</p>
+                                    <p class="text-xl font-bold mt-1" id="di_payment_status">-</p>
+                                </div>
+                                <div class="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center">
+                                    <i class="fa fa-tag text-gray-400 text-sm"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- CHART FILTER + CHARTS --}}
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-bold text-gray-700">
+                                <i class="fa fa-chart-bar text-blue-500 mr-1"></i> Grafik Pembayaran
+                            </h3>
+                            {{-- Mini filter --}}
+                            <div class="flex items-center gap-1.5">
+                                @foreach(['year' => 'Tahun', 'month' => 'Bulan', 'week' => 'Minggu'] as $fv => $fl)
+                                <button type="button"
+                                    onclick="changeDetailChartFilter('{{ $fv }}')"
+                                    data-detail-filter="{{ $fv }}"
+                                    class="detail-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+                                        {{ $fv === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                                    {{ $fl }}
+                                </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- BAR CHART — mirip stacked layout di x-chart-container --}}
+                        <div class="chart-card chart-fade-in mb-4">
+                            <div class="chart-card-header">
+                                <div>
+                                    <h3 class="chart-card-title">Total Tagihan per Periode</h3>
+                                </div>
+                                <div class="chart-card-icon bg-green-50 text-green-600">
+                                    <i class="fa fa-chart-bar"></i>
+                                </div>
+                            </div>
+                            <div id="detailBarChart_scrollOuter" class="chart-scroll-outer" style="max-height: 260px; overflow-x: auto; overflow-y: hidden;">
+                                <div id="detailBarChart_scrollInner" style="min-width: 100%; height: 260px; position: relative;">
+                                    <canvas id="detailBarChart" class="chart-canvas" style="height: 260px;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- PIE CHART --}}
+                        <div class="chart-card chart-fade-in mb-4" style="animation-delay: 0.1s">
+                            <div class="chart-card-header">
+                                <div>
+                                    <h3 class="chart-card-title">Distribusi Status Pembayaran</h3>
+                                </div>
+                                <div class="chart-card-icon bg-blue-50 text-blue-600">
+                                    <i class="fa fa-chart-pie"></i>
+                                </div>
+                            </div>
+                            <div style="max-width: 380px; margin: 0 auto; height: 260px; overflow: hidden;">
+                                <canvas id="detailPieChart" class="chart-canvas" style="height: 260px;"></canvas>
+                            </div>
+                        </div>
+
+                        {{-- LINE CHART --}}
+                        <div class="chart-card chart-fade-in mb-4" style="animation-delay: 0.2s">
+                            <div class="chart-card-header">
+                                <div>
+                                    <h3 class="chart-card-title">Trend Tagihan</h3>
+                                </div>
+                                <div class="chart-card-icon bg-purple-50 text-purple-600">
+                                    <i class="fa fa-chart-line"></i>
+                                </div>
+                            </div>
+                            <div id="detailLineChart_scrollOuter" class="chart-scroll-outer" style="max-height: 260px; overflow-x: auto; overflow-y: hidden;">
+                                <div id="detailLineChart_scrollInner" style="min-width: 100%; height: 260px; position: relative;">
+                                    <canvas id="detailLineChart" class="chart-canvas" style="height: 260px;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {{-- TABEL INVOICE SUMMARY --}}
+                    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                <i class="fa fa-list mr-1"></i> Daftar Invoice Summary
+                            </h3>
+                            <span class="text-xs text-gray-400" id="di_invoice_count">0 invoice</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                                        <th class="px-4 py-2.5 text-left">Invoice</th>
+                                        <th class="px-4 py-2.5 text-left">Customer</th>
+                                        <th class="px-4 py-2.5 text-left">Kendaraan</th>
+                                        <th class="px-4 py-2.5 text-center">Bayar ke</th>
+                                        <th class="px-4 py-2.5 text-right">Total</th>
+                                        <th class="px-4 py-2.5 text-right">Dibayar</th>
+                                        <th class="px-4 py-2.5 text-right">Sisa</th>
+                                        <th class="px-4 py-2.5 text-center">Status</th>
+                                        <th class="px-4 py-2.5 text-center">Bukti</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detailSummaryTableBody">
+                                    {{-- diisi via JS --}}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>{{-- /detailContent --}}
+            </div>{{-- /body --}}
 
         </div>
     </div>
@@ -791,6 +1031,179 @@
                 }, filters, barOptions, lineOptions);
             } catch (error) {
                 console.error('Error updating summary charts:', error);
+            }
+        }
+
+        // ── MODAL DETAIL KONTRAK ──────────────────────────────────────────────
+        const modalDetailKontrak = document.getElementById('modalDetailKontrak');
+        let detailChartManager   = null;
+        let currentDetailKontrakId = null;
+
+        function fmtRp(n) {
+            return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+        }
+
+        function openDetailKontrak(kontrakId, noKontrak) {
+            currentDetailKontrakId = kontrakId;
+            modalDetailKontrak.classList.remove('hidden');
+            modalDetailKontrak.classList.add('flex');
+
+            // Reset state
+            document.getElementById('detailLoadingState').classList.remove('hidden');
+            document.getElementById('detailContent').classList.add('hidden');
+            document.getElementById('detailModalTitle').textContent = 'Detail Kontrak';
+            document.getElementById('detailModalSubtitle').textContent = noKontrak || 'Loading...';
+
+            // Destroy previous charts
+            if (detailChartManager) {
+                ['detailBarChart', 'detailPieChart', 'detailLineChart'].forEach(id => {
+                    const c = document.getElementById(id);
+                    if (c && c._chartInstance) {
+                        c._chartInstance.destroy();
+                        c._chartInstance = null;
+                    }
+                });
+                detailChartManager = null;
+            }
+
+            // Fetch kontrak detail data
+            fetch(`/admin/summary/kontrak/${kontrakId}/detail`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                renderDetailModal(data);
+                // Init charts after DOM is ready
+                setTimeout(() => initDetailCharts(kontrakId, 'year'), 100);
+            })
+            .catch(err => {
+                console.error('Error loading detail:', err);
+                document.getElementById('detailLoadingState').innerHTML =
+                    '<p class="text-sm text-red-500"><i class="fa fa-exclamation-circle mr-1"></i> Gagal memuat data. Silakan coba lagi.</p>';
+            });
+        }
+
+        function closeDetailKontrak() {
+            modalDetailKontrak.classList.add('hidden');
+            modalDetailKontrak.classList.remove('flex');
+            currentDetailKontrakId = null;
+        }
+
+        modalDetailKontrak.addEventListener('click', function(e) {
+            if (e.target === modalDetailKontrak) closeDetailKontrak();
+        });
+
+        function renderDetailModal(data) {
+            const k = data.kontrak;
+            const s = data.stats;
+
+            // Info kontrak
+            document.getElementById('detailModalTitle').textContent = 'Detail Kontrak — ' + k.no_kontrak;
+            document.getElementById('detailModalSubtitle').textContent = k.pihak_kedua + ' · ' + k.durasi;
+            document.getElementById('di_no_kontrak').textContent       = k.no_kontrak;
+            document.getElementById('di_tanggal_kontrak').textContent  = k.tanggal_kontrak;
+            document.getElementById('di_tanggal_selesai').textContent  = k.tanggal_selesai;
+            document.getElementById('di_durasi').textContent           = k.durasi;
+            document.getElementById('di_pihak_pertama').textContent    = k.pihak_pertama;
+            document.getElementById('di_pihak_kedua').textContent      = k.pihak_kedua;
+            document.getElementById('di_periode').textContent          = s.paid_periodes + '/' + s.total_periode + ' periode lunas';
+
+            const statusEl = document.getElementById('di_status_kontrak');
+            statusEl.textContent  = k.status;
+            statusEl.className    = 'text-sm font-semibold mt-0.5 ' +
+                (k.status === 'aktif' ? 'text-green-600' : k.status === 'selesai' ? 'text-blue-600' : 'text-gray-600');
+
+            // Stats
+            document.getElementById('di_grand_total').textContent     = fmtRp(s.grand_total);
+            document.getElementById('di_total_paid').textContent      = fmtRp(s.total_paid);
+            document.getElementById('di_total_remaining').textContent = fmtRp(s.total_remaining);
+            document.getElementById('di_invoice_count').textContent   = s.invoice_count + ' invoice';
+
+            const statusPay     = document.getElementById('di_payment_status');
+            statusPay.textContent = s.status;
+            statusPay.className   = 'text-xl font-bold mt-1 ' +
+                (s.status === 'Paid' ? 'text-green-600' : s.status === 'Partial' ? 'text-yellow-500' : 'text-red-500');
+
+            // Tabel
+            const tbody = document.getElementById('detailSummaryTableBody');
+            tbody.innerHTML = '';
+            if (!data.summaries || data.summaries.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-400 text-xs">Belum ada data invoice</td></tr>';
+            } else {
+                data.summaries.forEach(row => {
+                    const sc = row.payment_status === 'Paid'
+                        ? 'bg-green-100 text-green-700'
+                        : row.payment_status === 'Partial'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-red-100 text-red-700';
+                    const sisaColor = row.remaining_amount > 0 ? 'text-red-600 font-bold' : 'text-green-600';
+                    const bukti = row.file_pembayaran
+                        ? `<a href="/${row.file_pembayaran}" target="_blank"
+                                class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline max-w-[120px]"
+                                title="${row.file_name || ''}">
+                                <i class="fa fa-file text-[10px] flex-shrink-0"></i>
+                                <span class="truncate">${row.file_name || 'Lihat'}</span>
+                           </a>`
+                        : '<span class="text-xs text-gray-400">—</span>';
+
+                    tbody.innerHTML += `
+                        <tr class="border-t border-gray-50 hover:bg-blue-50/30 transition-colors">
+                            <td class="px-4 py-3 text-xs font-semibold text-blue-700">${row.invoice_no}</td>
+                            <td class="px-4 py-3 text-xs text-gray-600">${row.customer_name}</td>
+                            <td class="px-4 py-3 text-xs text-gray-600">${row.kendaraan}</td>
+                            <td class="px-4 py-3 text-center text-xs font-semibold text-blue-600">${row.pembayaran_ke}</td>
+                            <td class="px-4 py-3 text-right text-xs font-semibold text-gray-800">${fmtRp(row.total_amount)}</td>
+                            <td class="px-4 py-3 text-right text-xs font-semibold text-green-700">${fmtRp(row.paid_amount)}</td>
+                            <td class="px-4 py-3 text-right text-xs ${sisaColor}">${fmtRp(row.remaining_amount)}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${sc}">${row.payment_status}</span>
+                            </td>
+                            <td class="px-4 py-3">${bukti}</td>
+                        </tr>`;
+                });
+            }
+
+            // Show content
+            document.getElementById('detailLoadingState').classList.add('hidden');
+            document.getElementById('detailContent').classList.remove('hidden');
+        }
+
+        async function initDetailCharts(kontrakId, filterType) {
+            try {
+                detailChartManager = new ChartManager();
+                await detailChartManager.initChartsFromAPI('summary', {
+                    pie:  'detailPieChart',
+                    bar:  'detailBarChart',
+                    line: 'detailLineChart',
+                }, { filter_type: filterType, kontrak_id: kontrakId }, { accentLine: true });
+            } catch (err) {
+                console.error('Error loading detail charts:', err);
+            }
+        }
+
+        async function changeDetailChartFilter(filterType) {
+            if (!currentDetailKontrakId) return;
+
+            // Update button active state
+            document.querySelectorAll('.detail-filter-btn').forEach(btn => {
+                const isActive = btn.dataset.detailFilter === filterType;
+                btn.className = btn.className.replace(/bg-blue-600 text-white|bg-gray-100 text-gray-600 hover:bg-gray-200/g, '').trim();
+                btn.classList.add(...(isActive
+                    ? ['bg-blue-600', 'text-white']
+                    : ['bg-gray-100', 'text-gray-600', 'hover:bg-gray-200']));
+            });
+
+            try {
+                if (!detailChartManager) {
+                    detailChartManager = new ChartManager();
+                }
+                await detailChartManager.updateChartsFromAPI('summary', {
+                    pie:  'detailPieChart',
+                    bar:  'detailBarChart',
+                    line: 'detailLineChart',
+                }, { filter_type: filterType, kontrak_id: currentDetailKontrakId }, { accentLine: true });
+            } catch (err) {
+                console.error('Error updating detail charts:', err);
             }
         }
 </script>
