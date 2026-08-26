@@ -347,6 +347,129 @@ class SummaryController extends Controller
             ->with('success', "Semua summary kontrak berhasil dihapus ({$deleted} data).");
     }
 
+    /**
+     * Detail kontrak (AJAX) — return JSON berisi info kontrak + semua summaries-nya
+     */
+    public function detailKontrak(Request $request, $kontrak_id)
+    {
+        $kontrak = InvKontrak::with([
+            'penawaran.items',
+        ])->findOrFail($kontrak_id);
+
+        $summaries = InvSummary::with([
+            'invoice.payments',
+            'invoice.kendaraans',
+            'invoice.periodes',
+        ])
+        ->where('kontrak_id', $kontrak_id)
+        ->latest()
+        ->get();
+
+        $setting  = \App\Models\Setting::first();
+        $ppnPct   = (float) ($setting?->ppn_default ?? 0);
+
+        // Hitung grand total dari penawaran items
+        $grandTotal = 0.0;
+        if ($kontrak->penawaran) {
+            $subtotal = 0.0;
+            foreach ($kontrak->penawaran->items as $item) {
+                $price   = (float) ($item->price  ?? 0);
+                $qty     = (int)   ($item->qty    ?? 1);
+                $durasi  = (int)   ($item->durasi ?? 1);
+                $satuan  = strtolower(trim($item->satuan_durasi ?? 'bulan'));
+                $bulan   = match ($satuan) {
+                    'tahun' => $durasi * 12,
+                    'hari'  => max(1, (int) round($durasi / 30)),
+                    default => $durasi,
+                };
+                $subtotal += $price * $qty * $bulan;
+            }
+            $ppnNom   = round($subtotal * $ppnPct / 100);
+            $grandTotal = $subtotal + $ppnNom;
+        }
+        if ($grandTotal <= 0) {
+            $grandTotal = $summaries->sum('total_amount');
+        }
+
+        $totalPaid      = $summaries->sum('paid_amount');
+        $totalRemaining = $grandTotal - $totalPaid;
+
+        // Durasi kontrak dalam bulan
+        $durVal = (int) ($kontrak->durasi_value ?? $summaries->count());
+        $durSat = strtolower($kontrak->durasi_satuan ?? 'bulan');
+        $totalPeriode = match ($durSat) {
+            'tahun' => $durVal * 12,
+            'hari'  => max(1, (int) round($durVal / 30)),
+            default => $durVal,
+        };
+
+        $paidPeriodes = $summaries
+            ->filter(fn($s) => strtolower($s->payment_status) === 'paid')
+            ->sum(fn($s) => max((int)($s->periode_count ?? 1), 1));
+
+        $allPaid    = $summaries->every(fn($s) => strtolower($s->payment_status) === 'paid');
+        $anyPartial = $summaries->contains(fn($s) => in_array(strtolower($s->payment_status), ['partial', 'paid']));
+        $status     = $allPaid ? 'Paid' : ($anyPartial ? 'Partial' : 'Unpaid');
+
+        // Format summaries untuk tabel
+        $summaryRows = $summaries->values()->map(function ($s, $idx) use ($totalPeriode) {
+            $jumlahPeriode = (int) ($s->periode_count ?? 0);
+            if ($jumlahPeriode <= 0) {
+                $jumlahPeriode = $s->invoice ? max(1, $s->invoice->periodes->count()) : 1;
+            }
+            $bayarDari   = $idx + 1;
+            $bayarSampai = min($idx + $jumlahPeriode, $totalPeriode);
+
+            $kendaraanList = [];
+            if ($s->invoice && $s->invoice->kendaraans->isNotEmpty()) {
+                foreach ($s->invoice->kendaraans as $kd) {
+                    $kendaraanList[] = $kd->merk . ' ' . $kd->nopol;
+                }
+            }
+
+            $latestPayment = ($s->invoice?->payments ?? collect())
+                ->where('status', 'Verified')->sortByDesc('id')->first()
+                ?? ($s->invoice?->payments ?? collect())->sortByDesc('id')->first();
+
+            return [
+                'id'             => $s->id,
+                'invoice_no'     => $s->invoice?->invoice_no ?? '-',
+                'customer_name'  => $s->invoice?->customer_name ?? '-',
+                'kendaraan'      => implode(', ', $kendaraanList) ?: '-',
+                'pembayaran_ke'  => $bayarDari === $bayarSampai ? (string)$bayarDari : "{$bayarDari}–{$bayarSampai}",
+                'total_amount'   => (float) $s->total_amount,
+                'paid_amount'    => (float) $s->paid_amount,
+                'remaining_amount' => (float) $s->remaining_amount,
+                'payment_status' => $s->payment_status,
+                'file_pembayaran'=> $latestPayment?->file_pembayaran,
+                'file_name'      => $latestPayment?->file_pembayaran_name ?? ($latestPayment?->file_pembayaran ? basename($latestPayment->file_pembayaran) : null),
+            ];
+        });
+
+        return response()->json([
+            'kontrak' => [
+                'id'                  => $kontrak->id,
+                'no_kontrak'          => $kontrak->no_kontrak ?? '#' . $kontrak->id,
+                'tanggal_kontrak'     => $kontrak->tanggal_kontrak?->format('d M Y') ?? '-',
+                'tanggal_selesai'     => $kontrak->tanggal_selesai?->format('d M Y') ?? '-',
+                'pihak_pertama'       => $kontrak->pihak_pertama ?? '-',
+                'pihak_kedua'         => $kontrak->pihak_kedua ?? '-',
+                'durasi'              => $durVal . ' ' . $durSat,
+                'status'              => $kontrak->status ?? '-',
+            ],
+            'stats' => [
+                'grand_total'     => $grandTotal,
+                'total_paid'      => $totalPaid,
+                'total_remaining' => max(0, $totalRemaining),
+                'total_periode'   => $totalPeriode,
+                'paid_periodes'   => $paidPeriodes,
+                'status'          => $status,
+                'invoice_count'   => $summaries->count(),
+            ],
+            'summaries' => $summaryRows,
+        ]);
+    }
+
     public function exportExcel(Request $request)
     {
         return \Maatwebsite\Excel\Facades\Excel::download(

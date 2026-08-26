@@ -662,6 +662,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::resource('summary', SummaryController::class);
   Route::delete('/summary/destroy-by-kontrak/{kontrak_id}', [SummaryController::class, 'destroyByKontrak'])
     ->name('summary.destroyByKontrak');
+  Route::get('/summary/kontrak/{kontrak_id}/detail', [SummaryController::class, 'detailKontrak'])
+    ->name('summary.detailKontrak');
   Route::get('/admin/summary/pdf', [SummaryController::class, 'exportPdf'])
     ->name('summary.pdf');
   Route::get('/summary/export/excel', [SummaryController::class, 'exportExcel'])

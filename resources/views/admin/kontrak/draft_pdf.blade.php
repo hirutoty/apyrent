@@ -199,9 +199,10 @@ $renderItem = function(array $item) {
         $trimmed = trim($raw);
         if (preg_match('/^Dan tidak termasuk\s*:?$/i', $trimmed) || 
             preg_match('/^And exclude\s*:?$/i', $trimmed)) {
-            return '<p style="margin:8px 0 4px 0;">' . htmlspecialchars($raw) . '</p>';
+            return '<p style="margin:10px 0 4px 14px;font-weight:normal;">' . htmlspecialchars($raw) . '</p>';
         }
-        return '<p class="sub">- ' . htmlspecialchars($raw) . '</p>';
+        // Regular sub-item dengan indentasi konsisten
+        return '<p style="margin:2px 0 2px 14px;font-size:10.5pt;line-height:1.5;">- ' . htmlspecialchars($raw) . '</p>';
     }
     // ── Handle type 'teks' ──
     // Special case: "Dan tidak termasuk" atau "And exclude"

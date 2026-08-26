@@ -289,10 +289,13 @@ $renderItem = function(array $item) {
         return '<div class="gap8"></div>';
     }
     $raw = $item['text'] ?? '';
+    $trimmed = trim($raw);
+    
     // Hilangkan baris yang dimulai dengan "Hp."
-    if (preg_match('/^Hp\./i', trim($raw))) {
+    if (preg_match('/^Hp\./i', $trimmed)) {
         return '';
     }
+    
     if ($item['type'] === 'poin') {
         $n = htmlspecialchars($item['num'] ?? '');
         // Render multi-line: baris pertama lanjut, baris berikutnya indent sejajar
@@ -306,25 +309,25 @@ $renderItem = function(array $item) {
         }
         return '<div class="poin-row"><span class="poin-num">' . $n . '.</span><span class="poin-txt">' . $first . $rest . '</span></div>';
     }
+    
     if ($item['type'] === 'sub') {
         // ── Special case: "Dan tidak termasuk" atau "And exclude" ──
-        // Render sebagai teks biasa dengan spacing (bukan sub-item dengan tanda "-")
-        $trimmed = trim($raw);
         if (preg_match('/^Dan tidak termasuk\s*:?$/i', $trimmed) || 
             preg_match('/^And exclude\s*:?$/i', $trimmed)) {
-            return '<p style="margin:8px 0 4px 0;">' . htmlspecialchars($raw) . '</p>';
+            return '<p style="margin:10px 0 4px 14px;font-weight:normal;">' . htmlspecialchars($raw) . '</p>';
         }
-        return '<p class="sub">- ' . htmlspecialchars($raw) . '</p>';
+        // Regular sub-item dengan indentasi konsisten
+        return '<p style="margin:2px 0 2px 14px;font-size:10.5pt;line-height:1.5;">- ' . htmlspecialchars($raw) . '</p>';
     }
+    
     // ── Handle type 'teks' ──
     // Special case: "Dan tidak termasuk" atau "And exclude"
-    $trimmed = trim($raw);
     if (preg_match('/^Dan tidak termasuk\s*:?$/i', $trimmed) || 
         preg_match('/^And exclude\s*:?$/i', $trimmed)) {
         return '<p style="margin:10px 0 4px 0;font-weight:normal;">' . htmlspecialchars($raw) . '</p>';
     }
     // teks all-caps (seperti PIHAK PERTAMA / THE FIRST PARTY) → bold
-    if (strtoupper($raw) === $raw && strlen(trim($raw)) > 3) {
+    if (strtoupper($raw) === $raw && strlen($trimmed) > 3) {
         return '<p style="font-weight:bold;">' . htmlspecialchars($raw) . '</p>';
     }
     return '<p>' . htmlspecialchars($raw) . '</p>';
