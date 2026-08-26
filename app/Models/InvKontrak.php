@@ -29,6 +29,8 @@ class InvKontrak extends Model
         'email_kedua',
         'jenis_pelanggan',
         'alamat_kedua',
+        'perwakilan_pihak_kedua', // ← ADDED
+        'jabatan_pihak_kedua',    // ← ADDED
 
         'file_kontrak',
         'file_persyaratan',
