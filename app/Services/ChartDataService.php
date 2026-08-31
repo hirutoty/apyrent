@@ -154,6 +154,7 @@ class ChartDataService
      *
      * Supported column shapes:
      *   - string                            → sum(column)
+     *   - ['count' => true]                 → count(*)
      *   - ['where'=>[...], 'column'=>'...'] → conditional sum
      *   - ['computed'=>['op','a','b']]      → a ± b
      */
@@ -163,9 +164,16 @@ class ChartDataService
             return (float)(clone $periodQuery)->sum($column);
         }
 
+        // Support count per period
+        if (isset($column['count']) && $column['count'] === true) {
+            return (float)(clone $periodQuery)->count();
+        }
+
         if (isset($column['where'])) {
             $col = $column['column'] ?? 'id';
-            return (float)$this->applyColumnWhere(clone $periodQuery, $column['where'])->sum($col);
+            $agg = $column['aggregation'] ?? 'sum';
+            $q   = $this->applyColumnWhere(clone $periodQuery, $column['where']);
+            return $agg === 'count' ? (float)$q->count() : (float)$q->sum($col);
         }
 
         if (isset($column['computed'])) {

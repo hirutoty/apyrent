@@ -63,6 +63,19 @@
             </nav>
         </div>
 
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="penawaranChartFilter" defaultFilter="month" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="penawaranChartContainer"
+            layout="stacked"
+            pieTitle="Distribusi Status Penawaran" pieId="penawaranPieChart"
+            barTitle="Jumlah Penawaran per Periode" barId="penawaranBarChart"
+            lineTitle="Trend Penawaran" lineId="penawaranLineChart"
+            :showStats="true" :statsData="[]"
+        />
+
         {{-- STAT CARDS --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
@@ -790,6 +803,53 @@
     </template>
 
     @push('scripts')
+        <script>
+        // ========================================
+        // CHART INITIALIZATION — PENAWARAN
+        // ========================================
+        const penawaranChartManager = new ChartManager();
+
+        document.addEventListener('DOMContentLoaded', function () {
+            initPenawaranCharts({ filter_type: 'month' });
+
+            document.addEventListener('chartFilterChange', function (e) {
+                if (e.detail.filterId === 'penawaranChartFilter') {
+                    const filters = {
+                        filter_type: e.detail.filterType,
+                        start_date:  e.detail.startDate,
+                        end_date:    e.detail.endDate,
+                    };
+                    updatePenawaranCharts(filters);
+                }
+            });
+        });
+
+        async function initPenawaranCharts(filters) {
+            try {
+                await penawaranChartManager.initChartsFromAPI('penawaran', {
+                    pie:  'penawaranPieChart',
+                    bar:  'penawaranBarChart',
+                    line: 'penawaranLineChart',
+                }, filters, { accentLine: true });
+            } catch (error) {
+                console.error('Error loading penawaran charts:', error);
+            }
+        }
+
+        async function updatePenawaranCharts(filters) {
+            try {
+                const isScrollable = filters.filter_type === 'custom';
+                await penawaranChartManager.updateChartsFromAPI('penawaran', {
+                    pie:  'penawaranPieChart',
+                    bar:  'penawaranBarChart',
+                    line: 'penawaranLineChart',
+                }, filters, { scrollable: isScrollable, accentLine: true }, { scrollable: isScrollable });
+            } catch (error) {
+                console.error('Error updating penawaran charts:', error);
+            }
+        }
+        </script>
+
         <script>
 
             // ========================= KETENTUAN HELPERS (textarea) =========================

@@ -60,15 +60,16 @@
         </div>
 
         {{-- CHART FILTER --}}
-        <x-chart-filter 
-            id="invoiceChartFilter" 
-            defaultFilter="month"
+        <x-chart-filter
+            id="invoiceChartFilter"
+            defaultFilter="year"
             :showCustomRange="true"
         />
 
         {{-- CHART CONTAINER --}}
         <x-chart-container
             id="invoiceChartContainer"
+            layout="stacked"
             pieTitle="Status Invoice"
             pieId="invoicePieChart"
             barTitle="Invoice per Bulan"
@@ -3094,58 +3095,49 @@
         if (typeof openModalTambah === 'function') openModalTambah();
         @endif
 
-        // ================= CHART INITIALIZATION =================
-        // Initialize charts with default filter (month)
-        initInvoiceCharts({ filter_type: 'month' });
+        }); // end DOMContentLoaded — script block 2
+        </script>
 
-        // Listen to filter changes
-        document.addEventListener('chartFilterChange', function(e) {
-            if (e.detail.filterId === 'invoiceChartFilter') {
-                const filters = {
-                    filter_type: e.detail.filterType
-                };
+        {{-- ====== CHART INVOICE ====== --}}
+        <script>
+        (function () {
+            const invoiceChartManager = new ChartManager();
+            let invoiceChartsInitialized = false;
 
+            function initInvoiceCharts(filters) {
+                invoiceChartsInitialized = true;
+                return invoiceChartManager.initChartsFromAPI('invoice', {
+                    pie:  'invoicePieChart',
+                    bar:  'invoiceBarChart',
+                    line: 'invoiceLineChart',
+                }, filters, { accentLine: true });
+            }
+
+            function updateInvoiceCharts(filters) {
+                const isScrollable = filters.filter_type === 'custom';
+                return invoiceChartManager.updateChartsFromAPI('invoice', {
+                    pie:  'invoicePieChart',
+                    bar:  'invoiceBarChart',
+                    line: 'invoiceLineChart',
+                }, filters, { scrollable: isScrollable, accentLine: true }, { scrollable: isScrollable });
+            }
+
+            // Filter change handler — menangani init pertama DAN update berikutnya
+            document.addEventListener('chartFilterChange', function (e) {
+                if (e.detail.filterId !== 'invoiceChartFilter') return;
+                const filters = { filter_type: e.detail.filterType };
                 if (e.detail.filterType === 'custom') {
                     filters.start_date = e.detail.startDate;
-                    filters.end_date = e.detail.endDate;
+                    filters.end_date   = e.detail.endDate;
                 }
-
-                updateInvoiceCharts(filters);
-            }
-        });
-
-        }); // end DOMContentLoaded
-
-    async function initInvoiceCharts(filters) {
-        const canvasIds = {
-            pie: 'invoicePieChart',
-            bar: 'invoiceBarChart',
-            line: 'invoiceLineChart'
-        };
-
-        try {
-            await window.chartManager.initChartsFromAPI('invoice', canvasIds, filters, { accentLine: true });
-            console.log('✅ Invoice charts initialized');
-        } catch (error) {
-            console.error('❌ Failed to initialize invoice charts:', error);
-        }
-    }
-
-    async function updateInvoiceCharts(filters) {
-        const canvasIds = {
-            pie: 'invoicePieChart',
-            bar: 'invoiceBarChart',
-            line: 'invoiceLineChart'
-        };
-
-        try {
-            await window.chartManager.updateChartsFromAPI('invoice', canvasIds, filters, { accentLine: true });
-            console.log('✅ Invoice charts updated');
-        } catch (error) {
-            console.error('❌ Failed to update invoice charts:', error);
-        }
-    }
-</script>
+                if (!invoiceChartsInitialized) {
+                    initInvoiceCharts(filters);
+                } else {
+                    updateInvoiceCharts(filters);
+                }
+            });
+        })();
+        </script>
     @endpush
 
 @endsection

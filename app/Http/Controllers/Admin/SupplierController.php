@@ -15,7 +15,12 @@ class SupplierController extends Controller
     {
         $data = Supplier::with('user')->latest()->paginate(15)->withQueryString();
 
-        return view('admin.supplier.index', compact('data'));
+        // Summary dihitung dari seluruh tabel, bukan dari halaman aktif
+        $totalSupplier  = Supplier::count();
+        $totalBarang    = (int) Supplier::sum('jumlah_barang');
+        $totalNominal   = (float) Supplier::selectRaw('SUM(jumlah_barang * harga_barang) as total')->value('total');
+
+        return view('admin.supplier.index', compact('data', 'totalSupplier', 'totalBarang', 'totalNominal'));
     }
 
     public function store(Request $request)

@@ -89,6 +89,7 @@ class CatatCicilanLeasingCommand extends Command
                             'tanggal'     => Carbon::parse($bulanKey),
                             'reference'   => $kodeJurnal,
                             'user_id'     => null, // auto oleh sistem
+                            'divisi'      => 'Keuangan',
                             'kategori'    => 'Pengeluaran',
                             'metode'      => 'Auto Debit',
                             'keterangan'  => 'Cicilan leasing ' . ($leasing->no_kontrak ?? '-') . ' - ' . ($leasing->mobil ?? '-') . ' bulan ' . $bulanLabel,

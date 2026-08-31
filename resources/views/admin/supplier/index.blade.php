@@ -27,7 +27,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Total Supplier</p>
-                        <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $data->count() }}</h2>
+                        <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $totalSupplier }}</h2>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
                         <i class="bi bi-people-fill text-2xl text-blue-600"></i>
@@ -41,7 +41,7 @@
                     <div>
                         <p class="text-sm text-gray-500">Total Nominal</p>
                         <h2 class="text-2xl font-bold text-green-600 mt-2">
-                            Rp {{ number_format($data->sum(fn($d) => $d->jumlah_barang * $d->harga_barang)) }}
+                            Rp {{ number_format($totalNominal) }}
                         </h2>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center">
@@ -55,7 +55,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Total Jumlah Barang</p>
-                        <h2 class="text-3xl font-bold text-orange-500 mt-2">{{ $data->sum('jumlah_barang') }}</h2>
+                        <h2 class="text-3xl font-bold text-orange-500 mt-2">{{ number_format($totalBarang) }}</h2>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center">
                         <i class="bi bi-box-seam-fill text-2xl text-orange-500"></i>
@@ -65,6 +65,19 @@
 
         </div>
 
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="supplierChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="supplierChartContainer"
+            layout="stacked"
+            pieTitle="Distribusi Supplier per Nama" pieId="supplierPieChart"
+            barTitle="Supplier per Periode (Jumlah Barang / Supplier / Nominal)" barId="supplierBarChart"
+            lineTitle="Trend Total Nominal" lineId="supplierLineChart"
+            :showStats="true" :statsData="[]"
+        />
+
         {{-- TABLE CARD --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
@@ -72,7 +85,7 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar Supplier</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total supplier</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $totalSupplier }} total supplier</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <a id="pdfBtn" target="_blank" href="{{ route('supplier.export.pdf') }}"
@@ -424,6 +437,142 @@
             else if (typeof openModal === 'function') openModal();
         });
         @endif
+</script>
+
+<script>
+// ========================================
+// CHART INITIALIZATION — SUPPLIER
+// ========================================
+const supplierChartManager = new ChartManager();
+
+document.addEventListener('DOMContentLoaded', function () {
+    initSupplierCharts({ filter_type: 'year' });
+
+    document.addEventListener('chartFilterChange', function (e) {
+        if (e.detail.filterId === 'supplierChartFilter') {
+            updateSupplierCharts({
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+            });
+        }
+    });
+});
+
+async function initSupplierCharts(filters) {
+    try {
+        const data = await fetch(`/admin/chart-data/supplier?filter_type=${filters.filter_type || 'year'}${filters.start_date ? '&start_date='+filters.start_date : ''}${filters.end_date ? '&end_date='+filters.end_date : ''}`).then(r => r.json());
+
+        if (!data.success) throw new Error(data.message || 'Failed');
+
+        const chartData = data.data;
+
+        // Pie chart — standar
+        supplierChartManager.initPieChart('supplierPieChart', chartData.pie);
+
+        // Bar chart — dual axis: kiri untuk count/jumlah, kanan untuk nominal (Rp)
+        if (chartData.bar && chartData.bar.datasets) {
+            const barDatasets = chartData.bar.datasets.map((ds, i) => {
+                const colors = ['#4f6ef7', '#10b981', '#f97316'];
+                const bg     = colors[i] || colors[0];
+                // Dataset index 1 = Total Nominal → pakai axis kanan (y1)
+                return {
+                    ...ds,
+                    backgroundColor : bg + 'cc',
+                    borderColor     : bg,
+                    borderWidth     : 1,
+                    borderRadius    : 4,
+                    yAxisID         : i === 1 ? 'y1' : 'y',
+                };
+            });
+
+            // Overlay trend line: duplikasi dataset Jumlah Barang (index 2) sebagai line merah
+            const jumlahBarangDs = chartData.bar.datasets[2];
+            if (jumlahBarangDs) {
+                barDatasets.push({
+                    type                 : 'line',
+                    label                : 'Jumlah Barang (trend)',
+                    data                 : [...jumlahBarangDs.data],
+                    borderColor          : '#ef4444',
+                    backgroundColor      : 'transparent',
+                    borderWidth          : 2.5,
+                    pointRadius          : 3,
+                    pointBackgroundColor : '#ef4444',
+                    pointBorderColor     : '#fff',
+                    pointBorderWidth     : 1.5,
+                    tension              : 0.4,
+                    fill                 : false,
+                    yAxisID              : 'y',
+                    order                : 0,
+                });
+            }
+
+            supplierChartManager.destroyChart('supplierBarChart');
+            const ctx = document.getElementById('supplierBarChart');
+            if (ctx) {
+                supplierChartManager.charts['supplierBarChart'] = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: chartData.bar.labels, datasets: barDatasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                position: 'left',
+                                title: { display: true, text: 'Jumlah', font: { size: 11 } },
+                                grid: { color: 'rgba(0,0,0,0.05)' },
+                                ticks: { font: { size: 11, family: "'Plus Jakarta Sans', sans-serif" } }
+                            },
+                            y1: {
+                                beginAtZero: true,
+                                position: 'right',
+                                title: { display: true, text: 'Nominal (Rp)', font: { size: 11 } },
+                                grid: { drawOnChartArea: false },
+                                ticks: {
+                                    font: { size: 11, family: "'Plus Jakarta Sans', sans-serif" },
+                                    callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+' JT' : v >= 1000 ? (v/1000).toFixed(0)+' RB' : v
+                                }
+                            },
+                            x: { grid: { display: false }, ticks: { font: { size: 11, family: "'Plus Jakarta Sans', sans-serif" } } }
+                        },
+                        plugins: {
+                            legend: { display: true, position: 'top', labels: { usePointStyle: true, font: { size: 12 } } },
+                            tooltip: {
+                                backgroundColor: 'rgba(15,17,23,0.95)',
+                                padding: 12,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: ctx => {
+                                        const v = ctx.parsed.y;
+                                        const label = ctx.dataset.label || '';
+                                        if (ctx.datasetIndex === 1) return ` ${label}: Rp ${new Intl.NumberFormat('id-ID').format(v)}`;
+                                        return ` ${label}: ${new Intl.NumberFormat('id-ID').format(v)}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Line chart — trend nominal
+        supplierChartManager.initLineChart('supplierLineChart', chartData.line);
+
+        // Stats
+        if (chartData.stats) {
+            const container = document.querySelector('#supplierChartContainer [class*="chart-stat"]')?.closest('.grid');
+            // stats dihandle oleh ChartManager update
+        }
+
+    } catch (e) { console.error('Error loading supplier charts:', e); }
+}
+
+async function updateSupplierCharts(filters) {
+    await initSupplierCharts(filters);
+}
 </script>
 
 @endsection

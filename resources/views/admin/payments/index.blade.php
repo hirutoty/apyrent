@@ -24,42 +24,57 @@
             <h1 class="text-2xl font-bold text-gray-800">Data Pembayaran</h1>
             <p class="text-sm text-gray-500 mt-0.5">Kelola seluruh transaksi pembayaran invoice</p>
         </div>
-        <button onclick="openModalTambah()"
-            class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm">
-            <i class="fa fa-plus text-sm"></i> Tambah Pembayaran
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{{ route('payments.pdf', request()->query()) }}" target="_blank"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                <i class="fa fa-file-pdf text-xs"></i> Export PDF
+            </a>
+            <a href="{{ route('payments.export.excel', request()->query()) }}"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
+                <i class="fa fa-file-excel text-xs"></i> Export Excel
+            </a>
+            <button onclick="openModalTambah()"
+                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm">
+                <i class="fa fa-plus text-sm"></i> Tambah Pembayaran
+            </button>
+        </div>
     </div>
 
-    {{-- EXPORT --}}
-    <div class="flex gap-2">
-        <a href="{{ route('payments.pdf', request()->query()) }}" target="_blank"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
-            <i class="fa fa-file-pdf text-xs"></i> Export PDF
-        </a>
-        <a href="{{ route('payments.export.excel', request()->query()) }}"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-green-600 text-green-600 rounded-lg bg-transparent hover:bg-green-600 hover:text-white transition-colors">
-            <i class="fa fa-file-excel text-xs"></i> Export Excel
-        </a>
+    {{-- NAV TABS --}}
+    <div class="border-b border-gray-200">
+        <nav class="flex gap-0 -mb-px overflow-x-auto">
+            @php
+                $navItems = [
+                    ['label' => 'Summary',   'url' => '/admin/summary',   'icon' => 'bi bi-bar-chart-line'],
+                    ['label' => 'Penawaran', 'url' => '/admin/penawaran', 'icon' => 'bi bi-file-earmark-richtext'],
+                    ['label' => 'Kontrak',   'url' => '/admin/kontrak',   'icon' => 'bi bi-file-earmark-lock'],
+                    ['label' => 'Invoice',   'url' => '/admin/invoices',  'icon' => 'bi bi-receipt-cutoff'],
+                    ['label' => 'Payments',  'url' => '/admin/payments',  'icon' => 'bi bi-credit-card-2-front'],
+                    ['label' => 'Reminders', 'url' => '/admin/reminders', 'icon' => 'bi bi-bell'],
+                ];
+            @endphp
+            @foreach ($navItems as $item)
+                @php $isActive = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
+                <a href="{{ $item['url'] }}"
+                    class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
+                        {{ $isActive ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
+                    <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
+                </a>
+            @endforeach
+        </nav>
     </div>
 
     {{-- CHART FILTER --}}
-    <x-chart-filter 
-        id="paymentsChartFilter" 
-        defaultFilter="month"
-        :showCustomRange="true"
-    />
+    <x-chart-filter id="paymentsChartFilter" defaultFilter="month" :showCustomRange="true" />
 
     {{-- CHART CONTAINER --}}
     <x-chart-container
         id="paymentsChartContainer"
-        pieTitle="Status Pembayaran"
-        pieId="paymentsPieChart"
-        barTitle="Pembayaran per Bulan"
-        barId="paymentsBarChart"
-        lineTitle="Trend Pembayaran"
-        lineId="paymentsLineChart"
-        :showStats="true"
-        :statsData="[]"
+        layout="stacked"
+        pieTitle="Status Pembayaran" pieId="paymentsPieChart"
+        barTitle="Pembayaran per Bulan" barId="paymentsBarChart"
+        lineTitle="Trend Pembayaran" lineId="paymentsLineChart"
+        :showStats="true" :statsData="[]"
     />
 
     {{-- SUMMARY CARDS --}}
@@ -84,37 +99,6 @@
 
     {{-- TABLE CARD --}}
     <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
-
-        {{-- NAV TABS --}}
-        <div class="border-b border-gray-200">
-            <nav class="flex gap-0 -mb-px overflow-x-auto">
-                @php
-                    $navItems = [
-                        ['label' => 'Summary', 'url' => '/admin/summary', 'icon' => 'bi bi-bar-chart-line'],
-                        ['label' => 'Penawaran', 'url' => '/admin/penawaran', 'icon' => 'bi bi-file-earmark-richtext'],
-                        ['label' => 'Kontrak', 'url' => '/admin/kontrak', 'icon' => 'bi bi-file-earmark-lock'],
-                        ['label' => 'Invoice', 'url' => '/admin/invoices', 'icon' => 'bi bi-receipt-cutoff'],
-                        ['label' => 'Payments', 'url' => '/admin/payments', 'icon' => 'bi bi-credit-card-2-front'],
-                        ['label' => 'Reminders', 'url' => '/admin/reminders', 'icon' => 'bi bi-bell'],
-                    ];
-                @endphp
-
-                @foreach ($navItems as $item)
-                    @php
-                        $isActive =
-                            request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*');
-                    @endphp
-                    <a href="{{ $item['url'] }}"
-                        class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
-                            {{ $isActive
-                                ? 'border-blue-600 text-blue-600 bg-blue-50/50'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
-                        <i class="{{ $item['icon'] }}"></i>
-                        {{ $item['label'] }}
-                    </a>
-                @endforeach
-            </nav>
-        </div>
 
         {{-- SEARCH --}}
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/50">
@@ -979,54 +963,45 @@
     initDrop('dropZoneEdit',   'fileEdit');
 
     // ================= CHART INITIALIZATION =================
+    const paymentsChartManager = new ChartManager();
+
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize charts with default filter (month)
         initPaymentsCharts({ filter_type: 'month' });
 
-        // Listen to filter changes
         document.addEventListener('chartFilterChange', function(e) {
             if (e.detail.filterId === 'paymentsChartFilter') {
                 const filters = {
-                    filter_type: e.detail.filterType
+                    filter_type: e.detail.filterType,
+                    start_date:  e.detail.startDate,
+                    end_date:    e.detail.endDate,
                 };
-
-                if (e.detail.filterType === 'custom') {
-                    filters.start_date = e.detail.startDate;
-                    filters.end_date = e.detail.endDate;
-                }
-
                 updatePaymentsCharts(filters);
             }
         });
     });
 
     async function initPaymentsCharts(filters) {
-        const canvasIds = {
-            pie: 'paymentsPieChart',
-            bar: 'paymentsBarChart',
-            line: 'paymentsLineChart'
-        };
-
         try {
-            await window.chartManager.initChartsFromAPI('payments', canvasIds, filters, { accentLine: true });
-            console.log('✅ Payments charts initialized');
+            await paymentsChartManager.initChartsFromAPI('payments', {
+                pie:  'paymentsPieChart',
+                bar:  'paymentsBarChart',
+                line: 'paymentsLineChart',
+            }, filters, { accentLine: true });
         } catch (error) {
-            console.error('❌ Failed to initialize payments charts:', error);
+            console.error('Error loading payments charts:', error);
         }
     }
 
     async function updatePaymentsCharts(filters) {
-        const canvasIds = {
-            pie: 'paymentsPieChart',
-            bar: 'paymentsBarChart',
-            line: 'paymentsLineChart'
-        };
-
         try {
-            await window.chartManager.updateChartsFromAPI('payments', canvasIds, filters, { accentLine: true });
-            console.log('✅ Payments charts updated');
+            const isScrollable = filters.filter_type === 'custom';
+            await paymentsChartManager.updateChartsFromAPI('payments', {
+                pie:  'paymentsPieChart',
+                bar:  'paymentsBarChart',
+                line: 'paymentsLineChart',
+            }, filters, { scrollable: isScrollable, accentLine: true }, { scrollable: isScrollable });
         } catch (error) {
-            console.error('❌ Failed to update payments charts:', error);
+            console.error('Error updating payments charts:', error);
         }
     }
 </script>

@@ -75,17 +75,18 @@ class InvKontrakController extends Controller
                 ?? ($k->pasal_ketentuan ? KontrakHelper::pasalToPlainText($k->pasal_ketentuan, 'en') : null)
                 ?? KontrakHelper::defaultPlainText('en');
 
+            // Kirim teks RAW (dengan placeholder) ke textarea editor — jangan resolve di sini.
+            // Placeholder di-resolve hanya saat render print/pdf.
             $resolvedKetentuan[$k->id] = [
-                'id' => KontrakHelper::resolvePlaceholders($rawId, $allReplacements),
-                'en' => KontrakHelper::resolvePlaceholders($rawEn, $allReplacements),
+                'id' => $rawId,
+                'en' => $rawEn,
             ];
         }
 
-        // Build default ketentuan text dengan placeholder sudah teresolusi (setting only, untuk modal Create)
-        $replacements     = KontrakHelper::buildReplacements($setting);
+        // Build default ketentuan text — raw (tanpa resolve), untuk modal Create
         $defaultKetentuan = [
-            'id' => KontrakHelper::defaultPlainText('id', $replacements),
-            'en' => KontrakHelper::defaultPlainText('en', $replacements),
+            'id' => KontrakHelper::defaultPlainText('id'),
+            'en' => KontrakHelper::defaultPlainText('en'),
         ];
 
         return view('admin.kontrak.index', compact('kontraks', 'penawarans', 'reminder', 'setting', 'defaultKetentuan', 'resolvedKetentuan'));
@@ -227,6 +228,10 @@ class InvKontrakController extends Controller
             'alamat_kedua'          => $request->alamat_kedua,
             'perwakilan_pihak_kedua'=> $request->perwakilan_pihak_kedua,
             'jabatan_pihak_kedua'   => $request->jabatan_pihak_kedua,
+            // customer_name: ambil dari perwakilan jika perusahaan, atau nama pihak kedua jika perorangan
+            'customer_name'         => $request->jenis_pelanggan === 'perusahaan'
+                ? ($request->perwakilan_pihak_kedua ?? $request->pihak_kedua)
+                : $request->pihak_kedua,
             'status'                => 'pending',
         ];
 
@@ -261,16 +266,20 @@ class InvKontrakController extends Controller
             'nama_pihak_kedua'    => $namaP2,
             'alamat_pihak_kedua'  => $alamatP2,
             'kontak_pihak_kedua'  => $request->contact_kedua ?? '',
+            'pihak_pertama'       => $request->pihak_pertama ?? '',
         ];
 
         $replacements = KontrakHelper::buildReplacements($settingForReplace, $kontrakData);
 
+        // Simpan plain text ketentuan — JANGAN resolve placeholder di sini,
+        // biarkan {ATAS_NAMA}, {NAMA_BANK}, dll. tetap sebagai placeholder di DB.
+        // Placeholder di-resolve saat render (draft_print / draft_pdf).
         $data['ketentuan_id'] = $request->filled('ketentuan_id')
-            ? KontrakHelper::resolvePlaceholders($request->ketentuan_id, $replacements)
-            : KontrakHelper::defaultPlainText('id', $replacements);
+            ? $request->ketentuan_id
+            : KontrakHelper::defaultPlainText('id');
         $data['ketentuan_en'] = $request->filled('ketentuan_en')
-            ? KontrakHelper::resolvePlaceholders($request->ketentuan_en, $replacements)
-            : KontrakHelper::defaultPlainText('en', $replacements);
+            ? $request->ketentuan_en
+            : KontrakHelper::defaultPlainText('en');
 
         // Kosongkan pasal_ketentuan (tidak lagi dipakai untuk editor baru)
         $data['pasal_ketentuan'] = null;
@@ -315,7 +324,7 @@ class InvKontrakController extends Controller
     }
 
     /* ─────────────────────────────────────────────
-       APPROVE  —  upload file TTD → status approved → buat rental
+       APPROVE  —  upload file TTD → status active → buat rental
     ───────────────────────────────────────────── */
     public function approve(Request $request, $id)
     {
@@ -326,39 +335,50 @@ class InvKontrakController extends Controller
         }
 
         $request->validate([
-            'file_kontrak'   => 'required|file|mimes:pdf|max:10240',
-            'customer_name'  => 'required|string|max:255',
-            'contact_person' => 'nullable|string|max:15',
-            'no_ktp_kedua'   => 'nullable|string|max:16',
-            'email_kedua'    => 'nullable|email|max:255',
-            'jenis_pelanggan'=> 'nullable|in:perorangan,perusahaan',
-            'alamat_kedua'   => 'nullable|string|max:1000',
+            'file_kontrak' => 'required|file|mimes:pdf|max:10240',
+            'attachments'  => 'nullable|array',
+            'attachments.*'=> 'nullable|file|max:10240',
         ]);
 
-        // Simpan file hasil TTD
+        // Simpan file kontrak TTD
         $file     = $request->file('file_kontrak');
         $filename = time() . '_' . $file->getClientOriginalName();
+        if (!is_dir(public_path('uploads/kontrak'))) {
+            mkdir(public_path('uploads/kontrak'), 0755, true);
+        }
         $file->move(public_path('uploads/kontrak'), $filename);
 
-        DB::transaction(function () use ($kontrak, $filename, $request) {
-            // Simpan data customer ke penawaran
-            if ($kontrak->penawaran) {
-                $kontrak->penawaran->update([
-                    'customer_name'  => $request->customer_name,
-                    'contact_person' => $request->contact_person,
-                ]);
+        // Simpan attachments (multiple files)
+        $attachmentData = [];
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $att) {
+                if ($att && $att->isValid()) {
+                    $attName = time() . '_' . $att->getClientOriginalName();
+                    $att->move(public_path('uploads/kontrak/attachments'), $attName);
+                    $attachmentData[] = [
+                        'name' => $att->getClientOriginalName(),
+                        'path' => 'uploads/kontrak/attachments/' . $attName,
+                    ];
+                }
             }
+        }
 
-            $kontrak->update([
-                'file_kontrak'          => 'uploads/kontrak/' . $filename,
-                'status'                => 'approved',
-                'no_ktp_kedua'          => $request->no_ktp_kedua   ?? $kontrak->no_ktp_kedua,
-                'email_kedua'           => $request->email_kedua    ?? $kontrak->email_kedua,
-                'jenis_pelanggan'       => $request->jenis_pelanggan ?? $kontrak->jenis_pelanggan,
-                'alamat_kedua'          => $request->alamat_kedua   ?? $kontrak->alamat_kedua,
-                'perwakilan_pihak_kedua'=> $request->perwakilan_pihak_kedua ?? $kontrak->perwakilan_pihak_kedua,
-                'jabatan_pihak_kedua'   => $request->jabatan_pihak_kedua   ?? $kontrak->jabatan_pihak_kedua,
-            ]);
+        DB::transaction(function () use ($kontrak, $filename, $attachmentData) {
+            // Gunakan data customer dari kontrak yang sudah disimpan saat create
+            $customerName = $kontrak->customer_name
+                ?? ($kontrak->jenis_pelanggan === 'perusahaan'
+                    ? ($kontrak->perwakilan_pihak_kedua ?? $kontrak->pihak_kedua)
+                    : $kontrak->pihak_kedua);
+
+            // Update file & status kontrak
+            $updateData = [
+                'file_kontrak' => 'uploads/kontrak/' . $filename,
+                'status'       => 'approved',
+            ];
+            if (!empty($attachmentData)) {
+                $updateData['file_attachments'] = json_encode($attachmentData);
+            }
+            $kontrak->update($updateData);
 
             // Auto-create Rental
             $penawaran = $kontrak->penawaran;
@@ -366,13 +386,13 @@ class InvKontrakController extends Controller
                 $validItems = $penawaran->items->filter(fn($i) => !empty($i->kendaraan_id));
                 if ($validItems->isNotEmpty()) {
                     $member = Pelanggan::updateOrCreate(
-                        ['nama_pelanggan' => $request->customer_name ?? $penawaran->customer_name ?? $penawaran->kepada],
+                        ['nama_pelanggan' => $customerName ?? $penawaran->customer_name ?? $penawaran->kepada],
                         [
-                            'kontak_pelanggan' => $request->contact_person ?? $penawaran->contact_person ?? null,
-                            'email_pelanggan'  => $kontrak->email_kedua      ?? $penawaran->email_person ?? null,
-                            'alamat'           => $kontrak->alamat_kedua     ?? $penawaran->alamat ?? null,
-                            'jenis_pelanggan'  => $kontrak->jenis_pelanggan  ?? $penawaran->jenis_pelanggan ?? 'perorangan',
-                            'no_ktp'           => $kontrak->no_ktp_kedua     ?? null,
+                            'kontak_pelanggan' => $kontrak->contact_kedua     ?? $penawaran->contact_person ?? null,
+                            'email_pelanggan'  => $kontrak->email_kedua       ?? $penawaran->email_person   ?? null,
+                            'alamat'           => $kontrak->alamat_kedua      ?? $penawaran->alamat         ?? null,
+                            'jenis_pelanggan'  => $kontrak->jenis_pelanggan   ?? $penawaran->jenis_pelanggan ?? 'perorangan',
+                            'no_ktp'           => $kontrak->no_ktp_kedua      ?? null,
                         ]
                     );
 
@@ -499,12 +519,12 @@ class InvKontrakController extends Controller
             'contact_pertama'       => 'nullable|string|max:255',
             'pihak_kedua'           => 'required|string|max:255',
             'contact_kedua'         => 'nullable|string|max:255',
-            'status'                => 'required',
             'ketentuan_id'          => 'nullable|string',
             'ketentuan_en'          => 'nullable|string',
         ]);
 
-        $data = $request->except(['file_kontrak', 'file_persyaratan', 'ketentuan', 'pasal']);
+        // Exclude status — status tidak boleh diubah dari form edit biasa
+        $data = $request->except(['file_kontrak', 'file_persyaratan', 'ketentuan', 'pasal', 'status']);
 
         // Resolve placeholder {NAMA_PERUSAHAAN}, {PPN}, dll. sebelum simpan ke DB
         $settingForReplace  = Setting::first();
@@ -539,17 +559,25 @@ class InvKontrakController extends Controller
             'nama_pihak_kedua'   => $namaP2,
             'alamat_pihak_kedua' => $alamatP2,
             'kontak_pihak_kedua' => $request->contact_kedua ?? $kontrak->contact_kedua ?? '',
+            'pihak_pertama'      => $request->pihak_pertama ?? $kontrak->pihak_pertama ?? '',
         ];
 
         $replacements = KontrakHelper::buildReplacements($settingForReplace, $kontrakData);
 
-        // Simpan plain text ketentuan
-        $data['ketentuan_id'] = $request->filled('ketentuan_id')
-            ? KontrakHelper::resolvePlaceholders($request->ketentuan_id, $replacements)
-            : ($kontrak->ketentuan_id ?? KontrakHelper::defaultPlainText('id', $replacements));
-        $data['ketentuan_en'] = $request->filled('ketentuan_en')
-            ? KontrakHelper::resolvePlaceholders($request->ketentuan_en, $replacements)
-            : ($kontrak->ketentuan_en ?? KontrakHelper::defaultPlainText('en', $replacements));
+        // Simpan plain text ketentuan — HANYA jika user membuka Tab 2 (ketentuan_edited=1).
+        // Kalau tidak, biarkan ketentuan di DB tidak berubah.
+        if ($request->input('ketentuan_edited') === '1') {
+            $data['ketentuan_id'] = $request->filled('ketentuan_id')
+                ? $request->ketentuan_id
+                : ($kontrak->ketentuan_id ?? KontrakHelper::defaultPlainText('id'));
+            $data['ketentuan_en'] = $request->filled('ketentuan_en')
+                ? $request->ketentuan_en
+                : ($kontrak->ketentuan_en ?? KontrakHelper::defaultPlainText('en'));
+        } else {
+            // Tab 2 tidak dibuka — jangan sentuh ketentuan di DB sama sekali
+            unset($data['ketentuan_id']);
+            unset($data['ketentuan_en']);
+        }
 
         // Tidak lagi menggunakan pasal_ketentuan JSON untuk editor baru
         // (pasal_ketentuan tetap ada di DB untuk backward compat, tidak ditimpa)

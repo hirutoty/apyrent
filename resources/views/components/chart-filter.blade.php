@@ -214,6 +214,23 @@
             document.dispatchEvent(event);
         });
     });
+
+    // Auto-dispatch default filter saat halaman load agar chart langsung terinisialisasi
+    const defaultFilterType = '{{ $defaultFilter }}';
+    if (defaultFilterType && defaultFilterType !== 'custom') {
+        // Tunggu DOM + script lain selesai, lalu dispatch
+        window.addEventListener('load', function () {
+            document.dispatchEvent(new CustomEvent('chartFilterChange', {
+                detail: {
+                    filterId: filterId,
+                    filterType: defaultFilterType,
+                    startDate: null,
+                    endDate: null,
+                    categoryId: ''
+                }
+            }));
+        });
+    }
 })();
 
 @if($showCustomRange)

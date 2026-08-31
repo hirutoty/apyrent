@@ -202,6 +202,13 @@ class ChartDataController extends Controller
             // Member & Pelanggan
             'member' => $this->getMemberConfig(),
             'pelanggan' => $this->getPelangganConfig(),
+            // Penawaran & Kontrak
+            'penawaran' => $this->getPenawaranConfig(),
+            'kontrak'   => $this->getKontrakConfig(),
+            // Master Data
+            'jenis-asuransi'  => $this->getJenisAsuransiConfig(),
+            'supplier'        => $this->getSupplierConfig(),
+            'jenis-kendaraan' => $this->getJenisKendaraanConfig(),
             // History list pages
             'pajak-history' => $this->getPajakHistoryConfig(),
             'asuransi-history' => $this->getAsuransiHistoryConfig(),
@@ -260,6 +267,13 @@ class ChartDataController extends Controller
             // Member & Pelanggan
             'member' => \App\Models\Member::query(),
             'pelanggan' => \App\Models\Pelanggan::query(),
+            // Penawaran & Kontrak
+            'penawaran' => \App\Models\InvPenawaran::query(),
+            'kontrak'   => \App\Models\InvKontrak::query(),
+            // Master Data
+            'jenis-asuransi'  => \App\Models\JenisAsuransi::query(),
+            'supplier'        => \App\Models\Supplier::query(),
+            'jenis-kendaraan' => \App\Models\Jenis::query(),
             // History list pages
             'pajak-history' => \App\Models\PajakHistory::query(),
             'asuransi-history' => \App\Models\AsuransiHistory::query(),
@@ -1730,7 +1744,7 @@ class ChartDataController extends Controller
         return [
             'dateColumn' => 'created_at',
             'pie' => [
-                'title' => 'Insurance Distribution',
+                'title' => 'Distribusi Asuransi',
                 'groupBy' => 'nama_asuransi',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
@@ -1738,61 +1752,37 @@ class ChartDataController extends Controller
                 'colors' => ['#4f6ef7', '#10b981', '#f59e0b', '#ef4444']
             ],
             'bar' => [
-                'title' => 'Insurance Records',
+                'title' => 'Penambahan Asuransi per Periode',
                 'groupBy' => 'month',
                 'valueColumns' => ['id'],
                 'aggregation' => 'count',
                 'dateColumn' => 'created_at',
-                'limit' => 6,
-                'labels' => ['Count']
+                'limit' => 12,
+                'labels' => ['Jumlah Asuransi'],
+                'colors' => ['#4f6ef7'],
             ],
             'line' => [
-                'title' => 'Insurance Trend',
+                'title' => 'Trend Asuransi',
                 'groupBy' => 'month',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
                 'dateColumn' => 'created_at',
                 'limit' => 12,
-                'label' => 'Policies',
-                'color' => '#3b82f6'
+                'label' => 'Total',
+                'color' => '#4f6ef7'
             ],
             'stats' => [
                 [
-                    'label' => 'Total Policies',
+                    'label' => 'Total Asuransi',
                     'type' => 'count',
                     'column' => 'id',
                     'format' => 'number',
                     'color' => '#4f6ef7',
                     'iconBg' => '#eef1ff',
-                    'icon' => 'fa fa-shield-alt'
+                    'icon' => 'fa fa-shield-alt',
+                    'trendComparison' => 'last_month',
+                    'dateColumn' => 'created_at',
                 ],
-                [
-                    'label' => 'Insurance Providers',
-                    'type' => 'count',
-                    'column' => 'nama_asuransi',
-                    'format' => 'number',
-                    'color' => '#10b981',
-                    'iconBg' => '#d1fae5',
-                    'icon' => 'fa fa-building'
-                ],
-                [
-                    'label' => 'Active Workshops',
-                    'type' => 'count',
-                    'column' => 'nama_bengkel',
-                    'format' => 'number',
-                    'color' => '#f59e0b',
-                    'iconBg' => '#fef3c7',
-                    'icon' => 'fa fa-tools'
-                ],
-                [
-                    'label' => 'Marketing Contacts',
-                    'type' => 'count',
-                    'column' => 'nama_marketing',
-                    'format' => 'number',
-                    'color' => '#8b5cf6',
-                    'iconBg' => '#f3e8ff',
-                    'icon' => 'fa fa-users'
-                ]
             ]
         ];
     }
@@ -1805,7 +1795,7 @@ class ChartDataController extends Controller
         return [
             'dateColumn' => 'created_at',
             'pie' => [
-                'title' => 'GPS Distribution',
+                'title' => 'Distribusi GPS',
                 'groupBy' => 'nama_gps',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
@@ -1813,61 +1803,37 @@ class ChartDataController extends Controller
                 'colors' => ['#4f6ef7', '#10b981', '#f59e0b', '#ef4444']
             ],
             'bar' => [
-                'title' => 'GPS Records',
+                'title' => 'Penambahan GPS per Periode',
                 'groupBy' => 'month',
                 'valueColumns' => ['id'],
                 'aggregation' => 'count',
                 'dateColumn' => 'created_at',
-                'limit' => 6,
-                'labels' => ['Count']
+                'limit' => 12,
+                'labels' => ['Jumlah GPS'],
+                'colors' => ['#4f6ef7'],
             ],
             'line' => [
-                'title' => 'GPS Trend',
+                'title' => 'Trend GPS',
                 'groupBy' => 'month',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
                 'dateColumn' => 'created_at',
                 'limit' => 12,
-                'label' => 'Units',
-                'color' => '#10b981'
+                'label' => 'Total',
+                'color' => '#4f6ef7'
             ],
             'stats' => [
                 [
-                    'label' => 'Total GPS Units',
+                    'label' => 'Total GPS',
                     'type' => 'count',
                     'column' => 'id',
                     'format' => 'number',
                     'color' => '#4f6ef7',
                     'iconBg' => '#eef1ff',
-                    'icon' => 'fa fa-map-marker-alt'
+                    'icon' => 'fa fa-map-marker-alt',
+                    'trendComparison' => 'last_month',
+                    'dateColumn' => 'created_at',
                 ],
-                [
-                    'label' => 'GPS Providers',
-                    'type' => 'count',
-                    'column' => 'nama_gps',
-                    'format' => 'number',
-                    'color' => '#10b981',
-                    'iconBg' => '#d1fae5',
-                    'icon' => 'fa fa-satellite-dish'
-                ],
-                [
-                    'label' => 'Service Centers',
-                    'type' => 'count',
-                    'column' => 'nama_bengkel',
-                    'format' => 'number',
-                    'color' => '#f59e0b',
-                    'iconBg' => '#fef3c7',
-                    'icon' => 'fa fa-tools'
-                ],
-                [
-                    'label' => 'Contacts',
-                    'type' => 'count',
-                    'column' => 'nama_marketing',
-                    'format' => 'number',
-                    'color' => '#8b5cf6',
-                    'iconBg' => '#f3e8ff',
-                    'icon' => 'fa fa-address-book'
-                ]
             ]
         ];
     }
@@ -2942,6 +2908,385 @@ class ChartDataController extends Controller
                 ['label' => 'Perorangan',      'type' => 'count_where', 'column' => 'id', 'where' => ['jenis_pelanggan' => 'perorangan'], 'format' => 'number', 'color' => '#10b981', 'iconBg' => '#d1fae5', 'icon' => 'fa fa-user'],
                 ['label' => 'Perusahaan',      'type' => 'count_where', 'column' => 'id', 'where' => ['jenis_pelanggan' => 'perusahaan'], 'format' => 'number', 'color' => '#f59e0b', 'iconBg' => '#fef3c7', 'icon' => 'fa fa-building'],
                 ['label' => 'Baru Bulan Ini',  'type' => 'count',       'column' => 'id', 'format' => 'number', 'color' => '#8b5cf6', 'iconBg' => '#ede9fe', 'icon' => 'fa fa-user-plus'],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Penawaran page
+     */
+    protected function getPenawaranConfig(): array
+    {
+        return [
+            'dateColumn' => 'tanggal_penawaran',
+            'pie' => [
+                'title'       => 'Distribusi Status Penawaran',
+                'groupBy'     => 'status',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels'      => [
+                    'pending'  => 'Pending',
+                    'approved' => 'Approved',
+                    'active'   => 'Active',
+                    'rejected' => 'Rejected',
+                    'expired'  => 'Expired',
+                ],
+                'colors' => ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#6b7280'],
+            ],
+            'bar' => [
+                'title'        => 'Jumlah Penawaran per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => [
+                    ['count' => true, 'label' => 'Total'],
+                    ['where' => ['status' => 'pending'],  'column' => 'id', 'label' => 'Pending',  'aggregation' => 'count'],
+                    ['where' => ['status' => 'approved'], 'column' => 'id', 'label' => 'Approved', 'aggregation' => 'count'],
+                    ['where' => ['status' => 'expired'],  'column' => 'id', 'label' => 'Expired',  'aggregation' => 'count'],
+                    ['where' => ['status' => 'rejected'], 'column' => 'id', 'label' => 'Rejected', 'aggregation' => 'count'],
+                ],
+                'aggregation'  => 'count',
+                'dateColumn'   => 'tanggal_penawaran',
+                'limit'        => 12,
+                'labels'       => ['Total', 'Pending', 'Approved', 'Expired', 'Rejected'],
+                'colors'       => ['#4f6ef7', '#f59e0b', '#10b981', '#6b7280', '#ef4444'],
+            ],
+            'line' => [
+                'title'       => 'Trend Penawaran',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'dateColumn'  => 'tanggal_penawaran',
+                'limit'       => 12,
+                'label'       => 'Penawaran',
+                'color'       => '#4f6ef7',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Penawaran',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon'   => 'fa fa-file-alt',
+                    'trendComparison' => 'last_month',
+                    'dateColumn' => 'tanggal_penawaran',
+                ],
+                [
+                    'label'  => 'Approved',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'approved'],
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-check-circle',
+                ],
+                [
+                    'label'  => 'Pending',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'pending'],
+                    'format' => 'number',
+                    'color'  => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon'   => 'fa fa-clock',
+                ],
+                [
+                    'label'  => 'Expired / Rejected',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'expired'],
+                    'format' => 'number',
+                    'color'  => '#ef4444',
+                    'iconBg' => '#fee2e2',
+                    'icon'   => 'fa fa-times-circle',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Kontrak page
+     */
+    protected function getKontrakConfig(): array
+    {
+        return [
+            'dateColumn' => 'tanggal_kontrak',
+            'pie' => [
+                'title'       => 'Distribusi Status Kontrak',
+                'groupBy'     => 'status',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels'      => [
+                    'pending'             => 'Pending',
+                    'approved'            => 'Approved',
+                    'active'              => 'Active',
+                    'completed'           => 'Completed',
+                    'selesai-belum lunas' => 'Selesai-Belum Lunas',
+                    'rejected'            => 'Rejected',
+                    'expired'             => 'Expired',
+                    'terminated'          => 'Terminated',
+                ],
+                'colors' => ['#f59e0b', '#6366f1', '#10b981', '#3b82f6', '#f97316', '#ef4444', '#6b7280', '#1e293b'],
+            ],
+            'bar' => [
+                'title'        => 'Jumlah Kontrak per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => [
+                    ['count' => true, 'label' => 'Total'],
+                    ['where' => ['status' => 'active'],   'column' => 'id', 'label' => 'Active',   'aggregation' => 'count'],
+                    ['where' => ['status' => 'pending'],  'column' => 'id', 'label' => 'Pending',  'aggregation' => 'count'],
+                    ['where' => ['status' => 'expired'],  'column' => 'id', 'label' => 'Expired',  'aggregation' => 'count'],
+                ],
+                'aggregation'  => 'count',
+                'dateColumn'   => 'tanggal_kontrak',
+                'limit'        => 12,
+                'labels'       => ['Total', 'Active', 'Pending', 'Expired'],
+                'colors'       => ['#6366f1', '#10b981', '#f59e0b', '#6b7280'],
+            ],
+            'line' => [
+                'title'       => 'Trend Kontrak',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'dateColumn'  => 'tanggal_kontrak',
+                'limit'       => 12,
+                'label'       => 'Kontrak',
+                'color'       => '#6366f1',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Kontrak',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#6366f1',
+                    'iconBg' => '#ede9fe',
+                    'icon'   => 'fa fa-file-contract',
+                    'trendComparison' => 'last_month',
+                    'dateColumn' => 'tanggal_kontrak',
+                ],
+                [
+                    'label'  => 'Active',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'active'],
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-check-circle',
+                ],
+                [
+                    'label'  => 'Pending',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'pending'],
+                    'format' => 'number',
+                    'color'  => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon'   => 'fa fa-clock',
+                ],
+                [
+                    'label'  => 'Selesai-Belum Lunas',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'selesai-belum lunas'],
+                    'format' => 'number',
+                    'color'  => '#f97316',
+                    'iconBg' => '#ffedd5',
+                    'icon'   => 'fa fa-exclamation-triangle',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Jenis Asuransi master data page
+     */
+    protected function getJenisAsuransiConfig(): array
+    {
+        return [
+            'dateColumn' => 'created_at',
+            'pie' => [
+                'title'       => 'Distribusi Jenis Asuransi',
+                'groupBy'     => 'nama_jenis',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels'      => [],
+                'colors'      => ['#4f6ef7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
+            ],
+            'bar' => [
+                'title'        => 'Penambahan Jenis Asuransi per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => ['id'],
+                'aggregation'  => 'count',
+                'dateColumn'   => 'created_at',
+                'limit'        => 12,
+                'labels'       => ['Jumlah Jenis'],
+                'colors'       => ['#4f6ef7'],
+            ],
+            'line' => [
+                'title'       => 'Trend Jenis Asuransi',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'dateColumn'  => 'created_at',
+                'limit'       => 12,
+                'label'       => 'Total',
+                'color'       => '#4f6ef7',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Jenis Asuransi',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon'   => 'fa fa-tag',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Supplier master data page
+     * Bar: 3 batang = jumlah barang, total supplier, dan total nominal
+     */
+    protected function getSupplierConfig(): array
+    {
+        return [
+            'dateColumn' => 'created_at',
+            'pie' => [
+                'title'       => 'Distribusi Supplier per Nama',
+                'groupBy'     => 'nama_supplier',
+                'valueColumn' => 'jumlah_barang',
+                'aggregation' => 'sum',
+                'labels'      => [],
+                'colors'      => ['#4f6ef7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#f97316'],
+            ],
+            'bar' => [
+                'title'        => 'Supplier per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => [
+                    ['count' => true, 'label' => 'Total Supplier'],
+                    'harga_barang',
+                    'jumlah_barang',
+                ],
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'created_at',
+                'limit'        => 12,
+                'labels'       => ['Total Supplier', 'Total Nominal', 'Jumlah Barang'],
+                'colors'       => ['#4f6ef7', '#10b981', '#f97316'],
+            ],
+            'line' => [
+                'title'       => 'Trend Total Nominal',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'harga_barang',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'created_at',
+                'limit'       => 12,
+                'label'       => 'Total Nominal',
+                'color'       => '#10b981',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Supplier',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon'   => 'fa fa-truck',
+                ],
+                [
+                    'label'  => 'Total Jumlah Barang',
+                    'type'   => 'sum',
+                    'column' => 'jumlah_barang',
+                    'format' => 'number',
+                    'color'  => '#f97316',
+                    'iconBg' => '#ffedd5',
+                    'icon'   => 'fa fa-box-open',
+                ],
+                [
+                    'label'  => 'Total Nominal',
+                    'type'   => 'sum',
+                    'column' => 'harga_barang',
+                    'format' => 'currency',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'  => 'Avg Harga Barang',
+                    'type'   => 'avg',
+                    'column' => 'harga_barang',
+                    'format' => 'currency',
+                    'color'  => '#8b5cf6',
+                    'iconBg' => '#ede9fe',
+                    'icon'   => 'fa fa-calculator',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Jenis Kendaraan master data page
+     */
+    protected function getJenisKendaraanConfig(): array
+    {
+        return [
+            'dateColumn' => 'created_at',
+            'pie' => [
+                'title'       => 'Distribusi Jenis Kendaraan',
+                'groupBy'     => 'nama_jenis',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels'      => [],
+                'colors'      => ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
+            ],
+            'bar' => [
+                'title'        => 'Penambahan Jenis Kendaraan per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => ['id'],
+                'aggregation'  => 'count',
+                'dateColumn'   => 'created_at',
+                'limit'        => 12,
+                'labels'       => ['Jumlah Jenis'],
+                'colors'       => ['#3b82f6'],
+            ],
+            'line' => [
+                'title'       => 'Trend Jenis Kendaraan',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'dateColumn'  => 'created_at',
+                'limit'       => 12,
+                'label'       => 'Total',
+                'color'       => '#3b82f6',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Jenis Kendaraan',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#3b82f6',
+                    'iconBg' => '#dbeafe',
+                    'icon'   => 'fa fa-car',
+                    'trendComparison' => 'last_month',
+                    'dateColumn' => 'created_at',
+                ],
             ],
         ];
     }
