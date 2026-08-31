@@ -8,7 +8,7 @@
 
 /* Reserve space at bottom for the fixed footer */
 @page {
-    margin: 0mm 0mm 18mm 0mm;
+    margin: 12mm 25mm 18mm 25mm;
     size: A4 portrait;
 }
 
@@ -22,7 +22,7 @@ body {
 }
 
 .page {
-    padding: 12mm 18mm 4mm 18mm;
+    padding: 12mm 0 4mm 0;
 }
 
 /* ── TASK 2: Header Logo — max-height 22mm, margin-bottom 10mm ── */
@@ -101,7 +101,7 @@ body {
 .footer-web {
     font-family: Arial, Helvetica, sans-serif;
     font-size: 9pt;
-    color: #1a3a8f;
+    color: #112E81;
     font-weight: bold;
     text-decoration: underline;
     margin-top: 1px;
@@ -116,6 +116,7 @@ body {
     $namaPerush = $setting->nama_perusahaan ?? 'PT. Anugerah Panca Yoga';
     $alamat     = $setting->alamat          ?? 'Jl. Dr. Saharjo No. 131 Jakarta 12860';
     $telepon    = $setting->telepon         ?? '021. 83792927, 021. 8354565';
+    $telepon2   = $setting->no_telepon_2    ?? '';
     $fax        = $setting->fax             ?? '';
     $website    = $setting->website         ?? 'www.apy-rentacar.com';
     $tgl        = Carbon::parse($penawaran->tanggal_penawaran)->isoFormat('D MMMM YYYY');
@@ -167,7 +168,7 @@ body {
     <thead>
         <tr>
             <th width="5%">No.</th>
-            <th width="35%">Car Model</th>
+            <th width="35%" style="text-align:left;">Car Model</th>
             <th width="9%">Year</th>
             <th width="7%">Qty</th>
             <th width="28%">Rental Price/Unit (Rp)</th>
@@ -243,29 +244,34 @@ body {
 
 {{-- ── TASK 8: INFO KONTAK — justify ── --}}
 <div class="info-kontak">
-    Untuk keterangan lebih lanjut dapat menghubungi kantor kami di {{ $telepon }} atau mengunjungi website kami <span style="color:#1a56db;">{{ $website }}</span>
+    Untuk keterangan lebih lanjut dapat menghubungi kantor kami di {{ $telepon }}@if(!empty($telepon2)) atau {{ $telepon2 }}@endif atau mengunjungi website kami <span style="color:#1C177E;font-weight:bold;text-decoration:underline;">{{ $website }}</span>
 </div>
 
-{{-- ── TASK 9: TANDA TANGAN — kanan rata kiri, underline nama staff, height 18mm ── --}}
-<table class="sign-table">
-    <tr>
-        <td style="width:50%; vertical-align:top;">
-            <p>Hormat kami,</p>
-            <p class="sign-name">{{ $namaPerush }}</p>
-            <div style="height:18mm;"></div>
-            <div class="sign-line"></div>
-            <p><u>{{ $penawaran->name_staff ?? '…………………………' }}</u></p>
-            <p style="font-size:9.5pt;">({{ $penawaran->staff ?? 'Staff' }})</p>
-        </td>
-        <td style="width:50%; vertical-align:top; text-align:left; padding-left:20mm; padding-top:0;">
-            <p>Disetujui Oleh,</p>
-            <p class="sign-name">{{ $penawaran->kepada }}</p>
-            <div style="height:18mm;"></div>
-            <div class="sign-line"></div>
-            <p>({{ $penawaran->up ?? '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' }})</p>
-        </td>
-    </tr>
-</table>
+{{-- ── GRUP BAWAH: tanda tangan (tidak terpotong halaman) ── --}}
+<div style="page-break-inside: avoid; break-inside: avoid;">
+
+    {{-- ── TASK 9: TANDA TANGAN — kanan rata kiri, underline nama staff, height 18mm ── --}}
+    <table class="sign-table">
+        <tr>
+            <td style="width:50%; vertical-align:top; padding-right:5mm;">
+                <p>Hormat kami,</p>
+                <p class="sign-name">{{ $namaPerush }}</p>
+                <div style="height:18mm;"></div>
+                <div class="sign-line"></div>
+                <p><u>{{ $penawaran->name_staff ?? '…………………………' }}</u></p>
+                <p style="font-size:9.5pt;">({{ $penawaran->staff ?? 'Staff' }})</p>
+            </td>
+            <td style="width:50%; vertical-align:top; padding-left:5mm; padding-right:8mm; text-align:right;">
+                <p>Disetujui Oleh,</p>
+                <p class="sign-name">{{ $penawaran->kepada }}</p>
+                <div style="height:25mm;"></div>
+                <div class="sign-line"></div>
+                <p>({{ $penawaran->up ?? '' }})</p>
+            </td>
+        </tr>
+    </table>
+
+</div>{{-- /grup-bawah --}}
 
 </div>{{-- end .page --}}
 </body>

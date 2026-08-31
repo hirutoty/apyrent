@@ -359,6 +359,7 @@ class PaymentsController extends Controller
             'tanggal'     => $payment->payment_date,
             'reference'   => $payment->transaction_id,
             'user_id'     => auth()->id(),
+            'divisi'      => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
             'kategori'    => 'Payment Invoice',
             'metode'      => $payment->method,
             'keterangan'  => 'Pembayaran Invoice ' . optional($payment->invoice)->invoice_no,

@@ -13,8 +13,13 @@ body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #00
 .doc-title .t3 { font-size: 11pt; font-weight: normal; display: block; margin-top: 3px; }
 /* A4=210mm, margin 25mm×2=50mm → konten=160mm */
 .tc { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 0; }
-.tc td { width: 50%; vertical-align: top; text-align: justify; padding: 0 5px 0 0; font-size: 11pt; line-height: 1.55; word-wrap: break-word; overflow-wrap: break-word; }
-.tc td.r { padding: 0 0 0 5px; }
+.tc td { width: 50%; vertical-align: top; text-align: justify; padding: 0 15px 0 0; font-size: 11pt; line-height: 1.55; word-wrap: break-word; overflow-wrap: break-word; }
+.tc td.r { padding: 0 0 0 15px; }
+/* Two-col via float untuk konten pasal agar DomPDF bisa break bebas */
+.row2 { width: 100%; overflow: hidden; margin-bottom: 0; }
+.col-id { float: left; width: 47%; padding-right: 3%; text-align: justify; font-size: 11pt; line-height: 1.55; }
+.col-en { float: right; width: 47%; padding-left: 3%; text-align: justify; font-size: 11pt; line-height: 1.55; }
+.clearfix { clear: both; }
 p { text-align: justify; margin-bottom: 4px; font-size: 11pt; line-height: 1.55; }
 .sub { margin: 1px 0 2px 14px; font-size: 10.5pt; line-height: 1.5; }
 .gap4  { height: 4px; }
@@ -53,7 +58,7 @@ $telpPerush   = $setting->telepon            ?? '021 - 83792927';
 $faxPerush    = $setting->fax                ?? '021 - 8354565';
 $namaBank     = $setting->nama_bank          ?? 'BCA';
 $noRek        = $setting->nomor_rekening     ?? '272-1420-878';
-$atasNama     = $setting->atas_nama_rekening ?? $kontrak->pihak_pertama;
+$atasNama     = strtoupper($kontrak->pihak_pertama ?? $namaPerush);
 
 $ttdId = $tgl->isoFormat('D MMMM YYYY');
 $ttdEn = $tgl->locale('en')->isoFormat('D MMMM YYYY');
@@ -145,10 +150,11 @@ $parsePasal = function(string $raw) use ($rp) {
             $cur['items'][] = ['type' => 'sub', 'text' => $rp($m[1])];
             continue;
         }
-        // ── Special case: "Dan tidak termasuk" atau "And exclude" ──
+        // ── Special case: "Dan tidak termasuk" atau "And exclude" / "And does not include" ──
         // Treat as separate text item, not as continuation
         if (preg_match('/^Dan tidak termasuk\s*:?$/i', $tr) || 
-            preg_match('/^And exclude\s*:?$/i', $tr)) {
+            preg_match('/^And exclude\s*:?$/i', $tr) ||
+            preg_match('/^And does not include\s*:?$/i', $tr)) {
             $cur['items'][] = ['type' => 'teks', 'text' => $rp($tr)];
             continue;
         }
@@ -169,8 +175,11 @@ $parsePasal = function(string $raw) use ($rp) {
     return $pasals;
 };
 
+// ── Label Pasal 9 yang diikuti nama (tidak bold) ──
+$pasal9Labels = ['PIHAK PERTAMA', 'PIHAK KEDUA', 'THE FIRST PARTY', 'THE SECOND PARTY'];
+
 // ── Render satu item → HTML ──
-$renderItem = function(array $item) {
+$renderItem = function(array $item, bool $prevIsLabel = false) use ($pasal9Labels) {
     if ($item['type'] === 'blank') {
         return '<p style="margin:4px 0;"> </p>';
     }
@@ -189,31 +198,44 @@ $renderItem = function(array $item) {
             if ($ln === '') continue;
             $rest .= '<br>' . htmlspecialchars($ln);
         }
-        return '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">'
-             . '<tr><td style="width:16px;vertical-align:top;white-space:nowrap;padding:0;">' . $n . '.</td>'
-             . '<td style="vertical-align:top;text-align:justify;padding:0 0 0 3px;">' . $first . $rest . '</td></tr></table>';
+        // Gunakan div+span (bukan nested table) agar DomPDF tidak error hitung tinggi
+        return '<div style="margin:0 0 3px 0;overflow:hidden;">'
+             . '<span style="float:left;width:18px;vertical-align:top;">' . $n . '.</span>'
+             . '<span style="display:block;margin-left:18px;text-align:justify;">' . $first . $rest . '</span>'
+             . '</div>';
     }
     if ($item['type'] === 'sub') {
-        // ── Special case: "Dan tidak termasuk" atau "And exclude" ──
-        // Render sebagai teks biasa dengan spacing (bukan sub-item dengan tanda "-")
+        // ── Special case: "Dan tidak termasuk" atau "And exclude" / "And does not include" ──
         $trimmed = trim($raw);
         if (preg_match('/^Dan tidak termasuk\s*:?$/i', $trimmed) || 
-            preg_match('/^And exclude\s*:?$/i', $trimmed)) {
+            preg_match('/^And exclude\s*:?$/i', $trimmed) ||
+            preg_match('/^And does not include\s*:?$/i', $trimmed)) {
             return '<p style="margin:10px 0 4px 14px;font-weight:normal;">' . htmlspecialchars($raw) . '</p>';
         }
-        // Regular sub-item dengan indentasi konsisten
-        return '<p style="margin:2px 0 2px 14px;font-size:10.5pt;line-height:1.5;">- ' . htmlspecialchars($raw) . '</p>';
+        // Regular sub-item — float dash agar tidak ikut justify
+        return '<div style="margin:2px 0 2px 14px;overflow:hidden;font-size:10.5pt;line-height:1.5;">'
+             . '<span style="float:left;width:12px;">-</span>'
+             . '<span style="display:block;margin-left:12px;text-align:left;">' . htmlspecialchars($raw) . '</span>'
+             . '</div>';
     }
     // ── Handle type 'teks' ──
-    // Special case: "Dan tidak termasuk" atau "And exclude"
+    // Special case: "Dan tidak termasuk" atau "And exclude" / "And does not include"
     $trimmed = trim($raw);
     if (preg_match('/^Dan tidak termasuk\s*:?$/i', $trimmed) || 
-        preg_match('/^And exclude\s*:?$/i', $trimmed)) {
+        preg_match('/^And exclude\s*:?$/i', $trimmed) ||
+        preg_match('/^And does not include\s*:?$/i', $trimmed)) {
         return '<p style="margin:10px 0 4px 0;font-weight:normal;">' . htmlspecialchars($raw) . '</p>';
     }
-    // teks all-caps → bold
+    // teks all-caps → bold (kecuali baris tepat setelah label Pasal 9)
     if (strtoupper($raw) === $raw && strlen(trim($raw)) > 3) {
+        if ($prevIsLabel) {
+            return '<p>' . htmlspecialchars($raw) . '</p>';
+        }
         return '<p style="font-weight:bold;">' . htmlspecialchars($raw) . '</p>';
+    }
+    // format "Label : Nilai" → bold bagian nilai
+    if (preg_match('/^(.+?)\s*:\s*(.+)$/', $trimmed, $m)) {
+        return '<p>' . htmlspecialchars($m[1]) . ' : <strong>' . htmlspecialchars($m[2]) . '</strong></p>';
     }
     return '<p>' . htmlspecialchars($raw) . '</p>';
 };
@@ -241,14 +263,14 @@ $renderPoin = function(array $poinArr, string $lang, string $tipe, callable $rp)
             $lines    = explode("\n", $rp($p[$lang] ?? ''));
             $mt       = array_shift($lines);
             $subLines = array_filter($lines, function($l) { return trim($l) !== ''; });
-            $out .= '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">'
-                  . '<tr><td style="width:22px;vertical-align:top;white-space:nowrap;padding:0;">' . ($pi+1) . '.</td>'
-                  . '<td style="vertical-align:top;text-align:justify;padding:0;">' . htmlspecialchars($mt);
+            $out .= '<div style="margin:0 0 3px 0;overflow:hidden;">'
+                  . '<span style="float:left;width:20px;">' . ($pi+1) . '.</span>'
+                  . '<span style="display:block;margin-left:20px;text-align:justify;">' . htmlspecialchars($mt);
             foreach ($subLines as $sl) {
-                $out .= '<br><span style="display:inline-block;padding-left:10px;font-size:10.5pt;">'
+                $out .= '<br><span style="padding-left:10px;font-size:10.5pt;">'
                       . htmlspecialchars(ltrim($sl)) . '</span>';
             }
-            $out .= '</td></tr></table>';
+            $out .= '</span></div>';
         }
     }
     return $out;
@@ -299,7 +321,7 @@ if ($useNewFormat) {
     @if($isPihak2Perusahaan && $perwakilan2 && $jabatan2)
         {{-- Format lengkap perusahaan dengan perwakilan --}}
         <td><p><strong>2. {{ $namaP2 }},</strong> suatu perseroan terbatas yang memiliki kantor terdaftar di {{ $alamatP2 }}, dalam hal ini diwakili oleh <strong>{{ $perwakilan2 }}</strong> dalam jabatannya selaku {{ $jabatan2 }}, pemegang KTP No. {{ $noktp2 }}, selanjutnya disebut sebagai "Pihak Kedua".</p></td>
-        <td class="r"><p><strong>2. {{ $namaP2 }},</strong> a limited liability company, having its registered office at {{ $alamatP2 }}, in this matter represented by <strong>{{ $perwakilan2 }}</strong>, acting as {{ $jabatan2 }}, a holder of identity card no. {{ $noktp2 }}, hereinafter referred to as the "Second Party".</p></td>
+        <td class="r"><p><strong>2. {{ $namaP2 }},</strong> a limited liability company having its registered office at {{ $alamatP2 }}, in this matter represented by <strong>{{ $perwakilan2 }}</strong>, a holder of passport no. or Kitas no. {{ $noktp2 }}, acting as {{ $jabatan2 }}, hereinafter referred to as the "Second Party".</p></td>
     @elseif($isPihak2Perusahaan)
         {{-- Format perusahaan tanpa perwakilan (skip "diwakili oleh") --}}
         <td><p><strong>2. {{ $namaP2 }},</strong> suatu perseroan terbatas yang memiliki kantor terdaftar di {{ $alamatP2 }}, pemegang KTP No. {{ $noktp2 }}, selanjutnya disebut sebagai "Pihak Kedua".</p></td>
@@ -332,31 +354,34 @@ if ($useNewFormat) {
 
         if ($idx > 0) $htmlKetentuan .= '<div class="gap18"></div>';
 
-        // Judul
-        $htmlKetentuan .= '<table class="tc"><tr>'
-            . '<td style="text-align:center;font-weight:bold;padding-bottom:2px;">'
+        // Judul pasal
+        $htmlKetentuan .= '<div class="row2">'
+            . '<div class="col-id" style="text-align:center;font-weight:bold;padding-bottom:2px;">'
             . implode('<br>', array_map('htmlspecialchars', $judulIdParts))
-            . '</td>'
-            . '<td class="r" style="text-align:center;font-weight:bold;padding-bottom:2px;">'
+            . '</div>'
+            . '<div class="col-en" style="text-align:center;font-weight:bold;padding-bottom:2px;">'
             . implode('<br>', array_map('htmlspecialchars', $judulEnParts))
-            . '</td>'
-            . '</tr></table>';
+            . '</div>'
+            . '<div class="clearfix"></div></div>';
 
-        // Isi: satu tabel per item
-        $itemsId  = $pId['items'];
-        $itemsEn  = $pEn['items'];
-        $maxItems = max(count($itemsId), count($itemsEn));
-
-        for ($ii = 0; $ii < $maxItems; $ii++) {
-            $iId    = isset($itemsId[$ii]) ? $itemsId[$ii] : null;
-            $iEn    = isset($itemsEn[$ii]) ? $itemsEn[$ii] : null;
-            $htmlId = $iId ? $renderItem($iId) : '';
-            $htmlEn = $iEn ? $renderItem($iEn) : '';
-            $htmlKetentuan .= '<table class="tc"><tr>'
-                . '<td>' . $htmlId . '</td>'
-                . '<td class="r">' . $htmlEn . '</td>'
-                . '</tr></table>';
+        // Render seluruh isi ID dan EN dalam div float — bebas break halaman
+        $htmlColId = '';
+        $prevIsLabel = false;
+        foreach ($pId['items'] as $iId) {
+            $htmlColId .= $renderItem($iId, $prevIsLabel);
+            $prevIsLabel = ($iId['type'] === 'teks' && in_array(trim($iId['text'] ?? ''), $pasal9Labels));
         }
+        $htmlColEn = '';
+        $prevIsLabel = false;
+        foreach ($pEn['items'] as $iEn) {
+            $htmlColEn .= $renderItem($iEn, $prevIsLabel);
+            $prevIsLabel = ($iEn['type'] === 'teks' && in_array(trim($iEn['text'] ?? ''), $pasal9Labels));
+        }
+
+        $htmlKetentuan .= '<div class="row2">'
+            . '<div class="col-id">' . $htmlColId . '</div>'
+            . '<div class="col-en">' . $htmlColEn . '</div>'
+            . '<div class="clearfix"></div></div>';
     }
 } else {
     foreach ($pasalKetentuan as $pi => $pasal) {
@@ -367,15 +392,15 @@ if ($useNewFormat) {
 
         if ($pi > 0) $htmlKetentuan .= '<div class="gap18"></div>';
 
-        $htmlKetentuan .= '<table class="tc"><tr>'
-            . '<td style="text-align:center;font-weight:bold;padding-bottom:2px;">' . $jId . '</td>'
-            . '<td class="r" style="text-align:center;font-weight:bold;padding-bottom:2px;">' . $jEn . '</td>'
-            . '</tr></table>';
+        $htmlKetentuan .= '<div class="row2">'
+            . '<div class="col-id" style="text-align:center;font-weight:bold;padding-bottom:2px;">' . $jId . '</div>'
+            . '<div class="col-en" style="text-align:center;font-weight:bold;padding-bottom:2px;">' . $jEn . '</div>'
+            . '<div class="clearfix"></div></div>';
 
-        $htmlKetentuan .= '<table class="tc"><tr>'
-            . '<td>' . $poinId . '</td>'
-            . '<td class="r">' . $poinEn . '</td>'
-            . '</tr></table>';
+        $htmlKetentuan .= '<div class="row2">'
+            . '<div class="col-id">' . $poinId . '</div>'
+            . '<div class="col-en">' . $poinEn . '</div>'
+            . '<div class="clearfix"></div></div>';
     }
 }
 @endphp
@@ -383,19 +408,24 @@ if ($useNewFormat) {
 {!! $htmlKetentuan !!}
 
 <div class="gap18"></div>
-<table class="tc"><tr>
-    <td><p>Jakarta, {{ $ttdId }}</p></td>
-    <td class="r"><p>Jakarta, {{ $ttdEn }}</p></td>
-</tr></table>
-<div class="gap8"></div>
-<table class="tc"><tr>
-    <td><p>PIHAK PERTAMA/THE FIRST PARTY</p></td>
-    <td class="r"><p>PIHAK KEDUA/THE SECOND PARTY</p></td>
-</tr></table>
-<table class="tc"><tr>
-    <td><div class="sline"></div><p>{{ $kontrak->pihak_pertama }}</p></td>
-    <td class="r"><div class="sline"></div><p>{{ $namaP2 }}</p></td>
-</tr></table>
+{{-- ── GRUP TANDA TANGAN (tidak terpotong halaman) ── --}}
+<div style="page-break-inside: avoid; break-inside: avoid;">
+
+    <table class="tc"><tr>
+        <td><p>Jakarta, {{ $ttdId }}</p></td>
+        <td class="r"><p>Jakarta, {{ $ttdEn }}</p></td>
+    </tr></table>
+    <div class="gap8"></div>
+    <table class="tc"><tr>
+        <td><p>PIHAK PERTAMA/THE FIRST PARTY</p></td>
+        <td class="r"><p>PIHAK KEDUA/THE SECOND PARTY</p></td>
+    </tr></table>
+    <table class="tc"><tr>
+        <td><div class="sline"></div><p>{{ $kontrak->pihak_pertama }}</p></td>
+        <td class="r"><div class="sline"></div><p>{{ $namaP2 }}</p></td>
+    </tr></table>
+
+</div>{{-- /grup-tanda-tangan --}}
 
 <div class="pgn"></div>
 </body>

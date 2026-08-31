@@ -515,44 +515,85 @@ class ChartManager {
     }
 
     /**
-     * Show loading state for chart
-     * @param {string} containerId - Container element ID
+     * Show loading state for chart — overlay di atas canvas, TIDAK mengganti innerHTML
+     * @param {string} containerId - Canvas ID atau wrapper ID
      */
     showLoading(containerId) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
+        // Hapus overlay lama jika ada
+        this._removeOverlay(containerId);
 
-        const loadingHtml = `
-            <div class="flex items-center justify-center h-full min-h-[250px]">
-                <div class="text-center">
-                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-blue-600"></div>
-                    <p class="text-sm text-gray-500 mt-3">Memuat grafik...</p>
-                </div>
-            </div>
-        `;
+        // Cari wrapper: canvas-wrapper atau parent canvas
+        const canvas = document.getElementById(containerId);
+        const wrapper = canvas
+            ? (canvas.closest('.chart-canvas-wrapper') || canvas.parentElement)
+            : document.getElementById(containerId + '_wrapper');
 
-        container.innerHTML = loadingHtml;
+        if (!wrapper) return;
+
+        // Pastikan wrapper punya position: relative agar overlay bisa absolute
+        if (getComputedStyle(wrapper).position === 'static') {
+            wrapper.style.position = 'relative';
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id   = 'chart-overlay-' + containerId;
+        overlay.style.cssText = [
+            'position:absolute', 'inset:0', 'z-index:10',
+            'display:flex', 'align-items:center', 'justify-content:center',
+            'background:rgba(255,255,255,0.85)', 'border-radius:0.75rem',
+            'pointer-events:none'
+        ].join(';');
+        overlay.innerHTML = `
+            <div style="text-align:center">
+                <div style="display:inline-block;width:2rem;height:2rem;border:3px solid #e5e7eb;border-top-color:#4f6ef7;border-radius:50%;animation:chart-spin 0.8s linear infinite"></div>
+                <p style="font-size:0.8rem;color:#6b7280;margin-top:0.5rem">Memuat grafik...</p>
+            </div>`;
+
+        wrapper.appendChild(overlay);
     }
 
     /**
-     * Show error state for chart
-     * @param {string} containerId - Container element ID
+     * Show error state for chart — overlay di atas canvas, TIDAK mengganti innerHTML
+     * @param {string} containerId - Canvas ID atau wrapper ID
      * @param {string} message - Error message
      */
     showError(containerId, message = 'Gagal memuat data grafik') {
-        const container = document.getElementById(containerId);
-        if (!container) return;
+        this._removeOverlay(containerId);
 
-        const errorHtml = `
-            <div class="flex items-center justify-center h-full min-h-[250px]">
-                <div class="text-center">
-                    <i class="fa fa-exclamation-triangle text-red-500 text-3xl"></i>
-                    <p class="text-sm text-gray-600 mt-3">${message}</p>
-                </div>
-            </div>
-        `;
+        const canvas = document.getElementById(containerId);
+        const wrapper = canvas
+            ? (canvas.closest('.chart-canvas-wrapper') || canvas.parentElement)
+            : document.getElementById(containerId + '_wrapper');
 
-        container.innerHTML = errorHtml;
+        if (!wrapper) return;
+
+        if (getComputedStyle(wrapper).position === 'static') {
+            wrapper.style.position = 'relative';
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id   = 'chart-overlay-' + containerId;
+        overlay.style.cssText = [
+            'position:absolute', 'inset:0', 'z-index:10',
+            'display:flex', 'align-items:center', 'justify-content:center',
+            'background:rgba(255,255,255,0.85)', 'border-radius:0.75rem'
+        ].join(';');
+        overlay.innerHTML = `
+            <div style="text-align:center">
+                <i class="fa fa-exclamation-triangle" style="color:#ef4444;font-size:1.75rem"></i>
+                <p style="font-size:0.8rem;color:#6b7280;margin-top:0.5rem">${message}</p>
+            </div>`;
+
+        wrapper.appendChild(overlay);
+    }
+
+    /**
+     * Hapus overlay loading/error untuk canvas tertentu
+     * @param {string} containerId
+     */
+    _removeOverlay(containerId) {
+        const existing = document.getElementById('chart-overlay-' + containerId);
+        if (existing) existing.remove();
     }
 
     /**
@@ -666,25 +707,34 @@ class ChartManager {
         const { pie, bar, line } = canvasIds;
 
         try {
-            // Show loading state
-            if (pie) this.showLoading(pie + '_wrapper');
-            if (bar) this.showLoading(bar + '_wrapper');
-            if (line) this.showLoading(line + '_wrapper');
+            // Show loading overlay (di atas canvas, tidak merusak DOM)
+            if (pie) this.showLoading(pie);
+            if (bar) this.showLoading(bar);
+            if (line) this.showLoading(line);
 
             // Fetch data
             const data = await this.fetchChartData(page, filters);
 
-            // Initialize charts
+            // Initialize charts, hapus overlay setelah selesai
             if (pie && data.pie) {
+                this._removeOverlay(pie);
                 this.initPieChart(pie, data.pie);
+            } else if (pie) {
+                this._removeOverlay(pie);
             }
 
             if (bar && data.bar) {
+                this._removeOverlay(bar);
                 this.initBarChart(bar, data.bar, barOptions);
+            } else if (bar) {
+                this._removeOverlay(bar);
             }
 
             if (line && data.line) {
+                this._removeOverlay(line);
                 this.initLineChart(line, data.line, lineOptions);
+            } else if (line) {
+                this._removeOverlay(line);
             }
 
             // Update stats if provided
@@ -696,11 +746,11 @@ class ChartManager {
 
         } catch (error) {
             console.error('Error initializing charts:', error);
-            
-            // Show error state
-            if (pie) this.showError(pie + '_wrapper');
-            if (bar) this.showError(bar + '_wrapper');
-            if (line) this.showError(line + '_wrapper');
+
+            // Tampilkan error overlay
+            if (pie) this.showError(pie);
+            if (bar) this.showError(bar);
+            if (line) this.showError(line);
 
             throw error;
         }
@@ -718,23 +768,37 @@ class ChartManager {
         const { pie, bar, line } = canvasIds;
 
         try {
+            // Show loading overlay saat update
+            if (pie) this.showLoading(pie);
+            if (bar) this.showLoading(bar);
+            if (line) this.showLoading(line);
+
             // Fetch new data
             const data = await this.fetchChartData(page, filters);
 
-            // Destroy dan re-init agar label/kolom ikut update (bukan sekadar update data)
+            // Destroy dan re-init agar label/kolom ikut update
             if (pie && data.pie) {
+                this._removeOverlay(pie);
                 this.destroyChart(pie);
                 this.initPieChart(pie, data.pie);
+            } else if (pie) {
+                this._removeOverlay(pie);
             }
 
             if (bar && data.bar) {
+                this._removeOverlay(bar);
                 this.destroyChart(bar);
                 this.initBarChart(bar, data.bar, barOptions);
+            } else if (bar) {
+                this._removeOverlay(bar);
             }
 
             if (line && data.line) {
+                this._removeOverlay(line);
                 this.destroyChart(line);
                 this.initLineChart(line, data.line, lineOptions);
+            } else if (line) {
+                this._removeOverlay(line);
             }
 
             // Update stats if provided
@@ -746,6 +810,9 @@ class ChartManager {
 
         } catch (error) {
             console.error('Error updating charts:', error);
+            if (pie) this.showError(pie);
+            if (bar) this.showError(bar);
+            if (line) this.showError(line);
             throw error;
         }
     }

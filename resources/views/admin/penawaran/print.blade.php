@@ -20,7 +20,7 @@ body {
     max-width: 210mm;
     margin: 20px auto 40px;
     background: #fff;
-    padding: 12mm 20mm 0 20mm;
+    padding: 12mm 25mm 0 25mm;
     box-shadow: 0 3px 16px rgba(0,0,0,0.2);
     position: relative;
 }
@@ -127,7 +127,7 @@ body { padding-top: 52px; }
 .footer-web {
     font-family: Arial, Helvetica, sans-serif;
     font-size: 9pt;
-    color: #1a3a8f;
+    color: #112E81;
     font-weight: bold;
     text-decoration: underline;
     margin-top: 1px;
@@ -140,12 +140,12 @@ body { padding-top: 52px; }
     .page-wrap {
         max-width: 100%;
         margin: 0;
-        padding: 12mm 20mm 0 20mm;
+        padding: 0;
         box-shadow: none;
     }
     @page {
         size: A4 portrait;
-        margin: 0mm 0mm 0mm 0mm;
+        margin: 12mm 25mm 12mm 25mm;
     }
 }
 </style>
@@ -167,6 +167,7 @@ body { padding-top: 52px; }
     $namaPerush = $setting->nama_perusahaan ?? 'PT. Anugerah Panca Yoga';
     $alamat     = $setting->alamat          ?? 'jl. Dr. Saharjo No. 131 Jakarta 12860';
     $telepon    = $setting->telepon         ?? '021. 83792927, 021. 8354565';
+    $telepon2   = $setting->no_telepon_2    ?? '';
     $fax        = $setting->fax             ?? '';
     $website    = $setting->website         ?? 'www.apy-rentacar.com';
     $tgl        = Carbon::parse($penawaran->tanggal_penawaran)->isoFormat('D MMMM YYYY');
@@ -228,7 +229,7 @@ body { padding-top: 52px; }
         <thead>
             <tr>
                 <th width="5%">No.</th>
-                <th width="35%">Car Model</th>
+                <th width="35%" style="text-align:left;">Car Model</th>
                 <th width="9%">Year</th>
                 <th width="7%">Qty</th>
                 <th width="28%">Rental Price/Unit (Rp)</th>
@@ -242,7 +243,7 @@ body { padding-top: 52px; }
                 <td>{{ $item->kendaraan->merk ?? '-' }}</td>
                 <td class="c">{{ $item->tahun_unit ?? ($item->kendaraan->tahun_pembuatan ?? '-') }}</td>
                 <td class="c">{{ $item->qty ?? 1 }}</td>
-                <td class="r">Rp. {{ number_format($item->price ?? 0, 0, ',', '.') }},-</td>
+                <td class="c">Rp. {{ number_format($item->price ?? 0, 0, ',', '.') }},-</td>
                 <td class="c">{{ $item->durasi ?? '' }} {{ $item->satuan_durasi ?? '' }}</td>
             </tr>
             @empty
@@ -281,39 +282,46 @@ body { padding-top: 52px; }
 
     {{-- ── INFO KONTAK ── --}}
     <div class="info-kontak">
-        Untuk keterangan lebih lanjut dapat menghubungi kantor kami di {{ $telepon }} atau mengunjungi website kami <span style="color:#1a56db;">{{ $website }}</span>
+        Untuk keterangan lebih lanjut dapat menghubungi kantor kami di {{ $telepon }}@if(!empty($telepon2)) atau {{ $telepon2 }}@endif atau mengunjungi website kami <span style="color:#1C177E;font-weight:bold;text-decoration:underline;">{{ $website }}</span>
     </div>
 
-    {{-- ── TANDA TANGAN ── --}}
-    <table class="sign-table">
-        <tr>
-            <td style="width:50%; vertical-align:top;">
-                <p>Hormat kami,</p>
-                <p class="sign-name">{{ $namaPerush }}</p>
-                <div style="height:18mm;"></div>
-                <div class="sign-line"></div>
-                <p><u>{{ $penawaran->name_staff ?? '…………………………' }}</u></p>
-                <p>({{ $penawaran->staff ?? 'Staff' }})</p>
-            </td>
-            <td style="width:50%; vertical-align:top; text-align:left; padding-left:40mm; padding-top:0;">
-                <p>Disetujui Oleh,</p>
-                <p class="sign-name">{{ $penawaran->kepada }}</p>
-                <div style="height:18mm;"></div>
-                <div class="sign-line"></div>
-                <p>({{ $penawaran->up ?? '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' }})</p>
-            </td>
-        </tr>
-    </table>
+    {{-- ── GRUP BAWAH: tanda tangan + footer (tidak terpotong halaman) ── --}}
+    <div style="page-break-inside: avoid; break-inside: avoid;">
 
-    {{-- ── FOOTER ── --}}
-    <div class="page-footer-inner">
-        <div class="footer-company">{{ strtoupper($namaPerush) }}</div>
-        <div class="footer-addr">
-            Head Office : {{ $alamat }}&nbsp;&nbsp;
-            {{ $telepon }}@if($fax), {{ $fax }}@endif
+        {{-- ── TANDA TANGAN ── --}}
+        <table class="sign-table">
+            <tr>
+                <td style="width:50%; vertical-align:top; padding-right:5mm;">
+                    <p>Hormat kami,</p>
+                    <p class="sign-name">{{ $namaPerush }}</p>
+                    <div style="height:25mm;"></div>
+                    <div class="sign-line"></div>
+                    <p><u>{{ $penawaran->name_staff ?? '…………………………' }}</u></p>
+                    <p>({{ $penawaran->staff ?? 'Staff' }})</p>
+                </td>
+                <td style="width:50%; vertical-align:top; padding-left:5mm; padding-right:20mm; text-align:right;">
+                    <p style="padding-right:7mm;">Disetujui Oleh,</p>
+                    <p class="sign-name">{{ $penawaran->kepada }}</p>
+                    <div style="height:25mm;"></div>
+                    <div class="sign-line"></div>
+                    <p style="padding-left:-5mm;">{{ $penawaran->up ?? '' }}</p>
+                </td>
+            </tr>
+        </table>
+
+        
+
+        {{-- ── FOOTER ── --}}
+        <div class="page-footer-inner">
+            <div class="footer-company">{{ strtoupper($namaPerush) }}</div>
+            <div class="footer-addr">
+                Head Office : {{ $alamat }}&nbsp;&nbsp;
+                {{ $telepon }}@if($fax), {{ $fax }}@endif
+            </div>
+            <div class="footer-web">{{ $website }}</div>
         </div>
-        <div class="footer-web">{{ $website }}</div>
-    </div>
+
+    </div>{{-- /grup-bawah --}}
 
 </div>{{-- /page-wrap --}}
 </body>

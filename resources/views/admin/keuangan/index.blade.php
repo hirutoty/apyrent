@@ -287,6 +287,10 @@
                                 <th
                                     class="text-left text-xs font-semibold uppercase tracking-wide
   text-gray-500 px-4 py-3">
+                                    Divisi</th>
+                                <th
+                                    class="text-left text-xs font-semibold uppercase tracking-wide
+  text-gray-500 px-4 py-3">
                                     User</th>
                                 <th
                                     class="text-left text-xs font-semibold uppercase tracking-wide
@@ -325,6 +329,20 @@
                                         <span
                                             class="font-mono text-xs text-gray-600 bg-gray-100
   px-2 py-0.5 rounded">{{ $k->reference ?? '-' }}</span>
+                                    </td>
+                                    <td class="px-4 py-3.5">
+                                        @php
+                                            $divisi = $k->divisi ?? '-';
+                                            $divisiClass = match($divisi) {
+                                                'Keuangan'   => 'bg-blue-100 text-blue-700 border-blue-200',
+                                                'Produksi'   => 'bg-green-100 text-green-700 border-green-200',
+                                                'Superadmin' => 'bg-purple-100 text-purple-700 border-purple-200',
+                                                default      => 'bg-gray-100 text-gray-500 border-gray-200',
+                                            };
+                                        @endphp
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $divisiClass }}">
+                                            {{ $divisi }}
+                                        </span>
                                     </td>
                                     <td class="px-4 py-3.5">
                                         <div class="flex items-center gap-2">
@@ -383,7 +401,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="px-5 py-12 text-center">
+                                    <td colspan="10" class="px-5 py-12 text-center">
                                         <div class="flex flex-col items-center gap-3">
                                             <div
                                                 class="w-14 h-14 rounded-full bg-gray-100 flex

@@ -19,6 +19,34 @@
         </button>
     </div>
 
+    {{-- SUMMARY CARDS --}}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Total Jenis Kendaraan</p>
+                    <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $data->count() }}</h2>
+                </div>
+                <div class="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
+                    <i class="fa fa-car text-2xl text-blue-600"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- CHART FILTER --}}
+    <x-chart-filter id="jenisKendaraanChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+    {{-- CHART CONTAINER --}}
+    <x-chart-container
+        id="jenisKendaraanChartContainer"
+        layout="stacked"
+        pieTitle="Distribusi Jenis Kendaraan" pieId="jenisKendaraanPieChart"
+        barTitle="Penambahan Jenis per Periode" barId="jenisKendaraanBarChart"
+        lineTitle="Trend Jenis Kendaraan" lineId="jenisKendaraanLineChart"
+        :showStats="true" :statsData="[]"
+    />
+
     {{-- TABLE CARD --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
@@ -288,6 +316,48 @@ function filterJenisTable(q) {
     }
     window.closeAlert = closeAlert;
 })();
+</script>
+
+<script>
+// ========================================
+// CHART INITIALIZATION — JENIS KENDARAAN
+// ========================================
+const jenisKendaraanChartManager = new ChartManager();
+
+document.addEventListener('DOMContentLoaded', function () {
+    initJenisKendaraanCharts({ filter_type: 'year' });
+
+    document.addEventListener('chartFilterChange', function (e) {
+        if (e.detail.filterId === 'jenisKendaraanChartFilter') {
+            updateJenisKendaraanCharts({
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+            });
+        }
+    });
+});
+
+async function initJenisKendaraanCharts(filters) {
+    try {
+        await jenisKendaraanChartManager.initChartsFromAPI('jenis-kendaraan', {
+            pie:  'jenisKendaraanPieChart',
+            bar:  'jenisKendaraanBarChart',
+            line: 'jenisKendaraanLineChart',
+        }, filters, { accentLine: true });
+    } catch (e) { console.error('Error loading jenis kendaraan charts:', e); }
+}
+
+async function updateJenisKendaraanCharts(filters) {
+    try {
+        const scrollable = filters.filter_type === 'custom';
+        await jenisKendaraanChartManager.updateChartsFromAPI('jenis-kendaraan', {
+            pie:  'jenisKendaraanPieChart',
+            bar:  'jenisKendaraanBarChart',
+            line: 'jenisKendaraanLineChart',
+        }, filters, { scrollable, accentLine: true }, { scrollable });
+    } catch (e) { console.error('Error updating jenis kendaraan charts:', e); }
+}
 </script>
 
 @endsection

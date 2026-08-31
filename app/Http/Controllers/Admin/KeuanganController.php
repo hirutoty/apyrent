@@ -172,6 +172,7 @@ class KeuanganController extends Controller
                 'tanggal'      => now(),
                 'reference'    => $reference,
                 'user_id'      => auth()->id(),
+                'divisi'       => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
                 'kategori'     => $request->kategori,
                 'metode'       => $request->metode,
                 'keterangan'   => $request->keterangan,

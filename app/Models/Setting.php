@@ -10,6 +10,7 @@ class Setting extends Model
         'nama_perusahaan',
         'alamat',
         'telepon',
+        'no_telepon_2',
         'fax',
         'email',
         'website',

@@ -66,6 +66,19 @@
         </nav>
     </div>
 
+    {{-- CHART FILTER --}}
+    <x-chart-filter id="kontrakChartFilter" defaultFilter="month" :showCustomRange="true" />
+
+    {{-- CHART CONTAINER --}}
+    <x-chart-container
+        id="kontrakChartContainer"
+        layout="stacked"
+        pieTitle="Distribusi Status Kontrak" pieId="kontrakPieChart"
+        barTitle="Jumlah Kontrak per Periode" barId="kontrakBarChart"
+        lineTitle="Trend Kontrak" lineId="kontrakLineChart"
+        :showStats="true" :statsData="[]"
+    />
+
     {{-- STAT CARDS --}}
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
@@ -410,9 +423,7 @@
                         <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
                             <i class="fa fa-clock"></i> Durasi Sewa per Kendaraan
                         </p>
-                        {{-- Durasi per item — diisi JS --}}
                         <div id="preview_durasi_list" class="space-y-2"></div>
-                        {{-- Hidden inputs: durasi kontrak (pakai item terpanjang sebagai patokan) --}}
                         <input type="hidden" name="durasi_value" id="hidden_durasi_value">
                         <input type="hidden" name="durasi_satuan" id="hidden_durasi_satuan">
                     </div>
@@ -453,22 +464,33 @@
                 <p class="text-[10px] text-gray-400 mt-1">Dihitung dari perjanjian pembayaran + durasi masing-masing kendaraan</p>
             </div>
 
-            {{-- Pihak --}}
+            {{-- Pihak Pertama --}}
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Pertama <span class="text-red-500">*</span></label>
                     <input type="text" name="pihak_pertama" id="create_pihak_pertama"
-                        value=""
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Pertama</label>
                     <input type="text" name="contact_pertama"
-                        value=""
                         inputmode="numeric" maxlength="16"
                         oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
                         placeholder="16 digit No KTP"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+            </div>
+
+            {{-- Pihak Kedua --}}
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan <span class="text-red-500">*</span></label>
+                    <select name="jenis_pelanggan" id="create_jenis_pelanggan"
+                        onchange="togglePerwakilanFields('create')"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
+                        <option value="perorangan">Perorangan</option>
+                        <option value="perusahaan" selected>Perusahaan</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Kedua <span class="text-red-500">*</span></label>
@@ -476,65 +498,30 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak 2</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak Kedua</label>
                     <input type="text" name="contact_kedua" id="create_contact_kedua"
                         inputmode="numeric" maxlength="15"
                         oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
                         placeholder="08xx-xxxx-xxxx"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
-            </div>
 
-            {{-- Jenis Pelanggan (dipindahkan ke atas) --}}
-            <div class="grid grid-cols-1 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan <span class="text-red-500">*</span></label>
-                    <select name="jenis_pelanggan" id="create_jenis_pelanggan"
-                        onchange="togglePerwakilanFields('create')"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
-                        <option value="perorangan" selected>Perorangan</option>
-                        <option value="perusahaan">Perusahaan</option>
-                    </select>
-                </div>
-            </div>
-
-            {{-- Nama Customer --}}
-            <div class="grid grid-cols-1 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Customer <span class="text-red-500">*</span></label>
-                    <div class="relative">
-                        <input type="text" name="customer_name" id="create_customer_name"
-                            autocomplete="off"
-                            placeholder="Nama customer..."
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
-                        <ul id="create_customer_list"
-                            class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm"></ul>
+                {{-- Field Perwakilan Perusahaan (conditional) --}}
+                <div id="create_perwakilan_wrapper" class="col-span-2 grid grid-cols-2 gap-3 hidden">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Diwakili Oleh <span class="text-red-500">*</span></label>
+                        <input type="text" name="perwakilan_pihak_kedua" id="create_perwakilan_pihak_kedua"
+                            placeholder="Nama perwakilan perusahaan..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan <span class="text-red-500">*</span></label>
+                        <input type="text" name="jabatan_pihak_kedua" id="create_jabatan_pihak_kedua"
+                            placeholder="Misal: Direktur Utama"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
                 </div>
-            </div>
 
-            {{-- Field Perwakilan Perusahaan (conditional - hidden by default) --}}
-            <div id="create_perwakilan_wrapper" class="grid grid-cols-2 gap-3 hidden">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Diwakili Oleh <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" name="perwakilan_pihak_kedua" id="create_perwakilan_pihak_kedua"
-                        placeholder="Nama perwakilan perusahaan..."
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Jabatan <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" name="jabatan_pihak_kedua" id="create_jabatan_pihak_kedua"
-                        placeholder="Misal: Direktur Utama"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-            </div>
-
-            {{-- Detail Customer Pihak Kedua --}}
-            <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
                     <input type="text" name="no_ktp_kedua" id="create_no_ktp_kedua"
@@ -555,7 +542,7 @@
                         placeholder="Alamat lengkap..."
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
                 </div>
-            </div>{{-- end detail customer --}}
+            </div>
 
             </div>{{-- end px-6 py-5 Tab1 --}}
             <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
@@ -600,24 +587,21 @@
                                resize-y bg-white text-gray-800"></textarea>
                 </div>
 
-                {{-- Textarea EN — readonly, auto-translate dari ID --}}
+                {{-- Textarea EN — editable manual --}}
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label class="flex items-center gap-1.5 text-xs font-bold text-green-700 uppercase tracking-wide">
                             <i class="fa fa-globe"></i> Contract Terms (English)
                         </label>
-                        <span id="create_translate_status" class="text-[10px] text-gray-400 flex items-center gap-1">
-                            <i class="fa fa-magic text-green-400"></i> Auto-translate dari Bahasa Indonesia
-                        </span>
                     </div>
                     <textarea
                         name="ketentuan_en"
                         id="create_ketentuan_en"
                         rows="22"
-                        readonly
-                        placeholder="Terjemahan otomatis akan muncul di sini..."
+                        placeholder="Ketik isi ketentuan kontrak dalam Bahasa Inggris..."
                         class="w-full border border-green-200 rounded-xl px-4 py-3 text-xs font-mono leading-relaxed
-                               resize-y bg-gray-50 text-gray-600 cursor-not-allowed"></textarea>
+                               focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400
+                               resize-y bg-white text-gray-800"></textarea>
                 </div>
 
             </div>{{-- end px-6 py-5 Tab2 --}}
@@ -641,25 +625,16 @@
      MODAL: UPLOAD & APPROVE
 ═══════════════════════════════════════════════════ --}}
 <div id="modalApprove" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-2xl shadow-xl w-[95%] max-w-2xl max-h-[95vh] overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-xl w-[95%] max-w-lg max-h-[95vh] overflow-y-auto">
 
-        {{-- Header dengan tabs --}}
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <div class="flex gap-0">
-                <button type="button" id="approveTab1Btn"
-                    onclick="switchApproveTab(1)"
-                    class="px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 rounded-tl-lg">
-                    <i class="fa fa-upload mr-1"></i> Data
-                </button>
-                <button type="button" id="approveTab2Btn"
-                    onclick="switchApproveTab(2)"
-                    disabled
-                    class="px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg">
-                    <i class="fa fa-clipboard-list mr-1"></i> Ketentuan
-                </button>
+        {{-- Header --}}
+        <div class="flex items-start justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+                <h2 class="text-base font-bold text-gray-800">Approve Kontrak</h2>
+                <p id="approve_subtitle" class="text-xs text-gray-400 mt-0.5">–</p>
             </div>
             <button onclick="closeModal('modalApprove')"
-                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50">
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0">
                 <i class="fa fa-times"></i>
             </button>
         </div>
@@ -667,194 +642,60 @@
         <form id="approveForm" method="POST" enctype="multipart/form-data">
             @csrf
 
-            {{-- TAB 1: DATA --}}
-            <div id="approveTabContent1">
-                <div class="px-6 py-5 space-y-5">
-                    <div>
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <span class="text-blue-600 text-[10px] font-bold">1</span>
-                            </div>
-                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Informasi kontrak</h3>
-                        </div>
-                        <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4">
-                            <p class="text-xs font-semibold text-blue-700 mb-1"><i class="fa fa-file-contract mr-1"></i> <span id="approve_subtitle">–</span></p>
-                            <p class="text-xs text-blue-600">Status akan berubah ke <strong>Active</strong> dan rental kendaraan akan dibuat otomatis setelah approve.</p>
-                        </div>
-                    </div>
+            <div class="px-6 py-5 space-y-5">
 
-                    <div class="border-t border-gray-100"></div>
+                {{-- Info banner --}}
+                <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700 flex items-start gap-2">
+                    <i class="fa fa-info-circle flex-shrink-0 mt-0.5"></i>
+                    <span>Pastikan file PDF kontrak sudah ditandatangani oleh kedua pihak sebelum di-approve.</span>
+                </div>
 
-                    <div>
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <span class="text-blue-600 text-[10px] font-bold">2</span>
-                            </div>
-                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Upload file kontrak TTD</h3>
-                        </div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                            File Kontrak <span class="text-red-500">*</span>
-                        </label>
-                        <input type="file" id="approve_file_input" name="file_kontrak" accept=".pdf"
-                            onchange="onApproveFileChange(this)"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <p class="text-[10px] text-gray-400 mt-1">Format: PDF saja. Maks 10MB.</p>
-                        <p id="approve_file_error" class="text-[10px] text-red-500 mt-1 hidden">Harap pilih file PDF terlebih dahulu.</p>
+                {{-- File Kontrak --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        File Kontrak <span class="text-red-500">*</span>
+                    </label>
+                    <input type="file" id="approve_file_input" name="file_kontrak" accept=".pdf"
+                        onchange="onApproveFileChange(this)"
+                        required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <p class="text-[10px] text-gray-400 mt-1">Format: PDF saja. Maks 10MB.</p>
+                    <p id="approve_file_error" class="text-[10px] text-red-500 mt-1 hidden">Harap pilih file PDF kontrak terlebih dahulu.</p>
 
-                        <div id="approveFilePreview" class="hidden mt-3 rounded-xl bg-green-50 border border-green-200 px-4 py-3 flex items-center gap-3">
-                            <i class="fa fa-file-pdf text-green-600 text-lg flex-shrink-0"></i>
-                            <div class="flex-1 min-w-0">
-                                <p id="approveFileName" class="text-xs font-semibold text-green-700 truncate"></p>
-                                <p class="text-[10px] text-green-500 mt-0.5">File siap diupload</p>
-                            </div>
-                            <i class="fa fa-check-circle text-green-500 text-lg flex-shrink-0"></i>
-                        </div>
+                    <div id="approveFilePreview" class="hidden mt-2 rounded-xl bg-green-50 border border-green-200 px-4 py-2.5 flex items-center gap-3">
+                        <i class="fa fa-file-pdf text-green-600 flex-shrink-0"></i>
+                        <p id="approveFileName" class="text-xs font-semibold text-green-700 truncate flex-1"></p>
+                        <i class="fa fa-check-circle text-green-500 flex-shrink-0"></i>
                     </div>
                 </div>
 
-                {{-- Data Customer Pihak Kedua --}}
-                <div class="border-t border-gray-100 mx-6"></div>
-                <div class="px-6 pt-4">
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <span class="text-blue-600 text-[10px] font-bold">3</span>
-                        </div>
-                        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Data Customer (Pihak Kedua)</h3>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="col-span-2">
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan <span class="text-red-500">*</span></label>
-                            <select name="jenis_pelanggan" id="approve_jenis_pelanggan"
-                                onchange="togglePerwakilanFields('approve')"
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
-                                <option value="perorangan" selected>Perorangan</option>
-                                <option value="perusahaan">Perusahaan</option>
-                            </select>
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Customer <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <input type="text" name="customer_name" id="approve_customer_name"
-                                    autocomplete="off"
-                                    placeholder="Nama customer..."
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
-                                <ul id="approve_customer_list"
-                                    class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-52 overflow-y-auto text-sm"></ul>
-                            </div>
-                        </div>
-
-                        {{-- Field Perwakilan Perusahaan (conditional - hidden by default) --}}
-                        <div id="approve_perwakilan_wrapper" class="col-span-2 grid grid-cols-2 gap-3 hidden">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                                    Diwakili Oleh <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" name="perwakilan_pihak_kedua" id="approve_perwakilan_pihak_kedua"
-                                    placeholder="Nama perwakilan perusahaan..."
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                                    Jabatan <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" name="jabatan_pihak_kedua" id="approve_jabatan_pihak_kedua"
-                                    placeholder="Misal: Direktur Utama"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Kontak</label>
-                            <input type="text" name="contact_person" id="approve_contact_person"
-                                inputmode="numeric" maxlength="15"
-                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
-                                placeholder="08xx-xxxx-xxxx"
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP</label>
-                            <input type="text" name="no_ktp_kedua" id="approve_no_ktp_kedua"
-                                inputmode="numeric" maxlength="16"
-                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
-                                placeholder="16 digit No KTP"
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email</label>
-                            <input type="email" name="email_kedua" id="approve_email_kedua"
-                                placeholder="email@example.com"
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat</label>
-                            <textarea name="alamat_kedua" id="approve_alamat_kedua" rows="2"
-                                placeholder="Alamat lengkap pihak kedua..."
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
-                        </div>
-                    </div>
+                {{-- Attachment (multiple) --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Attachment <span class="text-xs text-gray-400 font-normal">(opsional, bisa lebih dari 1)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 hover:border-blue-400 bg-gray-50 hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors group">
+                        <i class="fa fa-paperclip text-gray-400 group-hover:text-blue-500 text-sm transition-colors"></i>
+                        <span class="text-xs text-gray-500 group-hover:text-blue-600">Klik untuk pilih file attachment...</span>
+                        <input type="file" id="approve_attachments" name="attachments[]" multiple
+                            class="hidden"
+                            onchange="renderApproveAttachmentList(this)">
+                    </label>
+                    <div id="approveAttachmentList" class="mt-2 space-y-1"></div>
                 </div>
 
-                <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
-                    <button type="button" onclick="closeModal('modalApprove')"
-                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
-                        Batal
-                    </button>
-                    <button type="button" onclick="goToApproveTab2()"
-                        class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
-                        Selanjutnya <i class="fa fa-arrow-right text-xs"></i>
-                    </button>
-                </div>
             </div>
 
-            {{-- TAB 2: KETENTUAN --}}
-            <div id="approveTabContent2" class="hidden">
-                <div class="px-6 py-5 space-y-5">
-                    <div>
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                <i class="fa fa-exclamation text-amber-600 text-[10px]"></i>
-                            </div>
-                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ketentuan approve kontrak</h3>
-                        </div>
-                        <div class="rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 space-y-2">
-                            <p class="text-xs text-amber-700 font-semibold mb-2">Harap baca dan pahami ketentuan berikut sebelum melanjutkan:</p>
-                            @foreach([
-                                'Status kontrak akan langsung berubah ke <strong>Active</strong> dan tidak dapat dikembalikan ke pending.',
-                                'Rental kendaraan akan otomatis dibuat untuk semua item dalam kontrak ini.',
-                                'Status kendaraan terkait akan berubah menjadi <strong>Disewa</strong>.',
-                                'Pastikan file yang diupload adalah dokumen final yang sudah ditandatangani oleh kedua pihak.',
-                                'Data kontrak tidak dapat diubah setelah status berubah ke Active.',
-                            ] as $i => $point)
-                            <div class="flex items-start gap-2.5">
-                                <span class="w-4 h-4 rounded-full bg-amber-200 text-amber-700 text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{{ $i+1 }}</span>
-                                <p class="text-xs text-amber-800 leading-relaxed">{!! $point !!}</p>
-                            </div>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    <div class="border-t border-gray-100"></div>
-
-                    <label class="flex items-start gap-3 cursor-pointer group bg-gray-50 rounded-xl px-4 py-3 border border-gray-200 hover:border-green-300 hover:bg-green-50/30 transition-colors">
-                        <input type="checkbox" id="approveTncCheck"
-                            onchange="onApproveTncChange(this)"
-                            class="w-4 h-4 rounded mt-0.5 accent-green-600 flex-shrink-0">
-                        <span class="text-xs text-gray-600 group-hover:text-gray-800 leading-relaxed">
-                            Saya telah membaca, memahami, dan menyetujui seluruh ketentuan di atas serta memastikan file yang diupload sudah benar dan final.
-                        </span>
-                    </label>
-                </div>
-
-                <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
-                    <button type="button" onclick="switchApproveTab(1)"
-                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
-                        <i class="fa fa-arrow-left text-xs"></i> Kembali
-                    </button>
-                    <button type="submit" id="approveSubmitBtn" disabled
-                        class="inline-flex items-center gap-2 bg-gray-200 text-gray-400 text-sm font-semibold px-5 py-2 rounded-xl cursor-not-allowed transition-all">
-                        <i class="fa fa-check text-xs"></i> Approve Kontrak
-                    </button>
-                </div>
+            {{-- Footer --}}
+            <div class="border-t border-gray-100 px-6 py-4 flex justify-between items-center">
+                <button type="button" onclick="closeModal('modalApprove')"
+                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                    Batal
+                </button>
+                <button type="submit" id="approveSubmitBtn"
+                    class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
+                    <i class="fa fa-check text-xs"></i> Approve Kontrak
+                </button>
             </div>
 
         </form>
@@ -875,7 +716,7 @@
                     class="px-4 py-2 text-sm font-semibold rounded-tl-lg border-b-2 border-blue-600 text-blue-600 bg-blue-50/50">
                     <i class="fa fa-file-alt mr-1 text-xs"></i> Data Kontrak
                 </button>
-                <button type="button" id="editTab2Btn" onclick="switchEditTab(2)"
+                <button type="button" id="editTab2Btn" onclick="switchEditTab(2); document.getElementById('edit_ketentuan_edited').value='1';"
                     class="px-4 py-2 text-sm font-semibold rounded-tr-lg border-b-2 border-transparent text-gray-400 hover:text-gray-600">
                     <i class="fa fa-list-alt mr-1 text-xs"></i> Ketentuan Pasal
                 </button>
@@ -886,6 +727,8 @@
 
         <form id="editForm" method="POST" enctype="multipart/form-data">
             @csrf @method('PUT')
+            {{-- Flag: apakah user membuka Tab 2 (ketentuan). Default 0 = tidak diedit. --}}
+            <input type="hidden" name="ketentuan_edited" id="edit_ketentuan_edited" value="0">
 
             {{-- ── TAB 1: Data Kontrak ── --}}
             <div id="editTab1" class="px-6 py-5 space-y-4">
@@ -1007,18 +850,6 @@
                     </div>
                 </div>
 
-                {{-- Status --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
-                    <select name="status" id="edit_status"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
-                        @foreach(['pending','approved','active','completed','selesai-belum lunas','rejected','expired','terminated'] as $st)
-                        <option value="{{ $st }}">{{ ucfirst($st) }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-
             </div>{{-- end Tab 1 --}}
 
             {{-- ── TAB 2: Ketentuan Pasal ── --}}
@@ -1052,24 +883,21 @@
                                resize-y bg-white text-gray-800"></textarea>
                 </div>
 
-                {{-- Textarea EN — readonly, auto-translate dari ID --}}
+                {{-- Textarea EN — editable manual --}}
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label class="flex items-center gap-1.5 text-xs font-bold text-green-700 uppercase tracking-wide">
                             <i class="fa fa-globe"></i> Contract Terms (English)
                         </label>
-                        <span id="edit_translate_status" class="text-[10px] text-gray-400 flex items-center gap-1">
-                            <i class="fa fa-magic text-green-400"></i> Auto-translate dari Bahasa Indonesia
-                        </span>
                     </div>
                     <textarea
                         name="ketentuan_en"
                         id="edit_ketentuan_en"
                         rows="22"
-                        readonly
-                        placeholder="Terjemahan otomatis akan muncul di sini..."
+                        placeholder="Ketik isi ketentuan kontrak dalam Bahasa Inggris..."
                         class="w-full border border-green-200 rounded-xl px-4 py-3 text-xs font-mono leading-relaxed
-                               resize-y bg-gray-50 text-gray-600 cursor-not-allowed"></textarea>
+                               focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400
+                               resize-y bg-white text-gray-800"></textarea>
                 </div>
 
             </div>{{-- end Tab 2 --}}
@@ -1312,50 +1140,45 @@
 
     // ── Approve modal ──────────────────────────────
     function openApproveModal(btn) {
-        const id       = btn.dataset.id;
+        const id        = btn.dataset.id;
         const noKontrak = btn.dataset.no;
         document.getElementById('approveForm').action = `/admin/kontrak/${id}/approve`;
-        document.getElementById('approve_subtitle').textContent = `Kontrak: ${noKontrak}`;
-        // Reset ke tab 1
-        switchApproveTab(1);
-        // Reset file & checkbox
+        document.getElementById('approve_subtitle').textContent = noKontrak;
+
+        // Reset file input & preview
         const fi = document.getElementById('approve_file_input');
         if (fi) fi.value = '';
         const preview = document.getElementById('approveFilePreview');
         if (preview) preview.classList.add('hidden');
         const err = document.getElementById('approve_file_error');
         if (err) err.classList.add('hidden');
-        const tnc = document.getElementById('approveTncCheck');
-        if (tnc) tnc.checked = false;
-        const submitBtn = document.getElementById('approveSubmitBtn');
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.className = 'inline-flex items-center gap-2 bg-gray-300 text-gray-500 text-sm font-semibold px-5 py-2 rounded-xl cursor-not-allowed transition-colors';
-        }
-        // Pre-fill customer fields dari data-* attribute tombol
-        const custNameEl = document.getElementById('approve_customer_name');
-        if (custNameEl) custNameEl.value = btn.dataset.customer ?? '';
-        const contactEl = document.getElementById('approve_contact_person');
-        if (contactEl) contactEl.value = btn.dataset.contact ?? '';
-        const noKtpEl = document.getElementById('approve_no_ktp_kedua');
-        if (noKtpEl) noKtpEl.value = btn.dataset.ktp ?? '';
-        const emailEl = document.getElementById('approve_email_kedua');
-        if (emailEl) emailEl.value = btn.dataset.email ?? '';
-        const jenisEl = document.getElementById('approve_jenis_pelanggan');
-        if (jenisEl) jenisEl.value = btn.dataset.jenis ?? '';
-        const alamatEl = document.getElementById('approve_alamat_kedua');
-        if (alamatEl) alamatEl.value = btn.dataset.alamat ?? '';
-        // Setup autosuggest customer di modal approve
-        setupCustomerAutosuggest(
-            document.getElementById('approve_customer_name'),
-            document.getElementById('approve_customer_list'),
-            document.getElementById('approve_no_ktp_kedua'),
-            document.getElementById('approve_alamat_kedua'),
-            document.getElementById('approve_jenis_pelanggan'),
-            document.getElementById('approve_email_kedua'),
-            document.getElementById('approve_contact_person')
-        );
+
+        // Reset attachment list
+        const attInput = document.getElementById('approve_attachments');
+        if (attInput) attInput.value = '';
+        const attList = document.getElementById('approveAttachmentList');
+        if (attList) attList.innerHTML = '';
+
         openModal('modalApprove');
+    }
+
+    function renderApproveAttachmentList(input) {
+        const listEl = document.getElementById('approveAttachmentList');
+        if (!listEl) return;
+        const files = Array.from(input.files);
+        listEl.innerHTML = '';
+        files.forEach(function(file) {
+            const size = file.size < 1024 * 1024
+                ? (file.size / 1024).toFixed(1) + ' KB'
+                : (file.size / 1024 / 1024).toFixed(1) + ' MB';
+            const item = document.createElement('div');
+            item.className = 'flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs';
+            item.innerHTML =
+                '<i class="fa fa-paperclip text-gray-400 text-[10px] w-4 text-center flex-shrink-0"></i>' +
+                '<span class="flex-1 truncate text-gray-700 font-medium" title="' + file.name + '">' + file.name + '</span>' +
+                '<span class="text-gray-400 text-[10px] flex-shrink-0">' + size + '</span>';
+            listEl.appendChild(item);
+        });
     }
 
     function switchCreateTab(tab) {
@@ -1608,6 +1431,8 @@
             t2Btn.disabled = true;
             t2Btn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 cursor-not-allowed rounded-tr-lg';
         }
+        // Pastikan field perwakilan tampil sesuai jenis_pelanggan default (perusahaan)
+        togglePerwakilanFields('create');
         // Isi textarea dengan default konten
         const taId = document.getElementById('create_ketentuan_id');
         const taEn = document.getElementById('create_ketentuan_en');
@@ -1685,18 +1510,21 @@
         document.getElementById('edit_jabatan_pihak_kedua').value    = data.jabatan_pihak_kedua ?? '';
         
         const validStatuses = ['dibuat','pending','approved','active','rejected','expired','completed','terminated','selesai-belum lunas'];
-        document.getElementById('edit_status').value = validStatuses.includes(data.status) ? data.status : 'pending';
+        // Status tidak lagi diubah dari form edit — baris berikut dihapus
 
         // ── Trigger toggle untuk show/hide field perwakilan based on jenis_pelanggan ──
         togglePerwakilanFields('edit');
 
         // ── Populate Tab 2: textarea ketentuan ──
-        // Lookup dari resolvedKetentuan yang sudah di-resolve sepenuhnya di server (PHP)
         const taId = document.getElementById('edit_ketentuan_id');
         const taEn = document.getElementById('edit_ketentuan_en');
         const resolved = resolvedKetentuan[data.id] ?? null;
         if (taId) taId.value = resolved ? resolved.id : defaultKetentuan.id;
         if (taEn) taEn.value = resolved ? resolved.en : defaultKetentuan.en;
+
+        // Reset flag ketentuan_edited — default tidak diedit
+        const flagEdited = document.getElementById('edit_ketentuan_edited');
+        if (flagEdited) flagEdited.value = '0';
 
         switchEditTab(1);
         openModal('modalEdit');
@@ -1873,94 +1701,52 @@
         document.getElementById('create_email_kedua'),
         document.getElementById('create_contact_kedua')
     );
+</script>
 
-    // ── AUTO-TRANSLATE: ID → EN via DeepL proxy ────────────────
-    const _translateUrl = "{{ route('translate') }}";
-    const _csrfToken    = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+<script>
+// ========================================
+// CHART INITIALIZATION — KONTRAK
+// ========================================
+const kontrakChartManager = new ChartManager();
 
-    function setTranslateStatus(prefix, msg, color = 'text-gray-400') {
-        const el = document.getElementById(prefix + '_translate_status');
-        if (el) {
-            el.innerHTML = msg;
-            el.className = `text-[10px] ${color} flex items-center gap-1`;
+document.addEventListener('DOMContentLoaded', function () {
+    initKontrakCharts({ filter_type: 'month' });
+
+    document.addEventListener('chartFilterChange', function (e) {
+        if (e.detail.filterId === 'kontrakChartFilter') {
+            const filters = {
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+            };
+            updateKontrakCharts(filters);
         }
+    });
+});
+
+async function initKontrakCharts(filters) {
+    try {
+        await kontrakChartManager.initChartsFromAPI('kontrak', {
+            pie:  'kontrakPieChart',
+            bar:  'kontrakBarChart',
+            line: 'kontrakLineChart',
+        }, filters, { accentLine: true });
+    } catch (error) {
+        console.error('Error loading kontrak charts:', error);
     }
+}
 
-    function setupAutoTranslate(idTextareaId, enTextareaId, statusPrefix) {
-        const taId = document.getElementById(idTextareaId);
-        const taEn = document.getElementById(enTextareaId);
-        if (!taId || !taEn) return;
-
-        let translateTimer = null;
-
-        taId.addEventListener('input', function () {
-            clearTimeout(translateTimer);
-            setTranslateStatus(statusPrefix,
-                '<i class="fa fa-clock text-yellow-400"></i> Menunggu selesai mengetik...',
-                'text-yellow-500'
-            );
-
-            // Debounce 1.5 detik setelah berhenti mengetik
-            translateTimer = setTimeout(async () => {
-                const text = taId.value;
-
-                if (!text.trim()) {
-                    taEn.value = '';
-                    setTranslateStatus(statusPrefix,
-                        '<i class="fa fa-magic text-green-400"></i> Auto-translate dari Bahasa Indonesia',
-                        'text-gray-400'
-                    );
-                    return;
-                }
-
-                setTranslateStatus(statusPrefix,
-                    '<i class="fa fa-spinner fa-spin text-blue-400"></i> Menerjemahkan dengan DeepL...',
-                    'text-blue-500'
-                );
-
-                try {
-                    const res = await fetch(_translateUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': _csrfToken,
-                            'Accept': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            text:        text,
-                            source_lang: 'ID',
-                            target_lang: 'EN-GB',
-                        }),
-                    });
-
-                    const data = await res.json();
-
-                    if (!res.ok || data.error) {
-                        setTranslateStatus(statusPrefix,
-                            `<i class="fa fa-exclamation-triangle text-red-400"></i> ${data.error ?? 'Gagal menerjemahkan'}`,
-                            'text-red-500'
-                        );
-                        return;
-                    }
-
-                    taEn.value = data.translated ?? '';
-                    setTranslateStatus(statusPrefix,
-                        '<i class="fa fa-check text-green-500"></i> Terjemahan DeepL selesai',
-                        'text-green-600'
-                    );
-
-                } catch (e) {
-                    setTranslateStatus(statusPrefix,
-                        '<i class="fa fa-exclamation-triangle text-red-400"></i> Gagal menghubungi server',
-                        'text-red-500'
-                    );
-                }
-            }, 1500);
-        });
+async function updateKontrakCharts(filters) {
+    try {
+        const isScrollable = filters.filter_type === 'custom';
+        await kontrakChartManager.updateChartsFromAPI('kontrak', {
+            pie:  'kontrakPieChart',
+            bar:  'kontrakBarChart',
+            line: 'kontrakLineChart',
+        }, filters, { scrollable: isScrollable, accentLine: true }, { scrollable: isScrollable });
+    } catch (error) {
+        console.error('Error updating kontrak charts:', error);
     }
-
-    // Aktifkan auto-translate untuk create dan edit
-    setupAutoTranslate('create_ketentuan_id', 'create_ketentuan_en', 'create');
-    setupAutoTranslate('edit_ketentuan_id',   'edit_ketentuan_en',   'edit');
+}
 </script>
 @endsection

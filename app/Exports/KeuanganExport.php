@@ -44,7 +44,7 @@ class KeuanganExport implements FromQuery, WithHeadings, WithMapping, WithStyles
 
     public function headings(): array
     {
-        return ['No', 'Tanggal', 'Reference', 'User', 'Kategori', 'Keterangan', 'Pemasukan', 'Pengeluaran', 'Saldo'];
+        return ['No', 'Tanggal', 'Reference', 'Divisi', 'User', 'Kategori', 'Keterangan', 'Pemasukan', 'Pengeluaran', 'Saldo'];
     }
 
     public function map($row): array
@@ -55,6 +55,7 @@ class KeuanganExport implements FromQuery, WithHeadings, WithMapping, WithStyles
             $no,
             Carbon::parse($row->tanggal)->format('d-m-Y'),
             $row->reference ?? '-',
+            $row->divisi ?? '-',
             $row->user->name ?? '-',
             $row->kategori,
             $row->keterangan,

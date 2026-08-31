@@ -56,7 +56,6 @@ use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\PenawaranKendaraanController;
 use App\Http\Controllers\Admin\InvPenawaranController;
 use App\Http\Controllers\Admin\InvKontrakController;
-use App\Http\Controllers\Admin\TranslateController;
 use App\Http\Controllers\Admin\DataLeasingController;
 use App\Http\Controllers\Admin\DataKontrakController;
 use App\Http\Controllers\Admin\InvoicesController;
@@ -702,10 +701,6 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('kontrak.regenerate-draft');
   Route::get('/kontrak/{id}/draft-print', [InvKontrakController::class, 'draftPrint'])
     ->name('kontrak.draft-print');
-
-  // ── TRANSLATE PROXY ──────────────────────────────────────────────────
-  Route::post('/translate', [TranslateController::class, 'translate'])
-    ->name('translate');
 
   // Approve & Selesai workflow
   Route::post('/kontrak/{id}/approve', [InvKontrakController::class, 'approve'])

@@ -39,13 +39,13 @@ class KontrakHelper
     public static function buildReplacements(?object $setting, array $kontrakData = []): array
     {
         $replacements = [
-            '{NAMA_PERUSAHAAN}'    => $setting->nama_perusahaan    ?? 'PT. Anugerah Panca Yoga',
+            '{NAMA_PERUSAHAAN}'    => strtoupper($setting->nama_perusahaan    ?? 'PT. ANUGERAH PANCA YOGA'),
             '{ALAMAT_PERUSAHAAN}'  => $setting->alamat             ?? 'Jl. Catur No. 16, Menteng Dalam, Tebet, Jakarta Selatan 12870',
             '{TELEPON_PERUSAHAAN}' => $setting->telepon            ?? '021 - 83792927',
             '{FAX_PERUSAHAAN}'     => $setting->fax                ?? '021 - 8354565',
             '{NAMA_BANK}'          => $setting->nama_bank          ?? 'BCA',
             '{NO_REKENING}'        => $setting->nomor_rekening     ?? '272-1420-878',
-            '{ATAS_NAMA}'          => $setting->atas_nama_rekening ?? ($setting->nama_perusahaan ?? 'PT. Anugerah Panca Yoga'),
+            '{ATAS_NAMA}'          => strtoupper($setting->atas_nama_rekening ?? ($setting->nama_perusahaan ?? 'PT. ANUGERAH PANCA YOGA')),
             '{PPN}'                => (string) ($setting->ppn_default ?? 11),
             '{PPH}'                => (string) ($setting->pph_default ?? 2),
         ];
@@ -56,9 +56,13 @@ class KontrakHelper
             $replacements['{TANGGAL_SELESAI}']    = $kontrakData['tanggal_selesai']    ?? '';
             $replacements['{TANGGAL_MULAI_EN}']   = $kontrakData['tanggal_mulai_en']   ?? '';
             $replacements['{TANGGAL_SELESAI_EN}'] = $kontrakData['tanggal_selesai_en'] ?? '';
-            $replacements['{NAMA_PIHAK_KEDUA}']   = $kontrakData['nama_pihak_kedua']   ?? '';
+            $replacements['{NAMA_PIHAK_KEDUA}']   = strtoupper($kontrakData['nama_pihak_kedua']   ?? '');
             $replacements['{ALAMAT_PIHAK_KEDUA}'] = $kontrakData['alamat_pihak_kedua'] ?? '';
             $replacements['{KONTAK_PIHAK_KEDUA}'] = $kontrakData['kontak_pihak_kedua'] ?? '';
+            // Override {ATAS_NAMA} dengan pihak_pertama jika tersedia
+            if (!empty($kontrakData['pihak_pertama'])) {
+                $replacements['{ATAS_NAMA}'] = $kontrakData['pihak_pertama'];
+            }
         }
 
         return $replacements;
@@ -412,8 +416,8 @@ class KontrakHelper
                 'tipe'     => 'list',
                 'poin'     => [
                     [
-                        'id' => 'Mobil tersebut diatas disewa oleh PIHAK KEDUA untuk jangka waktu {DURASI}, mulai {TANGGAL_MULAI} s/d {TANGGAL_SELESAI}, terhitung sejak tanggal serah terima kendaraan.',
-                        'en' => 'The Car mentioned above shall be rented by the Second Party for a period of {DURASI}, commencing {TANGGAL_MULAI_EN} until {TANGGAL_SELESAI_EN}, after the delivery of cars.',
+                        'id' => 'Mobil tersebut diatas disewa oleh PIHAK KEDUA untuk jangka waktu {TANGGAL_MULAI}-{TANGGAL_SELESAI} ({DURASI}), terhitung sejak tanggal serah terima kendaraan.',
+                        'en' => 'The Car mentioned above shall be rented by the Second Party for a period of {TANGGAL_MULAI_EN}-{TANGGAL_SELESAI_EN} ({DURASI}), commencing from the delivery date of the cars.',
                     ],
                     [
                         'id' => 'Apabila kendaraan tidak dikembalikan tepat waktu, maka akan dikenakan biaya sewa harian sebesar Rp. 400.000,- / hari.',
@@ -466,8 +470,8 @@ class KontrakHelper
                         'en' => 'The FIRST PARTY is obligated to maintain and repair the rented car in the repair shop of the FIRST PARTY or any repair shop appointed by the FIRST PARTY so that the car is in good condition during the rental period.',
                     ],
                     [
-                        'id' => 'Batas jarak tempuh kendaraan adalah sebesar 2500 km/bulan',
-                        'en' => 'The maximum distance travel in a month is 2500 km',
+                        'id' => 'Batas jarak tempuh kendaraan di sesuaikan dengan pemakaian kendaraan yang sewajarnya',
+                        'en' => 'The vehicle mileage limit is adjusted to the proper use of the vehicle',
                     ],
                     [
                         'id' => 'Jarak tempuh dapat diakumulasikan dan kelebihannya akan dibayar diakhir sewa.',
@@ -482,12 +486,12 @@ class KontrakHelper
                         'en' => 'FIRST PARTY has agreed to provide replacement car in case of the car rent by SECOND PARTY is being repaired for more than 24 (twenty four) hours.',
                     ],
                     [
-                        'id' => 'PIHAK PERTAMA dapat melakukan penggantian ban, apabila mana yang lebih dulu mencapai pemakaian 60.000 km atau setelah 2 tahun.',
-                        'en' => 'THE FIRST PARTY can replace the tires, whichever reaches 60,000 km of use first or after 2 years.',
+                        'id' => 'PIHAK PERTAMA tidak mengganti ban kendaraan jika aus dengan yang baru jika tidak sesuai dengan Tire Wear Indicator (Indikator Keausan Ban)',
+                        'en' => 'FIRST PARTY shall not replace worn out tires with the new one unless proven in bad condition by Tire Wear indicator',
                     ],
                     [
-                        'id' => "PIHAK PERTAMA berkewajiban untuk mengasuransikan kendaraan secara All Risk tetapi diluar banjir dan Hura-Hara dengan ketentuan sebagai berikut:\n  a. Kewajiban Pihak Ketiga yang ditanggung PIHAK PERTAMA sesuai dengan polis asuransi sebesar Rp. 10.000.000,- (Sepuluh juta rupiah) untuk sedan dan minibus per kejadian. Kelebihan tanggungan menjadi tanggung jawab PIHAK KEDUA.\n  b. Dalam hal kecelakaan/kehilangan/pencurian mobil yang disewa, dimana kerugian tidak ditanggung oleh asuransi, maka kerugian sepenuhnya beralih menjadi tanggung jawab PIHAK KEDUA.\n  c. Selama proses pengurusan pengajuan klaim asuransi atas kehilangan tersebut, PIHAK KEDUA tidak mendapat kendaraan pengganti dan berkewajiban membayar klaim own risk sebesar 10% dari uang pertanggungan yang tertera di polis.\n  d. Dalam hal terjadinya kecelakaan yang memerlukan perbaikan body repair, PIHAK KEDUA berkewajiban membayar biaya resiko sendiri.",
-                        'en' => "The FIRST PARTY is obligated to insure the rented car with all risk insurance but exclude flood, SRCC (Strike, Riot, Civil, Commotion) under the following provisions:\n  a. Third Party Liabilities (TPL) accounted by FIRST PARTY is equal to or maximum Rp. 10.000.000,- (ten million rupiah) for sedan and minibus per occurrence. Exceeding amount becomes the SECOND PARTY responsibility.\n  b. In the event of damage/loss/theft of the car, hence the claim is rejected by the insurance company and in effect will hold responsible fully to the cost effect of occurrence.\n  c. While undergoing the process of insurance claim for the loss/theft of the car, The SECOND PARTY will not receive replacement car and responsible to pay own risk claim of 10% of the insured sum that is written in the insurance policy.\n  d. In the event of accident that requires body repair, the SECOND PARTY is obligated to pay own risk.",
+                        'id' => "PIHAK PERTAMA berkewajiban untuk mengasuransikan kendaraan secara All Risk tetapi diluar banjir dan Hura-Hara dengan ketentuan sebagai berikut:\n  a. Kewajiban Pihak Ketiga yang ditanggung PIHAK PERTAMA sesuai dengan polis asuransi sebesar Rp. 10.000.000,- (Sepuluh juta rupiah) untuk sedan dan minibus per kejadian. Kelebihan tanggungan menjadi tanggung jawab PIHAK KEDUA.\n  b. Dalam hal kecelakaan/kehilangan/pencurian mobil yang disewa, dimana kerugian tidak ditanggung oleh asuransi, maka kerugian sepenuhnya beralih menjadi tanggung jawab PIHAK KEDUA.\n  c. Selama proses pengurusan pengajuan klaim asuransi atas kehilangan tersebut, PIHAK KEDUA tidak mendapat kendaraan pengganti dan berkewajiban membayar klaim own risk sebesar 10% dari uang pertanggungan yang tertera di polis.\n  d. Dalam hal terjadinya kecelakaan yang memerlukan perbaikan body repair, PIHAK KEDUA berkewajiban membayar biaya resiko sendiri sebesar Rp. 350.000,- (tiga ratus lima puluh ribu rupiah) per kejadian.",
+                        'en' => "The FIRST PARTY is obligated to insure the rented car with all risk insurance but exclude flood, SRCC (Strike, Riot, Civil, Commotion) under the following provisions:\n  a. Third Party Liabilities (TPL) accounted by FIRST PARTY is equal to or maximum Rp. 10.000.000,- (ten million rupiah) for sedan and minibus per occurrence. Exceeding amount becomes the SECOND PARTY responsibility.\n  b. In the event of damage/loss/theft of the car, hence the claim is rejected by the insurance company and in effect will hold responsible fully to the cost effect of occurrence.\n  c. While undergoing the process of insurance claim for the loss/theft of the car, The SECOND PARTY will not receive replacement car and responsible to pay own risk claim of 10% of the insured sum that is written in the insurance policy.\n  d. In the event of accident that requires body repair, the SECOND PARTY is obligated to pay own risk premium of Rp. 350.000,- (three hundred fifty thousand rupiah) per occurrence.",
                     ],
                 ],
             ],
@@ -520,7 +524,7 @@ class KontrakHelper
                     ],
                     [
                         'id' => "PIHAK KEDUA berkewajiban untuk memberitahu secara tertulis kepada PIHAK PERTAMA dalam hal:\n  a. Perubahan nama/alamat PIHAK KEDUA\n  b. Jika ada perubahan dalam fungsi atau kegunaan mobil.",
-                        'en' => "The SECOND PARTY is obligated to send a written notice to the FIRST PARTY :\n  a. If the SECOND PARTY changes their name/address.\n  b. In case of any change of car utilization purpose.",
+                        'en' => "The SECOND PARTY is obligated to send a written notice to the FIRST PARTY :\n  a. If the SECOND PARTY intends to change its name and/or address.\n  b. In case of any change of car utilization purpose.",
                     ],
                     [
                         'id' => 'PIHAK KEDUA tidak diperbolehkan untuk menggunakan mobil untuk balap/lomba mobil, kampanye politik, aksi kriminal, membawa penumpang dengan alasan komersial atau alasan lainnya selain alasan domestik atau sosial.',
@@ -599,8 +603,8 @@ class KontrakHelper
                 'tipe'     => 'paragraf',
                 'poin'     => [
                     [
-                        'id' => "Segala pemberitahuan, permintaan dan komunikasi lainnya sehubungan dengan perjanjian ini, harus dibuat secara tertulis dan disampaikan secara pribadi atau dikirim melalui jasa kurir atau faksimili kepada para pihak dengan alamat:\n\nPIHAK PERTAMA\n{NAMA_PERUSAHAAN}\n{ALAMAT_PERUSAHAAN}\nTelp. {TELEPON_PERUSAHAAN}\nFax.  {FAX_PERUSAHAAN}\n\nPIHAK KEDUA\n{NAMA_PIHAK_KEDUA}\n{ALAMAT_PIHAK_KEDUA}",
-                        'en' => "Any notice, request and other communications relating to this agreement must be made in writing and submitted in person or delivered through courier or facsimile to parties in the following addresses:\n\nTHE FIRST PARTY\n{NAMA_PERUSAHAAN}\n{ALAMAT_PERUSAHAAN}\nTelp. {TELEPON_PERUSAHAAN}\nFax.  {FAX_PERUSAHAAN}\n\nTHE SECOND PARTY\n{NAMA_PIHAK_KEDUA}\n{ALAMAT_PIHAK_KEDUA}",
+                        'id' => "Segala pemberitahuan, permintaan dan komunikasi lainnya sehubungan dengan perjanjian ini, harus dibuat secara tertulis dan disampaikan secara pribadi atau dikirim melalui jasa kurir atau faksimili kepada para pihak dengan alamat:\n\nPIHAK PERTAMA\n{NAMA_PERUSAHAAN}\n{ALAMAT_PERUSAHAAN}\nTelp. {TELEPON_PERUSAHAAN}\nFax.  {FAX_PERUSAHAAN}\n\nPIHAK KEDUA\n{NAMA_PIHAK_KEDUA_UPPER}\n{ALAMAT_PIHAK_KEDUA}",
+                        'en' => "Any notice, request and other communications relating to this agreement must be made in writing and submitted in person or delivered through courier or facsimile to parties in the following addresses:\n\nTHE FIRST PARTY\n{NAMA_PERUSAHAAN}\n{ALAMAT_PERUSAHAAN}\nTelp. {TELEPON_PERUSAHAAN}\nFax.  {FAX_PERUSAHAAN}\n\nTHE SECOND PARTY\n{NAMA_PIHAK_KEDUA_UPPER}\n{ALAMAT_PIHAK_KEDUA}",
                     ],
                 ],
             ],

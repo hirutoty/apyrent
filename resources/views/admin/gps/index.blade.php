@@ -19,6 +19,33 @@
         </button>
     </div>
 
+    {{-- SUMMARY CARDS --}}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Total GPS</p>
+                    <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $data->total() }}</h2>
+                </div>
+                <div class="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
+                    <i class="fa fa-map-marker-alt text-2xl text-blue-600"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- CHART FILTER --}}
+    <x-chart-filter id="gpsMasterChartFilter" defaultFilter="year" :showCustomRange="true" />
+
+    {{-- CHART CONTAINER --}}
+    <x-chart-container
+        id="gpsMasterChartContainer"
+        layout="stacked"
+        pieTitle="Distribusi GPS" pieId="gpsMasterPieChart"
+        barTitle="Penambahan GPS per Periode" barId="gpsMasterBarChart"
+        lineTitle="Trend GPS" lineId="gpsMasterLineChart"
+        :showStats="true" :statsData="[]"
+    />
 
     {{-- TABLE CARD --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -358,6 +385,48 @@ function filterGpsTable(q) {
             else if (typeof openModal === 'function') openModal();
         });
         @endif
+</script>
+
+<script>
+// ========================================
+// CHART INITIALIZATION — GPS MASTER
+// ========================================
+const gpsMasterChartManager = new ChartManager();
+
+document.addEventListener('DOMContentLoaded', function () {
+    initGpsMasterCharts({ filter_type: 'year' });
+
+    document.addEventListener('chartFilterChange', function (e) {
+        if (e.detail.filterId === 'gpsMasterChartFilter') {
+            updateGpsMasterCharts({
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+            });
+        }
+    });
+});
+
+async function initGpsMasterCharts(filters) {
+    try {
+        await gpsMasterChartManager.initChartsFromAPI('gps', {
+            pie:  'gpsMasterPieChart',
+            bar:  'gpsMasterBarChart',
+            line: 'gpsMasterLineChart',
+        }, filters, { accentLine: true });
+    } catch (e) { console.error('Error loading gps master charts:', e); }
+}
+
+async function updateGpsMasterCharts(filters) {
+    try {
+        const scrollable = filters.filter_type === 'custom';
+        await gpsMasterChartManager.updateChartsFromAPI('gps', {
+            pie:  'gpsMasterPieChart',
+            bar:  'gpsMasterBarChart',
+            line: 'gpsMasterLineChart',
+        }, filters, { scrollable, accentLine: true }, { scrollable });
+    } catch (e) { console.error('Error updating gps master charts:', e); }
+}
 </script>
 
 @endsection

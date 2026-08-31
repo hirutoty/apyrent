@@ -15,6 +15,7 @@ class Keuangan extends Model
         'tanggal',
         'reference',
         'user_id',
+        'divisi',
         'kategori',
         'metode',
         'keterangan',

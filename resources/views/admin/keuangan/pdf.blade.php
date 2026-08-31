@@ -212,12 +212,13 @@
                 <tr>
                     <th width="4%">No</th>
                     <th width="10%">Tanggal</th>
-                    <th width="12%">Reference</th>
-                    <th width="12%">User</th>
-                    <th width="12%">Kategori</th>
-                    <th width="20%">Keterangan</th>
-                    <th width="10%">Pemasukan</th>
-                    <th width="10%">Pengeluaran</th>
+                    <th width="10%">Reference</th>
+                    <th width="9%">Divisi</th>
+                    <th width="10%">User</th>
+                    <th width="11%">Kategori</th>
+                    <th width="18%">Keterangan</th>
+                    <th width="9%">Pemasukan</th>
+                    <th width="9%">Pengeluaran</th>
                     <th width="10%">Saldo</th>
                 </tr>
             </thead>
@@ -236,6 +237,10 @@
 
             <td>
                 {{ $k->reference ?? '-' }}
+            </td>
+
+            <td>
+                {{ $k->divisi ?? '-' }}
             </td>
 
             <td>
@@ -265,7 +270,7 @@
     @endforeach
 
     <tr class="row-subtotal">
-        <td colspan="6" class="text-right">
+        <td colspan="7" class="text-right">
             SUB TOTAL
         </td>
 
@@ -283,7 +288,7 @@
     </tr>
 
     <tr class="row-total">
-        <td colspan="6" class="text-right">
+        <td colspan="7" class="text-right">
             TOTAL KEUANGAN
         </td>
 
