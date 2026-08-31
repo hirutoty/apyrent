@@ -161,7 +161,17 @@ class ChartDataService
     private function resolveColumnValue(Builder $periodQuery, $column): float
     {
         if (is_string($column)) {
+            // If column contains SQL expression characters, use DB::raw
+            if (str_contains($column, '*') || str_contains($column, '+') || str_contains($column, '-') || str_contains($column, '(')) {
+                return (float)(clone $periodQuery)->selectRaw("SUM($column) as _val")->value('_val');
+            }
             return (float)(clone $periodQuery)->sum($column);
+        }
+
+        // Support raw SQL expression: ['expr' => 'jumlah_barang * harga_barang']
+        if (isset($column['expr'])) {
+            $expr = $column['expr'];
+            return (float)(clone $periodQuery)->selectRaw("SUM($expr) as _val")->value('_val');
         }
 
         // Support count per period
@@ -404,15 +414,32 @@ class ChartDataService
     // ── Line autoDaily helpers ─────────────────────────────────────────────────
 
     /**
+     * Resolve a single scalar value for line chart per period.
+     * Handles count shortcuts, raw SQL expressions, and plain column sums.
+     */
+    private function resolveLineValue(Builder $periodQuery, string $valueColumn): float
+    {
+        if ($valueColumn === 'id' || $valueColumn === '_count') {
+            return (float)(clone $periodQuery)->count();
+        }
+        // Detect SQL expression (contains *, +, -, or parentheses)
+        if (str_contains($valueColumn, '*') || str_contains($valueColumn, '+')
+            || str_contains($valueColumn, '(') || str_contains($valueColumn, '/')) {
+            return (float)(clone $periodQuery)->selectRaw("SUM($valueColumn) as _val")->value('_val');
+        }
+        return (float)(clone $periodQuery)->sum($valueColumn);
+    }
+
+    /**
      * Line trend: hari ini — satu titik
      */
     private function getTodayLineTrendData($query, $valueColumn, $dateColumn): array
     {
-        $today  = Carbon::now();
-        $value  = (float)(clone $query)->whereDate($dateColumn, $today->toDateString())->sum($valueColumn);
+        $today       = Carbon::now();
+        $periodQuery = (clone $query)->whereDate($dateColumn, $today->toDateString());
         return [
             'labels' => [$today->format('d M Y')],
-            'values' => [$value],
+            'values' => [$this->resolveLineValue($periodQuery, $valueColumn)],
         ];
     }
 
@@ -428,7 +455,7 @@ class ChartDataService
         $cur    = $start->copy();
         while ($cur->lte($end)) {
             $labels[] = $cur->format('D, d M Y');
-            $values[] = (float)(clone $query)->whereDate($dateColumn, $cur->toDateString())->sum($valueColumn);
+            $values[] = $this->resolveLineValue((clone $query)->whereDate($dateColumn, $cur->toDateString()), $valueColumn);
             $cur->addDay();
         }
         return ['labels' => $labels, 'values' => $values];
@@ -446,7 +473,7 @@ class ChartDataService
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $date     = Carbon::create($now->year, $now->month, $d)->toDateString();
             $labels[] = (string) $d;
-            $values[] = (float)(clone $query)->whereDate($dateColumn, $date)->sum($valueColumn);
+            $values[] = $this->resolveLineValue((clone $query)->whereDate($dateColumn, $date), $valueColumn);
         }
         return ['labels' => $labels, 'values' => $values];
     }
@@ -462,12 +489,12 @@ class ChartDataService
             "Mei $year","Jun $year","Jul $year","Agu $year",
             "Sep $year","Okt $year","Nov $year","Des $year",
         ];
-        $values     = [];
+        $values = [];
         for ($m = 1; $m <= 12; $m++) {
-            $values[] = (float)(clone $query)
-                ->whereMonth($dateColumn, $m)
-                ->whereYear($dateColumn, $year)
-                ->sum($valueColumn);
+            $values[] = $this->resolveLineValue(
+                (clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year),
+                $valueColumn
+            );
         }
         return ['labels' => $monthNames, 'values' => $values];
     }
@@ -484,7 +511,7 @@ class ChartDataService
         $cur    = $start->copy();
         while ($cur->lte($end)) {
             $labels[] = $cur->format('d M Y');
-            $values[] = (float)(clone $query)->whereDate($dateColumn, $cur->toDateString())->sum($valueColumn);
+            $values[] = $this->resolveLineValue((clone $query)->whereDate($dateColumn, $cur->toDateString()), $valueColumn);
             $cur->addDay();
         }
         return ['labels' => $labels, 'values' => $values];
@@ -781,10 +808,11 @@ class ChartDataService
             $date = Carbon::now()->subMonths($i);
             $labels[] = $date->format('M Y');
             
-            $value = (clone $query)
+            $periodQuery = (clone $query)
                 ->whereMonth($dateColumn, $date->month)
-                ->whereYear($dateColumn, $date->year)
-                ->sum($valueColumn);
+                ->whereYear($dateColumn, $date->year);
+
+            $value = $this->resolveLineValue($periodQuery, $valueColumn);
             
             $values[] = (float) $value;
         }
@@ -835,8 +863,14 @@ class ChartDataService
 
     private function calculateStat($query, $config)
     {
-        $type = $config['type'] ?? 'count'; // count, sum, avg, min, max, count_where, sum_where, sum_where_not, custom_saldo
+        $type = $config['type'] ?? 'count'; // count, sum, avg, min, max, count_where, sum_where, sum_where_not, custom_saldo, sum_expr
         $column = $config['column'] ?? 'id';
+
+        // Handle raw expression sum: type='sum_expr', expr='col1 * col2'
+        if ($type === 'sum_expr' && isset($config['expr'])) {
+            $expr = $config['expr'];
+            return (float)$query->selectRaw("SUM($expr) as _val")->value('_val');
+        }
 
         // Handle custom saldo calculation for Keuangan
         if ($type === 'custom_saldo') {

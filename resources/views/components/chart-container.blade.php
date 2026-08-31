@@ -11,6 +11,7 @@
     'statsData' => [],
     'containerClass' => '',
     'layout' => 'grid',
+    'showPie' => true,
 ])
 
 <div id="{{ $id }}" class="{{ $containerClass }}">
@@ -32,6 +33,7 @@
         </div>
 
         {{-- PIE/DONUT CHART — full width --}}
+        @if($showPie)
         <div class="chart-card chart-fade-in mb-4" style="animation-delay:0.1s">
             <div class="chart-card-header">
                 <div><h3 class="chart-card-title">{{ $pieTitle }}</h3></div>
@@ -42,6 +44,7 @@
                 <canvas id="{{ $pieId }}" class="chart-canvas"></canvas>
             </div>
         </div>
+        @endif
 
         {{-- LINE CHART — full width --}}
         <div class="chart-card chart-fade-in mb-6" style="animation-delay:0.2s">
@@ -76,6 +79,7 @@
         <div class="grid grid-cols-2 gap-4 mb-6">
 
             {{-- PIE/DONUT CHART --}}
+            @if($showPie)
             <div class="chart-card chart-fade-in" style="animation-delay:0.1s">
                 <div class="chart-card-header">
                     <div><h3 class="chart-card-title">{{ $pieTitle }}</h3></div>
@@ -85,6 +89,7 @@
                     <canvas id="{{ $pieId }}" class="chart-canvas"></canvas>
                 </div>
             </div>
+            @endif
 
             {{-- LINE CHART --}}
             <div class="chart-card chart-fade-in" style="animation-delay:0.2s">
@@ -104,6 +109,7 @@
     <div class="chart-grid grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 
         {{-- PIE/DONUT CHART --}}
+        @if($showPie)
         <div class="chart-card chart-fade-in">
             <div class="chart-card-header">
                 <div><h3 class="chart-card-title">{{ $pieTitle }}</h3></div>
@@ -113,6 +119,7 @@
                 <canvas id="{{ $pieId }}" class="chart-canvas"></canvas>
             </div>
         </div>
+        @endif
 
         {{-- BAR CHART --}}
         <div class="chart-card chart-fade-in" style="animation-delay:0.1s">

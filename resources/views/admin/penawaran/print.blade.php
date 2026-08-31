@@ -299,12 +299,11 @@ body { padding-top: 52px; }
                     <p><u>{{ $penawaran->name_staff ?? '…………………………' }}</u></p>
                     <p>({{ $penawaran->staff ?? 'Staff' }})</p>
                 </td>
-                <td style="width:50%; vertical-align:top; padding-left:5mm; padding-right:20mm; text-align:right;">
-                    <p style="padding-right:7mm;">Disetujui Oleh,</p>
+                <td style="width:50%; vertical-align:top; padding-left:35mm; text-align:left;">
+                    <p>Disetujui Oleh,</p>
                     <p class="sign-name">{{ $penawaran->kepada }}</p>
                     <div style="height:25mm;"></div>
-                    <div class="sign-line"></div>
-                    <p style="padding-left:-5mm;">{{ $penawaran->up ?? '' }}</p>
+                    <p>{{ $penawaran->up ?? '' }}</p>
                 </td>
             </tr>
         </table>

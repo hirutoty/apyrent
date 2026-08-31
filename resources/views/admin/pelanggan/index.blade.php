@@ -500,7 +500,7 @@ async function initPelangganCharts(filters) {
             pie:  'pelangganPieChart',
             bar:  'pelangganBarChart',
             line: 'pelangganLineChart',
-        }, filters, { accentLine: true });
+        }, filters, { accentLine: true, isCurrency: false }, { isCurrency: false });
     } catch (error) {
         console.error('Error loading pelanggan charts:', error);
     }
@@ -509,8 +509,8 @@ async function initPelangganCharts(filters) {
 async function updatePelangganCharts(filters) {
     try {
         const isScrollable = filters.filter_type === 'custom';
-        const barOptions  = { scrollable: isScrollable, accentLine: true };
-        const lineOptions = { scrollable: isScrollable };
+        const barOptions  = { scrollable: isScrollable, accentLine: true, isCurrency: false };
+        const lineOptions = { scrollable: isScrollable, isCurrency: false };
         await pelangganChartManager.updateChartsFromAPI('pelanggan', {
             pie:  'pelangganPieChart',
             bar:  'pelangganBarChart',

@@ -110,8 +110,6 @@
                         <tr class="bg-gray-50 border-b border-gray-100">
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No
                             </th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">User
-                            </th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Supplier</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No
@@ -134,16 +132,6 @@
                                 data-search="{{ strtolower($d->nama_supplier . ' ' . $d->no_telp . ' ' . $d->nama_barang . ' ' . ($d->user->name ?? '')) }}">
 
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $data->firstItem() + $loop->index }}</td>
-
-                                <td class="px-4 py-3.5">
-                                    <div class="flex items-center gap-2">
-                                        <div
-                                            class="w-7 h-7 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                            {{ strtoupper(substr($d->user->name ?? 'U', 0, 2)) }}
-                                        </div>
-                                        <span class="text-sm text-gray-700">{{ $d->user->name ?? '-' }}</span>
-                                    </div>
-                                </td>
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-2">
