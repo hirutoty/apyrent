@@ -41,6 +41,7 @@
     <x-chart-container
         id="jenisKendaraanChartContainer"
         layout="stacked"
+        :showPie="false"
         pieTitle="Distribusi Jenis Kendaraan" pieId="jenisKendaraanPieChart"
         barTitle="Penambahan Jenis per Periode" barId="jenisKendaraanBarChart"
         lineTitle="Trend Jenis Kendaraan" lineId="jenisKendaraanLineChart"
@@ -74,7 +75,6 @@
                 <thead>
                     <tr class="bg-gray-50 border-b border-gray-100">
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3 w-12">No</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Pengguna</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Nama Jenis</th>
                         <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
                     </tr>
@@ -82,18 +82,9 @@
                 <tbody id="jenisTableBody">
                     @forelse($data as $i => $d)
                         <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
-                            data-search="{{ strtolower(($d->user->name ?? '') . ' ' . $d->nama_jenis) }}">
+                            data-search="{{ strtolower($d->nama_jenis) }}">
 
                             <td class="px-4 py-3.5 text-xs text-gray-400 font-semibold">{{ $i + 1 }}</td>
-
-                            <td class="px-4 py-3.5">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-7 h-7 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                        {{ strtoupper(substr($d->user->name ?? 'U', 0, 2)) }}
-                                    </div>
-                                    <span class="text-sm text-gray-700">{{ $d->user->name ?? '-' }}</span>
-                                </div>
-                            </td>
 
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center gap-2">
@@ -128,7 +119,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-5 py-12 text-center">
+                            <td colspan="3" class="px-5 py-12 text-center">
                                 <div class="flex flex-col items-center gap-3">
                                     <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                         <i class="fa fa-car text-2xl text-gray-300"></i>
@@ -344,7 +335,7 @@ async function initJenisKendaraanCharts(filters) {
             pie:  'jenisKendaraanPieChart',
             bar:  'jenisKendaraanBarChart',
             line: 'jenisKendaraanLineChart',
-        }, filters, { accentLine: true });
+        }, filters, { accentLine: true, isCurrency: false }, { isCurrency: false });
     } catch (e) { console.error('Error loading jenis kendaraan charts:', e); }
 }
 
@@ -355,7 +346,7 @@ async function updateJenisKendaraanCharts(filters) {
             pie:  'jenisKendaraanPieChart',
             bar:  'jenisKendaraanBarChart',
             line: 'jenisKendaraanLineChart',
-        }, filters, { scrollable, accentLine: true }, { scrollable });
+        }, filters, { scrollable, accentLine: true, isCurrency: false }, { scrollable, isCurrency: false });
     } catch (e) { console.error('Error updating jenis kendaraan charts:', e); }
 }
 </script>

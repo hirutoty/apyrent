@@ -1668,7 +1668,7 @@
                     pie: 'kendaraanPieChart',
                     bar: 'kendaraanBarChart',
                     line: 'kendaraanLineChart'
-                }, filters, { accentLine: true });
+                }, filters, { accentLine: true, isCurrency: false }, { isCurrency: false });
             } catch (error) {
                 console.error('Error loading kendaraan charts:', error);
             }
@@ -1677,8 +1677,8 @@
         async function updateKendaraanCharts(filters) {
             try {
                 const isScrollable = filters.filter_type === 'custom';
-                const barOptions  = { scrollable: isScrollable, accentLine: true };
-                const lineOptions = { scrollable: isScrollable };
+                const barOptions  = { scrollable: isScrollable, accentLine: true, isCurrency: false };
+                const lineOptions = { scrollable: isScrollable, isCurrency: false };
                 await chartManager.updateChartsFromAPI('kendaraan', {
                     pie: 'kendaraanPieChart',
                     bar: 'kendaraanBarChart',

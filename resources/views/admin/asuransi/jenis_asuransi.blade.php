@@ -43,6 +43,7 @@
     <x-chart-container
         id="jenisAsuransiChartContainer"
         layout="stacked"
+        :showPie="false"
         pieTitle="Distribusi Jenis Asuransi" pieId="jenisAsuransiPieChart"
         barTitle="Penambahan Jenis per Periode" barId="jenisAsuransiBarChart"
         lineTitle="Trend Jenis Asuransi" lineId="jenisAsuransiLineChart"
@@ -347,7 +348,7 @@ async function initJenisAsuransiCharts(filters) {
             pie:  'jenisAsuransiPieChart',
             bar:  'jenisAsuransiBarChart',
             line: 'jenisAsuransiLineChart',
-        }, filters, { accentLine: true });
+        }, filters, { accentLine: true, isCurrency: false }, { isCurrency: false });
     } catch (e) { console.error('Error loading jenis asuransi charts:', e); }
 }
 
@@ -358,7 +359,7 @@ async function updateJenisAsuransiCharts(filters) {
             pie:  'jenisAsuransiPieChart',
             bar:  'jenisAsuransiBarChart',
             line: 'jenisAsuransiLineChart',
-        }, filters, { scrollable, accentLine: true }, { scrollable });
+        }, filters, { scrollable, accentLine: true, isCurrency: false }, { scrollable, isCurrency: false });
     } catch (e) { console.error('Error updating jenis asuransi charts:', e); }
 }
 </script>

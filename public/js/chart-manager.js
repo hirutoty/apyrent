@@ -154,6 +154,10 @@ class ChartManager {
         }
         // ─────────────────────────────────────────────────────────────
 
+        // Extract isCurrency flag (default true for backward compat)
+        const isCurrencyBar = options.isCurrency ?? true;
+        if ('isCurrency' in options) delete options.isCurrency;
+
         const defaultOptions = {
             responsive: !scrollable,
             maintainAspectRatio: false,
@@ -171,13 +175,15 @@ class ChartManager {
                             family: "'Plus Jakarta Sans', sans-serif"
                         },
                         callback: function(value) {
-                            // Format large numbers
-                            if (value >= 1000000) {
-                                                            return (value / 1000000).toFixed(1) + ' JT';
-                                                        } else if (value >= 1000) {
-                                                            return (value / 1000).toFixed(0) + ' RB';
-                                                        }
-                            return value;
+                            if (isCurrencyBar) {
+                                if (value >= 1000000) return 'Rp ' + (value / 1000000).toFixed(1) + ' JT';
+                                if (value >= 1000)    return 'Rp ' + (value / 1000).toFixed(0) + ' RB';
+                                return 'Rp ' + value;
+                            } else {
+                                if (value >= 1000000) return (value / 1000000).toFixed(1) + ' JT';
+                                if (value >= 1000)    return (value / 1000).toFixed(0) + ' RB';
+                                return value;
+                            }
                         }
                     }
                 },
@@ -226,7 +232,8 @@ class ChartManager {
                                 label += ': ';
                             }
                             if (context.parsed.y !== null) {
-                                label += 'Rp ' + new Intl.NumberFormat('id-ID').format(context.parsed.y);
+                                const fmt = new Intl.NumberFormat('id-ID').format(context.parsed.y);
+                                label += isCurrencyBar ? 'Rp ' + fmt : fmt;
                             }
                             return label;
                         }
@@ -318,6 +325,10 @@ class ChartManager {
         }
         // ─────────────────────────────────────────────────────────────────────
 
+        // Extract isCurrency flag (default true for backward compat)
+        const isCurrencyLine = options.isCurrency ?? true;
+        if ('isCurrency' in options) delete options.isCurrency;
+
         const defaultOptions = {
             responsive: !scrollable,
             maintainAspectRatio: false,
@@ -334,12 +345,15 @@ class ChartManager {
                             family: "'Plus Jakarta Sans', sans-serif"
                         },
                         callback: function(value) {
-                            if (value >= 1000000) {
-                                return 'Rp ' + (value / 1000000).toFixed(1) + ' JT';
-                            } else if (value >= 1000) {
-                                return 'Rp ' + (value / 1000).toFixed(0) + ' RB';
+                            if (isCurrencyLine) {
+                                if (value >= 1000000) return 'Rp ' + (value / 1000000).toFixed(1) + ' JT';
+                                if (value >= 1000)    return 'Rp ' + (value / 1000).toFixed(0) + ' RB';
+                                return 'Rp ' + value;
+                            } else {
+                                if (value >= 1000000) return (value / 1000000).toFixed(1) + ' JT';
+                                if (value >= 1000)    return (value / 1000).toFixed(0) + ' RB';
+                                return value;
                             }
-                            return 'Rp ' + value;
                         }
                     }
                 },
@@ -386,7 +400,8 @@ class ChartManager {
                             let label = context.dataset.label || '';
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
-                                label += 'Rp ' + new Intl.NumberFormat('id-ID').format(context.parsed.y);
+                                const fmt = new Intl.NumberFormat('id-ID').format(context.parsed.y);
+                                label += isCurrencyLine ? 'Rp ' + fmt : fmt;
                             }
                             return label;
                         }

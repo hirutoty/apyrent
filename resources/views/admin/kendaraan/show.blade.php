@@ -1964,7 +1964,7 @@
 
             document.addEventListener('DOMContentLoaded', function () {
                 if (typeof chartManager !== 'undefined') {
-                    chartManager.initChartsFromAPI('kendaraan-show', KDR_SHOW_CHART_IDS, { filter_type: 'year' }, { accentLine: true });
+                    chartManager.initChartsFromAPI('kendaraan-show', KDR_SHOW_CHART_IDS, { filter_type: 'year' }, { accentLine: true, isCurrency: false }, { isCurrency: false });
                 }
 
                 var showFilter = document.getElementById('kendaraanShowChartFilter');
@@ -1977,7 +1977,7 @@
                             filters.start_date = startDate;
                             filters.end_date   = endDate;
                         }
-                        chartManager.updateChartsFromAPI('kendaraan-show', KDR_SHOW_CHART_IDS, filters, { accentLine: true });
+                        chartManager.updateChartsFromAPI('kendaraan-show', KDR_SHOW_CHART_IDS, filters, { accentLine: true, isCurrency: false }, { isCurrency: false });
                     });
                 }
             });
