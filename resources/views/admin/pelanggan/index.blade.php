@@ -87,7 +87,7 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar Pelanggan</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total pelanggan</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total pelanggan</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <a id="pdfBtn" target="_blank" href="/admin/pelanggan/pdf"
@@ -481,8 +481,6 @@
 const pelangganChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initPelangganCharts({ filter_type: 'year' });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'pelangganChartFilter') {
             const filters = {
@@ -490,7 +488,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 start_date: e.detail.startDate,
                 end_date: e.detail.endDate,
             };
-            updatePelangganCharts(filters);
+            if (!pelangganChartManager.hasChart('pelangganBarChart')) {
+                initPelangganCharts(filters);
+            } else {
+                updatePelangganCharts(filters);
+            }
         }
     });
 });

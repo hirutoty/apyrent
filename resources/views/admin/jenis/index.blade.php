@@ -316,15 +316,18 @@ function filterJenisTable(q) {
 const jenisKendaraanChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initJenisKendaraanCharts({ filter_type: 'year' });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'jenisKendaraanChartFilter') {
-            updateJenisKendaraanCharts({
+            const filters = {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
-            });
+            };
+            if (!jenisKendaraanChartManager.hasChart('jenisKendaraanBarChart')) {
+                initJenisKendaraanCharts(filters);
+            } else {
+                updateJenisKendaraanCharts(filters);
+            }
         }
     });
 });

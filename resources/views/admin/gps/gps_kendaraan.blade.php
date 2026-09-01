@@ -1038,10 +1038,7 @@
         const chartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
-            // Initialize charts with default filter (year)
-            initGpsCharts({ filter_type: 'year' });
-
-            // Listen for filter changes
+            // No direct init — chart is initialized via chartFilterChange listener
             document.addEventListener('chartFilterChange', function (e) {
                 if (e.detail.filterId === 'gpsChartFilter') {
                     const filters = {
@@ -1049,7 +1046,11 @@
                         start_date: e.detail.startDate,
                         end_date: e.detail.endDate,
                     };
-                    updateGpsCharts(filters);
+                    if (!chartManager.hasChart('gpsBarChart')) {
+                        initGpsCharts(filters);
+                    } else {
+                        updateGpsCharts(filters);
+                    }
                 }
             });
         });

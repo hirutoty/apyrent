@@ -395,15 +395,18 @@ document.querySelectorAll('.btn-edit').forEach(btn => {
 const asuransiMasterChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initAsuransiMasterCharts({ filter_type: 'year' });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'asuransiMasterChartFilter') {
-            updateAsuransiMasterCharts({
+            const filters = {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
-            });
+            };
+            if (!asuransiMasterChartManager.hasChart('asuransiMasterBarChart')) {
+                initAsuransiMasterCharts(filters);
+            } else {
+                updateAsuransiMasterCharts(filters);
+            }
         }
     });
 });

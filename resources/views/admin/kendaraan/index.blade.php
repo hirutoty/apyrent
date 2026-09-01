@@ -1646,10 +1646,6 @@
         const chartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
-            // Initialize charts with default filter (year)
-            initKendaraanCharts({ filter_type: 'year' });
-
-            // Listen for filter changes
             document.addEventListener('chartFilterChange', function (e) {
                 if (e.detail.filterId === 'kendaraanChartFilter') {
                     const filters = {
@@ -1657,7 +1653,11 @@
                         start_date: e.detail.startDate,
                         end_date: e.detail.endDate,
                     };
-                    updateKendaraanCharts(filters);
+                    if (!chartManager.hasChart('kendaraanBarChart')) {
+                        initKendaraanCharts(filters);
+                    } else {
+                        updateKendaraanCharts(filters);
+                    }
                 }
             });
         });

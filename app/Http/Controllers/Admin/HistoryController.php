@@ -10,52 +10,51 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class HistoryController extends Controller
 {
-    public function index()
-{
-    $kendaraans = Kendaraan::withCount('rentals')
+    public function index(Request $request)
+    {
+        $query = Kendaraan::withCount('rentals')
+            ->withSum('rentals', 'total_biaya')
+            ->withSum('serviceHistories', 'total_biaya')
+            ->orderBy('rentals_count', 'desc');
 
-        // TOTAL PENDAPATAN RENTAL
-        ->withSum('rentals', 'total_biaya')
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('merk', 'like', "%{$s}%")
+                  ->orWhere('nopol', 'like', "%{$s}%");
+            });
+        }
 
-        // TOTAL SERVICE
-        ->withSum('serviceHistories', 'total_biaya')
+        $kendaraans = $query->paginate(15)->withQueryString();
 
-        ->orderBy('rentals_count', 'desc')
+        $totalOmset = $kendaraans->getCollection()->sum(function ($k) {
+            return ($k->rentals_sum_total_biaya ?? 0) - ($k->service_histories_sum_total_biaya ?? 0);
+        });
 
-        ->get();
-
-    /*
-    |--------------------------------------------------------------------------
-    | TOTAL OMSET BERSIH
-    |--------------------------------------------------------------------------
-    */
-
-    $totalOmset = $kendaraans->sum(function ($k) {
-
-        $rental = $k->rentals_sum_total_biaya ?? 0;
-
-        $service = $k->service_histories_sum_total_biaya ?? 0;
-
-        return $rental - $service;
-    });
-
-    return view('admin.history.index', compact(
-        'kendaraans',
-        'totalOmset'
-    ));
-}
+        return view('admin.history.index', compact('kendaraans', 'totalOmset'));
+    }
     
-      public function show($id)
-{
-    $kendaraan = Kendaraan::with(['rentals' => function ($query) {
-        $query->with('member')
-              ->orderBy('created_at', 'desc'); // data terbaru di atas
-    }])->findOrFail($id);
+    public function show(Request $request, $id)
+    {
+        $kendaraan = Kendaraan::findOrFail($id);
 
-    $rentals = $kendaraan->rentals;
+        $query = $kendaraan->rentals()->with('member')->orderBy('created_at', 'desc');
 
-    return view('admin.history.show', compact('kendaraan', 'rentals'));
-}
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->whereHas('member', function ($q) use ($s) {
+                $q->where('nama_pelanggan', 'like', "%{$s}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $rentals = $query->paginate(15)->withQueryString();
+
+        return view('admin.history.show', compact('kendaraan', 'rentals'));
+    }
 
      public function exportPdf($id)
 {

@@ -259,10 +259,8 @@
                     @endforelse
                 </tbody>
             </table>
-        </div>
-
-        {{-- PAGINATION --}}
         <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$invoices" /></div>
+        </div>
 
         </div>{{-- end TABLE CARD --}}
     </div>{{-- end space-y-6 --}}
@@ -3102,10 +3100,8 @@
         <script>
         (function () {
             const invoiceChartManager = new ChartManager();
-            let invoiceChartsInitialized = false;
 
             function initInvoiceCharts(filters) {
-                invoiceChartsInitialized = true;
                 return invoiceChartManager.initChartsFromAPI('invoice', {
                     pie:  'invoicePieChart',
                     bar:  'invoiceBarChart',
@@ -3130,7 +3126,7 @@
                     filters.start_date = e.detail.startDate;
                     filters.end_date   = e.detail.endDate;
                 }
-                if (!invoiceChartsInitialized) {
+                if (!invoiceChartManager.hasChart('invoiceBarChart')) {
                     initInvoiceCharts(filters);
                 } else {
                     updateInvoiceCharts(filters);

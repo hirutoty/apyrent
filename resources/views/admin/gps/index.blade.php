@@ -385,15 +385,18 @@ function filterGpsTable(q) {
 const gpsMasterChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initGpsMasterCharts({ filter_type: 'year' });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'gpsMasterChartFilter') {
-            updateGpsMasterCharts({
+            const filters = {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
-            });
+            };
+            if (!gpsMasterChartManager.hasChart('gpsMasterBarChart')) {
+                initGpsMasterCharts(filters);
+            } else {
+                updateGpsMasterCharts(filters);
+            }
         }
     });
 });

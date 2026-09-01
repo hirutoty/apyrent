@@ -206,8 +206,6 @@
 const chartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initGpsKendaraanCharts({ filter_type: 'month', kendaraan_id: {{ $kendaraan->id }} });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'gpsKendaraanChartFilter') {
             const filters = {
@@ -216,7 +214,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 end_date:     e.detail.endDate,
                 kendaraan_id: {{ $kendaraan->id }},
             };
-            updateGpsKendaraanCharts(filters);
+            if (!chartManager.hasChart('gpsKendaraanBarChart')) {
+                initGpsKendaraanCharts(filters);
+            } else {
+                updateGpsKendaraanCharts(filters);
+            }
         }
     });
 });

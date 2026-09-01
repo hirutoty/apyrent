@@ -143,19 +143,6 @@
                 :showStats="true" :statsData="[]"
             />
 
-            {{-- CHART FILTER --}}
-            <x-chart-filter id="leasingChartFilter" defaultFilter="month" :showCustomRange="true" />
-
-            {{-- CHART CONTAINER --}}
-            <x-chart-container
-                id="leasingChartContainer"
-                layout="stacked"
-                pieTitle="Distribusi Cara Bayar" pieId="leasingPieChart"
-                barTitle="Total Angsuran per Periode" barId="leasingBarChart"
-                lineTitle="Trend Total Angsuran" lineId="leasingLineChart"
-                :showStats="true" :statsData="[]"
-            />
-
             {{-- STAT CARDS --}}
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
                 <div class="bg-white rounded-2xl border border-gray-100 p-5">
@@ -1943,8 +1930,6 @@ function deleteAttachment(id) {
 const leasingChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initLeasingCharts({ filter_type: 'month' });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'leasingChartFilter') {
             const filters = {
@@ -1952,7 +1937,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
             };
-            updateLeasingCharts(filters);
+            if (!leasingChartManager.hasChart('leasingBarChart')) {
+                initLeasingCharts(filters);
+            } else {
+                updateLeasingCharts(filters);
+            }
         }
     });
 });

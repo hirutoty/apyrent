@@ -10,7 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class PelangganController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $totalPelanggan  = \App\Models\Pelanggan::count();
         $totalPerorangan = \App\Models\Pelanggan::where('jenis_pelanggan', 'perorangan')->count();
@@ -18,8 +18,19 @@ class PelangganController extends Controller
         $baroBulanIni    = \App\Models\Pelanggan::whereMonth('created_at', now()->month)
                                                 ->whereYear('created_at', now()->year)->count();
 
+        $query = Pelanggan::latest();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_pelanggan', 'like', '%' . $search . '%')
+                  ->orWhere('kontak_pelanggan', 'like', '%' . $search . '%')
+                  ->orWhere('alamat', 'like', '%' . $search . '%');
+            });
+        }
+
         return view('admin.pelanggan.index', [
-            'data'            => Pelanggan::latest()->paginate(15)->withQueryString(),
+            'data'            => $query->paginate(15)->withQueryString(),
             'totalPelanggan'  => $totalPelanggan,
             'totalPerorangan' => $totalPerorangan,
             'totalPerusahaan' => $totalPerusahaan,

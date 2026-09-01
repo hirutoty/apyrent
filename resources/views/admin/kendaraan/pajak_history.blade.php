@@ -191,8 +191,6 @@
 const chartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initPajakKendaraanCharts({ filter_type: 'month', kendaraan_id: {{ $kendaraan->id }} });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'pajakKendaraanChartFilter') {
             const filters = {
@@ -201,7 +199,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 end_date:     e.detail.endDate,
                 kendaraan_id: {{ $kendaraan->id }},
             };
-            updatePajakKendaraanCharts(filters);
+            if (!chartManager.hasChart('pajakKendaraanBarChart')) {
+                initPajakKendaraanCharts(filters);
+            } else {
+                updatePajakKendaraanCharts(filters);
+            }
         }
     });
 });
