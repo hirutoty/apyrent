@@ -27,6 +27,15 @@ class ChartManager {
     }
 
     /**
+     * Check if a chart has been initialized for the given canvas ID
+     * @param {string} canvasId
+     * @returns {boolean}
+     */
+    hasChart(canvasId) {
+        return !!this.charts[canvasId];
+    }
+
+    /**
      * Initialize Pie Chart
      * @param {string} canvasId - Canvas element ID
      * @param {object} data - Chart data {labels: [], datasets: []}
@@ -154,8 +163,13 @@ class ChartManager {
         }
         // ─────────────────────────────────────────────────────────────
 
-        // Extract isCurrency flag (default true for backward compat)
-        const isCurrencyBar = options.isCurrency ?? true;
+        // Extract isCurrency flag:
+        // 1) dari data.format jika API mengirim field format ('currency' vs 'number')
+        // 2) dari options.isCurrency jika di-pass manual
+        // 3) default true untuk backward compat
+        const isCurrencyBar = 'isCurrency' in options
+            ? options.isCurrency
+            : (data.format ? data.format === 'currency' : true);
         if ('isCurrency' in options) delete options.isCurrency;
 
         const defaultOptions = {
@@ -325,8 +339,13 @@ class ChartManager {
         }
         // ─────────────────────────────────────────────────────────────────────
 
-        // Extract isCurrency flag (default true for backward compat)
-        const isCurrencyLine = options.isCurrency ?? true;
+        // Extract isCurrency flag:
+        // 1) dari data.format jika API mengirim field format ('currency' vs 'number')
+        // 2) dari options.isCurrency jika di-pass manual
+        // 3) default true untuk backward compat
+        const isCurrencyLine = 'isCurrency' in options
+            ? options.isCurrency
+            : (data.format ? data.format === 'currency' : true);
         if ('isCurrency' in options) delete options.isCurrency;
 
         const defaultOptions = {

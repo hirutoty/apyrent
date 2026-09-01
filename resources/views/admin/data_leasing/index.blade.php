@@ -345,7 +345,7 @@
                     </table>
                 </div>
                 @if ($leasings->hasPages())
-                <div class="px-4 py-3 border-t border-gray-100">
+                <div class="py-3 border-t border-gray-100">
                     <x-pagination :paginator="$leasings" />
                 </div>
                 @endif
@@ -594,7 +594,7 @@
                     </table>
                 </div>
                 @if ($kontraks->hasPages())
-                <div class="px-4 py-3 border-t border-gray-100">
+                <div class="py-3 border-t border-gray-100">
                     <x-pagination :paginator="$kontraks" />
                 </div>
                 @endif
@@ -785,7 +785,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
-                    <input type="text" name="tahun" id="el_tahun"
+                    <input type="number" name="tahun" id="el_tahun" min="1900" max="2100"
                         class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
@@ -919,7 +919,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
-                    <input type="text" name="tahun" id="ck_tahun" readonly
+                    <input type="number" name="tahun" id="ck_tahun" min="1900" max="2100" readonly
                         class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-gray-600 outline-none cursor-not-allowed"
                         placeholder="Auto-fill dari kendaraan">
                 </div>
@@ -1119,7 +1119,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
-                    <input type="text" name="tahun" id="ek_tahun" readonly
+                    <input type="number" name="tahun" id="ek_tahun" min="1900" max="2100" readonly
                         class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-gray-600 outline-none cursor-not-allowed">
                 </div>
                 <div>

@@ -25,24 +25,54 @@ class InvKontrakController extends Controller
     ───────────────────────────────────────────── */
     public function index()
     {
-        // Auto-expire kontrak yang sudah melewati perjanjian_pembayaran
-        InvKontrak::whereNotIn('status', ['expired', 'completed', 'terminated', 'rejected', 'selesai-belum lunas'])
-            ->whereNotNull('perjanjian_pembayaran')
-            ->get()
-            ->each(function ($k) {
-                $batas = Carbon::parse($k->perjanjian_pembayaran)->startOfDay();
-                if (now()->startOfDay()->gt($batas)) {
-                    $k->update(['status' => 'expired']);
-                }
+        // Cache auto-expire check for 10 minutes to avoid running on every page load
+        $cacheKey = 'kontrak_auto_expire_check';
+        \Cache::remember($cacheKey, 600, function () {
+            InvKontrak::whereNotIn('status', ['expired', 'completed', 'terminated', 'rejected', 'selesai-belum lunas'])
+                ->whereNotNull('perjanjian_pembayaran')
+                ->get()
+                ->each(function ($k) {
+                    $batas = Carbon::parse($k->perjanjian_pembayaran)->startOfDay();
+                    if (now()->startOfDay()->gt($batas)) {
+                        $k->update(['status' => 'expired']);
+                    }
+                });
+            return true;
+        });
+
+        // Optimize with selective eager loading - only load what's needed for table display
+        $query = InvKontrak::with([
+                'penawaran:id,no_penawaran,customer_name,total',
+                'penawaran.items:id,penawaran_id,kendaraan_id,qty',
+                'penawaran.items.kendaraan:id,merk,nopol,status_kendaraan'
+            ])
+            ->latest();
+
+        // Apply search filter
+        if (request('search')) {
+            $query->where(function ($q) {
+                $search = request('search');
+                $q->where('no_kontrak', 'like', '%' . $search . '%')
+                  ->orWhere('pihak_pertama', 'like', '%' . $search . '%')
+                  ->orWhere('pihak_kedua', 'like', '%' . $search . '%')
+                  ->orWhere('status', 'like', '%' . $search . '%');
             });
+        }
 
-        $kontraks = InvKontrak::with('penawaran.items.kendaraan')
-            ->latest()
-            ->paginate(15)->withQueryString();
+        // Apply status filter
+        if (request('status')) {
+            $query->where('status', request('status'));
+        }
 
+        $kontraks = $query->paginate(15)->withQueryString();
+
+        // Limit penawaran query to only what's needed for dropdown (first 100 latest)
         $penawarans = InvPenawaran::whereIn('status', ['approved', 'active'])
+            ->select('id', 'no_penawaran', 'customer_name', 'total')
             ->latest()
+            ->limit(100)
             ->get();
+            
         $setting    = Setting::first();
 
         $reminder = match ($setting->satuan_reminder) {
@@ -319,6 +349,10 @@ class InvKontrakController extends Controller
             // PDF generation failed — kontrak tetap tersimpan
         }
 
+        // Clear chart cache
+        \Cache::forget('chart_kontrak');
+        \Cache::tags(['chart_kontrak'])->flush();
+
         return redirect()->route('kontrak.index')
             ->with('success', 'Kontrak berhasil dibuat! Draft PDF sudah di-generate. Silakan download, tandatangani, lalu upload untuk Approve.');
     }
@@ -440,6 +474,10 @@ class InvKontrakController extends Controller
             $kontrak->update(['status' => 'active']);
         });
 
+        // Clear chart cache
+        \Cache::forget('chart_kontrak');
+        \Cache::tags(['chart_kontrak'])->flush();
+
         return back()->with('success', 'Kontrak berhasil di-approve dan status menjadi Active. Rental kendaraan otomatis dibuat.');
     }
 
@@ -480,6 +518,10 @@ class InvKontrakController extends Controller
                 }
             }
         });
+
+        // Clear chart cache
+        \Cache::forget('chart_kontrak');
+        \Cache::tags(['chart_kontrak'])->flush();
 
         $msg = $semuaLunas
             ? 'Kontrak selesai. Semua pembayaran lunas — status: Completed.'
@@ -621,12 +663,21 @@ class InvKontrakController extends Controller
             // PDF regeneration gagal — update tetap berhasil
         }
 
+        // Clear chart cache
+        \Cache::forget('chart_kontrak');
+        \Cache::tags(['chart_kontrak'])->flush();
+
         return redirect()->route('kontrak.index')->with('success', 'Kontrak berhasil diupdate.');
     }
 
     public function destroy($id)
     {
         InvKontrak::findOrFail($id)->delete();
+
+        // Clear chart cache
+        \Cache::forget('chart_kontrak');
+        \Cache::tags(['chart_kontrak'])->flush();
+
         return back()->with('success', 'Kontrak berhasil dihapus.');
     }
 

@@ -129,7 +129,7 @@
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Total Penjualan (Rp) <span class="text-red-500">*</span></label>
                 <input type="number" name="penjualan" id="f_penjualan" required min="0" step="0.01" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('penjualan') }}"</div>
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">ROI <span class="text-red-500">*</span></label>
-                <input type="text" name="roi" id="f_roi" required placeholder="367%" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('roi') }}"</div>
+                <input type="number" name="roi" id="f_roi" required min="0" step="0.01" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('roi') }}"</div>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"><i class="fa fa-save"></i> Simpan</button>
         </form>

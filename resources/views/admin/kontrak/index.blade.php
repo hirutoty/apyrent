@@ -961,6 +961,11 @@
                     <div id="d_file_kontrak_wrap"></div>
                     <div id="d_file_persyaratan_wrap"></div>
                 </div>
+                {{-- Attachments --}}
+                <div id="d_file_attachments_wrap" class="mt-3 hidden">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Attachment</p>
+                    <div id="d_file_attachments_list" class="flex flex-wrap gap-2"></div>
+                </div>
             </div>
         </div>
         <div class="border-t border-gray-100 px-6 py-4 flex justify-end">
@@ -1644,6 +1649,28 @@
         document.getElementById('d_file_draft_wrap').innerHTML        = fileLink(data.file_draft,         'Draft PDF');
         document.getElementById('d_file_kontrak_wrap').innerHTML      = fileLink(data.file_kontrak,       'File Kontrak TTD');
         document.getElementById('d_file_persyaratan_wrap').innerHTML  = fileLink(data.file_persyaratan,   'File Persyaratan');
+
+        // Attachments
+        const attachWrap = document.getElementById('d_file_attachments_wrap');
+        const attachList = document.getElementById('d_file_attachments_list');
+        const attachments = data.file_attachments;
+        if (attachments && attachments.length > 0) {
+            attachList.innerHTML = attachments.map(att => {
+                const name = att.name ?? att.path?.split('/').pop() ?? 'file';
+                const path = att.path ?? '';
+                const ext  = name.split('.').pop().toLowerCase();
+                const isPdf = ext === 'pdf';
+                return `<a href="/${path}" target="_blank"
+                           class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 transition-colors hover:opacity-80 max-w-[200px]">
+                            <i class="fa ${isPdf ? 'fa-file-pdf' : 'fa-file'} text-xs flex-shrink-0"></i>
+                            <span class="truncate">${name}</span>
+                        </a>`;
+            }).join('');
+            attachWrap.classList.remove('hidden');
+        } else {
+            attachList.innerHTML = '';
+            attachWrap.classList.add('hidden');
+        }
 
         openModal('modalDetail');
     }
