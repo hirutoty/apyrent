@@ -351,7 +351,6 @@ class InvKontrakController extends Controller
 
         // Clear chart cache
         \Cache::forget('chart_kontrak');
-        \Cache::tags(['chart_kontrak'])->flush();
 
         return redirect()->route('kontrak.index')
             ->with('success', 'Kontrak berhasil dibuat! Draft PDF sudah di-generate. Silakan download, tandatangani, lalu upload untuk Approve.');
@@ -476,7 +475,6 @@ class InvKontrakController extends Controller
 
         // Clear chart cache
         \Cache::forget('chart_kontrak');
-        \Cache::tags(['chart_kontrak'])->flush();
 
         return back()->with('success', 'Kontrak berhasil di-approve dan status menjadi Active. Rental kendaraan otomatis dibuat.');
     }
@@ -521,7 +519,6 @@ class InvKontrakController extends Controller
 
         // Clear chart cache
         \Cache::forget('chart_kontrak');
-        \Cache::tags(['chart_kontrak'])->flush();
 
         $msg = $semuaLunas
             ? 'Kontrak selesai. Semua pembayaran lunas — status: Completed.'
@@ -665,7 +662,6 @@ class InvKontrakController extends Controller
 
         // Clear chart cache
         \Cache::forget('chart_kontrak');
-        \Cache::tags(['chart_kontrak'])->flush();
 
         return redirect()->route('kontrak.index')->with('success', 'Kontrak berhasil diupdate.');
     }
@@ -676,7 +672,6 @@ class InvKontrakController extends Controller
 
         // Clear chart cache
         \Cache::forget('chart_kontrak');
-        \Cache::tags(['chart_kontrak'])->flush();
 
         return back()->with('success', 'Kontrak berhasil dihapus.');
     }

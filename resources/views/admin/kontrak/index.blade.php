@@ -1653,7 +1653,11 @@
         // Attachments
         const attachWrap = document.getElementById('d_file_attachments_wrap');
         const attachList = document.getElementById('d_file_attachments_list');
-        const attachments = data.file_attachments;
+        let attachments = data.file_attachments;
+        if (typeof attachments === 'string') {
+            try { attachments = JSON.parse(attachments); } catch (e) { attachments = []; }
+        }
+        if (!Array.isArray(attachments)) attachments = [];
         if (attachments && attachments.length > 0) {
             attachList.innerHTML = attachments.map(att => {
                 const name = att.name ?? att.path?.split('/').pop() ?? 'file';

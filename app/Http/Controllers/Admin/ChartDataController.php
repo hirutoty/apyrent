@@ -2937,6 +2937,7 @@ class ChartDataController extends Controller
                 'title'        => 'Jumlah Penawaran per Periode',
                 'groupBy'      => 'month',
                 'autoDaily'    => true,
+                'format'       => 'number',
                 'valueColumns' => [
                     ['count' => true, 'label' => 'Total'],
                     ['where' => ['status' => 'pending'],  'column' => 'id', 'label' => 'Pending',  'aggregation' => 'count'],
@@ -2954,6 +2955,7 @@ class ChartDataController extends Controller
                 'title'       => 'Trend Penawaran',
                 'groupBy'     => 'month',
                 'autoDaily'   => true,
+                'format'      => 'number',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
                 'dateColumn'  => 'tanggal_penawaran',
@@ -3035,6 +3037,7 @@ class ChartDataController extends Controller
                 'title'        => 'Jumlah Kontrak per Periode',
                 'groupBy'      => 'month',
                 'autoDaily'    => true,
+                'format'       => 'number',
                 'valueColumns' => [
                     ['count' => true, 'label' => 'Total'],
                     ['where' => ['status' => 'active'],   'column' => 'id', 'label' => 'Active',   'aggregation' => 'count'],
@@ -3051,6 +3054,7 @@ class ChartDataController extends Controller
                 'title'       => 'Trend Kontrak',
                 'groupBy'     => 'month',
                 'autoDaily'   => true,
+                'format'      => 'number',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
                 'dateColumn'  => 'tanggal_kontrak',

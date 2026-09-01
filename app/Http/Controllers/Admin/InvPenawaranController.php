@@ -217,7 +217,6 @@ class InvPenawaranController
 
         // Clear chart cache
         \Cache::forget('chart_penawaran');
-        \Cache::tags(['chart_penawaran'])->flush();
 
         return back()->with('success', 'Penawaran berhasil ditambahkan. Draft PDF sudah digenerate.');
     }
@@ -338,7 +337,6 @@ class InvPenawaranController
 
         // Clear chart cache
         \Cache::forget('chart_penawaran');
-        \Cache::tags(['chart_penawaran'])->flush();
 
         return back()->with('success', 'Data berhasil diperbarui. Draft PDF sudah diperbarui.');
     }
@@ -350,7 +348,6 @@ class InvPenawaranController
 
         // Clear chart cache
         \Cache::forget('chart_penawaran');
-        \Cache::tags(['chart_penawaran'])->flush();
 
         return back()->with('success', 'Data berhasil dihapus.');
     }
@@ -503,7 +500,6 @@ class InvPenawaranController
 
             // Clear chart cache
             \Cache::forget('chart_penawaran');
-            \Cache::tags(['chart_penawaran'])->flush();
 
             return back()->with('success', 'Penawaran berhasil di-approve. File tersimpan.');
         } catch (\Exception $e) {
@@ -534,7 +530,6 @@ class InvPenawaranController
 
             // Clear chart cache
             \Cache::forget('chart_penawaran');
-            \Cache::tags(['chart_penawaran'])->flush();
 
             return back()->with('success', 'Penawaran berhasil ditolak.');
         } catch (\Exception $e) {
