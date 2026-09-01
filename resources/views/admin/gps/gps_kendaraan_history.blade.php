@@ -273,15 +273,18 @@
 const chartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initGpsHistoryCharts({ filter_type: 'month' });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'gpsHistoryChartFilter') {
-            updateGpsHistoryCharts({
+            const filters = {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
-            });
+            };
+            if (!chartManager.hasChart('gpsHistoryBarChart')) {
+                initGpsHistoryCharts(filters);
+            } else {
+                updateGpsHistoryCharts(filters);
+            }
         }
     });
 });

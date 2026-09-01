@@ -1,0 +1,10 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration test": {
+      "status": "passed",
+      "failingExample": "Bug condition confirmed on 3 pages:\n\n1. kontrak/index.blade.php line 1743: initKontrakCharts({ filter_type: 'month' }) called directly in DOMContentLoaded, AND x-chart-filter dispatches chartFilterChange again via window.load (chart-filter.blade.php line 222) → 2 fetches to /admin/chart-data/kontrak per page load.\n\n2. history/index.blade.php line 276: initHistoryCharts({ filter_type: 'month' }) called directly in DOMContentLoaded, same window.load re-dispatch → 2 fetches to /admin/chart-data/history per page load.\n\n3. kendaraan/index.blade.php line 1650: initKendaraanCharts({ filter_type: 'year' }) called directly in DOMContentLoaded, same window.load re-dispatch → 2 fetches to /admin/chart-data/kendaraan per page load.\n\nRoot: chart-filter.blade.php lines 218-231 uses window.addEventListener('load', ...) to dispatch chartFilterChange, which fires after DOMContentLoaded where pages have already called initXxxCharts() directly.",
+      "lastRunTimestamp": 1788283507916
+    }
+  },
+  "executionHistory": {}
+}

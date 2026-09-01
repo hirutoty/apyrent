@@ -187,8 +187,6 @@
 const chartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initKirKendaraanCharts({ filter_type: 'month', kendaraan_id: {{ $kendaraan->id }} });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'kirKendaraanChartFilter') {
             const filters = {
@@ -197,7 +195,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 end_date:     e.detail.endDate,
                 kendaraan_id: {{ $kendaraan->id }},
             };
-            updateKirKendaraanCharts(filters);
+            if (!chartManager.hasChart('kirKendaraanBarChart')) {
+                initKirKendaraanCharts(filters);
+            } else {
+                updateKirKendaraanCharts(filters);
+            }
         }
     });
 });

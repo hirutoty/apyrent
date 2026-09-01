@@ -59,23 +59,33 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
             <div>
                 <h2 class="font-semibold text-gray-800 text-base">Daftar Kendaraan</h2>
-                <p class="text-xs text-gray-400 mt-0.5" id="totalCount">{{ $kendaraans->count() }} total kendaraan</p>
+                <p class="text-xs text-gray-400 mt-0.5">{{ $kendaraans->total() }} total kendaraan</p>
             </div>
             <div class="flex items-center gap-2">
-                <div class="relative">
-                    <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-                    <input type="text" id="searchInput" placeholder="Cari mobil, plat..."
-                        oninput="applyFilters()"
-                        class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
-                </div>
+                <form method="GET" class="flex items-center gap-1.5">
+                    <div class="relative">
+                        <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                        <input type="text" name="search" value="{{ request('search') }}"
+                            placeholder="Cari mobil, plat..."
+                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
+                    </div>
+                    <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+                        Cari
+                    </button>
+                    @if(request('search'))
+                    <a href="{{ request()->url() }}"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors">
+                        Reset
+                    </a>
+                    @endif
+                </form>
                 <button onclick="window.location.reload()"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                     <i class="fa fa-sync text-xs"></i> Refresh
                 </button>
             </div>
         </div>
-
-        {{-- pagination diatur JS --}}
 
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -90,17 +100,15 @@
                     </tr>
                 </thead>
                 <tbody id="historyTableBody">
-                    @forelse($kendaraans as $i => $k)
+                    @forelse($kendaraans as $k)
                         @php
                             $rentalAktifCount = $k->rentals->where('status', 'aktif')->count();
                             $isAktif = $rentalAktifCount > 0;
                         @endphp
-                        <tr class="border-t border-gray-50 transition-colors duration-100 {{ $isAktif ? 'bg-blue-50/60 hover:bg-blue-50' : 'hover:bg-gray-50' }}"
-                            data-search="{{ strtolower($k->merk . ' ' . $k->nopol) }}"
-                            data-aktif="{{ $isAktif ? '1' : '0' }}">
+                        <tr class="border-t border-gray-50 transition-colors duration-100 {{ $isAktif ? 'bg-blue-50/60 hover:bg-blue-50' : 'hover:bg-gray-50' }}">
 
                             {{-- NO --}}
-                            <td class="px-4 py-3.5 text-xs text-gray-400 font-medium row-number">{{ $i + 1 }}</td>
+                            <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $kendaraans->firstItem() + $loop->index }}</td>
 
                             {{-- MOBIL --}}
                             <td class="px-4 py-3.5">
@@ -166,17 +174,8 @@
                 </tbody>
             </table>
 
-            {{-- Pagination controls --}}
-            <div class="py-3 px-5 border-t border-gray-100 flex items-center gap-1.5" id="paginationControls"></div>
-
-            <div id="noResultRow" class="hidden px-5 py-12 text-center">
-                <div class="flex flex-col items-center gap-3">
-                    <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
-                        <i class="fa fa-search text-2xl text-gray-300"></i>
-                    </div>
-                    <p class="text-sm font-medium text-gray-500">Tidak ada hasil yang cocok</p>
-                    <p class="text-xs text-gray-400">Coba ubah kata kunci pencarian</p>
-                </div>
+            <div class="py-3 border-t border-gray-100">
+                <x-pagination :paginator="$kendaraans" />
             </div>
 
         </div>
@@ -239,87 +238,6 @@
 </style>
 
 <script>
-// -- SEARCH / FILTER / PAGINATION -------------------
-let currentPage = 1;
-const HISTORY_PER_PAGE = 10;
-
-function applyFilters() {
-    const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
-    const rows    = Array.from(document.querySelectorAll('#historyTableBody tr[data-search]'));
-    const perPage = HISTORY_PER_PAGE;
-
-    const matched    = rows.filter(row => !keyword || row.dataset.search.includes(keyword));
-    const total      = matched.length;
-    const totalPages = Math.ceil(total / perPage) || 1;
-    if (currentPage > totalPages) currentPage = 1;
-
-    const start = (currentPage - 1) * perPage;
-    const end   = Math.min(start + perPage, total);
-
-    rows.forEach(row => row.style.display = 'none');
-    matched.forEach((row, idx) => {
-        row.style.display = (idx >= start && idx < end) ? '' : 'none';
-    });
-
-    const noResult = document.getElementById('noResultRow');
-    if (noResult) noResult.classList.toggle('hidden', (end - start) > 0 || rows.length === 0);
-
-    // Nomor baris lanjut dari offset (tidak reset ke 1)
-    let num = start + 1;
-    matched.forEach((row, idx) => {
-        if (idx >= start && idx < end) {
-            const cell = row.querySelector('.row-number');
-            if (cell) cell.textContent = num++;
-        }
-    });
-
-    renderPagination(totalPages);
-}
-
-function renderPagination(totalPages) {
-    const container = document.getElementById('paginationControls');
-    if (!container) return;
-    container.innerHTML = '';
-    if (totalPages <= 1) return;
-
-    const btnBase       = 'px-2.5 py-1 text-xs rounded-lg border transition-colors';
-    const activeClass   = 'bg-blue-600 text-white border-blue-600';
-    const normalClass   = 'border-gray-200 text-gray-600 hover:bg-gray-50';
-    const disabledClass = 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400';
-
-    const prev = document.createElement('button');
-    prev.innerHTML = '<i class="fa fa-chevron-left text-[10px]"></i>';
-    prev.className = btnBase + ' ' + (currentPage === 1 ? disabledClass : normalClass);
-    prev.disabled  = currentPage === 1;
-    prev.onclick   = () => { currentPage--; applyFilters(); };
-    container.appendChild(prev);
-
-    const range = 2;
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - range && i <= currentPage + range)) {
-            const btn = document.createElement('button');
-            btn.textContent = i;
-            btn.className = btnBase + ' ' + (i === currentPage ? activeClass : normalClass);
-            btn.onclick = (function(page) { return () => { currentPage = page; applyFilters(); }; })(i);
-            container.appendChild(btn);
-        } else if (i === currentPage - range - 1 || i === currentPage + range + 1) {
-            const dots = document.createElement('span');
-            dots.textContent = '…';
-            dots.className = 'px-1 text-xs text-gray-400';
-            container.appendChild(dots);
-        }
-    }
-
-    const next = document.createElement('button');
-    next.innerHTML = '<i class="fa fa-chevron-right text-[10px]"></i>';
-    next.className = btnBase + ' ' + (currentPage === totalPages ? disabledClass : normalClass);
-    next.disabled  = currentPage === totalPages;
-    next.onclick   = () => { currentPage++; applyFilters(); };
-    container.appendChild(next);
-}
-
-document.addEventListener('DOMContentLoaded', applyFilters);
-
 // -- POPUP ALERT ------------------------------------
 (function () {
     var overlay = document.getElementById('alertOverlay');
@@ -355,8 +273,6 @@ document.addEventListener('DOMContentLoaded', applyFilters);
 const historyChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initHistoryCharts({ filter_type: 'month' });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'historyChartFilter') {
             const filters = {
@@ -364,56 +280,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
             };
-            updateHistoryCharts(filters);
-        }
-    });
-});
-
-async function initHistoryCharts(filters) {
-    try {
-        await historyChartManager.initChartsFromAPI('history', {
-            pie:  'historyPieChart',
-            bar:  'historyBarChart',
-            line: 'historyLineChart',
-        }, filters, { accentLine: true });
-    } catch (error) {
-        console.error('Error loading history charts:', error);
-    }
-}
-
-async function updateHistoryCharts(filters) {
-    try {
-        const isScrollable = filters.filter_type === 'custom';
-        const barOptions   = { scrollable: isScrollable, accentLine: true };
-        const lineOptions  = { scrollable: isScrollable };
-        await historyChartManager.updateChartsFromAPI('history', {
-            pie:  'historyPieChart',
-            bar:  'historyBarChart',
-            line: 'historyLineChart',
-        }, filters, barOptions, lineOptions);
-    } catch (error) {
-        console.error('Error updating history charts:', error);
-    }
-}
-</script>
-
-<script>
-// ========================================
-// CHART INITIALIZATION
-// ========================================
-const historyChartManager = new ChartManager();
-
-document.addEventListener('DOMContentLoaded', function () {
-    initHistoryCharts({ filter_type: 'month' });
-
-    document.addEventListener('chartFilterChange', function (e) {
-        if (e.detail.filterId === 'historyChartFilter') {
-            const filters = {
-                filter_type: e.detail.filterType,
-                start_date:  e.detail.startDate,
-                end_date:    e.detail.endDate,
-            };
-            updateHistoryCharts(filters);
+            if (!historyChartManager.hasChart('historyBarChart')) {
+                initHistoryCharts(filters);
+            } else {
+                updateHistoryCharts(filters);
+            }
         }
     });
 });

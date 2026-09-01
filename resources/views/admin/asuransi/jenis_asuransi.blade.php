@@ -329,15 +329,18 @@ function filterTable(q) {
 const jenisAsuransiChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initJenisAsuransiCharts({ filter_type: 'year' });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'jenisAsuransiChartFilter') {
-            updateJenisAsuransiCharts({
+            const filters = {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
-            });
+            };
+            if (!jenisAsuransiChartManager.hasChart('jenisAsuransiBarChart')) {
+                initJenisAsuransiCharts(filters);
+            } else {
+                updateJenisAsuransiCharts(filters);
+            }
         }
     });
 });

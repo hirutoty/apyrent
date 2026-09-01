@@ -284,11 +284,9 @@
                         @endforelse
                     </tbody>
                 </table>
-        </div>
-
-        {{-- PAGINATION --}}
         <div class="py-3 border-t border-gray-100">
             <x-pagination :paginator="$penawarans" />
+        </div>
         </div>
 
         </div>{{-- end TABLE CARD --}}
@@ -816,8 +814,6 @@
         const penawaranChartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
-            initPenawaranCharts({ filter_type: 'month' });
-
             document.addEventListener('chartFilterChange', function (e) {
                 if (e.detail.filterId === 'penawaranChartFilter') {
                     const filters = {
@@ -825,7 +821,11 @@
                         start_date:  e.detail.startDate,
                         end_date:    e.detail.endDate,
                     };
-                    updatePenawaranCharts(filters);
+                    if (!penawaranChartManager.hasChart('penawaranBarChart')) {
+                        initPenawaranCharts(filters);
+                    } else {
+                        updatePenawaranCharts(filters);
+                    }
                 }
             });
         });

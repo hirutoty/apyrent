@@ -993,8 +993,6 @@
         const summaryChartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
-            initSummaryCharts({ filter_type: 'year' });
-
             document.addEventListener('chartFilterChange', function (e) {
                 if (e.detail.filterId === 'summaryChartFilter') {
                     const filters = {
@@ -1002,7 +1000,11 @@
                         start_date: e.detail.startDate,
                         end_date: e.detail.endDate,
                     };
-                    updateSummaryCharts(filters);
+                    if (!summaryChartManager.hasChart('summaryBarChart')) {
+                        initSummaryCharts(filters);
+                    } else {
+                        updateSummaryCharts(filters);
+                    }
                 }
             });
         });

@@ -89,18 +89,32 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar Member</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->count() }} total member</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $data->total() }} total member</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <a id="pdfBtn" target="_blank" href="/admin/member/pdf"
+                    <a target="_blank"
+                        href="{{ '/admin/member/pdf' . (request('search') ? '?search=' . urlencode(request('search')) : '') }}"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf text-xs"></i> Export PDF
                     </a>
-                    <div class="relative">
-                        <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input type="text" placeholder="Cari member..." oninput="filterMemberTable(this.value)"
-                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
-                    </div>
+                    <form method="GET" action="" class="flex items-center gap-1.5">
+                        <div class="relative">
+                            <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <input type="text" name="search" value="{{ request('search') }}"
+                                placeholder="Cari member..."
+                                class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
+                        </div>
+                        <button type="submit"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+                            Cari
+                        </button>
+                        @if(request('search'))
+                        <a href="{{ request()->url() }}"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors">
+                            Reset
+                        </a>
+                        @endif
+                    </form>
                     <button onclick="window.location.reload()"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
@@ -129,11 +143,10 @@
                         </tr>
                     </thead>
                     <tbody id="memberTableBody">
-                        @forelse ($data as $i => $d)
-                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
-                                data-search="{{ strtolower($d->nama_member . ' ' . $d->kontak_member . ' ' . $d->alamat) }}">
+                        @forelse ($data as $d)
+                            <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100">
 
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $i + 1 }}</td>
+                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $data->firstItem() + $loop->index }}</td>
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-2">
@@ -401,43 +414,7 @@
         }
 
         // -- SEARCH + SHOW ENTRIES ----------------------------
-        const allRows    = Array.from(document.querySelectorAll('#memberTableBody tr[data-search]'));
-        let currentSearch = '';
-
-        function filterMemberTable(q) {
-            currentSearch = q.toLowerCase();
-            document.getElementById('pdfBtn').href =
-                '/admin/member/pdf?search=' + encodeURIComponent(q);
-            renderTable();
-        }
-
-        function renderTable() {
-            const perPageEl = document.getElementById('perPageSelect');
-            const perPage   = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
-
-            const matched = allRows.filter(row => row.dataset.search.includes(currentSearch));
-            let shown = 0;
-
-            allRows.forEach(row => row.style.display = 'none');
-            matched.forEach(row => {
-                if (shown < perPage) {
-                    row.style.display = '';
-                    shown++;
-                }
-            });
-
-            const infoText = matched.length === 0
-                ? 'Tidak ada data yang cocok'
-                : `Menampilkan ${shown} dari ${matched.length} entri` +
-                  (currentSearch ? ' (hasil pencarian)' : '');
-
-            const top = document.getElementById('entriesInfoTop');
-            const bot = document.getElementById('entriesInfo');
-            if (top) top.innerText = infoText;
-            if (bot) bot.innerText = infoText;
-        }
-
-        document.addEventListener('DOMContentLoaded', renderTable);
+        // (search ditangani server-side via form GET)
 
         // -- POPUP ALERT (fixed overlay) --------------------
         (function() {
@@ -472,8 +449,6 @@
     const PELANGGAN_CHART_IDS = { pie: 'pelangganPieChart', bar: 'pelangganBarChart', line: 'pelangganLineChart' };
 
     document.addEventListener('DOMContentLoaded', function () {
-        pelangganChartManager.initChartsFromAPI('member', PELANGGAN_CHART_IDS, { filter_type: 'year' }, { accentLine: true, isCurrency: false }, { isCurrency: false });
-
         document.addEventListener('chartFilterChange', function (e) {
             if (e.detail.filterId !== 'pelangganChartFilter') return;
             const filters = { filter_type: e.detail.filterType };
@@ -482,8 +457,13 @@
                 filters.end_date   = e.detail.endDate;
             }
             const scrollable = e.detail.filterType === 'custom';
-            pelangganChartManager.updateChartsFromAPI('member', PELANGGAN_CHART_IDS, filters,
-                { accentLine: true, scrollable, isCurrency: false }, { scrollable, isCurrency: false });
+            if (!pelangganChartManager.hasChart('pelangganBarChart')) {
+                pelangganChartManager.initChartsFromAPI('member', PELANGGAN_CHART_IDS, filters,
+                    { accentLine: true, scrollable, isCurrency: false }, { scrollable, isCurrency: false });
+            } else {
+                pelangganChartManager.updateChartsFromAPI('member', PELANGGAN_CHART_IDS, filters,
+                    { accentLine: true, scrollable, isCurrency: false }, { scrollable, isCurrency: false });
+            }
         });
     });
     </script>

@@ -1584,8 +1584,8 @@
         let agingArChartInited = false;
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Hanya init chart yang tab-nya aktif saat load (cashflow = default)
-            initKeuanganCharts({ filter_type: 'year' });
+            // Cashflow chart diinisialisasi via listener chartFilterChange (pola members)
+            // AP/AR chart tetap lazy-init saat tab dibuka (lihat switchTab())
 
             // Listen to filter changes for Keuangan
             document.addEventListener('chartFilterChange', function(e) {
@@ -1599,7 +1599,11 @@
                         filters.end_date = e.detail.endDate;
                     }
 
-                    updateKeuanganCharts(filters);
+                    if (!window.chartManager.hasChart('keuanganBarChart')) {
+                        initKeuanganCharts(filters);
+                    } else {
+                        updateKeuanganCharts(filters);
+                    }
                 }
 
                 // Aging AP filter

@@ -411,13 +411,7 @@ function collapseAllRows() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize charts with default filter and kendaraan_id
-    initKendaraanServiceCharts({ 
-        filter_type: 'month',
-        kendaraan_id: {{ $kendaraan->id }}
-    });
-    
-    // Listen for filter changes
+    // Listen for filter changes — init on first call, update on subsequent
     document.addEventListener('chartFilterChange', function(e) {
         if (e.detail.filterId === 'kendaraanServiceChartFilter') {
             const filters = {
@@ -427,7 +421,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 kendaraan_id: {{ $kendaraan->id }},
                 category_id: e.detail.categoryId ?? ''
             };
-            updateKendaraanServiceCharts(filters);
+            if (!chartManager.hasChart('kendaraanServiceBarChart')) {
+                initKendaraanServiceCharts(filters);
+            } else {
+                updateKendaraanServiceCharts(filters);
+            }
         }
     });
 });

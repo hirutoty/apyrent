@@ -208,15 +208,18 @@
 const chartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initAsuransiHistoryCharts({ filter_type: 'month' });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'asuransiHistoryChartFilter') {
-            updateAsuransiHistoryCharts({
+            const filters = {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
-            });
+            };
+            if (!chartManager.hasChart('asuransiHistoryBarChart')) {
+                initAsuransiHistoryCharts(filters);
+            } else {
+                updateAsuransiHistoryCharts(filters);
+            }
         }
     });
 });

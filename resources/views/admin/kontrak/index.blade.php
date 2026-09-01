@@ -366,10 +366,9 @@
                 @endforelse
                 </tbody>
             </table>
+            <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$kontraks" /></div>
         </div>
 
-        {{-- PAGINATION --}}
-        <div class="py-3 border-t border-gray-100"><x-pagination :paginator="$kontraks" /></div>
     </div>
 </div>
 
@@ -1741,8 +1740,6 @@
 const kontrakChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initKontrakCharts({ filter_type: 'month' });
-
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'kontrakChartFilter') {
             const filters = {
@@ -1750,7 +1747,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
             };
-            updateKontrakCharts(filters);
+            if (!kontrakChartManager.hasChart('kontrakBarChart')) {
+                initKontrakCharts(filters);
+            } else {
+                updateKontrakCharts(filters);
+            }
         }
     });
 });

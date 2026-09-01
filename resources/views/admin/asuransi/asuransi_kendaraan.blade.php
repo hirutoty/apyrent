@@ -1484,10 +1484,7 @@
         const chartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
-            // Initialize charts with default filter (year)
-            initAsuransiCharts({ filter_type: 'year' });
-
-            // Listen for filter changes
+            // No direct init — chart is initialized via chartFilterChange listener
             document.addEventListener('chartFilterChange', function (e) {
                 if (e.detail.filterId === 'asuransiChartFilter') {
                     const filters = {
@@ -1495,7 +1492,11 @@
                         start_date: e.detail.startDate,
                         end_date: e.detail.endDate,
                     };
-                    updateAsuransiCharts(filters);
+                    if (!chartManager.hasChart('asuransiBarChart')) {
+                        initAsuransiCharts(filters);
+                    } else {
+                        updateAsuransiCharts(filters);
+                    }
                 }
             });
         });

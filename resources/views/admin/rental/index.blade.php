@@ -2065,8 +2065,6 @@
 const rentalChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function() {
-    initRentalCharts({ filter_type: 'month' });
-
     document.addEventListener('chartFilterChange', function(e) {
         if (e.detail.filterId === 'rentalChartFilter') {
             const filters = {
@@ -2074,7 +2072,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
             };
-            updateRentalCharts(filters);
+            if (!rentalChartManager.hasChart('rentalBarChart')) {
+                initRentalCharts(filters);
+            } else {
+                updateRentalCharts(filters);
+            }
         }
     });
 });

@@ -30,7 +30,7 @@
             </div>
             <div>
                 <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Total Rental</p>
-                <p class="text-2xl font-bold text-blue-600">{{ $rentals->count() }}</p>
+                <p class="text-2xl font-bold text-blue-600">{{ $rentals->total() }}</p>
             </div>
         </div>
 
@@ -42,40 +42,49 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar Transaksi Rental</h2>
-                    <p class="text-xs text-gray-400 mt-0.5" id="totalCount">{{ $rentals->count() }} total transaksi</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $rentals->total() }} total transaksi</p>
                 </div>
-                <div class="flex items-center gap-2">
-    
-                    {{-- Search --}}
-                    <div class="relative">
-                        <i
-                            class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-                        <input type="text" id="searchInput" placeholder="Cari pelanggan, status..." oninput="applyFilters()"
-                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
-                    </div>
-                    {{-- Filter Status --}}
-                    <div class="relative">
-                        <i
-                            class="fa fa-filter absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-                        <select id="filterStatus" onchange="applyFilters()"
-                            class="pl-7 pr-6 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 appearance-none bg-white cursor-pointer">
-                            <option value="">Semua Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="booking">Booking</option>
-                            <option value="aktif">Aktif</option>
-                            <option value="selesai">Selesai</option>
-                            <option value="batal">Batal</option>
-                        </select>
-                    </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <form method="GET" class="flex flex-wrap items-center gap-1.5">
+                        {{-- Search --}}
+                        <div class="relative">
+                            <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                            <input type="text" name="search" value="{{ request('search') }}"
+                                placeholder="Cari pelanggan..."
+                                class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
+                        </div>
+                        {{-- Filter Status --}}
+                        <div class="relative">
+                            <i class="fa fa-filter absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                            <select name="status"
+                                class="pl-7 pr-6 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 appearance-none bg-white cursor-pointer">
+                                <option value="">Semua Status</option>
+                                <option value="pending"  {{ request('status') == 'pending'  ? 'selected' : '' }}>Pending</option>
+                                <option value="booking"  {{ request('status') == 'booking'  ? 'selected' : '' }}>Booking</option>
+                                <option value="aktif"    {{ request('status') == 'aktif'    ? 'selected' : '' }}>Aktif</option>
+                                <option value="selesai"  {{ request('status') == 'selesai'  ? 'selected' : '' }}>Selesai</option>
+                                <option value="batal"    {{ request('status') == 'batal'    ? 'selected' : '' }}>Batal</option>
+                            </select>
+                        </div>
+                        <button type="submit"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+                            Cari
+                        </button>
+                        @if(request('search') || request('status'))
+                        <a href="{{ route('history.show', $kendaraan->id) }}"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors">
+                            Reset
+                        </a>
+                        @endif
+                    </form>
                     <button onclick="window.location.reload()"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
                     </button>
-                                    <a href="{{ route('history.export.pdf', $kendaraan->id) }}" target="_blank"
-    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
-    <i class="fa fa-file-pdf"></i>
-    Export PDF
-</a>
+                    <a href="{{ route('history.export.pdf', $kendaraan->id) }}" target="_blank"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
+                        <i class="fa fa-file-pdf"></i> Export PDF
+                    </a>
                 </div>
             </div>
 
@@ -119,14 +128,11 @@
                         </tr>
                     </thead>
                     <tbody id="rentalTableBody">
-                        @forelse($rentals as $i => $r)
-                            <tr class="border-t border-gray-50 transition-colors duration-100 {{ $r->status == 'aktif' ? 'bg-blue-200/50 hover:bg-blue-50' : 'hover:bg-gray-50' }}"
-                                data-search="{{ strtolower(($r->member->nama_pelanggan ?? '') . ' ' . $r->status) }}"
-                                data-status="{{ $r->status }}">
+                        @forelse($rentals as $r)
+                            <tr class="border-t border-gray-50 transition-colors duration-100 {{ $r->status == 'aktif' ? 'bg-blue-200/50 hover:bg-blue-50' : 'hover:bg-gray-50' }}">
 
                                 {{-- NO --}}
-                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium row-number">{{ $i + 1 }}
-                                </td>
+                                <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $rentals->firstItem() + $loop->index }}</td>
 
                                 {{-- ID --}}
                                 <td class="px-4 py-3.5">
@@ -331,14 +337,8 @@
                     </tbody>
                 </table>
 
-                <div id="noResultRow" class="hidden px-5 py-12 text-center">
-                    <div class="flex flex-col items-center gap-3">
-                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
-                            <i class="fa fa-search text-2xl text-gray-300"></i>
-                        </div>
-                        <p class="text-sm font-medium text-gray-500">Tidak ada hasil yang cocok</p>
-                        <p class="text-xs text-gray-400">Coba ubah filter atau kata kunci pencarian</p>
-                    </div>
+                <div class="py-3 border-t border-gray-100">
+                    <x-pagination :paginator="$rentals" />
                 </div>
 
             </div>
@@ -356,43 +356,6 @@
             padding-right: 24px !important;
         }
     </style>
-
-    <script>
-        function applyFilters() {
-            const keyword   = document.getElementById('searchInput').value.toLowerCase().trim();
-            const status    = document.getElementById('filterStatus').value;
-            const perPageEl = document.getElementById('perPageSelect');
-            const perPage   = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
-            const rows      = Array.from(document.querySelectorAll('#rentalTableBody tr[data-search]'));
-
-            const matched = rows.filter(row => {
-                const matchSearch = !keyword || row.dataset.search.includes(keyword);
-                const matchStatus = !status  || row.dataset.status === status;
-                return matchSearch && matchStatus;
-            });
-
-            let visible = 0;
-            rows.forEach(row => row.style.display = 'none');
-            matched.forEach(row => {
-                if (visible < perPage) { row.style.display = ''; visible++; }
-            });
-
-            document.getElementById('totalCount').textContent =
-                matched.length === 0 ? '0 total transaksi'
-                : visible + (matched.length > visible ? ' dari ' + matched.length : '') + ' total transaksi';
-
-            const noResult = document.getElementById('noResultRow');
-            if (noResult) noResult.classList.toggle('hidden', visible > 0 || rows.length === 0);
-
-            let num = 1;
-            rows.forEach(row => {
-                if (row.style.display !== 'none') {
-                    const cell = row.querySelector('.row-number');
-                    if (cell) cell.textContent = num++;
-                }
-            });
-        }
-    </script>
 
 @endsection
 
