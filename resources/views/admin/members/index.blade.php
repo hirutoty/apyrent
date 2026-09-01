@@ -253,7 +253,7 @@
             </table>
         </div>
 
-        <div class="py-3 border-t border-gray-100 px-5">
+        <div class="py-3 border-t border-gray-100">
             <x-pagination :paginator="$data" />
         </div>
     </div>
@@ -534,7 +534,8 @@ function previewMultipleFiles(input, listId, countId, color) {
 const memberChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initMemberCharts({ filter_type: 'year' });
+    // Chart diinisialisasi via chartFilterChange dari chart-filter component (window.load)
+    // agar filter default 'year' langsung aktif dan chart tidak double-init
 
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'memberChartFilter') {
@@ -543,7 +544,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 start_date: e.detail.startDate,
                 end_date: e.detail.endDate,
             };
-            updateMemberCharts(filters);
+            // Gunakan init saat pertama kali, update setelahnya
+            if (!memberChartManager.hasChart('memberBarChart')) {
+                initMemberCharts(filters);
+            } else {
+                updateMemberCharts(filters);
+            }
         }
     });
 });

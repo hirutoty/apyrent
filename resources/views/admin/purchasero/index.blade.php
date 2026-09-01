@@ -306,7 +306,7 @@
         </div>
 
         {{-- PAGINATION --}}
-        <div class="py-3 border-t border-gray-100 px-5">
+        <div class="py-3 border-t border-gray-100">
             <x-pagination :paginator="$data" />
         </div>
 

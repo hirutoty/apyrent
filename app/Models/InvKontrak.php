@@ -35,6 +35,7 @@ class InvKontrak extends Model
         'file_kontrak',
         'file_persyaratan',
         'file_draft',
+        'file_attachments',
 
         'status',
         'ketentuan_asuransi',
@@ -50,6 +51,7 @@ class InvKontrak extends Model
         'durasi_value'         => 'integer',
         'ketentuan_asuransi'   => 'array',
         'pasal_ketentuan'      => 'array',
+        'file_attachments'     => 'array',
     ];
 
     public function penawaran()

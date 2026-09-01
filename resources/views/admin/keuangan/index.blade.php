@@ -517,6 +517,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-slate-500">Total Tagihan</p>
+                            <h3 class="text-3xl font-bold text-indigo-600 mt-2">{{ $dataAp->count() }}</h3>
                         </div>
                         <div
                             class="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-600 flex
@@ -751,14 +752,6 @@
                 :showStats="true"
                 :statsData="[]"
             />
-
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div></div>
-                    class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl
-  shadow-sm transition-colors duration-150">
-                    <i class="fa fa-plus text-sm"></i> Tambah Data
-                </button>
-            </div>
 
             {{-- FILTER AGING AR --}}
             <form method="GET" action="{{ route('keuangan.index') }}">
@@ -1586,11 +1579,13 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         // ================= CHART INITIALIZATION =================
+        // Lazy-init flags: AP & AR hanya diinit pertama kali tab dibuka
+        let agingApChartInited = false;
+        let agingArChartInited = false;
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize charts with default filter (year)
+            // Hanya init chart yang tab-nya aktif saat load (cashflow = default)
             initKeuanganCharts({ filter_type: 'year' });
-            initAgingApCharts({ filter_type: 'month' });
-            initAgingArCharts({ filter_type: 'month' });
 
             // Listen to filter changes for Keuangan
             document.addEventListener('chartFilterChange', function(e) {
@@ -1741,6 +1736,16 @@
             const active = document.getElementById('tab-' + tab);
             active.classList.add('border-blue-600', 'text-blue-600');
             active.classList.remove('border-transparent', 'text-gray-400');
+
+            // Lazy init: inisialisasi chart AP/AR hanya saat pertama kali tab dibuka
+            if (tab === 'aging-ap' && !agingApChartInited) {
+                agingApChartInited = true;
+                initAgingApCharts({ filter_type: 'month' });
+            }
+            if (tab === 'aging-ar' && !agingArChartInited) {
+                agingArChartInited = true;
+                initAgingArCharts({ filter_type: 'month' });
+            }
         }
 
         // -- PERTAHANKAN  AKTIF ------------------------------

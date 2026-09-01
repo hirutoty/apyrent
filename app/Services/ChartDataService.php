@@ -119,6 +119,9 @@ class ChartDataService
             $data['colors'] = $colors;
         }
 
+        // Pass format ke JS agar chart-manager tahu apakah nilai currency atau number
+        $data['format'] = $config['format'] ?? 'currency';
+
         return $data;
     }
 
@@ -407,7 +410,8 @@ class ChartDataService
                     'borderColor'     => $color,
                     'backgroundColor' => $this->hexToRgba($color, 0.1)
                 ]
-            ]
+            ],
+            'format' => $config['format'] ?? 'currency',
         ];
     }
 

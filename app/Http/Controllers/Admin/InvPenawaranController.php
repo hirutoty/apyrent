@@ -215,6 +215,9 @@ class InvPenawaranController
             \Log::warning('PDF generation failed: ' . $e->getMessage());
         }
 
+        // Clear chart cache
+        \Cache::forget('chart_penawaran');
+
         return back()->with('success', 'Penawaran berhasil ditambahkan. Draft PDF sudah digenerate.');
     }
 
@@ -244,6 +247,8 @@ class InvPenawaranController
             'periode_satuan' => $penawaran->periode_satuan ?? 'bulan',
             'items' => $penawaran->items,
             'ketentuan' => $penawaran->ketentuan ?? [],
+            'status' => $penawaran->status,
+            'file_penawaran' => $penawaran->file_penawaran,
         ]);
     }
 
@@ -330,6 +335,9 @@ class InvPenawaranController
             \Log::warning('PDF regeneration failed: ' . $e->getMessage());
         }
 
+        // Clear chart cache
+        \Cache::forget('chart_penawaran');
+
         return back()->with('success', 'Data berhasil diperbarui. Draft PDF sudah diperbarui.');
     }
 
@@ -337,6 +345,9 @@ class InvPenawaranController
     {
         $penawaran = InvPenawaran::findOrFail($id);
         $penawaran->delete();
+
+        // Clear chart cache
+        \Cache::forget('chart_penawaran');
 
         return back()->with('success', 'Data berhasil dihapus.');
     }
@@ -487,6 +498,9 @@ class InvPenawaranController
 
             DB::commit();
 
+            // Clear chart cache
+            \Cache::forget('chart_penawaran');
+
             return back()->with('success', 'Penawaran berhasil di-approve. File tersimpan.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -513,6 +527,9 @@ class InvPenawaranController
             ]);
 
             DB::commit();
+
+            // Clear chart cache
+            \Cache::forget('chart_penawaran');
 
             return back()->with('success', 'Penawaran berhasil ditolak.');
         } catch (\Exception $e) {

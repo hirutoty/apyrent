@@ -447,7 +447,7 @@
                         @endforelse
                     </tbody>
                 </table>
-                <div class="py-3 px-5 border-t border-gray-100">
+                <div class="py-3 border-t border-gray-100">
                     <x-pagination :paginator="$data" />
                 </div>
             </div>

@@ -256,7 +256,8 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP</label>
-                    <input type="text" name="no_ktp" id="f_no_ktp" maxlength="20" placeholder="16 digit No KTP"
+                    <input type="text" name="no_ktp" id="f_no_ktp" maxlength="16" placeholder="16 digit No KTP"
+                        inputmode="numeric"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('no_ktp') }}">
                 </div>
 

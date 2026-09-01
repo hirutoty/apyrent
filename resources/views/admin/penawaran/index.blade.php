@@ -287,7 +287,7 @@
         </div>
 
         {{-- PAGINATION --}}
-        <div class="py-3 border-t border-gray-100 px-5">
+        <div class="py-3 border-t border-gray-100">
             <x-pagination :paginator="$penawarans" />
         </div>
 
@@ -739,6 +739,12 @@
                         value="0">
                 </div>
 
+                {{-- File Penawaran --}}
+                <div id="show_file_penawaran_wrap" class="mt-6 pt-5 border-t border-gray-100 hidden">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">File Penawaran</p>
+                    <div id="show_file_penawaran_link"></div>
+                </div>
+
             </div>
 
             <div class="border-t p-5 flex justify-end">
@@ -773,7 +779,7 @@
                     class="qty w-full border rounded p-2 bg-gray-50" readonly>
             </td>
             <td class="border p-2">
-                <input type="text" name="tahun_unit[]" value="" placeholder="—"
+                <input type="number" name="tahun_unit[]" value="" placeholder="—" min="1900" max="2100"
                     class="tahun-unit w-full border rounded p-2 bg-gray-50" readonly>
             </td>
             <td class="border p-2">
@@ -996,7 +1002,7 @@
                     <input type="number" name="qty[]" value="1" min="1" class="qty w-full border rounded p-2 bg-gray-50" readonly>
                 </td>
                 <td class="border p-2">
-                    <input type="text" name="tahun_unit[]" value="${tahun}" class="tahun-unit w-full border rounded p-2 bg-gray-50" readonly>
+                    <input type="number" name="tahun_unit[]" value="${tahun}" min="1900" max="2100" class="tahun-unit w-full border rounded p-2 bg-gray-50" readonly>
                 </td>
                 <td class="border p-2">
                     <input type="number" name="price[]" value="${harga}" class="price w-full border rounded p-2 bg-gray-50" readonly>
@@ -1310,6 +1316,34 @@
                                 ' Bulan';
 
                             loadShowItems(data.items ?? []);
+
+                            // File penawaran — tampilkan hanya jika ada file
+                            const fileWrap = document.getElementById('show_file_penawaran_wrap');
+                            const fileLink = document.getElementById('show_file_penawaran_link');
+                            if (data.file_penawaran) {
+                                // Strip timestamp prefix dari nama file untuk tampilkan nama asli
+                                const parts = data.file_penawaran.split('/');
+                                const raw   = parts[parts.length - 1];
+                                // Format: 1234567890_signed_NoPenawaran.pdf  atau  draft_NoPenawaran.pdf
+                                const idx   = raw.indexOf('_');
+                                const fname = (idx !== -1 && /^\d+_/.test(raw)) ? raw.substring(idx + 1) : raw;
+                                const isApproved = data.status === 'approved';
+                                const colorClass = isApproved
+                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                    : 'bg-blue-50 text-blue-700 border-blue-200';
+                                const label = isApproved ? 'File Penawaran (Signed)' : 'Draft Penawaran';
+                                fileLink.innerHTML = `
+                                    <p class="text-xs text-gray-400 mb-1">${label}</p>
+                                    <a href="/${data.file_penawaran}" target="_blank"
+                                       class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium ${colorClass} border transition-colors hover:opacity-80">
+                                        <i class="fa fa-file-pdf text-xs flex-shrink-0"></i>
+                                        <span class="truncate">${fname}</span>
+                                    </a>`;
+                                fileWrap.classList.remove('hidden');
+                            } else {
+                                fileLink.innerHTML = '';
+                                fileWrap.classList.add('hidden');
+                            }
                         })
                         .catch(err => console.error('Gagal fetch data:', err));
                 });

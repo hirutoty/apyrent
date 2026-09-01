@@ -472,7 +472,7 @@
     const PELANGGAN_CHART_IDS = { pie: 'pelangganPieChart', bar: 'pelangganBarChart', line: 'pelangganLineChart' };
 
     document.addEventListener('DOMContentLoaded', function () {
-        pelangganChartManager.initChartsFromAPI('pelanggan', PELANGGAN_CHART_IDS, { filter_type: 'year' }, { accentLine: true, isCurrency: false }, { isCurrency: false });
+        pelangganChartManager.initChartsFromAPI('member', PELANGGAN_CHART_IDS, { filter_type: 'year' }, { accentLine: true, isCurrency: false }, { isCurrency: false });
 
         document.addEventListener('chartFilterChange', function (e) {
             if (e.detail.filterId !== 'pelangganChartFilter') return;
@@ -482,7 +482,7 @@
                 filters.end_date   = e.detail.endDate;
             }
             const scrollable = e.detail.filterType === 'custom';
-            pelangganChartManager.updateChartsFromAPI('pelanggan', PELANGGAN_CHART_IDS, filters,
+            pelangganChartManager.updateChartsFromAPI('member', PELANGGAN_CHART_IDS, filters,
                 { accentLine: true, scrollable, isCurrency: false }, { scrollable, isCurrency: false });
         });
     });
