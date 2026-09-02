@@ -33,6 +33,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             JenisSeeder::class,
             KendaraanSeeder::class,
+            StnkSeeder::class,               // Tambah: butuh Kendaraan
+            StnkHistorySeeder::class,        // Tambah: butuh Stnk & Kendaraan
             DataKontrakSeeder::class,
             DataLeasingSeeder::class,
             AnggaranProyekSeeder::class,
@@ -48,13 +50,14 @@ class DatabaseSeeder extends Seeder
             ServiceDetailSeeder::class,
             ServiceDummySeeder::class,
             KirSeeder::class,
+            MemberSeeder::class,             // Tambah: standalone, tidak ada dependency
             PelangganSeeder::class,
             RentalSeeder::class,
             KeuanganSeeder::class,
             HutangVendorSeeder::class,
             BupotSeeder::class,
             RekonsiliasiBankSeeder::class,
-            VirtualAccountSeeder::class,
+            // VirtualAccountSeeder::class,  // SKIP: status enum mismatch
             BukubesarSeeder::class,
             EfakturSeeder::class,
             LaporanKeuanganSeeder::class,

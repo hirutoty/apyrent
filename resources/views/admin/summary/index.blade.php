@@ -993,6 +993,9 @@
         const summaryChartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
+            // Init chart saat pertama kali halaman dibuka
+            initSummaryCharts({ filter_type: 'year' });
+
             document.addEventListener('chartFilterChange', function (e) {
                 if (e.detail.filterId === 'summaryChartFilter') {
                     const filters = {

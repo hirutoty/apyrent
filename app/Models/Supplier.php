@@ -15,9 +15,6 @@ protected $fillable = [
     'user_id',
     'nama_supplier',
     'no_telp',
-    'nama_barang',
-    'jumlah_barang',
-    'harga_barang',
 ];
 
 /**
@@ -26,5 +23,13 @@ protected $fillable = [
 public function user()
 {
     return $this->belongsTo(User::class);
+}
+
+/**
+ * Relasi ke purchaseros (pengadaan)
+ */
+public function purchaseros()
+{
+    return $this->hasMany(Purchasero::class);
 }
 }

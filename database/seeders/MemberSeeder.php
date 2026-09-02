@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Member;
+use Carbon\Carbon;
 
 class MemberSeeder extends Seeder
 {
@@ -15,6 +16,7 @@ class MemberSeeder extends Seeder
             'Bambang Sutrisno', 'Nia Ramadhani', 'Ferdy Sambo', 'Lina Marlina', 'Tono Suprapto',
             'Yuli Astuti', 'Fajar Nugroho', 'Sri Wahyuni', 'Rudi Hartono', 'Mega Putri',
             'Wahyu Setiawan', 'Indah Kurniasih', 'Eko Prasetyo', 'Fitri Handayani', 'Galih Wicaksono',
+            'Adi Nugroho', 'Siska Anggraeni', 'Irfan Hakim', 'Putri Wulandari', 'Dedi Hermawan',
         ];
 
         $namaPerusahaan = [
@@ -23,28 +25,53 @@ class MemberSeeder extends Seeder
             'PT Nusantara Trans', 'CV Permata Hijau', 'PT Sinar Mas Logistik', 'CV Berkah Sejati', 'PT Indo Mitra',
             'PT Wahana Ekspres', 'CV Tirta Agung', 'PT Mandiri Karya', 'CV Perkasa Utama', 'PT Cipta Rasa',
             'PT Lancar Jaya', 'CV Mitra Usaha', 'PT Sejahtera Abadi', 'CV Putra Bangsa', 'PT Global Trans',
+            'PT Citra Berkah', 'CV Anugrah Prima', 'PT Sentosa Jaya', 'CV Mega Indah', 'PT Kreatif Media',
         ];
 
         $kota = ['Wonosobo', 'Magelang', 'Purworejo', 'Kebumen', 'Purwokerto', 'Temanggung', 'Kendal', 'Semarang', 'Yogyakarta', 'Solo'];
+        
+        $year = 2026;
+        $counter = 0;
 
-        for ($i = 0; $i < 25; $i++) {
-            Member::create([
-                'nama_member'   => $namaPerorangan[$i],
-                'kontak_member' => '08' . rand(100000000, 999999999),
-                'email_member'  => strtolower(str_replace(' ', '.', $namaPerorangan[$i])) . '@gmail.com',
-                'jenis_member'  => 'perorangan',
-                'alamat'        => 'Jl. ' . $kota[$i % count($kota)] . ' No. ' . rand(1, 100),
-            ]);
-        }
+        // Generate 60 member: 5 per bulan (Jan-Des 2026)
+        // 30 perorangan + 30 perusahaan
+        for ($month = 1; $month <= 12; $month++) {
+            $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
 
-        for ($i = 0; $i < 25; $i++) {
-            Member::create([
-                'nama_member'   => $namaPerusahaan[$i],
-                'kontak_member' => '02' . rand(10000000, 99999999),
-                'email_member'  => strtolower(str_replace([' ', '.'], ['', ''], $namaPerusahaan[$i])) . '@mail.co.id',
-                'jenis_member'  => 'perusahaan',
-                'alamat'        => 'Jl. Raya ' . $kota[$i % count($kota)] . ' No. ' . rand(1, 200),
-            ]);
+            for ($j = 0; $j < 5; $j++) {
+                $day = rand(1, $daysInMonth);
+                $createdAt = Carbon::create($year, $month, $day)
+                    ->setTime(rand(8, 17), rand(0, 59), rand(0, 59));
+
+                // Bergantian: perorangan & perusahaan
+                if ($counter % 2 === 0) {
+                    // Perorangan
+                    $nama = $namaPerorangan[$counter % count($namaPerorangan)];
+                    Member::create([
+                        'nama'         => $nama,
+                        'kontak'       => '08' . rand(100000000, 999999999),
+                        'email'        => strtolower(str_replace(' ', '.', $nama)) . rand(1,999) . '@gmail.com',
+                        'jenis_member' => 'perorangan',
+                        'alamat'       => 'Jl. ' . $kota[$counter % count($kota)] . ' No. ' . rand(1, 100),
+                        'created_at'   => $createdAt,
+                        'updated_at'   => $createdAt,
+                    ]);
+                } else {
+                    // Perusahaan
+                    $nama = $namaPerusahaan[$counter % count($namaPerusahaan)];
+                    Member::create([
+                        'nama'         => $nama,
+                        'kontak'       => '02' . rand(10000000, 99999999),
+                        'email'        => strtolower(str_replace([' ', '.'], ['', ''], $nama)) . rand(1,99) . '@mail.co.id',
+                        'jenis_member' => 'perusahaan',
+                        'alamat'       => 'Jl. Raya ' . $kota[$counter % count($kota)] . ' No. ' . rand(1, 200),
+                        'created_at'   => $createdAt,
+                        'updated_at'   => $createdAt,
+                    ]);
+                }
+
+                $counter++;
+            }
         }
     }
 }

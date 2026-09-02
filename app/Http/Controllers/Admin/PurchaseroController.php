@@ -257,6 +257,7 @@ class PurchaseroController extends Controller
             'tanggal'                => 'required|date',
             'departemen'             => $role === 'superadmin' ? 'required|string|max:255' : 'nullable',
             'pemohon'                => 'required|string|max:255',
+            'supplier_id'            => 'nullable|exists:supplier,id',
             'alasan_permintaan'      => 'required|string',
             'items'                  => 'required|array|min:1',
             'items.*.nama_barang'    => 'required|string|max:255',
@@ -305,6 +306,7 @@ class PurchaseroController extends Controller
                 'tanggal'           => $request->tanggal,
                 'departemen'        => $departemen,
                 'pemohon'           => $request->pemohon,
+                'supplier_id'       => $request->supplier_id,
                 'alasan_permintaan' => $request->alasan_permintaan,
                 'nominal'           => $totalNominal,
                 'status'            => 'Diajukan', // Langsung status "Diajukan"
@@ -384,6 +386,7 @@ class PurchaseroController extends Controller
             'tanggal'                => 'required|date',
             'departemen'             => $role === 'superadmin' ? 'required|string|max:255' : 'nullable',
             'pemohon'                => 'required|string|max:255',
+            'supplier_id'            => 'nullable|exists:supplier,id',
             'alasan_permintaan'      => 'required|string',
             'items'                  => 'required|array|min:1',
             'items.*.nama_barang'    => 'required|string|max:255',
@@ -415,6 +418,7 @@ class PurchaseroController extends Controller
                 'tanggal'           => $request->tanggal,
                 'departemen'        => $departemen,
                 'pemohon'           => $request->pemohon,
+                'supplier_id'       => $request->supplier_id,
                 'alasan_permintaan' => $request->alasan_permintaan,
                 'nominal'           => $totalNominal,
             ]);

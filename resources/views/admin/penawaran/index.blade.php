@@ -814,6 +814,9 @@
         const penawaranChartManager = new ChartManager();
 
         document.addEventListener('DOMContentLoaded', function () {
+            // Init chart saat pertama kali halaman dibuka
+            initPenawaranCharts({ filter_type: 'year' });
+
             document.addEventListener('chartFilterChange', function (e) {
                 if (e.detail.filterId === 'penawaranChartFilter') {
                     const filters = {

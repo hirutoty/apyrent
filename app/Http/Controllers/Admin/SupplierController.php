@@ -11,16 +11,26 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class SupplierController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Supplier::with('user')->latest()->paginate(15)->withQueryString();
+        $search = $request->input('search');
+        
+        $query = Supplier::with('user');
+        
+        // Apply search filter
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('nama_supplier', 'like', '%' . $search . '%')
+                  ->orWhere('no_telp', 'like', '%' . $search . '%');
+            });
+        }
+        
+        $data = $query->latest()->paginate(15)->withQueryString();
 
-        // Summary dihitung dari seluruh tabel, bukan dari halaman aktif
+        // Summary dihitung dari seluruh tabel (tidak terpengaruh search)
         $totalSupplier  = Supplier::count();
-        $totalBarang    = (int) Supplier::sum('jumlah_barang');
-        $totalNominal   = (float) Supplier::selectRaw('SUM(jumlah_barang * harga_barang) as total')->value('total');
 
-        return view('admin.supplier.index', compact('data', 'totalSupplier', 'totalBarang', 'totalNominal'));
+        return view('admin.supplier.index', compact('data', 'totalSupplier', 'search'));
     }
 
     public function store(Request $request)
@@ -28,32 +38,47 @@ class SupplierController extends Controller
         $request->validate([
             'nama_supplier' => 'required',
             'no_telp' => 'required',
-            'nama_barang' => 'required',
-            'jumlah_barang' => 'required|numeric',
-            'harga_barang' => 'required|numeric',
         ]);
 
-        // 🔥 CEK DUPLIKAT
-        $exists = Supplier::where('nama_supplier', $request->nama_supplier)
-            ->where('nama_barang', $request->nama_barang)
-            ->exists();
+        // CEK DUPLIKAT
+        $exists = Supplier::where('nama_supplier', $request->nama_supplier)->exists();
 
         if ($exists) {
             return back()
                 ->withInput()
-                ->with('error', 'Supplier dengan nama dan barang yang sama sudah ada!');
+                ->with('error', 'Supplier dengan nama yang sama sudah ada!');
         }
 
         Supplier::create([
             'user_id' => Auth::id(),
             'nama_supplier' => $request->nama_supplier,
             'no_telp' => $request->no_telp,
-            'nama_barang' => $request->nama_barang,
-            'jumlah_barang' => $request->jumlah_barang,
-            'harga_barang' => $request->harga_barang,
         ]);
 
         return back()->with('success', 'Supplier berhasil ditambahkan');
+    }
+
+    /**
+     * Store supplier via AJAX (untuk modal create on-the-fly)
+     */
+    public function storeApi(Request $request)
+    {
+        $request->validate([
+            'nama_supplier' => 'required|unique:supplier,nama_supplier',
+            'no_telp' => 'required',
+        ]);
+
+        $supplier = Supplier::create([
+            'user_id' => Auth::id(),
+            'nama_supplier' => $request->nama_supplier,
+            'no_telp' => $request->no_telp,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Supplier berhasil ditambahkan',
+            'data' => $supplier
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -61,32 +86,24 @@ class SupplierController extends Controller
         $request->validate([
             'nama_supplier' => 'required',
             'no_telp' => 'required',
-            'nama_barang' => 'required',
-            'jumlah_barang' => 'required|numeric',
-            'harga_barang' => 'required|numeric',
         ]);
 
         $supplier = Supplier::findOrFail($id);
 
-        // 🔥 CEK DUPLIKAT (kecuali data sendiri)
+        // CEK DUPLIKAT (kecuali data sendiri)
         $exists = Supplier::where('nama_supplier', $request->nama_supplier)
-            ->where('nama_barang', $request->nama_barang)
             ->where('id', '!=', $id)
             ->exists();
 
         if ($exists) {
             return back()
                 ->withInput()
-                ->with('error', 'Supplier dengan nama dan barang yang sama sudah digunakan!');
+                ->with('error', 'Supplier dengan nama yang sama sudah digunakan!');
         }
 
         $supplier->update([
-            'user_id' => Auth::id(),
             'nama_supplier' => $request->nama_supplier,
             'no_telp' => $request->no_telp,
-            'nama_barang' => $request->nama_barang,
-            'jumlah_barang' => $request->jumlah_barang,
-            'harga_barang' => $request->harga_barang,
         ]);
 
         return back()->with('success', 'Supplier berhasil diupdate');
