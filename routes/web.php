@@ -172,6 +172,10 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   // Laporan
   Route::get('/supplier/pdf', [SupplierController::class, 'pdf'])
     ->name('supplier.export.pdf');
+  
+  // API untuk create supplier via AJAX
+  Route::post('/supplier/api/store', [SupplierController::class, 'storeApi'])
+    ->name('supplier.api.store');
 
   Route::get(
     '/kendaraan/{merk}/export-pdf',

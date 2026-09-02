@@ -53,97 +53,88 @@ class ChartDataController extends Controller
                 ? [$startDate, $endDate]
                 : [];
 
-            // Create cache key
-            $cacheKey = 'chart_' . $page . '_' . $filterType . '_' .
-                        ($startDate ?? 'null') . '_' . ($endDate ?? 'null') . '_' .
-                        ($kendaraanId ?? 'all') . '_cat' . ($categoryId ?? '0') .
-                        '_dept' . ($departemen ?? 'all') .
-                        '_kontrak' . ($kontrakId ?? '0');
+            // Get chart config and query based on page
+            $config = $this->getPageChartConfig($page);
+            $query  = $this->getPageQuery($page);
 
-            // Cache for 5 minutes (300 seconds)
-            $chartData = \Cache::remember($cacheKey, 300, function () use ($page, $filterType, $customDates, $kendaraanId, $categoryId, $startDate, $endDate, $departemen, $kontrakId) {
-                // Get chart config and query based on page
-                $config = $this->getPageChartConfig($page);
-                $query  = $this->getPageQuery($page);
+            if (!$query) {
+                throw new \Exception('Invalid page identifier');
+            }
 
-                if (!$query) {
-                    throw new \Exception('Invalid page identifier');
-                }
+            // Apply kendaraan filter if provided
+            if ($kendaraanId) {
+                $query->where('kendaraan_id', $kendaraanId);
+            }
 
-                // Apply kendaraan filter if provided
-                if ($kendaraanId) {
-                    $query->where('kendaraan_id', $kendaraanId);
-                }
+            // Apply category filter for service-history page
+            if ($categoryId && $page === 'service-history') {
+                $query->whereHas('parts', fn($p) => $p->where('category_id', $categoryId));
+            }
 
-                // Apply category filter for service-history page
-                if ($categoryId && $page === 'service-history') {
-                    $query->whereHas('parts', fn($p) => $p->where('category_id', $categoryId));
-                }
+            // Apply departemen filter for purchasero page
+            if ($departemen && $page === 'purchasero') {
+                $query->where('departemen', $departemen);
+            }
 
-                // Apply departemen filter for purchasero page
-                if ($departemen && $page === 'purchasero') {
-                    $query->where('departemen', $departemen);
-                }
+            // Apply kontrak_id filter for summary page
+            if ($kontrakId && $page === 'summary') {
+                $query->where('kontrak_id', $kontrakId);
+            }
 
-                // Apply kontrak_id filter for summary page
-                if ($kontrakId && $page === 'summary') {
-                    $query->where('kontrak_id', $kontrakId);
-                }
+            // Apply date filter
+            $dateColumn = $config['dateColumn'] ?? 'created_at';
+            $filteredQuery = $this->chartDataService->applyDateFilter(
+                $query,
+                $filterType,
+                $customDates,
+                $dateColumn
+            );
 
-                // Apply date filter
-                $dateColumn = $config['dateColumn'] ?? 'created_at';
-                $filteredQuery = $this->chartDataService->applyDateFilter(
-                    $query,
-                    $filterType,
-                    $customDates,
-                    $dateColumn
-                );
+            // Get chart data
+            $pieData = $this->chartDataService->getPieChartData(
+                clone $filteredQuery,
+                $config['pie'] ?? []
+            );
 
-                // Get chart data
-                $pieData = $this->chartDataService->getPieChartData(
-                    clone $filteredQuery,
-                    $config['pie'] ?? []
-                );
+            $barData = $this->chartDataService->getBarChartData(
+                clone $filteredQuery,
+                array_merge($config['bar'] ?? [], [
+                    'filter_type' => $filterType,
+                    'start_date'  => $startDate,
+                    'end_date'    => $endDate,
+                ])
+            );
 
-                $barData = $this->chartDataService->getBarChartData(
-                    clone $filteredQuery,
-                    array_merge($config['bar'] ?? [], [
-                        'filter_type' => $filterType,
-                        'start_date'  => $startDate,
-                        'end_date'    => $endDate,
-                    ])
-                );
+            $lineData = $this->chartDataService->getLineChartData(
+                clone $filteredQuery,
+                array_merge($config['line'] ?? [], [
+                    'filter_type' => $filterType,
+                    'start_date'  => $startDate,
+                    'end_date'    => $endDate,
+                ])
+            );
 
-                $lineData = $this->chartDataService->getLineChartData(
-                    clone $filteredQuery,
-                    array_merge($config['line'] ?? [], [
-                        'filter_type' => $filterType,
-                        'start_date'  => $startDate,
-                        'end_date'    => $endDate,
-                    ])
-                );
+            $statsData = $this->chartDataService->getStatsData(
+                clone $filteredQuery,
+                $config['stats'] ?? [],
+                clone $query  // Pass base query (unfiltered) for stats with ignoreFilter flag
+            );
 
-                $statsData = $this->chartDataService->getStatsData(
-                    clone $filteredQuery,
-                    $config['stats'] ?? []
-                );
+            // Get period label
+            $periodLabel = $this->chartDataService->getPeriodLabel($filterType, $customDates);
 
-                // Get period label
-                $periodLabel = $this->chartDataService->getPeriodLabel($filterType, $customDates);
-
-                return [
-                    'pie' => $pieData,
-                    'bar' => $barData,
-                    'line' => $lineData,
-                    'stats' => $statsData,
-                    'period' => $periodLabel
-                ];
-            });
+            $chartData = [
+                'pie'    => $pieData,
+                'bar'    => $barData,
+                'line'   => $lineData,
+                'stats'  => $statsData,
+                'period' => $periodLabel,
+            ];
 
             return response()->json([
                 'success' => true,
-                'data' => $chartData,
-                'cached' => \Cache::has($cacheKey)
+                'data'    => $chartData,
+                'cached'  => false,
             ]);
 
         } catch (\Exception $e) {
@@ -257,11 +248,11 @@ class ChartDataController extends Controller
             'gps' => \App\Models\Gps::query(),
             'kir' => \App\Models\Kir::query(),
             'pajak-kendaraan' => \App\Models\PajakKendaraan::query(),
-            'stnk' => \App\Models\Stnk::query(),
+            'stnk' => \App\Models\StnkHistory::query(),
             'service-history' => \App\Models\ServiceHistory::query(),
             'purchasero'      => \App\Models\Purchasero::query(),
             'kendaraan' => \App\Models\Kendaraan::query(),
-            'kendaraan-show' => \App\Models\Kendaraan::query(),
+            'kendaraan-show' => \App\Models\ServiceHistory::query(),
             'asuransi-kendaraan' => \App\Models\AsuransiKendaraan::query(),
             'gps-kendaraan' => \App\Models\GpsKendaraan::query(),
             // Member & Pelanggan
@@ -320,14 +311,14 @@ class ChartDataController extends Controller
                 'colors' => ['#10b981', '#ef4444', '#3b82f6'],
             ],
             'line' => [
-                'title' => 'Trend Saldo',
-                'groupBy' => 'month',
-                'valueColumn' => 'saldo',
-                'aggregation' => 'sum',
-                'dateColumn' => 'tanggal',
-                'limit' => 12,
-                'label' => 'Saldo',
-                'color' => '#8b5cf6'
+                'title'       => 'Trend Saldo',
+                'groupBy'     => 'month',
+                'valueColumn' => 'last_value:saldo',
+                'aggregation' => 'last_value',
+                'dateColumn'  => 'tanggal',
+                'limit'       => 12,
+                'label'       => 'Saldo Akhir',
+                'color'       => '#8b5cf6'
             ],
             'stats' => [
                 [
@@ -1342,7 +1333,7 @@ class ChartDataController extends Controller
                 'colors' => ['#10b981', '#f59e0b', '#ef4444']
             ],
             'bar' => [
-                'title' => 'Total Tagihan per Periode',
+                'title' => 'Total Tagihan per Periode (tgl. dibuat)',
                 'groupBy' => 'month',
                 'valueColumns' => ['total_amount', 'paid_amount', 'remaining_amount'],
                 'aggregation' => 'sum',
@@ -1352,7 +1343,7 @@ class ChartDataController extends Controller
                 'colors' => ['#3b82f6', '#10b981', '#ef4444'],
             ],
             'line' => [
-                'title' => 'Trend Tagihan',
+                'title' => 'Trend Tagihan (tgl. dibuat)',
                 'groupBy' => 'month',
                 'valueColumn' => 'total_amount',
                 'aggregation' => 'sum',
@@ -1569,7 +1560,7 @@ class ChartDataController extends Controller
                     'label'  => 'Belum Lunas',
                     'type'   => 'count_where',
                     'column' => 'id',
-                    'where'  => ['status' => 'aktif'],
+                    'where'  => ['status_pembayaran' => ['belum_bayar', 'dp', 'partial']],
                     'format' => 'number',
                     'color'  => '#f59e0b',
                     'iconBg' => '#fef3c7',
@@ -1961,7 +1952,8 @@ class ChartDataController extends Controller
                     'format' => 'number',
                     'color' => '#4f6ef7',
                     'iconBg' => '#eef1ff',
-                    'icon' => 'fa fa-file-invoice-dollar'
+                    'icon' => 'fa fa-file-invoice-dollar',
+                    'ignoreFilter' => true,
                 ],
                 [
                     'label' => 'Total Payment',
@@ -1970,27 +1962,30 @@ class ChartDataController extends Controller
                     'format' => 'currency',
                     'color' => '#ef4444',
                     'iconBg' => '#fee2e2',
-                    'icon' => 'fa fa-money-bill-wave'
+                    'icon' => 'fa fa-money-bill-wave',
+                    'ignoreFilter' => true,
                 ],
                 [
                     'label' => 'Paid',
                     'type' => 'count_where',
                     'column' => 'id',
-                    'where' => ['status' => 'lunas'],
+                    'where' => ['status' => 'sudah_bayar'],
                     'format' => 'number',
                     'color' => '#10b981',
                     'iconBg' => '#d1fae5',
-                    'icon' => 'fa fa-check-circle'
+                    'icon' => 'fa fa-check-circle',
+                    'ignoreFilter' => true,
                 ],
                 [
                     'label' => 'Overdue',
                     'type' => 'count_where',
                     'column' => 'id',
-                    'where' => ['status' => 'belum'],
+                    'where' => ['status' => 'belum_bayar'],
                     'format' => 'number',
                     'color' => '#f59e0b',
                     'iconBg' => '#fef3c7',
-                    'icon' => 'fa fa-exclamation-triangle'
+                    'icon' => 'fa fa-exclamation-triangle',
+                    'ignoreFilter' => true,
                 ]
             ]
         ];
@@ -2002,72 +1997,77 @@ class ChartDataController extends Controller
     protected function getStnkConfig(): array
     {
         return [
-            'dateColumn' => 'created_at',
+            'dateColumn' => 'diperpanjang_pada',
             'pie' => [
-                'title' => 'Vehicle Distribution',
-                'groupBy' => 'merk',
-                'valueColumn' => 'id',
-                'aggregation' => 'count',
-                'labels' => [],
-                'colors' => ['#4f6ef7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+                'title'       => 'Distribusi Biaya per Merk',
+                'groupBy'     => 'merk',
+                'valueColumn' => 'biaya',
+                'aggregation' => 'sum',
+                'labels'      => [],
+                'colors'      => ['#4f6ef7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
             ],
             'bar' => [
-                'title' => 'STNK Cost',
-                'groupBy' => 'month',
+                'title'        => 'Biaya Perpanjangan STNK per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
                 'valueColumns' => ['biaya'],
-                'aggregation' => 'sum',
-                'dateColumn' => 'created_at',
-                'limit' => 6,
-                'labels' => ['Cost']
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'diperpanjang_pada',
+                'limit'        => 12,
+                'labels'       => ['Biaya STNK'],
+                'colors'       => ['#4f6ef7'],
+                'format'       => 'currency',
             ],
             'line' => [
-                'title' => 'STNK Trend',
-                'groupBy' => 'month',
-                'valueColumn' => 'id',
-                'aggregation' => 'count',
-                'dateColumn' => 'created_at',
-                'limit' => 12,
-                'label' => 'Renewals',
-                'color' => '#10b981'
+                'title'       => 'Trend Perpanjangan STNK',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'biaya',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'diperpanjang_pada',
+                'limit'       => 12,
+                'label'       => 'Biaya',
+                'color'       => '#10b981',
+                'format'      => 'currency',
             ],
             'stats' => [
                 [
-                    'label' => 'Total STNK',
-                    'type' => 'count',
+                    'label'  => 'Total Perpanjangan',
+                    'type'   => 'count',
                     'column' => 'id',
                     'format' => 'number',
-                    'color' => '#4f6ef7',
+                    'color'  => '#4f6ef7',
                     'iconBg' => '#eef1ff',
-                    'icon' => 'fa fa-id-card'
+                    'icon'   => 'fa fa-id-card',
                 ],
                 [
-                    'label' => 'Total Cost',
-                    'type' => 'sum',
+                    'label'  => 'Total Biaya',
+                    'type'   => 'sum',
                     'column' => 'biaya',
                     'format' => 'currency',
-                    'color' => '#ef4444',
+                    'color'  => '#ef4444',
                     'iconBg' => '#fee2e2',
-                    'icon' => 'fa fa-money-bill-wave'
+                    'icon'   => 'fa fa-money-bill-wave',
                 ],
                 [
-                    'label' => 'Avg. Cost',
-                    'type' => 'avg',
+                    'label'  => 'Rata-rata Biaya',
+                    'type'   => 'avg',
                     'column' => 'biaya',
                     'format' => 'currency',
-                    'color' => '#f59e0b',
+                    'color'  => '#f59e0b',
                     'iconBg' => '#fef3c7',
-                    'icon' => 'fa fa-calculator'
+                    'icon'   => 'fa fa-calculator',
                 ],
                 [
-                    'label' => 'Vehicles',
-                    'type' => 'count',
+                    'label'  => 'Kendaraan Terdaftar',
+                    'type'   => 'count',
                     'column' => 'kendaraan_id',
                     'format' => 'number',
-                    'color' => '#10b981',
+                    'color'  => '#10b981',
                     'iconBg' => '#d1fae5',
-                    'icon' => 'fa fa-car'
-                ]
-            ]
+                    'icon'   => 'fa fa-car',
+                ],
+            ],
         ];
     }
 
@@ -2325,79 +2325,85 @@ class ChartDataController extends Controller
     protected function getKendaraanShowConfig(): array
     {
         return [
-            'dateColumn' => 'created_at',
+            'dateColumn' => 'tanggal_service',
             'pie' => [
-                'title' => 'Status Unit Kendaraan',
-                'groupBy' => 'status_kendaraan',
-                'valueColumn' => 'id',
-                'aggregation' => 'count',
-                'labels' => [
-                    'tersedia'   => 'Tersedia',
-                    'disewa'     => 'Disewa',
-                    'service'    => 'Service',
-                    'bermasalah' => 'Bermasalah',
+                'title'       => 'Biaya per Status Service',
+                'groupBy'     => 'status',
+                'valueColumn' => 'total_biaya',
+                'aggregation' => 'sum',
+                'labels'      => [
+                    'proses'  => 'Proses',
+                    'selesai' => 'Selesai',
+                    'limit'   => 'Limit',
                 ],
-                'colors' => ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
+                'colors' => ['#f59e0b', '#10b981', '#ef4444'],
             ],
             'bar' => [
-                'title' => 'Biaya Service per Bulan',
-                'groupBy' => 'month',
-                'valueColumns' => ['batas_biaya'],
-                'aggregation' => 'sum',
-                'dateColumn' => 'created_at',
-                'limit' => 6,
-                'labels' => ['Batas Biaya'],
-                'colors' => ['#ef4444'],
+                'title'        => 'Biaya Service Aktual per Bulan',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => [
+                    'total_biaya',
+                    'maks_bulanan',
+                    ['computed' => ['op' => 'subtract', 'a' => 'maks_bulanan', 'b' => 'total_biaya']],
+                ],
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'tanggal_service',
+                'limit'        => 6,
+                'labels'       => ['Biaya Aktual', 'Limit', 'Sisa'],
+                'colors'       => ['#ef4444', '#f59e0b', '#10b981'],
+                'format'       => 'currency',
             ],
             'line' => [
-                'title' => 'Trend Unit per Status',
-                'groupBy' => 'month',
-                'valueColumn' => 'id',
-                'aggregation' => 'count',
-                'dateColumn' => 'created_at',
-                'limit' => 12,
-                'label' => 'Unit',
-                'color' => '#8b5cf6',
+                'title'       => 'Trend Biaya Service',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'total_biaya',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'tanggal_service',
+                'limit'       => 12,
+                'label'       => 'Biaya Aktual',
+                'color'       => '#ef4444',
+                'format'      => 'currency',
             ],
             'stats' => [
                 [
-                    'label' => 'Total Unit',
-                    'type' => 'count',
+                    'label'  => 'Total Service',
+                    'type'   => 'count',
                     'column' => 'id',
                     'format' => 'number',
-                    'color' => '#4f6ef7',
+                    'color'  => '#4f6ef7',
                     'iconBg' => '#eef1ff',
-                    'icon' => 'fa fa-car',
+                    'icon'   => 'fa fa-wrench',
                 ],
                 [
-                    'label' => 'Tersedia',
-                    'type' => 'count_where',
+                    'label'  => 'Total Biaya',
+                    'type'   => 'sum',
+                    'column' => 'total_biaya',
+                    'format' => 'currency',
+                    'color'  => '#ef4444',
+                    'iconBg' => '#fee2e2',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'  => 'Selesai',
+                    'type'   => 'count_where',
                     'column' => 'id',
-                    'where' => ['status_kendaraan' => 'tersedia'],
+                    'where'  => ['status' => 'selesai'],
                     'format' => 'number',
-                    'color' => '#10b981',
+                    'color'  => '#10b981',
                     'iconBg' => '#d1fae5',
-                    'icon' => 'fa fa-check-circle',
+                    'icon'   => 'fa fa-check-circle',
                 ],
                 [
-                    'label' => 'Disewa',
-                    'type' => 'count_where',
+                    'label'  => 'Proses',
+                    'type'   => 'count_where',
                     'column' => 'id',
-                    'where' => ['status_kendaraan' => 'disewa'],
+                    'where'  => ['status' => 'proses'],
                     'format' => 'number',
-                    'color' => '#3b82f6',
-                    'iconBg' => '#dbeafe',
-                    'icon' => 'fa fa-key',
-                ],
-                [
-                    'label' => 'Service',
-                    'type' => 'count_where',
-                    'column' => 'id',
-                    'where' => ['status_kendaraan' => 'service'],
-                    'format' => 'number',
-                    'color' => '#f59e0b',
+                    'color'  => '#f59e0b',
                     'iconBg' => '#fef3c7',
-                    'icon' => 'fa fa-wrench',
+                    'icon'   => 'fa fa-rotate',
                 ],
             ],
         ];
@@ -2884,14 +2890,14 @@ class ChartDataController extends Controller
     {
         return [
             'dateColumn' => 'created_at',
-            'pie'  => ['title' => 'Jenis Member',  'groupBy' => 'jenis_member',  'valueColumn' => 'id', 'aggregation' => 'count', 'labels' => ['perorangan' => 'Perorangan', 'perusahaan' => 'Perusahaan'], 'colors' => ['#4f6ef7', '#10b981']],
-            'bar'  => ['title' => 'Pendaftaran Member per Periode', 'groupBy' => 'month', 'valueColumns' => ['id'], 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'labels' => ['Jumlah Member'], 'colors' => ['#4f6ef7']],
-            'line' => ['title' => 'Trend Member', 'groupBy' => 'month', 'valueColumn' => 'id', 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'label' => 'Member', 'color' => '#4f6ef7'],
+            'pie'  => ['title' => 'Jenis Member', 'groupBy' => 'jenis_member', 'valueColumn' => 'id', 'aggregation' => 'count', 'labels' => ['perorangan' => 'Perorangan', 'perusahaan' => 'Perusahaan'], 'colors' => ['#4f6ef7', '#10b981']],
+            'bar'  => ['title' => 'Pendaftaran Member per Periode', 'groupBy' => 'month', 'valueColumns' => ['id'], 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'labels' => ['Jumlah Member'], 'colors' => ['#4f6ef7'], 'format' => 'number'],
+            'line' => ['title' => 'Trend Member', 'groupBy' => 'month', 'valueColumn' => 'id', 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'label' => 'Member', 'color' => '#4f6ef7', 'format' => 'number'],
             'stats' => [
-                ['label' => 'Total Member',   'type' => 'count',       'column' => 'id', 'format' => 'number', 'color' => '#4f6ef7', 'iconBg' => '#eef1ff', 'icon' => 'fa fa-users'],
-                ['label' => 'Perorangan',     'type' => 'count_where', 'column' => 'id', 'where' => ['jenis_member' => 'perorangan'], 'format' => 'number', 'color' => '#10b981', 'iconBg' => '#d1fae5', 'icon' => 'fa fa-user'],
-                ['label' => 'Perusahaan',     'type' => 'count_where', 'column' => 'id', 'where' => ['jenis_member' => 'perusahaan'], 'format' => 'number', 'color' => '#f59e0b', 'iconBg' => '#fef3c7', 'icon' => 'fa fa-building'],
-                ['label' => 'Baru Bulan Ini', 'type' => 'count',       'column' => 'id', 'format' => 'number', 'color' => '#8b5cf6', 'iconBg' => '#ede9fe', 'icon' => 'fa fa-user-plus'],
+                ['label' => 'Total Member',   'type' => 'count',               'column' => 'id', 'format' => 'number', 'color' => '#4f6ef7', 'iconBg' => '#eef1ff', 'icon' => 'fa fa-users'],
+                ['label' => 'Perorangan',     'type' => 'count_where',         'column' => 'id', 'where' => ['jenis_member' => 'perorangan'], 'format' => 'number', 'color' => '#10b981', 'iconBg' => '#d1fae5', 'icon' => 'fa fa-user'],
+                ['label' => 'Perusahaan',     'type' => 'count_where',         'column' => 'id', 'where' => ['jenis_member' => 'perusahaan'], 'format' => 'number', 'color' => '#f59e0b', 'iconBg' => '#fef3c7', 'icon' => 'fa fa-building'],
+                ['label' => 'Baru Bulan Ini', 'type' => 'count_current_month', 'dateColumn' => 'created_at', 'format' => 'number', 'color' => '#8b5cf6', 'iconBg' => '#ede9fe', 'icon' => 'fa fa-user-plus'],
             ],
         ];
     }
@@ -2901,13 +2907,13 @@ class ChartDataController extends Controller
         return [
             'dateColumn' => 'created_at',
             'pie'  => ['title' => 'Jenis Pelanggan', 'groupBy' => 'jenis_pelanggan', 'valueColumn' => 'id', 'aggregation' => 'count', 'labels' => ['perorangan' => 'Perorangan', 'perusahaan' => 'Perusahaan'], 'colors' => ['#3b82f6', '#f59e0b']],
-            'bar'  => ['title' => 'Pendaftaran Pelanggan per Periode', 'groupBy' => 'month', 'valueColumns' => ['id'], 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'labels' => ['Jumlah Pelanggan'], 'colors' => ['#3b82f6']],
-            'line' => ['title' => 'Trend Pelanggan', 'groupBy' => 'month', 'valueColumn' => 'id', 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'label' => 'Pelanggan', 'color' => '#3b82f6'],
+            'bar'  => ['title' => 'Pendaftaran Pelanggan per Periode', 'groupBy' => 'month', 'valueColumns' => ['id'], 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'labels' => ['Jumlah Pelanggan'], 'colors' => ['#3b82f6'], 'format' => 'number'],
+            'line' => ['title' => 'Trend Pelanggan', 'groupBy' => 'month', 'valueColumn' => 'id', 'aggregation' => 'count', 'dateColumn' => 'created_at', 'limit' => 12, 'label' => 'Pelanggan', 'color' => '#3b82f6', 'format' => 'number'],
             'stats' => [
-                ['label' => 'Total Pelanggan', 'type' => 'count',       'column' => 'id', 'format' => 'number', 'color' => '#3b82f6', 'iconBg' => '#dbeafe', 'icon' => 'fa fa-users'],
-                ['label' => 'Perorangan',      'type' => 'count_where', 'column' => 'id', 'where' => ['jenis_pelanggan' => 'perorangan'], 'format' => 'number', 'color' => '#10b981', 'iconBg' => '#d1fae5', 'icon' => 'fa fa-user'],
-                ['label' => 'Perusahaan',      'type' => 'count_where', 'column' => 'id', 'where' => ['jenis_pelanggan' => 'perusahaan'], 'format' => 'number', 'color' => '#f59e0b', 'iconBg' => '#fef3c7', 'icon' => 'fa fa-building'],
-                ['label' => 'Baru Bulan Ini',  'type' => 'count',       'column' => 'id', 'format' => 'number', 'color' => '#8b5cf6', 'iconBg' => '#ede9fe', 'icon' => 'fa fa-user-plus'],
+                ['label' => 'Total Pelanggan', 'type' => 'count',               'column' => 'id', 'format' => 'number', 'color' => '#3b82f6', 'iconBg' => '#dbeafe', 'icon' => 'fa fa-users'],
+                ['label' => 'Perorangan',      'type' => 'count_where',         'column' => 'id', 'where' => ['jenis_pelanggan' => 'perorangan'], 'format' => 'number', 'color' => '#10b981', 'iconBg' => '#d1fae5', 'icon' => 'fa fa-user'],
+                ['label' => 'Perusahaan',      'type' => 'count_where',         'column' => 'id', 'where' => ['jenis_pelanggan' => 'perusahaan'], 'format' => 'number', 'color' => '#f59e0b', 'iconBg' => '#fef3c7', 'icon' => 'fa fa-building'],
+                ['label' => 'Baru Bulan Ini',  'type' => 'count_current_month', 'dateColumn' => 'created_at', 'format' => 'number', 'color' => '#8b5cf6', 'iconBg' => '#ede9fe', 'icon' => 'fa fa-user-plus'],
             ],
         ];
     }
@@ -3161,7 +3167,6 @@ class ChartDataController extends Controller
 
     /**
      * Chart config for Supplier master data page
-     * Bar: 3 batang = jumlah barang, total supplier, dan total nominal
      */
     protected function getSupplierConfig(): array
     {
@@ -3170,36 +3175,34 @@ class ChartDataController extends Controller
             'pie' => [
                 'title'       => 'Distribusi Supplier per Nama',
                 'groupBy'     => 'nama_supplier',
-                'valueColumn' => 'jumlah_barang',
-                'aggregation' => 'sum',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
                 'labels'      => [],
                 'colors'      => ['#4f6ef7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#f97316'],
             ],
             'bar' => [
-                'title'        => 'Supplier per Periode',
+                'title'        => 'Penambahan Supplier per Periode',
                 'groupBy'      => 'month',
                 'autoDaily'    => true,
-                'valueColumns' => [
-                    ['count' => true, 'label' => 'Total Supplier'],
-                    ['expr' => 'jumlah_barang * harga_barang', 'label' => 'Total Nominal'],
-                    'jumlah_barang',
-                ],
-                'aggregation'  => 'sum',
+                'valueColumns' => ['id'],
+                'aggregation'  => 'count',
                 'dateColumn'   => 'created_at',
                 'limit'        => 12,
-                'labels'       => ['Total Supplier', 'Total Nominal', 'Jumlah Barang'],
-                'colors'       => ['#4f6ef7', '#10b981', '#f97316'],
+                'labels'       => ['Jumlah Supplier'],
+                'colors'       => ['#4f6ef7'],
+                'format'       => 'number',
             ],
             'line' => [
-                'title'       => 'Trend Total Nominal',
+                'title'       => 'Trend Penambahan Supplier',
                 'groupBy'     => 'month',
                 'autoDaily'   => true,
-                'valueColumn' => 'jumlah_barang * harga_barang',
-                'aggregation' => 'sum',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
                 'dateColumn'  => 'created_at',
                 'limit'       => 12,
-                'label'       => 'Total Nominal',
+                'label'       => 'Supplier Baru',
                 'color'       => '#10b981',
+                'format'      => 'number',
             ],
             'stats' => [
                 [
@@ -3210,33 +3213,6 @@ class ChartDataController extends Controller
                     'color'  => '#4f6ef7',
                     'iconBg' => '#eef1ff',
                     'icon'   => 'fa fa-truck',
-                ],
-                [
-                    'label'  => 'Total Jumlah Barang',
-                    'type'   => 'sum',
-                    'column' => 'jumlah_barang',
-                    'format' => 'number',
-                    'color'  => '#f97316',
-                    'iconBg' => '#ffedd5',
-                    'icon'   => 'fa fa-box-open',
-                ],
-                [
-                    'label'  => 'Total Nominal',
-                    'type'   => 'sum_expr',
-                    'expr'   => 'jumlah_barang * harga_barang',
-                    'format' => 'currency',
-                    'color'  => '#10b981',
-                    'iconBg' => '#d1fae5',
-                    'icon'   => 'fa fa-money-bill-wave',
-                ],
-                [
-                    'label'  => 'Avg Harga Barang',
-                    'type'   => 'avg',
-                    'column' => 'harga_barang',
-                    'format' => 'currency',
-                    'color'  => '#8b5cf6',
-                    'iconBg' => '#ede9fe',
-                    'icon'   => 'fa fa-calculator',
                 ],
             ],
         ];

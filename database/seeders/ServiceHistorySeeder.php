@@ -61,99 +61,35 @@ class ServiceHistorySeeder extends Seeder
         $statusPengeluaran   = ['stabil', 'stabil', 'stabil', 'overservice'];
         $statusApproval      = ['approved', 'approved', 'approved', 'pending', 'rejected', null, null];
 
-        // Rentang tanggal: Januari 2025 s/d Desember 2026
-        $startDate = Carbon::create(2025, 1, 1);
-        $endDate   = Carbon::create(2026, 12, 31);
-
+        $year = 2026;
         $data = [];
 
-        // Kendaraan 1-10: banyak riwayat (kendaraan aktif)
-        foreach (range(1, 10) as $kendaraanId) {
-            // 8–12 service per kendaraan
-            $jumlah = rand(8, 12);
-            for ($j = 0; $j < $jumlah; $j++) {
+        // Generate 100 service history tersebar Jan-Des 2026
+        // ~8-9 service per bulan
+        for ($month = 1; $month <= 12; $month++) {
+            $jumlahPerBulan = ($month <= 11) ? 8 : 12; // Total 100 (88 + 12)
+            $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
+
+            for ($j = 0; $j < $jumlahPerBulan; $j++) {
+                $kendaraanId = rand(1, 50); // Spread across 50 kendaraan
                 $keluhan     = $keluhanData[array_rand($keluhanData)];
-                $tanggal     = Carbon::createFromTimestamp(
-                    rand($startDate->timestamp, $endDate->timestamp)
-                )->format('Y-m-d');
+                $day         = rand(1, $daysInMonth);
+                $tanggal     = Carbon::create($year, $month, $day)
+                    ->setTime(rand(8, 16), rand(0, 59), 0)
+                    ->format('Y-m-d H:i:s');
+
                 $isRequest   = (bool) rand(0, 1);
                 $approval    = $statusApproval[array_rand($statusApproval)];
-                $biayaVariasi = $keluhan['biaya'] + rand(-50000, 200000);
+                $biayaVariasi = $keluhan['biaya'] + rand(-50000, 300000);
 
                 $data[] = [
                     'kendaraan_id'      => $kendaraanId,
                     'keluhan'           => $keluhan['keluhan'],
-                    'kilometer'         => rand(10000, 130000),
+                    'kilometer'         => rand(5000, 150000),
                     'total_biaya'       => max(100000, $biayaVariasi),
                     'status'            => $statusOptions[array_rand($statusOptions)],
                     'maks_bulanan'      => rand(0, 1) ? rand(1, 5) * 1000000 : 0,
                     'biaya_tahunan'     => rand(0, 1) ? rand(5, 20) * 1000000 : 0,
-                    'status_pengeluaran' => $statusPengeluaran[array_rand($statusPengeluaran)],
-                    'bukti_pembayaran'  => null,
-                    'status_approval'   => $approval,
-                    'approval_by'       => $approval === 'approved' ? 1 : null,
-                    'approval_at'       => $approval === 'approved'
-                        ? Carbon::parse($tanggal)->addDays(rand(1, 3))
-                        : null,
-                    'is_request'        => $isRequest,
-                    'tanggal_service'   => $tanggal,
-                ];
-            }
-        }
-
-        // Kendaraan 11-30: riwayat menengah (4–7 service)
-        foreach (range(11, 30) as $kendaraanId) {
-            $jumlah = rand(4, 7);
-            for ($j = 0; $j < $jumlah; $j++) {
-                $keluhan    = $keluhanData[array_rand($keluhanData)];
-                $tanggal    = Carbon::createFromTimestamp(
-                    rand($startDate->timestamp, $endDate->timestamp)
-                )->format('Y-m-d');
-                $isRequest  = (bool) rand(0, 1);
-                $approval   = $statusApproval[array_rand($statusApproval)];
-                $biayaVariasi = $keluhan['biaya'] + rand(-30000, 150000);
-
-                $data[] = [
-                    'kendaraan_id'      => $kendaraanId,
-                    'keluhan'           => $keluhan['keluhan'],
-                    'kilometer'         => rand(5000, 100000),
-                    'total_biaya'       => max(100000, $biayaVariasi),
-                    'status'            => $statusOptions[array_rand($statusOptions)],
-                    'maks_bulanan'      => rand(0, 1) ? rand(1, 4) * 1000000 : 0,
-                    'biaya_tahunan'     => rand(0, 1) ? rand(4, 15) * 1000000 : 0,
-                    'status_pengeluaran' => $statusPengeluaran[array_rand($statusPengeluaran)],
-                    'bukti_pembayaran'  => null,
-                    'status_approval'   => $approval,
-                    'approval_by'       => $approval === 'approved' ? 1 : null,
-                    'approval_at'       => $approval === 'approved'
-                        ? Carbon::parse($tanggal)->addDays(rand(1, 3))
-                        : null,
-                    'is_request'        => $isRequest,
-                    'tanggal_service'   => $tanggal,
-                ];
-            }
-        }
-
-        // Kendaraan 31-50: sedikit riwayat (1–3 service)
-        foreach (range(31, 50) as $kendaraanId) {
-            $jumlah = rand(1, 3);
-            for ($j = 0; $j < $jumlah; $j++) {
-                $keluhan    = $keluhanData[array_rand($keluhanData)];
-                $tanggal    = Carbon::createFromTimestamp(
-                    rand($startDate->timestamp, $endDate->timestamp)
-                )->format('Y-m-d');
-                $isRequest  = (bool) rand(0, 1);
-                $approval   = $statusApproval[array_rand($statusApproval)];
-                $biayaVariasi = $keluhan['biaya'] + rand(-20000, 100000);
-
-                $data[] = [
-                    'kendaraan_id'      => $kendaraanId,
-                    'keluhan'           => $keluhan['keluhan'],
-                    'kilometer'         => rand(3000, 80000),
-                    'total_biaya'       => max(100000, $biayaVariasi),
-                    'status'            => $statusOptions[array_rand($statusOptions)],
-                    'maks_bulanan'      => 0,
-                    'biaya_tahunan'     => 0,
                     'status_pengeluaran' => $statusPengeluaran[array_rand($statusPengeluaran)],
                     'bukti_pembayaran'  => null,
                     'status_approval'   => $approval,

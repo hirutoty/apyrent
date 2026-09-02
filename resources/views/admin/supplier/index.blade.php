@@ -20,7 +20,7 @@
         </div>
 
         {{-- SUMMARY CARDS --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="grid grid-cols-1 md:grid-cols-1 gap-5">
 
             {{-- Total Supplier --}}
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -31,34 +31,6 @@
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
                         <i class="bi bi-people-fill text-2xl text-blue-600"></i>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Total Nominal --}}
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">Total Nominal</p>
-                        <h2 class="text-2xl font-bold text-green-600 mt-2">
-                            Rp {{ number_format($totalNominal) }}
-                        </h2>
-                    </div>
-                    <div class="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center">
-                        <i class="bi bi-cash-stack text-2xl text-green-600"></i>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Total Barang --}}
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">Total Jumlah Barang</p>
-                        <h2 class="text-3xl font-bold text-orange-500 mt-2">{{ number_format($totalBarang) }}</h2>
-                    </div>
-                    <div class="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center">
-                        <i class="bi bi-box-seam-fill text-2xl text-orange-500"></i>
                     </div>
                 </div>
             </div>
@@ -85,18 +57,32 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 class="font-semibold text-gray-800 text-base">Daftar Supplier</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $totalSupplier }} total supplier</p>
+                    <p class="text-xs text-gray-400 mt-0.5">
+                        @if($search)
+                            Menampilkan {{ $data->total() }} dari {{ $totalSupplier }} supplier 
+                            <span class="text-blue-600 font-medium">(pencarian: "{{ $search }}")</span>
+                        @else
+                            {{ $totalSupplier }} total supplier
+                        @endif
+                    </p>
                 </div>
                 <div class="flex items-center gap-2">
                     <a id="pdfBtn" target="_blank" href="{{ route('supplier.export.pdf') }}"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors">
                         <i class="fa fa-file-pdf text-xs"></i> Export PDF
                     </a>
-                    <div class="relative">
+                    <form method="GET" action="{{ route('supplier.index') }}" class="relative">
                         <i class="fa fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input type="text" placeholder="Cari supplier..." oninput="filterSupplierTable(this.value)"
-                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-44">
-                    </div>
+                        <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Cari supplier atau no telp..."
+                            class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 w-56">
+                    </form>
+                    @if($search)
+                        <a href="{{ route('supplier.index') }}"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors"
+                            title="Clear search">
+                            <i class="fa fa-times text-xs"></i> Clear
+                        </a>
+                    @endif
                     <button onclick="window.location.reload()"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
                         <i class="fa fa-sync text-xs"></i> Refresh
@@ -382,15 +368,6 @@
             supplierModal.classList.add('flex');
         }
 
-        function filterSupplierTable(q) {
-            document.querySelectorAll('#supplierTableBody tr[data-search]').forEach(row => {
-                row.style.display = row.dataset.search.includes(q.toLowerCase()) ? '' : 'none';
-            });
-
-            // update link PDF
-            document.getElementById('pdfBtn').href = '/admin/supplier/pdf?search=' + encodeURIComponent(q);
-        }
-
         // -- POPUP ALERT (fixed overlay) --------------------
         (function() {
             var overlay = document.getElementById('alertOverlay');
@@ -561,6 +538,20 @@ async function initSupplierCharts(filters) {
 async function updateSupplierCharts(filters) {
     await initSupplierCharts(filters);
 }
+
+// Auto-submit search form with debounce
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        let debounceTimer;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                this.form.submit();
+            }, 500); // Submit after 500ms of no typing
+        });
+    }
+});
 </script>
 
 @endsection

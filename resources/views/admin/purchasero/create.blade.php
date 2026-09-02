@@ -89,6 +89,57 @@
                     @error('pemohon')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
 
+                {{-- Supplier --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Supplier <span class="text-gray-400 text-[10px]">(jika tidak ada supplier klik tombol +)</span>
+                        
+                    </label>
+                    <div class="flex gap-2">
+                        <select name="supplier_id" id="supplier_id"
+                            class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            <option value="">-- Pilih Supplier --</option>
+                            @foreach(\App\Models\Supplier::orderBy('nama_supplier')->get() as $supplier)
+                                <option value="{{ $supplier->id }}" {{ old('supplier_id') == $supplier->id ? 'selected' : '' }}>
+                                    {{ $supplier->nama_supplier }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <button type="button" onclick="openSupplierModal()"
+                            class="w-10 h-10 rounded-xl bg-green-600 hover:bg-green-700 text-white flex items-center justify-center transition-colors"
+                            title="Tambah Supplier Baru">
+                            <i class="fa fa-plus text-sm"></i>
+                        </button>
+                    </div>
+                    @error('supplier_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                </div>
+                <div class="flex gap-2">
+                    <select name="item_id" id="item_id"
+                        class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Belanja --</option>
+                        
+                            <option >
+                                Belanja
+                            </option>
+                            <option >
+                                Service
+                            </option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <select name="kendaraan_id" id="kendaraan_id"
+                        class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Kendaraan --</option>
+                        
+                            <option >
+                                Kendaraan
+                            </option>
+                            <option >
+                                Non-Kendaraan
+                            </option>
+                    </select>
+                </div>
+
                 {{-- Alasan Permintaan --}}
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
@@ -356,6 +407,111 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add initial empty row
     addItemRow();
 });
+
+// ── Modal Supplier Functions ──────────────────────────────────
+function openSupplierModal() {
+    document.getElementById('supplierModal').classList.remove('hidden');
+    document.getElementById('supplierForm').reset();
+}
+
+function closeSupplierModal() {
+    document.getElementById('supplierModal').classList.add('hidden');
+    document.getElementById('supplierForm').reset();
+    document.getElementById('supplierError').classList.add('hidden');
+}
+
+function submitSupplier() {
+    const form = document.getElementById('supplierForm');
+    const formData = new FormData(form);
+    const submitBtn = document.getElementById('supplierSubmitBtn');
+    const errorDiv = document.getElementById('supplierError');
+    
+    // Disable button
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>Menyimpan...';
+    errorDiv.classList.add('hidden');
+    
+    fetch('{{ route("supplier.api.store") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Add new option to dropdown
+            const select = document.getElementById('supplier_id');
+            const option = new Option(data.data.nama_supplier, data.data.id, true, true);
+            select.add(option);
+            
+            // Close modal
+            closeSupplierModal();
+            
+            // Show success message
+            alert('Supplier berhasil ditambahkan!');
+        } else {
+            throw new Error(data.message || 'Gagal menambahkan supplier');
+        }
+    })
+    .catch(error => {
+        errorDiv.textContent = error.message;
+        errorDiv.classList.remove('hidden');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa fa-save mr-2"></i>Simpan';
+    });
+}
 </script>
+
+{{-- Modal Create Supplier --}}
+<div id="supplierModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Tambah Supplier Baru</h3>
+            <button type="button" onclick="closeSupplierModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="supplierForm" onsubmit="event.preventDefault(); submitSupplier();">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Nama Supplier <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="nama_supplier" required
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                        placeholder="CV/PT Nama Supplier">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        No. Telepon <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="no_telp" required
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                        placeholder="08xxxxxxxxxx">
+                </div>
+                
+                <div id="supplierError" class="hidden text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg p-2"></div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button type="button" onclick="closeSupplierModal()"
+                    class="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">
+                    Batal
+                </button>
+                <button type="submit" id="supplierSubmitBtn"
+                    class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+                    <i class="fa fa-save mr-2"></i>Simpan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 @endsection

@@ -29,12 +29,19 @@ class KendaraanSeeder extends Seeder
         $jenisIds = [1, 2, 3];
 
         $prefixNopol = ['AA', 'AB', 'AD', 'AE', 'AG'];
+        $year = 2026;
 
         for ($i = 1; $i <= 50; $i++) {
             $merk = $merks[($i - 1) % count($merks)];
             $tahun = rand(2015, 2024);
             $kmSekarang = rand(5000, 120000);
             $kmTerakhirService = max(0, $kmSekarang - rand(1000, 8000));
+
+            // Distribusi created_at merata di Jan-Des 2026
+            $month = (($i - 1) % 12) + 1; // 1-12
+            $day = rand(1, Carbon::create($year, $month, 1)->daysInMonth);
+            $createdAt = Carbon::create($year, $month, $day)
+                ->setTime(rand(8, 17), rand(0, 59), rand(0, 59));
 
             Kendaraan::create([
                 'user_id'               => 1,
@@ -68,6 +75,8 @@ class KendaraanSeeder extends Seeder
                 'tanggal_terakhir_service' => Carbon::now()->subMonths(rand(1, 12)),
                 'status_service'        => $statusService[($i - 1) % count($statusService)],
                 'status_kendaraan'      => $statusKendaraan[($i - 1) % count($statusKendaraan)],
+                'created_at'            => $createdAt,
+                'updated_at'            => $createdAt,
             ]);
         }
     }

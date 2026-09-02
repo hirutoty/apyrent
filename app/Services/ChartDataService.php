@@ -164,6 +164,12 @@ class ChartDataService
     private function resolveColumnValue(Builder $periodQuery, $column): float
     {
         if (is_string($column)) {
+            // Special case: if column is 'id', assume COUNT instead of SUM
+            // This fixes charts like Member/Pelanggan where 'id' means "count records"
+            if ($column === 'id') {
+                return (float)(clone $periodQuery)->count();
+            }
+            
             // If column contains SQL expression characters, use DB::raw
             if (str_contains($column, '*') || str_contains($column, '+') || str_contains($column, '-') || str_contains($column, '(')) {
                 return (float)(clone $periodQuery)->selectRaw("SUM($column) as _val")->value('_val');
@@ -426,6 +432,12 @@ class ChartDataService
         if ($valueColumn === 'id' || $valueColumn === '_count') {
             return (float)(clone $periodQuery)->count();
         }
+        // last_value: ambil nilai kolom dari row terakhir (id DESC) — untuk running balance seperti saldo
+        if (str_starts_with($valueColumn, 'last_value:')) {
+            $col = substr($valueColumn, strlen('last_value:'));
+            $val = (clone $periodQuery)->orderBy('id', 'desc')->value($col);
+            return (float) ($val ?? 0);
+        }
         // Detect SQL expression (contains *, +, -, or parentheses)
         if (str_contains($valueColumn, '*') || str_contains($valueColumn, '+')
             || str_contains($valueColumn, '(') || str_contains($valueColumn, '/')) {
@@ -524,16 +536,22 @@ class ChartDataService
     /**
      * Get statistics data
      * 
-     * @param Builder $query Base query
+     * @param Builder $query Filtered query
      * @param array $config Configuration for stats
+     * @param Builder|null $baseQuery Unfiltered query for stats with ignoreFilter flag
      * @return array Statistics data
      */
-    public function getStatsData(Builder $query, array $config)
+    public function getStatsData(Builder $query, array $config, ?Builder $baseQuery = null)
     {
         $stats = [];
 
         foreach ($config as $statConfig) {
-            $value = $this->calculateStat($query, $statConfig);
+            // Use base query (unfiltered) if ignoreFilter flag is set
+            $statQuery = ($statConfig['ignoreFilter'] ?? false) && $baseQuery 
+                ? clone $baseQuery 
+                : clone $query;
+            
+            $value = $this->calculateStat($statQuery, $statConfig);
             
             $stats[] = [
                 'label' => $statConfig['label'],
@@ -541,7 +559,7 @@ class ChartDataService
                 'color' => $statConfig['color'] ?? '#4f6ef7',
                 'iconBg' => $statConfig['iconBg'] ?? '#eef1ff',
                 'icon' => $statConfig['icon'] ?? 'fa fa-chart-line',
-                'trend' => $this->calculateTrend($query, $statConfig) ?? null,
+                'trend' => $this->calculateTrend($statQuery, $statConfig) ?? null,
                 'badge' => $statConfig['badge'] ?? null,
                 'badgeType' => $statConfig['badgeType'] ?? 'info'
             ];
@@ -761,9 +779,17 @@ class ChartDataService
             $columnData = [];
             
             foreach ($categories as $category) {
-                $value = (clone $query)
-                    ->where($groupBy, $category)
-                    ->sum($column);
+                $categoryQuery = (clone $query)->where($groupBy, $category);
+                
+                // Respect aggregation type
+                if ($aggregation === 'count' || $column === 'id') {
+                    $value = $categoryQuery->count();
+                } elseif ($aggregation === 'avg') {
+                    $value = $categoryQuery->avg($column);
+                } else {
+                    // Default: sum
+                    $value = $categoryQuery->sum($column);
+                }
                 
                 $columnData[] = (float) $value;
             }
@@ -867,8 +893,17 @@ class ChartDataService
 
     private function calculateStat($query, $config)
     {
-        $type = $config['type'] ?? 'count'; // count, sum, avg, min, max, count_where, sum_where, sum_where_not, custom_saldo, sum_expr
+        $type = $config['type'] ?? 'count'; // count, sum, avg, min, max, count_where, sum_where, sum_where_not, custom_saldo, sum_expr, count_current_month
         $column = $config['column'] ?? 'id';
+
+        // Handle count fixed to current month/year (tidak terpengaruh filter aktif)
+        if ($type === 'count_current_month') {
+            $dateCol = $config['dateColumn'] ?? 'created_at';
+            return (clone $query)
+                ->whereMonth($dateCol, now()->month)
+                ->whereYear($dateCol, now()->year)
+                ->count();
+        }
 
         // Handle raw expression sum: type='sum_expr', expr='col1 * col2'
         if ($type === 'sum_expr' && isset($config['expr'])) {

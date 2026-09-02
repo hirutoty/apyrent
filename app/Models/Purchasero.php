@@ -16,6 +16,7 @@ class Purchasero extends Model
         'tanggal',
         'departemen',
         'pemohon',
+        'supplier_id',
         'barang_jasa',
         'kode_barang',
         'qty',
@@ -39,6 +40,22 @@ class Purchasero extends Model
 
         // no_pr di-generate manual di store() untuk multi-item
         // agar semua item dalam 1 submit mendapat No PR yang sama
+    }
+
+    /**
+     * Relation to Supplier
+     */
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    /**
+     * Accessor untuk nama supplier (prioritas dari relasi, fallback ke kolom string jika ada)
+     */
+    public function getSupplierNameAttribute()
+    {
+        return $this->supplier ? $this->supplier->nama_supplier : null;
     }
 
     /**
