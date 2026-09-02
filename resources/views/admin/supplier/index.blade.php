@@ -100,6 +100,12 @@
                                 Supplier</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No
                                 Telp</th>
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                    Nama Marketing</th>
+                                    <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                        Kontak Marketing</th>
+                                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                            Alamat</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Barang</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -115,7 +121,7 @@
                     <tbody id="supplierTableBody">
                         @forelse ($data as $d)
                             <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors duration-100"
-                                data-search="{{ strtolower($d->nama_supplier . ' ' . $d->no_telp . ' ' . $d->nama_barang . ' ' . ($d->user->name ?? '')) }}">
+                                data-search="{{ strtolower($d->nama_supplier . ' ' . $d->no_telp . ' ' . $d->alamat . ' ' . $d->nama_marketing . ' ' . $d->kontak_marketing . ' ' . ($d->user->name ?? '')) }}">
 
                                 <td class="px-4 py-3.5 text-xs text-gray-400 font-medium">{{ $data->firstItem() + $loop->index }}</td>
 
@@ -134,16 +140,70 @@
                                         class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->no_telp }}</span>
                                 </td>
 
-                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $d->nama_barang }}</td>
-
-                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $d->jumlah_barang }}</td>
-
-                                <td class="px-4 py-3.5 text-sm text-gray-700">Rp {{ number_format($d->harga_barang) }}</td>
+                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $d->nama_marketing ?? '-' }}</td>
 
                                 <td class="px-4 py-3.5">
-                                    <span class="text-sm font-bold text-green-600">
-                                        Rp {{ number_format($d->jumlah_barang * $d->harga_barang) }}
-                                    </span>
+                                    @if($d->kontak_marketing)
+                                        <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->kontak_marketing }}</span>
+                                    @else
+                                        <span class="text-sm text-gray-400">-</span>
+                                    @endif
+                                </td>
+
+                                <td class="px-4 py-3.5 text-sm text-gray-700">{{ $d->alamat ?? '-' }}</td>
+
+                                @php
+                                    $totalPr      = $d->purchaseros->count();
+                                    $totalNominal = $d->purchaseros->sum(function($pr) {
+                                        if ($pr->items && $pr->items->isNotEmpty()) {
+                                            return $pr->items->sum('subtotal');
+                                        }
+                                        return $pr->nominal ?? 0;
+                                    });
+                                    // Ambil ringkasan barang dari purchaseros (gabung nama barang unik)
+                                    $namaBarang = $d->purchaseros->flatMap(function($pr) {
+                                        if ($pr->items && $pr->items->isNotEmpty()) {
+                                            return $pr->items->pluck('nama_barang');
+                                        }
+                                        return collect([$pr->barang_jasa]);
+                                    })->filter()->unique()->take(2)->implode(', ');
+                                    $jumlahTotal = $d->purchaseros->flatMap(function($pr) {
+                                        if ($pr->items && $pr->items->isNotEmpty()) {
+                                            return $pr->items->pluck('qty');
+                                        }
+                                        return collect([$pr->qty ?? 0]);
+                                    })->sum();
+                                    // Harga rata-rata satuan dari semua item
+                                    $allItems = $d->purchaseros->flatMap(function($pr) {
+                                        if ($pr->items && $pr->items->isNotEmpty()) {
+                                            return $pr->items;
+                                        }
+                                        return collect([]);
+                                    });
+                                    $hargaRata = $allItems->isNotEmpty() ? $allItems->avg('harga_satuan') : 0;
+                                @endphp
+
+                                <td class="px-4 py-3.5 text-sm text-gray-700">
+                                    {{ $namaBarang ?: '-' }}
+                                    @if($totalPr > 1)
+                                        <span class="text-[10px] text-gray-400 ml-1">(+{{ $totalPr - 1 }} PR)</span>
+                                    @endif
+                                </td>
+
+                                <td class="px-4 py-3.5 text-sm text-gray-700">
+                                    {{ $jumlahTotal > 0 ? $jumlahTotal : '-' }}
+                                </td>
+
+                                <td class="px-4 py-3.5 text-sm text-gray-700">
+                                    {{ $hargaRata > 0 ? 'Rp ' . number_format($hargaRata, 0, ',', '.') : '-' }}
+                                </td>
+
+                                <td class="px-4 py-3.5">
+                                    @if($totalNominal > 0)
+                                        <span class="text-sm font-bold text-green-600">Rp {{ number_format($totalNominal, 0, ',', '.') }}</span>
+                                    @else
+                                        <span class="text-sm text-gray-400">-</span>
+                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3.5">
@@ -152,9 +212,11 @@
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors"
                                             data-id="{{ $d->id }}" data-user_id="{{ $d->user_id }}"
                                             data-nama_supplier="{{ $d->nama_supplier }}"
-                                            data-no_telp="{{ $d->no_telp }}" data-nama_barang="{{ $d->nama_barang }}"
-                                            data-jumlah_barang="{{ $d->jumlah_barang }}"
-                                            data-harga_barang="{{ $d->harga_barang }}" onclick="triggerEdit(this)">
+                                            data-no_telp="{{ $d->no_telp }}"
+                                            data-alamat="{{ $d->alamat }}"
+                                            data-nama_marketing="{{ $d->nama_marketing }}"
+                                            data-kontak_marketing="{{ $d->kontak_marketing }}"
+                                            onclick="triggerEdit(this)">
                                             <i class="fa fa-edit text-xs"></i> Edit
                                         </button>
                                         <form action="/admin/supplier/{{ $d->id }}" method="POST"
@@ -172,7 +234,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-5 py-12 text-center">
+                                <td colspan="11" class="px-5 py-12 text-center">
                                     <div class="flex flex-col items-center gap-3">
                                         <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                             <i class="bi bi-people-fill text-2xl text-gray-300"></i>
@@ -216,44 +278,42 @@
                 @csrf
                 <div id="methodContainer"></div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Supplier <span
-                            class="text-red-500">*</span></label>
-                    <input type="text" name="nama_supplier" id="f_nama_supplier" required
-                        placeholder="Contoh: CV Maju Jaya"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_supplier') }}">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Telp <span
-                            class="text-red-500">*</span></label>
-                    <input type="number" name="no_telp" id="f_no_telp" required placeholder="08xx-xxxx-xxxx"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('no_telp') }}">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Barang <span
-                            class="text-red-500">*</span></label>
-                    <input type="text" name="nama_barang" id="f_nama_barang" required
-                        placeholder="Contoh: Kabel HDMI 2m"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_barang') }}">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Supplier <span
+                                class="text-red-500">*</span></label>
+                        <input type="text" name="nama_supplier" id="f_nama_supplier" required
+                            placeholder="Contoh: CV Maju Jaya"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_supplier') }}">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Telp <span
+                                class="text-red-500">*</span></label>
+                        <input type="number" name="no_telp" id="f_no_telp" required placeholder="08xx-xxxx-xxxx"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('no_telp') }}">
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jumlah Barang <span
-                                class="text-red-500">*</span></label>
-                        <input type="number" name="jumlah_barang" id="f_jumlah_barang" required min="1"
-                            placeholder="0"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jumlah_barang') }}">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Marketing</label>
+                        <input type="text" name="nama_marketing" id="f_nama_marketing"
+                            placeholder="Contoh: Budi Santoso"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_marketing') }}">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Harga Barang <span
-                                class="text-red-500">*</span></label>
-                        <input type="number" name="harga_barang" id="f_harga_barang" required min="0" max="9999999999"
-                            placeholder="0"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('harga_barang') }}">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Marketing</label>
+                        <input type="number" name="kontak_marketing" id="f_kontak_marketing"
+                            placeholder="08xx-xxxx-xxxx"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('kontak_marketing') }}">
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat</label>
+                    <textarea name="alamat" id="f_alamat" rows="3"
+                        placeholder="Contoh: Jl. Merdeka No. 10, Jakarta"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('alamat') }}</textarea>
                 </div>
 
                 <button type="submit"
@@ -361,9 +421,9 @@
             methodContainer.innerHTML = '<input type="hidden" name="_method" value="PUT">';
             document.getElementById('f_nama_supplier').value = btn.dataset.nama_supplier;
             document.getElementById('f_no_telp').value = btn.dataset.no_telp;
-            document.getElementById('f_nama_barang').value = btn.dataset.nama_barang;
-            document.getElementById('f_jumlah_barang').value = btn.dataset.jumlah_barang;
-            document.getElementById('f_harga_barang').value = btn.dataset.harga_barang;
+            document.getElementById('f_alamat').value = btn.dataset.alamat ?? '';
+            document.getElementById('f_nama_marketing').value = btn.dataset.nama_marketing ?? '';
+            document.getElementById('f_kontak_marketing').value = btn.dataset.kontak_marketing ?? '';
             supplierModal.classList.remove('hidden');
             supplierModal.classList.add('flex');
         }

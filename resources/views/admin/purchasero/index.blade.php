@@ -245,15 +245,24 @@
                                     @if ($role === 'superadmin')
                                         {{-- Superadmin: Setujui + Tolak hanya saat Diajukan --}}
                                         @if($d->status === 'Diajukan')
-                                            <form action="{{ route('purchasero.status', $d->id) }}" method="POST" class="inline">
-                                                @csrf
-                                                <input type="hidden" name="status" value="Disetujui">
-                                                <button type="submit"
-                                                    onclick="return confirm('Setujui pengadaan {{ $d->no_pr }}?')"
+                                            @if($d->tipe_pengadaan === 'service')
+                                                {{-- Service: buka modal upload bukti --}}
+                                                <button type="button"
+                                                    onclick="openApproveServiceModal({{ $d->id }}, '{{ $d->no_pr }}')"
                                                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
                                                     <i class="fa fa-check text-[10px]"></i> Setujui
                                                 </button>
-                                            </form>
+                                            @else
+                                                <form action="{{ route('purchasero.status', $d->id) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    <input type="hidden" name="status" value="Disetujui">
+                                                    <button type="submit"
+                                                        onclick="return confirm('Setujui pengadaan {{ $d->no_pr }}?')"
+                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
+                                                        <i class="fa fa-check text-[10px]"></i> Setujui
+                                                    </button>
+                                                </form>
+                                            @endif
                                             <button type="button"
                                                 onclick="openTolakModal({{ $d->id }}, '{{ $d->no_pr }}')"
                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-200">
@@ -492,6 +501,52 @@
     </div>
 </div>
 
+{{-- ===== MODAL APPROVE SERVICE (dengan upload bukti) ===== --}}
+@if ($role === 'superadmin')
+<div id="approveServiceModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40" style="backdrop-filter:blur(2px)">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4" style="animation:slideUp .2s ease">
+        <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+            <div>
+                <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-sm flex-shrink-0"><i class="fa fa-check"></i></span>
+                    Setujui Pengadaan Service
+                </h2>
+                <p id="approveServiceSubtitle" class="text-xs text-gray-500 mt-1 ml-10"></p>
+            </div>
+            <button onclick="closeApproveServiceModal()" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none"><i class="fa fa-times"></i></button>
+        </div>
+        <form id="approveServiceForm" action="" method="POST" enctype="multipart/form-data" class="px-6 py-5 space-y-4">
+            @csrf
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Bukti Pembayaran <span class="text-gray-400 text-[10px]">(opsional, jpg/png/pdf maks 5MB)</span>
+                </label>
+                <input type="file" name="bukti_pembayaran" accept=".jpg,.jpeg,.png,.pdf"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Lampiran Tambahan <span class="text-gray-400 text-[10px]">(opsional, jpg/png/pdf maks 5MB)</span>
+                </label>
+                <input type="file" name="lampiran_tambahan" accept=".jpg,.jpeg,.png,.pdf"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100">
+            </div>
+            <p class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <i class="fa fa-info-circle mr-1"></i> Setelah disetujui, data service akan otomatis masuk ke riwayat service kendaraan.
+            </p>
+            <div class="flex gap-2 pt-1">
+                <button type="button" onclick="closeApproveServiceModal()"
+                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">Batal</button>
+                <button type="submit"
+                    class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-xl py-2.5 transition-colors">
+                    <i class="fa fa-check"></i> Konfirmasi Setujui
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
+
 {{-- ===== POPUP ALERT ===== --}}
 @if (session('success') || session('error') || $errors->any())
 <div id="alertOverlay" class="fixed inset-0 z-[9999] flex items-start justify-center pt-6"
@@ -520,6 +575,26 @@
 
 
 <script>
+// ── Approve Service Modal ─────────────────────────────────────
+function openApproveServiceModal(purchaseroId, noPr) {
+    const modal = document.getElementById('approveServiceModal');
+    const form  = document.getElementById('approveServiceForm');
+    const subtitle = document.getElementById('approveServiceSubtitle');
+    if (!modal || !form) return;
+    form.action = '/admin/purchasero/' + purchaseroId + '/approve-service';
+    subtitle.textContent = 'No PR: ' + noPr;
+    form.reset();
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+function closeApproveServiceModal() {
+    const modal = document.getElementById('approveServiceModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+}
+document.getElementById('approveServiceModal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeApproveServiceModal();
+});
+
 // ── Detail Modal ──────────────────────────────────────────────
 function openDetailModal(purchaseroId) {
     // Show modal immediately with loading state

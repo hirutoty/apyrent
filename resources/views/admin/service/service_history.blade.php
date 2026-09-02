@@ -306,6 +306,17 @@
                                         title="Lihat detail service kendaraan ini">
                                         Detail
                                     </a>
+                                    {{-- Tombol Terpasang: hanya untuk service dari pengadaan yang sudah approved --}}
+                                    @if($d->is_request && $d->status_approval === 'approved' && $d->status === 'proses')
+                                        <form action="{{ route('service-history.terpasang', $d->id) }}" method="POST"
+                                            onsubmit="return confirm('Tandai service ini sebagai Selesai (Terpasang)?')" class="inline">
+                                            @csrf
+                                            <button type="submit"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
+                                                <i class="fa fa-wrench text-xs"></i> Terpasang
+                                            </button>
+                                        </form>
+                                    @endif
                                     <form action="{{ route('service-history.destroy', $d->id) }}" method="POST"
                                         onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
                                         @csrf @method('DELETE')

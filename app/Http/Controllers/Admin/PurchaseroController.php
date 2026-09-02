@@ -244,120 +244,192 @@ class PurchaseroController extends Controller
             'it'         => 'IT',
             'superadmin' => 'Manajemen',
         ];
-        
-        // Untuk superadmin, ambil dari input; untuk user lain, set sesuai role
+
         if ($role === 'superadmin') {
             $departemen = $request->departemen;
         } else {
             $departemen = $deptMap[$role] ?? ucfirst($role);
         }
 
-        // Validation rules untuk header + items
-        $request->validate([
-            'tanggal'                => 'required|date',
-            'departemen'             => $role === 'superadmin' ? 'required|string|max:255' : 'nullable',
-            'pemohon'                => 'required|string|max:255',
-            'supplier_id'            => 'nullable|exists:supplier,id',
-            'alasan_permintaan'      => 'required|string',
-            'items'                  => 'required|array|min:1',
-            'items.*.nama_barang'    => 'required|string|max:255',
-            'items.*.kategori'       => 'nullable|string|max:255',
-            'items.*.posisi'         => 'nullable|string|max:255',
-            'items.*.part_number'    => 'nullable|string|max:255',
-            'items.*.serial_number'  => 'nullable|string|max:255',
-            'items.*.qty'            => 'required|numeric|min:0.01',
-            'items.*.satuan'         => 'nullable|string|max:50',
-            'items.*.harga_satuan'   => 'nullable|numeric|min:0',
-            'items.*.subtotal'       => 'nullable|numeric|min:0',
-            'items.*.spesifikasi'    => 'nullable|string',
-            'items.*.merk'           => 'nullable|string|max:255',
-            'items.*.keterangan'     => 'nullable|string',
-            'items.*.bukti'          => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048',
-        ], [
-            'tanggal.required'           => 'Tanggal wajib diisi',
-            'departemen.required'        => 'Departemen wajib dipilih',
-            'pemohon.required'           => 'Pemohon wajib diisi',
-            'alasan_permintaan.required' => 'Alasan permintaan wajib diisi',
-            'items.required'             => 'Minimal 1 item harus diisi',
-            'items.*.nama_barang.required' => 'Nama barang wajib diisi',
-            'items.*.qty.required'       => 'Quantity wajib diisi',
-            'items.*.qty.min'            => 'Quantity minimal 0.01',
-            'items.*.bukti.mimes'        => 'File harus berformat: jpg, jpeg, png, pdf, doc, docx',
-            'items.*.bukti.max'          => 'Ukuran file maksimal 2MB',
-        ]);
+        $tipe = $request->input('tipe_pengadaan', 'belanja');
+
+        // ── VALIDASI BERBEDA BERDASARKAN TIPE ──────────────────────
+        if ($tipe === 'service') {
+            $request->validate([
+                'tanggal'                      => 'required|date',
+                'departemen'                   => $role === 'superadmin' ? 'required|string|max:255' : 'nullable',
+                'pemohon'                      => 'required|string|max:255',
+                'alasan_permintaan'            => 'required|string',
+                'kendaraan_id'                 => 'required|exists:kendaraan,id',
+                'tanggal_service'              => 'required|date',
+                'kilometer'                    => 'required|integer|min:0',
+                'nama_penerima'                => 'required|string|max:255',
+                'nama_bank'                    => 'required|string|max:255',
+                'no_rekening'                  => 'required|string|max:100',
+                'parts'                        => 'required|array|min:1',
+                'parts.*.nama_part'            => 'required|string|max:255',
+                'parts.*.category_id'          => 'nullable|exists:service_categories,id',
+                'parts.*.tgl_pasang'           => 'required|date',
+                'parts.*.kilometer_pasang'     => 'required|integer|min:0',
+                'parts.*.interval_nilai'       => 'required|integer|min:1',
+                'parts.*.interval_satuan'      => 'required|in:hari,minggu,bulan,tahun',
+                'parts.*.biaya'                => 'required|integer|min:0',
+            ], [
+                'kendaraan_id.required'      => 'Kendaraan wajib dipilih',
+                'tanggal_service.required'   => 'Tanggal service wajib diisi',
+                'kilometer.required'         => 'Kilometer wajib diisi',
+                'nama_penerima.required'     => 'Nama penerima wajib diisi',
+                'nama_bank.required'         => 'Nama bank wajib diisi',
+                'no_rekening.required'       => 'No rekening wajib diisi',
+                'parts.required'             => 'Minimal 1 part harus diisi',
+                'parts.*.nama_part.required' => 'Nama part wajib diisi',
+                'parts.*.tgl_pasang.required'=> 'Tanggal pasang wajib diisi',
+            ]);
+        } else {
+            $request->validate([
+                'tanggal'                => 'required|date',
+                'departemen'             => $role === 'superadmin' ? 'required|string|max:255' : 'nullable',
+                'pemohon'                => 'required|string|max:255',
+                'supplier_id'            => 'nullable|exists:supplier,id',
+                'alasan_permintaan'      => 'required|string',
+                'items'                  => 'required|array|min:1',
+                'items.*.nama_barang'    => 'required|string|max:255',
+                'items.*.qty'            => 'required|numeric|min:0.01',
+                'items.*.bukti'          => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048',
+            ]);
+        }
 
         // Generate No PR
         $last    = Purchasero::orderBy('id', 'desc')->first();
         $lastNum = $last && preg_match('/(\d+)$/', $last->no_pr, $m) ? (int) $m[1] : 0;
         $noPr    = 'PR-' . str_pad($lastNum + 1, 3, '0', STR_PAD_LEFT);
 
-        // Calculate total nominal dari sum subtotal items
-        $totalNominal = 0;
-        foreach ($request->items as $item) {
-            $subtotal = isset($item['subtotal']) && is_numeric($item['subtotal']) ? (float) $item['subtotal'] : 0;
-            $totalNominal += $subtotal;
-        }
-
         DB::beginTransaction();
         try {
-            // Create Purchasero header
-            $purchasero = Purchasero::create([
-                'no_pr'             => $noPr,
-                'tanggal'           => $request->tanggal,
-                'departemen'        => $departemen,
-                'pemohon'           => $request->pemohon,
-                'supplier_id'       => $request->supplier_id,
-                'alasan_permintaan' => $request->alasan_permintaan,
-                'nominal'           => $totalNominal,
-                'status'            => 'Diajukan', // Langsung status "Diajukan"
-                'barang_jasa'       => null, // Deprecated field untuk backward compatibility
-                'kode_barang'       => null, // Deprecated field untuk backward compatibility
-                'qty'               => null, // Deprecated field untuk backward compatibility
-                'satuan'            => null, // Deprecated field untuk backward compatibility
-            ]);
-
-            // Create PurchaseroItem untuk setiap item
-            foreach ($request->items as $index => $item) {
-                $buktiFiles = [];
-                
-                // Handle file upload untuk bukti per item
-                if ($request->hasFile("items.{$index}.bukti")) {
-                    $file = $request->file("items.{$index}.bukti");
-                    $filename = time() . '_' . $index . '_' . $file->getClientOriginalName();
-                    $path = $file->storeAs('purchasero/bukti', $filename, 'public');
-                    $buktiFiles[] = [
-                        'filename' => $file->getClientOriginalName(),
-                        'path'     => $path,
-                        'size'     => $file->getSize(),
-                        'type'     => $file->getClientOriginalExtension(),
-                    ];
+            if ($tipe === 'service') {
+                // ── SIMPAN PENGADAAN SERVICE ────────────────────────
+                $totalNominal = 0;
+                foreach ($request->parts as $part) {
+                    $totalNominal += (int) ($part['biaya'] ?? 0);
                 }
 
-                $purchasero->items()->create([
-                    'nama_barang'   => $item['nama_barang'],
-                    'kategori'      => $item['kategori'] ?? null,
-                    'posisi'        => $item['posisi'] ?? null,
-                    'part_number'   => $item['part_number'] ?? null,
-                    'serial_number' => $item['serial_number'] ?? null,
-                    'qty'           => $item['qty'],
-                    'satuan'        => $item['satuan'] ?? null,
-                    'harga_satuan'  => isset($item['harga_satuan']) && is_numeric($item['harga_satuan']) ? (float) $item['harga_satuan'] : null,
-                    'subtotal'      => isset($item['subtotal']) && is_numeric($item['subtotal']) ? (float) $item['subtotal'] : null,
-                    'spesifikasi'   => $item['spesifikasi'] ?? null,
-                    'merk'          => $item['merk'] ?? null,
-                    'keterangan'    => $item['keterangan'] ?? null,
-                    'bukti'         => !empty($buktiFiles) ? $buktiFiles : null,
+                $purchasero = Purchasero::create([
+                    'no_pr'             => $noPr,
+                    'tanggal'           => $request->tanggal,
+                    'departemen'        => $departemen,
+                    'tipe_pengadaan'    => 'service',
+                    'pemohon'           => $request->pemohon,
+                    'supplier_id'       => $request->supplier_id,
+                    'alasan_permintaan' => $request->alasan_permintaan,
+                    'nominal'           => $totalNominal,
+                    'status'            => $role === 'superadmin' ? 'Diajukan' : 'Pending',
+                    'kendaraan_id'      => $request->kendaraan_id,
+                    'tanggal_service'   => $request->tanggal_service,
+                    'kilometer'         => $request->kilometer,
+                    'keluhan'           => $request->keluhan,
+                    'nama_penerima'     => $request->nama_penerima,
+                    'nama_bank'         => $request->nama_bank,
+                    'no_rekening'       => $request->no_rekening,
                 ]);
+
+                // Simpan parts
+                foreach ($request->parts as $part) {
+                    // Cek apakah kendaraan sudah over limit untuk kategori ini
+                    $isOverLimit = false;
+                    if (!empty($part['category_id'])) {
+                        $limit = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $request->kendaraan_id)
+                            ->where('category_id', $part['category_id'])
+                            ->first();
+                        if ($limit && !empty($part['biaya']) && (int) $part['biaya'] > $limit->limit_price) {
+                            $isOverLimit = true;
+                        }
+                    }
+
+                    $purchasero->serviceParts()->create([
+                        'kendaraan_id'     => $request->kendaraan_id,
+                        'category_id'      => $part['category_id'] ?? null,
+                        'nama_part'        => $part['nama_part'],
+                        'part_number'      => $part['part_number'] ?? null,
+                        'serial_number'    => $part['serial_number'] ?? null,
+                        'posisi'           => $part['posisi'] ?? null,
+                        'merk'             => $part['merk'] ?? null,
+                        'tgl_pasang'       => $part['tgl_pasang'],
+                        'kilometer_pasang' => $part['kilometer_pasang'] ?? 0,
+                        'kondisi'          => $part['kondisi'] ?? 'Baik',
+                        'status_part'      => 'Proses',
+                        'interval_nilai'   => $part['interval_nilai'] ?? 1,
+                        'interval_satuan'  => $part['interval_satuan'] ?? 'bulan',
+                        'biaya'            => (int) ($part['biaya'] ?? 0),
+                        'keterangan'       => $part['keterangan'] ?? null,
+                        'is_over_limit'    => $isOverLimit,
+                    ]);
+                }
+            } else {
+                // ── SIMPAN PENGADAAN BELANJA ────────────────────────
+                $totalNominal = 0;
+                foreach ($request->items as $item) {
+                    $totalNominal += isset($item['subtotal']) && is_numeric($item['subtotal']) ? (float) $item['subtotal'] : 0;
+                }
+
+                $purchasero = Purchasero::create([
+                    'no_pr'             => $noPr,
+                    'tanggal'           => $request->tanggal,
+                    'departemen'        => $departemen,
+                    'tipe_pengadaan'    => 'belanja',
+                    'pemohon'           => $request->pemohon,
+                    'supplier_id'       => $request->supplier_id,
+                    'alasan_permintaan' => $request->alasan_permintaan,
+                    'nominal'           => $totalNominal,
+                    'status'            => $role === 'superadmin' ? 'Diajukan' : 'Pending',
+                    'nama_penerima'     => $request->nama_penerima,
+                    'nama_bank'         => $request->nama_bank,
+                    'no_rekening'       => $request->no_rekening,
+                    'barang_jasa'       => null,
+                    'kode_barang'       => null,
+                    'qty'               => null,
+                    'satuan'            => null,
+                ]);
+
+                foreach ($request->items as $index => $item) {
+                    $buktiFiles = [];
+                    if ($request->hasFile("items.{$index}.bukti")) {
+                        $file = $request->file("items.{$index}.bukti");
+                        $filename = time() . '_' . $index . '_' . $file->getClientOriginalName();
+                        $path = $file->storeAs('purchasero/bukti', $filename, 'public');
+                        $buktiFiles[] = [
+                            'filename' => $file->getClientOriginalName(),
+                            'path'     => $path,
+                            'size'     => $file->getSize(),
+                            'type'     => $file->getClientOriginalExtension(),
+                        ];
+                    }
+
+                    $purchasero->items()->create([
+                        'nama_barang'   => $item['nama_barang'],
+                        'kategori'      => $item['kategori'] ?? null,
+                        'posisi'        => $item['posisi'] ?? null,
+                        'part_number'   => $item['part_number'] ?? null,
+                        'serial_number' => $item['serial_number'] ?? null,
+                        'qty'           => $item['qty'],
+                        'satuan'        => $item['satuan'] ?? null,
+                        'harga_satuan'  => isset($item['harga_satuan']) && is_numeric($item['harga_satuan']) ? (float) $item['harga_satuan'] : null,
+                        'subtotal'      => isset($item['subtotal']) && is_numeric($item['subtotal']) ? (float) $item['subtotal'] : null,
+                        'spesifikasi'   => $item['spesifikasi'] ?? null,
+                        'merk'          => $item['merk'] ?? null,
+                        'keterangan'    => $item['keterangan'] ?? null,
+                        'bukti'         => !empty($buktiFiles) ? $buktiFiles : null,
+                    ]);
+                }
             }
 
             DB::commit();
 
+            $tipePesan = $tipe === 'service' ? 'service' : 'belanja';
             return redirect()->route('purchasero.index')
-                ->with('success', "Pengadaan {$noPr} berhasil diajukan dengan " . count($request->items) . " item.");
+                ->with('success', "Pengadaan {$tipePesan} {$noPr} berhasil " . ($role === 'superadmin' ? 'diajukan' : 'disimpan sebagai Pending') . ".");
 
         } catch (\Exception $e) {
             DB::rollback();
-            
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage());
@@ -578,7 +650,7 @@ class PurchaseroController extends Controller
                 $kodeJurnal = 'PR-JRN-' . $purchasero->no_pr;
                 $nominal    = (int) ($purchasero->nominal ?? 0);
 
-                // ── Catat ke Keuangan (sebelumnya tidak ada) ──
+                // ── Catat ke Keuangan ──
                 if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
                     $lastSaldo = (float) DB::table('keuangans')
                         ->lockForUpdate()
@@ -599,7 +671,7 @@ class PurchaseroController extends Controller
                     ]);
                 }
 
-                // ── Catat ke Buku Besar (pakai lockForUpdate, cegah duplikat) ──
+                // ── Catat ke Buku Besar ──
                 if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
                     $saldoBB = (float) DB::table('bukubesars')
                         ->lockForUpdate()
@@ -619,13 +691,279 @@ class PurchaseroController extends Controller
                         'referensi'   => $purchasero->no_pr,
                     ]);
                 }
+
+        // ── Buat service_history jika tipe_pengadaan = service ──
+                if ($purchasero->tipe_pengadaan === 'service' && $purchasero->kendaraan_id) {
+                    $purchasero->load('serviceParts');
+
+                    $serviceHistory = \App\Models\ServiceHistory::create([
+                        'kendaraan_id'      => $purchasero->kendaraan_id,
+                        'tanggal_service'   => $purchasero->tanggal_service ?? now()->toDateString(),
+                        'kilometer'         => $purchasero->kilometer ?? 0,
+                        'keluhan'           => $purchasero->keluhan,
+                        'total_biaya'       => $purchasero->nominal,
+                        'status'            => 'proses',
+                        'status_approval'   => 'approved',
+                        'approval_by'       => auth()->id(),
+                        'approval_at'       => now(),
+                        'is_request'        => true,
+                    ]);
+
+                    // Cek apakah ada part yang melebihi limit → status_pengeluaran = overservice
+                    $hasOverLimit = $purchasero->serviceParts->contains('is_over_limit', true);
+
+                    if ($hasOverLimit) {
+                        $serviceHistory->update(['status_pengeluaran' => 'overservice']);
+                    }
+
+                    // Buat ServicePart dari PR service parts
+                    foreach ($purchasero->serviceParts as $prPart) {
+                        \App\Models\ServicePart::create([
+                            'service_history_id' => $serviceHistory->id,
+                            'kendaraan_id'       => $purchasero->kendaraan_id,
+                            'category_id'        => $prPart->category_id,
+                            'nama_part'          => $prPart->nama_part,
+                            'part_number'        => $prPart->part_number,
+                            'serial_number'      => $prPart->serial_number,
+                            'posisi'             => $prPart->posisi,
+                            'tgl_pasang'         => $prPart->tgl_pasang,
+                            'kilometer_pasang'   => $prPart->kilometer_pasang,
+                            'kondisi'            => $prPart->kondisi,
+                            'status'             => 'Terpasang',
+                            'interval_nilai'     => $prPart->interval_nilai,
+                            'interval_satuan'    => $prPart->interval_satuan,
+                            'biaya'              => $prPart->biaya,
+                            'keterangan'         => $prPart->keterangan,
+                            'is_request'         => true,
+                            'status_approval'    => 'approved',
+                            'approval_by'        => auth()->id(),
+                            'approval_at'        => now(),
+                        ]);
+
+                        // Update status_part di PR menjadi Terpasang
+                        $prPart->update(['status_part' => 'Terpasang']);
+                    }
+
+                    // Update kilometer kendaraan
+                    if ($purchasero->kilometer) {
+                        \App\Models\Kendaraan::where('id', $purchasero->kendaraan_id)
+                            ->update(['kilometer_sekarang' => $purchasero->kilometer]);
+                    }
+                }
             });
         }
 
         $label = $request->status === 'Disetujui' ? 'disetujui' : 'ditolak';
 
+        // Jika Ditolak dan tipe service: set service_history yang pending ke rejected (jika ada)
+        if ($request->status === 'Ditolak' && $purchasero->tipe_pengadaan === 'service') {
+            \App\Models\ServiceHistory::where('kendaraan_id', $purchasero->kendaraan_id)
+                ->where('is_request', true)
+                ->where('status_approval', 'pending')
+                ->update([
+                    'status_approval' => 'rejected',
+                    'approval_by'     => auth()->id(),
+                    'approval_at'     => now(),
+                ]);
+        }
+
         return redirect()->route('purchasero.index')
             ->with('success', 'Pengadaan ' . $purchasero->no_pr . ' berhasil ' . $label . '.');
+    }
+
+    /**
+     * Setujui pengadaan SERVICE dengan upload bukti pembayaran + lampiran.
+     * Dipanggil dari modal khusus di index pengadaan.
+     */
+    public function approveService(Request $request, Purchasero $purchasero)
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            return redirect()->route('purchasero.index')
+                ->with('error', 'Tidak memiliki izin.');
+        }
+
+        if ($purchasero->status !== 'Diajukan' || $purchasero->tipe_pengadaan !== 'service') {
+            return redirect()->route('purchasero.index')
+                ->with('error', 'Pengadaan tidak valid untuk disetujui via modal ini.');
+        }
+
+        $request->validate([
+            'bukti_pembayaran' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'lampiran_tambahan' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Simpan file bukti
+            $buktiPath = null;
+            if ($request->hasFile('bukti_pembayaran')) {
+                $buktiPath = $request->file('bukti_pembayaran')
+                    ->storeAs('purchasero/bukti', time() . '_bukti_' . $request->file('bukti_pembayaran')->getClientOriginalName(), 'public');
+            }
+
+            $lampiranPath = null;
+            if ($request->hasFile('lampiran_tambahan')) {
+                $lampiranPath = $request->file('lampiran_tambahan')
+                    ->storeAs('purchasero/lampiran', time() . '_lamp_' . $request->file('lampiran_tambahan')->getClientOriginalName(), 'public');
+            }
+
+            // Update PR: status Disetujui + simpan path file
+            $purchasero->update([
+                'status'               => 'Disetujui',
+                'disetujui_oleh'       => auth()->user()->name,
+                'tanggal_persetujuan'  => now()->toDateString(),
+                'bukti_pembayaran'     => $buktiPath ?? $purchasero->bukti_pembayaran,
+                'lampiran_tambahan'    => $lampiranPath ?? $purchasero->lampiran_tambahan,
+            ]);
+
+            // Buat service_history + parts
+            $purchasero->load('serviceParts');
+            $hasOverLimit = $purchasero->serviceParts->contains('is_over_limit', true);
+
+            $serviceHistory = \App\Models\ServiceHistory::create([
+                'kendaraan_id'        => $purchasero->kendaraan_id,
+                'tanggal_service'     => $purchasero->tanggal_service ?? now()->toDateString(),
+                'kilometer'           => $purchasero->kilometer ?? 0,
+                'keluhan'             => $purchasero->keluhan,
+                'total_biaya'         => $purchasero->nominal,
+                'status'              => 'proses',
+                'status_approval'     => 'approved',
+                'status_pengeluaran'  => $hasOverLimit ? 'overservice' : 'stabil',
+                'approval_by'         => auth()->id(),
+                'approval_at'         => now(),
+                'is_request'          => true,
+                'bukti_pembayaran'    => $buktiPath,
+            ]);
+
+            // Simpan lampiran ke tabel attachments jika ada
+            if ($lampiranPath) {
+                \App\Models\Attachment::create([
+                    'relation_type' => 'service',
+                    'relation_id'   => $serviceHistory->id,
+                    'path'          => $lampiranPath,
+                    'filename'      => basename($lampiranPath),
+                    'type'          => 'lampiran',
+                ]);
+            }
+
+            foreach ($purchasero->serviceParts as $prPart) {
+                \App\Models\ServicePart::create([
+                    'service_history_id' => $serviceHistory->id,
+                    'kendaraan_id'       => $purchasero->kendaraan_id,
+                    'category_id'        => $prPart->category_id,
+                    'nama_part'          => $prPart->nama_part,
+                    'part_number'        => $prPart->part_number,
+                    'serial_number'      => $prPart->serial_number,
+                    'posisi'             => $prPart->posisi,
+                    'tgl_pasang'         => $prPart->tgl_pasang,
+                    'kilometer_pasang'   => $prPart->kilometer_pasang,
+                    'kondisi'            => $prPart->kondisi,
+                    'status'             => 'Terpasang',
+                    'interval_nilai'     => $prPart->interval_nilai,
+                    'interval_satuan'    => $prPart->interval_satuan,
+                    'biaya'              => $prPart->biaya,
+                    'keterangan'         => $prPart->keterangan,
+                    'is_request'         => true,
+                    'status_approval'    => 'approved',
+                    'approval_by'        => auth()->id(),
+                    'approval_at'        => now(),
+                ]);
+                $prPart->update(['status_part' => 'Terpasang']);
+            }
+
+            if ($purchasero->kilometer) {
+                \App\Models\Kendaraan::where('id', $purchasero->kendaraan_id)
+                    ->update(['kilometer_sekarang' => $purchasero->kilometer]);
+            }
+
+            DB::commit();
+
+            return redirect()->route('purchasero.index')
+                ->with('success', 'Pengadaan ' . $purchasero->no_pr . ' berhasil disetujui dan data service tersimpan.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->back()
+                ->with('error', 'Gagal menyetujui: ' . $e->getMessage());
+        }
+    }
+    public function terpasang(Request $request, Purchasero $purchasero)
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            return redirect()->route('purchasero.index')
+                ->with('error', 'Tidak memiliki izin.');
+        }
+
+        if ($purchasero->status !== 'Disetujui' || $purchasero->tipe_pengadaan !== 'service') {
+            return redirect()->route('purchasero.index')
+                ->with('error', 'Pengadaan tidak bisa diubah ke Terpasang.');
+        }
+
+        DB::transaction(function () use ($purchasero) {
+            // Ubah status PR menjadi Terpasang (selesai)
+            $purchasero->update(['status' => 'Terpasang']);
+
+            // Update service_history terkait (via kendaraan + tanggal)
+            $sh = \App\Models\ServiceHistory::where('kendaraan_id', $purchasero->kendaraan_id)
+                ->where('is_request', true)
+                ->where('status', 'Approved')
+                ->whereDate('tanggal_service', $purchasero->tanggal_service)
+                ->first();
+
+            if ($sh) {
+                $sh->update(['status' => 'selesai']);
+            }
+        });
+
+        return redirect()->route('purchasero.index')
+            ->with('success', 'Pengadaan ' . $purchasero->no_pr . ' sudah ditandai Terpasang.');
+    }
+
+    /**
+     * AJAX: daftar kendaraan untuk dropdown form service.
+     * Kendaraan yang pernah service ditaruh paling atas.
+     */
+    public function apiKendaraan()
+    {
+        $kendaraan = \App\Models\Kendaraan::orderByDesc(
+                \App\Models\ServiceHistory::select('tanggal_service')
+                    ->whereColumn('kendaraan_id', 'kendaraan.id')
+                    ->orderByDesc('tanggal_service')
+                    ->limit(1)
+            )
+            ->orderBy('nopol')
+            ->get(['id', 'nopol', 'merk', 'kilometer_sekarang'])
+            ->map(fn($k) => [
+                'id'                 => $k->id,
+                'label'              => $k->nopol . ' — ' . $k->merk,
+                'kilometer_sekarang' => $k->kilometer_sekarang ?? 0,
+            ]);
+
+        return response()->json(['success' => true, 'data' => $kendaraan]);
+    }
+
+    /**
+     * AJAX: kategori beserta limit untuk kendaraan tertentu.
+     * Digunakan untuk autofill interval di form service.
+     */
+    public function apiCategoryLimit(Request $request)
+    {
+        $kendaraanId = $request->integer('kendaraan_id');
+
+        $categories = \App\Models\ServiceCategory::with([
+            'limits' => fn($q) => $q->where('kendaraan_id', $kendaraanId)
+        ])->get()->map(function ($cat) {
+            $limit = $cat->limits->first();
+            return [
+                'id'              => $cat->id,
+                'nama'            => $cat->nama,
+                'limit_nilai'     => $limit?->limit_nilai ?? 1,
+                'limit_satuan'    => $limit?->limit_satuan ?? 'tahun',
+                'limit_price'     => $limit?->limit_price ?? 0,
+            ];
+        });
+
+        return response()->json(['success' => true, 'data' => $categories]);
     }
 
     /**

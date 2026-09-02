@@ -368,6 +368,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   Route::get('/service-history/pdf', [ServiceHistoryController::class, 'pdf'])
     ->name('service-history.pdf');
+  Route::post('/service-history/{id}/terpasang', [ServiceHistoryController::class, 'terpasang'])
+    ->name('service-history.terpasang');
   Route::delete('/admin/history/kir/{id}', [KirHistoryController::class, 'destroy'])
     ->name('history.kir.destroy');
 
@@ -399,6 +401,18 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   Route::post('purchasero/{purchasero}/status', [PurchaseroController::class, 'updateStatusInline'])
     ->name('purchasero.status');
+
+  // Setujui pengadaan service (dengan upload bukti)
+  Route::post('purchasero/{purchasero}/approve-service', [PurchaseroController::class, 'approveService'])
+    ->name('purchasero.approve-service');
+
+  // AJAX endpoints untuk form pengadaan service
+  Route::get('purchasero/api/kendaraan-service', [PurchaseroController::class, 'apiKendaraan'])
+    ->name('purchasero.api.kendaraan');
+  Route::get('purchasero/api/category-limit', [PurchaseroController::class, 'apiCategoryLimit'])
+    ->name('purchasero.api.category-limit');
+  Route::post('purchasero/{purchasero}/terpasang', [PurchaseroController::class, 'terpasang'])
+    ->name('purchasero.terpasang');
 
   Route::resource('vendoreo', VendoreoController::class) // Manajemen Vendor
     ->except(['create', 'edit', 'show']); // Form CRUD With Modal

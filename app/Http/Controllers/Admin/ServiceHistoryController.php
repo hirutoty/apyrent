@@ -1500,4 +1500,25 @@ class ServiceHistoryController extends Controller
 
         return ['valid' => $valid, 'duplicate' => $duplicate];
     }
+
+    /**
+     * Tandai service_history dari pengadaan sebagai Selesai (Terpasang).
+     * Hanya bisa dilakukan superadmin pada service yang status_approval = approved dan status = proses.
+     */
+    public function terpasang(int $id)
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            return redirect()->back()->with('error', 'Tidak memiliki izin.');
+        }
+
+        $sh = ServiceHistory::findOrFail($id);
+
+        if ($sh->status !== 'proses' || $sh->status_approval !== 'approved') {
+            return redirect()->back()->with('error', 'Service tidak bisa ditandai Terpasang dalam kondisi saat ini.');
+        }
+
+        $sh->update(['status' => 'selesai']);
+
+        return redirect()->back()->with('success', 'Service berhasil ditandai sebagai Selesai (Terpasang).');
+    }
 }

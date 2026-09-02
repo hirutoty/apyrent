@@ -15,7 +15,7 @@ class SupplierController extends Controller
     {
         $search = $request->input('search');
         
-        $query = Supplier::with('user');
+        $query = Supplier::with(['user', 'purchaseros.items']);
         
         // Apply search filter
         if ($search) {
@@ -38,6 +38,9 @@ class SupplierController extends Controller
         $request->validate([
             'nama_supplier' => 'required',
             'no_telp' => 'required',
+            'alamat' => 'nullable|string',
+            'nama_marketing' => 'nullable|string',
+            'kontak_marketing' => 'nullable|string',
         ]);
 
         // CEK DUPLIKAT
@@ -53,6 +56,9 @@ class SupplierController extends Controller
             'user_id' => Auth::id(),
             'nama_supplier' => $request->nama_supplier,
             'no_telp' => $request->no_telp,
+            'alamat' => $request->alamat,
+            'nama_marketing' => $request->nama_marketing,
+            'kontak_marketing' => $request->kontak_marketing,
         ]);
 
         return back()->with('success', 'Supplier berhasil ditambahkan');
@@ -66,12 +72,18 @@ class SupplierController extends Controller
         $request->validate([
             'nama_supplier' => 'required|unique:supplier,nama_supplier',
             'no_telp' => 'required',
+            'alamat' => 'nullable|string',
+            'nama_marketing' => 'nullable|string',
+            'kontak_marketing' => 'nullable|string',
         ]);
 
         $supplier = Supplier::create([
             'user_id' => Auth::id(),
             'nama_supplier' => $request->nama_supplier,
             'no_telp' => $request->no_telp,
+            'alamat' => $request->alamat,
+            'nama_marketing' => $request->nama_marketing,
+            'kontak_marketing' => $request->kontak_marketing,
         ]);
 
         return response()->json([
@@ -86,6 +98,9 @@ class SupplierController extends Controller
         $request->validate([
             'nama_supplier' => 'required',
             'no_telp' => 'required',
+            'alamat' => 'nullable|string',
+            'nama_marketing' => 'nullable|string',
+            'kontak_marketing' => 'nullable|string',
         ]);
 
         $supplier = Supplier::findOrFail($id);
@@ -104,6 +119,9 @@ class SupplierController extends Controller
         $supplier->update([
             'nama_supplier' => $request->nama_supplier,
             'no_telp' => $request->no_telp,
+            'alamat' => $request->alamat,
+            'nama_marketing' => $request->nama_marketing,
+            'kontak_marketing' => $request->kontak_marketing,
         ]);
 
         return back()->with('success', 'Supplier berhasil diupdate');
