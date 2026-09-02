@@ -15,6 +15,9 @@ protected $fillable = [
     'user_id',
     'nama_supplier',
     'no_telp',
+    'alamat',
+    'nama_marketing',
+    'kontak_marketing',
 ];
 
 /**
