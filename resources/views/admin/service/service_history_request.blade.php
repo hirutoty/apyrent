@@ -96,16 +96,58 @@
                         class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keluhan', $prefill['keluhan'] ?? '') }}</textarea>
                 </div>
 
+                {{-- Alasan Permintaan & Keterangan Pengadaan — hidden, auto-generate --}}
+                <input type="hidden" name="alasan_permintaan" id="alasan_permintaan" value="{{ old('alasan_permintaan', '') }}">
+                <input type="hidden" name="keterangan_pengadaan" id="keterangan_pengadaan" value="{{ old('keterangan_pengadaan', '') }}">
+
+                {{-- Supplier / Bengkel --}}
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Supplier / Bengkel
+                        <span class="text-gray-400 text-[10px] font-normal ml-1">
+                            (opsional —
+                            <button type="button" onclick="openSupplierModal()"
+                                class="text-blue-500 hover:underline text-[10px] font-medium">+ tambah baru</button>
+                            jika belum ada)
+                        </span>
+                    </label>
+                    <div class="flex gap-2">
+                        <select name="supplier_id" id="supplier_id"
+                            class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            <option value="">-- Pilih Supplier/Bengkel --</option>
+                            @foreach ($suppliers as $s)
+                                <option value="{{ $s->id }}" {{ old('supplier_id') == $s->id ? 'selected' : '' }}>
+                                    {{ $s->nama_supplier }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @if ($suppliers->isEmpty())
+                        <button type="button" onclick="openSupplierModal()"
+                            class="w-10 h-10 rounded-xl bg-green-600 hover:bg-green-700 text-white flex items-center justify-center transition-colors flex-shrink-0"
+                            title="Tambah Supplier Baru">
+                            <i class="fa fa-plus text-sm"></i>
+                        </button>
+                        @endif
+                    </div>
+                    @error('supplier_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                </div>
+
                 {{-- Bukti Pembayaran --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bukti Pembayaran</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Bukti Pembayaran
+                        <span class="text-gray-400 text-[10px] font-normal ml-1">(opsional — bisa diisi saat disetujui)</span>
+                    </label>
                     <input type="file" name="bukti_pembayaran"
                         class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                 </div>
 
                 {{-- Lampiran --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Lampiran Tambahan</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Lampiran Tambahan
+                        <span class="text-gray-400 text-[10px] font-normal ml-1">(opsional — bisa diisi saat disetujui)</span>
+                    </label>
                     <input type="file" name="bukti_attachment[]" multiple
                         class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100">
                 </div>
@@ -463,7 +505,10 @@ function addPartRow(data = null) {
 
             <!-- Bukti (full width) -->
             <div class="md:col-span-3">
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Bukti (Foto/Video)</label>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">
+                    Bukti / Attachment
+                    <span class="text-[10px] font-normal text-gray-400 ml-1">(opsional — bisa lebih dari 1 file)</span>
+                </label>
                 <input type="file" name="parts[${idx}][bukti][]" multiple accept="image/*,video/mp4,video/mov"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                 <p class="text-[10px] text-gray-400 mt-1">Format: JPG, PNG, MP4, MOV</p>
@@ -478,6 +523,7 @@ function addPartRow(data = null) {
     syncKmPasang(idx);
 
     recalcTotal();
+    generateKeterangan();
 }
 
 function removePartRow(idx) {
@@ -656,6 +702,7 @@ function onKendaraanChange(val) {
             }
         });
     }
+    generateKeterangan();
 }
 
 document.getElementById('kilometer').addEventListener('input', function() {
@@ -666,10 +713,149 @@ document.getElementById('kilometer').addEventListener('input', function() {
     });
 });
 
+// ── Auto-generate keterangan slug ──────────────────────────────
+function generateKeterangan() {
+    const kendaraanSel = document.getElementById('kendaraan_id');
+    const nopolOpt = kendaraanSel?.options[kendaraanSel.selectedIndex];
+    const nopol = (nopolOpt?.dataset?.nopol || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const merk  = (nopolOpt?.dataset?.merk  || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    const partNames = [];
+    document.querySelectorAll('[name$="[nama_part]"]').forEach(inp => {
+        const val = inp.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        if (val) partNames.push(val);
+    });
+
+    const kendaraanSlug = merk + nopol;
+    const partSlug = partNames.slice(0, 4).join('-');
+    const parts = [kendaraanSlug, partSlug].filter(Boolean).join('-');
+    const slug = nopol ? ('service-' + parts).substring(0, 500) : '';
+
+    const el = document.getElementById('keterangan_pengadaan');
+    if (el) el.value = slug;
+}
+
 // ── Init prefill (dari reminder) ─────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
-    // Request form — no prefill needed
+    const tglInput = document.querySelector('[name="tanggal_service"]');
+    if (tglInput) tglInput.addEventListener('change', generateKeterangan);
+    generateKeterangan();
 });
+</script>
+
+{{-- Modal Create Supplier --}}
+<div id="supplierModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full mx-4" style="animation:slideUp .2s ease">
+        <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+            <div>
+                <h3 class="text-base font-bold text-gray-800">Tambah Supplier / Bengkel Baru</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Isi data supplier/bengkel dengan lengkap</p>
+            </div>
+            <button type="button" onclick="closeSupplierModal()"
+                class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <form id="supplierForm" onsubmit="event.preventDefault(); submitSupplier();" class="px-6 py-5 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Supplier <span class="text-red-500">*</span></label>
+                    <input type="text" name="nama_supplier" required placeholder="CV/PT / Nama Bengkel"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Telepon <span class="text-red-500">*</span></label>
+                    <input type="number" name="no_telp" required placeholder="08xxxxxxxxxx"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Marketing</label>
+                    <input type="text" name="nama_marketing" placeholder="Contoh: Budi Santoso"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Marketing</label>
+                    <input type="number" name="kontak_marketing" placeholder="08xxxxxxxxxx"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat</label>
+                <textarea name="alamat" rows="2" placeholder="Contoh: Jl. Merdeka No. 10, Jakarta"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+            </div>
+            <div id="supplierError" class="hidden text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg p-2"></div>
+            <div class="flex gap-3 pt-1">
+                <button type="button" onclick="closeSupplierModal()"
+                    class="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">
+                    Batal
+                </button>
+                <button type="submit" id="supplierSubmitBtn"
+                    class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+                    <i class="fa fa-save mr-2"></i>Simpan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openSupplierModal() {
+    document.getElementById('supplierModal').classList.remove('hidden');
+    document.getElementById('supplierForm').reset();
+    document.getElementById('supplierError').classList.add('hidden');
+}
+function closeSupplierModal() {
+    document.getElementById('supplierModal').classList.add('hidden');
+    document.getElementById('supplierForm').reset();
+    document.getElementById('supplierError').classList.add('hidden');
+}
+function submitSupplier() {
+    const form      = document.getElementById('supplierForm');
+    const formData  = new FormData(form);
+    const submitBtn = document.getElementById('supplierSubmitBtn');
+    const errorDiv  = document.getElementById('supplierError');
+    const namaInput = form.querySelector('[name="nama_supplier"]');
+    const namaBaru  = namaInput ? namaInput.value.trim().toLowerCase() : '';
+
+    const select   = document.getElementById('supplier_id');
+    const existing = Array.from(select.options).map(o => o.text.trim().toLowerCase());
+    if (namaBaru && existing.includes(namaBaru)) {
+        errorDiv.textContent = 'Supplier "' + namaInput.value.trim() + '" sudah ada dalam daftar.';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>Menyimpan...';
+    errorDiv.classList.add('hidden');
+
+    fetch('{{ route("supplier.api.store") }}', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const option = new Option(data.data.nama_supplier, data.data.id, true, true);
+            select.add(option);
+            closeSupplierModal();
+        } else {
+            throw new Error(data.message || 'Gagal menambahkan supplier');
+        }
+    })
+    .catch(error => {
+        errorDiv.textContent = error.message;
+        errorDiv.classList.remove('hidden');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa fa-save mr-2"></i>Simpan';
+    });
+}
 </script>
 
 @endsection

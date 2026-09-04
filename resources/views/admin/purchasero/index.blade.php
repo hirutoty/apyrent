@@ -185,6 +185,7 @@
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Departemen</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Pemohon</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Keterangan</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Items</th>
                         <th class="text-right text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Total Nominal</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
@@ -216,6 +217,15 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3.5 text-sm text-gray-700">{{ $d->pemohon ?? '-' }}</td>
+                            <td class="px-4 py-3.5">
+                                @if($d->keterangan)
+                                    <span class="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded max-w-[180px] block truncate" title="{{ $d->keterangan }}">
+                                        {{ $d->keterangan }}
+                                    </span>
+                                @else
+                                    <span class="text-xs text-gray-300">—</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3.5">
                                 <span class="inline-flex items-center gap-1 text-sm font-medium text-gray-600">
                                     <i class="fa fa-boxes text-blue-400 text-xs"></i>

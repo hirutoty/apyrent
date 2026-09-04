@@ -23,6 +23,7 @@ class Purchasero extends Model
         'qty',
         'satuan',
         'alasan_permintaan',
+        'keterangan',
         'nominal',
         'status',
         'disetujui_oleh',
