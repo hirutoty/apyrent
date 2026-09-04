@@ -4,12 +4,15 @@
 
 @section('content')
 
+{{-- Include Approval Modal Component --}}
+<x-approval-modal />
+
 <div class="space-y-6 p-5">
 
     {{-- PAGE HEADER --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800">Pengadaan</h1>
+            <h1 class="text-2xl font-bold text-gray-800">Pembayaran</h1>
             <p class="text-sm text-gray-500 mt-0.5">Kelola pengajuan permintaan pembelian barang &amp; jasa</p>
         </div>
         <a href="{{ route('purchasero.create') }}"
@@ -182,6 +185,7 @@
                     <tr class="bg-gray-50 border-b border-gray-100">
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No PR</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jenis</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tanggal</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Departemen</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Pemohon</th>
@@ -206,6 +210,21 @@
                             <td class="px-4 py-3.5 text-xs text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3.5">
                                 <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->no_pr }}</span>
+                            </td>
+                            <td class="px-4 py-3.5">
+                                @if($d->source_type)
+                                    {{-- Pengeluaran --}}
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                                        <i class="bi bi-wallet2 text-[10px]"></i>
+                                        {{ $d->source_type_name }}
+                                    </span>
+                                @else
+                                    {{-- Belanja --}}
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                        <i class="bi bi-cart3 text-[10px]"></i>
+                                        Belanja
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap">
                                 {{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d M Y') : '-' }}
@@ -243,10 +262,48 @@
                                     </button>
 
                                     @if ($role === 'superadmin')
-                                        {{-- Superadmin: Setujui + Tolak hanya saat Diajukan --}}
-                                        @if($d->status === 'Diajukan')
+                                        {{-- Superadmin Actions --}}
+                                        @if($d->status === 'Pending')
+                                            @if($d->source_type)
+                                                {{-- PENGELUARAN: Approve/Reject dengan Modal --}}
+                                                <button type="button"
+                                                    onclick="openApprovalModal({{ $d->id }})"
+                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
+                                                    <i class="fa fa-check text-[10px]"></i> Approve
+                                                </button>
+                                                <button type="button"
+                                                    onclick="openRejectModal({{ $d->id }})"
+                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-200">
+                                                    <i class="fa fa-times text-[10px]"></i> Reject
+                                                </button>
+                                            @else
+                                                {{-- BELANJA REGULAR: Existing flow --}}
+                                                @if($d->tipe_pengadaan === 'service')
+                                                    <button type="button"
+                                                        onclick="openApproveServiceModal({{ $d->id }}, '{{ $d->no_pr }}')"
+                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
+                                                        <i class="fa fa-check text-[10px]"></i> Setujui
+                                                    </button>
+                                                @else
+                                                    <form action="{{ route('purchasero.status', $d->id) }}" method="POST" class="inline">
+                                                        @csrf
+                                                        <input type="hidden" name="status" value="Disetujui">
+                                                        <button type="submit"
+                                                            onclick="return confirm('Setujui pengadaan {{ $d->no_pr }}?')"
+                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
+                                                            <i class="fa fa-check text-[10px]"></i> Setujui
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                                <button type="button"
+                                                    onclick="openTolakModal({{ $d->id }}, '{{ $d->no_pr }}')"
+                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-200">
+                                                    <i class="fa fa-times text-[10px]"></i> Tolak
+                                                </button>
+                                            @endif
+                                        @elseif($d->status === 'Diajukan')
+                                            {{-- Status Diajukan (Old logic) --}}
                                             @if($d->tipe_pengadaan === 'service')
-                                                {{-- Service: buka modal upload bukti --}}
                                                 <button type="button"
                                                     onclick="openApproveServiceModal({{ $d->id }}, '{{ $d->no_pr }}')"
                                                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
@@ -268,6 +325,22 @@
                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-200">
                                                 <i class="fa fa-times text-[10px]"></i> Tolak
                                             </button>
+                                        @elseif($d->status === 'Ditolak' && $d->source_type && $d->can_edit)
+                                            {{-- PENGELUARAN DITOLAK: Button Edit & Ajukan Ulang --}}
+                                            <a href="{{ route('purchasero.edit-rejected', $d->id) }}"
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200">
+                                                <i class="fa fa-edit text-[10px]"></i> Edit & Ajukan Ulang
+                                            </a>
+                                        @elseif($d->status === 'Disetujui' && $d->source_type && $d->target_id)
+                                            {{-- Link to final table --}}
+                                            <a href="{{ route(match($d->source_type) {
+                                                'asuransi_kendaraan' => 'asuransi-kendaraan.index',
+                                                'pajak' => 'pajak-kendaraan.index',
+                                                default => 'purchasero.index',
+                                            }) }}" target="_blank"
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors border border-indigo-200">
+                                                <i class="bi bi-box-arrow-up-right text-[10px]"></i> Lihat Data
+                                            </a>
                                         @endif
 
                                     @else
@@ -428,6 +501,32 @@
                 <div class="bg-indigo-50 rounded-xl px-3 py-2.5">
                     <p class="text-[10px] text-indigo-400 font-semibold uppercase tracking-wide mb-0.5">Terakhir Diajukan</p>
                     <p id="d_terakhir_diajukan" class="text-sm text-indigo-700"></p>
+                </div>
+            </div>
+
+            {{-- Rekening Bank Section --}}
+            <div id="d_rekening_section" class="hidden bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="bi bi-bank text-amber-600"></i>
+                    <p class="text-xs text-amber-700 font-semibold uppercase tracking-wide">Informasi Rekening Bank</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-2">
+                    <div id="d_nama_bank_wrapper" class="hidden">
+                        <p class="text-[10px] text-amber-500 uppercase mb-0.5">Nama Bank</p>
+                        <p id="d_nama_bank" class="text-sm text-gray-700 font-medium"></p>
+                    </div>
+                    <div id="d_no_rekening_wrapper" class="hidden">
+                        <p class="text-[10px] text-amber-500 uppercase mb-0.5">No. Rekening</p>
+                        <p id="d_no_rekening" class="text-sm text-gray-700 font-medium"></p>
+                    </div>
+                    <div id="d_nama_rekening_wrapper" class="hidden col-span-2">
+                        <p class="text-[10px] text-amber-500 uppercase mb-0.5">Nama Pemilik Rekening</p>
+                        <p id="d_nama_rekening" class="text-sm text-gray-700 font-medium"></p>
+                    </div>
+                </div>
+                <div id="d_informasi_wrapper" class="hidden pt-2 border-t border-amber-300">
+                    <p class="text-[10px] text-amber-500 uppercase mb-0.5">Informasi Tambahan</p>
+                    <p id="d_informasi" class="text-sm text-gray-700"></p>
                 </div>
             </div>
 
@@ -712,6 +811,50 @@ function populateDetailModal(pr) {
         approvalSection.classList.add('hidden');
     }
     
+    // Rekening bank section
+    var rekeningSection = document.getElementById('d_rekening_section');
+    var hasRekening = pr.nama_bank || pr.no_rekening || pr.nama_rekening || pr.informasi;
+    
+    if (hasRekening) {
+        // Show/hide individual fields
+        var namaBankWrapper = document.getElementById('d_nama_bank_wrapper');
+        var noRekeningWrapper = document.getElementById('d_no_rekening_wrapper');
+        var namaRekeningWrapper = document.getElementById('d_nama_rekening_wrapper');
+        var informasiWrapper = document.getElementById('d_informasi_wrapper');
+        
+        if (pr.nama_bank) {
+            document.getElementById('d_nama_bank').innerText = pr.nama_bank;
+            namaBankWrapper.classList.remove('hidden');
+        } else {
+            namaBankWrapper.classList.add('hidden');
+        }
+        
+        if (pr.no_rekening) {
+            document.getElementById('d_no_rekening').innerText = pr.no_rekening;
+            noRekeningWrapper.classList.remove('hidden');
+        } else {
+            noRekeningWrapper.classList.add('hidden');
+        }
+        
+        if (pr.nama_rekening) {
+            document.getElementById('d_nama_rekening').innerText = pr.nama_rekening;
+            namaRekeningWrapper.classList.remove('hidden');
+        } else {
+            namaRekeningWrapper.classList.add('hidden');
+        }
+        
+        if (pr.informasi) {
+            document.getElementById('d_informasi').innerText = pr.informasi;
+            informasiWrapper.classList.remove('hidden');
+        } else {
+            informasiWrapper.classList.add('hidden');
+        }
+        
+        rekeningSection.classList.remove('hidden');
+    } else {
+        rekeningSection.classList.add('hidden');
+    }
+    
     // Catatan section
     var catatanSection = document.getElementById('d_catatan_section');
     if (pr.catatan && pr.catatan.trim()) {
@@ -775,6 +918,21 @@ deleteModal.addEventListener('click', function(e) { if (e.target === this) close
     }
     window.closeAlert = closeAlert;
 })();
+
+// ========================================
+// APPROVAL MODAL FUNCTIONS
+// ========================================
+function openApprovalModal(purchaseroId) {
+    window.dispatchEvent(new CustomEvent('open-approval-modal', {
+        detail: { id: purchaseroId }
+    }));
+}
+
+function openRejectModal(purchaseroId) {
+    window.dispatchEvent(new CustomEvent('open-approval-modal', {
+        detail: { id: purchaseroId, action: 'reject' }
+    }));
+}
 
 // ========================================
 // CHART INITIALIZATION

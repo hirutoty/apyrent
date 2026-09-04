@@ -491,7 +491,7 @@ class ServiceHistoryController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
             'kendaraan_id'                 => 'required|exists:kendaraan,id',
@@ -522,6 +522,54 @@ class ServiceHistoryController extends Controller
             'parts.*.bukti.*'              => 'file|mimes:jpg,jpeg,png,mp4,mov',
             'parts.*.keterangan'           => 'nullable|string|max:1000',
         ]);
+
+        // ===========================================================================
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Purchasero
+        // Skip intercept jika:
+        // 1. Dari reminder (replacement part yang sudah approved)
+        // 2. Dari edit existing service_history_id (update data existing)
+        // ===========================================================================
+        
+        if (!$request->filled('from_reminder') && !$request->filled('service_history_id')) {
+            try {
+                // Check if this is a resubmit (from rejected purchasero)
+                if ($request->filled('edit_purchasero')) {
+                    $purchaseroId = $request->input('edit_purchasero');
+                    
+                    // Resubmit: Update existing purchasero
+                    $purchasero = $interceptor->resubmitToPurchasero($purchaseroId, $request, 'service_part');
+                    
+                    return redirect()
+                        ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'service_part'])
+                        ->with('success', 'Pengajuan service part berhasil diajukan ulang. Menunggu approval dari Superadmin.');
+                }
+                
+                // Step 1: Intercept data dari form
+                $interceptedData = $interceptor->intercept($request, 'service_part');
+                
+                // Step 2: Save ke Purchasero
+                $purchasero = $interceptor->saveToPurchasero($interceptedData, 'service_part');
+                
+                // Step 3: Upload temporary files
+                $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $purchasero->id);
+                
+                // Step 4: Update source_data dengan file info
+                $sourceData = $purchasero->source_data;
+                $sourceData['temp_files'] = $uploadedFiles;
+                $purchasero->update(['source_data' => $sourceData]);
+                
+                return redirect()
+                    ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'service_part'])
+                    ->with('success', 'Pengajuan pengeluaran service part berhasil dikirim. Menunggu approval dari Superadmin.');
+                    
+            } catch (\Exception $e) {
+                \Log::error('Error intercepting service part submission: ' . $e->getMessage());
+                
+                return back()
+                    ->withInput()
+                    ->with('error', 'Terjadi kesalahan saat mengajukan pengeluaran. Silakan coba lagi.');
+            }
+        }
 
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 

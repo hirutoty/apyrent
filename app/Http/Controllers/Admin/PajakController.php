@@ -126,8 +126,9 @@ class PajakController extends Controller
         }
     }
 
-    public function store(Request $request)
+    public function store(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
+        // Validation tetap lengkap
         $request->validate([
             'kendaraan_id' => 'required|exists:kendaraan,id',
             'jenis_pajak' => 'required',
@@ -136,7 +137,7 @@ class PajakController extends Controller
             'tanggal_bayar' => 'nullable|date',
             'status' => 'required',
             'keterangan' => 'nullable',
-            'bukti' => 'nullable|file|max:5120',
+            'bukti' => 'nullable|file|max:5120',  // Changed to nullable karena upload saat approval
             'bukti_attachment' => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
         ]);
@@ -151,85 +152,63 @@ class PajakController extends Controller
             return back()->with('error', 'Nopol ini sudah memiliki data pajak');
         }
 
-        // upload bukti utama
-        $bukti = null;
-
-        if ($request->hasFile('bukti')) {
-            $file = $request->file('bukti');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
-            $path = public_path('pajak/bukti');
-            if (!file_exists($path)) mkdir($path, 0777, true);
-
-            $file->move($path, $filename);
-            $bukti = 'pajak/bukti/' . $filename;
+        // ===========================================================================
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Purchasero
+        // ===========================================================================
+        
+        try {
+            // Check if this is a resubmit (from rejected purchasero)
+            if ($request->filled('edit_purchasero')) {
+                $purchaseroId = $request->input('edit_purchasero');
+                
+                // Resubmit: Update existing purchasero
+                $purchasero = $interceptor->resubmitToPurchasero($purchaseroId, $request, 'pajak');
+                
+                return redirect()
+                    ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'pajak'])
+                    ->with('success', 'Pengajuan pajak berhasil diajukan ulang. Menunggu approval dari Superadmin.');
+            }
+            
+            // Step 1: Intercept data dari form
+            $interceptedData = $interceptor->intercept($request, 'pajak');
+            
+            // Step 2: Save ke Purchasero
+            $purchasero = $interceptor->saveToPurchasero($interceptedData, 'pajak');
+            
+            // Step 3: Upload temporary files
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $purchasero->id);
+            
+            // Step 4: Update source_data dengan file info
+            $sourceData = $purchasero->source_data;
+            $sourceData['temp_files'] = $uploadedFiles;
+            $purchasero->update(['source_data' => $sourceData]);
+            
+            return redirect()
+                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'pajak'])
+                ->with('success', 'Pengajuan pengeluaran pajak berhasil dikirim. Menunggu approval dari Superadmin.');
+                
+        } catch (\Exception $e) {
+            \Log::error('Error intercepting pajak submission: ' . $e->getMessage());
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengajukan pengeluaran. Silakan coba lagi.');
         }
-
-        // simpan pajak dulu
-        $pajak = PajakKendaraan::create([
-            'kendaraan_id' => $request->kendaraan_id,
-            'jenis_pajak' => $request->jenis_pajak,
-            'nominal' => $request->nominal,
-            'jatuh_tempo' => $request->jatuh_tempo,
-            'tanggal_bayar' => $request->tanggal_bayar,
-            'status' => $request->status,
-            'keterangan' => $request->keterangan,
-            'bukti' => $bukti,
-        ]);
-
-        // Catat ke keuangan hanya jika status sudah_bayar
-        if ($request->status === 'sudah_bayar') {
-            \Illuminate\Support\Facades\DB::transaction(function () use ($request, $pajak, $kendaraan) {
-                $lastSaldo   = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-                $pengeluaran = (float) $request->nominal;
-                $kodeJurnal  = 'PAJAK-' . $pajak->id . '-' . now()->timestamp;
-
-                Keuangan::create([
-                    'tanggal'     => now(),
-                    'reference'   => $kodeJurnal,
-                    'user_id'     => auth()->id(),
-                    'divisi'      => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
-                    'kategori'    => 'Pengeluaran',
-                    'metode'      => 'Cash',
-                    'keterangan'  => 'Pembayaran pajak kendaraan baru: ' . $pajak->jenis_pajak . ' - ' . $kendaraan->nopol,
-                    'pemasukan'   => 0,
-                    'pengeluaran' => $pengeluaran,
-                    'saldo'       => $lastSaldo - $pengeluaran,
-                    'sumber'      => 'auto',
-                ]);
-
-                $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-                Bukubesar::create([
-                    'kode_jurnal' => $kodeJurnal,
-                    'transaksi'   => 'Beban Pajak - ' . $pajak->jenis_pajak,
-                    'kategori'    => 'Beban',
-                    'tanggal'     => now()->toDateString(),
-                    'debit'       => $pengeluaran,
-                    'kredit'      => 0,
-                    'saldo'       => $saldoBBTerakhir - $pengeluaran,
-                    'aktivitas'   => 'Operasi',
-                    'keterangan'  => 'Auto-posting: Pembayaran pajak kendaraan baru ' . $kendaraan->nopol,
-                ]);
-            });
-        }
-
-        // upload attachment tambahan (bisa lebih dari satu, SETELAH ADA ID)
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id);
-        }
-
-        return back()->with('success', 'Data pajak berhasil ditambahkan');
     }
 
-    public function perpanjang(Request $request, $id)
+    public function perpanjang(Request $request, $id, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
             'nominal'        => 'required|numeric',
             'tanggal_bayar'  => 'nullable|date',
             'keterangan'     => 'nullable',
-            'bukti'          => 'required|file|max:5120',
+            'bukti'          => 'nullable|file|max:5120',  // Changed to nullable - upload saat approval
             'bukti_attachment' => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
+            'nama_bank'      => 'nullable|string|max:255',
+            'no_rekening'    => 'nullable|string|max:100',
+            'nama_rekening'  => 'nullable|string|max:255',
+            'informasi'      => 'nullable|string',
         ]);
 
         $pajak = PajakKendaraan::findOrFail($id);
@@ -239,114 +218,24 @@ class PajakController extends Controller
             return back()->with('error', 'Masa berlaku pajak masih panjang (> 30 hari), perpanjangan belum diperlukan.');
         }
 
-        // --- Hitung tanggal standar ---
-        $tanggalBayar = $request->filled('tanggal_bayar')
-            ? Carbon::parse($request->tanggal_bayar)->toDateString()
-            : now()->toDateString();
-        // jatuh_tempo_baru = jatuh_tempo LAMA + 1 tahun (dari DB, bukan dari tanggal_bayar)
-        $jatuhTempoBaru = Carbon::parse($pajak->jatuh_tempo)->addYear()->toDateString();
-
-        // --- Simpan path bukti LAMA sebelum upload ---
-        $buktiLama = $pajak->bukti;
-
-        // --- Upload bukti BARU ---
-        $path = public_path('pajak/bukti');
-        if (!file_exists($path)) mkdir($path, 0777, true);
-
-        $buktiBaru = $buktiLama; // fallback jika tidak ada upload baru
-        if ($request->hasFile('bukti')) {
-            $file     = $request->file('bukti');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->move($path, $filename);
-            $buktiBaru = 'pajak/bukti/' . $filename;
-        }
-
-        \Illuminate\Support\Facades\DB::transaction(function () use (
-            $request, $pajak, $buktiLama, $buktiBaru, $tanggalBayar, $jatuhTempoBaru
-        ) {
-            // --- Simpan data BARU ke history (sebagai log perpanjangan) ---
-            $history = PajakHistory::create([
-                'pajak_kendaraan_id' => $pajak->id,
-                'kendaraan_id'       => $pajak->kendaraan_id,
-                'jenis_pajak'        => $pajak->jenis_pajak,
-                'nominal'            => $request->nominal,
-                'jatuh_tempo'        => $jatuhTempoBaru,
-                'tanggal_bayar'      => $tanggalBayar,
-                'status'             => 'sudah_bayar',
-                'keterangan'         => $request->keterangan,
-                'bukti'              => $buktiBaru,
-                'diperpanjang_pada'  => $request->filled('tanggal_bayar') ? Carbon::parse($request->tanggal_bayar)->toDateTimeString() : now()->toDateTimeString(),
-            ]);
-
-            // --- Catat ke Keuangan ---
-            $lastSaldo = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            $pengeluaran = $request->nominal;
-            // Kode jurnal unik per transaksi — pakai timestamp agar perpanjangan ke-2, ke-3 dst tetap masuk
-            $kodeJurnal  = 'PAJAK-' . $pajak->id . '-' . now()->timestamp;
-
-            Keuangan::create([
-                'tanggal'     => now(),
-                'reference'   => $kodeJurnal,
-                'user_id'     => auth()->id(),
-                'divisi'      => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
-                'kategori'    => 'Pengeluaran',
-                'metode'      => 'Cash',
-                'keterangan'  => 'Pembayaran pajak kendaraan: ' . $pajak->jenis_pajak . ' - ' . $request->keterangan,
-                'pemasukan'   => 0,
-                'pengeluaran' => $request->nominal,
-                'saldo'       => $lastSaldo - $pengeluaran,
-                'sumber'      => 'auto',
-            ]);
-
-            // --- Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat) ---
-            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            Bukubesar::create([
-                'kode_jurnal' => $kodeJurnal,
-                'transaksi'   => 'Beban Pajak - ' . $pajak->jenis_pajak,
-                'kategori'    => 'Beban',
-                'tanggal'     => now()->toDateString(),
-                'debit'       => $request->nominal,
-                'kredit'      => 0,
-                'saldo'       => $saldoBBTerakhir - $request->nominal,
-                'aktivitas'   => 'Operasi',
-                'keterangan'  => 'Auto-posting: Pembayaran pajak kendaraan ' . ($pajak->kendaraan->nopol ?? '-'),
-            ]);
-
-            // --- Update record aktif dengan data BARU ---
-            $pajak->update([
-                'nominal'       => $request->nominal,
-                'jatuh_tempo'   => $jatuhTempoBaru,
-                'tanggal_bayar' => $tanggalBayar,
-                'status'        => 'sudah_bayar',
-                'keterangan'    => $request->keterangan,
-                'bukti'         => $buktiBaru,
-            ]);
-
-            // --- Pindahkan lampiran LAMA ke history ---
-            // (Tidak perlu pindah karena history sekarang mencatat log pembayaran baru)
-
-            // --- Upload attachment tambahan BARU — masuk ke record aktif (halaman utama) & History ---
-            if ($request->hasFile('bukti_attachment')) {
-                // hapus lampiran lama di record aktif (opsional, tapi biasanya perpanjang menggunakan bukti baru murni)
-                Attachment::where('relation_type', 'pajak')->where('relation_id', $pajak->id)->delete();
+        // ===========================================================================
+        // APPROVAL WORKFLOW: Perpanjang melalui Purchasero untuk approval
+        // ===========================================================================
+        
+        try {
+            $purchasero = $interceptor->perpanjangViaPurchasero($request, 'pajak', $pajak);
+            
+            return redirect()
+                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'pajak'])
+                ->with('success', 'Pengajuan perpanjangan pajak berhasil dikirim. Menunggu approval dari Superadmin.');
                 
-                $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id, 'pajak', $history->id);
-            } else {
-                $oldAttachments = Attachment::where('relation_type', 'pajak')->where('relation_id', $pajak->id)->get();
-                foreach ($oldAttachments as $att) {
-                    Attachment::create([
-                        'relation_type' => 'pajak_history',
-                        'relation_id'   => $history->id,
-                        'file_name'     => $att->file_name,
-                        'file_path'     => $att->file_path,
-                        'file_type'     => $att->file_type,
-                        'file_size'     => $att->file_size,
-                    ]);
-                }
-            }
-        });
-
-        return back()->with('success', 'Pajak berhasil diperpanjang');
+        } catch (\Exception $e) {
+            \Log::error('Error perpanjang Pajak via Purchasero: ' . $e->getMessage());
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengajukan perpanjangan. Silakan coba lagi.');
+        }
     }
 
     public function update(Request $request, $id)

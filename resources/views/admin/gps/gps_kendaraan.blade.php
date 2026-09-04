@@ -746,8 +746,8 @@
                     </div>
 
                     <div>
-                        <label class="text-[11px] font-semibold text-slate-500 mb-1 block">Bukti Bayar <span class="text-red-400">*</span></label>
-                        <input type="file" name="gps_items[${idx}][bukti_bayar]" required
+                        <label class="text-[11px] font-semibold text-slate-500 mb-1 block">Bukti Bayar <span class="text-red-400"></span></label>
+                        <input type="file" name="gps_items[${idx}][bukti_bayar]" 
                             accept="image/*,.pdf,.doc,.docx"
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
@@ -976,8 +976,8 @@
                     </div>
 
                     <div>
-                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Bukti Bayar <span class="text-red-500">*</span></label>
-                        <input type="file" name="gps_items[0][bukti_bayar]" required
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Bukti Bayar <span class="text-red-500"></span></label>
+                        <input type="file" name="gps_items[0][bukti_bayar]" 
                             accept="image/*,.pdf,.doc,.docx"
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>

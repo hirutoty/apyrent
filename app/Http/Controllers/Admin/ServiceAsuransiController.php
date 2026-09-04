@@ -60,7 +60,7 @@ class ServiceAsuransiController extends Controller
         return view('admin.service.service_asuransi', compact('data', 'kendaraan', 'asuransi', 'jenisAsuransi'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
             'kendaraan_id'      => 'required|exists:kendaraan,id',
@@ -71,7 +71,7 @@ class ServiceAsuransiController extends Controller
             'periode_selesai'   => 'nullable|date|after_or_equal:periode_mulai',
             'kilometer'         => 'required|numeric',
             'biaya'             => 'nullable|numeric',
-            'bukti.*'           => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'bukti.*'           => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',  // Changed to nullable - upload saat approval
             'attachment.*'      => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
         ]);
 
@@ -81,29 +81,48 @@ class ServiceAsuransiController extends Controller
             return back()->withInput()->with('error', 'Kendaraan ini sudah memiliki data service asuransi. Gunakan fitur Edit untuk memperbarui data.');
         }
 
-        $buktiList      = $this->uploadBuktiFiles($request);
-        $attachmentList = $this->uploadAttachmentFiles($request);
-
-        // Model memiliki cast array, cukup pass array langsung
-        ServiceAsuransi::create([
-            'kendaraan_id'      => $request->kendaraan_id,
-            'nama_asuransi'     => $request->nama_asuransi ?: null,
-            'jenis_asuransi_id' => $request->jenis_asuransi_id ?: null,
-            'tanggal_service'   => $request->tanggal_service,
-            'periode_mulai'     => $request->periode_mulai,
-            'periode_selesai'   => $request->periode_selesai,
-            'kilometer'         => $request->kilometer,
-            'biaya'             => $request->biaya,
-            'keterangan'        => $request->keterangan,
-            'bukti'             => !empty($buktiList)      ? $buktiList      : null,
-            'attachment'        => !empty($attachmentList) ? $attachmentList : null,
-            'status'            => 'bermasalah',
-        ]);
-
-        $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
-        $kendaraan->update(['status_kendaraan' => 'bermasalah']);
-
-        return back()->with('success', 'Data service asuransi berhasil ditambahkan');
+        // ===========================================================================
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Purchasero
+        // ===========================================================================
+        
+        try {
+            // Check if this is a resubmit (from rejected purchasero)
+            if ($request->filled('edit_purchasero')) {
+                $purchaseroId = $request->input('edit_purchasero');
+                
+                // Resubmit: Update existing purchasero
+                $purchasero = $interceptor->resubmitToPurchasero($purchaseroId, $request, 'service_asuransi');
+                
+                return redirect()
+                    ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'service_asuransi'])
+                    ->with('success', 'Pengajuan service asuransi berhasil diajukan ulang. Menunggu approval dari Superadmin.');
+            }
+            
+            // Step 1: Intercept data dari form
+            $interceptedData = $interceptor->intercept($request, 'service_asuransi');
+            
+            // Step 2: Save ke Purchasero
+            $purchasero = $interceptor->saveToPurchasero($interceptedData, 'service_asuransi');
+            
+            // Step 3: Upload temporary files
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $purchasero->id);
+            
+            // Step 4: Update source_data dengan file info
+            $sourceData = $purchasero->source_data;
+            $sourceData['temp_files'] = $uploadedFiles;
+            $purchasero->update(['source_data' => $sourceData]);
+            
+            return redirect()
+                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'service_asuransi'])
+                ->with('success', 'Pengajuan pengeluaran service asuransi berhasil dikirim. Menunggu approval dari Superadmin.');
+                
+        } catch (\Exception $e) {
+            \Log::error('Error intercepting service asuransi submission: ' . $e->getMessage());
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengajukan pengeluaran. Silakan coba lagi.');
+        }
     }
 
     public function update(Request $request, $id)

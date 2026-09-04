@@ -144,7 +144,7 @@ class KirController extends Controller
         }
     }
 
-    public function store(Request $request)
+    public function store(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
             'kendaraan_id'  => 'required|exists:kendaraan,id',
@@ -157,7 +157,7 @@ class KirController extends Controller
             'tanggal_bayar' => 'required|date',
             'masa_berlaku'  => 'required|date',
             'biaya'         => 'required|numeric|min:0',
-            'image'         => 'nullable|file|max:5120',
+            'image'         => 'nullable|file|max:5120',  // Changed to nullable - upload saat approval
             'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
         ], [
@@ -180,59 +180,48 @@ class KirController extends Controller
             return back()->with('error', 'Kendaraan ' . $kendaraan->nopol . ' sudah memiliki data KIR');
         }
 
-        $data = $request->except(['bukti_attachment', '_token']);
-
-        if ($request->hasFile('image')) {
-            $file        = $request->file('image');
-            $filename    = time() . '_' . $file->getClientOriginalName();
-            $destination = public_path('kir/dokumen');
-            if (!file_exists($destination)) mkdir($destination, 0777, true);
-            $file->move($destination, $filename);
-            $data['image'] = 'kir/dokumen/' . $filename;
+        // ===========================================================================
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Purchasero
+        // ===========================================================================
+        
+        try {
+            // Check if this is a resubmit (from rejected purchasero)
+            if ($request->filled('edit_purchasero')) {
+                $purchaseroId = $request->input('edit_purchasero');
+                
+                // Resubmit: Update existing purchasero
+                $purchasero = $interceptor->resubmitToPurchasero($purchaseroId, $request, 'kir');
+                
+                return redirect()
+                    ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'kir'])
+                    ->with('success', 'Pengajuan KIR berhasil diajukan ulang. Menunggu approval dari Superadmin.');
+            }
+            
+            // Step 1: Intercept data dari form
+            $interceptedData = $interceptor->intercept($request, 'kir');
+            
+            // Step 2: Save ke Purchasero
+            $purchasero = $interceptor->saveToPurchasero($interceptedData, 'kir');
+            
+            // Step 3: Upload temporary files
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $purchasero->id);
+            
+            // Step 4: Update source_data dengan file info
+            $sourceData = $purchasero->source_data;
+            $sourceData['temp_files'] = $uploadedFiles;
+            $purchasero->update(['source_data' => $sourceData]);
+            
+            return redirect()
+                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'kir'])
+                ->with('success', 'Pengajuan pengeluaran KIR berhasil dikirim. Menunggu approval dari Superadmin.');
+                
+        } catch (\Exception $e) {
+            \Log::error('Error intercepting KIR submission: ' . $e->getMessage());
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengajukan pengeluaran. Silakan coba lagi.');
         }
-
-        $kir = Kir::create($data);
-
-        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $kir, $kendaraan) {
-            // --- Catat ke Keuangan ---
-            $lastSaldo   = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            $pengeluaran = (float) $request->biaya;
-            $kodeJurnal  = 'KIR-' . $kir->id . '-' . now()->timestamp;
-
-            Keuangan::create([
-                'tanggal'     => now(),
-                'reference'   => $kodeJurnal,
-                'user_id'     => auth()->id(),
-                'divisi'      => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
-                'kategori'    => 'Pengeluaran',
-                'metode'      => 'Cash',
-                'keterangan'  => 'Pembayaran KIR baru: ' . $kendaraan->nopol . ' - No Uji: ' . $request->no_uji,
-                'pemasukan'   => 0,
-                'pengeluaran' => $pengeluaran,
-                'saldo'       => $lastSaldo - $pengeluaran,
-                'sumber'      => 'auto',
-            ]);
-
-            // --- Auto-posting ke Buku Besar ---
-            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            Bukubesar::create([
-                'kode_jurnal' => $kodeJurnal,
-                'transaksi'   => 'Beban KIR - ' . $kendaraan->nopol,
-                'kategori'    => 'Beban',
-                'tanggal'     => now()->toDateString(),
-                'debit'       => $pengeluaran,
-                'kredit'      => 0,
-                'saldo'       => $saldoBBTerakhir - $pengeluaran,
-                'aktivitas'   => 'Operasi',
-                'keterangan'  => 'Auto-posting: Pembayaran KIR baru ' . $kendaraan->nopol,
-            ]);
-        });
-
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
-        }
-
-        return back()->with('success', 'Data KIR berhasil ditambahkan');
     }
 
 
@@ -506,15 +495,19 @@ class KirController extends Controller
         return back()->with('success', "Berhasil memperpanjang {$count} data KIR.");
     }
 
-    public function perpanjang(Request $request, $id)
+    public function perpanjang(Request $request, $id, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
             'no_uji'         => 'required',
             'biaya'          => 'required|numeric|min:0',
             'tanggal_bayar'  => 'nullable|date',
-            'image'          => 'required|file|max:5120',
+            'image'          => 'nullable|file|max:5120',  // Changed to nullable - upload saat approval
             'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
+            'nama_bank'      => 'nullable|string|max:255',
+            'no_rekening'    => 'nullable|string|max:100',
+            'nama_rekening'  => 'nullable|string|max:255',
+            'informasi'      => 'nullable|string',
         ]);
 
         $kir = Kir::findOrFail($id);
@@ -524,110 +517,23 @@ class KirController extends Controller
             return back()->with('error', 'Masa berlaku KIR masih panjang (> 30 hari), perpanjangan belum diperlukan.');
         }
 
-        // --- Hitung tanggal standar ---
-        $tanggalBayar    = $request->filled('tanggal_bayar')
-            ? Carbon::parse($request->tanggal_bayar)->toDateString()
-            : now()->toDateString();
-        // masa_berlaku_baru = masa_berlaku LAMA + 1 tahun (dari DB)
-        $masaBerlakuBaru = Carbon::parse($kir->masa_berlaku)->addYear()->toDateString();
-
-        // --- Simpan path image LAMA sebelum upload ---
-        $imageLama = $kir->image;
-
-        // --- Upload image BARU ---
-        $destination = public_path('kir/dokumen');
-        if (!file_exists($destination)) {
-            mkdir($destination, 0777, true);
+        // ===========================================================================
+        // APPROVAL WORKFLOW: Perpanjang melalui Purchasero untuk approval
+        // ===========================================================================
+        
+        try {
+            $purchasero = $interceptor->perpanjangViaPurchasero($request, 'kir', $kir);
+            
+            return redirect()
+                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'kir'])
+                ->with('success', 'Pengajuan perpanjangan KIR berhasil dikirim. Menunggu approval dari Superadmin.');
+                
+        } catch (\Exception $e) {
+            \Log::error('Error perpanjang KIR via Purchasero: ' . $e->getMessage());
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengajukan perpanjangan. Silakan coba lagi.');
         }
-
-        $imageBaru = $imageLama; // fallback jika tidak ada upload baru
-        if ($request->hasFile('image')) {
-            $file     = $request->file('image');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move($destination, $filename);
-            $imageBaru = 'kir/dokumen/' . $filename;
-        }
-
-        \Illuminate\Support\Facades\DB::transaction(function () use (
-            $request, $kir, $imageLama, $imageBaru, $tanggalBayar, $masaBerlakuBaru
-        ) {
-            // --- Simpan data BARU ke history (sebagai log perpanjangan) ---
-            $history = KirHistory::create([
-                'kir_id'            => $kir->id,
-                'kendaraan_id'      => $kir->kendaraan_id,
-                'no_uji'            => $request->no_uji,
-                'masa_berlaku'      => $masaBerlakuBaru,
-                'biaya'             => $request->biaya,
-                'image'             => $imageBaru,
-                'tanggal_bayar'     => $tanggalBayar,
-                'diperpanjang_pada' => now(),
-            ]);
-
-            // --- Catat ke Keuangan ---
-            $lastSaldo = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            $pengeluaran = $request->biaya;
-            // Kode jurnal unik per transaksi
-            $kodeJurnal  = 'KIR-' . $kir->id . '-' . now()->timestamp;
-
-            Keuangan::create([
-                'tanggal'     => now(),
-                'reference'   => $kodeJurnal,
-                'user_id'     => auth()->id(),
-                'divisi'      => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
-                'kategori'    => 'Pengeluaran',
-                'metode'      => 'Cash',
-                'keterangan'  => 'Pembayaran KIR kendaraan: ' . ($kir->kendaraan->nopol ?? '-'),
-                'pemasukan'   => 0,
-                'pengeluaran' => $pengeluaran,
-                'saldo'       => $lastSaldo - $pengeluaran,
-                'sumber'      => 'auto',
-            ]);
-
-            // --- Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat) ---
-            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            Bukubesar::create([
-                'kode_jurnal' => $kodeJurnal,
-                'transaksi'   => 'Beban KIR - ' . ($kir->kendaraan->nopol ?? '-'),
-                'kategori'    => 'Beban',
-                'tanggal'     => now()->toDateString(),
-                'debit'       => $pengeluaran,
-                'kredit'      => 0,
-                'saldo'       => $saldoBBTerakhir - $pengeluaran,
-                'aktivitas'   => 'Operasi',
-                'keterangan'  => 'Auto-posting: Pembayaran KIR kendaraan ' . ($kir->kendaraan->nopol ?? '-'),
-            ]);
-
-            // --- Update record aktif dengan data BARU ---
-            $kir->update([
-                'no_uji'        => $request->no_uji,
-                'masa_berlaku'  => $masaBerlakuBaru,
-                'biaya'         => $request->biaya,
-                'image'         => $imageBaru,
-                'tanggal_bayar' => $tanggalBayar,
-            ]);
-
-            // --- Pindahkan lampiran LAMA ke history ---
-            // (Dihapus, karena history sekarang mencatat log baru)
-
-            // --- Upload attachment tambahan BARU — masuk ke record aktif (halaman utama) & history ---
-            if ($request->hasFile('bukti_attachment')) {
-                Attachment::where('relation_type', 'kir')->where('relation_id', $kir->id)->delete();
-                $this->simpanAttachments($request->file('bukti_attachment'), $kir->id, 'kir', $history->id);
-            } else {
-                $oldAttachments = Attachment::where('relation_type', 'kir')->where('relation_id', $kir->id)->get();
-                foreach ($oldAttachments as $att) {
-                    Attachment::create([
-                        'relation_type' => 'kir_history',
-                        'relation_id'   => $history->id,
-                        'file_name'     => $att->file_name,
-                        'file_path'     => $att->file_path,
-                        'file_type'     => $att->file_type,
-                        'file_size'     => $att->file_size,
-                    ]);
-                }
-            }
-        });
-
-        return back()->with('success', 'KIR berhasil diperpanjang!');
     }
 }

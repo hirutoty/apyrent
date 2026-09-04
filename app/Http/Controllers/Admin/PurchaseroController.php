@@ -982,4 +982,505 @@ class PurchaseroController extends Controller
             'nominal'           => 'nullable|integer|min:0',
         ]);
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | APPROVAL WORKFLOW METHODS
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Show approval modal data (AJAX)
+     */
+    public function showApprovalModal($id)
+    {
+        $purchasero = Purchasero::with(['kendaraan', 'approvals.user'])
+            ->findOrFail($id);
+        
+        // Decode source_data dan load related data
+        $sourceData = $purchasero->source_data ?? [];
+        $relatedData = [];
+        
+        // Load related data berdasarkan source_type
+        if ($purchasero->source_type) {
+            $relatedData = $this->loadRelatedData($purchasero->source_type, $sourceData);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'purchasero' => $purchasero,
+                'source_data' => $sourceData,
+                'related_data' => $relatedData,
+                'temp_files' => $sourceData['temp_files'] ?? [],
+            ],
+        ]);
+    }
+
+    /**
+     * Load related data untuk ditampilkan di modal
+     */
+    protected function loadRelatedData(string $sourceType, array $sourceData): array
+    {
+        $data = [];
+        
+        try {
+            switch ($sourceType) {
+                case 'asuransi_kendaraan':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    $data['asuransi'] = \App\Models\Asuransi::find($sourceData['asuransi_id']);
+                    $data['jenis_asuransi'] = \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id']);
+                    break;
+                    
+                case 'pajak':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    break;
+                    
+                case 'service_part':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    $data['category'] = \App\Models\ServiceCategory::find($sourceData['category_id'] ?? null);
+                    break;
+                    
+                case 'gps':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    $data['gps'] = \App\Models\Gps::find($sourceData['gps_id'] ?? null);
+                    break;
+                    
+                case 'kir':
+                case 'stnk':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    break;
+                    
+                case 'service_asuransi':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    $data['asuransi'] = \App\Models\Asuransi::find($sourceData['asuransi_id']);
+                    $data['jenis_asuransi'] = \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id']);
+                    break;
+            }
+        } catch (\Exception $e) {
+            \Log::error("Error loading related data: " . $e->getMessage());
+        }
+        
+        return $data;
+    }
+
+    /**
+     * Approve pengeluaran
+     */
+    public function approve(Request $request, $id)
+    {
+        // Validation
+        $request->validate([
+            'bukti' => 'required|array|min:1',
+            'bukti.*' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,zip|max:5120',
+            'attachment' => 'nullable|array',
+            'attachment.*' => 'file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,zip|max:5120',
+            'catatan' => 'nullable|string|max:500',
+        ]);
+        
+        // Load Purchasero
+        $purchasero = Purchasero::findOrFail($id);
+        
+        // Authorization check
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Hanya Superadmin yang dapat menyetujui pengeluaran.');
+        }
+        
+        // Status check
+        if ($purchasero->status !== 'Pending') {
+            return back()->with('error', 'Pengeluaran ini tidak dalam status Pending. Status: ' . $purchasero->status);
+        }
+        
+        DB::beginTransaction();
+        
+        try {
+            // Upload approval files
+            $approvalFiles = $this->uploadApprovalFiles($request, $purchasero->id);
+            
+            // Create approval history
+            \App\Models\PurchaseroApproval::create([
+                'purchasero_id' => $purchasero->id,
+                'user_id' => auth()->id(),
+                'action' => 'approved',
+                'catatan' => $request->catatan,
+                'bukti_files' => $approvalFiles['bukti'] ?? [],
+                'attachment_files' => $approvalFiles['attachments'] ?? [],
+            ]);
+            
+            // Transfer data ke tabel tujuan
+            $transferService = app(\App\Services\PengeluaranTransferService::class);
+            $targetId = $transferService->transfer($purchasero, $approvalFiles);
+            
+            // Update Purchasero status
+            $purchasero->update([
+                'status' => 'Disetujui',
+                'target_id' => $targetId,
+                'can_edit' => false,
+                'disetujui_oleh' => auth()->user()->nama ?? auth()->user()->email,
+                'tanggal_persetujuan' => now(),
+            ]);
+            
+            DB::commit();
+            
+            return redirect()
+                ->route('purchasero.index')
+                ->with('success', 'Pengeluaran berhasil disetujui! Data telah ditransfer ke sistem.');
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Approval failed for Purchasero #{$id}: " . $e->getMessage());
+            
+            return back()
+                ->with('error', 'Terjadi kesalahan saat menyetujui pengeluaran: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Reject pengeluaran
+     */
+    public function reject(Request $request, $id)
+    {
+        // Validation - catatan WAJIB untuk reject
+        $request->validate([
+            'catatan' => 'required|string|max:500',
+        ]);
+        
+        // Load Purchasero
+        $purchasero = Purchasero::findOrFail($id);
+        
+        // Authorization check
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Hanya Superadmin yang dapat menolak pengeluaran.');
+        }
+        
+        // Status check
+        if ($purchasero->status !== 'Pending') {
+            return back()->with('error', 'Pengeluaran ini tidak dalam status Pending. Status: ' . $purchasero->status);
+        }
+        
+        DB::beginTransaction();
+        
+        try {
+            // Create rejection history
+            \App\Models\PurchaseroApproval::create([
+                'purchasero_id' => $purchasero->id,
+                'user_id' => auth()->id(),
+                'action' => 'rejected',
+                'catatan' => $request->catatan,
+                'bukti_files' => null,
+                'attachment_files' => null,
+            ]);
+            
+            // Update status & allow edit
+            $purchasero->update([
+                'status' => 'Ditolak',
+                'can_edit' => true,  // User bisa edit & ajukan ulang
+            ]);
+            
+            DB::commit();
+            
+            return redirect()
+                ->route('purchasero.index')
+                ->with('info', 'Pengeluaran ditolak. User dapat melihat alasan dan mengajukan ulang.');
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Rejection failed for Purchasero #{$id}: " . $e->getMessage());
+            
+            return back()
+                ->with('error', 'Terjadi kesalahan saat menolak pengeluaran: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Bulk approve multiple pengeluaran
+     */
+    public function bulkApprove(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|max:50',
+            'ids.*' => 'required|integer|exists:purchaseros,id',
+            'bukti' => 'required|array',
+            'bukti.*' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,zip|max:5120',
+            'catatan' => 'nullable|string|max:500',
+        ]);
+        
+        // Authorization check
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Hanya Superadmin yang dapat bulk approve.');
+        }
+        
+        $successCount = 0;
+        $errorCount = 0;
+        $errors = [];
+        
+        foreach ($request->ids as $id) {
+            try {
+                $purchasero = Purchasero::find($id);
+                
+                if (!$purchasero || $purchasero->status !== 'Pending') {
+                    $errorCount++;
+                    $errors[] = "PR #{$purchasero->no_pr}: Status bukan Pending";
+                    continue;
+                }
+                
+                DB::beginTransaction();
+                
+                // Upload files for this purchasero
+                $approvalFiles = $this->uploadApprovalFiles($request, $purchasero->id);
+                
+                // Create approval
+                \App\Models\PurchaseroApproval::create([
+                    'purchasero_id' => $purchasero->id,
+                    'user_id' => auth()->id(),
+                    'action' => 'approved',
+                    'catatan' => $request->catatan,
+                    'bukti_files' => $approvalFiles['bukti'] ?? [],
+                    'attachment_files' => $approvalFiles['attachments'] ?? [],
+                ]);
+                
+                // Transfer
+                $transferService = app(\App\Services\PengeluaranTransferService::class);
+                $targetId = $transferService->transfer($purchasero, $approvalFiles);
+                
+                // Update
+                $purchasero->update([
+                    'status' => 'Disetujui',
+                    'target_id' => $targetId,
+                    'can_edit' => false,
+                    'disetujui_oleh' => auth()->user()->nama ?? auth()->user()->email,
+                    'tanggal_persetujuan' => now(),
+                ]);
+                
+                DB::commit();
+                $successCount++;
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $errorCount++;
+                $errors[] = "PR #{$purchasero->no_pr}: " . $e->getMessage();
+                \Log::error("Bulk approve error for #{$id}: " . $e->getMessage());
+            }
+        }
+        
+        $message = "Bulk approve selesai. Berhasil: {$successCount}, Gagal: {$errorCount}";
+        
+        if ($errorCount > 0) {
+            $message .= ". Errors: " . implode('; ', array_slice($errors, 0, 3));
+        }
+        
+        return redirect()
+            ->route('purchasero.index')
+            ->with($errorCount > 0 ? 'warning' : 'success', $message);
+    }
+
+    /**
+     * Bulk reject multiple pengeluaran
+     */
+    public function bulkReject(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|max:50',
+            'ids.*' => 'required|integer|exists:purchaseros,id',
+            'catatan' => 'required|string|max:500',  // WAJIB untuk reject
+        ]);
+        
+        // Authorization check
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Hanya Superadmin yang dapat bulk reject.');
+        }
+        
+        $successCount = 0;
+        $errorCount = 0;
+        
+        foreach ($request->ids as $id) {
+            try {
+                $purchasero = Purchasero::find($id);
+                
+                if (!$purchasero || $purchasero->status !== 'Pending') {
+                    $errorCount++;
+                    continue;
+                }
+                
+                DB::beginTransaction();
+                
+                \App\Models\PurchaseroApproval::create([
+                    'purchasero_id' => $purchasero->id,
+                    'user_id' => auth()->id(),
+                    'action' => 'rejected',
+                    'catatan' => $request->catatan,
+                    'bukti_files' => null,
+                    'attachment_files' => null,
+                ]);
+                
+                $purchasero->update([
+                    'status' => 'Ditolak',
+                    'can_edit' => true,
+                ]);
+                
+                DB::commit();
+                $successCount++;
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $errorCount++;
+                \Log::error("Bulk reject error for #{$id}: " . $e->getMessage());
+            }
+        }
+        
+        return redirect()
+            ->route('purchasero.index')
+            ->with('info', "Bulk reject selesai. Berhasil: {$successCount}, Gagal: {$errorCount}");
+    }
+
+    /**
+     * Upload approval files (bukti & attachments)
+     */
+    protected function uploadApprovalFiles(Request $request, int $purchaseroId): array
+    {
+        $uploadedFiles = [
+            'bukti' => [],
+            'attachments' => [],
+        ];
+        
+        $timestamp = time();
+        $approvalDir = "purchasero/approvals/{$purchaseroId}";
+        
+        // Upload bukti files (REQUIRED)
+        if ($request->hasFile('bukti')) {
+            $files = is_array($request->file('bukti')) 
+                ? $request->file('bukti') 
+                : [$request->file('bukti')];
+            
+            foreach ($files as $index => $file) {
+                $originalName = $file->getClientOriginalName();
+                $extension = $file->getClientOriginalExtension();
+                $storedName = "{$timestamp}_{$index}_{$originalName}";
+                
+                $path = $file->storeAs($approvalDir . '/bukti', $storedName, 'public');
+                
+                $uploadedFiles['bukti'][] = [
+                    'original_name' => $originalName,
+                    'stored_name' => $storedName,
+                    'path' => $path,
+                    'full_path' => storage_path('app/public/' . $path),
+                    'size' => $file->getSize(),
+                    'extension' => $extension,
+                ];
+            }
+        }
+        
+        // Upload attachment files (OPTIONAL)
+        if ($request->hasFile('attachment')) {
+            $files = is_array($request->file('attachment')) 
+                ? $request->file('attachment') 
+                : [$request->file('attachment')];
+            
+            foreach ($files as $index => $file) {
+                $originalName = $file->getClientOriginalName();
+                $extension = $file->getClientOriginalExtension();
+                $storedName = "{$timestamp}_{$index}_{$originalName}";
+                
+                $path = $file->storeAs($approvalDir . '/attachments', $storedName, 'public');
+                
+                $uploadedFiles['attachments'][] = [
+                    'original_name' => $originalName,
+                    'stored_name' => $storedName,
+                    'path' => $path,
+                    'full_path' => storage_path('app/public/' . $path),
+                    'size' => $file->getSize(),
+                    'extension' => $extension,
+                ];
+            }
+        }
+        
+        return $uploadedFiles;
+    }
+
+    /**
+     * Withdraw/cancel pengajuan pengeluaran (hanya untuk status Pending)
+     */
+    public function withdraw($id)
+    {
+        $purchasero = Purchasero::findOrFail($id);
+        
+        // Check ownership atau superadmin
+        if (auth()->user()->role !== 'superadmin' && $purchasero->pemohon !== auth()->user()->nama) {
+            abort(403, 'Anda tidak memiliki akses untuk membatalkan pengajuan ini.');
+        }
+        
+        // Only Pending can be withdrawn
+        if ($purchasero->status !== 'Pending') {
+            return back()->with('error', 'Hanya pengajuan dengan status Pending yang dapat dibatalkan.');
+        }
+        
+        DB::beginTransaction();
+        
+        try {
+            // Delete temp files
+            $interceptor = app(\App\Services\PengeluaranInterceptorService::class);
+            $interceptor->deleteTemporaryFiles($purchasero->id);
+            
+            // Delete purchasero
+            $purchasero->delete();
+            
+            DB::commit();
+            
+            return redirect()
+                ->route('purchasero.index')
+                ->with('success', 'Pengajuan berhasil dibatalkan.');
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Withdraw failed for Purchasero #{$id}: " . $e->getMessage());
+            
+            return back()->with('error', 'Gagal membatalkan pengajuan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Edit rejected pengeluaran - redirect to original form with pre-filled data
+     */
+    public function editRejected($id)
+    {
+        $purchasero = Purchasero::with('latestApproval')->findOrFail($id);
+        
+        // Validation: Only rejected pengeluaran can be edited
+        if ($purchasero->status !== 'Ditolak') {
+            return back()->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
+        }
+        
+        if (!$purchasero->can_edit) {
+            return back()->with('error', 'Pengajuan ini tidak dapat diedit.');
+        }
+        
+        if (!$purchasero->source_type) {
+            return back()->with('error', 'Hanya pengeluaran yang dapat diedit melalui fitur ini.');
+        }
+        
+        // Map source_type to route
+        $routeMap = [
+            'asuransi_kendaraan' => 'asuransi-kendaraan.index',
+            'pajak'              => 'pajak-kendaraan.index',
+            'gps'                => 'gps-kendaraan.index',
+            'kir'                => 'kir.index',
+            'stnk'               => 'stnk.index',
+            'service_asuransi'   => 'service-asuransi.index',
+            'service_part'       => 'service-history.create',
+        ];
+        
+        $route = $routeMap[$purchasero->source_type] ?? null;
+        
+        if (!$route) {
+            return back()->with('error', 'Form untuk jenis pengeluaran ini tidak ditemukan.');
+        }
+        
+        // Redirect to form with edit parameters
+        return redirect()
+            ->route($route, [
+                'edit_purchasero' => $id,
+                'rejection_reason' => $purchasero->latestApproval?->catatan ?? 'Tidak ada catatan',
+            ])
+            ->with('info', 'Silakan perbaiki data sesuai catatan penolakan, lalu submit ulang.');
+    }
 }
