@@ -22,7 +22,7 @@ class StnkController extends Controller
         return view('admin.stnk.index', compact('data', 'kendaraan'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
             'kendaraan_id'   => 'required|exists:kendaraan,id',
@@ -30,7 +30,7 @@ class StnkController extends Controller
             'jenis_model'    => 'required',
             'masa_berlaku'   => 'required|date',
             'biaya'          => 'required|numeric',
-            'bukti'          => 'nullable|file|max:5120',
+            'bukti'          => 'nullable|file|max:5120',  // Changed to nullable - upload saat approval
         ]);
 
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
@@ -44,34 +44,48 @@ class StnkController extends Controller
             return back()->with('error', 'Nopol ini sudah memiliki data STNK');
         }
 
-        // upload file
-        $bukti = null;
-
-        if ($request->hasFile('bukti')) {
-            $file = $request->file('bukti');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
-            $path = public_path('stnk/bukti');
-            if (!file_exists($path)) {
-                mkdir($path, 0777, true);
+        // ===========================================================================
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Purchasero
+        // ===========================================================================
+        
+        try {
+            // Check if this is a resubmit (from rejected purchasero)
+            if ($request->filled('edit_purchasero')) {
+                $purchaseroId = $request->input('edit_purchasero');
+                
+                // Resubmit: Update existing purchasero
+                $purchasero = $interceptor->resubmitToPurchasero($purchaseroId, $request, 'stnk');
+                
+                return redirect()
+                    ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'stnk'])
+                    ->with('success', 'Pengajuan STNK berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
-
-            $file->move($path, $filename);
-            $bukti = 'stnk/bukti/' . $filename;
+            
+            // Step 1: Intercept data dari form
+            $interceptedData = $interceptor->intercept($request, 'stnk');
+            
+            // Step 2: Save ke Purchasero
+            $purchasero = $interceptor->saveToPurchasero($interceptedData, 'stnk');
+            
+            // Step 3: Upload temporary files
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $purchasero->id);
+            
+            // Step 4: Update source_data dengan file info
+            $sourceData = $purchasero->source_data;
+            $sourceData['temp_files'] = $uploadedFiles;
+            $purchasero->update(['source_data' => $sourceData]);
+            
+            return redirect()
+                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'stnk'])
+                ->with('success', 'Pengajuan pengeluaran STNK berhasil dikirim. Menunggu approval dari Superadmin.');
+                
+        } catch (\Exception $e) {
+            \Log::error('Error intercepting STNK submission: ' . $e->getMessage());
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengajukan pengeluaran. Silakan coba lagi.');
         }
-
-        Stnk::create([
-            'kendaraan_id' => $request->kendaraan_id,
-            'nopol'        => $kendaraan->nopol,
-            'merk'         => $kendaraan->merk,
-            'nama_pemilik' => $request->nama_pemilik,
-            'jenis_model'  => $request->jenis_model,
-            'masa_berlaku' => $request->masa_berlaku,
-            'biaya'        => $request->biaya,
-            'bukti'        => $bukti,
-        ]);
-
-        return back()->with('success', 'Data STNK berhasil ditambahkan');
     }
 
     public function update(Request $request, $id)
@@ -128,91 +142,38 @@ class StnkController extends Controller
      * Data lama dipindahkan ke history (stnk_histories),
      * lalu data aktif diperbarui dengan masa berlaku & biaya baru.
      */
-    public function perpanjang(Request $request, $id)
+    public function perpanjang(Request $request, $id, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
             'masa_berlaku' => 'required|date',
             'biaya'        => 'required|numeric',
-            'bukti'        => 'nullable|file|max:5120',
+            'bukti'        => 'nullable|file|max:5120',  // Changed to nullable - upload saat approval
+            'nama_bank'      => 'nullable|string|max:255',
+            'no_rekening'    => 'nullable|string|max:100',
+            'nama_rekening'  => 'nullable|string|max:255',
+            'informasi'      => 'nullable|string',
         ]);
 
-        $stnk  = Stnk::findOrFail($id);
-        $bukti = $stnk->bukti;
+        $stnk = Stnk::findOrFail($id);
 
-        $path = public_path('stnk/bukti');
-
-        if (!file_exists($path)) {
-            mkdir($path, 0777, true);
+        // ===========================================================================
+        // APPROVAL WORKFLOW: Perpanjang melalui Purchasero untuk approval
+        // ===========================================================================
+        
+        try {
+            $purchasero = $interceptor->perpanjangViaPurchasero($request, 'stnk', $stnk);
+            
+            return redirect()
+                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'stnk'])
+                ->with('success', 'Pengajuan perpanjangan STNK berhasil dikirim. Menunggu approval dari Superadmin.');
+                
+        } catch (\Exception $e) {
+            \Log::error('Error perpanjang STNK via Purchasero: ' . $e->getMessage());
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengajukan perpanjangan. Silakan coba lagi.');
         }
-
-        $buktiLama = $bukti;
-        $buktiBaru = $buktiLama;
-
-        if ($request->hasFile('bukti')) {
-            $file = $request->file('bukti');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->move($path, $filename);
-            $buktiBaru = 'stnk/bukti/' . $filename;
-        }
-
-        \Illuminate\Support\Facades\DB::transaction(function () use (
-            $request, $stnk, $buktiLama, $buktiBaru
-        ) {
-            // Simpan data BARU ke history (sebagai log perpanjangan)
-            StnkHistory::create([
-                'stnk_id'           => $stnk->id,
-                'kendaraan_id'      => $stnk->kendaraan_id,
-                'nopol'             => $stnk->nopol,
-                'merk'              => $stnk->merk,
-                'nama_pemilik'      => $stnk->nama_pemilik,
-                'jenis_model'       => $stnk->jenis_model,
-                'masa_berlaku'      => $request->masa_berlaku,
-                'biaya'             => $request->biaya,
-                'bukti'             => $buktiBaru,
-                'diperpanjang_pada' => now(),
-            ]);
-
-            // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
-            $lastSaldo = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            $pengeluaran = $request->biaya;
-            $kodeJurnal  = 'STNK-' . $stnk->id . '-' . now()->timestamp;
-
-            Keuangan::create([
-                'tanggal'     => now(),
-                'reference'   => $kodeJurnal,
-                'user_id'     => auth()->id(),
-                'kategori'    => 'Pengeluaran',
-                'metode'      => 'Cash',
-                'keterangan'  => 'Perpanjangan STNK kendaraan: ' . $stnk->nopol . ' - ' . $stnk->merk,
-                'pemasukan'   => 0,
-                'pengeluaran' => $pengeluaran,
-                'saldo'       => $lastSaldo - $pengeluaran,
-                'sumber'      => 'auto',
-            ]);
-
-            // Auto-posting ke Buku Besar
-            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            Bukubesar::create([
-                'kode_jurnal' => $kodeJurnal,
-                'transaksi'   => 'Beban STNK - ' . $stnk->nopol,
-                'kategori'    => 'Beban',
-                'tanggal'     => now()->toDateString(),
-                'debit'       => $pengeluaran,
-                'kredit'      => 0,
-                'saldo'       => $saldoBBTerakhir - $pengeluaran,
-                'aktivitas'   => 'Operasi',
-                'keterangan'  => 'Auto-posting: Perpanjangan STNK ' . $stnk->merk . ' (' . $stnk->nopol . ')',
-            ]);
-
-            // Update data aktif
-            $stnk->update([
-                'masa_berlaku' => $request->masa_berlaku,
-                'biaya'        => $request->biaya,
-                'bukti'        => $buktiBaru,
-            ]);
-        });
-
-        return back()->with('success', 'STNK berhasil diperpanjang');
     }
 
     public function destroy($id)

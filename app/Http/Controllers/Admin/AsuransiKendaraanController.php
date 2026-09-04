@@ -152,8 +152,9 @@ class AsuransiKendaraanController extends Controller
         }
     }
 
-    public function store(Request $request)
+    public function store(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
+        // Validation tetap lengkap
         $request->validate([
             'kendaraan_id'       => 'required|exists:kendaraan,id',
             'asuransi_id'        => 'required|exists:asuransi,id',
@@ -162,7 +163,7 @@ class AsuransiKendaraanController extends Controller
             'tgl_berakhir'       => 'required|date|after_or_equal:tgl_mulai',
             'durasi_bulan'       => 'required|integer|min:1',
             'biaya'              => 'required|numeric|min:0',
-            'bukti_bayar'        => 'required|file|max:5120',
+            'bukti_bayar'        => 'nullable|file|max:5120',  // Changed to nullable karena upload saat approval
             'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
         ]);
@@ -180,74 +181,48 @@ class AsuransiKendaraanController extends Controller
             );
         }
 
-        $buktiBayar = null;
-
-        if ($request->hasFile('bukti_bayar')) {
-            $file = $request->file('bukti_bayar');
-
-            $filename = time() . '_' . $file->getClientOriginalName();
-
-            $file->move(public_path('asuransi/bukti_bayar'), $filename);
-
-            $buktiBayar = 'asuransi/bukti_bayar/' . $filename;
-        }
-
-        $asuransiKendaraan = null;
-
-        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $buktiBayar, $kendaraan, &$asuransiKendaraan) {
-            $asuransiKendaraan = AsuransiKendaraan::create([
-                'kendaraan_id'      => $request->kendaraan_id,
-                'asuransi_id'       => $request->asuransi_id,
-                'jenis_asuransi_id' => $request->jenis_asuransi_id,
-                'tgl_mulai'         => $request->tgl_mulai,
-                'tgl_berakhir'      => $request->tgl_berakhir,
-                'durasi_bulan'      => $request->durasi_bulan,
-                'biaya'             => $request->biaya,
-                'bukti_bayar'       => $buktiBayar,
-                'status_kendaraan'  => 'aktif',
-            ]);
-
-            // --- Catat ke Keuangan ---
-            $jenisAsuransi = JenisAsuransi::find($request->jenis_asuransi_id);
-            $lastSaldo     = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            $pengeluaran   = (float) $request->biaya;
-            $kodeJurnal    = 'ASURANSI-' . $asuransiKendaraan->id . '-' . now()->timestamp;
-
-            Keuangan::create([
-                'tanggal'     => now(),
-                'reference'   => $kodeJurnal,
-                'user_id'     => auth()->id(),
-                'divisi'      => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
-                'kategori'    => 'Pengeluaran',
-                'metode'      => 'Cash',
-                'keterangan'  => 'Pembayaran asuransi kendaraan baru: ' . ($jenisAsuransi->nama_jenis ?? '-') . ' - ' . $kendaraan->nopol,
-                'pemasukan'   => 0,
-                'pengeluaran' => $pengeluaran,
-                'saldo'       => $lastSaldo - $pengeluaran,
-                'sumber'      => 'auto',
-            ]);
-
-            // --- Auto-posting ke Buku Besar ---
-            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            Bukubesar::create([
-                'kode_jurnal' => $kodeJurnal,
-                'transaksi'   => 'Beban Asuransi - ' . ($jenisAsuransi->nama_jenis ?? '-'),
-                'kategori'    => 'Beban',
-                'tanggal'     => now()->toDateString(),
-                'debit'       => $pengeluaran,
-                'kredit'      => 0,
-                'saldo'       => $saldoBBTerakhir - $pengeluaran,
-                'aktivitas'   => 'Operasi',
-                'keterangan'  => 'Auto-posting: Pembayaran asuransi kendaraan baru ' . $kendaraan->nopol,
-            ]);
-
-            // upload attachment tambahan (bisa lebih dari satu, SETELAH ADA ID)
-            if (request()->hasFile('bukti_attachment')) {
-                $this->simpanAttachments(request()->file('bukti_attachment'), $asuransiKendaraan->id);
+        // ===========================================================================
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Purchasero
+        // ===========================================================================
+        
+        try {
+            // Check if this is a resubmit (from rejected purchasero)
+            if ($request->filled('edit_purchasero')) {
+                $purchaseroId = $request->input('edit_purchasero');
+                
+                // Resubmit: Update existing purchasero
+                $purchasero = $interceptor->resubmitToPurchasero($purchaseroId, $request, 'asuransi_kendaraan');
+                
+                return redirect()
+                    ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'asuransi_kendaraan'])
+                    ->with('success', 'Pengajuan asuransi berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
-        });
-
-        return back()->with('success', 'Data berhasil ditambahkan');
+            
+            // Step 1: Intercept data dari form
+            $interceptedData = $interceptor->intercept($request, 'asuransi_kendaraan');
+            
+            // Step 2: Save ke Purchasero
+            $purchasero = $interceptor->saveToPurchasero($interceptedData, 'asuransi_kendaraan');
+            
+            // Step 3: Upload temporary files
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $purchasero->id);
+            
+            // Step 4: Update source_data dengan file info
+            $sourceData = $purchasero->source_data;
+            $sourceData['temp_files'] = $uploadedFiles;
+            $purchasero->update(['source_data' => $sourceData]);
+            
+            return redirect()
+                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'asuransi_kendaraan'])
+                ->with('success', 'Pengajuan pengeluaran asuransi berhasil dikirim. Menunggu approval dari Superadmin.');
+                
+        } catch (\Exception $e) {
+            \Log::error('Error intercepting asuransi kendaraan submission: ' . $e->getMessage());
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengajukan pengeluaran. Silakan coba lagi.');
+        }
     }
 
     public function update(Request $request, $id)
@@ -469,7 +444,7 @@ class AsuransiKendaraanController extends Controller
         return $pdf->stream('laporan-asuransi-kendaraan.pdf');
     }
 
-    public function perpanjang(Request $request, $id)
+    public function perpanjang(Request $request, $id, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
             'asuransi_id'       => 'required|exists:asuransi,id',
@@ -478,120 +453,34 @@ class AsuransiKendaraanController extends Controller
             'durasi_bulan'      => 'required|integer|min:1',
             'biaya'             => 'required|numeric|min:0',
             'tanggal_bayar'     => 'nullable|date',
-            'bukti_bayar'       => 'required|file|max:5120',
+            'bukti_bayar'       => 'nullable|file|max:5120',  // Changed to nullable - upload saat approval
             'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
+            'nama_bank'      => 'nullable|string|max:255',
+            'no_rekening'    => 'nullable|string|max:100',
+            'nama_rekening'  => 'nullable|string|max:255',
+            'informasi'      => 'nullable|string',
         ]);
 
         $asuransi = AsuransiKendaraan::findOrFail($id);
-        // Upload file baru terlebih dahulu
-        $buktiLama = $asuransi->bukti_bayar;
 
-        $bukti = $buktiLama;
-        if ($request->hasFile('bukti_bayar')) {
-
-            $file = $request->file('bukti_bayar');
-            $filename = time() . '_' . $file->getClientOriginalName();
-
-            $path = public_path('asuransi/bukti_bayar');
-
-            if (!file_exists($path)) {
-                mkdir($path, 0777, true);
-            }
-
-            $file->move($path, $filename);
-
-            $bukti = 'asuransi/bukti_bayar/' . $filename;
+        // ===========================================================================
+        // APPROVAL WORKFLOW: Perpanjang melalui Purchasero untuk approval
+        // ===========================================================================
+        
+        try {
+            $purchasero = $interceptor->perpanjangViaPurchasero($request, 'asuransi_kendaraan', $asuransi);
+            
+            return redirect()
+                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'asuransi_kendaraan'])
+                ->with('success', 'Pengajuan perpanjangan asuransi berhasil dikirim. Menunggu approval dari Superadmin.');
+                
+        } catch (\Exception $e) {
+            \Log::error('Error perpanjang Asuransi via Purchasero: ' . $e->getMessage());
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengajukan perpanjangan. Silakan coba lagi.');
         }
-
-        // --- Simpan data BARU ke history (sebagai log perpanjangan) ---
-        $history = AsuransiHistory::create([
-            'asuransi_kendaraan_id' => $asuransi->id,
-            'kendaraan_id'          => $asuransi->kendaraan_id,
-            'asuransi_id'           => $request->asuransi_id,
-            'jenis_asuransi_id'     => $request->jenis_asuransi_id,
-            'tgl_mulai'             => $asuransi->tgl_berakhir,
-            'tgl_berakhir'          => $request->tgl_berakhir,
-            'durasi_bulan'          => $request->durasi_bulan,
-            'biaya'                 => $request->biaya,
-            'bukti_bayar'           => $bukti,
-            'tanggal_bayar'         => $request->tanggal_bayar ?? now()->toDateString(),
-            'diperpanjang_pada'     => $request->filled('tanggal_bayar') ? Carbon::parse($request->tanggal_bayar)->toDateTimeString() : now()->toDateTimeString(),
-        ]);
-
-        \Illuminate\Support\Facades\DB::transaction(function () use (
-            $request, $asuransi, $buktiLama, $bukti, $history
-        ) {
-            // 🔥 MASUK KE KEUANGAN (PENGELUARAN)
-            $lastSaldo = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            $pengeluaran = $request->biaya;
-            // Kode jurnal unik per transaksi — pakai timestamp agar perpanjangan ke-2, ke-3 dst tetap masuk
-            $kodeJurnal  = 'Asuransi-' . $asuransi->id . '-' . now()->timestamp;
-
-            Keuangan::create([
-                'tanggal'     => now(),
-                'reference'   => $kodeJurnal,
-                'user_id'     => auth()->id(),
-                'divisi'      => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
-                'kategori'    => 'Pengeluaran',
-                'metode'      => 'Cash',
-                'keterangan'  => 'Pembayaran asuransi kendaraan: ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-') . ' - ' . $request->keterangan,
-                'pemasukan'   => 0,
-                'pengeluaran' => $request->biaya,
-                'saldo'       => $lastSaldo - $pengeluaran,
-                'sumber'      => 'auto',
-            ]);
-
-            // Auto-posting ke Buku Besar (kode jurnal unik, tanpa pengecekan duplikat)
-            $saldoBBTerakhir = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-            Bukubesar::create([
-                'kode_jurnal' => $kodeJurnal,
-                'transaksi'   => 'Beban Asuransi - ' . ($asuransi->jenisAsuransi->nama_jenis ?? '-'),
-                'kategori'    => 'Beban',
-                'tanggal'     => now()->toDateString(),
-                'debit'       => $request->biaya,
-                'kredit'      => 0,
-                'saldo'       => $saldoBBTerakhir - $request->biaya, // Asumsi Beban mengurangi saldo BB
-                'aktivitas'   => 'Operasi',
-                'keterangan'  => 'Auto-posting: Perpanjangan asuransi kendaraan ' . ($asuransi->kendaraan->nopol ?? '-'),
-            ]);
-
-            // Update data aktif
-            $asuransi->update([
-                'asuransi_id'       => $request->asuransi_id,
-                'jenis_asuransi_id' => $request->jenis_asuransi_id,
-                'tgl_mulai'         => $asuransi->tgl_berakhir,
-                'tgl_berakhir'      => $request->tgl_berakhir,
-                'durasi_bulan'      => $request->durasi_bulan,
-                'biaya'             => $request->biaya,
-                'bukti_bayar'       => $bukti,
-                'status_kendaraan'  => 'aktif',
-                'tanggal_bayar'     => $request->tanggal_bayar ?? now()->toDateString(),
-                'diperpanjang_pada' => $request->filled('tanggal_bayar') ? Carbon::parse($request->tanggal_bayar)->toDateTimeString() : now()->toDateTimeString(),
-            ]);
-
-            // --- Pindahkan lampiran LAMA ke history ---
-            // (Dihapus karena history sekarang mencatat log baru)
-
-            // --- Upload attachment tambahan BARU — masuk ke record aktif (halaman utama) & History ---
-            if ($request->hasFile('bukti_attachment')) {
-                Attachment::where('relation_type', 'asuransi')->where('relation_id', $asuransi->id)->delete();
-                $this->simpanAttachments($request->file('bukti_attachment'), $asuransi->id, 'asuransi', $history->id);
-            } else {
-                $oldAttachments = Attachment::where('relation_type', 'asuransi')->where('relation_id', $asuransi->id)->get();
-                foreach ($oldAttachments as $att) {
-                    Attachment::create([
-                        'relation_type' => 'asuransi_history',
-                        'relation_id'   => $history->id,
-                        'file_name'     => $att->file_name,
-                        'file_path'     => $att->file_path,
-                        'file_type'     => $att->file_type,
-                        'file_size'     => $att->file_size,
-                    ]);
-                }
-            }
-        });
-
-        return back()->with('success', 'Asuransi berhasil diperpanjang!');
     }
 }

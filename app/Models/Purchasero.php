@@ -40,12 +40,19 @@ class Purchasero extends Model
         'nama_penerima',
         'nama_bank',
         'no_rekening',
+        // Approval system fields
+        'source_type',
+        'source_data',
+        'target_id',
+        'can_edit',
     ];
 
     protected $casts = [
         'terakhir_diajukan' => 'datetime',
         'tanggal_service'   => 'date',
         'kilometer'         => 'integer',
+        'source_data'       => 'array',
+        'can_edit'          => 'boolean',
     ];
 
     protected static function boot()
@@ -119,5 +126,86 @@ class Purchasero extends Model
         }
 
         return $this->attributes['nominal'] ?? 0;
+    }
+
+    /**
+     * Relation to approval history
+     */
+    public function approvals()
+    {
+        return $this->hasMany(PurchaseroApproval::class)->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Relation to latest approval
+     */
+    public function latestApproval()
+    {
+        return $this->hasOne(PurchaseroApproval::class)->latestOfMany();
+    }
+
+    /**
+     * Check apakah ini pengeluaran (bukan belanja)
+     */
+    public function isPengeluaran(): bool
+    {
+        return !empty($this->source_type);
+    }
+
+    /**
+     * Check apakah bisa diedit (status Ditolak dan can_edit = true)
+     */
+    public function canBeEdited(): bool
+    {
+        return $this->can_edit && $this->status === 'Ditolak';
+    }
+
+    /**
+     * Check apakah pending approval
+     */
+    public function isPending(): bool
+    {
+        return $this->status === 'Pending';
+    }
+
+    /**
+     * Check apakah sudah disetujui
+     */
+    public function isApproved(): bool
+    {
+        return $this->status === 'Disetujui';
+    }
+
+    /**
+     * Check apakah ditolak
+     */
+    public function isRejected(): bool
+    {
+        return $this->status === 'Ditolak';
+    }
+
+    /**
+     * Get decoded source data with defaults
+     */
+    public function getSourceDataDecodedAttribute(): array
+    {
+        return $this->source_data ?? [];
+    }
+
+    /**
+     * Get human-readable source type name
+     */
+    public function getSourceTypeNameAttribute(): string
+    {
+        return match($this->source_type) {
+            'asuransi_kendaraan' => 'Asuransi Kendaraan',
+            'pajak' => 'Pajak Kendaraan',
+            'service_part' => 'Service Part',
+            'gps' => 'GPS Kendaraan',
+            'kir' => 'KIR',
+            'stnk' => 'STNK',
+            'service_asuransi' => 'Service Asuransi',
+            default => $this->tipe_pengadaan ?? 'Belanja',
+        };
     }
 }

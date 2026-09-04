@@ -406,6 +406,28 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::post('purchasero/{purchasero}/approve-service', [PurchaseroController::class, 'approveService'])
     ->name('purchasero.approve-service');
 
+  // ── Approval Workflow Routes (Pengeluaran Kendaraan) ────────────────────────
+  Route::get('purchasero/{purchasero}/approval-modal', [PurchaseroController::class, 'showApprovalModal'])
+    ->name('purchasero.approval-modal');
+  
+  Route::post('purchasero/{purchasero}/approve', [PurchaseroController::class, 'approve'])
+    ->name('purchasero.approve');
+  
+  Route::post('purchasero/{purchasero}/reject', [PurchaseroController::class, 'reject'])
+    ->name('purchasero.reject');
+  
+  Route::post('purchasero/bulk-approve', [PurchaseroController::class, 'bulkApprove'])
+    ->name('purchasero.bulk-approve');
+  
+  Route::post('purchasero/bulk-reject', [PurchaseroController::class, 'bulkReject'])
+    ->name('purchasero.bulk-reject');
+  
+  Route::delete('purchasero/{purchasero}/withdraw', [PurchaseroController::class, 'withdraw'])
+    ->name('purchasero.withdraw');
+  
+  Route::get('purchasero/{purchasero}/edit-rejected', [PurchaseroController::class, 'editRejected'])
+    ->name('purchasero.edit-rejected');
+
   // AJAX endpoints untuk form pengadaan service
   Route::get('purchasero/api/kendaraan-service', [PurchaseroController::class, 'apiKendaraan'])
     ->name('purchasero.api.kendaraan');
