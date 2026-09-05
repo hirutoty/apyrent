@@ -8,14 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             $table->bigInteger('nominal')->nullable()->after('alasan_permintaan');
         });
     }
 
     public function down(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             $table->dropColumn('nominal');
         });
     }

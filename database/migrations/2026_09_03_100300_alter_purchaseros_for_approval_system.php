@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             // Source type untuk identifikasi jenis pengeluaran
             // Values: 'asuransi_kendaraan', 'pajak', 'service_part', 'gps', 'kir', 'stnk', 'service_asuransi'
             $table->string('source_type', 50)->nullable()->after('status')
@@ -30,9 +30,9 @@ return new class extends Migration
                 ->comment('Flag untuk allow/disallow edit');
             
             // Add indexes untuk performa query
-            $table->index('source_type', 'idx_purchaseros_source_type');
-            $table->index('target_id', 'idx_purchaseros_target_id');
-            $table->index(['status', 'source_type'], 'idx_purchaseros_status_source');
+            $table->index('source_type', 'idx_pembayarans_source_type');
+            $table->index('target_id', 'idx_pembayarans_target_id');
+            $table->index(['status', 'source_type'], 'idx_pembayarans_status_source');
         });
     }
 
@@ -41,11 +41,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             // Drop indexes first
-            $table->dropIndex('idx_purchaseros_source_type');
-            $table->dropIndex('idx_purchaseros_target_id');
-            $table->dropIndex('idx_purchaseros_status_source');
+            $table->dropIndex('idx_pembayarans_source_type');
+            $table->dropIndex('idx_pembayarans_target_id');
+            $table->dropIndex('idx_pembayarans_status_source');
             
             // Drop columns
             $table->dropColumn(['source_type', 'source_data', 'target_id', 'can_edit']);

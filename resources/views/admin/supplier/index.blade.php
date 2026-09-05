@@ -153,28 +153,28 @@
                                 <td class="px-4 py-3.5 text-sm text-gray-700">{{ $d->alamat ?? '-' }}</td>
 
                                 @php
-                                    $totalPr      = $d->purchaseros->count();
-                                    $totalNominal = $d->purchaseros->sum(function($pr) {
+                                    $totalPr      = $d->pembayarans->count();
+                                    $totalNominal = $d->pembayarans->sum(function($pr) {
                                         if ($pr->items && $pr->items->isNotEmpty()) {
                                             return $pr->items->sum('subtotal');
                                         }
                                         return $pr->nominal ?? 0;
                                     });
-                                    // Ambil ringkasan barang dari purchaseros (gabung nama barang unik)
-                                    $namaBarang = $d->purchaseros->flatMap(function($pr) {
+                                    // Ambil ringkasan barang dari pembayarans (gabung nama barang unik)
+                                    $namaBarang = $d->pembayarans->flatMap(function($pr) {
                                         if ($pr->items && $pr->items->isNotEmpty()) {
                                             return $pr->items->pluck('nama_barang');
                                         }
                                         return collect([$pr->barang_jasa]);
                                     })->filter()->unique()->take(2)->implode(', ');
-                                    $jumlahTotal = $d->purchaseros->flatMap(function($pr) {
+                                    $jumlahTotal = $d->pembayarans->flatMap(function($pr) {
                                         if ($pr->items && $pr->items->isNotEmpty()) {
                                             return $pr->items->pluck('qty');
                                         }
                                         return collect([$pr->qty ?? 0]);
                                     })->sum();
                                     // Harga rata-rata satuan dari semua item
-                                    $allItems = $d->purchaseros->flatMap(function($pr) {
+                                    $allItems = $d->pembayarans->flatMap(function($pr) {
                                         if ($pr->items && $pr->items->isNotEmpty()) {
                                             return $pr->items;
                                         }

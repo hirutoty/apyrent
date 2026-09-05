@@ -1,4 +1,4 @@
-{{-- 
+﻿{{-- 
     Approval Modal Component for Pengeluaran Kendaraan
     Usage: <x-approval-modal />
 --}}
@@ -382,17 +382,17 @@ function approvalModal() {
         catatan: '',
         isDragging: false,
 
-        openModal(purchaseroData) {
+        openModal(pembayaranData) {
             this.show = true;
             this.loading = true;
             this.resetForm();
 
             // Fetch full data from backend
-            fetch(`/admin/purchasero/${purchaseroData.id}/approval-modal`)
+            fetch(`/admin/pembayaran/${pembayaranData.id}/approval-modal`)
                 .then(res => res.json())
                 .then(response => {
                     if (response.success) {
-                        this.data = response.data.purchasero;
+                        this.data = response.data.pembayaran;
                         this.sourceData = response.data.source_data;
                         this.relatedData = response.data.related_data;
                         this.tempFiles = response.data.temp_files;
@@ -487,7 +487,7 @@ function approvalModal() {
             formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
 
             try {
-                const response = await fetch(`/admin/purchasero/${this.data.id}/approve`, {
+                const response = await fetch(`/admin/pembayaran/${this.data.id}/approve`, {
                     method: 'POST',
                     body: formData
                 });
@@ -527,7 +527,7 @@ function approvalModal() {
             formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
 
             try {
-                const response = await fetch(`/admin/purchasero/${this.data.id}/reject`, {
+                const response = await fetch(`/admin/pembayaran/${this.data.id}/reject`, {
                     method: 'POST',
                     body: formData
                 });

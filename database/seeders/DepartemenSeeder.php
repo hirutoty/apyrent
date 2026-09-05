@@ -18,7 +18,7 @@ class DepartemenSeeder extends Seeder
             ['Marketing',       'Sari Dewanti',       '2020-02-01',  7,  'Pemasaran dan promosi produk',                   'Aktif'],
             ['Sales',           'Benny Kusuma',       '2020-04-01', 12,  'Penjualan dan hubungan pelanggan',                'Aktif'],
             ['Legal',           'Putri Wulandari',    '2021-01-01',  4,  'Urusan hukum dan kontrak perusahaan',             'Aktif'],
-            ['Procurement',     'Bambang Irawan',     '2021-06-01',  5,  'Pengadaan barang dan jasa',                       'Aktif'],
+            ['Procurement',     'Bambang Irawan',     '2021-06-01',  5,  'Pembayaran barang dan jasa',                       'Aktif'],
             ['Maintenance',     'Suryono Hadi',       '2019-07-01',  8,  'Pemeliharaan aset dan kendaraan',                 'Aktif'],
             ['R&D',             'Indra Lesmana',      '2022-01-01',  4,  'Riset dan pengembangan produk',                   'Aktif'],
             ['Customer Service','Maya Anggraini',      '2020-09-01',  6,  'Layanan pelanggan',                               'Aktif'],

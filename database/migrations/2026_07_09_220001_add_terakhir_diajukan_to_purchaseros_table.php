@@ -8,14 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             $table->timestamp('terakhir_diajukan')->nullable()->after('catatan');
         });
     }
 
     public function down(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             $table->dropColumn('terakhir_diajukan');
         });
     }

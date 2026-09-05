@@ -82,38 +82,38 @@ class ServiceAsuransiController extends Controller
         }
 
         // ===========================================================================
-        // APPROVAL WORKFLOW: Intercept dan kirim ke Purchasero
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Pembayaran
         // ===========================================================================
         
         try {
-            // Check if this is a resubmit (from rejected purchasero)
-            if ($request->filled('edit_purchasero')) {
-                $purchaseroId = $request->input('edit_purchasero');
+            // Check if this is a resubmit (from rejected pembayaran)
+            if ($request->filled('edit_pembayaran')) {
+                $pembayaranId = $request->input('edit_pembayaran');
                 
-                // Resubmit: Update existing purchasero
-                $purchasero = $interceptor->resubmitToPurchasero($purchaseroId, $request, 'service_asuransi');
+                // Resubmit: Update existing pembayaran
+                $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'service_asuransi');
                 
                 return redirect()
-                    ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'service_asuransi'])
+                    ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'service_asuransi'])
                     ->with('success', 'Pengajuan service asuransi berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
             
             // Step 1: Intercept data dari form
             $interceptedData = $interceptor->intercept($request, 'service_asuransi');
             
-            // Step 2: Save ke Purchasero
-            $purchasero = $interceptor->saveToPurchasero($interceptedData, 'service_asuransi');
+            // Step 2: Save ke Pembayaran
+            $pembayaran = $interceptor->saveToPembayaran($interceptedData, 'service_asuransi');
             
             // Step 3: Upload temporary files
-            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $purchasero->id);
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $pembayaran->id);
             
             // Step 4: Update source_data dengan file info
-            $sourceData = $purchasero->source_data;
+            $sourceData = $pembayaran->source_data;
             $sourceData['temp_files'] = $uploadedFiles;
-            $purchasero->update(['source_data' => $sourceData]);
+            $pembayaran->update(['source_data' => $sourceData]);
             
             return redirect()
-                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'service_asuransi'])
+                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'service_asuransi'])
                 ->with('success', 'Pengajuan pengeluaran service asuransi berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {

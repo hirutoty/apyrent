@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Bukubesar;
 use App\Models\Keuangan;
-use App\Models\Purchasero;
+use App\Models\Pembayaran;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class PurchaseroController extends Controller
+class PembayaranController extends Controller
 {
     public function index(Request $request)
     {
@@ -18,7 +18,7 @@ class PurchaseroController extends Controller
         $bulan = $request->input('bulan'); // format: Y-m
         $deptFilter = $request->input('departemen'); // hanya untuk superadmin
 
-        $query = Purchasero::query();
+        $query = Pembayaran::query();
 
         if ($role === 'superadmin') {
             $tab = $request->input('tab', 'Diajukan');
@@ -66,7 +66,7 @@ class PurchaseroController extends Controller
         $data = $query->with('items')->paginate(15)->withQueryString();
 
         // Stats (scope sama dengan query utama tapi tanpa pagination)
-        $baseQuery = Purchasero::query();
+        $baseQuery = Pembayaran::query();
         if ($role !== 'superadmin') {
             $deptMap = [
                 'keuangan'  => 'Keuangan',
@@ -108,7 +108,7 @@ class PurchaseroController extends Controller
             default     => ucfirst($role),
         };
 
-        return view('admin.purchasero.index', compact(
+        return view('admin.pembayaran.index', compact(
             'data', 'role', 'tab', 'sort', 'deptLabel', 'bulan', 'deptFilter',
             'totalPR', 'totalDisetujui', 'totalPending', 'totalDitolak', 'totalDiajukan', 'totalNominal'
         ));
@@ -119,7 +119,7 @@ class PurchaseroController extends Controller
         $role = auth()->user()->role;
         
         // Generate No PR preview
-        $last = Purchasero::orderBy('id', 'desc')->first();
+        $last = Pembayaran::orderBy('id', 'desc')->first();
         $lastNum = $last && preg_match('/(\d+)$/', $last->no_pr, $m) ? (int) $m[1] : 0;
         $noPrPreview = 'PR-' . str_pad($lastNum + 1, 3, '0', STR_PAD_LEFT);
         
@@ -144,56 +144,61 @@ class PurchaseroController extends Controller
             default     => ucfirst($role),
         };
 
-        return view('admin.purchasero.create', compact('role', 'noPrPreview', 'departemenOptions', 'deptLabel'));
+        return view('admin.pembayaran.create', compact('role', 'noPrPreview', 'departemenOptions', 'deptLabel'));
     }
 
-    public function edit(Purchasero $purchasero)
+    public function edit(Pembayaran $pembayaran)
     {
         // Guard: hanya status Pending & Diajukan yang bisa edit
-        if (!in_array($purchasero->status, ['Pending', 'Diajukan'])) {
-            return redirect()->route('purchasero.index')
-                ->with('error', 'Pengadaan dengan status ' . $purchasero->status . ' tidak dapat diedit.');
+        if (!in_array($pembayaran->status, ['Pending', 'Diajukan'])) {
+            return redirect()->route('pembayaran.index')
+                ->with('error', 'Pembayaran dengan status ' . $pembayaran->status . ' tidak dapat diedit.');
         }
 
         // Load items relation
-        $purchasero->load('items');
+        $pembayaran->load('items');
 
-        return view('admin.purchasero.edit', compact('purchasero'));
+        return view('admin.pembayaran.edit', compact('pembayaran'));
     }
 
     public function details($id)
     {
         try {
-            $purchasero = Purchasero::with('items')->findOrFail($id);
+            $pembayaran = Pembayaran::with('items')->findOrFail($id);
             
             // Format data untuk response
             $data = [
-                'id' => $purchasero->id,
-                'no_pr' => $purchasero->no_pr,
-                'tanggal_formatted' => $purchasero->tanggal ? \Carbon\Carbon::parse($purchasero->tanggal)->format('d M Y') : '-',
-                'departemen' => $purchasero->departemen ?? '-',
-                'pemohon' => $purchasero->pemohon ?? '-',
-                'alasan_permintaan' => $purchasero->alasan_permintaan ?? '-',
-                'status' => $purchasero->status ?? '-',
-                'status_class' => match($purchasero->status) {
+                'id' => $pembayaran->id,
+                'no_pr' => $pembayaran->no_pr,
+                'tanggal_formatted' => $pembayaran->tanggal ? \Carbon\Carbon::parse($pembayaran->tanggal)->format('d M Y') : '-',
+                'departemen' => $pembayaran->departemen ?? '-',
+                'pemohon' => $pembayaran->pemohon ?? '-',
+                'alasan_permintaan' => $pembayaran->alasan_permintaan ?? '-',
+                'status' => $pembayaran->status ?? '-',
+                'status_class' => match($pembayaran->status) {
                     'Disetujui' => 'bg-green-100 text-green-600',
                     'Ditolak'   => 'bg-red-100 text-red-600',
                     'Diajukan'  => 'bg-indigo-100 text-indigo-600',
                     'Pending'   => 'bg-yellow-100 text-yellow-600',
                     default     => 'bg-gray-100 text-gray-500',
                 },
-                'disetujui_oleh' => $purchasero->disetujui_oleh,
-                'tanggal_persetujuan_formatted' => $purchasero->tanggal_persetujuan ? \Carbon\Carbon::parse($purchasero->tanggal_persetujuan)->format('d M Y') : null,
-                'catatan' => $purchasero->catatan,
-                'terakhir_diajukan_formatted' => $purchasero->terakhir_diajukan ? \Carbon\Carbon::parse($purchasero->terakhir_diajukan)->format('d M Y H:i') : null,
-                'total_nominal' => $purchasero->total_nominal,
-                'total_nominal_formatted' => number_format($purchasero->total_nominal, 0, ',', '.'),
-                'total_items' => $purchasero->items->count() > 0 ? $purchasero->items->count() : 1,
+                'disetujui_oleh' => $pembayaran->disetujui_oleh,
+                'tanggal_persetujuan_formatted' => $pembayaran->tanggal_persetujuan ? \Carbon\Carbon::parse($pembayaran->tanggal_persetujuan)->format('d M Y') : null,
+                'catatan' => $pembayaran->catatan,
+                'terakhir_diajukan_formatted' => $pembayaran->terakhir_diajukan ? \Carbon\Carbon::parse($pembayaran->terakhir_diajukan)->format('d M Y H:i') : null,
+                'total_nominal' => $pembayaran->total_nominal,
+                'total_nominal_formatted' => number_format($pembayaran->total_nominal, 0, ',', '.'),
+                'total_items' => $pembayaran->items->count() > 0 ? $pembayaran->items->count() : 1,
+                // Rekening bank & informasi tambahan
+                'nama_bank'     => $pembayaran->nama_bank,
+                'no_rekening'   => $pembayaran->no_rekening,
+                'nama_rekening' => $pembayaran->nama_rekening,
+                'informasi'     => $pembayaran->informasi,
             ];
 
             // Items data (new structure)
-            if ($purchasero->items->count() > 0) {
-                $data['items'] = $purchasero->items->map(function($item) {
+            if ($pembayaran->items->count() > 0) {
+                $data['items'] = $pembayaran->items->map(function($item) {
                     return [
                         'nama_barang' => $item->nama_barang,
                         'kategori' => $item->kategori,
@@ -214,15 +219,15 @@ class PurchaseroController extends Controller
                 });
             } else {
                 // Legacy data (old structure) - for backward compatibility
-                $data['barang_jasa'] = $purchasero->barang_jasa;
-                $data['kode_barang'] = $purchasero->kode_barang;
-                $data['qty'] = $purchasero->qty;
-                $data['satuan'] = $purchasero->satuan;
-                $data['nominal'] = $purchasero->nominal;
-                $data['nominal_formatted'] = $purchasero->nominal ? number_format($purchasero->nominal, 0, ',', '.') : null;
+                $data['barang_jasa'] = $pembayaran->barang_jasa;
+                $data['kode_barang'] = $pembayaran->kode_barang;
+                $data['qty'] = $pembayaran->qty;
+                $data['satuan'] = $pembayaran->satuan;
+                $data['nominal'] = $pembayaran->nominal;
+                $data['nominal_formatted'] = $pembayaran->nominal ? number_format($pembayaran->nominal, 0, ',', '.') : null;
             }
 
-            return response()->json(['success' => true, 'purchasero' => $data]);
+            return response()->json(['success' => true, 'pembayaran' => $data]);
             
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Data tidak ditemukan']);
@@ -251,7 +256,7 @@ class PurchaseroController extends Controller
             $departemen = $deptMap[$role] ?? ucfirst($role);
         }
 
-        $tipe = $request->input('tipe_pengadaan', 'belanja');
+        $tipe = $request->input('tipe_pembayaran', 'belanja');
 
         // ── VALIDASI BERBEDA BERDASARKAN TIPE ──────────────────────
         if ($tipe === 'service') {
@@ -300,24 +305,24 @@ class PurchaseroController extends Controller
         }
 
         // Generate No PR
-        $last    = Purchasero::orderBy('id', 'desc')->first();
+        $last    = Pembayaran::orderBy('id', 'desc')->first();
         $lastNum = $last && preg_match('/(\d+)$/', $last->no_pr, $m) ? (int) $m[1] : 0;
         $noPr    = 'PR-' . str_pad($lastNum + 1, 3, '0', STR_PAD_LEFT);
 
         DB::beginTransaction();
         try {
             if ($tipe === 'service') {
-                // ── SIMPAN PENGADAAN SERVICE ────────────────────────
+                // ── SIMPAN PEMBAYARAN SERVICE ────────────────────────
                 $totalNominal = 0;
                 foreach ($request->parts as $part) {
                     $totalNominal += (int) ($part['biaya'] ?? 0);
                 }
 
-                $purchasero = Purchasero::create([
+                $pembayaran = Pembayaran::create([
                     'no_pr'             => $noPr,
                     'tanggal'           => $request->tanggal,
                     'departemen'        => $departemen,
-                    'tipe_pengadaan'    => 'service',
+                    'tipe_pembayaran'    => 'service',
                     'pemohon'           => $request->pemohon,
                     'supplier_id'       => $request->supplier_id,
                     'alasan_permintaan' => $request->alasan_permintaan,
@@ -345,7 +350,7 @@ class PurchaseroController extends Controller
                         }
                     }
 
-                    $purchasero->serviceParts()->create([
+                    $pembayaran->serviceParts()->create([
                         'kendaraan_id'     => $request->kendaraan_id,
                         'category_id'      => $part['category_id'] ?? null,
                         'nama_part'        => $part['nama_part'],
@@ -365,17 +370,17 @@ class PurchaseroController extends Controller
                     ]);
                 }
             } else {
-                // ── SIMPAN PENGADAAN BELANJA ────────────────────────
+                // ── SIMPAN PEMBAYARAN BELANJA ────────────────────────
                 $totalNominal = 0;
                 foreach ($request->items as $item) {
                     $totalNominal += isset($item['subtotal']) && is_numeric($item['subtotal']) ? (float) $item['subtotal'] : 0;
                 }
 
-                $purchasero = Purchasero::create([
+                $pembayaran = Pembayaran::create([
                     'no_pr'             => $noPr,
                     'tanggal'           => $request->tanggal,
                     'departemen'        => $departemen,
-                    'tipe_pengadaan'    => 'belanja',
+                    'tipe_pembayaran'    => 'belanja',
                     'pemohon'           => $request->pemohon,
                     'supplier_id'       => $request->supplier_id,
                     'alasan_permintaan' => $request->alasan_permintaan,
@@ -395,7 +400,7 @@ class PurchaseroController extends Controller
                     if ($request->hasFile("items.{$index}.bukti")) {
                         $file = $request->file("items.{$index}.bukti");
                         $filename = time() . '_' . $index . '_' . $file->getClientOriginalName();
-                        $path = $file->storeAs('purchasero/bukti', $filename, 'public');
+                        $path = $file->storeAs('pembayaran/bukti', $filename, 'public');
                         $buktiFiles[] = [
                             'filename' => $file->getClientOriginalName(),
                             'path'     => $path,
@@ -404,7 +409,7 @@ class PurchaseroController extends Controller
                         ];
                     }
 
-                    $purchasero->items()->create([
+                    $pembayaran->items()->create([
                         'nama_barang'   => $item['nama_barang'],
                         'kategori'      => $item['kategori'] ?? null,
                         'posisi'        => $item['posisi'] ?? null,
@@ -425,8 +430,8 @@ class PurchaseroController extends Controller
             DB::commit();
 
             $tipePesan = $tipe === 'service' ? 'service' : 'belanja';
-            return redirect()->route('purchasero.index')
-                ->with('success', "Pengadaan {$tipePesan} {$noPr} berhasil " . ($role === 'superadmin' ? 'diajukan' : 'disimpan sebagai Pending') . ".");
+            return redirect()->route('pembayaran.index')
+                ->with('success', "Pembayaran {$tipePesan} {$noPr} berhasil " . ($role === 'superadmin' ? 'diajukan' : 'disimpan sebagai Pending') . ".");
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -436,12 +441,12 @@ class PurchaseroController extends Controller
         }
     }
 
-    public function update(Request $request, Purchasero $purchasero)
+    public function update(Request $request, Pembayaran $pembayaran)
     {
         // Guard: hanya status Pending & Diajukan yang bisa edit
-        if (!in_array($purchasero->status, ['Pending', 'Diajukan'])) {
-            return redirect()->route('purchasero.index')
-                ->with('error', 'Pengadaan dengan status ' . $purchasero->status . ' tidak dapat diedit.');
+        if (!in_array($pembayaran->status, ['Pending', 'Diajukan'])) {
+            return redirect()->route('pembayaran.index')
+                ->with('error', 'Pembayaran dengan status ' . $pembayaran->status . ' tidak dapat diedit.');
         }
 
         $role = auth()->user()->role;
@@ -450,7 +455,7 @@ class PurchaseroController extends Controller
         if ($role === 'superadmin') {
             $departemen = $request->departemen;
         } else {
-            $departemen = $purchasero->departemen; // Keep existing departemen
+            $departemen = $pembayaran->departemen; // Keep existing departemen
         }
 
         // Validation rules
@@ -485,8 +490,8 @@ class PurchaseroController extends Controller
 
         DB::beginTransaction();
         try {
-            // Update Purchasero header
-            $purchasero->update([
+            // Update Pembayaran header
+            $pembayaran->update([
                 'tanggal'           => $request->tanggal,
                 'departemen'        => $departemen,
                 'pemohon'           => $request->pemohon,
@@ -496,7 +501,7 @@ class PurchaseroController extends Controller
             ]);
 
             // Delete existing items
-            $purchasero->items()->delete();
+            $pembayaran->items()->delete();
 
             // Create new items
             foreach ($request->items as $index => $item) {
@@ -506,7 +511,7 @@ class PurchaseroController extends Controller
                 if ($request->hasFile("items.{$index}.bukti")) {
                     $file = $request->file("items.{$index}.bukti");
                     $filename = time() . '_' . $index . '_' . $file->getClientOriginalName();
-                    $path = $file->storeAs('purchasero/bukti', $filename, 'public');
+                    $path = $file->storeAs('pembayaran/bukti', $filename, 'public');
                     $buktiFiles[] = [
                         'filename' => $file->getClientOriginalName(),
                         'path'     => $path,
@@ -515,7 +520,7 @@ class PurchaseroController extends Controller
                     ];
                 }
 
-                $purchasero->items()->create([
+                $pembayaran->items()->create([
                     'nama_barang'   => $item['nama_barang'],
                     'kategori'      => $item['kategori'] ?? null,
                     'posisi'        => $item['posisi'] ?? null,
@@ -534,8 +539,8 @@ class PurchaseroController extends Controller
 
             DB::commit();
 
-            return redirect()->route('purchasero.index')
-                ->with('success', "Pengadaan {$purchasero->no_pr} berhasil diperbarui dengan " . count($request->items) . " item.");
+            return redirect()->route('pembayaran.index')
+                ->with('success', "Pembayaran {$pembayaran->no_pr} berhasil diperbarui dengan " . count($request->items) . " item.");
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -546,55 +551,55 @@ class PurchaseroController extends Controller
         }
     }
 
-    public function destroy(Purchasero $purchasero)
+    public function destroy(Pembayaran $pembayaran)
     {
         // Guard: PR yang sudah diajukan/disetujui tidak boleh dihapus
-        if (in_array($purchasero->status, ['Disetujui', 'Diajukan'])) {
-            return redirect()->route('purchasero.index')
-                ->with('error', 'Pengadaan yang sudah diajukan/disetujui tidak dapat dihapus.');
+        if (in_array($pembayaran->status, ['Disetujui', 'Diajukan'])) {
+            return redirect()->route('pembayaran.index')
+                ->with('error', 'Pembayaran yang sudah diajukan/disetujui tidak dapat dihapus.');
         }
 
-        $purchasero->delete();
+        $pembayaran->delete();
 
-        return redirect()->route('purchasero.index')
-            ->with('success', 'Pengadaan berhasil dihapus.');
+        return redirect()->route('pembayaran.index')
+            ->with('success', 'Pembayaran berhasil dihapus.');
     }
 
     /**
      * Tombol "Ajukan" — hanya untuk non-superadmin.
      */
-    public function ajukan(Purchasero $purchasero)
+    public function ajukan(Pembayaran $pembayaran)
     {
         $role = auth()->user()->role;
 
         if ($role === 'superadmin') {
-            return redirect()->route('purchasero.index')
-                ->with('error', 'Superadmin tidak dapat mengajukan pengadaan.');
+            return redirect()->route('pembayaran.index')
+                ->with('error', 'Superadmin tidak dapat mengajukan pembayaran.');
         }
 
-        if (in_array($purchasero->status, ['Diajukan', 'Disetujui'])) {
-            return redirect()->route('purchasero.index')
-                ->with('error', 'Pengadaan ini sudah diajukan atau disetujui.');
+        if (in_array($pembayaran->status, ['Diajukan', 'Disetujui'])) {
+            return redirect()->route('pembayaran.index')
+                ->with('error', 'Pembayaran ini sudah diajukan atau disetujui.');
         }
 
-        $purchasero->update([
+        $pembayaran->update([
             'status'            => 'Diajukan',
             'terakhir_diajukan' => now(),
         ]);
 
-        return redirect()->route('purchasero.index')
-            ->with('success', 'Pengadaan ' . $purchasero->no_pr . ' berhasil diajukan.');
+        return redirect()->route('pembayaran.index')
+            ->with('success', 'Pembayaran ' . $pembayaran->no_pr . ' berhasil diajukan.');
     }
 
     /**
      * Superadmin: Setujui atau Tolak (dengan catatan wajib jika Ditolak).
      */
-    public function updateStatusInline(Request $request, Purchasero $purchasero)
+    public function updateStatusInline(Request $request, Pembayaran $pembayaran)
     {
         $role = auth()->user()->role;
 
         if ($role !== 'superadmin') {
-            return redirect()->route('purchasero.index')
+            return redirect()->route('pembayaran.index')
                 ->with('error', 'Anda tidak memiliki izin untuk mengubah status ini.');
         }
 
@@ -603,7 +608,7 @@ class PurchaseroController extends Controller
             'catatan' => 'nullable|string|max:1000',
         ]);
 
-        $statusLama = $purchasero->status;
+        $statusLama = $pembayaran->status;
         $updateData = ['status' => $request->status];
 
         if ($request->status === 'Ditolak') {
@@ -617,12 +622,12 @@ class PurchaseroController extends Controller
             $updateData['catatan']             = null;
         }
 
-        $purchasero->update($updateData);
+        $pembayaran->update($updateData);
 
         // ── Hapus jurnal lama jika sebelumnya Disetujui lalu di-Tolak ──
         if ($statusLama === 'Disetujui' && $request->status === 'Ditolak') {
-            DB::transaction(function () use ($purchasero) {
-                $kodeJurnal = 'PR-JRN-' . $purchasero->no_pr;
+            DB::transaction(function () use ($pembayaran) {
+                $kodeJurnal = 'PR-JRN-' . $pembayaran->no_pr;
 
                 // Hapus dari keuangans + recalculate saldo
                 $keuangan = Keuangan::where('reference', $kodeJurnal)->first();
@@ -634,7 +639,7 @@ class PurchaseroController extends Controller
 
                 // Hapus dari bukubesars + recalculate saldo
                 $jurnal = Bukubesar::where('kode_jurnal', $kodeJurnal)
-                    ->orWhere('referensi', $purchasero->no_pr)
+                    ->orWhere('referensi', $pembayaran->no_pr)
                     ->first();
                 if ($jurnal) {
                     $jurnalId = $jurnal->id;
@@ -646,9 +651,9 @@ class PurchaseroController extends Controller
 
         // ── Buat jurnal otomatis saat status berubah ke Disetujui ──
         if ($request->status === 'Disetujui') {
-            DB::transaction(function () use ($purchasero) {
-                $kodeJurnal = 'PR-JRN-' . $purchasero->no_pr;
-                $nominal    = (int) ($purchasero->nominal ?? 0);
+            DB::transaction(function () use ($pembayaran) {
+                $kodeJurnal = 'PR-JRN-' . $pembayaran->no_pr;
+                $nominal    = (int) ($pembayaran->nominal ?? 0);
 
                 // ── Catat ke Keuangan ──
                 if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
@@ -658,12 +663,12 @@ class PurchaseroController extends Controller
                         ->value('saldo') ?? 0;
 
                     Keuangan::create([
-                        'tanggal'     => $purchasero->tanggal_persetujuan ?? now()->toDateString(),
+                        'tanggal'     => $pembayaran->tanggal_persetujuan ?? now()->toDateString(),
                         'reference'   => $kodeJurnal,
                         'user_id'     => auth()->id(),
                         'kategori'    => 'Pengeluaran',
                         'metode'      => 'Cash',
-                        'keterangan'  => 'PR #' . $purchasero->no_pr . ' - ' . $purchasero->barang_jasa,
+                        'keterangan'  => 'PR #' . $pembayaran->no_pr . ' - ' . $pembayaran->barang_jasa,
                         'pemasukan'   => 0,
                         'pengeluaran' => $nominal,
                         'saldo'       => $lastSaldo - $nominal,
@@ -680,28 +685,28 @@ class PurchaseroController extends Controller
 
                     Bukubesar::create([
                         'kode_jurnal' => $kodeJurnal,
-                        'transaksi'   => 'Pengadaan: ' . $purchasero->barang_jasa,
+                        'transaksi'   => 'Pembayaran: ' . $pembayaran->barang_jasa,
                         'kategori'    => 'Beban',
-                        'tanggal'     => $purchasero->tanggal_persetujuan ?? now()->toDateString(),
+                        'tanggal'     => $pembayaran->tanggal_persetujuan ?? now()->toDateString(),
                         'debit'       => $nominal,
                         'kredit'      => 0,
                         'saldo'       => $saldoBB - $nominal,
-                        'aktivitas'   => 'pengadaan',
-                        'keterangan'  => 'PR #' . $purchasero->no_pr . ' disetujui oleh ' . $purchasero->disetujui_oleh,
-                        'referensi'   => $purchasero->no_pr,
+                        'aktivitas'            => 'pembayaran',
+                        'keterangan'  => 'PR #' . $pembayaran->no_pr . ' disetujui oleh ' . $pembayaran->disetujui_oleh,
+                        'referensi'   => $pembayaran->no_pr,
                     ]);
                 }
 
-        // ── Buat service_history jika tipe_pengadaan = service ──
-                if ($purchasero->tipe_pengadaan === 'service' && $purchasero->kendaraan_id) {
-                    $purchasero->load('serviceParts');
+        // ── Buat service_history jika tipe_pembayaran = service ──
+                if ($pembayaran->tipe_pembayaran === 'service' && $pembayaran->kendaraan_id) {
+                    $pembayaran->load('serviceParts');
 
                     $serviceHistory = \App\Models\ServiceHistory::create([
-                        'kendaraan_id'      => $purchasero->kendaraan_id,
-                        'tanggal_service'   => $purchasero->tanggal_service ?? now()->toDateString(),
-                        'kilometer'         => $purchasero->kilometer ?? 0,
-                        'keluhan'           => $purchasero->keluhan,
-                        'total_biaya'       => $purchasero->nominal,
+                        'kendaraan_id'      => $pembayaran->kendaraan_id,
+                        'tanggal_service'   => $pembayaran->tanggal_service ?? now()->toDateString(),
+                        'kilometer'         => $pembayaran->kilometer ?? 0,
+                        'keluhan'           => $pembayaran->keluhan,
+                        'total_biaya'       => $pembayaran->nominal,
                         'status'            => 'proses',
                         'status_approval'   => 'approved',
                         'approval_by'       => auth()->id(),
@@ -710,17 +715,17 @@ class PurchaseroController extends Controller
                     ]);
 
                     // Cek apakah ada part yang melebihi limit → status_pengeluaran = overservice
-                    $hasOverLimit = $purchasero->serviceParts->contains('is_over_limit', true);
+                    $hasOverLimit = $pembayaran->serviceParts->contains('is_over_limit', true);
 
                     if ($hasOverLimit) {
                         $serviceHistory->update(['status_pengeluaran' => 'overservice']);
                     }
 
                     // Buat ServicePart dari PR service parts
-                    foreach ($purchasero->serviceParts as $prPart) {
+                    foreach ($pembayaran->serviceParts as $prPart) {
                         \App\Models\ServicePart::create([
                             'service_history_id' => $serviceHistory->id,
-                            'kendaraan_id'       => $purchasero->kendaraan_id,
+                            'kendaraan_id'       => $pembayaran->kendaraan_id,
                             'category_id'        => $prPart->category_id,
                             'nama_part'          => $prPart->nama_part,
                             'part_number'        => $prPart->part_number,
@@ -745,9 +750,9 @@ class PurchaseroController extends Controller
                     }
 
                     // Update kilometer kendaraan
-                    if ($purchasero->kilometer) {
-                        \App\Models\Kendaraan::where('id', $purchasero->kendaraan_id)
-                            ->update(['kilometer_sekarang' => $purchasero->kilometer]);
+                    if ($pembayaran->kilometer) {
+                        \App\Models\Kendaraan::where('id', $pembayaran->kendaraan_id)
+                            ->update(['kilometer_sekarang' => $pembayaran->kilometer]);
                     }
                 }
             });
@@ -756,8 +761,8 @@ class PurchaseroController extends Controller
         $label = $request->status === 'Disetujui' ? 'disetujui' : 'ditolak';
 
         // Jika Ditolak dan tipe service: set service_history yang pending ke rejected (jika ada)
-        if ($request->status === 'Ditolak' && $purchasero->tipe_pengadaan === 'service') {
-            \App\Models\ServiceHistory::where('kendaraan_id', $purchasero->kendaraan_id)
+        if ($request->status === 'Ditolak' && $pembayaran->tipe_pembayaran === 'service') {
+            \App\Models\ServiceHistory::where('kendaraan_id', $pembayaran->kendaraan_id)
                 ->where('is_request', true)
                 ->where('status_approval', 'pending')
                 ->update([
@@ -767,24 +772,24 @@ class PurchaseroController extends Controller
                 ]);
         }
 
-        return redirect()->route('purchasero.index')
-            ->with('success', 'Pengadaan ' . $purchasero->no_pr . ' berhasil ' . $label . '.');
+        return redirect()->route('pembayaran.index')
+            ->with('success', 'Pembayaran ' . $pembayaran->no_pr . ' berhasil ' . $label . '.');
     }
 
     /**
-     * Setujui pengadaan SERVICE dengan upload bukti pembayaran + lampiran.
-     * Dipanggil dari modal khusus di index pengadaan.
+     * Setujui pembayaran SERVICE dengan upload bukti pembayaran + lampiran.
+     * Dipanggil dari modal khusus di index pembayaran.
      */
-    public function approveService(Request $request, Purchasero $purchasero)
+    public function approveService(Request $request, Pembayaran $pembayaran)
     {
         if (auth()->user()->role !== 'superadmin') {
-            return redirect()->route('purchasero.index')
+            return redirect()->route('pembayaran.index')
                 ->with('error', 'Tidak memiliki izin.');
         }
 
-        if ($purchasero->status !== 'Diajukan' || $purchasero->tipe_pengadaan !== 'service') {
-            return redirect()->route('purchasero.index')
-                ->with('error', 'Pengadaan tidak valid untuk disetujui via modal ini.');
+        if ($pembayaran->status !== 'Diajukan' || $pembayaran->tipe_pembayaran !== 'service') {
+            return redirect()->route('pembayaran.index')
+                ->with('error', 'Pembayaran tidak valid untuk disetujui via modal ini.');
         }
 
         $request->validate([
@@ -798,34 +803,34 @@ class PurchaseroController extends Controller
             $buktiPath = null;
             if ($request->hasFile('bukti_pembayaran')) {
                 $buktiPath = $request->file('bukti_pembayaran')
-                    ->storeAs('purchasero/bukti', time() . '_bukti_' . $request->file('bukti_pembayaran')->getClientOriginalName(), 'public');
+                    ->storeAs('pembayaran/bukti', time() . '_bukti_' . $request->file('bukti_pembayaran')->getClientOriginalName(), 'public');
             }
 
             $lampiranPath = null;
             if ($request->hasFile('lampiran_tambahan')) {
                 $lampiranPath = $request->file('lampiran_tambahan')
-                    ->storeAs('purchasero/lampiran', time() . '_lamp_' . $request->file('lampiran_tambahan')->getClientOriginalName(), 'public');
+                    ->storeAs('pembayaran/lampiran', time() . '_lamp_' . $request->file('lampiran_tambahan')->getClientOriginalName(), 'public');
             }
 
             // Update PR: status Disetujui + simpan path file
-            $purchasero->update([
+            $pembayaran->update([
                 'status'               => 'Disetujui',
                 'disetujui_oleh'       => auth()->user()->name,
                 'tanggal_persetujuan'  => now()->toDateString(),
-                'bukti_pembayaran'     => $buktiPath ?? $purchasero->bukti_pembayaran,
-                'lampiran_tambahan'    => $lampiranPath ?? $purchasero->lampiran_tambahan,
+                'bukti_pembayaran'     => $buktiPath ?? $pembayaran->bukti_pembayaran,
+                'lampiran_tambahan'    => $lampiranPath ?? $pembayaran->lampiran_tambahan,
             ]);
 
             // Buat service_history + parts
-            $purchasero->load('serviceParts');
-            $hasOverLimit = $purchasero->serviceParts->contains('is_over_limit', true);
+            $pembayaran->load('serviceParts');
+            $hasOverLimit = $pembayaran->serviceParts->contains('is_over_limit', true);
 
             $serviceHistory = \App\Models\ServiceHistory::create([
-                'kendaraan_id'        => $purchasero->kendaraan_id,
-                'tanggal_service'     => $purchasero->tanggal_service ?? now()->toDateString(),
-                'kilometer'           => $purchasero->kilometer ?? 0,
-                'keluhan'             => $purchasero->keluhan,
-                'total_biaya'         => $purchasero->nominal,
+                'kendaraan_id'        => $pembayaran->kendaraan_id,
+                'tanggal_service'     => $pembayaran->tanggal_service ?? now()->toDateString(),
+                'kilometer'           => $pembayaran->kilometer ?? 0,
+                'keluhan'             => $pembayaran->keluhan,
+                'total_biaya'         => $pembayaran->nominal,
                 'status'              => 'proses',
                 'status_approval'     => 'approved',
                 'status_pengeluaran'  => $hasOverLimit ? 'overservice' : 'stabil',
@@ -846,10 +851,10 @@ class PurchaseroController extends Controller
                 ]);
             }
 
-            foreach ($purchasero->serviceParts as $prPart) {
+            foreach ($pembayaran->serviceParts as $prPart) {
                 \App\Models\ServicePart::create([
                     'service_history_id' => $serviceHistory->id,
-                    'kendaraan_id'       => $purchasero->kendaraan_id,
+                    'kendaraan_id'       => $pembayaran->kendaraan_id,
                     'category_id'        => $prPart->category_id,
                     'nama_part'          => $prPart->nama_part,
                     'part_number'        => $prPart->part_number,
@@ -871,15 +876,15 @@ class PurchaseroController extends Controller
                 $prPart->update(['status_part' => 'Terpasang']);
             }
 
-            if ($purchasero->kilometer) {
-                \App\Models\Kendaraan::where('id', $purchasero->kendaraan_id)
-                    ->update(['kilometer_sekarang' => $purchasero->kilometer]);
+            if ($pembayaran->kilometer) {
+                \App\Models\Kendaraan::where('id', $pembayaran->kendaraan_id)
+                    ->update(['kilometer_sekarang' => $pembayaran->kilometer]);
             }
 
             DB::commit();
 
-            return redirect()->route('purchasero.index')
-                ->with('success', 'Pengadaan ' . $purchasero->no_pr . ' berhasil disetujui dan data service tersimpan.');
+            return redirect()->route('pembayaran.index')
+                ->with('success', 'Pembayaran ' . $pembayaran->no_pr . ' berhasil disetujui dan data service tersimpan.');
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -887,27 +892,27 @@ class PurchaseroController extends Controller
                 ->with('error', 'Gagal menyetujui: ' . $e->getMessage());
         }
     }
-    public function terpasang(Request $request, Purchasero $purchasero)
+    public function terpasang(Request $request, Pembayaran $pembayaran)
     {
         if (auth()->user()->role !== 'superadmin') {
-            return redirect()->route('purchasero.index')
+            return redirect()->route('pembayaran.index')
                 ->with('error', 'Tidak memiliki izin.');
         }
 
-        if ($purchasero->status !== 'Disetujui' || $purchasero->tipe_pengadaan !== 'service') {
-            return redirect()->route('purchasero.index')
-                ->with('error', 'Pengadaan tidak bisa diubah ke Terpasang.');
+        if ($pembayaran->status !== 'Disetujui' || $pembayaran->tipe_pembayaran !== 'service') {
+            return redirect()->route('pembayaran.index')
+                ->with('error', 'Pembayaran tidak bisa diubah ke Terpasang.');
         }
 
-        DB::transaction(function () use ($purchasero) {
+        DB::transaction(function () use ($pembayaran) {
             // Ubah status PR menjadi Terpasang (selesai)
-            $purchasero->update(['status' => 'Terpasang']);
+            $pembayaran->update(['status' => 'Terpasang']);
 
             // Update service_history terkait (via kendaraan + tanggal)
-            $sh = \App\Models\ServiceHistory::where('kendaraan_id', $purchasero->kendaraan_id)
+            $sh = \App\Models\ServiceHistory::where('kendaraan_id', $pembayaran->kendaraan_id)
                 ->where('is_request', true)
                 ->where('status', 'Approved')
-                ->whereDate('tanggal_service', $purchasero->tanggal_service)
+                ->whereDate('tanggal_service', $pembayaran->tanggal_service)
                 ->first();
 
             if ($sh) {
@@ -915,8 +920,8 @@ class PurchaseroController extends Controller
             }
         });
 
-        return redirect()->route('purchasero.index')
-            ->with('success', 'Pengadaan ' . $purchasero->no_pr . ' sudah ditandai Terpasang.');
+        return redirect()->route('pembayaran.index')
+            ->with('success', 'Pembayaran ' . $pembayaran->no_pr . ' sudah ditandai Terpasang.');
     }
 
     /**
@@ -994,22 +999,22 @@ class PurchaseroController extends Controller
      */
     public function showApprovalModal($id)
     {
-        $purchasero = Purchasero::with(['kendaraan', 'approvals.user'])
+        $pembayaran = Pembayaran::with(['kendaraan', 'approvals.user'])
             ->findOrFail($id);
         
         // Decode source_data dan load related data
-        $sourceData = $purchasero->source_data ?? [];
+        $sourceData = $pembayaran->source_data ?? [];
         $relatedData = [];
         
         // Load related data berdasarkan source_type
-        if ($purchasero->source_type) {
-            $relatedData = $this->loadRelatedData($purchasero->source_type, $sourceData);
+        if ($pembayaran->source_type) {
+            $relatedData = $this->loadRelatedData($pembayaran->source_type, $sourceData);
         }
         
         return response()->json([
             'success' => true,
             'data' => [
-                'purchasero' => $purchasero,
+                'pembayaran' => $pembayaran,
                 'source_data' => $sourceData,
                 'related_data' => $relatedData,
                 'temp_files' => $sourceData['temp_files'] ?? [],
@@ -1078,8 +1083,8 @@ class PurchaseroController extends Controller
             'catatan' => 'nullable|string|max:500',
         ]);
         
-        // Load Purchasero
-        $purchasero = Purchasero::findOrFail($id);
+        // Load Pembayaran
+        $pembayaran = Pembayaran::findOrFail($id);
         
         // Authorization check
         if (auth()->user()->role !== 'superadmin') {
@@ -1087,19 +1092,19 @@ class PurchaseroController extends Controller
         }
         
         // Status check
-        if ($purchasero->status !== 'Pending') {
-            return back()->with('error', 'Pengeluaran ini tidak dalam status Pending. Status: ' . $purchasero->status);
+        if ($pembayaran->status !== 'Pending') {
+            return back()->with('error', 'Pengeluaran ini tidak dalam status Pending. Status: ' . $pembayaran->status);
         }
         
         DB::beginTransaction();
         
         try {
             // Upload approval files
-            $approvalFiles = $this->uploadApprovalFiles($request, $purchasero->id);
+            $approvalFiles = $this->uploadApprovalFiles($request, $pembayaran->id);
             
             // Create approval history
-            \App\Models\PurchaseroApproval::create([
-                'purchasero_id' => $purchasero->id,
+            \App\Models\PembayaranApproval::create([
+                'pembayaran_id' => $pembayaran->id,
                 'user_id' => auth()->id(),
                 'action' => 'approved',
                 'catatan' => $request->catatan,
@@ -1109,10 +1114,10 @@ class PurchaseroController extends Controller
             
             // Transfer data ke tabel tujuan
             $transferService = app(\App\Services\PengeluaranTransferService::class);
-            $targetId = $transferService->transfer($purchasero, $approvalFiles);
+            $targetId = $transferService->transfer($pembayaran, $approvalFiles);
             
-            // Update Purchasero status
-            $purchasero->update([
+            // Update Pembayaran status
+            $pembayaran->update([
                 'status' => 'Disetujui',
                 'target_id' => $targetId,
                 'can_edit' => false,
@@ -1123,12 +1128,12 @@ class PurchaseroController extends Controller
             DB::commit();
             
             return redirect()
-                ->route('purchasero.index')
+                ->route('pembayaran.index')
                 ->with('success', 'Pengeluaran berhasil disetujui! Data telah ditransfer ke sistem.');
                 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Approval failed for Purchasero #{$id}: " . $e->getMessage());
+            \Log::error("Approval failed for Pembayaran #{$id}: " . $e->getMessage());
             
             return back()
                 ->with('error', 'Terjadi kesalahan saat menyetujui pengeluaran: ' . $e->getMessage());
@@ -1145,8 +1150,8 @@ class PurchaseroController extends Controller
             'catatan' => 'required|string|max:500',
         ]);
         
-        // Load Purchasero
-        $purchasero = Purchasero::findOrFail($id);
+        // Load Pembayaran
+        $pembayaran = Pembayaran::findOrFail($id);
         
         // Authorization check
         if (auth()->user()->role !== 'superadmin') {
@@ -1154,16 +1159,16 @@ class PurchaseroController extends Controller
         }
         
         // Status check
-        if ($purchasero->status !== 'Pending') {
-            return back()->with('error', 'Pengeluaran ini tidak dalam status Pending. Status: ' . $purchasero->status);
+        if ($pembayaran->status !== 'Pending') {
+            return back()->with('error', 'Pengeluaran ini tidak dalam status Pending. Status: ' . $pembayaran->status);
         }
         
         DB::beginTransaction();
         
         try {
             // Create rejection history
-            \App\Models\PurchaseroApproval::create([
-                'purchasero_id' => $purchasero->id,
+            \App\Models\PembayaranApproval::create([
+                'pembayaran_id' => $pembayaran->id,
                 'user_id' => auth()->id(),
                 'action' => 'rejected',
                 'catatan' => $request->catatan,
@@ -1172,7 +1177,7 @@ class PurchaseroController extends Controller
             ]);
             
             // Update status & allow edit
-            $purchasero->update([
+            $pembayaran->update([
                 'status' => 'Ditolak',
                 'can_edit' => true,  // User bisa edit & ajukan ulang
             ]);
@@ -1180,12 +1185,12 @@ class PurchaseroController extends Controller
             DB::commit();
             
             return redirect()
-                ->route('purchasero.index')
+                ->route('pembayaran.index')
                 ->with('info', 'Pengeluaran ditolak. User dapat melihat alasan dan mengajukan ulang.');
                 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Rejection failed for Purchasero #{$id}: " . $e->getMessage());
+            \Log::error("Rejection failed for Pembayaran #{$id}: " . $e->getMessage());
             
             return back()
                 ->with('error', 'Terjadi kesalahan saat menolak pengeluaran: ' . $e->getMessage());
@@ -1199,7 +1204,7 @@ class PurchaseroController extends Controller
     {
         $request->validate([
             'ids' => 'required|array|max:50',
-            'ids.*' => 'required|integer|exists:purchaseros,id',
+            'ids.*' => 'required|integer|exists:pembayarans,id',
             'bukti' => 'required|array',
             'bukti.*' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,zip|max:5120',
             'catatan' => 'nullable|string|max:500',
@@ -1216,22 +1221,22 @@ class PurchaseroController extends Controller
         
         foreach ($request->ids as $id) {
             try {
-                $purchasero = Purchasero::find($id);
+                $pembayaran = Pembayaran::find($id);
                 
-                if (!$purchasero || $purchasero->status !== 'Pending') {
+                if (!$pembayaran || $pembayaran->status !== 'Pending') {
                     $errorCount++;
-                    $errors[] = "PR #{$purchasero->no_pr}: Status bukan Pending";
+                    $errors[] = "PR #{$pembayaran->no_pr}: Status bukan Pending";
                     continue;
                 }
                 
                 DB::beginTransaction();
                 
-                // Upload files for this purchasero
-                $approvalFiles = $this->uploadApprovalFiles($request, $purchasero->id);
+                // Upload files for this pembayaran
+                $approvalFiles = $this->uploadApprovalFiles($request, $pembayaran->id);
                 
                 // Create approval
-                \App\Models\PurchaseroApproval::create([
-                    'purchasero_id' => $purchasero->id,
+                \App\Models\PembayaranApproval::create([
+                    'pembayaran_id' => $pembayaran->id,
                     'user_id' => auth()->id(),
                     'action' => 'approved',
                     'catatan' => $request->catatan,
@@ -1241,10 +1246,10 @@ class PurchaseroController extends Controller
                 
                 // Transfer
                 $transferService = app(\App\Services\PengeluaranTransferService::class);
-                $targetId = $transferService->transfer($purchasero, $approvalFiles);
+                $targetId = $transferService->transfer($pembayaran, $approvalFiles);
                 
                 // Update
-                $purchasero->update([
+                $pembayaran->update([
                     'status' => 'Disetujui',
                     'target_id' => $targetId,
                     'can_edit' => false,
@@ -1258,7 +1263,7 @@ class PurchaseroController extends Controller
             } catch (\Exception $e) {
                 DB::rollBack();
                 $errorCount++;
-                $errors[] = "PR #{$purchasero->no_pr}: " . $e->getMessage();
+                $errors[] = "PR #{$pembayaran->no_pr}: " . $e->getMessage();
                 \Log::error("Bulk approve error for #{$id}: " . $e->getMessage());
             }
         }
@@ -1270,7 +1275,7 @@ class PurchaseroController extends Controller
         }
         
         return redirect()
-            ->route('purchasero.index')
+            ->route('pembayaran.index')
             ->with($errorCount > 0 ? 'warning' : 'success', $message);
     }
 
@@ -1281,7 +1286,7 @@ class PurchaseroController extends Controller
     {
         $request->validate([
             'ids' => 'required|array|max:50',
-            'ids.*' => 'required|integer|exists:purchaseros,id',
+            'ids.*' => 'required|integer|exists:pembayarans,id',
             'catatan' => 'required|string|max:500',  // WAJIB untuk reject
         ]);
         
@@ -1295,17 +1300,17 @@ class PurchaseroController extends Controller
         
         foreach ($request->ids as $id) {
             try {
-                $purchasero = Purchasero::find($id);
+                $pembayaran = Pembayaran::find($id);
                 
-                if (!$purchasero || $purchasero->status !== 'Pending') {
+                if (!$pembayaran || $pembayaran->status !== 'Pending') {
                     $errorCount++;
                     continue;
                 }
                 
                 DB::beginTransaction();
                 
-                \App\Models\PurchaseroApproval::create([
-                    'purchasero_id' => $purchasero->id,
+                \App\Models\PembayaranApproval::create([
+                    'pembayaran_id' => $pembayaran->id,
                     'user_id' => auth()->id(),
                     'action' => 'rejected',
                     'catatan' => $request->catatan,
@@ -1313,7 +1318,7 @@ class PurchaseroController extends Controller
                     'attachment_files' => null,
                 ]);
                 
-                $purchasero->update([
+                $pembayaran->update([
                     'status' => 'Ditolak',
                     'can_edit' => true,
                 ]);
@@ -1329,14 +1334,14 @@ class PurchaseroController extends Controller
         }
         
         return redirect()
-            ->route('purchasero.index')
+            ->route('pembayaran.index')
             ->with('info', "Bulk reject selesai. Berhasil: {$successCount}, Gagal: {$errorCount}");
     }
 
     /**
      * Upload approval files (bukti & attachments)
      */
-    protected function uploadApprovalFiles(Request $request, int $purchaseroId): array
+    protected function uploadApprovalFiles(Request $request, int $pembayaranId): array
     {
         $uploadedFiles = [
             'bukti' => [],
@@ -1344,7 +1349,7 @@ class PurchaseroController extends Controller
         ];
         
         $timestamp = time();
-        $approvalDir = "purchasero/approvals/{$purchaseroId}";
+        $approvalDir = "pembayaran/approvals/{$pembayaranId}";
         
         // Upload bukti files (REQUIRED)
         if ($request->hasFile('bukti')) {
@@ -1402,15 +1407,15 @@ class PurchaseroController extends Controller
      */
     public function withdraw($id)
     {
-        $purchasero = Purchasero::findOrFail($id);
+        $pembayaran = Pembayaran::findOrFail($id);
         
         // Check ownership atau superadmin
-        if (auth()->user()->role !== 'superadmin' && $purchasero->pemohon !== auth()->user()->nama) {
+        if (auth()->user()->role !== 'superadmin' && $pembayaran->pemohon !== auth()->user()->nama) {
             abort(403, 'Anda tidak memiliki akses untuk membatalkan pengajuan ini.');
         }
         
         // Only Pending can be withdrawn
-        if ($purchasero->status !== 'Pending') {
+        if ($pembayaran->status !== 'Pending') {
             return back()->with('error', 'Hanya pengajuan dengan status Pending yang dapat dibatalkan.');
         }
         
@@ -1419,20 +1424,20 @@ class PurchaseroController extends Controller
         try {
             // Delete temp files
             $interceptor = app(\App\Services\PengeluaranInterceptorService::class);
-            $interceptor->deleteTemporaryFiles($purchasero->id);
+            $interceptor->deleteTemporaryFiles($pembayaran->id);
             
-            // Delete purchasero
-            $purchasero->delete();
+            // Delete pembayaran
+            $pembayaran->delete();
             
             DB::commit();
             
             return redirect()
-                ->route('purchasero.index')
+                ->route('pembayaran.index')
                 ->with('success', 'Pengajuan berhasil dibatalkan.');
                 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Withdraw failed for Purchasero #{$id}: " . $e->getMessage());
+            \Log::error("Withdraw failed for Pembayaran #{$id}: " . $e->getMessage());
             
             return back()->with('error', 'Gagal membatalkan pengajuan: ' . $e->getMessage());
         }
@@ -1443,18 +1448,18 @@ class PurchaseroController extends Controller
      */
     public function editRejected($id)
     {
-        $purchasero = Purchasero::with('latestApproval')->findOrFail($id);
+        $pembayaran = Pembayaran::with('latestApproval')->findOrFail($id);
         
         // Validation: Only rejected pengeluaran can be edited
-        if ($purchasero->status !== 'Ditolak') {
+        if ($pembayaran->status !== 'Ditolak') {
             return back()->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
         }
         
-        if (!$purchasero->can_edit) {
+        if (!$pembayaran->can_edit) {
             return back()->with('error', 'Pengajuan ini tidak dapat diedit.');
         }
         
-        if (!$purchasero->source_type) {
+        if (!$pembayaran->source_type) {
             return back()->with('error', 'Hanya pengeluaran yang dapat diedit melalui fitur ini.');
         }
         
@@ -1467,9 +1472,10 @@ class PurchaseroController extends Controller
             'stnk'               => 'stnk.index',
             'service_asuransi'   => 'service-asuransi.index',
             'service_part'       => 'service-history.create',
+            'purchase_order'     => 'purchase-order.index',
         ];
         
-        $route = $routeMap[$purchasero->source_type] ?? null;
+        $route = $routeMap[$pembayaran->source_type] ?? null;
         
         if (!$route) {
             return back()->with('error', 'Form untuk jenis pengeluaran ini tidak ditemukan.');
@@ -1478,9 +1484,12 @@ class PurchaseroController extends Controller
         // Redirect to form with edit parameters
         return redirect()
             ->route($route, [
-                'edit_purchasero' => $id,
-                'rejection_reason' => $purchasero->latestApproval?->catatan ?? 'Tidak ada catatan',
+                'edit_pembayaran' => $id,
+                'rejection_reason' => $pembayaran->latestApproval?->catatan ?? 'Tidak ada catatan',
             ])
             ->with('info', 'Silakan perbaiki data sesuai catatan penolakan, lalu submit ulang.');
     }
 }
+
+
+

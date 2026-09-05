@@ -196,38 +196,38 @@ class GpsKendaraanController extends Controller
         }
 
         // ===========================================================================
-        // APPROVAL WORKFLOW: Intercept dan kirim ke Purchasero
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Pembayaran
         // ===========================================================================
         
         try {
-            // Check if this is a resubmit (from rejected purchasero)
-            if ($request->filled('edit_purchasero')) {
-                $purchaseroId = $request->input('edit_purchasero');
+            // Check if this is a resubmit (from rejected pembayaran)
+            if ($request->filled('edit_pembayaran')) {
+                $pembayaranId = $request->input('edit_pembayaran');
                 
-                // Resubmit: Update existing purchasero
-                $purchasero = $interceptor->resubmitToPurchasero($purchaseroId, $request, 'gps');
+                // Resubmit: Update existing pembayaran
+                $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'gps');
                 
                 return redirect()
-                    ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'gps'])
+                    ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'gps'])
                     ->with('success', 'Pengajuan GPS berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
             
             // Step 1: Intercept data dari form
             $interceptedData = $interceptor->intercept($request, 'gps');
             
-            // Step 2: Save ke Purchasero
-            $purchasero = $interceptor->saveToPurchasero($interceptedData, 'gps');
+            // Step 2: Save ke Pembayaran
+            $pembayaran = $interceptor->saveToPembayaran($interceptedData, 'gps');
             
             // Step 3: Upload temporary files
-            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $purchasero->id);
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $pembayaran->id);
             
             // Step 4: Update source_data dengan file info
-            $sourceData = $purchasero->source_data;
+            $sourceData = $pembayaran->source_data;
             $sourceData['temp_files'] = $uploadedFiles;
-            $purchasero->update(['source_data' => $sourceData]);
+            $pembayaran->update(['source_data' => $sourceData]);
             
             return redirect()
-                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'gps'])
+                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'gps'])
                 ->with('success', 'Pengajuan pengeluaran GPS berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
@@ -470,18 +470,18 @@ class GpsKendaraanController extends Controller
         }
 
         // ===========================================================================
-        // APPROVAL WORKFLOW: Perpanjang melalui Purchasero untuk approval
+        // APPROVAL WORKFLOW: Perpanjang melalui Pembayaran untuk approval
         // ===========================================================================
         
         try {
-            $purchasero = $interceptor->perpanjangViaPurchasero($request, 'gps', $gpsKendaraan);
+            $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'gps', $gpsKendaraan);
             
             return redirect()
-                ->route('purchasero.index', ['filter' => 'pengeluaran', 'source' => 'gps'])
+                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'gps'])
                 ->with('success', 'Pengajuan perpanjangan GPS berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
-            \Log::error('Error perpanjang GPS via Purchasero: ' . $e->getMessage());
+            \Log::error('Error perpanjang GPS via Pembayaran: ' . $e->getMessage());
             
             return back()
                 ->withInput()

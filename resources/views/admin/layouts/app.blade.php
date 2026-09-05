@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -613,10 +613,10 @@
 
                             @endif
 
-                            {{-- Pengadaan: tampil untuk semua role di grup Operasi --}}
-                            <a href="/admin/purchasero"
+                            {{-- Pembayaran: tampil untuk semua role di grup Operasi --}}
+                            <a href="/admin/pembayaran"
                                 class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
-                                <i class="bi bi-cart-check w-4 text-center shrink-0"></i> Pengadaan
+                                <i class="bi bi-cart-check w-4 text-center shrink-0"></i> Pembayaran
                             </a>
 
                             {{-- Sub: Rental --}}

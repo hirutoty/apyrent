@@ -14,20 +14,20 @@ return new class extends Migration
             SELECT COUNT(*) as cnt
             FROM information_schema.statistics
             WHERE table_schema = DATABASE()
-              AND table_name   = 'purchaseros'
-              AND index_name   = 'purchaseros_no_pr_unique'
+              AND table_name   = 'pembayarans'
+              AND index_name   = 'pembayarans_no_pr_unique'
         ");
 
         if ($indexExists && $indexExists->cnt > 0) {
-            Schema::table('purchaseros', function (Blueprint $table) {
-                $table->dropUnique('purchaseros_no_pr_unique');
+            Schema::table('pembayarans', function (Blueprint $table) {
+                $table->dropUnique('pembayarans_no_pr_unique');
             });
         }
     }
 
     public function down(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             $table->unique('no_pr');
         });
     }

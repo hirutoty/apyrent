@@ -12,7 +12,7 @@ class ReviewLegalSeeder extends Seeder
         $data = [
             [
                 'tanggal'       => '2024-01-10',
-                'pemohon'       => 'Divisi Pengadaan',
+                'pemohon'       => 'Divisi Pembayaran',
                 'dokumen'       => 'Draft Kontrak Vendor Baru',
                 'status_review' => 'Selesai',
                 'pic_legal'     => 'Andi Hukum',

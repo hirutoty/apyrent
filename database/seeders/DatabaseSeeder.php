@@ -63,7 +63,7 @@ class DatabaseSeeder extends Seeder
             LaporanKeuanganSeeder::class,
             SettingSeeder::class,
             ProcurementoSeeder::class,
-            PurchaseroSeeder::class,
+            PembayaranSeeder::class,
             VendoreoSeeder::class,
             // Sales Seeders
             CrmProspekSeeder::class,

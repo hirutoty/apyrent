@@ -1,16 +1,16 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
-@section('title', 'Edit Pengadaan')
+@section('title', 'Edit Pembayaran')
 
 @section('content')
 <div class="space-y-6 p-5">
     {{-- PAGE HEADER --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800">Edit Pengadaan</h1>
+            <h1 class="text-2xl font-bold text-gray-800">Edit Pembayaran</h1>
             <p class="text-sm text-gray-500 mt-0.5">Edit permintaan pembelian barang & jasa</p>
         </div>
-        <a href="{{ route('purchasero.index') }}" 
+        <a href="{{ route('pembayaran.index') }}" 
             class="inline-flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors">
             <i class="fa fa-arrow-left"></i> Kembali
         </a>
@@ -23,18 +23,18 @@
         <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 text-white">
             <div class="flex items-center justify-between">
                 <div>
-                    <h2 class="text-lg font-bold">{{ $purchasero->no_pr }}</h2>
-                    <p class="text-blue-100 text-sm">Status: {{ $purchasero->status }}</p>
+                    <h2 class="text-lg font-bold">{{ $pembayaran->no_pr }}</h2>
+                    <p class="text-blue-100 text-sm">Status: {{ $pembayaran->status }}</p>
                 </div>
                 <div class="text-right text-sm text-blue-100">
-                    <div>{{ $purchasero->departemen }}</div>
-                    <div>{{ \Carbon\Carbon::parse($purchasero->tanggal)->format('d M Y') }}</div>
+                    <div>{{ $pembayaran->departemen }}</div>
+                    <div>{{ \Carbon\Carbon::parse($pembayaran->tanggal)->format('d M Y') }}</div>
                 </div>
             </div>
         </div>
 
         {{-- FORM --}}
-        <form action="{{ route('purchasero.update', $purchasero->id) }}" method="POST" enctype="multipart/form-data" class="p-6">
+        <form action="{{ route('pembayaran.update', $pembayaran->id) }}" method="POST" enctype="multipart/form-data" class="p-6">
             @csrf
             @method('PUT')
             
@@ -42,13 +42,13 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-100">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Tanggal <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal" value="{{ old('tanggal', $purchasero->tanggal) }}" required 
+                    <input type="date" name="tanggal" value="{{ old('tanggal', $pembayaran->tanggal) }}" required 
                         class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Pemohon <span class="text-red-500">*</span></label>
-                    <input type="text" name="pemohon" value="{{ old('pemohon', $purchasero->pemohon) }}" required 
+                    <input type="text" name="pemohon" value="{{ old('pemohon', $pembayaran->pemohon) }}" required 
                         placeholder="Nama pemohon" 
                         class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
@@ -60,7 +60,7 @@
                         class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="">Pilih Departemen</option>
                         @foreach(['Keuangan', 'Produksi', 'HRD', 'Purchase', 'Sales', 'Marketing', 'IT', 'Manajemen'] as $dept)
-                            <option value="{{ $dept }}" {{ old('departemen', $purchasero->departemen) === $dept ? 'selected' : '' }}>{{ $dept }}</option>
+                            <option value="{{ $dept }}" {{ old('departemen', $pembayaran->departemen) === $dept ? 'selected' : '' }}>{{ $dept }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -69,8 +69,8 @@
                 <div class="md:col-span-2">
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Alasan Permintaan <span class="text-red-500">*</span></label>
                     <textarea name="alasan_permintaan" rows="3" required 
-                        placeholder="Jelaskan alasan permintaan pengadaan..." 
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ old('alasan_permintaan', $purchasero->alasan_permintaan) }}</textarea>
+                        placeholder="Jelaskan alasan permintaan pembayaran..." 
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ old('alasan_permintaan', $pembayaran->alasan_permintaan) }}</textarea>
                 </div>
             </div>
 
@@ -79,8 +79,8 @@
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Daftar Items</h3>
                     <div class="text-right">
-                        <p class="text-sm text-gray-500">Total Items: <span id="totalItemsCount">{{ $purchasero->items->count() }}</span></p>
-                        <p class="text-sm font-semibold text-emerald-600">Total: Rp <span id="grandTotal">{{ number_format($purchasero->total_nominal, 0, ',', '.') }}</span></p>
+                        <p class="text-sm text-gray-500">Total Items: <span id="totalItemsCount">{{ $pembayaran->items->count() }}</span></p>
+                        <p class="text-sm font-semibold text-emerald-600">Total: Rp <span id="grandTotal">{{ number_format($pembayaran->total_nominal, 0, ',', '.') }}</span></p>
                     </div>
                 </div>
 
@@ -96,13 +96,13 @@
 
             {{-- Actions --}}
             <div class="flex gap-3 pt-4 border-t border-gray-100">
-                <a href="{{ route('purchasero.index') }}" 
+                <a href="{{ route('pembayaran.index') }}" 
                     class="flex-1 text-center py-3 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
                     Batal
                 </a>
                 <button type="submit" 
                     class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors">
-                    <i class="fa fa-save mr-2"></i> Update Pengadaan
+                    <i class="fa fa-save mr-2"></i> Update Pembayaran
                 </button>
             </div>
         </form>
@@ -112,7 +112,7 @@
 {{-- JavaScript --}}
 <script>
 let itemCount = 0;
-let existingItems = @json($purchasero->items);
+let existingItems = @json($pembayaran->items);
 
 // Fungsi untuk membuat item row
 function createItemRow(index, item = null) {

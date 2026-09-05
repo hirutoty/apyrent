@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
@@ -64,7 +64,7 @@ use App\Http\Controllers\Admin\PaymentsController;
 use App\Http\Controllers\Admin\SummaryController;
 use App\Http\Controllers\Admin\ReminderController;
 use App\Http\Controllers\Admin\ProcurementoController;
-use App\Http\Controllers\Admin\PurchaseroController;
+use App\Http\Controllers\Admin\PembayaranController;
 use App\Http\Controllers\Admin\VendoreoController;
 use App\Http\Controllers\Admin\Aging_ApsController;
 use App\Http\Controllers\Admin\AgingARController;
@@ -390,51 +390,51 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::resource('procuremento', ProcurementoController::class) // Pengadaan - Procurements
     ->except(['create', 'edit', 'show']); // Form CRUD With Modal
 
-  Route::resource('purchasero', PurchaseroController::class) // Pengadaan
+  Route::resource('pembayaran', PembayaranController::class) // Pembayaran
     ->except(['show']); // Multiple items structure dengan create.blade.php dan edit.blade.php
 
-  Route::get('purchasero/{purchasero}/details', [PurchaseroController::class, 'details'])
-    ->name('purchasero.details');
+  Route::get('pembayaran/{pembayaran}/details', [PembayaranController::class, 'details'])
+    ->name('pembayaran.details');
 
-  Route::post('purchasero/{purchasero}/ajukan', [PurchaseroController::class, 'ajukan'])
-    ->name('purchasero.ajukan');
+  Route::post('pembayaran/{pembayaran}/ajukan', [PembayaranController::class, 'ajukan'])
+    ->name('pembayaran.ajukan');
 
-  Route::post('purchasero/{purchasero}/status', [PurchaseroController::class, 'updateStatusInline'])
-    ->name('purchasero.status');
+  Route::post('pembayaran/{pembayaran}/status', [PembayaranController::class, 'updateStatusInline'])
+    ->name('pembayaran.status');
 
-  // Setujui pengadaan service (dengan upload bukti)
-  Route::post('purchasero/{purchasero}/approve-service', [PurchaseroController::class, 'approveService'])
-    ->name('purchasero.approve-service');
+  // Setujui pembayaran service (dengan upload bukti)
+  Route::post('pembayaran/{pembayaran}/approve-service', [PembayaranController::class, 'approveService'])
+    ->name('pembayaran.approve-service');
 
   // ── Approval Workflow Routes (Pengeluaran Kendaraan) ────────────────────────
-  Route::get('purchasero/{purchasero}/approval-modal', [PurchaseroController::class, 'showApprovalModal'])
-    ->name('purchasero.approval-modal');
+  Route::get('pembayaran/{pembayaran}/approval-modal', [PembayaranController::class, 'showApprovalModal'])
+    ->name('pembayaran.approval-modal');
   
-  Route::post('purchasero/{purchasero}/approve', [PurchaseroController::class, 'approve'])
-    ->name('purchasero.approve');
+  Route::post('pembayaran/{pembayaran}/approve', [PembayaranController::class, 'approve'])
+    ->name('pembayaran.approve');
   
-  Route::post('purchasero/{purchasero}/reject', [PurchaseroController::class, 'reject'])
-    ->name('purchasero.reject');
+  Route::post('pembayaran/{pembayaran}/reject', [PembayaranController::class, 'reject'])
+    ->name('pembayaran.reject');
   
-  Route::post('purchasero/bulk-approve', [PurchaseroController::class, 'bulkApprove'])
-    ->name('purchasero.bulk-approve');
+  Route::post('pembayaran/bulk-approve', [PembayaranController::class, 'bulkApprove'])
+    ->name('pembayaran.bulk-approve');
   
-  Route::post('purchasero/bulk-reject', [PurchaseroController::class, 'bulkReject'])
-    ->name('purchasero.bulk-reject');
+  Route::post('pembayaran/bulk-reject', [PembayaranController::class, 'bulkReject'])
+    ->name('pembayaran.bulk-reject');
   
-  Route::delete('purchasero/{purchasero}/withdraw', [PurchaseroController::class, 'withdraw'])
-    ->name('purchasero.withdraw');
+  Route::delete('pembayaran/{pembayaran}/withdraw', [PembayaranController::class, 'withdraw'])
+    ->name('pembayaran.withdraw');
   
-  Route::get('purchasero/{purchasero}/edit-rejected', [PurchaseroController::class, 'editRejected'])
-    ->name('purchasero.edit-rejected');
+  Route::get('pembayaran/{pembayaran}/edit-rejected', [PembayaranController::class, 'editRejected'])
+    ->name('pembayaran.edit-rejected');
 
-  // AJAX endpoints untuk form pengadaan service
-  Route::get('purchasero/api/kendaraan-service', [PurchaseroController::class, 'apiKendaraan'])
-    ->name('purchasero.api.kendaraan');
-  Route::get('purchasero/api/category-limit', [PurchaseroController::class, 'apiCategoryLimit'])
-    ->name('purchasero.api.category-limit');
-  Route::post('purchasero/{purchasero}/terpasang', [PurchaseroController::class, 'terpasang'])
-    ->name('purchasero.terpasang');
+  // AJAX endpoints untuk form pembayaran service
+  Route::get('pembayaran/api/kendaraan-service', [PembayaranController::class, 'apiKendaraan'])
+    ->name('pembayaran.api.kendaraan');
+  Route::get('pembayaran/api/category-limit', [PembayaranController::class, 'apiCategoryLimit'])
+    ->name('pembayaran.api.category-limit');
+  Route::post('pembayaran/{pembayaran}/terpasang', [PembayaranController::class, 'terpasang'])
+    ->name('pembayaran.terpasang');
 
   Route::resource('vendoreo', VendoreoController::class) // Manajemen Vendor
     ->except(['create', 'edit', 'show']); // Form CRUD With Modal

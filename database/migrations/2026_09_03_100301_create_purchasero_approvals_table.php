@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('purchasero_approvals', function (Blueprint $table) {
+        Schema::create('pembayaran_approvals', function (Blueprint $table) {
             $table->id();
             
-            // Foreign key ke purchaseros
-            $table->foreignId('purchasero_id')
-                ->constrained('purchaseros')
+            // Foreign key ke pembayarans
+            $table->foreignId('pembayaran_id')
+                ->constrained('pembayarans')
                 ->onDelete('cascade')
-                ->comment('Reference to purchaseros table');
+                ->comment('Reference to pembayarans table');
             
             // User yang melakukan approval/rejection
             $table->foreignId('user_id')
@@ -46,7 +46,7 @@ return new class extends Migration
             $table->timestamps();
             
             // Indexes untuk performa
-            $table->index('purchasero_id', 'idx_approvals_purchasero');
+            $table->index('pembayaran_id', 'idx_approvals_pembayaran');
             $table->index('user_id', 'idx_approvals_user');
             $table->index('action', 'idx_approvals_action');
             $table->index('created_at', 'idx_approvals_created');
@@ -58,6 +58,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('purchasero_approvals');
+        Schema::dropIfExists('pembayaran_approvals');
     }
 };

@@ -1,7 +1,7 @@
-# Refactor Form Pengadaan - Multiple Items Support
+﻿# Refactor Form Pembayaran - Multiple Items Support
 
 ## Overview
-Refactor form Pengadaan dari single item menjadi multiple items support dengan struktur seperti service history. Implementasi menggunakan 2-section layout (Header + Dynamic Items) dengan JavaScript dynamic rows.
+Refactor form Pembayaran dari single item menjadi multiple items support dengan struktur seperti service history. Implementasi menggunakan 2-section layout (Header + Dynamic Items) dengan JavaScript dynamic rows.
 
 ## Date Completed
 2026-08-18
@@ -63,11 +63,11 @@ Refactor form Pengadaan dari single item menjadi multiple items support dengan s
 
 ## Database Structure
 
-### New Table: purchasero_items
+### New Table: pembayaran_items
 ```sql
-CREATE TABLE purchasero_items (
+CREATE TABLE pembayaran_items (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    purchasero_id BIGINT UNSIGNED NOT NULL,
+    pembayaran_id BIGINT UNSIGNED NOT NULL,
     nama_barang VARCHAR(255) NOT NULL,
     kategori VARCHAR(255) NULL,
     posisi VARCHAR(255) NULL,
@@ -83,20 +83,20 @@ CREATE TABLE purchasero_items (
     bukti JSON NULL,
     created_at TIMESTAMP NULL,
     updated_at TIMESTAMP NULL,
-    FOREIGN KEY (purchasero_id) REFERENCES purchaseros(id) ON DELETE CASCADE
+    FOREIGN KEY (pembayaran_id) REFERENCES pembayarans(id) ON DELETE CASCADE
 );
 ```
 
-### Existing Table: purchaseros
+### Existing Table: pembayarans
 - Tetap unchanged untuk backward compatibility
 - Fields lama (barang_jasa, kode_barang, qty, satuan) tidak digunakan untuk data baru
 
 ## Model Relations
 
-### Purchasero Model
+### Pembayaran Model
 ```php
 public function items() {
-    return $this->hasMany(PurchaseroItem::class);
+    return $this->hasMany(PembayaranItem::class);
 }
 
 public function getTotalNominalAttribute() {
@@ -106,10 +106,10 @@ public function getTotalNominalAttribute() {
 }
 ```
 
-### PurchaseroItem Model
+### PembayaranItem Model
 ```php
-public function purchasero() {
-    return $this->belongsTo(Purchasero::class);
+public function pembayaran() {
+    return $this->belongsTo(Pembayaran::class);
 }
 ```
 
@@ -117,15 +117,15 @@ public function purchasero() {
 
 ```php
 // Resource routes (except show)
-Route::resource('purchasero', PurchaseroController::class)->except(['show']);
+Route::resource('pembayaran', PembayaranController::class)->except(['show']);
 
 // Additional routes
-Route::get('purchasero/{purchasero}/details', [PurchaseroController::class, 'details'])
-    ->name('purchasero.details');
-Route::post('purchasero/{purchasero}/ajukan', [PurchaseroController::class, 'ajukan'])
-    ->name('purchasero.ajukan');
-Route::post('purchasero/{purchasero}/status', [PurchaseroController::class, 'updateStatusInline'])
-    ->name('purchasero.status');
+Route::get('pembayaran/{pembayaran}/details', [PembayaranController::class, 'details'])
+    ->name('pembayaran.details');
+Route::post('pembayaran/{pembayaran}/ajukan', [PembayaranController::class, 'ajukan'])
+    ->name('pembayaran.ajukan');
+Route::post('pembayaran/{pembayaran}/status', [PembayaranController::class, 'updateStatusInline'])
+    ->name('pembayaran.status');
 ```
 
 ## Controller Methods
@@ -148,12 +148,12 @@ Route::post('purchasero/{purchasero}/status', [PurchaseroController::class, 'upd
 - Status langsung "Diajukan"
 - Conditional departemen logic
 
-### 4. edit($purchasero)
+### 4. edit($pembayaran)
 - Guard: hanya Pending & Diajukan
 - Load items relation
 - Return edit.blade.php
 
-### 5. update($purchasero)
+### 5. update($pembayaran)
 - Guard: hanya Pending & Diajukan
 - Validate header + items array
 - DB transaction
@@ -206,7 +206,7 @@ Route::post('purchasero/{purchasero}/status', [PurchaseroController::class, 'upd
 - Fallback untuk old structure
 
 ## File Uploads
-- Location: `storage/app/public/purchasero/bukti/`
+- Location: `storage/app/public/pembayaran/bukti/`
 - Format: `timestamp_index_originalname`
 - Allowed: JPG, JPEG, PNG, PDF, DOC, DOCX
 - Max size: 2MB per file
@@ -237,13 +237,13 @@ Route::post('purchasero/{purchasero}/status', [PurchaseroController::class, 'upd
 
 ## Files Modified
 
-1. `database/migrations/2026_08_18_210645_create_purchasero_items_table.php` - New
-2. `app/Models/PurchaseroItem.php` - New
-3. `app/Models/Purchasero.php` - Added relations & accessor
-4. `app/Http/Controllers/Admin/PurchaseroController.php` - Updated all methods
-5. `resources/views/admin/purchasero/create.blade.php` - New (2-section layout)
-6. `resources/views/admin/purchasero/edit.blade.php` - New (2-section layout)
-7. `resources/views/admin/purchasero/index.blade.php` - Updated for multiple items
+1. `database/migrations/2026_08_18_210645_create_pembayaran_items_table.php` - New
+2. `app/Models/PembayaranItem.php` - New
+3. `app/Models/Pembayaran.php` - Added relations & accessor
+4. `app/Http/Controllers/Admin/PembayaranController.php` - Updated all methods
+5. `resources/views/admin/pembayaran/create.blade.php` - New (2-section layout)
+6. `resources/views/admin/pembayaran/edit.blade.php` - New (2-section layout)
+7. `resources/views/admin/pembayaran/index.blade.php` - Updated for multiple items
 8. `routes/web.php` - Updated routes
 
 ## Testing Checklist

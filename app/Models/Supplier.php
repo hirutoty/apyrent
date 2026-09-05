@@ -29,10 +29,10 @@ public function user()
 }
 
 /**
- * Relasi ke purchaseros (pengadaan)
+ * Relasi ke pembayarans (pembayaran)
  */
-public function purchaseros()
+public function pembayarans()
 {
-    return $this->hasMany(Purchasero::class);
+    return $this->hasMany(Pembayaran::class);
 }
 }

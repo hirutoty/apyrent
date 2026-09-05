@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Purchasero;
+use App\Models\Pembayaran;
 use App\Models\AsuransiKendaraan;
 use App\Models\PajakKendaraan;
 use App\Models\ServicePart;
@@ -10,6 +10,7 @@ use App\Models\GpsKendaraan;
 use App\Models\Kir;
 use App\Models\Stnk;
 use App\Models\ServiceAsuransi;
+use App\Models\PurchaseOrder;
 use App\Models\Kendaraan;
 use App\Models\Keuangan;
 use App\Models\Bukubesar;
@@ -26,24 +27,25 @@ class PengeluaranTransferService
     /**
      * Main transfer method - route ke method spesifik berdasarkan source_type
      *
-     * @param Purchasero $purchasero
+     * @param Pembayaran $pembayaran
      * @param array $approvalFiles Files yang diupload saat approval
      * @return int Target ID dari record yang dibuat
      */
-    public function transfer(Purchasero $purchasero, array $approvalFiles): int
+    public function transfer(Pembayaran $pembayaran, array $approvalFiles): int
     {
         DB::beginTransaction();
         
         try {
-            $targetId = match($purchasero->source_type) {
-                'asuransi_kendaraan' => $this->transferAsuransi($purchasero, $approvalFiles),
-                'pajak' => $this->transferPajak($purchasero, $approvalFiles),
-                'service_part' => $this->transferServicePart($purchasero, $approvalFiles),
-                'gps' => $this->transferGps($purchasero, $approvalFiles),
-                'kir' => $this->transferKir($purchasero, $approvalFiles),
-                'stnk' => $this->transferStnk($purchasero, $approvalFiles),
-                'service_asuransi' => $this->transferServiceAsuransi($purchasero, $approvalFiles),
-                default => throw new \Exception("Unknown source type: {$purchasero->source_type}"),
+            $targetId = match($pembayaran->source_type) {
+                'asuransi_kendaraan' => $this->transferAsuransi($pembayaran, $approvalFiles),
+                'pajak' => $this->transferPajak($pembayaran, $approvalFiles),
+                'service_part' => $this->transferServicePart($pembayaran, $approvalFiles),
+                'gps' => $this->transferGps($pembayaran, $approvalFiles),
+                'kir' => $this->transferKir($pembayaran, $approvalFiles),
+                'stnk' => $this->transferStnk($pembayaran, $approvalFiles),
+                'service_asuransi' => $this->transferServiceAsuransi($pembayaran, $approvalFiles),
+                'purchase_order'   => $this->transferPurchaseOrder($pembayaran, $approvalFiles),
+                default => throw new \Exception("Unknown source type: {$pembayaran->source_type}"),
             };
             
             DB::commit();
@@ -52,7 +54,7 @@ class PengeluaranTransferService
             
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Transfer failed for Purchasero #{$purchasero->id}: " . $e->getMessage());
+            \Log::error("Transfer failed for Pembayaran #{$pembayaran->id}: " . $e->getMessage());
             throw $e;
         }
     }
@@ -60,15 +62,15 @@ class PengeluaranTransferService
     /**
      * Transfer Asuransi Kendaraan
      */
-    protected function transferAsuransi(Purchasero $purchasero, array $approvalFiles): int
+    protected function transferAsuransi(Pembayaran $pembayaran, array $approvalFiles): int
     {
-        $sourceData = $purchasero->source_data;
+        $sourceData = $pembayaran->source_data;
         
         // Copy bukti bayar dari approval ke final storage
         $buktiBayar = $this->copyBuktiToFinalStorage(
             $approvalFiles['bukti'][0] ?? null,
             'asuransi/bukti_bayar',
-            $purchasero->id
+            $pembayaran->id
         );
         
         // Create record di tabel asuransi_kendaraans
@@ -90,7 +92,7 @@ class PengeluaranTransferService
             'asuransi/attachments',
             'asuransi',
             $asuransi->id,
-            $purchasero->id
+            $pembayaran->id
         );
         
         // Load kendaraan untuk keterangan
@@ -134,15 +136,15 @@ class PengeluaranTransferService
     /**
      * Transfer Pajak Kendaraan
      */
-    protected function transferPajak(Purchasero $purchasero, array $approvalFiles): int
+    protected function transferPajak(Pembayaran $pembayaran, array $approvalFiles): int
     {
-        $sourceData = $purchasero->source_data;
+        $sourceData = $pembayaran->source_data;
         
         // Copy bukti dari approval
         $bukti = $this->copyBuktiToFinalStorage(
             $approvalFiles['bukti'][0] ?? null,
             'pajak/bukti',
-            $purchasero->id
+            $pembayaran->id
         );
         
         // Create record
@@ -163,7 +165,7 @@ class PengeluaranTransferService
             'pajak/attachments',
             'pajak',
             $pajak->id,
-            $purchasero->id
+            $pembayaran->id
         );
         
         // Load kendaraan
@@ -204,9 +206,9 @@ class PengeluaranTransferService
     /**
      * Transfer Service Part
      */
-    protected function transferServicePart(Purchasero $purchasero, array $approvalFiles): int
+    protected function transferServicePart(Pembayaran $pembayaran, array $approvalFiles): int
     {
-        $sourceData = $purchasero->source_data;
+        $sourceData = $pembayaran->source_data;
         
         // Copy bukti
         $buktiFiles = [];
@@ -215,7 +217,7 @@ class PengeluaranTransferService
                 $finalPath = $this->copyFileToPublic(
                     $file['path'],
                     'service-parts',
-                    $purchasero->id
+                    $pembayaran->id
                 );
                 $buktiFiles[] = $finalPath;
             }
@@ -247,14 +249,14 @@ class PengeluaranTransferService
     /**
      * Transfer GPS Kendaraan
      */
-    protected function transferGps(Purchasero $purchasero, array $approvalFiles): int
+    protected function transferGps(Pembayaran $pembayaran, array $approvalFiles): int
     {
-        $sourceData = $purchasero->source_data;
+        $sourceData = $pembayaran->source_data;
         
         $bukti = $this->copyBuktiToFinalStorage(
             $approvalFiles['bukti'][0] ?? null,
             'gps/bukti',
-            $purchasero->id
+            $pembayaran->id
         );
         
         $gps = GpsKendaraan::create([
@@ -293,14 +295,14 @@ class PengeluaranTransferService
     /**
      * Transfer KIR
      */
-    protected function transferKir(Purchasero $purchasero, array $approvalFiles): int
+    protected function transferKir(Pembayaran $pembayaran, array $approvalFiles): int
     {
-        $sourceData = $purchasero->source_data;
+        $sourceData = $pembayaran->source_data;
         
         $bukti = $this->copyBuktiToFinalStorage(
             $approvalFiles['bukti'][0] ?? null,
             'kir/dokumen',
-            $purchasero->id
+            $pembayaran->id
         );
         
         $kir = Kir::create([
@@ -337,14 +339,14 @@ class PengeluaranTransferService
     /**
      * Transfer STNK
      */
-    protected function transferStnk(Purchasero $purchasero, array $approvalFiles): int
+    protected function transferStnk(Pembayaran $pembayaran, array $approvalFiles): int
     {
-        $sourceData = $purchasero->source_data;
+        $sourceData = $pembayaran->source_data;
         
         $bukti = $this->copyBuktiToFinalStorage(
             $approvalFiles['bukti'][0] ?? null,
             'stnk/dokumen',
-            $purchasero->id
+            $pembayaran->id
         );
         
         $stnk = Stnk::create([
@@ -380,14 +382,14 @@ class PengeluaranTransferService
     /**
      * Transfer Service Asuransi
      */
-    protected function transferServiceAsuransi(Purchasero $purchasero, array $approvalFiles): int
+    protected function transferServiceAsuransi(Pembayaran $pembayaran, array $approvalFiles): int
     {
-        $sourceData = $purchasero->source_data;
+        $sourceData = $pembayaran->source_data;
         
         $bukti = $this->copyBuktiToFinalStorage(
             $approvalFiles['bukti'][0] ?? null,
             'service-asuransi',
-            $purchasero->id
+            $pembayaran->id
         );
         
         $serviceAsuransi = ServiceAsuransi::create([
@@ -409,34 +411,97 @@ class PengeluaranTransferService
             'service-asuransi-attachment',
             'service_asuransi',
             $serviceAsuransi->id,
-            $purchasero->id
+            $pembayaran->id
         );
         
         return $serviceAsuransi->id;
     }
 
     /**
+     * Transfer Purchase Order - create record di purchase_orders setelah approved
+     */
+    protected function transferPurchaseOrder(Pembayaran $pembayaran, array $approvalFiles): int
+    {
+        $sourceData = $pembayaran->source_data;
+
+        $po = PurchaseOrder::create([
+            'tanggal_po'     => $sourceData['tanggal_po'] ?? now()->toDateString(),
+            'vendor'         => $sourceData['vendor'],
+            'terkait_rfq'    => $sourceData['terkait_rfq'] ?? null,
+            'total_barang'   => (int) ($sourceData['total_barang'] ?? 0),
+            'total_harga'    => (int) ($sourceData['total_harga'] ?? 0),
+            'status_po'      => 'Approved',
+            'tanggal_kirim'  => $sourceData['tanggal_kirim'] ?? null,
+            'tanggal_terima' => $sourceData['tanggal_terima'] ?? null,
+            'catatan'        => $sourceData['catatan'] ?? null,
+        ]);
+
+        $kodeJurnal = 'PO-PR-' . $po->id;
+        $nominal    = (int) ($sourceData['total_harga'] ?? 0);
+
+        if ($nominal > 0) {
+            $lastSaldo = (float) DB::table('keuangans')
+                ->lockForUpdate()
+                ->orderBy('id', 'desc')
+                ->value('saldo') ?? 0;
+
+            Keuangan::create([
+                'tanggal'     => now()->toDateString(),
+                'reference'   => $kodeJurnal,
+                'user_id'     => auth()->id(),
+                'kategori'    => 'Pengeluaran',
+                'metode'      => 'Transfer',
+                'keterangan'  => 'Purchase Order #' . $po->po_id . ' - ' . $sourceData['vendor'],
+                'pemasukan'   => 0,
+                'pengeluaran' => $nominal,
+                'saldo'       => $lastSaldo - $nominal,
+                'sumber'      => 'auto',
+            ]);
+
+            $saldoBB = (float) DB::table('bukubesars')
+                ->lockForUpdate()
+                ->orderBy('id', 'desc')
+                ->value('saldo') ?? 0;
+
+            Bukubesar::create([
+                'kode_jurnal' => $kodeJurnal,
+                'transaksi'   => 'Pembelian: ' . $sourceData['vendor'],
+                'kategori'    => 'Beban',
+                'tanggal'     => now()->toDateString(),
+                'debit'       => $nominal,
+                'kredit'      => 0,
+                'saldo'       => $saldoBB - $nominal,
+                'aktivitas'   => 'pembayaran',
+                'keterangan'  => 'Auto-posting: PO #' . $po->po_id . ' disetujui via Pembayaran #' . $pembayaran->no_pr,
+                'referensi'   => $pembayaran->no_pr,
+            ]);
+        }
+
+        return $po->id;
+    }
+
+    /**
      * Copy bukti file dari approval storage ke final storage
      */
-    protected function copyBuktiToFinalStorage(?array $buktiFile, string $targetFolder, int $purchaseroId): ?string
+    protected function copyBuktiToFinalStorage(?array $buktiFile, string $targetFolder, int $pembayaranId): ?string
     {
         if (!$buktiFile || !isset($buktiFile['path'])) {
             return null;
         }
         
-        return $this->copyFileToPublic($buktiFile['path'], $targetFolder, $purchaseroId);
+        return $this->copyFileToPublic($buktiFile['path'], $targetFolder, $pembayaranId);
     }
 
     /**
      * Copy file dari storage ke public folder
      */
-    protected function copyFileToPublic(string $storagePath, string $publicFolder, int $purchaseroId): string
+    protected function copyFileToPublic(string $storagePath, string $publicFolder, int $pembayaranId): string
     {
         // Full path di storage
         $sourceFullPath = storage_path('app/public/' . $storagePath);
         
-        // Generate nama file baru dengan prefix purchasero
-        $filename = 'purchasero_' . $purchaseroId . '_' . time() . '_' . basename($storagePath);
+        // Generate nama file baru dengan prefix pembayaran
+        $filename = 'pembayaran_' . $pembayaranId . '_' . time() . '_' . basename($storagePath);
         
         // Target path di public
         $targetFolder = public_path($publicFolder);
@@ -461,14 +526,14 @@ class PengeluaranTransferService
         string $publicFolder,
         string $relationType,
         int $relationId,
-        int $purchaseroId
+        int $pembayaranId
     ): void {
         if (empty($attachmentFiles)) {
             return;
         }
         
         foreach ($attachmentFiles as $file) {
-            $finalPath = $this->copyFileToPublic($file['path'], $publicFolder, $purchaseroId);
+            $finalPath = $this->copyFileToPublic($file['path'], $publicFolder, $pembayaranId);
             
             Attachment::create([
                 'relation_type' => $relationType,

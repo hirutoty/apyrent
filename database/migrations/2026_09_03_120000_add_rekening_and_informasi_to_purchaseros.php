@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             // Check if columns don't exist before adding
-            if (!Schema::hasColumn('purchaseros', 'nama_rekening')) {
+            if (!Schema::hasColumn('pembayarans', 'nama_rekening')) {
                 $table->string('nama_rekening', 255)->nullable()->after('no_rekening');
             }
             
-            if (!Schema::hasColumn('purchaseros', 'informasi')) {
+            if (!Schema::hasColumn('pembayarans', 'informasi')) {
                 $table->text('informasi')->nullable()->after('alasan_permintaan');
             }
         });
@@ -28,12 +28,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             // Only drop columns that were added by this migration
-            if (Schema::hasColumn('purchaseros', 'nama_rekening')) {
+            if (Schema::hasColumn('pembayarans', 'nama_rekening')) {
                 $table->dropColumn('nama_rekening');
             }
-            if (Schema::hasColumn('purchaseros', 'informasi')) {
+            if (Schema::hasColumn('pembayarans', 'informasi')) {
                 $table->dropColumn('informasi');
             }
         });

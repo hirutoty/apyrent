@@ -3,7 +3,7 @@
 @section('content')
 <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div><h1 class="text-2xl font-bold text-gray-800">Pembelian Proyek</h1><p class="text-sm text-gray-500 mt-0.5">Kelola purchase request pengadaan proyek</p></div>
+        <div><h1 class="text-2xl font-bold text-gray-800">Pembelian Proyek</h1><p class="text-sm text-gray-500 mt-0.5">Kelola purchase request pembayaran proyek</p></div>
         <div class="flex items-center gap-2">
             <a href="{{ route('project.pembelian.pdf') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-500 text-red-500 rounded-lg bg-transparent hover:bg-red-500 hover:text-white transition-colors"><i class="fa fa-file-pdf text-sm"></i> Export PDF</a>
             <button onclick="openModal()" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors"><i class="fa fa-plus text-sm"></i> Tambah PR</button>

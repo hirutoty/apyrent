@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Workflow Procurement')
 
@@ -10,7 +10,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-2xl font-bold text-gray-800">Workflow Procurement</h1>
-            <p class="text-sm text-gray-500 mt-0.5">Kelola aturan otomatisasi persetujuan pengadaan barang & vendor</p>
+            <p class="text-sm text-gray-500 mt-0.5">Kelola aturan otomatisasi persetujuan pembayaran barang & vendor</p>
         </div>
         <button onclick="openModal()"
             class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
