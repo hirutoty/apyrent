@@ -31,13 +31,14 @@ class ChartDataController extends Controller
     {
         // Validate request
         $validated = $request->validate([
-            'filter_type'  => 'nullable|in:today,week,month,year,custom',
-            'start_date'   => 'nullable|string',
-            'end_date'     => 'nullable|string',
-            'kendaraan_id' => 'nullable|integer|exists:kendaraan,id',
-            'category_id'  => 'nullable|integer',
-            'departemen'   => 'nullable|string',
-            'kontrak_id'   => 'nullable|integer',
+            'filter_type'   => 'nullable|in:today,week,month,year,specific_year,custom',
+            'start_date'    => 'nullable|string',
+            'end_date'      => 'nullable|string',
+            'specific_year' => 'nullable|integer|min:2000|max:2099',
+            'kendaraan_id'  => 'nullable|integer|exists:kendaraan,id',
+            'category_id'   => 'nullable|integer',
+            'departemen'    => 'nullable|string',
+            'kontrak_id'    => 'nullable|integer',
         ]);
 
         try {
@@ -45,13 +46,14 @@ class ChartDataController extends Controller
             $filterType  = $request->input('filter_type', 'month');
             $startDate   = $request->input('start_date');
             $endDate     = $request->input('end_date');
+            $specificYear = $request->input('specific_year') ? (int) $request->input('specific_year') : null;
             $kendaraanId = $request->input('kendaraan_id');
             $categoryId  = $request->input('category_id');
             $departemen  = $request->input('departemen');
             $kontrakId   = $request->input('kontrak_id');
             $customDates = ($filterType === 'custom' && $startDate && $endDate)
                 ? [$startDate, $endDate]
-                : [];
+                : ($filterType === 'specific_year' && $specificYear ? [$specificYear] : []);
 
             // Get chart config and query based on page
             $config = $this->getPageChartConfig($page);
@@ -91,26 +93,30 @@ class ChartDataController extends Controller
             );
 
             // Get chart data
+            $pieConfig     = $config['pie'] ?? [];
+            $pieQueryToUse = ($pieConfig['ignoreFilter'] ?? false) ? clone $query : clone $filteredQuery;
             $pieData = $this->chartDataService->getPieChartData(
-                clone $filteredQuery,
-                $config['pie'] ?? []
+                $pieQueryToUse,
+                $pieConfig
             );
 
             $barData = $this->chartDataService->getBarChartData(
                 clone $filteredQuery,
                 array_merge($config['bar'] ?? [], [
-                    'filter_type' => $filterType,
-                    'start_date'  => $startDate,
-                    'end_date'    => $endDate,
+                    'filter_type'   => $filterType,
+                    'start_date'    => $startDate,
+                    'end_date'      => $endDate,
+                    'specific_year' => $specificYear,
                 ])
             );
 
             $lineData = $this->chartDataService->getLineChartData(
                 clone $filteredQuery,
                 array_merge($config['line'] ?? [], [
-                    'filter_type' => $filterType,
-                    'start_date'  => $startDate,
-                    'end_date'    => $endDate,
+                    'filter_type'   => $filterType,
+                    'start_date'    => $startDate,
+                    'end_date'      => $endDate,
+                    'specific_year' => $specificYear,
                 ])
             );
 
@@ -377,6 +383,7 @@ class ChartDataController extends Controller
             'dateColumn' => 'payment_date',
             'pie' => [
                 'title' => 'Status Pembayaran',
+                'ignoreFilter' => true,
                 'groupBy' => 'status',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
@@ -462,6 +469,7 @@ class ChartDataController extends Controller
             'dateColumn' => 'invoice_date',
             'pie' => [
                 'title' => 'Status Invoice',
+                'ignoreFilter' => true,
                 'groupBy' => 'status',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
@@ -1322,6 +1330,7 @@ class ChartDataController extends Controller
             'dateColumn' => 'created_at',
             'pie' => [
                 'title' => 'Distribusi Status Pembayaran',
+                'ignoreFilter' => true,
                 'groupBy' => 'payment_status',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
@@ -2927,6 +2936,7 @@ class ChartDataController extends Controller
             'dateColumn' => 'tanggal_penawaran',
             'pie' => [
                 'title'       => 'Distribusi Status Penawaran',
+                'ignoreFilter' => true,
                 'groupBy'     => 'status',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
@@ -3024,6 +3034,7 @@ class ChartDataController extends Controller
             'dateColumn' => 'tanggal_kontrak',
             'pie' => [
                 'title'       => 'Distribusi Status Kontrak',
+                'ignoreFilter' => true,
                 'groupBy'     => 'status',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',

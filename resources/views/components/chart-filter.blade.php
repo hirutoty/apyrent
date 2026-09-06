@@ -9,18 +9,18 @@
 
 <div {{ $attributes->merge(['class' => 'bg-white rounded-xl border border-gray-100 p-4 ' . $containerClass]) }} id="{{ $id }}">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        
+
         {{-- Filter Label --}}
         <div class="flex items-center gap-2">
             <i class="fa fa-filter text-gray-400 text-sm"></i>
             <span class="text-sm font-semibold text-gray-700">Filter Periode:</span>
         </div>
 
-        {{-- Filter Buttons + Category --}}
+        {{-- Filter Buttons + Year Picker + Category --}}
         <div class="flex flex-wrap items-center gap-2">
-            
+
             {{-- Quick Filter Buttons --}}
-            <button 
+            <button
                 type="button"
                 data-filter="today"
                 class="chart-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
@@ -29,7 +29,7 @@
                 Hari Ini
             </button>
 
-            <button 
+            <button
                 type="button"
                 data-filter="week"
                 class="chart-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
@@ -38,7 +38,7 @@
                 Minggu Ini
             </button>
 
-            <button 
+            <button
                 type="button"
                 data-filter="month"
                 class="chart-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
@@ -47,17 +47,28 @@
                 Bulan Ini
             </button>
 
-            <button 
-                type="button"
-                data-filter="year"
-                class="chart-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                    {{ $defaultFilter === 'year' ? 'bg-blue-600 text-white active' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
-                <i class="fa fa-calendar text-xs mr-1"></i>
-                Tahun Ini
-            </button>
+            {{-- Year Picker Dropdown (menggantikan tombol "Tahun Ini") --}}
+            @php $currentYear = (int) date('Y'); @endphp
+            <div class="relative flex items-center">
+                <i class="fa fa-calendar text-gray-400 text-xs absolute left-3 pointer-events-none z-10"></i>
+                <select
+                    id="{{ $id }}_yearSelect"
+                    onchange="applyYearFilter('{{ $id }}')"
+                    class="chart-filter-year-select pl-8 pr-7 py-2 rounded-lg text-sm font-medium border cursor-pointer appearance-none transition-all duration-200
+                        {{ in_array($defaultFilter, ['year','specific_year']) ? 'bg-blue-600 text-white border-blue-600 active' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200' }}"
+                    style="min-width:110px">
+                    @for ($y = $currentYear; $y >= 2000; $y--)
+                        <option value="{{ $y }}"
+                            {{ in_array($defaultFilter, ['year','specific_year']) && $y === $currentYear ? 'selected' : '' }}>
+                            {{ $y }}
+                        </option>
+                    @endfor
+                </select>
+                <i class="fa fa-chevron-down text-gray-400 text-[10px] absolute right-2.5 pointer-events-none"></i>
+            </div>
 
             @if($showCustomRange)
-            <button 
+            <button
                 type="button"
                 data-filter="custom"
                 onclick="toggleCustomRange('{{ $id }}')"
@@ -98,8 +109,8 @@
             <div class="flex-1">
                 <label class="block text-xs font-medium text-gray-700 mb-1.5">Tanggal Mulai</label>
                 <div class="relative">
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         id="{{ $id }}_startDate"
                         class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Pilih tanggal mulai"
@@ -110,8 +121,8 @@
             <div class="flex-1">
                 <label class="block text-xs font-medium text-gray-700 mb-1.5">Tanggal Akhir</label>
                 <div class="relative">
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         id="{{ $id }}_endDate"
                         class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Pilih tanggal akhir"
@@ -120,7 +131,7 @@
                 </div>
             </div>
             <div class="flex items-end">
-                <button 
+                <button
                     type="button"
                     onclick="applyCustomRange('{{ $id }}')"
                     class="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
@@ -140,92 +151,95 @@
 (function() {
     const filterId = '{{ $id }}';
     const filterButtons = document.querySelectorAll(`#${filterId} .chart-filter-btn`);
-    
+
     // Initialize date pickers if custom range enabled
     @if($showCustomRange)
     if (typeof flatpickr !== 'undefined') {
         flatpickr(`#${filterId}_startDate`, {
             dateFormat: 'd-m-Y',
             maxDate: 'today',
-            locale: {
-                firstDayOfWeek: 1
-            },
-            onChange: function(selectedDates, dateStr, instance) {
-                // Update end date min date
-                const endDatePicker = document.querySelector(`#${filterId}_endDate`)._flatpickr;
-                if (endDatePicker && selectedDates[0]) {
-                    endDatePicker.set('minDate', selectedDates[0]);
+            locale: { firstDayOfWeek: 1 },
+            onChange: function(selectedDates) {
+                const endPicker = document.querySelector(`#${filterId}_endDate`)._flatpickr;
+                if (endPicker && selectedDates[0]) {
+                    endPicker.set('minDate', selectedDates[0]);
                 }
             }
         });
-
         flatpickr(`#${filterId}_endDate`, {
             dateFormat: 'd-m-Y',
             maxDate: 'today',
-            locale: {
-                firstDayOfWeek: 1
-            }
+            locale: { firstDayOfWeek: 1 }
         });
     }
     @endif
 
-    // Handle filter button clicks
+    // Helper: deactivate all buttons + year select
+    function deactivateAll() {
+        filterButtons.forEach(btn => {
+            if (btn.getAttribute('data-filter') !== 'custom') {
+                btn.classList.remove('bg-blue-600', 'text-white', 'active');
+                btn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        });
+        const yearSel = document.getElementById(`${filterId}_yearSelect`);
+        if (yearSel) {
+            yearSel.classList.remove('bg-blue-600', 'text-white', 'border-blue-600', 'active');
+            yearSel.classList.add('bg-gray-100', 'text-gray-700', 'border-gray-200');
+        }
+    }
+
+    // Helper: hide custom range panel + deactivate custom btn
+    function hideCustomRange() {
+        @if($showCustomRange)
+        const customRange = document.getElementById(`${filterId}_customRange`);
+        if (customRange) customRange.classList.add('hidden');
+        const customBtn = document.querySelector(`#${filterId} [data-filter="custom"]`);
+        if (customBtn) {
+            customBtn.classList.remove('bg-blue-600', 'text-white', 'active');
+            customBtn.classList.add('bg-gray-100', 'text-gray-700');
+        }
+        @endif
+    }
+
+    // Handle quick filter button clicks (today / week / month)
     filterButtons.forEach(button => {
         button.addEventListener('click', function() {
             const filterType = this.getAttribute('data-filter');
-            
-            // Skip if custom (handled separately)
-            if (filterType === 'custom') return;
-            
-            // Update active state
-            filterButtons.forEach(btn => {
-                if (btn.getAttribute('data-filter') !== 'custom') {
-                    btn.classList.remove('bg-blue-600', 'text-white', 'active');
-                    btn.classList.add('bg-gray-100', 'text-gray-700');
-                }
-            });
-            
+            if (filterType === 'custom') return; // handled by toggleCustomRange
+
+            deactivateAll();
+            hideCustomRange();
+
             this.classList.remove('bg-gray-100', 'text-gray-700');
             this.classList.add('bg-blue-600', 'text-white', 'active');
-            
-            // Hide custom range if visible
-            @if($showCustomRange)
-            const customRange = document.getElementById(`${filterId}_customRange`);
-            if (customRange) {
-                customRange.classList.add('hidden');
-                const customBtn = document.querySelector(`#${filterId} [data-filter="custom"]`);
-                if (customBtn) {
-                    customBtn.classList.remove('bg-blue-600', 'text-white', 'active');
-                    customBtn.classList.add('bg-gray-100', 'text-gray-700');
-                }
-            }
-            @endif
-            
-            // Dispatch custom event
-            const event = new CustomEvent('chartFilterChange', {
+
+            document.dispatchEvent(new CustomEvent('chartFilterChange', {
                 detail: {
-                    filterId: filterId,
-                    filterType: filterType,
+                    filterId,
+                    filterType,
                     startDate: null,
                     endDate: null,
+                    specificYear: null,
                     categoryId: document.getElementById(`${filterId}_categoryFilter`)?.value ?? ''
                 }
-            });
-            document.dispatchEvent(event);
+            }));
         });
     });
 
-    // Auto-dispatch default filter saat halaman load agar chart langsung terinisialisasi
+    // Auto-dispatch default filter on page load
     const defaultFilterType = '{{ $defaultFilter }}';
+    const defaultYear = {{ $currentYear }};
     if (defaultFilterType && defaultFilterType !== 'custom') {
-        // Tunggu DOM + script lain selesai, lalu dispatch
         document.addEventListener('DOMContentLoaded', function () {
+            const isYearFilter = defaultFilterType === 'year' || defaultFilterType === 'specific_year';
             document.dispatchEvent(new CustomEvent('chartFilterChange', {
                 detail: {
-                    filterId: filterId,
-                    filterType: defaultFilterType,
+                    filterId,
+                    filterType: isYearFilter ? 'specific_year' : defaultFilterType,
                     startDate: null,
                     endDate: null,
+                    specificYear: isYearFilter ? defaultYear : null,
                     categoryId: ''
                 }
             }));
@@ -233,23 +247,57 @@
     }
 })();
 
+// Apply year filter from dropdown
+function applyYearFilter(filterId) {
+    const yearSel = document.getElementById(`${filterId}_yearSelect`);
+    if (!yearSel) return;
+    const year = parseInt(yearSel.value, 10);
+
+    // Deactivate all buttons
+    document.querySelectorAll(`#${filterId} .chart-filter-btn`).forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'active');
+        btn.classList.add('bg-gray-100', 'text-gray-700');
+    });
+    // Activate year select
+    yearSel.classList.remove('bg-gray-100', 'text-gray-700', 'border-gray-200');
+    yearSel.classList.add('bg-blue-600', 'text-white', 'border-blue-600', 'active');
+
+    // Hide custom range
+    const customRange = document.getElementById(`${filterId}_customRange`);
+    if (customRange) customRange.classList.add('hidden');
+
+    document.dispatchEvent(new CustomEvent('chartFilterChange', {
+        detail: {
+            filterId,
+            filterType: 'specific_year',
+            startDate: null,
+            endDate: null,
+            specificYear: year,
+            categoryId: document.getElementById(`${filterId}_categoryFilter`)?.value ?? ''
+        }
+    }));
+}
+
 @if($showCustomRange)
 // Toggle custom range visibility
 function toggleCustomRange(filterId) {
     const customRange = document.getElementById(`${filterId}_customRange`);
-    const customBtn = document.querySelector(`#${filterId} [data-filter="custom"]`);
-    const otherButtons = document.querySelectorAll(`#${filterId} .chart-filter-btn:not([data-filter="custom"])`);
-    
+    const customBtn   = document.querySelector(`#${filterId} [data-filter="custom"]`);
+    const otherBtns   = document.querySelectorAll(`#${filterId} .chart-filter-btn:not([data-filter="custom"])`);
+    const yearSel     = document.getElementById(`${filterId}_yearSelect`);
+
     if (customRange.classList.contains('hidden')) {
         customRange.classList.remove('hidden');
         customBtn.classList.remove('bg-gray-100', 'text-gray-700');
         customBtn.classList.add('bg-blue-600', 'text-white', 'active');
-        
-        // Deactivate other buttons
-        otherButtons.forEach(btn => {
+        otherBtns.forEach(btn => {
             btn.classList.remove('bg-blue-600', 'text-white', 'active');
             btn.classList.add('bg-gray-100', 'text-gray-700');
         });
+        if (yearSel) {
+            yearSel.classList.remove('bg-blue-600', 'text-white', 'border-blue-600', 'active');
+            yearSel.classList.add('bg-gray-100', 'text-gray-700', 'border-gray-200');
+        }
     } else {
         customRange.classList.add('hidden');
         customBtn.classList.remove('bg-blue-600', 'text-white', 'active');
@@ -259,45 +307,48 @@ function toggleCustomRange(filterId) {
 
 // Apply custom date range
 function applyCustomRange(filterId) {
-    const startDateInput = document.getElementById(`${filterId}_startDate`);
-    const endDateInput = document.getElementById(`${filterId}_endDate`);
-    
-    const startDate = startDateInput.value;
-    const endDate = endDateInput.value;
-    
+    const startDate = document.getElementById(`${filterId}_startDate`)?.value;
+    const endDate   = document.getElementById(`${filterId}_endDate`)?.value;
+
     if (!startDate || !endDate) {
         alert('Silakan pilih tanggal mulai dan tanggal akhir');
         return;
     }
-    
-    const event = new CustomEvent('chartFilterChange', {
+
+    document.dispatchEvent(new CustomEvent('chartFilterChange', {
         detail: {
-            filterId: filterId,
+            filterId,
             filterType: 'custom',
-            startDate: startDate,
-            endDate: endDate,
+            startDate,
+            endDate,
+            specificYear: null,
             categoryId: document.getElementById(`${filterId}_categoryFilter`)?.value ?? ''
         }
-    });
-    document.dispatchEvent(event);
+    }));
 }
 @endif
 
 // Re-dispatch current active filter + new category
 function applyChartCategoryFilter(filterId) {
-    const categorySelect = document.getElementById(`${filterId}_categoryFilter`);
-    const categoryId     = categorySelect ? categorySelect.value : '';
-    const activeBtn      = document.querySelector(`#${filterId} .chart-filter-btn.active`);
-    const filterType     = activeBtn ? activeBtn.getAttribute('data-filter') : 'month';
+    const categoryId = document.getElementById(`${filterId}_categoryFilter`)?.value ?? '';
+    const activeBtn  = document.querySelector(`#${filterId} .chart-filter-btn.active`);
+    const yearSel    = document.getElementById(`${filterId}_yearSelect`);
+    const yearActive = yearSel?.classList.contains('active');
 
+    let filterType   = activeBtn ? activeBtn.getAttribute('data-filter') : 'month';
+    let specificYear = null;
     let startDate = null, endDate = null;
-    if (filterType === 'custom') {
+
+    if (yearActive) {
+        filterType   = 'specific_year';
+        specificYear = parseInt(yearSel.value, 10);
+    } else if (filterType === 'custom') {
         startDate = document.getElementById(`${filterId}_startDate`)?.value ?? null;
         endDate   = document.getElementById(`${filterId}_endDate`)?.value ?? null;
     }
 
     document.dispatchEvent(new CustomEvent('chartFilterChange', {
-        detail: { filterId, filterType, startDate, endDate, categoryId }
+        detail: { filterId, filterType, startDate, endDate, specificYear, categoryId }
     }));
 }
 </script>

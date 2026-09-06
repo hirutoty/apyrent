@@ -72,7 +72,7 @@ class ChartManager {
                                 const value = data.datasets[0]?.data[i] || 0;
                                 const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
                                 return {
-                                    text: `${label} (${pct}%)`,
+                                    text: `${label}: ${value} (${pct}%)`,
                                     fillStyle: data.datasets[0]?.backgroundColor[i],
                                     strokeStyle: data.datasets[0]?.backgroundColor[i],
                                     fontColor: data.datasets[0]?.backgroundColor[i],

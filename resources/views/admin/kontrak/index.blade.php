@@ -67,7 +67,7 @@
     </div>
 
     {{-- CHART FILTER --}}
-    <x-chart-filter id="kontrakChartFilter" defaultFilter="month" :showCustomRange="true" />
+    <x-chart-filter id="kontrakChartFilter" defaultFilter="year" :showCustomRange="true" />
 
     {{-- CHART CONTAINER --}}
     <x-chart-container
@@ -83,23 +83,23 @@
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Total Kontrak</p>
-            <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $kontraks->total() }}</h2>
+            <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $stats['total'] }}</h2>
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Pending</p>
-            <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $kontraks->getCollection()->where('status','pending')->count() }}</h2>
+            <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $stats['pending'] }}</h2>
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Active</p>
-            <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $kontraks->getCollection()->whereIn('status',['active','approved'])->count() }}</h2>
+            <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $stats['active'] }}</h2>
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Selesai-Belum Lunas</p>
-            <h2 class="text-3xl font-bold text-orange-500 mt-2">{{ $kontraks->getCollection()->where('status','selesai-belum lunas')->count() }}</h2>
+            <h2 class="text-3xl font-bold text-orange-500 mt-2">{{ $stats['selesai_belum'] }}</h2>
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Expired / Terminated</p>
-            <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $kontraks->getCollection()->whereIn('status',['expired','terminated','rejected'])->count() }}</h2>
+            <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $stats['expired'] }}</h2>
         </div>
     </div>
 
@@ -445,11 +445,11 @@
                     <p class="text-[10px] text-gray-400 mt-1">Tanggal terbit dokumen kontrak</p>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Perjanjian Pembayaran</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Perjanjian Pembayaran <span class="text-red-500">*</span></label>
                     <input type="date" name="perjanjian_pembayaran" id="create_perjanjian_pembayaran"
                         onchange="calcTanggalSelesai()"
                         min="{{ date('Y-m-d') }}"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     <p class="text-[10px] text-gray-400 mt-1">Rental mulai dari tanggal ini</p>
                 </div>
             </div>
@@ -471,12 +471,12 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Pertama</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Pertama <span class="text-red-500">*</span></label>
                     <input type="text" name="contact_pertama"
                         inputmode="numeric" maxlength="16"
                         oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
                         placeholder="16 digit No KTP"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
             </div>
 
@@ -497,49 +497,49 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak Kedua</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak Kedua <span class="text-red-500">*</span></label>
                     <input type="text" name="contact_kedua" id="create_contact_kedua"
                         inputmode="numeric" maxlength="15"
                         oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
                         placeholder="08xx-xxxx-xxxx"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
 
-                {{-- Field Perwakilan Perusahaan (conditional) --}}
-                <div id="create_perwakilan_wrapper" class="col-span-2 grid grid-cols-2 gap-3 hidden">
+                {{-- Field Perwakilan Perusahaan (selalu tampil, wajib diisi) --}}
+                <div id="create_perwakilan_wrapper" class="col-span-2 grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Diwakili Oleh <span class="text-red-500">*</span></label>
                         <input type="text" name="perwakilan_pihak_kedua" id="create_perwakilan_pihak_kedua"
                             placeholder="Nama perwakilan perusahaan..."
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan <span class="text-red-500">*</span></label>
                         <input type="text" name="jabatan_pihak_kedua" id="create_jabatan_pihak_kedua"
                             placeholder="Misal: Direktur Utama"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua <span class="text-red-500">*</span></label>
                     <input type="text" name="no_ktp_kedua" id="create_no_ktp_kedua"
                         inputmode="numeric" maxlength="16"
                         oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
                         placeholder="16 digit No KTP"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua (Optional)</label>
                     <input type="email" name="email_kedua" id="create_email_kedua"
                         placeholder="email@example.com"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua <span class="text-red-500">*</span></label>
                     <textarea name="alamat_kedua" id="create_alamat_kedua" rows="2"
                         placeholder="Alamat lengkap..."
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required></textarea>
                 </div>
             </div>
 
@@ -758,53 +758,53 @@
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Perjanjian Pembayaran</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Perjanjian Pembayaran <span class="text-red-500">*</span></label>
                         <input type="date" name="perjanjian_pembayaran" id="edit_perjanjian_pembayaran"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     </div>
                 </div>
 
                 {{-- Pihak 1 --}}
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Pertama</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Pertama <span class="text-red-500">*</span></label>
                         <input type="text" name="pihak_pertama" id="edit_pihak_pertama"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Pertama</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Pertama <span class="text-red-500">*</span></label>
                         <input type="text" name="contact_pertama" id="edit_contact_pertama"
                             inputmode="numeric" maxlength="16"
                             oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
                             placeholder="16 digit No KTP"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     </div>
                 </div>
 
                 {{-- Pihak 2 --}}
                 <div class="grid grid-cols-2 gap-3">
                     <div class="col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pelanggan <span class="text-red-500">*</span></label>
                         <select name="jenis_pelanggan" id="edit_jenis_pelanggan"
                             onchange="togglePerwakilanFields('edit')"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                             <option value="">-- Pilih --</option>
                             <option value="perorangan">Perorangan</option>
                             <option value="perusahaan">Perusahaan</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Kedua</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Pihak Kedua <span class="text-red-500">*</span></label>
                         <input type="text" name="pihak_kedua" id="edit_pihak_kedua"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak Kedua</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Pihak Kedua <span class="text-red-500">*</span></label>
                         <input type="text" name="contact_kedua" id="edit_contact_kedua"
                             inputmode="numeric" maxlength="15"
                             oninput="this.value=this.value.replace(/\D/g,'').slice(0,15)"
                             placeholder="08xx-xxxx-xxxx"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     </div>
 
                     {{-- Field Perwakilan Perusahaan (conditional - hidden by default) --}}
@@ -815,7 +815,7 @@
                             </label>
                             <input type="text" name="perwakilan_pihak_kedua" id="edit_perwakilan_pihak_kedua"
                                 placeholder="Nama perwakilan perusahaan..."
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">
@@ -823,29 +823,29 @@
                             </label>
                             <input type="text" name="jabatan_pihak_kedua" id="edit_jabatan_pihak_kedua"
                                 placeholder="Misal: Direktur Utama"
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No KTP Pihak Kedua <span class="text-red-500">*</span></label>
                         <input type="text" name="no_ktp_kedua" id="edit_no_ktp_kedua"
                             inputmode="numeric" maxlength="16"
                             oninput="this.value=this.value.replace(/\D/g,'').slice(0,16)"
                             placeholder="16 digit No KTP"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua (Optional)</label>
                         <input type="email" name="email_kedua" id="edit_email_kedua"
                             placeholder="email@example.com"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
                     <div class="col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua</label>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua <span class="text-red-500">*</span></label>
                         <textarea name="alamat_kedua" id="edit_alamat_kedua" rows="2"
                             placeholder="Alamat lengkap..."
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"></textarea>
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" required></textarea>
                     </div>
                 </div>
 
@@ -1203,7 +1203,16 @@
 
     function goToCreateTab2() {
         // Validasi field wajib di Tab 1
-        const required = ['create_penawaran_id', 'create_tanggal_kontrak', 'create_pihak_pertama', 'create_pihak_kedua'];
+        const required = [
+            'create_penawaran_id',
+            'create_tanggal_kontrak',
+            'create_perjanjian_pembayaran',
+            'create_pihak_pertama',
+            'create_pihak_kedua',
+            'create_contact_kedua',
+            'create_no_ktp_kedua',
+            'create_alamat_kedua',
+        ];
         let valid = true;
         required.forEach(id => {
             const el = document.getElementById(id);
@@ -1214,6 +1223,46 @@
                 if (el) el.classList.remove('border-red-400');
             }
         });
+
+        // Validasi tambahan: contact_pertama (No KTP Pihak Pertama)
+        const contactPertama = document.getElementById('create_contact_pertama') || document.querySelector('[name="contact_pertama"]');
+        if (contactPertama && !contactPertama.value.trim()) {
+            contactPertama.classList.add('border-red-400');
+            valid = false;
+        } else if (contactPertama) {
+            contactPertama.classList.remove('border-red-400');
+        }
+
+        // Validasi jenis_pelanggan (select)
+        const jenisSel = document.getElementById('create_jenis_pelanggan');
+        if (jenisSel && !jenisSel.value) {
+            jenisSel.classList.add('border-red-400');
+            valid = false;
+        } else if (jenisSel) {
+            jenisSel.classList.remove('border-red-400');
+        }
+
+        // Validasi Diwakili Oleh & Jabatan — selalu wajib
+        const perwakilanEl = document.getElementById('create_perwakilan_pihak_kedua');
+        const jabatanEl    = document.getElementById('create_jabatan_pihak_kedua');
+        if (perwakilanEl && !perwakilanEl.value.trim()) {
+            perwakilanEl.classList.add('border-red-400');
+            // Pastikan wrapper terlihat agar user tahu ada error
+            const wrapper = document.getElementById('create_perwakilan_wrapper');
+            if (wrapper) wrapper.classList.remove('hidden');
+            valid = false;
+        } else if (perwakilanEl) {
+            perwakilanEl.classList.remove('border-red-400');
+        }
+        if (jabatanEl && !jabatanEl.value.trim()) {
+            jabatanEl.classList.add('border-red-400');
+            const wrapper = document.getElementById('create_perwakilan_wrapper');
+            if (wrapper) wrapper.classList.remove('hidden');
+            valid = false;
+        } else if (jabatanEl) {
+            jabatanEl.classList.remove('border-red-400');
+        }
+
         if (!valid) { alert('Harap lengkapi semua field yang wajib diisi terlebih dahulu.'); return; }
 
         // ── Auto-resolve placeholder kontrak-spesifik di textarea Tab 2 ──
@@ -1747,6 +1796,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
             };
+            if (e.detail.specificYear) filters.specific_year = e.detail.specificYear;
             if (!kontrakChartManager.hasChart('kontrakBarChart')) {
                 initKontrakCharts(filters);
             } else {
