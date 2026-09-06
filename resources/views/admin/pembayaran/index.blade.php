@@ -240,9 +240,18 @@
                             </td>
                             <td class="px-4 py-3.5 text-sm text-gray-700">{{ $d->pemohon ?? '-' }}</td>
                             <td class="px-4 py-3.5">
+                                @php
+                                    if ($d->items->count() > 0) {
+                                        $itemCount = $d->items->count();
+                                    } elseif ($d->source_type === 'gps' && !empty($d->source_data['gps_items'])) {
+                                        $itemCount = count($d->source_data['gps_items']);
+                                    } else {
+                                        $itemCount = 1;
+                                    }
+                                @endphp
                                 <span class="inline-flex items-center gap-1 text-sm font-medium text-gray-600">
                                     <i class="fa fa-boxes text-blue-400 text-xs"></i>
-                                    {{ $d->items->count() > 0 ? $d->items->count() : '1' }} item{{ ($d->items->count() > 1) ? 's' : '' }}
+                                    {{ $itemCount }} item{{ $itemCount > 1 ? 's' : '' }}
                                 </span>
                             </td>
                             <td class="px-4 py-3.5 text-right">
@@ -430,16 +439,242 @@
                                             </tbody>
                                         </table>
                                     @elseif($d->source_type)
-                                        {{-- Pengeluaran kendaraan: tampilkan info dari source_data --}}
-                                        <div class="px-4 py-3">
-                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                                                <i class="fa fa-info-circle mr-1"></i> Info Pengeluaran
+                                        {{-- ===== PENGELUARAN KENDARAAN: detail per source_type ===== --}}
+                                        @php $sd = $d->source_data ?? []; @endphp
+
+                                        {{-- Header strip --}}
+                                        <div class="flex items-center justify-between px-4 pt-3 pb-2 border-b border-gray-100">
+                                            <p class="text-[10px] font-semibold text-purple-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                <i class="bi bi-wallet2"></i> Detail Pengeluaran — {{ $d->source_type_name }}
                                             </p>
-                                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                            <span class="text-xs font-bold text-emerald-600">
+                                                Total: Rp {{ number_format($d->nominal ?? 0, 0, ',', '.') }}
+                                            </span>
+                                        </div>
+
+                                        {{-- Info baris atas: kendaraan + tanggal --}}
+                                        @php
+                                            $kendaraan = isset($sd['kendaraan_id'])
+                                                ? \App\Models\Kendaraan::find($sd['kendaraan_id'])
+                                                : null;
+                                        @endphp
+                                        @if($kendaraan || isset($sd['tanggal_bayar']) || isset($sd['tanggal_habis']))
+                                        <div class="px-4 py-2.5 grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50/50 border-b border-gray-100">
+                                            @if($kendaraan)
+                                            <div>
+                                                <p class="text-[10px] text-gray-400 uppercase">Kendaraan</p>
+                                                <p class="text-xs font-semibold text-gray-700">{{ $kendaraan->nopol }} — {{ $kendaraan->merk }}</p>
+                                            </div>
+                                            @endif
+                                            @if(isset($sd['tanggal_bayar']))
+                                            <div>
+                                                <p class="text-[10px] text-gray-400 uppercase">Tgl Bayar</p>
+                                                <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') }}</p>
+                                            </div>
+                                            @endif
+                                            @if(isset($sd['tanggal_habis']))
+                                            <div>
+                                                <p class="text-[10px] text-gray-400 uppercase">Berlaku s/d</p>
+                                                <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_habis'])->format('d M Y') }}</p>
+                                            </div>
+                                            @endif
+                                            @if(isset($sd['keterangan']) && $sd['keterangan'])
+                                            <div>
+                                                <p class="text-[10px] text-gray-400 uppercase">Keterangan</p>
+                                                <p class="text-xs text-gray-600">{{ $sd['keterangan'] }}</p>
+                                            </div>
+                                            @endif
+                                        </div>
+                                        @endif
+
+                                        {{-- ── GPS: tabel gps_items ── --}}
+                                        @if($d->source_type === 'gps' && !empty($sd['gps_items']))
+                                            @php $gpsItems = $sd['gps_items']; $totalBiaya = 0; @endphp
+                                            <table class="w-full text-xs">
+                                                <thead>
+                                                    <tr class="bg-purple-50 border-y border-purple-100">
+                                                        <th class="text-left px-4 py-2 font-semibold text-purple-500">#</th>
+                                                        <th class="text-left px-4 py-2 font-semibold text-purple-500">Nama GPS</th>
+                                                        <th class="text-left px-4 py-2 font-semibold text-purple-500">Type</th>
+                                                        <th class="text-right px-4 py-2 font-semibold text-purple-500">Biaya Sewa</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($gpsItems as $gi => $gItem)
+                                                        @php
+                                                            $gpsModel = isset($gItem['gps_id']) ? \App\Models\Gps::find($gItem['gps_id']) : null;
+                                                            $biaya = (int)($gItem['biaya_sewa'] ?? 0);
+                                                            $totalBiaya += $biaya;
+                                                        @endphp
+                                                        <tr class="border-t border-gray-50 {{ $gi % 2 === 0 ? 'bg-white' : 'bg-gray-50/50' }}">
+                                                            <td class="px-4 py-2 text-gray-400">{{ $gi + 1 }}</td>
+                                                            <td class="px-4 py-2 font-medium text-gray-700">{{ $gpsModel->nama_gps ?? '-' }}</td>
+                                                            <td class="px-4 py-2 text-gray-600">{{ $gItem['type'] ?? '-' }}</td>
+                                                            <td class="px-4 py-2 text-right font-semibold text-emerald-600">
+                                                                Rp {{ number_format($biaya, 0, ',', '.') }}
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                    <tr class="border-t-2 border-gray-200 bg-gray-50">
+                                                        <td colspan="3" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
+                                                        <td class="px-4 py-2 text-right text-sm font-bold text-emerald-600">
+                                                            Rp {{ number_format($totalBiaya, 0, ',', '.') }}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+
+                                        {{-- ── Asuransi Kendaraan ── --}}
+                                        @elseif($d->source_type === 'asuransi_kendaraan')
+                                            @php
+                                                $asuransi = isset($sd['asuransi_id']) ? \App\Models\Asuransi::find($sd['asuransi_id']) : null;
+                                                $jenisAsr = isset($sd['jenis_asuransi_id']) ? \App\Models\JenisAsuransi::find($sd['jenis_asuransi_id']) : null;
+                                            @endphp
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
                                                 <div>
-                                                    <p class="text-[10px] text-gray-400 uppercase">Jenis</p>
-                                                    <p class="text-xs font-medium text-gray-700">{{ $d->source_type_name }}</p>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Perusahaan Asuransi</p>
+                                                    <p class="text-xs font-semibold text-gray-700">{{ $asuransi->nama_asuransi ?? ($sd['asuransi_id'] ?? '-') }}</p>
                                                 </div>
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Jenis Asuransi</p>
+                                                    <p class="text-xs text-gray-700">{{ $jenisAsr->nama_jenis ?? ($sd['jenis_asuransi_id'] ?? '-') }}</p>
+                                                </div>
+                                                @if(isset($sd['no_polis']) && $sd['no_polis'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">No. Polis</p>
+                                                    <p class="text-xs font-mono text-gray-700">{{ $sd['no_polis'] }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Premi</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['premi'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── Pajak Kendaraan ── --}}
+                                        @elseif($d->source_type === 'pajak')
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Jenis Pajak</p>
+                                                    <p class="text-xs font-semibold text-gray-700">{{ $sd['jenis_pajak'] ?? '-' }}</p>
+                                                </div>
+                                                @if(isset($sd['tahun_pajak']) && $sd['tahun_pajak'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Tahun Pajak</p>
+                                                    <p class="text-xs text-gray-700">{{ $sd['tahun_pajak'] }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['tanggal_jatuh_tempo']) && $sd['tanggal_jatuh_tempo'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Jatuh Tempo</p>
+                                                    <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_jatuh_tempo'])->format('d M Y') }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Nominal</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['nominal'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── KIR ── --}}
+                                        @elseif($d->source_type === 'kir')
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                @if(isset($sd['no_kir']) && $sd['no_kir'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">No. KIR</p>
+                                                    <p class="text-xs font-mono text-gray-700">{{ $sd['no_kir'] }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['tanggal_kir']) && $sd['tanggal_kir'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Tgl KIR</p>
+                                                    <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_kir'])->format('d M Y') }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['tanggal_habis_kir']) && $sd['tanggal_habis_kir'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Berlaku s/d</p>
+                                                    <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_habis_kir'])->format('d M Y') }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Biaya</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── STNK ── --}}
+                                        @elseif($d->source_type === 'stnk')
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                @if(isset($sd['tahun_stnk']) && $sd['tahun_stnk'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Tahun STNK</p>
+                                                    <p class="text-xs font-semibold text-gray-700">{{ $sd['tahun_stnk'] }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['tanggal_stnk']) && $sd['tanggal_stnk'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Tgl STNK</p>
+                                                    <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_stnk'])->format('d M Y') }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['tanggal_habis_stnk']) && $sd['tanggal_habis_stnk'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Berlaku s/d</p>
+                                                    <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_habis_stnk'])->format('d M Y') }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Biaya</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── Service Part ── --}}
+                                        @elseif($d->source_type === 'service_part')
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                @if(isset($sd['nama_part']) && $sd['nama_part'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Nama Part</p>
+                                                    <p class="text-xs font-semibold text-gray-700">{{ $sd['nama_part'] }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['jumlah']) && $sd['jumlah'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Jumlah</p>
+                                                    <p class="text-xs text-gray-700">{{ $sd['jumlah'] }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Biaya</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── Service Asuransi ── --}}
+                                        @elseif($d->source_type === 'service_asuransi')
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                @if(isset($sd['no_klaim']) && $sd['no_klaim'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">No. Klaim</p>
+                                                    <p class="text-xs font-mono text-gray-700">{{ $sd['no_klaim'] }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['keterangan']) && $sd['keterangan'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Keterangan</p>
+                                                    <p class="text-xs text-gray-600">{{ $sd['keterangan'] }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Biaya</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── Fallback: generic info ── --}}
+                                        @else
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-3 gap-3">
                                                 <div>
                                                     <p class="text-[10px] text-gray-400 uppercase">Alasan</p>
                                                     <p class="text-xs text-gray-600">{{ $d->alasan_permintaan ?: '-' }}</p>
@@ -449,7 +684,7 @@
                                                     <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($d->nominal ?? 0, 0, ',', '.') }}</p>
                                                 </div>
                                             </div>
-                                        </div>
+                                        @endif
                                     @else
                                         {{-- Legacy single item --}}
                                         <div class="px-4 py-3 text-xs text-gray-500">

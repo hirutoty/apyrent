@@ -248,48 +248,91 @@ class PengeluaranTransferService
 
     /**
      * Transfer GPS Kendaraan
+     * source_data berisi: kendaraan_id, status_gps, tanggal_bayar, tanggal_habis,
+     *                     keterangan, gps_items[]{gps_id, type, biaya_sewa}
      */
     protected function transferGps(Pembayaran $pembayaran, array $approvalFiles): int
     {
-        $sourceData = $pembayaran->source_data;
-        
-        $bukti = $this->copyBuktiToFinalStorage(
+        $sourceData  = $pembayaran->source_data;
+        $gpsItems    = $sourceData['gps_items'] ?? [];
+        $kendaraanId = $sourceData['kendaraan_id'];
+        $tanggalBayar = $sourceData['tanggal_bayar'] ?? now()->toDateString();
+        $tanggalHabis = $sourceData['tanggal_habis'] ?? now()->addYear()->toDateString();
+        $statusGps    = $sourceData['status_gps'] ?? 'aktif';
+        $keterangan   = $sourceData['keterangan'] ?? null;
+
+        $kendaraan  = Kendaraan::find($kendaraanId);
+        $totalBiaya = 0;
+        $lastId     = null;
+
+        // Copy bukti bayar dari approval (satu bukti untuk semua GPS)
+        $buktiBayar = $this->copyBuktiToFinalStorage(
             $approvalFiles['bukti'][0] ?? null,
-            'gps/bukti',
+            'gps/bukti_bayar',
             $pembayaran->id
         );
-        
-        $gps = GpsKendaraan::create([
-            'kendaraan_id'         => $sourceData['kendaraan_id'],
-            'gps_id'               => $sourceData['gps_id'] ?? null,
-            'nomor_imei'           => $sourceData['nomor_imei'] ?? null,
-            'tanggal_pemasangan'   => $sourceData['tanggal_pemasangan'] ?? now(),
-            'tanggal_berakhir'     => $sourceData['tanggal_berakhir'],
-            'tanggal_bayar'        => $sourceData['tanggal_bayar'] ?? now(),
-            'biaya'                => $sourceData['biaya'],
-            'status'               => $sourceData['status'] ?? 'aktif',
-            'keterangan'           => $sourceData['keterangan'] ?? null,
-            'bukti'                => $bukti,
-        ]);
-        
-        $kendaraan = Kendaraan::find($sourceData['kendaraan_id']);
-        
+
+        // Buat satu GpsKendaraan per item
+        foreach ($gpsItems as $item) {
+            $biayaSewa = (int) ($item['biaya_sewa'] ?? 0);
+            $totalBiaya += $biayaSewa;
+
+            // Hitung durasi bulan dari tanggal_bayar ke tanggal_habis
+            $durasiBulan = (int) \Carbon\Carbon::parse($tanggalBayar)
+                ->diffInMonths(\Carbon\Carbon::parse($tanggalHabis));
+            $durasiBulan = max($durasiBulan, 1);
+
+            $gpsRecord = GpsKendaraan::create([
+                'kendaraan_id'  => $kendaraanId,
+                'gps_id'        => $item['gps_id'] ?? null,
+                'type'          => $item['type'] ?? null,
+                'status_gps'    => $statusGps,
+                'tanggal_pasang'=> $tanggalBayar,
+                'tanggal_habis' => $tanggalHabis,
+                'tanggal_bayar' => $tanggalBayar,
+                'biaya_sewa'    => $biayaSewa,
+                'durasi_bulan'  => $durasiBulan,
+                'status_sewa'   => now()->lte($tanggalHabis) ? 'aktif' : 'habis',
+                'bukti_bayar'   => $buktiBayar,
+                'keterangan'    => $keterangan,
+            ]);
+
+            $lastId = $gpsRecord->id;
+        }
+
+        // Jika tidak ada item sama sekali (edge case), return 0
+        if (!$lastId) {
+            throw new \Exception('GPS items kosong, tidak ada data yang ditransfer.');
+        }
+
+        // Catat Keuangan & Buku Besar dengan total semua GPS
         $this->createKeuanganRecord(
             'GPS',
-            $gps->id,
-            $sourceData['biaya'],
-            'Pembayaran GPS kendaraan - ' . ($kendaraan->nopol ?? '-')
+            $lastId,
+            $totalBiaya,
+            'Pembayaran GPS kendaraan - ' . ($kendaraan->nopol ?? '-') .
+            ' (' . count($gpsItems) . ' GPS)'
         );
-        
+
         $this->createBukubesarRecord(
             'GPS',
-            $gps->id,
-            $sourceData['biaya'],
-            'Beban GPS',
-            'Auto-posting: Pembayaran GPS kendaraan ' . ($kendaraan->nopol ?? '-')
+            $lastId,
+            $totalBiaya,
+            'Beban GPS - ' . ($kendaraan->nopol ?? '-'),
+            'Auto-posting: Pembayaran GPS kendaraan ' . ($kendaraan->nopol ?? '-') .
+            ' via PR #' . $pembayaran->no_pr
         );
-        
-        return $gps->id;
+
+        // Attachments tambahan
+        $this->copyAttachmentsToFinalStorage(
+            $approvalFiles['attachments'] ?? [],
+            'gps/attachments',
+            'gps',
+            $lastId,
+            $pembayaran->id
+        );
+
+        return $lastId;
     }
 
     /**

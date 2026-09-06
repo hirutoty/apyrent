@@ -228,7 +228,7 @@ class PengeluaranInterceptorService
             'asuransi_kendaraan' => floatval($data['premi'] ?? 0),
             'pajak' => floatval($data['nominal'] ?? 0),
             'service_part' => floatval($data['biaya'] ?? 0),
-            'gps' => floatval($data['biaya'] ?? 0),
+            'gps' => collect($data['gps_items'] ?? [])->sum(fn($item) => floatval($item['biaya_sewa'] ?? 0)),
             'kir' => floatval($data['biaya'] ?? 0),
             'stnk' => floatval($data['biaya'] ?? 0),
             'service_asuransi' => floatval($data['biaya'] ?? 0),

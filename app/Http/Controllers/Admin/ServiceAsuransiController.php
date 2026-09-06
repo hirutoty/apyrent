@@ -94,7 +94,7 @@ class ServiceAsuransiController extends Controller
                 $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'service_asuransi');
                 
                 return redirect()
-                    ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'service_asuransi'])
+                    ->route('pembayaran.index', ['tab' => 'Pending'])
                     ->with('success', 'Pengajuan service asuransi berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
             
@@ -113,7 +113,7 @@ class ServiceAsuransiController extends Controller
             $pembayaran->update(['source_data' => $sourceData]);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'service_asuransi'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan pengeluaran service asuransi berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {

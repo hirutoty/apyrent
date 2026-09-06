@@ -540,7 +540,7 @@ class ServiceHistoryController extends Controller
                     $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'service_part');
                     
                     return redirect()
-                        ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'service_part'])
+                        ->route('pembayaran.index', ['tab' => 'Pending'])
                         ->with('success', 'Pengajuan service part berhasil diajukan ulang. Menunggu approval dari Superadmin.');
                 }
                 
@@ -559,7 +559,7 @@ class ServiceHistoryController extends Controller
                 $pembayaran->update(['source_data' => $sourceData]);
                 
                 return redirect()
-                    ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'service_part'])
+                    ->route('pembayaran.index', ['tab' => 'Pending'])
                     ->with('success', 'Pengajuan pengeluaran service part berhasil dikirim. Menunggu approval dari Superadmin.');
                     
             } catch (\Exception $e) {

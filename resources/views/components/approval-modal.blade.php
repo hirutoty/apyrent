@@ -122,6 +122,48 @@
                                 <p class="font-semibold text-gray-800" x-text="sourceData?.status || '-'"></p>
                             </div>
                         </div>
+
+                        {{-- GPS Items Table --}}
+                        <div x-show="data?.source_type === 'gps'" class="space-y-3 text-sm">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-gray-500 mb-1">Kendaraan</p>
+                                    <p class="font-semibold text-gray-800" x-text="(relatedData?.kendaraan?.nopol || '-') + ' — ' + (relatedData?.kendaraan?.merk || '')"></p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 mb-1">Berlaku s/d</p>
+                                    <p class="font-semibold text-gray-800" x-text="formatDate(sourceData?.tanggal_habis)"></p>
+                                </div>
+                            </div>
+                            <div x-show="relatedData?.gps_items?.length > 0">
+                                <p class="text-gray-500 mb-2 font-medium">Detail GPS (<span x-text="relatedData?.gps_items?.length"></span> item)</p>
+                                <table class="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
+                                    <thead>
+                                        <tr class="bg-purple-50">
+                                            <th class="text-left px-3 py-2 font-semibold text-purple-600">#</th>
+                                            <th class="text-left px-3 py-2 font-semibold text-purple-600">Nama GPS</th>
+                                            <th class="text-left px-3 py-2 font-semibold text-purple-600">Type</th>
+                                            <th class="text-right px-3 py-2 font-semibold text-purple-600">Biaya Sewa</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(item, idx) in relatedData?.gps_items || []" :key="idx">
+                                            <tr class="border-t border-gray-100">
+                                                <td class="px-3 py-2 text-gray-400" x-text="idx + 1"></td>
+                                                <td class="px-3 py-2 font-medium text-gray-700" x-text="item.nama_gps"></td>
+                                                <td class="px-3 py-2 text-gray-600" x-text="item.type"></td>
+                                                <td class="px-3 py-2 text-right font-semibold text-emerald-600" x-text="'Rp ' + formatNumber(item.biaya_sewa)"></td>
+                                            </tr>
+                                        </template>
+                                        <tr class="border-t-2 border-gray-200 bg-gray-50">
+                                            <td colspan="3" class="px-3 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
+                                            <td class="px-3 py-2 text-right font-bold text-emerald-600" x-text="'Rp ' + formatNumber(data?.nominal || 0)"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div x-show="sourceData?.keterangan" class="mt-4 pt-4 border-t border-gray-300">

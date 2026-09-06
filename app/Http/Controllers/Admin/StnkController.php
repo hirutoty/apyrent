@@ -57,7 +57,7 @@ class StnkController extends Controller
                 $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'stnk');
                 
                 return redirect()
-                    ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'stnk'])
+                    ->route('pembayaran.index', ['tab' => 'Pending'])
                     ->with('success', 'Pengajuan STNK berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
             
@@ -76,7 +76,7 @@ class StnkController extends Controller
             $pembayaran->update(['source_data' => $sourceData]);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'stnk'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan pengeluaran STNK berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
@@ -164,7 +164,7 @@ class StnkController extends Controller
             $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'stnk', $stnk);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'stnk'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan perpanjangan STNK berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {

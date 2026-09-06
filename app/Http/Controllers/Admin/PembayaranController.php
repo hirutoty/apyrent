@@ -1048,7 +1048,21 @@ class PembayaranController extends Controller
                     
                 case 'gps':
                     $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
-                    $data['gps'] = \App\Models\Gps::find($sourceData['gps_id'] ?? null);
+                    // Handle multi-item GPS (gps_items array)
+                    if (!empty($sourceData['gps_items'])) {
+                        $data['gps_items'] = collect($sourceData['gps_items'])->map(function ($item) {
+                            $gpsModel = \App\Models\Gps::find($item['gps_id'] ?? null);
+                            return [
+                                'gps_id'     => $item['gps_id'] ?? null,
+                                'nama_gps'   => $gpsModel->nama_gps ?? '-',
+                                'type'       => $item['type'] ?? '-',
+                                'biaya_sewa' => $item['biaya_sewa'] ?? 0,
+                            ];
+                        })->values()->toArray();
+                    } else {
+                        // Legacy single GPS
+                        $data['gps'] = \App\Models\Gps::find($sourceData['gps_id'] ?? null);
+                    }
                     break;
                     
                 case 'kir':

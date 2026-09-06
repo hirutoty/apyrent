@@ -208,7 +208,7 @@ class GpsKendaraanController extends Controller
                 $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'gps');
                 
                 return redirect()
-                    ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'gps'])
+                    ->route('pembayaran.index', ['tab' => 'Pending'])
                     ->with('success', 'Pengajuan GPS berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
             
@@ -227,7 +227,7 @@ class GpsKendaraanController extends Controller
             $pembayaran->update(['source_data' => $sourceData]);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'gps'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan pengeluaran GPS berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
@@ -477,7 +477,7 @@ class GpsKendaraanController extends Controller
             $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'gps', $gpsKendaraan);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'gps'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan perpanjangan GPS berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {

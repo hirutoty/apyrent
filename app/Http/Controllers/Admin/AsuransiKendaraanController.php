@@ -194,7 +194,7 @@ class AsuransiKendaraanController extends Controller
                 $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'asuransi_kendaraan');
                 
                 return redirect()
-                    ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'asuransi_kendaraan'])
+                    ->route('pembayaran.index', ['tab' => 'Pending'])
                     ->with('success', 'Pengajuan asuransi berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
             
@@ -213,7 +213,7 @@ class AsuransiKendaraanController extends Controller
             $pembayaran->update(['source_data' => $sourceData]);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'asuransi_kendaraan'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan pengeluaran asuransi berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
@@ -472,7 +472,7 @@ class AsuransiKendaraanController extends Controller
             $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'asuransi_kendaraan', $asuransi);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'asuransi_kendaraan'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan perpanjangan asuransi berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {

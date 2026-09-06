@@ -193,7 +193,7 @@ class KirController extends Controller
                 $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'kir');
                 
                 return redirect()
-                    ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'kir'])
+                    ->route('pembayaran.index', ['tab' => 'Pending'])
                     ->with('success', 'Pengajuan KIR berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
             
@@ -212,7 +212,7 @@ class KirController extends Controller
             $pembayaran->update(['source_data' => $sourceData]);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'kir'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan pengeluaran KIR berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
@@ -525,7 +525,7 @@ class KirController extends Controller
             $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'kir', $kir);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'kir'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan perpanjangan KIR berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {

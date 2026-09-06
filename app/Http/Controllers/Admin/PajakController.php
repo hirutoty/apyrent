@@ -165,7 +165,7 @@ class PajakController extends Controller
                 $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'pajak');
                 
                 return redirect()
-                    ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'pajak'])
+                    ->route('pembayaran.index', ['tab' => 'Pending'])
                     ->with('success', 'Pengajuan pajak berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
             
@@ -184,7 +184,7 @@ class PajakController extends Controller
             $pembayaran->update(['source_data' => $sourceData]);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'pajak'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan pengeluaran pajak berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
@@ -226,7 +226,7 @@ class PajakController extends Controller
             $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'pajak', $pajak);
             
             return redirect()
-                ->route('pembayaran.index', ['filter' => 'pengeluaran', 'source' => 'pajak'])
+                ->route('pembayaran.index', ['tab' => 'Pending'])
                 ->with('success', 'Pengajuan perpanjangan pajak berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
