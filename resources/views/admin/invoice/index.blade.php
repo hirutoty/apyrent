@@ -84,19 +84,19 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Total Invoice</p>
-                <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $invoices->total() }}</h2>
+                <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $stats['total'] }}</h2>
             </div>
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Lunas</p>
-                <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $invoices->getCollection()->where('status','lunas')->count() }}</h2>
+                <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $stats['lunas'] }}</h2>
             </div>
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Partial</p>
-                <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $invoices->getCollection()->where('status','partial')->count() }}</h2>
+                <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $stats['partial'] }}</h2>
             </div>
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Overdue</p>
-                <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $invoices->getCollection()->where('status','overdue')->count() }}</h2>
+                <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $stats['overdue'] }}</h2>
             </div>
         </div>
 
@@ -477,8 +477,8 @@
                             <div class="bg-gray-50 rounded-xl p-4 space-y-3">
                                 <p class="text-xs font-semibold text-gray-500"><i class="fa fa-user text-gray-400 mr-1"></i> Staff</p>
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan staff</label>
-                                    <select name="staff" id="tambah_staff"
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan staff <span class="text-red-500">*</span></label>
+                                    <select name="staff" id="tambah_staff" required
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                         <option value="">-- Pilih Jabatan Staf --</option>
                                         <option>Direktur Utama (CEO)</option>
@@ -499,8 +499,8 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama staff</label>
-                                    <input type="text" name="name_staff" id="tambah_name_staff" placeholder="Nama lengkap"
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama staff <span class="text-red-500">*</span></label>
+                                    <input type="text" name="name_staff" id="tambah_name_staff" placeholder="Nama lengkap" required
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('name_staff') }}">
                                 </div>
                                 {{-- TTD Staff: hidden input path + UI tab --}}
@@ -515,8 +515,8 @@
                             <div class="bg-gray-50 rounded-xl p-4 space-y-3">
                                 <p class="text-xs font-semibold text-gray-500"><i class="fa fa-user-tie text-gray-400 mr-1"></i> Direktur</p>
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan direktur</label>
-                                    <select name="direktur" id="tambah_direktur"
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jabatan direktur <span class="text-red-500">*</span></label>
+                                    <select name="direktur" id="tambah_direktur" required
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                         <option value="">-- Pilih Jabatan Direktur --</option>
                                         <option>Direktur Utama (CEO)</option>
@@ -537,8 +537,8 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama direktur</label>
-                                    <input type="text" name="name_direktur" id="tambah_name_direktur" placeholder="Nama lengkap"
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama direktur <span class="text-red-500">*</span></label>
+                                    <input type="text" name="name_direktur" id="tambah_name_direktur" placeholder="Nama lengkap" required
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('name_direktur') }}">
                                 </div>
                                 <input type="hidden" name="ttd_direktur_path" id="tambah_direktur_path">
@@ -3126,6 +3126,7 @@
                     filters.start_date = e.detail.startDate;
                     filters.end_date   = e.detail.endDate;
                 }
+                if (e.detail.specificYear) filters.specific_year = e.detail.specificYear;
                 if (!invoiceChartManager.hasChart('invoiceBarChart')) {
                     initInvoiceCharts(filters);
                 } else {

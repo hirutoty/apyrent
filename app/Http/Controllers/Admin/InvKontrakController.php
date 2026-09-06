@@ -67,7 +67,14 @@ class InvKontrakController extends Controller
         $kontraks = $query->paginate(15)->withQueryString();
 
         // Limit penawaran query to only what's needed for dropdown (first 100 latest)
+        // Exclude penawaran yang sudah dipakai di kontrak (status aktif/pending/approved)
+        $usedPenawaranIds = InvKontrak::whereNotIn('status', ['rejected', 'expired', 'terminated'])
+            ->whereNotNull('penawaran_id')
+            ->pluck('penawaran_id')
+            ->toArray();
+
         $penawarans = InvPenawaran::whereIn('status', ['approved', 'active'])
+            ->whereNotIn('id', $usedPenawaranIds)
             ->select('id', 'no_penawaran', 'customer_name', 'total')
             ->latest()
             ->limit(100)
@@ -119,7 +126,16 @@ class InvKontrakController extends Controller
             'en' => KontrakHelper::defaultPlainText('en'),
         ];
 
-        return view('admin.kontrak.index', compact('kontraks', 'penawarans', 'reminder', 'setting', 'defaultKetentuan', 'resolvedKetentuan'));
+        // Stats dari seluruh database (tidak terpengaruh pagination)
+        $stats = [
+            'total'          => InvKontrak::count(),
+            'pending'        => InvKontrak::where('status', 'pending')->count(),
+            'active'         => InvKontrak::whereIn('status', ['active', 'approved'])->count(),
+            'selesai_belum'  => InvKontrak::where('status', 'selesai-belum lunas')->count(),
+            'expired'        => InvKontrak::whereIn('status', ['expired', 'terminated', 'rejected'])->count(),
+        ];
+
+        return view('admin.kontrak.index', compact('kontraks', 'penawarans', 'reminder', 'setting', 'defaultKetentuan', 'resolvedKetentuan', 'stats'));
     }
 
     /* ─────────────────────────────────────────────
@@ -179,16 +195,25 @@ class InvKontrakController extends Controller
         $request->validate([
             'penawaran_id'          => 'required|exists:inv_penawarans,id',
             'tanggal_kontrak'       => 'required|date',
-            'perjanjian_pembayaran' => 'nullable|date',
+            'perjanjian_pembayaran' => 'required|date',
             'pihak_pertama'         => 'required|string|max:255',
-            'contact_pertama'       => 'nullable|string|max:255',
+            'contact_pertama'       => 'required|string|max:16',
             'pihak_kedua'           => 'required|string|max:255',
-            'contact_kedua'         => 'nullable|string|max:255',
-            'jenis_pelanggan'       => 'nullable|string|in:perorangan,perusahaan',
+            'contact_kedua'         => 'required|string|max:15',
+            'no_ktp_kedua'          => 'required|string|max:16',
+            'alamat_kedua'          => 'required|string',
+            'jenis_pelanggan'       => 'required|string|in:perorangan,perusahaan',
             'perwakilan_pihak_kedua'=> 'nullable|string|max:255',
             'jabatan_pihak_kedua'   => 'nullable|string|max:100',
             'ketentuan_id'          => 'nullable|string',
             'ketentuan_en'          => 'nullable|string',
+        ], [
+            'perjanjian_pembayaran.required' => 'Perjanjian Pembayaran wajib diisi.',
+            'contact_pertama.required'       => 'No KTP Pihak Pertama wajib diisi.',
+            'contact_kedua.required'         => 'Kontak Pihak Kedua wajib diisi.',
+            'no_ktp_kedua.required'          => 'No KTP Pihak Kedua wajib diisi.',
+            'alamat_kedua.required'          => 'Alamat Pihak Kedua wajib diisi.',
+            'jenis_pelanggan.required'       => 'Jenis Pelanggan wajib dipilih.',
         ]);
 
         // ── DEBUG: Log request data untuk field perwakilan ──
@@ -553,13 +578,23 @@ class InvKontrakController extends Controller
             'penawaran_id'          => 'required|exists:inv_penawarans,id',
             'no_kontrak'            => 'required|unique:inv_kontraks,no_kontrak,' . $id,
             'tanggal_kontrak'       => 'required|date',
-            'perjanjian_pembayaran' => 'nullable|date',
+            'perjanjian_pembayaran' => 'required|date',
             'pihak_pertama'         => 'required|string|max:255',
-            'contact_pertama'       => 'nullable|string|max:255',
+            'contact_pertama'       => 'required|string|max:16',
             'pihak_kedua'           => 'required|string|max:255',
-            'contact_kedua'         => 'nullable|string|max:255',
+            'contact_kedua'         => 'required|string|max:15',
+            'no_ktp_kedua'          => 'required|string|max:16',
+            'alamat_kedua'          => 'required|string',
+            'jenis_pelanggan'       => 'required|string|in:perorangan,perusahaan',
             'ketentuan_id'          => 'nullable|string',
             'ketentuan_en'          => 'nullable|string',
+        ], [
+            'perjanjian_pembayaran.required' => 'Perjanjian Pembayaran wajib diisi.',
+            'contact_pertama.required'       => 'No KTP Pihak Pertama wajib diisi.',
+            'contact_kedua.required'         => 'Kontak Pihak Kedua wajib diisi.',
+            'no_ktp_kedua.required'          => 'No KTP Pihak Kedua wajib diisi.',
+            'alamat_kedua.required'          => 'Alamat Pihak Kedua wajib diisi.',
+            'jenis_pelanggan.required'       => 'Jenis Pelanggan wajib dipilih.',
         ]);
 
         // Exclude status — status tidak boleh diubah dari form edit biasa

@@ -56,6 +56,7 @@ class InvPenawaranController
     $kendaraanJson = $kendaraans->map(fn($k) => [
         'id'    => $k->id,
         'nama'  => $k->merk . ' - ' . $k->nopol,
+        'merk'  => $k->merk,
         'tahun' => $k->tahun_pembuatan ?? '',
         'harga' => (int) ($k->harga_sewa_per_hari ?? 0),
     ])->values()->toArray();
@@ -108,11 +109,20 @@ class InvPenawaranController
         }
     }
 
+    // Stats dari seluruh database (tidak terpengaruh pagination)
+    $stats = [
+        'total'    => InvPenawaran::count(),
+        'approved' => InvPenawaran::whereIn('status', ['approved', 'active'])->count(),
+        'pending'  => InvPenawaran::where('status', 'pending')->count(),
+        'expired'  => InvPenawaran::whereIn('status', ['expired', 'rejected'])->count(),
+    ];
+
     return view('admin.penawaran.index', compact(
         'penawarans',
         'kendaraans',
         'kendaraanJson',
-        'reminder'
+        'reminder',
+        'stats'
     ));
 }
 
@@ -138,13 +148,27 @@ class InvPenawaranController
         $noPenawaran = $this->generateNoPenawaran();
 
         $request->validate([
-            'tanggal_penawaran' => 'required',
+            'tanggal_penawaran' => 'required|date',
+            'kepada'            => 'required|string|max:255',
+            'perihal'           => 'required|string|max:500',
+            'periode'           => 'required|integer|min:1',
+            'periode_satuan'    => 'required|in:bulan,hari',
+            'staff'             => 'required|string',
+            'name_staff'        => 'required|string|max:255',
             'kendaraan_id'      => 'required|array|min:1',
-            'kendaraan_id.*'    => 'required|exists:kendaraan,id',
+            'kendaraan_id.*'    => 'required|exists:kendaraan,id|distinct',
             'qty'               => 'required|array|min:1',
             'qty.*'             => 'required|numeric|min:1',
             'price'             => 'required|array|min:1',
             'price.*'           => 'required|numeric|min:0',
+        ], [
+            'kepada.required'         => 'Field Kepada wajib diisi.',
+            'perihal.required'        => 'Field Perihal wajib diisi.',
+            'periode.required'        => 'Masa penawaran wajib diisi.',
+            'staff.required'          => 'Jabatan Staff wajib dipilih.',
+            'name_staff.required'     => 'Nama Staff wajib diisi.',
+            'kendaraan_id.required'   => 'Minimal satu kendaraan harus dipilih.',
+            'kendaraan_id.*.distinct' => 'Terdapat kendaraan yang sama. Setiap kendaraan hanya boleh dipilih sekali.',
         ]);
 
         $total = 0;
@@ -208,6 +232,16 @@ class InvPenawaranController
         $created = InvPenawaran::with('items.kendaraan')
             ->where('no_penawaran', $noPenawaran)->firstOrFail();
         $created->update(['status' => 'pending']);
+
+        // Upload gambar tanda tangan jika ada
+        if ($request->hasFile('ttd_image')) {
+            $dir = public_path('uploads/ttd');
+            if (!is_dir($dir)) mkdir($dir, 0755, true);
+            $file     = $request->file('ttd_image');
+            $filename = 'ttd_' . $created->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($dir, $filename);
+            $created->update(['ttd_image' => 'uploads/ttd/' . $filename]);
+        }
         try {
             $pdfPath = $this->generatePenawaranPdf($created);
             $created->update(['file_penawaran' => $pdfPath]);
@@ -241,6 +275,7 @@ class InvPenawaranController
             'pengirim' => $penawaran->pengirim,
             'staff' => $penawaran->staff,
             'name_staff' => $penawaran->name_staff,
+            'ttd_image' => $penawaran->ttd_image,
             'direktur' => $penawaran->direktur,
             'name_direktur' => $penawaran->name_direktur,
             'periode' => $penawaran->periode,
@@ -255,13 +290,27 @@ class InvPenawaranController
     public function update(Request $request, $id)
     {
         $request->validate([
-            'tanggal_penawaran' => 'required',
+            'tanggal_penawaran' => 'required|date',
+            'kepada'            => 'required|string|max:255',
+            'perihal'           => 'required|string|max:500',
+            'periode'           => 'required|integer|min:1',
+            'periode_satuan'    => 'required|in:bulan,hari',
+            'staff'             => 'required|string',
+            'name_staff'        => 'required|string|max:255',
             'kendaraan_id'      => 'required|array|min:1',
-            'kendaraan_id.*'    => 'required|exists:kendaraan,id',
+            'kendaraan_id.*'    => 'required|exists:kendaraan,id|distinct',
             'qty'               => 'required|array|min:1',
             'qty.*'             => 'required|numeric|min:1',
             'price'             => 'required|array|min:1',
             'price.*'           => 'required|numeric|min:0',
+        ], [
+            'kepada.required'         => 'Field Kepada wajib diisi.',
+            'perihal.required'        => 'Field Perihal wajib diisi.',
+            'periode.required'        => 'Masa penawaran wajib diisi.',
+            'staff.required'          => 'Jabatan Staff wajib dipilih.',
+            'name_staff.required'     => 'Nama Staff wajib diisi.',
+            'kendaraan_id.required'   => 'Minimal satu kendaraan harus dipilih.',
+            'kendaraan_id.*.distinct' => 'Terdapat kendaraan yang sama. Setiap kendaraan hanya boleh dipilih sekali.',
         ]);
 
         $total = 0;
@@ -326,8 +375,22 @@ class InvPenawaranController
             }
         });
 
-        // Regenerate draft PDF setelah update
+        // Upload gambar tanda tangan jika ada (update)
         $updated = InvPenawaran::with('items.kendaraan')->findOrFail($id);
+        if ($request->hasFile('ttd_image')) {
+            $dir = public_path('uploads/ttd');
+            if (!is_dir($dir)) mkdir($dir, 0755, true);
+            $file     = $request->file('ttd_image');
+            $filename = 'ttd_' . $id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($dir, $filename);
+            // Hapus file lama jika ada
+            $oldPath = $updated->ttd_image ? public_path($updated->ttd_image) : null;
+            if ($oldPath && file_exists($oldPath)) @unlink($oldPath);
+            $updated->update(['ttd_image' => 'uploads/ttd/' . $filename]);
+            $updated->refresh();
+        }
+
+        // Regenerate draft PDF setelah update
         try {
             $pdfPath = $this->generatePenawaranPdf($updated);
             $updated->update(['file_penawaran' => $pdfPath]);

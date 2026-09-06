@@ -265,8 +265,8 @@ class PembayaranController extends Controller
                 'departemen'                   => $role === 'superadmin' ? 'required|string|max:255' : 'nullable',
                 'pemohon'                      => 'required|string|max:255',
                 'alasan_permintaan'            => 'required|string',
+                'keterangan'                   => 'nullable|string|max:500',
                 'kendaraan_id'                 => 'required|exists:kendaraan,id',
-                'tanggal_service'              => 'required|date',
                 'kilometer'                    => 'required|integer|min:0',
                 'nama_penerima'                => 'required|string|max:255',
                 'nama_bank'                    => 'required|string|max:255',
@@ -281,7 +281,6 @@ class PembayaranController extends Controller
                 'parts.*.biaya'                => 'required|integer|min:0',
             ], [
                 'kendaraan_id.required'      => 'Kendaraan wajib dipilih',
-                'tanggal_service.required'   => 'Tanggal service wajib diisi',
                 'kilometer.required'         => 'Kilometer wajib diisi',
                 'nama_penerima.required'     => 'Nama penerima wajib diisi',
                 'nama_bank.required'         => 'Nama bank wajib diisi',
@@ -297,6 +296,7 @@ class PembayaranController extends Controller
                 'pemohon'                => 'required|string|max:255',
                 'supplier_id'            => 'nullable|exists:supplier,id',
                 'alasan_permintaan'      => 'required|string',
+                'keterangan'             => 'nullable|string|max:500',
                 'items'                  => 'required|array|min:1',
                 'items.*.nama_barang'    => 'required|string|max:255',
                 'items.*.qty'            => 'required|numeric|min:0.01',
@@ -326,12 +326,13 @@ class PembayaranController extends Controller
                     'pemohon'           => $request->pemohon,
                     'supplier_id'       => $request->supplier_id,
                     'alasan_permintaan' => $request->alasan_permintaan,
+                    'keterangan'        => $request->keterangan,
                     'nominal'           => $totalNominal,
                     'status'            => $role === 'superadmin' ? 'Diajukan' : 'Pending',
                     'kendaraan_id'      => $request->kendaraan_id,
-                    'tanggal_service'   => $request->tanggal_service,
+                    'tanggal_service'   => $request->tanggal, // sama dengan tanggal pengajuan
                     'kilometer'         => $request->kilometer,
-                    'keluhan'           => $request->keluhan,
+                    'keluhan'           => $request->alasan_permintaan, // alasan permintaan/keluhan
                     'nama_penerima'     => $request->nama_penerima,
                     'nama_bank'         => $request->nama_bank,
                     'no_rekening'       => $request->no_rekening,
@@ -384,6 +385,7 @@ class PembayaranController extends Controller
                     'pemohon'           => $request->pemohon,
                     'supplier_id'       => $request->supplier_id,
                     'alasan_permintaan' => $request->alasan_permintaan,
+                    'keterangan'        => $request->keterangan,
                     'nominal'           => $totalNominal,
                     'status'            => $role === 'superadmin' ? 'Diajukan' : 'Pending',
                     'nama_penerima'     => $request->nama_penerima,
@@ -497,6 +499,7 @@ class PembayaranController extends Controller
                 'pemohon'           => $request->pemohon,
                 'supplier_id'       => $request->supplier_id,
                 'alasan_permintaan' => $request->alasan_permintaan,
+                'keterangan'        => $request->keterangan,
                 'nominal'           => $totalNominal,
             ]);
 
@@ -845,9 +848,10 @@ class PembayaranController extends Controller
                 \App\Models\Attachment::create([
                     'relation_type' => 'service',
                     'relation_id'   => $serviceHistory->id,
-                    'path'          => $lampiranPath,
-                    'filename'      => basename($lampiranPath),
-                    'type'          => 'lampiran',
+                    'file_path'     => $lampiranPath,
+                    'file_name'     => basename($lampiranPath),
+                    'file_type'     => 'lampiran',
+                    'file_size'     => $request->file('lampiran_tambahan') ? $request->file('lampiran_tambahan')->getSize() : null,
                 ]);
             }
 

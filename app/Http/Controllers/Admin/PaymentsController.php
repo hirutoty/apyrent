@@ -79,9 +79,17 @@ class PaymentsController extends Controller
                 return $inv;
             });
 
+        // Stats dari seluruh database (tidak terpengaruh pagination)
+        $stats = [
+            'total'    => InvoicePayment::count(),
+            'verified' => InvoicePayment::where('status', 'Verified')->count(),
+            'pending'  => InvoicePayment::where('status', 'Pending')->count(),
+            'rejected' => InvoicePayment::where('status', 'Rejected')->count(),
+        ];
+
         return view(
             'admin.payments.index',
-            compact('payments', 'invoices')
+            compact('payments', 'invoices', 'stats')
         );
     }
 

@@ -15,8 +15,12 @@ use App\Models\Bukubesar;
 use App\Models\Setting;
 use App\Models\Attachment;
 use App\Models\ReminderService;
+use App\Models\Supplier;
+use App\Models\Purchasero;
+use App\Models\PurchaseroServicePart;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\DB;
 
 class ServiceHistoryController extends Controller
 {
@@ -85,6 +89,7 @@ class ServiceHistoryController extends Controller
     {
         $kendaraan  = Kendaraan::orderBy('merk')->get();
         $categories = ServiceCategory::orderBy('nama')->get();
+        $suppliers  = Supplier::orderBy('nama_supplier')->get();
         $prefill    = null;
 
         if ($request->from_reminder) {
@@ -118,7 +123,7 @@ class ServiceHistoryController extends Controller
             }
         }
 
-        return view('admin.service.service_history_create', compact('kendaraan', 'categories', 'prefill'));
+        return view('admin.service.service_history_create', compact('kendaraan', 'categories', 'prefill', 'suppliers'));
     }
 
     /**
@@ -128,7 +133,9 @@ class ServiceHistoryController extends Controller
     {
         $kendaraan  = Kendaraan::orderBy('merk')->get();
         $categories = ServiceCategory::orderBy('nama')->get();
-        return view('admin.service.service_history_request', compact('kendaraan', 'categories'));
+        $suppliers  = Supplier::orderBy('nama_supplier')->get();
+        $prefill    = null;
+        return view('admin.service.service_history_request', compact('kendaraan', 'categories', 'suppliers', 'prefill'));
     }
 
     /**
@@ -142,8 +149,11 @@ class ServiceHistoryController extends Controller
             'kilometer'                    => 'required|integer|min:0',
             'status'                       => 'nullable|in:proses,selesai',
             'keluhan'                      => 'nullable|string',
+            'alasan_permintaan'            => 'nullable|string',
+            'keterangan_pengadaan'         => 'nullable|string|max:500',
             'total_biaya_override'         => 'nullable|numeric|min:0',
             'bukti_pembayaran'             => 'nullable|file|max:5120',
+            'supplier_id'                  => 'nullable|exists:supplier,id',
             'parts'                        => 'required|array|min:1',
             'parts.*.nama_part'            => 'required_with:parts|string|max:255',
             'parts.*.category_id'          => 'nullable',
@@ -177,11 +187,12 @@ class ServiceHistoryController extends Controller
         $buktiBayarMeta  = $this->prepBuktiBayar($request);
         $attachmentsMeta = $this->prepAttachments($request);
         $movedFiles      = [];
+        $purchaseroResult = ['created' => false, 'no_pr' => null, 'skipped_count' => 0];
 
         try {
             \Illuminate\Support\Facades\DB::transaction(function () use (
                 $request, $kendaraan, $totalBiaya, $partStatuses, $buktiBayarMeta, $attachmentsMeta,
-                $resolvedParts, &$movedFiles
+                $resolvedParts, &$movedFiles, &$purchaseroResult
             ) {
                 $buktiBayar = null;
                 if ($buktiBayarMeta) {
@@ -257,6 +268,16 @@ class ServiceHistoryController extends Controller
                     ]);
                 }
 
+                // Auto-submit ke Pengadaan dengan status Pending
+                $purchaseroResult = $this->createPurchaseroFromService(
+                    $service,
+                    $resolvedParts,
+                    'Pending',
+                    $request->supplier_id ? (int)$request->supplier_id : null,
+                    $request->alasan_permintaan ?: null,
+                    $request->keterangan_pengadaan ?: null
+                );
+
                 // Attachments
                 if (!empty($attachmentsMeta)) {
                     if (!file_exists($attachmentsMeta[0]['destination'])) mkdir($attachmentsMeta[0]['destination'], 0777, true);
@@ -280,7 +301,10 @@ class ServiceHistoryController extends Controller
         }
 
         return redirect()->route('service-history.index')
-            ->with('success', 'Request part berhasil dikirim dan menunggu approval.');
+            ->with('success', $purchaseroResult['created'] && $purchaseroResult['no_pr']
+                ? "Request part berhasil dikirim dan masuk ke pengadaan (No PR: {$purchaseroResult['no_pr']}). Ajukan ke superadmin untuk disetujui."
+                . ($purchaseroResult['skipped_count'] > 0 ? " {$purchaseroResult['skipped_count']} part tidak diajukan ulang karena sudah ada yang Pending/Diajukan." : '')
+                : 'Request part berhasil dikirim dan menunggu approval.');
     }
 
     /**
@@ -499,10 +523,13 @@ class ServiceHistoryController extends Controller
             'kilometer'                    => 'required|integer|min:0',
             'status'                       => 'nullable|in:proses,selesai',
             'keluhan'                      => 'nullable|string',
+            'alasan_permintaan'            => 'nullable|string',
+            'keterangan_pengadaan'         => 'nullable|string|max:500',
             'total_biaya_override'         => 'nullable|numeric|min:0',
             'bukti_pembayaran'             => 'nullable|file|max:5120',
             'bukti_attachment'             => 'nullable|array',
             'bukti_attachment.*'           => 'file|max:5120',
+            'supplier_id'                  => 'nullable|exists:supplier,id',
             // Parts
             'parts'                        => 'nullable|array',
             'parts.*.nama_part'            => 'required_with:parts|string|max:255',
@@ -612,12 +639,14 @@ class ServiceHistoryController extends Controller
         // Siapkan metadata file
         $buktiBayarMeta  = $this->prepBuktiBayar($request);
         $attachmentsMeta = $this->prepAttachments($request);
-        $movedFiles      = [];
+        $movedFiles       = [];
+        $purchaseroResult = ['created' => false, 'no_pr' => null, 'skipped_count' => 0];
+        $duplicateParts   = [];
 
         try {
             \Illuminate\Support\Facades\DB::transaction(function () use (
                 $request, $kendaraan, $totalBiaya, $partStatuses, $buktiBayarMeta, $attachmentsMeta,
-                $resolvedParts, &$movedFiles
+                $resolvedParts, &$movedFiles, &$purchaseroResult
             ) {
                 $buktiBayar = null;
                 if ($buktiBayarMeta) {
@@ -779,6 +808,18 @@ class ServiceHistoryController extends Controller
 
                 // Jurnal keuangan
                 $this->catatKeuangan($service, $kendaraan, $totalBiayaFinal, $request->tanggal_service, false);
+
+                // Auto-submit ke Pengadaan (jika ada parts)
+                if (!empty($resolvedParts)) {
+                    $purchaseroResult = $this->createPurchaseroFromService(
+                        $service,
+                        $resolvedParts,
+                        'Diajukan',
+                        $request->supplier_id ? (int)$request->supplier_id : null,
+                        $request->alasan_permintaan ?: null,
+                        $request->keterangan_pengadaan ?: null
+                    );
+                }
             });
         } catch (\Throwable $e) {
             foreach ($movedFiles as $f) { if (file_exists($f)) unlink($f); }
@@ -787,10 +828,17 @@ class ServiceHistoryController extends Controller
 
         // Build success message - include duplicate warning if any
         $successMsg = 'Data service berhasil ditambahkan.';
+        if ($purchaseroResult['created'] && $purchaseroResult['no_pr']) {
+            $successMsg .= " Otomatis diajukan ke pengadaan (No PR: {$purchaseroResult['no_pr']}).";
+        }
         if (!empty($duplicateParts)) {
             $duplicateList = collect($duplicateParts)->pluck('label')->join(', ');
             $count = count($duplicateParts);
             $successMsg .= " {$count} part tidak ditambahkan karena sudah ada: {$duplicateList}. Gunakan Request Part untuk part tersebut.";
+        }
+        if (($purchaseroResult['skipped_count'] ?? 0) > 0) {
+            $skipped = $purchaseroResult['skipped_count'];
+            $successMsg .= " {$skipped} part tidak diajukan ulang ke pengadaan karena sudah ada yang Pending/Diajukan.";
         }
 
         return redirect()->route('service-history.index')
@@ -1568,5 +1616,175 @@ class ServiceHistoryController extends Controller
         $sh->update(['status' => 'selesai']);
 
         return redirect()->back()->with('success', 'Service berhasil ditandai sebagai Selesai (Terpasang).');
+    }
+
+    // =========================================================================
+    // PENGADAAN AUTO-SUBMIT HELPER
+    // =========================================================================
+
+    /**
+     * Buat Purchasero otomatis dari ServiceHistory.
+     *
+     * @param  ServiceHistory  $service       Record service yang baru disimpan
+     * @param  array           $resolvedParts Parts yang sudah di-resolve kategorinya
+     * @param  string          $status        'Diajukan' (store) | 'Pending' (requestStore)
+     * @param  int|null        $supplierId    Supplier/bengkel dari form
+     * @return array  ['created' => bool, 'purchasero' => Purchasero|null,
+     *                 'skipped_count' => int, 'no_pr' => string|null]
+     */
+    private function createPurchaseroFromService(
+        ServiceHistory $service,
+        array $resolvedParts,
+        string $status,
+        ?int $supplierId,
+        ?string $alasanPermintaan = null,
+        ?string $keteranganPengadaan = null
+    ): array {
+        if (empty($resolvedParts)) {
+            return ['created' => false, 'purchasero' => null, 'skipped_count' => 0, 'no_pr' => null];
+        }
+
+        // Pisahkan part yang lolos cek duplikat vs yang di-skip
+        $newParts     = [];
+        $skippedCount = 0;
+
+        foreach ($resolvedParts as $partData) {
+            $namaPart     = strtolower(trim($partData['nama_part'] ?? ''));
+            $categoryId   = $partData['category_id'] ?? null;
+            $posisi       = strtolower(trim($partData['posisi'] ?? ''));
+            $partNumber   = strtolower(trim($partData['part_number'] ?? ''));
+            $serialNumber = strtolower(trim($partData['serial_number'] ?? ''));
+
+            // Cek duplikat: 6 field sama DAN status purchasero masih Pending/Diajukan
+            $isDuplicate = DB::table('purchaseros as pr')
+                ->join('purchasero_service_parts as psp', 'pr.id', '=', 'psp.purchasero_id')
+                ->where('psp.kendaraan_id', $service->kendaraan_id)
+                ->whereRaw('LOWER(TRIM(psp.nama_part)) = ?', [$namaPart])
+                ->where(function ($q) use ($categoryId) {
+                    if ($categoryId) {
+                        $q->where('psp.category_id', $categoryId);
+                    } else {
+                        $q->whereNull('psp.category_id');
+                    }
+                })
+                ->where(function ($q) use ($posisi) {
+                    if ($posisi) {
+                        $q->whereRaw('LOWER(TRIM(psp.posisi)) = ?', [$posisi]);
+                    } else {
+                        $q->whereNull('psp.posisi')->orWhereRaw("TRIM(psp.posisi) = ''");
+                    }
+                })
+                ->where(function ($q) use ($partNumber) {
+                    if ($partNumber) {
+                        $q->whereRaw('LOWER(TRIM(psp.part_number)) = ?', [$partNumber]);
+                    } else {
+                        $q->whereNull('psp.part_number')->orWhereRaw("TRIM(psp.part_number) = ''");
+                    }
+                })
+                ->where(function ($q) use ($serialNumber) {
+                    if ($serialNumber) {
+                        $q->whereRaw('LOWER(TRIM(psp.serial_number)) = ?', [$serialNumber]);
+                    } else {
+                        $q->whereNull('psp.serial_number')->orWhereRaw("TRIM(psp.serial_number) = ''");
+                    }
+                })
+                ->whereIn('pr.status', ['Pending', 'Diajukan'])
+                ->exists();
+
+            if ($isDuplicate) {
+                $skippedCount++;
+            } else {
+                $newParts[] = $partData;
+            }
+        }
+
+        // Jika semua part duplikat, tidak buat Purchasero baru
+        if (empty($newParts)) {
+            return ['created' => false, 'purchasero' => null, 'skipped_count' => $skippedCount, 'no_pr' => null];
+        }
+
+        // Generate No PR (lock untuk race condition)
+        $last    = Purchasero::lockForUpdate()->orderBy('id', 'desc')->first();
+        $lastNum = $last && preg_match('/(\d+)$/', $last->no_pr ?? '', $m) ? (int) $m[1] : 0;
+        $noPr    = 'PR-' . str_pad($lastNum + 1, 3, '0', STR_PAD_LEFT);
+
+        $totalNominal = collect($newParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
+
+        // Generate keterangan slug otomatis jika tidak disediakan dari form
+        if (empty($keteranganPengadaan)) {
+            $kendaraan   = \App\Models\Kendaraan::find($service->kendaraan_id);
+            $merkSlug    = strtolower(preg_replace('/[^a-z0-9]/i', '', $kendaraan?->merk ?? ''));
+            $nopolSlug   = strtolower(preg_replace('/[^a-z0-9]/i', '', $kendaraan?->nopol ?? ''));
+            $partSlugs   = collect($newParts)
+                ->take(4)
+                ->map(fn($p) => strtolower(preg_replace('/[^a-z0-9]+/', '-', trim($p['nama_part'] ?? ''))))
+                ->map(fn($s) => trim($s, '-'))
+                ->filter()
+                ->implode('-');
+            $kendaraanSlug = $merkSlug . $nopolSlug;
+            $parts = array_filter([$kendaraanSlug, $partSlugs]);
+            $keteranganPengadaan = $nopolSlug
+                ? substr('service-' . implode('-', $parts), 0, 500)
+                : null;
+        }
+
+        // Buat Purchasero
+        $purchasero = Purchasero::create([
+            'no_pr'             => $noPr,
+            'tanggal'           => $service->tanggal_service,
+            'departemen'        => 'Produksi',
+            'tipe_pengadaan'    => 'service',
+            'pemohon'           => auth()->user()->name,
+            'supplier_id'       => $supplierId,
+            'alasan_permintaan' => $alasanPermintaan ?? $service->keluhan ?? '-',
+            'keterangan'        => $keteranganPengadaan,
+            'nominal'           => $totalNominal,
+            'status'            => $status,
+            'kendaraan_id'      => $service->kendaraan_id,
+            'tanggal_service'   => $service->tanggal_service,
+            'kilometer'         => $service->kilometer,
+            'keluhan'           => $service->keluhan,
+            'terakhir_diajukan' => $status === 'Diajukan' ? now() : null,
+        ]);
+
+        // Buat PurchaseroServicePart untuk tiap part yang lolos
+        foreach ($newParts as $partData) {
+            $isOverLimit = false;
+            if (!empty($partData['category_id'])) {
+                $limit = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $service->kendaraan_id)
+                    ->where('category_id', $partData['category_id'])
+                    ->first();
+                if ($limit && (int)($partData['biaya'] ?? 0) > $limit->limit_price) {
+                    $isOverLimit = true;
+                }
+            }
+
+            PurchaseroServicePart::create([
+                'purchasero_id'    => $purchasero->id,
+                'kendaraan_id'     => $service->kendaraan_id,
+                'category_id'      => $partData['category_id'] ?? null,
+                'nama_part'        => $partData['nama_part'],
+                'part_number'      => $partData['part_number'] ?? null,
+                'serial_number'    => $partData['serial_number'] ?? null,
+                'posisi'           => $partData['posisi'] ?? null,
+                'merk'             => $partData['merk'] ?? null,
+                'tgl_pasang'       => $partData['tgl_pasang'] ?? now()->toDateString(),
+                'kilometer_pasang' => (int)($partData['kilometer_pasang'] ?? $service->kilometer ?? 0),
+                'kondisi'          => $partData['kondisi'] ?? 'Baik',
+                'status_part'      => 'Proses',
+                'interval_nilai'   => (int)($partData['interval_nilai'] ?? 1),
+                'interval_satuan'  => $partData['interval_satuan'] ?? 'bulan',
+                'biaya'            => (int)($partData['biaya'] ?? 0),
+                'keterangan'       => $partData['keterangan'] ?? null,
+                'is_over_limit'    => $isOverLimit,
+            ]);
+        }
+
+        return [
+            'created'       => true,
+            'purchasero'    => $purchasero,
+            'skipped_count' => $skippedCount,
+            'no_pr'         => $noPr,
+        ];
     }
 }

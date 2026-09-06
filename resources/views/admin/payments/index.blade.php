@@ -65,7 +65,7 @@
     </div>
 
     {{-- CHART FILTER --}}
-    <x-chart-filter id="paymentsChartFilter" defaultFilter="month" :showCustomRange="true" />
+    <x-chart-filter id="paymentsChartFilter" defaultFilter="year" :showCustomRange="true" />
 
     {{-- CHART CONTAINER --}}
     <x-chart-container
@@ -78,22 +78,23 @@
     />
 
     {{-- SUMMARY CARDS --}}
+    {{-- SUMMARY CARDS --}}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Total Transaksi</p>
-            <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $payments->total() }}</h2>
+            <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $stats['total'] }}</h2>
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Verified</p>
-            <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $payments->getCollection()->where('status','Verified')->count() }}</h2>
+            <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $stats['verified'] }}</h2>
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Pending</p>
-            <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $payments->getCollection()->where('status','Pending')->count() }}</h2>
+            <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $stats['pending'] }}</h2>
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Rejected</p>
-            <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $payments->getCollection()->where('status','Rejected')->count() }}</h2>
+            <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $stats['rejected'] }}</h2>
         </div>
     </div>
 
@@ -792,6 +793,66 @@
     }
     modalTambah.addEventListener('click', e => { if (e.target === modalTambah) closeModalTambah(); });
 
+    // Validasi tambah pembayaran — border merah + alert
+    formTambah.addEventListener('submit', function(e) {
+        const checks = [
+            { id: 'tambah_invoice_id', label: 'Invoice' },
+            { name: 'payment_date',    label: 'Tanggal Pembayaran', form: formTambah },
+            { name: 'method',          label: 'Metode Pembayaran',  form: formTambah },
+            { id: 'tambah_amount',     label: 'Jumlah Pembayaran' },
+            { id: 'fileTambah',        label: 'Bukti Pembayaran',   isFile: true },
+        ];
+        let invalid = [];
+        checks.forEach(function(c) {
+            const el = c.id
+                ? document.getElementById(c.id)
+                : (c.form ? c.form.querySelector('[name="' + c.name + '"]') : null);
+            if (!el) return;
+            const empty = c.isFile
+                ? (!el.files || el.files.length === 0)
+                : !el.value.trim();
+            if (empty) {
+                if (!c.isFile) {
+                    el.classList.add('border-red-500', 'ring-2', 'ring-red-200');
+                } else {
+                    // Highlight drop zone
+                    const dz = document.getElementById('dropZoneTambah');
+                    if (dz) dz.classList.add('border-red-500', 'bg-red-50');
+                }
+                invalid.push(c.label);
+            } else {
+                el.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
+                const dz = document.getElementById('dropZoneTambah');
+                if (dz) dz.classList.remove('border-red-500', 'bg-red-50');
+            }
+        });
+        if (invalid.length > 0) {
+            e.preventDefault();
+            alert('Field berikut wajib diisi:\n• ' + invalid.join('\n• '));
+        }
+    });
+
+    // Reset border merah saat user berinteraksi
+    ['tambah_invoice_id','tambah_amount'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', function() {
+            this.classList.remove('border-red-500','ring-2','ring-red-200');
+        });
+    });
+    // Reset input by name (payment_date, method) di form tambah
+    ['payment_date','method'].forEach(function(name) {
+        const el = document.querySelector('#formTambah [name="' + name + '"]');
+        if (el) {
+            el.addEventListener('input', function() {
+                this.classList.remove('border-red-500','ring-2','ring-red-200');
+            });
+        }
+    });
+    document.getElementById('fileTambah')?.addEventListener('change', function() {
+        const dz = document.getElementById('dropZoneTambah');
+        if (dz) dz.classList.remove('border-red-500','bg-red-50');
+    });
+
     /* -- MODAL EDIT -- */
     const modalEdit = document.getElementById('modalEdit');
     const formEdit  = document.getElementById('formEdit');
@@ -875,6 +936,43 @@
         modalEdit.classList.remove('flex');
     }
     modalEdit.addEventListener('click', e => { if (e.target === modalEdit) closeModalEdit(); });
+
+    // Validasi edit pembayaran — border merah + alert
+    formEdit.addEventListener('submit', function(e) {
+        const checks = [
+            { id: 'edit_invoice_id',    label: 'Invoice' },
+            { id: 'edit_payment_date',  label: 'Tanggal Pembayaran' },
+            { id: 'edit_method',        label: 'Metode Pembayaran' },
+        ];
+        let invalid = [];
+        checks.forEach(function(c) {
+            const el = document.getElementById(c.id);
+            if (!el) return;
+            if (!el.value.trim()) {
+                el.classList.add('border-red-500', 'ring-2', 'ring-red-200');
+                invalid.push(c.label);
+            } else {
+                el.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
+            }
+        });
+        if (invalid.length > 0) {
+            e.preventDefault();
+            alert('Field berikut wajib diisi:\n• ' + invalid.join('\n• '));
+        }
+    });
+
+    // Reset border merah saat user berinteraksi di form edit
+    ['edit_invoice_id','edit_payment_date','edit_method'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', function() {
+                this.classList.remove('border-red-500','ring-2','ring-red-200');
+            });
+            el.addEventListener('change', function() {
+                this.classList.remove('border-red-500','ring-2','ring-red-200');
+            });
+        }
+    });
 
     function onEditInvoiceChange(sel) {
         const opt       = sel.options[sel.selectedIndex];
@@ -964,7 +1062,7 @@
     const paymentsChartManager = new ChartManager();
 
     document.addEventListener('DOMContentLoaded', function() {
-        initPaymentsCharts({ filter_type: 'month' });
+        initPaymentsCharts({ filter_type: 'specific_year', specific_year: new Date().getFullYear() });
 
         document.addEventListener('chartFilterChange', function(e) {
             if (e.detail.filterId === 'paymentsChartFilter') {
@@ -973,6 +1071,7 @@
                     start_date:  e.detail.startDate,
                     end_date:    e.detail.endDate,
                 };
+                if (e.detail.specificYear) filters.specific_year = e.detail.specificYear;
                 updatePaymentsCharts(filters);
             }
         });

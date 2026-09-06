@@ -32,6 +32,7 @@ class InvPenawaran extends Model
         'periode_satuan',
         'staff',
         'name_staff',
+        'ttd_image',
         'direktur',
         'name_direktur',
 

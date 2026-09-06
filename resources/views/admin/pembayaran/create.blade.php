@@ -44,7 +44,7 @@
                 {{-- Tanggal Pengajuan --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Tanggal Pengajuan <span class="text-red-500">*</span>
+                        Tanggal Pengajuan/Service <span class="text-red-500">*</span>
                     </label>
                     <input type="date" name="tanggal" required
                         value="{{ old('tanggal', now()->format('Y-m-d')) }}"
@@ -161,12 +161,31 @@
                     </select>
                     @error('kendaraan_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
+                {{-- Kilometer — tampil di bawah kendaraan saat mode service --}}
+                <div id="field_kilometer" class="{{ old('tipe_pengadaan')==='service' ? '' : 'hidden' }}">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Kilometer Saat Ini <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" name="kilometer" id="input_kilometer" value="{{ old('kilometer', 0) }}" min="0"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    @error('kilometer')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                </div>
                 @endif
 
                 {{-- Supplier (hanya untuk belanja) --}}
                 <div id="field_supplier" class="{{ old('tipe_pembayaran')==='service' ? 'hidden' : '' }}">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Supplier <span class="text-gray-400 text-[10px]">(jika tidak ada, klik +)</span>
+                        <span id="label_supplier">Supplier</span>
+                        @php $supplierCount = \App\Models\Supplier::count(); @endphp
+                        @if($supplierCount === 0)
+                            <span class="text-gray-400 text-[10px]">(belum ada supplier, klik + untuk tambah)</span>
+                        @else
+                            <span class="text-gray-400 text-[10px]">(opsional — klik
+                                <button type="button" onclick="openSupplierModal()"
+                                    class="text-blue-500 hover:underline text-[10px] font-medium">+ tambah baru</button>
+                                jika tidak ada)
+                            </span>
+                        @endif
                     </label>
                     <div class="flex gap-2">
                         <select name="supplier_id" id="supplier_id"
@@ -178,19 +197,34 @@
                                 </option>
                             @endforeach
                         </select>
+                        @if($supplierCount === 0)
                         <button type="button" onclick="openSupplierModal()"
-                            class="w-10 h-10 rounded-xl bg-green-600 hover:bg-green-700 text-white flex items-center justify-center transition-colors"
+                            class="w-10 h-10 rounded-xl bg-green-600 hover:bg-green-700 text-white flex items-center justify-center transition-colors flex-shrink-0"
                             title="Tambah Supplier Baru">
                             <i class="fa fa-plus text-sm"></i>
                         </button>
+                        @endif
                     </div>
                     @error('supplier_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                </div>
+
+                {{-- Keterangan --}}
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Keterangan
+                        <span class="text-gray-400 text-[10px] font-normal ml-1">(opsional — ringkasan singkat tujuan pengadaan)</span>
+                    </label>
+                    <input type="text" name="keterangan" maxlength="500"
+                        value="{{ old('keterangan') }}"
+                        placeholder="cth: pajak-merknopol-perpanjang"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    @error('keterangan')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
 
                 {{-- Alasan Permintaan --}}
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Alasan Permintaan <span class="text-red-500">*</span>
+                        Alasan Permintaan/Keluhan <span class="text-red-500">*</span>
                     </label>
                     <textarea name="alasan_permintaan" rows="3" required placeholder="Jelaskan alasan dan kebutuhan pembayaran..."
                         class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('alasan_permintaan') }}</textarea>
@@ -266,7 +300,7 @@
         <div id="section_parts" class="{{ old('tipe_pembayaran')==='service' ? '' : 'hidden' }} bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
             <div class="flex items-center justify-between">
                 <h2 class="text-sm font-bold text-gray-700 flex items-center gap-2">
-                    <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-xs">3</span>
+                    <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-xs">2</span>
                     Part / Komponen yang Dipasang
                 </h2>
                 <button type="button" onclick="addPartRow()"
@@ -413,25 +447,26 @@ function onDepartemenChange(deptVal) {
 function onTipePembayaranChange(val) {
     const isService = val === 'service';
     document.getElementById('section_belanja').classList.toggle('hidden', isService);
-    document.getElementById('section_service').classList.toggle('hidden', !isService);
     document.getElementById('section_parts').classList.toggle('hidden', !isService);
     const fieldKendaraan = document.getElementById('field_kendaraan');
-    const fieldSupplier  = document.getElementById('field_supplier');
+    const fieldKilometer = document.getElementById('field_kilometer');
     if (fieldKendaraan) fieldKendaraan.classList.toggle('hidden', !isService);
-    if (fieldSupplier)  fieldSupplier.classList.toggle('hidden', isService);
+    if (fieldKilometer) fieldKilometer.classList.toggle('hidden', !isService);
 
     // Disable required fields di section tersembunyi agar browser tidak memblokir submit
-    // Section belanja
     document.querySelectorAll('#section_belanja input[required], #section_belanja textarea[required]').forEach(el => {
         el.disabled = isService;
     });
-    // Section service + parts
     document.querySelectorAll('#section_service input[required], #section_service textarea[required], #section_parts input[required], #section_parts textarea[required]').forEach(el => {
         el.disabled = !isService;
     });
     // Kendaraan field
     const kendaraanSel = document.getElementById('kendaraan_id');
     if (kendaraanSel) kendaraanSel.disabled = !isService;
+
+    // Update label supplier sesuai mode — supplier selalu tampil di kedua mode
+    const labelSupplier = document.getElementById('label_supplier');
+    if (labelSupplier) labelSupplier.textContent = isService ? 'Supplier/Bengkel' : 'Supplier';
 
     if (isService && document.getElementById('kendaraan_id') && document.getElementById('kendaraan_id').options.length <= 1) {
         loadKendaraan();
@@ -506,7 +541,12 @@ function onCategoryChange(sel, idx) {
     const biayaInput = document.getElementById(`part_biaya_${idx}`);
 
     if (intvNilai)  intvNilai.value  = nilai;
-    if (intvSatuan) intvSatuan.value = satuan;
+    if (intvSatuan) {
+        intvSatuan.value = satuan;
+        // update display text
+        const display = document.getElementById(`part_interval_satuan_display_${idx}`);
+        if (display) display.textContent = satuan.charAt(0).toUpperCase() + satuan.slice(1);
+    }
 
     // Cek limit harga — tampilkan warning jika biaya melebihi limit
     if (biayaInput) checkPartLimit(biayaInput, idx, price);
@@ -687,14 +727,17 @@ function addPartRow(data = null) {
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100">
             </div>
             <div>
-                <label class="text-xs font-semibold text-gray-600 mb-1 block">Interval <span class="text-red-400">*</span></label>
+                <label class="text-xs font-semibold text-gray-600 mb-1 block">Interval
+                    <span class="text-blue-500 text-[10px] ml-1"><i class="fa fa-lock text-[9px]"></i> Auto dari kategori</span>
+                </label>
                 <div class="flex gap-2">
                     <input type="number" name="parts[${idx}][interval_nilai]" id="part_interval_nilai_${idx}" required min="1" value="${data?.interval_nilai || 12}"
-                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100">
-                    <select name="parts[${idx}][interval_satuan]" id="part_interval_satuan_${idx}"
-                        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100">
-                        ${['hari','minggu','bulan','tahun'].map(s => `<option value="${s}" ${(data?.interval_satuan||'bulan')===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
-                    </select>
+                        readonly
+                        class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none">
+                    <input type="hidden" name="parts[${idx}][interval_satuan]" id="part_interval_satuan_${idx}" value="${data?.interval_satuan || 'bulan'}">
+                    <div class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed" id="part_interval_satuan_display_${idx}">
+                        ${(data?.interval_satuan||'bulan').charAt(0).toUpperCase()+(data?.interval_satuan||'bulan').slice(1)}
+                    </div>
                 </div>
             </div>
             <div>
@@ -793,6 +836,17 @@ function submitSupplier() {
     const formData = new FormData(form);
     const submitBtn = document.getElementById('supplierSubmitBtn');
     const errorDiv = document.getElementById('supplierError');
+    const namaInput = form.querySelector('[name="nama_supplier"]');
+    const namaBaru = namaInput ? namaInput.value.trim().toLowerCase() : '';
+
+    // Cek duplikat di dropdown yang sudah ada (client-side)
+    const select = document.getElementById('supplier_id');
+    const existing = Array.from(select.options).map(o => o.text.trim().toLowerCase());
+    if (namaBaru && existing.includes(namaBaru)) {
+        errorDiv.textContent = 'Supplier "' + namaInput.value.trim() + '" sudah ada dalam daftar.';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
 
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>Menyimpan...';
@@ -806,11 +860,9 @@ function submitSupplier() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            const select = document.getElementById('supplier_id');
             const option = new Option(data.data.nama_supplier, data.data.id, true, true);
             select.add(option);
             closeSupplierModal();
-            alert('Supplier berhasil ditambahkan!');
         } else {
             throw new Error(data.message || 'Gagal menambahkan supplier');
         }
@@ -826,41 +878,83 @@ function submitSupplier() {
 }
 </script>
 
+{{-- Modal Create Supplier --}}
+<div id="supplierModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full mx-4" style="animation:slideUp .2s ease">
+
+        <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+            <div>
+                <h3 class="text-base font-bold text-gray-800">Tambah Supplier Baru</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Isi data supplier dengan lengkap</p>
+            </div>
+            <button type="button" onclick="closeSupplierModal()"
+                class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+
+        <form id="supplierForm" onsubmit="event.preventDefault(); submitSupplier();" class="px-6 py-5 space-y-4">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Nama Supplier <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="nama_supplier" required
+                        placeholder="CV/PT Nama Supplier"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        No. Telepon <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" name="no_telp" required
+                        placeholder="08xxxxxxxxxx"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Marketing</label>
+                    <input type="text" name="nama_marketing"
+                        placeholder="Contoh: Budi Santoso"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kontak Marketing</label>
+                    <input type="number" name="kontak_marketing"
+                        placeholder="08xxxxxxxxxx"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat</label>
+                <textarea name="alamat" rows="3"
+                    placeholder="Contoh: Jl. Merdeka No. 10, Jakarta"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
+            </div>
+
+            <div id="supplierError" class="hidden text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg p-2"></div>
+
+            <div class="flex gap-3 pt-1">
+                <button type="button" onclick="closeSupplierModal()"
+                    class="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">
+                    Batal
+                </button>
+                <button type="submit" id="supplierSubmitBtn"
+                    class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+                    <i class="fa fa-save mr-2"></i>Simpan
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<style>
+@keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+</style>
 
 @endsection
-
-<script>
-// ── Override recalcPartsTotal dengan versi yang update summary warning ──
-(function() {
-    const _orig = window.recalcPartsTotal;
-    window.recalcPartsTotal = function() {
-        let total = 0;
-        document.querySelectorAll('[name$="[biaya]"]').forEach(function(i) { total += parseInt(i.value) || 0; });
-        const el = document.getElementById('total_parts_display');
-        if (el) el.textContent = 'Rp ' + total.toLocaleString('id-ID');
-
-        // Update summary warning di bawah total
-        const summaryDiv  = document.getElementById('parts_over_limit_summary');
-        const summaryList = document.getElementById('parts_over_limit_list');
-        if (!summaryDiv || !summaryList) return;
-
-        const overItems = [];
-        document.querySelectorAll('[id^="part_limit_warn_"]').forEach(function(warnEl) {
-            if (!warnEl.classList.contains('hidden') && warnEl.textContent.trim()) {
-                const idx2 = warnEl.id.replace('part_limit_warn_', '');
-                const nameEl = document.querySelector('[name="parts[' + idx2 + '][nama_part]"]');
-                const namaPart = nameEl ? nameEl.value : 'Part #' + (parseInt(idx2) + 1);
-                overItems.push(namaPart + ' — ' + warnEl.textContent.trim());
-            }
-        });
-
-        if (overItems.length > 0) {
-            summaryList.innerHTML = overItems.map(function(t) { return '<li>' + t + '</li>'; }).join('');
-            summaryDiv.classList.remove('hidden');
-        } else {
-            summaryDiv.classList.add('hidden');
-            summaryList.innerHTML = '';
-        }
-    };
-})();
-</script>
