@@ -80,19 +80,19 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Total Penawaran</p>
-                <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $penawarans->total() }}</h2>
+                <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $stats['total'] }}</h2>
             </div>
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Approved</p>
-                <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $penawarans->getCollection()->whereIn('status',['approved','active'])->count() }}</h2>
+                <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $stats['approved'] }}</h2>
             </div>
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Pending</p>
-                <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $penawarans->getCollection()->where('status','pending')->count() }}</h2>
+                <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $stats['pending'] }}</h2>
             </div>
             <div class="bg-white rounded-2xl border border-gray-100 p-5">
                 <p class="text-sm text-gray-500">Expired / Rejected</p>
-                <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $penawarans->getCollection()->whereIn('status',['expired','rejected'])->count() }}</h2>
+                <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $stats['expired'] }}</h2>
             </div>
         </div>
 
@@ -295,7 +295,7 @@
     {{-- ========================= MODAL TAMBAH ========================= --}}
     <div id="modalTambah" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-xl w-[95%] max-w-7xl max-h-[95vh] overflow-y-auto">
-            <form id="formTambah" action="{{ route('penawaran.store') }}" method="POST">
+            <form id="formTambah" action="{{ route('penawaran.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
 
                 <div class="flex justify-between items-center border-b px-6 py-4">
@@ -311,7 +311,6 @@
                         <div>
                             <label class="text-sm font-medium">Tanggal</label>
                             <input type="date" name="tanggal_penawaran" value="{{ date('Y-m-d') }}"
-                                min="{{ date('Y-m-d') }}"
                                 class="w-full border rounded-lg p-2 mt-1" required>
                         </div>
 
@@ -319,32 +318,32 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
                         <div>
-                            <label>Kepada</label>
+                            <label>Kepada <span class="text-red-500">*</span></label>
                             <input type="text" name="kepada" value="{{ old('kepada') }}"
                                 placeholder="cth: PT. Maju Jaya Tbk."
-                                class="w-full border rounded-lg p-2 mt-1">
+                                class="w-full border rounded-lg p-2 mt-1" required>
                         </div>
                         <div>
-                            <label>UP</label>
+                            <label>UP <span class="text-red-500">*</span></label>
                             <input type="text" name="up" value="{{ old('up') }}"
                                 placeholder="cth: Bapak Budi Santoso"
-                                class="w-full border rounded-lg p-2 mt-1">
+                                class="w-full border rounded-lg p-2 mt-1" required>
                         </div>
                     </div>
 
                     <div class="mt-4">
-                        <label>Perihal</label>
+                        <label>Perihal <span class="text-red-500">*</span></label>
                         <input type="text" name="perihal" value="{{ old('perihal') }}"
                             placeholder="cth: Penawaran Jasa Sewa Kendaraan Operasional"
-                            class="w-full border rounded-lg p-2 mt-1">
+                            class="w-full border rounded-lg p-2 mt-1" required>
                     </div>
 
                     <hr class="my-6">
 
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label>Staff</label>
-                            <select name="staff" class="w-full border rounded-lg p-2 mt-1">
+                            <label>Staff <span class="text-red-500">*</span></label>
+                            <select name="staff" class="w-full border rounded-lg p-2 mt-1" required>
                                 <option value="">-- Pilih Jabatan Staf --</option>
                                 <option>Direktur Utama (CEO)</option>
                                 <option>Wakil Direktur (Vice President)</option>
@@ -364,16 +363,29 @@
                             </select>
                         </div>
                         <div>
-                            <label>Nama Staff</label>
+                            <label>Nama Staff <span class="text-red-500">*</span></label>
                             <input type="text" name="name_staff"
                                 placeholder="cth: Agus Pratama"
-                                class="w-full border rounded-lg p-2 mt-1">
+                                class="w-full border rounded-lg p-2 mt-1" required>
+                        </div>
+                    </div>
+
+                    {{-- Baris 2: Upload TTD + Masa Penawaran --}}
+                    <div class="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label class="text-sm font-medium">Gambar Tanda Tangan <span class="text-xs text-gray-400">(opsional)</span></label>
+                            <input type="file" name="ttd_image" id="tambah_ttd_image" accept="image/*"
+                                class="w-full border rounded-lg p-2 mt-1 text-sm"
+                                onchange="previewTtd(this, 'tambah_ttd_preview')">
+                            <div id="tambah_ttd_preview" class="mt-2 hidden">
+                                <img src="" alt="Preview TTD" class="max-h-16 border rounded">
+                            </div>
                         </div>
                         <div>
-                            <label>Masa Penawaran</label>
+                            <label>Masa Penawaran <span class="text-red-500">*</span></label>
                             <div class="flex mt-1">
                                 <input type="number" name="periode" placeholder="12"
-                                    class="w-full border border-r-0 rounded-l-lg p-2">
+                                    class="w-full border border-r-0 rounded-l-lg p-2" required min="1">
                                 <select name="periode_satuan"
                                     class="border border-l-0 rounded-r-lg px-3 py-2 bg-gray-100 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400">
                                     <option value="bulan">Bulan</option>
@@ -451,7 +463,7 @@
     {{-- ========================= MODAL EDIT ========================= --}}
     <div id="modalEdit" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-xl w-[95%] max-w-7xl max-h-[95vh] overflow-y-auto">
-            <form id="formEdit" method="POST">
+            <form id="formEdit" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
 
@@ -471,9 +483,8 @@
                                 class="w-full border rounded-lg p-2 mt-1 bg-gray-50" readonly>
                         </div>
                         <div>
-                            <label>Tanggal</label>
+                            <label>Tanggal <span class="text-red-500">*</span></label>
                             <input id="edit_tanggal" type="date" name="tanggal_penawaran"
-                                min="{{ date('Y-m-d') }}"
                                 class="w-full border rounded-lg p-2 mt-1" required>
                         </div>
 
@@ -481,32 +492,32 @@
 
                     <div class="grid grid-cols-2 gap-4 mt-5">
                         <div>
-                            <label>Kepada</label>
+                            <label>Kepada <span class="text-red-500">*</span></label>
                             <input id="edit_kepada" type="text" name="kepada"
                                 placeholder="cth: PT. Maju Jaya Tbk."
-                                class="w-full border rounded-lg p-2 mt-1">
+                                class="w-full border rounded-lg p-2 mt-1" required>
                         </div>
                         <div>
-                            <label>UP</label>
+                            <label>UP <span class="text-red-500">*</span></label>
                             <input id="edit_up" type="text" name="up"
                                 placeholder="cth: Bapak Budi Santoso"
-                                class="w-full border rounded-lg p-2 mt-1">
+                                class="w-full border rounded-lg p-2 mt-1" required>
                         </div>
                     </div>
 
                     <div class="mt-4">
-                        <label>Perihal</label>
+                        <label>Perihal <span class="text-red-500">*</span></label>
                         <input id="edit_perihal" type="text" name="perihal"
                             placeholder="cth: Penawaran Jasa Sewa Kendaraan Operasional"
-                            class="w-full border rounded-lg p-2 mt-1">
+                            class="w-full border rounded-lg p-2 mt-1" required>
                     </div>
 
                     <hr class="my-6">
 
-                    <div class="grid grid-cols-3 gap-4">
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label>Staff</label>
-                            <select id="edit_staff" name="staff" class="w-full border rounded-lg p-2 mt-1">
+                            <label>Staff <span class="text-red-500">*</span></label>
+                            <select id="edit_staff" name="staff" class="w-full border rounded-lg p-2 mt-1" required>
                                 <option value="">-- Pilih Jabatan Staf --</option>
                                 <option>Direktur Utama (CEO)</option>
                                 <option>Wakil Direktur (Vice President)</option>
@@ -526,16 +537,30 @@
                             </select>
                         </div>
                         <div>
-                            <label>Nama Staff</label>
+                            <label>Nama Staff <span class="text-red-500">*</span></label>
                             <input id="edit_name_staff" type="text" name="name_staff"
                                 placeholder="cth: Agus Pratama"
-                                class="w-full border rounded-lg p-2 mt-1">
+                                class="w-full border rounded-lg p-2 mt-1" required>
+                        </div>
+                    </div>
+
+                    {{-- Baris 2: Upload TTD + Periode --}}
+                    <div class="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label class="text-sm font-medium">Gambar Tanda Tangan <span class="text-xs text-gray-400">(opsional)</span></label>
+                            <input type="file" name="ttd_image" id="edit_ttd_image" accept="image/*"
+                                class="w-full border rounded-lg p-2 mt-1 text-sm"
+                                onchange="previewTtd(this, 'edit_ttd_preview')">
+                            <div id="edit_ttd_preview" class="mt-2">
+                                <img id="edit_ttd_preview_img" src="" alt="TTD saat ini" class="max-h-16 border rounded hidden">
+                                <p id="edit_ttd_preview_label" class="text-xs text-gray-400 mt-1 hidden">TTD tersimpan</p>
+                            </div>
                         </div>
                         <div>
-                            <label>Periode</label>
+                            <label>Periode <span class="text-red-500">*</span></label>
                             <div class="flex mt-1">
                                 <input id="edit_periode" type="number" name="periode"
-                                    placeholder="cth: 12"
+                                    placeholder="cth: 12" required min="1"
                                     class="w-full border border-r-0 rounded-l-lg p-2">
                                 <select id="edit_periode_satuan" name="periode_satuan"
                                     class="border border-l-0 rounded-r-lg px-3 py-2 bg-gray-100 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400">
@@ -824,6 +849,7 @@
                         start_date:  e.detail.startDate,
                         end_date:    e.detail.endDate,
                     };
+                    if (e.detail.specificYear) filters.specific_year = e.detail.specificYear;
                     if (!penawaranChartManager.hasChart('penawaranBarChart')) {
                         initPenawaranCharts(filters);
                     } else {
@@ -860,6 +886,27 @@
         </script>
 
         <script>
+
+            // ========================= TTD IMAGE PREVIEW =========================
+            function previewTtd(input, previewDivId) {
+                const div = document.getElementById(previewDivId);
+                if (!div) return;
+                const img = div.querySelector('img');
+                if (input.files && input.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (img) {
+                            img.src = e.target.result;
+                            img.classList.remove('hidden');
+                        } else {
+                            div.innerHTML = `<img src="${e.target.result}" alt="Preview TTD" class="max-h-16 border rounded">`;
+                        }
+                        div.classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(input.files[0]);
+                }
+            }
+            // ========================= END TTD IMAGE PREVIEW =========================
 
             // ========================= KETENTUAN HELPERS (textarea) =========================
             const DEFAULT_KETENTUAN = [
@@ -926,11 +973,17 @@
     }
             const kendaraanOptions = @json($kendaraanJson);
 
-            function buildKendaraanSelect(selectedId = '', excludeIds = []) {
+            function buildKendaraanSelect(selectedId = '', excludeIds = [], excludeMerks = []) {
                 let opts = '<option value="">Pilih Kendaraan</option>';
                 kendaraanOptions.forEach(k => {
-                    const disabled = excludeIds.includes(String(k.id)) && String(k.id) !== String(selectedId);
-                    opts += `<option value="${k.id}" data-tahun="${k.tahun}" data-harga="${k.harga}" ${k.id == selectedId ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${k.nama}</option>`;
+                    // Disable jika: id-nya sama dengan yang sudah dipilih di baris lain,
+                    // ATAU merk-nya sama dengan merk yang sudah dipilih di baris lain
+                    // (kecuali kalau ini adalah pilihan saat ini / selectedId)
+                    const isSelf    = String(k.id) === String(selectedId);
+                    const idUsed    = excludeIds.includes(String(k.id)) && !isSelf;
+                    const merkUsed  = excludeMerks.includes(k.merk) && !isSelf;
+                    const disabled  = idUsed || merkUsed;
+                    opts += `<option value="${k.id}" data-tahun="${k.tahun}" data-harga="${k.harga}" ${isSelf ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${k.nama}</option>`;
                 });
                 return opts;
             }
@@ -951,7 +1004,7 @@
                 return kend.harga * 30; // harga per bulan = harga_sewa_per_hari × 30
             }
 
-            // Kumpulkan semua kendaraan_id yang sudah dipakai di container
+            // Kumpulkan semua kendaraan_id yang sudah dipakai di container (kecuali baris exceptRow)
             function getUsedIds(container, exceptRow = null) {
                 const ids = [];
                 container.querySelectorAll('tr').forEach(row => {
@@ -962,14 +1015,29 @@
                 return ids;
             }
 
-            // Refresh semua select di container agar opsi duplikat di-disable
+            // Kumpulkan semua merk kendaraan yang sudah dipakai di container (kecuali baris exceptRow)
+            function getUsedMerks(container, exceptRow = null) {
+                const merks = [];
+                container.querySelectorAll('tr').forEach(row => {
+                    if (row === exceptRow) return;
+                    const sel = row.querySelector('.kendaraan');
+                    if (sel && sel.value) {
+                        const found = kendaraanOptions.find(k => String(k.id) === String(sel.value));
+                        if (found && found.merk) merks.push(found.merk);
+                    }
+                });
+                return merks;
+            }
+
+            // Refresh semua select di container agar opsi duplikat (id & merk) di-disable
             function refreshAllSelects(container) {
                 container.querySelectorAll('tr').forEach(row => {
                     const sel = row.querySelector('.kendaraan');
                     if (!sel) return;
-                    const used = getUsedIds(container, row);
+                    const used      = getUsedIds(container, row);
+                    const usedMerks = getUsedMerks(container, row);
                     const currentVal = sel.value;
-                    sel.innerHTML = buildKendaraanSelect(currentVal, used);
+                    sel.innerHTML = buildKendaraanSelect(currentVal, used, usedMerks);
                 });
             }
 
@@ -998,7 +1066,7 @@
             <tr>
                 <td class="border p-2">
                     <select name="kendaraan_id[]" class="kendaraan w-full border rounded p-2" required onchange="onEditKendaraanChange(this)">
-                        ${buildKendaraanSelect(item.kendaraan_id ?? '')}
+                        ${buildKendaraanSelect(item.kendaraan_id ?? '', [], [])}
                     </select>
                 </td>
                 <td class="border p-2">
@@ -1172,6 +1240,34 @@
             validateKendaraanItems('#itemContainer', document.getElementById('formTambah'));
             validateKendaraanItems('#editItemContainer', document.getElementById('formEdit'));
 
+            // Validasi manual form TAMBAH dengan highlight merah + alert
+            document.getElementById('formTambah').addEventListener('submit', function(e) {
+                const checks = [
+                    { name: 'tanggal_penawaran', label: 'Tanggal' },
+                    { name: 'kepada',            label: 'Kepada' },
+                    { name: 'up',                label: 'UP' },
+                    { name: 'perihal',           label: 'Perihal' },
+                    { name: 'staff',             label: 'Staff' },
+                    { name: 'name_staff',        label: 'Nama Staff' },
+                    { name: 'periode',           label: 'Masa Penawaran' },
+                ];
+                let invalid = [];
+                checks.forEach(function(c) {
+                    const el = this.querySelector('[name="' + c.name + '"]');
+                    if (!el) return;
+                    if (!el.value.trim()) {
+                        el.classList.add('border-red-500', 'ring-2', 'ring-red-200');
+                        invalid.push(c.label);
+                    } else {
+                        el.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
+                    }
+                }, this);
+                if (invalid.length > 0) {
+                    e.preventDefault();
+                    alert('Field berikut wajib diisi:\n• ' + invalid.join('\n• '));
+                }
+            });
+
             // ---- MODAL EDIT ----
             const modalEdit = document.getElementById('modalEdit');
             const formEdit = document.getElementById('formEdit');
@@ -1185,6 +1281,47 @@
             document.getElementById('closeEdit2').onclick = closeEdit;
             modalEdit.addEventListener('click', e => {
                 if (e.target === modalEdit) closeEdit();
+            });
+
+            // Validasi manual form edit dengan highlight merah + alert
+            formEdit.addEventListener('submit', function(e) {
+                const checks = [
+                    { id: 'edit_tanggal',       label: 'Tanggal' },
+                    { id: 'edit_kepada',         label: 'Kepada' },
+                    { id: 'edit_up',             label: 'UP' },
+                    { id: 'edit_perihal',        label: 'Perihal' },
+                    { id: 'edit_staff',          label: 'Staff' },
+                    { id: 'edit_name_staff',     label: 'Nama Staff' },
+                    { id: 'edit_periode',        label: 'Masa Penawaran' },
+                ];
+                let invalid = [];
+                checks.forEach(function(c) {
+                    const el = document.getElementById(c.id);
+                    if (!el) return;
+                    if (!el.value.trim()) {
+                        el.classList.add('border-red-500', 'ring-2', 'ring-red-200');
+                        invalid.push(c.label);
+                    } else {
+                        el.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
+                    }
+                });
+                if (invalid.length > 0) {
+                    e.preventDefault();
+                    alert('Field berikut wajib diisi:\n• ' + invalid.join('\n• '));
+                }
+            });
+
+            // Reset border merah saat user mulai mengetik
+            ['edit_tanggal','edit_kepada','edit_up','edit_perihal','edit_staff','edit_name_staff','edit_periode'].forEach(function(id) {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', function() {
+                        this.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
+                    });
+                    el.addEventListener('change', function() {
+                        this.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
+                    });
+                }
             });
 
             document.querySelectorAll('.editBtn').forEach(btn => {
@@ -1207,6 +1344,19 @@
                             document.getElementById('edit_periode').value = data.periode ?? '';
                             document.getElementById('edit_periode_satuan').value = data.periode_satuan ?? 'bulan';
 
+                            // Tampilkan preview TTD yang sudah tersimpan
+                            const previewImg   = document.getElementById('edit_ttd_preview_img');
+                            const previewLabel = document.getElementById('edit_ttd_preview_label');
+                            if (data.ttd_image) {
+                                previewImg.src = '/' + data.ttd_image;
+                                previewImg.classList.remove('hidden');
+                                previewLabel.classList.remove('hidden');
+                            } else {
+                                previewImg.src = '';
+                                previewImg.classList.add('hidden');
+                                previewLabel.classList.add('hidden');
+                            }
+
                             loadEditItems(data.items ?? []);
 
                             // Load ketentuan ke textarea — pakai default jika kosong di DB
@@ -1225,11 +1375,14 @@
                 rows.forEach(item => {
                     editItemContainer.innerHTML += buildEditRow(item);
                 });
+                // Setelah semua baris dimuat, refresh disabled state berdasarkan merk
+                refreshAllSelects(editItemContainer);
                 hitungEditTotal();
             }
 
             document.getElementById('btnTambahItemEdit').onclick = function() {
                 editItemContainer.innerHTML += buildEditRow();
+                refreshAllSelects(editItemContainer);
             };
 
             editItemContainer.addEventListener('click', function(e) {

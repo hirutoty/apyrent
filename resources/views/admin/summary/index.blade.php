@@ -559,21 +559,41 @@
 
                     {{-- CHART FILTER + CHARTS --}}
                     <div>
-                        <div class="flex items-center justify-between mb-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
                             <h3 class="text-sm font-bold text-gray-700">
                                 <i class="fa fa-chart-bar text-blue-500 mr-1"></i> Grafik Pembayaran
                             </h3>
                             {{-- Mini filter --}}
-                            <div class="flex items-center gap-1.5">
-                                @foreach(['year' => 'Tahun', 'month' => 'Bulan', 'week' => 'Minggu'] as $fv => $fl)
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                {{-- Tombol Hari Ini, Bulan & Minggu --}}
+                                @foreach(['today' => 'Hari Ini', 'month' => 'Bulan', 'week' => 'Minggu'] as $fv => $fl)
                                 <button type="button"
                                     onclick="changeDetailChartFilter('{{ $fv }}')"
                                     data-detail-filter="{{ $fv }}"
                                     class="detail-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                                        {{ $fv === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                                        bg-gray-100 text-gray-600 hover:bg-gray-200">
                                     {{ $fl }}
                                 </button>
                                 @endforeach
+
+                                {{-- Dropdown Tahun (menggantikan tombol "Tahun") --}}
+                                @php $detailCurrentYear = (int) date('Y'); @endphp
+                                <div class="relative flex items-center">
+                                    <i class="fa fa-calendar text-gray-400 text-[10px] absolute left-2.5 pointer-events-none z-10"></i>
+                                    <select
+                                        id="detailYearSelect"
+                                        onchange="changeDetailChartFilter('specific_year', this.value)"
+                                        class="detail-filter-year pl-7 pr-6 py-1.5 rounded-lg text-xs font-medium border cursor-pointer appearance-none transition-all
+                                            bg-blue-600 text-white border-blue-600"
+                                        style="min-width:90px">
+                                        @for ($y = $detailCurrentYear; $y >= 2000; $y--)
+                                            <option value="{{ $y }}" {{ $y === $detailCurrentYear ? 'selected' : '' }}>
+                                                {{ $y }}
+                                            </option>
+                                        @endfor
+                                    </select>
+                                    <i class="fa fa-chevron-down text-white text-[9px] absolute right-2 pointer-events-none"></i>
+                                </div>
                             </div>
                         </div>
 
@@ -994,7 +1014,7 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             // Init chart saat pertama kali halaman dibuka
-            initSummaryCharts({ filter_type: 'year' });
+            initSummaryCharts({ filter_type: 'specific_year', specific_year: new Date().getFullYear() });
 
             document.addEventListener('chartFilterChange', function (e) {
                 if (e.detail.filterId === 'summaryChartFilter') {
@@ -1003,6 +1023,7 @@
                         start_date: e.detail.startDate,
                         end_date: e.detail.endDate,
                     };
+                    if (e.detail.specificYear) filters.specific_year = e.detail.specificYear;
                     if (!summaryChartManager.hasChart('summaryBarChart')) {
                         initSummaryCharts(filters);
                     } else {
@@ -1176,37 +1197,69 @@
         async function initDetailCharts(kontrakId, filterType) {
             try {
                 detailChartManager = new ChartManager();
+                const currentYear = new Date().getFullYear();
                 await detailChartManager.initChartsFromAPI('summary', {
                     pie:  'detailPieChart',
                     bar:  'detailBarChart',
                     line: 'detailLineChart',
-                }, { filter_type: filterType, kontrak_id: kontrakId }, { accentLine: true });
+                }, { filter_type: 'specific_year', specific_year: currentYear, kontrak_id: kontrakId }, { accentLine: true });
             } catch (err) {
                 console.error('Error loading detail charts:', err);
             }
         }
 
-        async function changeDetailChartFilter(filterType) {
+        async function changeDetailChartFilter(filterType, yearValue) {
             if (!currentDetailKontrakId) return;
 
             // Update button active state
             document.querySelectorAll('.detail-filter-btn').forEach(btn => {
-                const isActive = btn.dataset.detailFilter === filterType;
-                btn.className = btn.className.replace(/bg-blue-600 text-white|bg-gray-100 text-gray-600 hover:bg-gray-200/g, '').trim();
-                btn.classList.add(...(isActive
-                    ? ['bg-blue-600', 'text-white']
-                    : ['bg-gray-100', 'text-gray-600', 'hover:bg-gray-200']));
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
             });
+
+            // Update year dropdown style
+            const yearSel = document.getElementById('detailYearSelect');
+
+            if (filterType === 'specific_year') {
+                // Year dropdown aktif
+                if (yearSel) {
+                    yearSel.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                    yearSel.classList.remove('bg-gray-100', 'text-gray-700', 'border-gray-200');
+                    // Chevron tetap putih (sudah inline)
+                }
+            } else {
+                // Tombol bulan/minggu aktif — reset year dropdown ke abu
+                if (yearSel) {
+                    yearSel.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+                    yearSel.classList.add('bg-gray-100', 'text-gray-700', 'border-gray-200');
+                }
+                // Aktifkan tombol yang diklik
+                const activeBtn = document.querySelector(`.detail-filter-btn[data-detail-filter="${filterType}"]`);
+                if (activeBtn) {
+                    activeBtn.classList.remove('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+                    activeBtn.classList.add('bg-blue-600', 'text-white');
+                }
+            }
 
             try {
                 if (!detailChartManager) {
                     detailChartManager = new ChartManager();
                 }
+
+                const filters = { kontrak_id: currentDetailKontrakId };
+
+                if (filterType === 'specific_year') {
+                    filters.filter_type   = 'specific_year';
+                    filters.specific_year = yearValue ?? (yearSel ? parseInt(yearSel.value) : new Date().getFullYear());
+                } else {
+                    filters.filter_type = filterType;
+                }
+
                 await detailChartManager.updateChartsFromAPI('summary', {
                     pie:  'detailPieChart',
                     bar:  'detailBarChart',
                     line: 'detailLineChart',
-                }, { filter_type: filterType, kontrak_id: currentDetailKontrakId }, { accentLine: true });
+                }, filters, { accentLine: true });
             } catch (err) {
                 console.error('Error updating detail charts:', err);
             }

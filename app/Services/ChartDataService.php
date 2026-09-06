@@ -102,6 +102,9 @@ class ChartDataService
             $data = $this->getCurrentMonthDailyBarData($query, $valueColumns, $dateColumn, $labels);
         } elseif ($autoDaily && $filterType === 'year' && $groupBy === 'month') {
             $data = $this->getCurrentYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels);
+        } elseif ($autoDaily && $filterType === 'specific_year' && $groupBy === 'month') {
+            $specificYear = (int) ($config['specific_year'] ?? Carbon::now()->year);
+            $data = $this->getSpecificYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels, $specificYear);
         } elseif ($autoDaily && $filterType === 'custom' && !empty($config['start_date']) && !empty($config['end_date'])) {
             $data = $this->getCustomRangeBarData($query, $valueColumns, $dateColumn, $labels, $config['start_date'], $config['end_date']);
         } elseif ($groupBy === 'month') {
@@ -335,6 +338,36 @@ class ChartDataService
     }
 
     /**
+     * Get bar data untuk tahun spesifik — 12 bulan dari tahun tersebut
+     */
+    private function getSpecificYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels, int $year)
+    {
+        $monthNames = [
+            "Jan $year","Feb $year","Mar $year","Apr $year",
+            "Mei $year","Jun $year","Jul $year","Agu $year",
+            "Sep $year","Okt $year","Nov $year","Des $year",
+        ];
+
+        $datasets = [];
+        foreach ($valueColumns as $index => $column) {
+            $columnData = [];
+            for ($m = 1; $m <= 12; $m++) {
+                $periodQuery  = (clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year);
+                $columnData[] = $this->resolveColumnValue($periodQuery, $column);
+            }
+            $datasets[] = [
+                'label' => $this->columnLabel($column, $index, $labels),
+                'data'  => $columnData,
+            ];
+        }
+
+        return [
+            'labels'   => $monthNames,
+            'datasets' => $datasets,
+        ];
+    }
+
+    /**
      * Get bar data untuk custom date range — selalu per tanggal (scrollable di frontend)
      */
     private function getCustomRangeBarData($query, $valueColumns, $dateColumn, $labels, $startDateStr, $endDateStr)
@@ -397,6 +430,9 @@ class ChartDataService
             $data = $this->getCurrentMonthDailyLineTrendData($query, $valueColumn, $dateColumn);
         } elseif ($autoDaily && $filterType === 'year' && $groupBy === 'month') {
             $data = $this->getCurrentYearMonthlyLineTrendData($query, $valueColumn, $dateColumn);
+        } elseif ($autoDaily && $filterType === 'specific_year' && $groupBy === 'month') {
+            $specificYear = (int) ($config['specific_year'] ?? Carbon::now()->year);
+            $data = $this->getSpecificYearMonthlyLineTrendData($query, $valueColumn, $dateColumn, $specificYear);
         } elseif ($autoDaily && $filterType === 'custom' && $startDate && $endDate) {
             $data = $this->getCustomRangeLineTrendData($query, $valueColumn, $dateColumn, $startDate, $endDate);
         } elseif ($groupBy === 'month') {
@@ -516,6 +552,26 @@ class ChartDataService
     }
 
     /**
+     * Line trend: tahun spesifik — per bulan (12 titik)
+     */
+    private function getSpecificYearMonthlyLineTrendData($query, $valueColumn, $dateColumn, int $year): array
+    {
+        $monthNames = [
+            "Jan $year","Feb $year","Mar $year","Apr $year",
+            "Mei $year","Jun $year","Jul $year","Agu $year",
+            "Sep $year","Okt $year","Nov $year","Des $year",
+        ];
+        $values = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $values[] = $this->resolveLineValue(
+                (clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year),
+                $valueColumn
+            );
+        }
+        return ['labels' => $monthNames, 'values' => $values];
+    }
+
+    /**
      * Line trend: custom range — per tanggal
      */
     private function getCustomRangeLineTrendData($query, $valueColumn, $dateColumn, $startDateStr, $endDateStr): array
@@ -602,6 +658,14 @@ class ChartDataService
                 $query->whereYear($dateColumn, $now->year);
                 break;
 
+            case 'specific_year':
+                if (!empty($customDates[0]) && is_numeric($customDates[0])) {
+                    $query->whereYear($dateColumn, (int) $customDates[0]);
+                } else {
+                    $query->whereYear($dateColumn, $now->year);
+                }
+                break;
+
             case 'custom':
                 if (!empty($customDates) && count($customDates) === 2) {
                     $startDate = Carbon::createFromFormat('d-m-Y', $customDates[0])->startOfDay();
@@ -637,6 +701,9 @@ class ChartDataService
             
             case 'year':
                 return 'Tahun Ini - ' . Carbon::now()->format('Y');
+            
+            case 'specific_year':
+                return 'Tahun ' . ($customDates[0] ?? Carbon::now()->year);
             
             case 'custom':
                 if (!empty($customDates) && count($customDates) === 2) {

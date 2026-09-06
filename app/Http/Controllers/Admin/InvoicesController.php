@@ -260,12 +260,21 @@ class InvoicesController extends Controller
         $kendaraans = Kendaraan::orderBy('merk')->get();
         $setting    = Setting::first();
 
+        // Stats dari seluruh database (tidak terpengaruh pagination)
+        $stats = [
+            'total'   => Invoice::count(),
+            'lunas'   => Invoice::where('status', 'lunas')->count(),
+            'partial' => Invoice::where('status', 'partial')->count(),
+            'overdue' => Invoice::where('status', 'overdue')->count(),
+        ];
+
         return view('admin.invoice.index', compact(
             'invoices',
             'penawarans',
             'kontraks',
             'kendaraans',
-            'setting'
+            'setting',
+            'stats'
         ));
     }
 
