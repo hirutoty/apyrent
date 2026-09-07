@@ -100,13 +100,6 @@ class DatabaseSeeder extends Seeder
             VendorPerformanceSeeder::class,
             // IT Technology
             ItTechnologySeeder::class,
-            // Invoice & Transaksi
-            PenawaranSeeder::class,
-            InvPenawaranSeeder::class,
-            InvKontrakSeeder::class,
-            InvoiceSeeder::class,
-            InvoicePaymentSeeder::class,
-            InvSummarySeeder::class,
             // HRD
             DepartemenSeeder::class,
             StrukturOrganisasiSeeder::class,

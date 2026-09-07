@@ -11,7 +11,7 @@ class InvKontrakSeeder extends Seeder
 {
     public function run(): void
     {
-        // Ambil penawaran yang statusnya approved/active/completed
+        // Ambil penawaran yang statusnya approved/active/completed (yang layak jadi kontrak)
         $penawarans = InvPenawaran::whereIn('status', ['approved', 'active', 'completed'])->get();
 
         $statusList = ['pending', 'approved', 'active', 'completed', 'terminated'];

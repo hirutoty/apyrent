@@ -13,10 +13,9 @@ class InvoiceSeeder extends Seeder
 {
     public function run(): void
     {
-        $kontraks = InvKontrak::with('penawaran')->get();
+        $kontraks = InvKontrak::with('penawaran')->whereIn('status', ['approved', 'active'])->get();
 
         $statusList        = ['draft', 'partial', 'overdue', 'lunas'];
-        $paymentStatusList = ['unpaid', 'paid'];
         $satuanList        = ['Bulan', 'Hari', 'Tahun'];
         $remakList         = [
             'Sewa Kendaraan Operasional',
@@ -26,6 +25,8 @@ class InvoiceSeeder extends Seeder
             'Asuransi Kendaraan',
             'Biaya Administrasi',
         ];
+
+        $counter = 1;
 
         foreach ($kontraks as $idx => $kontrak) {
             $p       = $kontrak->penawaran;
@@ -41,13 +42,13 @@ class InvoiceSeeder extends Seeder
                 'kontrak_id'      => $kontrak->id,
                 'kendaraan_id'    => null,
                 'type'            => ($idx % 3 === 0) ? 'perorangan' : 'perusahaan',
-                'invoice_no'      => 'INV-' . date('Y') . '-' . str_pad($idx + 1, 4, '0', STR_PAD_LEFT),
-                'order_no'        => 'ORD-' . str_pad($idx + 1, 4, '0', STR_PAD_LEFT),
+                'invoice_no'      => 'INV-' . $invDate->year . '-' . str_pad($counter, 4, '0', STR_PAD_LEFT),
+                'order_no'        => 'ORD-' . str_pad($counter, 4, '0', STR_PAD_LEFT),
                 'customer_name'   => $kontrak->pihak_kedua,
-                'customer_address'=> 'Jl. Contoh No.' . ($idx + 1) . ', Jakarta',
+                'customer_address'=> $p ? ($p->alamat ?? 'Alamat Customer') : 'Alamat Customer',
                 'contact_person'  => $kontrak->contact_kedua,
                 'telephone'       => '0812' . rand(10000000, 99999999),
-                'email'           => strtolower(str_replace(' ', '.', $kontrak->pihak_kedua ?? 'customer')) . '@email.com',
+                'email'           => $p ? ($p->email_person ?? 'customer@email.com') : 'customer@email.com',
                 'satuan'          => $satuanList[$idx % count($satuanList)],
                 'invoice_date'    => $invDate->toDateString(),
                 'pengirim'        => 'Divisi Finance',
@@ -84,6 +85,8 @@ class InvoiceSeeder extends Seeder
                     'price'      => $price,
                 ]);
             }
+
+            $counter++;
         }
     }
 }
