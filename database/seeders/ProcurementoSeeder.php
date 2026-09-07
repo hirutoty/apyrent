@@ -12,14 +12,14 @@ class ProcurementoSeeder extends Seeder
         $data = [
             [
                 'workflow_id'    => 'WF001',
-                'nama_workflow'  => 'Persetujuan Pengadaan Barang',
+                'nama_workflow'  => 'Persetujuan Pembayaran Barang',
                 'trigger_event'  => 'Pengajuan Barang',
                 'syarat_tambahan'=> 'Nominal > 5.000.000',
                 'aksi_dilakukan' => 'Kirim Email ke Manager',
                 'delay_aksi'     => '1 Hari',
                 'status'         => 'Aktif',
                 'pic'            => 'Procurement',
-                'catatan'        => 'Workflow approval pengadaan barang.',
+                'catatan'        => 'Workflow approval pembayaran barang.',
             ],
             [
                 'workflow_id'    => 'WF002',

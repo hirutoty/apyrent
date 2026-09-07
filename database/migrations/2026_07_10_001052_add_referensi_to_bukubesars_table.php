@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('bukubesars', function (Blueprint $table) {
-            // Kolom referensi untuk melacak sumber jurnal otomatis (misal: no_pr dari Purchasero)
+            // Kolom referensi untuk melacak sumber jurnal otomatis (misal: no_pr dari Pembayaran)
             $table->string('referensi')->nullable()->after('keterangan');
         });
     }

@@ -1,20 +1,20 @@
-# Testing Checklist: Supplier Refactor Integration
+﻿# Testing Checklist: Supplier Refactor Integration
 
 ## Objective
-Verify complete integration of refactored Supplier master data with Pengadaan (Purchase Order) module.
+Verify complete integration of refactored Supplier master data with Pembayaran (Purchase Order) module.
 
 ## Pre-Testing Verification ✅
 
 ### Database Structure
 - [x] Supplier table: kolom `nama_barang`, `jumlah_barang`, `harga_barang` sudah terhapus
 - [x] Supplier table: hanya memiliki `id`, `user_id`, `nama_supplier`, `no_telp`, `timestamps`
-- [x] Purchaseros table: kolom `supplier_id` (nullable) sudah ditambahkan
+- [x] Pembayarans table: kolom `supplier_id` (nullable) sudah ditambahkan
 - [x] Foreign key: `supplier_id` references `supplier(id)`
 
 ### Model Relations
-- [x] Supplier model: method `purchaseros()` exists (hasMany)
-- [x] Purchasero model: method `supplier()` exists (belongsTo)
-- [x] Purchasero model: `supplier_id` in fillable array
+- [x] Supplier model: method `pembayarans()` exists (hasMany)
+- [x] Pembayaran model: method `supplier()` exists (belongsTo)
+- [x] Pembayaran model: `supplier_id` in fillable array
 
 ### API & Routes
 - [x] Route `supplier.api.store` terdaftar (POST /admin/supplier/api/store)
@@ -47,10 +47,10 @@ Verify complete integration of refactored Supplier master data with Pengadaan (P
 
 ---
 
-### 2. Pengadaan Module - Dropdown Supplier
+### 2. Pembayaran Module - Dropdown Supplier
 
-#### View Create Pengadaan Form
-- [ ] Navigate to `/admin/purchasero/create`
+#### View Create Pembayaran Form
+- [ ] Navigate to `/admin/pembayaran/create`
 - [ ] Verify dropdown "Supplier" exists after field "Pemohon"
 - [ ] Verify dropdown shows all suppliers from database
 - [ ] Verify dropdown format: "Nama Supplier" (not showing phone in option text)
@@ -105,10 +105,10 @@ Verify complete integration of refactored Supplier master data with Pengadaan (P
 
 ---
 
-### 4. Create Pengadaan WITH Supplier
+### 4. Create Pembayaran WITH Supplier
 
 #### Complete Flow: New Supplier + New PR
-- [ ] Navigate to `/admin/purchasero/create`
+- [ ] Navigate to `/admin/pembayaran/create`
 - [ ] Fill all required header fields (tanggal, departemen, pemohon, alasan)
 - [ ] Click "+" to create new supplier via modal
 - [ ] Create supplier: "CV Integration Test", "081999888777"
@@ -116,19 +116,19 @@ Verify complete integration of refactored Supplier master data with Pengadaan (P
 - [ ] Add 2 items with complete details
 - [ ] Submit form
 - [ ] Verify success message with PR number (e.g., "PR-XXX berhasil diajukan")
-- [ ] Verify redirect to `/admin/purchasero`
+- [ ] Verify redirect to `/admin/pembayaran`
 
 #### Verify Database
-- [ ] Query database: `SELECT * FROM purchaseros WHERE no_pr = 'PR-XXX'`
+- [ ] Query database: `SELECT * FROM pembayarans WHERE no_pr = 'PR-XXX'`
 - [ ] Verify `supplier_id` is NOT NULL
 - [ ] Verify `supplier_id` matches the created supplier
 
 ---
 
-### 5. Create Pengadaan WITHOUT Supplier (Backward Compatibility)
+### 5. Create Pembayaran WITHOUT Supplier (Backward Compatibility)
 
 #### Test Optional Supplier
-- [ ] Navigate to `/admin/purchasero/create`
+- [ ] Navigate to `/admin/pembayaran/create`
 - [ ] Fill all required fields
 - [ ] Leave supplier dropdown as "-- Pilih Supplier --" (empty)
 - [ ] Add items
@@ -137,17 +137,17 @@ Verify complete integration of refactored Supplier master data with Pengadaan (P
 - [ ] Verify success message
 
 #### Verify Database
-- [ ] Query latest purchasero
+- [ ] Query latest pembayaran
 - [ ] Verify `supplier_id` IS NULL
 - [ ] Verify other fields saved correctly
 - [ ] This confirms backward compatibility (old flow still works)
 
 ---
 
-### 6. Edit Existing Pengadaan
+### 6. Edit Existing Pembayaran
 
 #### Edit PR with Supplier
-- [ ] Navigate to purchasero list
+- [ ] Navigate to pembayaran list
 - [ ] Find PR with status "Pending" or "Diajukan"
 - [ ] Click "Edit"
 - [ ] Verify dropdown shows currently selected supplier (if any)
@@ -172,7 +172,7 @@ Verify complete integration of refactored Supplier master data with Pengadaan (P
 
 ---
 
-### 7. View Pengadaan Details
+### 7. View Pembayaran Details
 
 #### PR with Supplier
 - [ ] View details of PR that has supplier_id
@@ -253,9 +253,9 @@ Expected Response:
 ---
 
 ## Regression Testing
-- [ ] Old purchaseros data (before refactor) still displays correctly
+- [ ] Old pembayarans data (before refactor) still displays correctly
 - [ ] Existing PR approval flow not affected
-- [ ] Charts/reports using purchaseros data still work
+- [ ] Charts/reports using pembayarans data still work
 - [ ] Export/print PR functionality not broken
 
 ---

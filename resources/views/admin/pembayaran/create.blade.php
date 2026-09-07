@@ -1,6 +1,6 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
-@section('title', 'Tambah Pengadaan')
+@section('title', 'Tambah Pembayaran')
 
 @section('content')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
@@ -9,24 +9,24 @@
 
     {{-- PAGE HEADER --}}
     <div class="flex items-center gap-3">
-        <a href="{{ route('purchasero.index') }}" 
+        <a href="{{ route('pembayaran.index') }}" 
            class="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors">
             <i class="fa fa-arrow-left text-sm"></i>
         </a>
         <div>
-            <h1 class="text-xl font-bold text-gray-800">Tambah Pengadaan</h1>
-            <p class="text-xs text-gray-500 mt-0.5">Buat permintaan pengadaan barang & jasa dengan multiple items</p>
+            <h1 class="text-xl font-bold text-gray-800">Tambah Pembayaran</h1>
+            <p class="text-xs text-gray-500 mt-0.5">Buat permintaan pembayaran barang & jasa dengan multiple items</p>
         </div>
     </div>
 
-    <form action="{{ route('purchasero.store') }}" method="POST" enctype="multipart/form-data">
+    <form action="{{ route('pembayaran.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
 
-        {{-- SECTION 1: HEADER PENGADAAN --}}
+        {{-- SECTION 1: HEADER PEMBAYARAN --}}
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
             <h2 class="text-sm font-bold text-gray-700 flex items-center gap-2">
                 <span class="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-xs">1</span>
-                Informasi Pengadaan
+                Informasi Pembayaran
             </h2>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -85,24 +85,24 @@
                     @error('pemohon')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
 
-                {{-- Tipe Pengadaan --}}
+                {{-- Tipe Pembayaran --}}
                 @php
                     $isProduksi = ($role === 'produksi');
-                    $defaultTipe = old('tipe_pengadaan', 'belanja');
+                    $defaultTipe = old('tipe_pembayaran', 'belanja');
                 @endphp
 
                 {{-- Non-produksi & non-superadmin: hidden, selalu belanja --}}
                 @if(!$isProduksi && $role !== 'superadmin')
-                    <input type="hidden" name="tipe_pengadaan" value="belanja">
+                    <input type="hidden" name="tipe_pembayaran" value="belanja">
                 @elseif($isProduksi)
                 {{-- Produksi: 2 tombol toggle --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pengadaan</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pembayaran</label>
                     <div class="flex gap-2">
                         <label id="btn_belanja"
                             class="flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer transition-colors {{ $defaultTipe === 'belanja' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}"
                             onclick="switchTipe('belanja')">
-                            <input type="radio" name="tipe_pengadaan" id="radio_belanja" value="belanja"
+                            <input type="radio" name="tipe_pembayaran" id="radio_belanja" value="belanja"
                                 {{ $defaultTipe === 'belanja' ? 'checked' : '' }} class="hidden">
                             <i class="fa fa-shopping-bag text-xs"></i>
                             <span class="text-sm font-medium">Belanja</span>
@@ -110,7 +110,7 @@
                         <label id="btn_service"
                             class="flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer transition-colors {{ $defaultTipe === 'service' ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}"
                             onclick="switchTipe('service')">
-                            <input type="radio" name="tipe_pengadaan" id="radio_service" value="service"
+                            <input type="radio" name="tipe_pembayaran" id="radio_service" value="service"
                                 {{ $defaultTipe === 'service' ? 'checked' : '' }} class="hidden">
                             <i class="fa fa-wrench text-xs"></i>
                             <span class="text-sm font-medium">Service Kendaraan</span>
@@ -120,13 +120,13 @@
                 @else
                 {{-- Superadmin: dropdown (bisa muncul toggle dinamis saat pilih Produksi) --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pengadaan</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pembayaran</label>
                     <div id="tipe_toggle_wrapper" class="hidden">
                         <div class="flex gap-2">
                             <label id="btn_belanja"
                                 class="flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer transition-colors {{ $defaultTipe === 'belanja' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}"
                                 onclick="switchTipe('belanja')">
-                                <input type="radio" name="tipe_pengadaan" id="radio_belanja" value="belanja"
+                                <input type="radio" name="tipe_pembayaran" id="radio_belanja" value="belanja"
                                     {{ $defaultTipe === 'belanja' ? 'checked' : '' }} class="hidden">
                                 <i class="fa fa-shopping-bag text-xs"></i>
                                 <span class="text-sm font-medium">Belanja</span>
@@ -134,7 +134,7 @@
                             <label id="btn_service"
                                 class="flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer transition-colors {{ $defaultTipe === 'service' ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}"
                                 onclick="switchTipe('service')">
-                                <input type="radio" name="tipe_pengadaan" id="radio_service" value="service"
+                                <input type="radio" name="tipe_pembayaran" id="radio_service" value="service"
                                     {{ $defaultTipe === 'service' ? 'checked' : '' }} class="hidden">
                                 <i class="fa fa-wrench text-xs"></i>
                                 <span class="text-sm font-medium">Service Kendaraan</span>
@@ -142,7 +142,7 @@
                         </div>
                     </div>
                     <div id="tipe_belanja_hidden" class="{{ $defaultTipe === 'service' ? 'hidden' : '' }}">
-                        <input type="hidden" id="hidden_tipe_belanja" name="tipe_pengadaan" value="belanja">
+                        <input type="hidden" id="hidden_tipe_belanja" name="tipe_pembayaran" value="belanja">
                         <p class="text-xs text-gray-400 italic">Pilih departemen Produksi untuk mengaktifkan mode Service</p>
                     </div>
                 </div>
@@ -150,7 +150,7 @@
 
                 {{-- Kendaraan (muncul saat service) — hanya relevan untuk produksi/superadmin --}}
                 @if($isProduksi || $role === 'superadmin')
-                <div id="field_kendaraan" class="{{ old('tipe_pengadaan')==='service' ? '' : 'hidden' }}">
+                <div id="field_kendaraan" class="{{ old('tipe_pembayaran')==='service' ? '' : 'hidden' }}">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Kendaraan <span class="text-red-500">*</span>
                     </label>
@@ -172,8 +172,8 @@
                 </div>
                 @endif
 
-                {{-- Supplier (selalu tampil, label berubah sesuai mode) --}}
-                <div id="field_supplier">
+                {{-- Supplier (hanya untuk belanja) --}}
+                <div id="field_supplier" class="{{ old('tipe_pembayaran')==='service' ? 'hidden' : '' }}">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         <span id="label_supplier">Supplier</span>
                         @php $supplierCount = \App\Models\Supplier::count(); @endphp
@@ -226,7 +226,7 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Alasan Permintaan/Keluhan <span class="text-red-500">*</span>
                     </label>
-                    <textarea name="alasan_permintaan" rows="3" required placeholder="Jelaskan alasan dan kebutuhan pengadaan..."
+                    <textarea name="alasan_permintaan" rows="3" required placeholder="Jelaskan alasan dan kebutuhan pembayaran..."
                         class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('alasan_permintaan') }}</textarea>
                     @error('alasan_permintaan')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
@@ -235,7 +235,7 @@
         </div>
 
         {{-- SECTION 2: ITEMS (Belanja) --}}
-        <div id="section_belanja" class="{{ old('tipe_pengadaan')==='service' ? 'hidden' : '' }} bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div id="section_belanja" class="{{ old('tipe_pembayaran')==='service' ? 'hidden' : '' }} bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
             <div class="flex items-center justify-between">
                 <h2 class="text-sm font-bold text-gray-700 flex items-center gap-2">
                     <span class="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-xs">2</span>
@@ -255,12 +255,49 @@
             <div id="items-container" class="space-y-4"></div>
             <div id="empty-items-hint" class="text-center py-6 text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
                 <i class="fa fa-shopping-cart text-gray-300 text-2xl mb-2 block"></i>
-                Klik "+ Tambah Barang" untuk menambahkan item pengadaan
+                Klik "+ Tambah Barang" untuk menambahkan item pembayaran
+            </div>
+        </div>
+
+        {{-- SECTION 2: INFORMASI SERVICE --}}
+        <div id="section_service" class="{{ old('tipe_pembayaran')==='service' ? '' : 'hidden' }} bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <h2 class="text-sm font-bold text-gray-700 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-xs">2</span>
+                Informasi Service
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Service <span class="text-red-500">*</span></label>
+                    <input type="date" name="tanggal_service" value="{{ old('tanggal_service', date('Y-m-d')) }}"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    @error('tanggal_service')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kilometer Saat Ini <span class="text-red-500">*</span></label>
+                    <input type="number" name="kilometer" id="input_kilometer" value="{{ old('kilometer', 0) }}" min="0"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    @error('kilometer')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keluhan</label>
+                    <textarea name="keluhan" rows="3" placeholder="Deskripsikan keluhan kendaraan..."
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keluhan') }}</textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bukti Pembayaran</label>
+                    <input type="file" name="bukti_pembayaran" accept=".jpg,.jpeg,.png,.pdf"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Lampiran Tambahan</label>
+                    <input type="file" name="lampiran_tambahan" multiple accept=".jpg,.jpeg,.png,.pdf"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100">
+                </div>
             </div>
         </div>
 
         {{-- SECTION 3: PART / KOMPONEN (Service) --}}
-        <div id="section_parts" class="{{ old('tipe_pengadaan')==='service' ? '' : 'hidden' }} bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div id="section_parts" class="{{ old('tipe_pembayaran')==='service' ? '' : 'hidden' }} bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
             <div class="flex items-center justify-between">
                 <h2 class="text-sm font-bold text-gray-700 flex items-center gap-2">
                     <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-xs">2</span>
@@ -281,7 +318,7 @@
                     <i class="fa fa-triangle-exclamation mr-1"></i> Peringatan: Beberapa part melebihi Service Limit
                 </p>
                 <ul id="parts_over_limit_list" class="text-xs text-red-600 space-y-0.5 list-disc ml-4"></ul>
-                <p class="text-xs text-red-500 mt-1.5 italic">Pengadaan tetap bisa disubmit, namun akan tercatat sebagai overservice.</p>
+                <p class="text-xs text-red-500 mt-1.5 italic">Pembayaran tetap bisa disubmit, namun akan tercatat sebagai overservice.</p>
             </div>
             @error('parts')<div class="text-xs text-red-500">{{ $message }}</div>@enderror
             <div id="parts-container" class="space-y-4"></div>
@@ -326,7 +363,7 @@
 
         {{-- ACTION BUTTONS --}}
         <div class="flex items-center justify-end gap-3">
-            <a href="{{ route('purchasero.index') }}"
+            <a href="{{ route('pembayaran.index') }}"
                 class="px-5 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">
                 Batal
             </a>
@@ -336,7 +373,7 @@
                 @if(auth()->user()->role === 'superadmin')
                     Simpan & Ajukan
                 @else
-                    Simpan Pengadaan
+                    Simpan Pembayaran
                 @endif
             </button>
         </div>
@@ -377,7 +414,7 @@ function switchTipe(val) {
             if (radioService) radioService.checked = true;
         }
     }
-    onTipePengadaanChange(val);
+    onTipePembayaranChange(val);
 }
 
 // ── Superadmin: saat pilih departemen → tampil/sembunyikan toggle service ──
@@ -402,12 +439,12 @@ function onDepartemenChange(deptVal) {
         if (hiddenBelanja) hiddenBelanja.disabled = false;
         // Reset ke belanja
         switchTipe('belanja');
-        onTipePengadaanChange('belanja');
+        onTipePembayaranChange('belanja');
         if (fieldKendaraan) fieldKendaraan.classList.add('hidden');
     }
 }
 
-function onTipePengadaanChange(val) {
+function onTipePembayaranChange(val) {
     const isService = val === 'service';
     document.getElementById('section_belanja').classList.toggle('hidden', isService);
     document.getElementById('section_parts').classList.toggle('hidden', !isService);
@@ -438,7 +475,7 @@ function onTipePengadaanChange(val) {
 
 // ── Load daftar kendaraan via AJAX ────────────────────────────
 function loadKendaraan() {
-    fetch('{{ route("purchasero.api.kendaraan") }}')
+    fetch('{{ route("pembayaran.api.kendaraan") }}')
         .then(r => r.json())
         .then(res => {
             if (!res.success) return;
@@ -464,7 +501,7 @@ function onKendaraanChange(kendaraanId) {
     }
 
     // Load kategori + limit untuk kendaraan ini
-    fetch(`{{ route("purchasero.api.category-limit") }}?kendaraan_id=${kendaraanId}`)
+    fetch(`{{ route("pembayaran.api.category-limit") }}?kendaraan_id=${kendaraanId}`)
         .then(r => r.json())
         .then(res => {
             if (res.success) {
@@ -763,22 +800,22 @@ function recalcPartsTotal() {
 // ── Init ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
     let tipeAktif = 'belanja';
-    const radioChecked = document.querySelector('input[name="tipe_pengadaan"]:checked');
-    const selectTipe   = document.getElementById('tipe_pengadaan');
-    const hiddenTipe   = document.querySelector('input[type="hidden"][name="tipe_pengadaan"]');
+    const radioChecked = document.querySelector('input[name="tipe_pembayaran"]:checked');
+    const selectTipe   = document.getElementById('tipe_pembayaran');
+    const hiddenTipe   = document.querySelector('input[type="hidden"][name="tipe_pembayaran"]');
 
     if (radioChecked)      tipeAktif = radioChecked.value;
     else if (selectTipe)   tipeAktif = selectTipe.value;
     else if (hiddenTipe)   tipeAktif = hiddenTipe.value;
 
     if (tipeAktif === 'service') {
-        onTipePengadaanChange('service');
+        onTipePembayaranChange('service');
         loadKendaraan();
         addPartRow();
     } else {
         addItemRow();
         // Pastikan section service ter-disable dari awal
-        onTipePengadaanChange('belanja');
+        onTipePembayaranChange('belanja');
     }
 });
 

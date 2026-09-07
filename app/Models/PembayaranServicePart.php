@@ -5,14 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class PurchaseroServicePart extends Model
+class PembayaranServicePart extends Model
 {
     use HasFactory;
 
-    protected $table = 'purchasero_service_parts';
+    protected $table = 'pembayaran_service_parts';
 
     protected $fillable = [
-        'purchasero_id',
+        'pembayaran_id',
         'kendaraan_id',
         'category_id',
         'nama_part',
@@ -32,15 +32,15 @@ class PurchaseroServicePart extends Model
     ];
 
     protected $casts = [
-        'tgl_pasang'    => 'date',
+        'tgl_pasang'       => 'date',
         'kilometer_pasang' => 'integer',
-        'biaya'         => 'integer',
-        'is_over_limit' => 'boolean',
+        'biaya'            => 'integer',
+        'is_over_limit'    => 'boolean',
     ];
 
-    public function purchasero()
+    public function pembayaran()
     {
-        return $this->belongsTo(Purchasero::class);
+        return $this->belongsTo(Pembayaran::class);
     }
 
     public function kendaraan()

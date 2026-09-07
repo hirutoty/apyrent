@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Bukubesar;
 use App\Models\Keuangan;
 use App\Models\PurchaseOrder;
+use App\Services\PengeluaranInterceptorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -28,15 +29,54 @@ class PurchaseOrderController extends Controller
         ));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, PengeluaranInterceptorService $interceptor)
     {
-        $validated = $this->validateData($request);
+        $request->validate([
+            'tanggal_po'     => 'required|date',
+            'vendor'         => 'required|string|max:255',
+            'terkait_rfq'    => 'nullable|string|max:255',
+            'total_barang'   => 'required|integer|min:1',
+            'total_harga'    => 'required|integer|min:0',
+            'tanggal_kirim'  => 'nullable|date',
+            'tanggal_terima' => 'nullable|date',
+            'catatan'        => 'nullable|string',
+            'nama_bank'      => 'nullable|string|max:255',
+            'no_rekening'    => 'nullable|string|max:100',
+            'nama_rekening'  => 'nullable|string|max:255',
+            'informasi'      => 'nullable|string',
+        ]);
 
-        // po_id di-generate otomatis lewat Model::boot()
-        PurchaseOrder::create($validated);
+        // Resubmit dari penolakan
+        if ($request->filled('edit_pembayaran')) {
+            $pembayaranId = $request->input('edit_pembayaran');
+            $interceptor->resubmitToPembayaran($pembayaranId, $request, 'purchase_order');
 
-        return redirect()->route('purchase-order.index')
-            ->with('success', 'Purchase Order berhasil ditambahkan.');
+            return redirect()
+                ->route('pembayaran.index')
+                ->with('success', 'Pengajuan Purchase Order berhasil diajukan ulang. Menunggu approval.');
+        }
+
+        // Intercept & kirim ke Pembayaran
+        try {
+            $interceptedData = $interceptor->intercept($request, 'purchase_order');
+            $pembayaran      = $interceptor->saveToPembayaran($interceptedData, 'purchase_order');
+
+            // Upload temp files jika ada
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $pembayaran->id);
+            if (!empty($uploadedFiles)) {
+                $sourceData               = $pembayaran->source_data;
+                $sourceData['temp_files'] = $uploadedFiles;
+                $pembayaran->update(['source_data' => $sourceData]);
+            }
+
+            return redirect()
+                ->route('pembayaran.index')
+                ->with('success', 'Purchase Order ' . $pembayaran->no_pr . ' berhasil diajukan ke Pembayaran. Menunggu approval Superadmin.');
+
+        } catch (\Exception $e) {
+            \Log::error('Error intercepting Purchase Order: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
     }
 
     public function update(Request $request, PurchaseOrder $purchaseOrder)

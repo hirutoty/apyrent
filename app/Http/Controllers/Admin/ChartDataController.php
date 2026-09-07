@@ -73,8 +73,8 @@ class ChartDataController extends Controller
                 $query->whereHas('parts', fn($p) => $p->where('category_id', $categoryId));
             }
 
-            // Apply departemen filter for purchasero page
-            if ($departemen && $page === 'purchasero') {
+            // Apply departemen filter for pembayaran page
+            if ($departemen && $page === 'pembayaran') {
                 $query->where('departemen', $departemen);
             }
 
@@ -191,7 +191,7 @@ class ChartDataController extends Controller
             'pajak-kendaraan' => $this->getPajakKendaraanConfig(),
             'stnk' => $this->getStnkConfig(),
             'service-history' => $this->getServiceHistoryConfig(),
-            'purchasero'      => $this->getPurchaseroConfig(),
+            'pembayaran'      => $this->getPembayaranConfig(),
             'kendaraan' => $this->getKendaraanConfig(),
             'kendaraan-show' => $this->getKendaraanShowConfig(),
             'asuransi-kendaraan' => $this->getAsuransiKendaraanConfig(),
@@ -256,7 +256,7 @@ class ChartDataController extends Controller
             'pajak-kendaraan' => \App\Models\PajakKendaraan::query(),
             'stnk' => \App\Models\StnkHistory::query(),
             'service-history' => \App\Models\ServiceHistory::query(),
-            'purchasero'      => \App\Models\Purchasero::query(),
+            'pembayaran'      => \App\Models\Pembayaran::query(),
             'kendaraan' => \App\Models\Kendaraan::query(),
             'kendaraan-show' => \App\Models\ServiceHistory::query(),
             'asuransi-kendaraan' => \App\Models\AsuransiKendaraan::query(),
@@ -2166,9 +2166,9 @@ class ChartDataController extends Controller
     }
 
     /**
-     * Chart config for Purchasero (Pengadaan) page
+     * Chart config for Pembayaran page
      */
-    protected function getPurchaseroConfig(): array
+    protected function getPembayaranConfig(): array
     {
         return [
             'dateColumn' => 'tanggal',
@@ -2181,7 +2181,7 @@ class ChartDataController extends Controller
                 'colors'      => ['#3b82f6', '#f59e0b', '#10b981', '#ef4444'],
             ],
             'bar' => [
-                'title'        => 'Nominal Pengadaan per Bulan',
+                'title'        => 'Nominal Pembayaran per Bulan',
                 'groupBy'      => 'month',
                 'autoDaily'    => true,
                 'valueColumns' => ['nominal'],
@@ -2192,7 +2192,7 @@ class ChartDataController extends Controller
                 'colors'       => ['#3b82f6'],
             ],
             'line' => [
-                'title'       => 'Trend Nominal Pengadaan',
+                'title'       => 'Trend Nominal Pembayaran',
                 'groupBy'     => 'month',
                 'valueColumn' => 'nominal',
                 'aggregation' => 'sum',
@@ -2203,7 +2203,7 @@ class ChartDataController extends Controller
             ],
             'stats' => [
                 [
-                    'label'  => 'Total Pengadaan',
+                    'label'  => 'Total Pembayaran',
                     'type'   => 'count',
                     'column' => 'id',
                     'format' => 'number',

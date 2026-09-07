@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Purchasero;
+use App\Models\Pembayaran;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -11,11 +11,11 @@ use Illuminate\Support\Facades\Storage;
 class PengeluaranInterceptorService
 {
     /**
-     * Intercept form submit dan extract data untuk disimpan ke Purchasero
+     * Intercept form submit dan extract data untuk disimpan ke Pembayaran
      *
      * @param Request $request
      * @param string $sourceType (asuransi_kendaraan, pajak, service_part, gps, kir, stnk, service_asuransi)
-     * @return array Data yang sudah diformat untuk Purchasero
+     * @return array Data yang sudah diformat untuk Pembayaran
      */
     public function intercept(Request $request, string $sourceType): array
     {
@@ -43,22 +43,22 @@ class PengeluaranInterceptorService
     }
 
     /**
-     * Save data ke Purchasero table
+     * Save data ke Pembayaran table
      *
      * @param array $data Data hasil intercept
      * @param string $sourceType
-     * @return Purchasero
+     * @return Pembayaran
      */
-    public function saveToPurchasero(array $data, string $sourceType): Purchasero
+    public function saveToPembayaran(array $data, string $sourceType): Pembayaran
     {
         DB::beginTransaction();
         
         try {
-            $purchasero = Purchasero::create([
+            $pembayaran = Pembayaran::create([
                 'no_pr' => $this->generateNoPR($sourceType),
                 'tanggal' => now(),
                 'departemen' => $data['departemen'],
-                'tipe_pengadaan' => 'service', // All pengeluaran (vehicle expenses) use 'service' type
+                'tipe_pembayaran' => 'service', // All pengeluaran (vehicle expenses) use 'service' type
                 'pemohon' => $data['pemohon'],
                 'alasan_permintaan' => $data['alasan_permintaan'],
                 'nominal' => $data['nominal'],
@@ -75,7 +75,7 @@ class PengeluaranInterceptorService
             
             DB::commit();
             
-            return $purchasero;
+            return $pembayaran;
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -86,16 +86,16 @@ class PengeluaranInterceptorService
      * Upload temporary files untuk pengeluaran yang menunggu approval
      *
      * @param Request $request
-     * @param int $purchaseroId
+     * @param int $pembayaranId
      * @return array Array of file metadata
      */
-    public function uploadTemporaryFiles(Request $request, int $purchaseroId): array
+    public function uploadTemporaryFiles(Request $request, int $pembayaranId): array
     {
         $uploadedFiles = [];
         $timestamp = time();
         
         // Directory untuk temp files
-        $tempDir = "purchasero/temp/{$purchaseroId}";
+        $tempDir = "pembayaran/temp/{$pembayaranId}";
         
         // Upload bukti files
         if ($request->hasFile('bukti')) {
@@ -169,12 +169,13 @@ class PengeluaranInterceptorService
             'kir' => 'KIR',
             'stnk' => 'STN',
             'service_asuransi' => 'SAS',
+            'purchase_order'   => 'PO',
         ];
         
         $typeCode = $typeMap[$sourceType] ?? 'PGL';
         
         // Get last PR for this type
-        $lastPR = Purchasero::where('source_type', $sourceType)
+        $lastPR = Pembayaran::where('source_type', $sourceType)
             ->where('no_pr', 'like', "PR-{$typeCode}-%")
             ->orderBy('id', 'desc')
             ->first();
@@ -209,6 +210,7 @@ class PengeluaranInterceptorService
             'kir' => 'Pembayaran KIR Kendaraan',
             'stnk' => 'Pembayaran STNK Kendaraan',
             'service_asuransi' => 'Klaim Asuransi Service - ' . ($data['keterangan'] ?? 'N/A'),
+            'purchase_order'   => 'Purchase Order - ' . ($data['vendor'] ?? 'N/A'),
             default => 'Pengeluaran Kendaraan',
         };
     }
@@ -226,36 +228,37 @@ class PengeluaranInterceptorService
             'asuransi_kendaraan' => floatval($data['premi'] ?? 0),
             'pajak' => floatval($data['nominal'] ?? 0),
             'service_part' => floatval($data['biaya'] ?? 0),
-            'gps' => floatval($data['biaya'] ?? 0),
+            'gps' => collect($data['gps_items'] ?? [])->sum(fn($item) => floatval($item['biaya_sewa'] ?? 0)),
             'kir' => floatval($data['biaya'] ?? 0),
             'stnk' => floatval($data['biaya'] ?? 0),
             'service_asuransi' => floatval($data['biaya'] ?? 0),
+            'purchase_order'   => floatval($data['total_harga'] ?? 0),
             default => 0,
         };
     }
 
     /**
-     * Resubmit rejected purchasero dengan data baru
-     * Update existing purchasero record, reset status to Pending, update source_data
+     * Resubmit rejected pembayaran dengan data baru
+     * Update existing pembayaran record, reset status to Pending, update source_data
      *
-     * @param int $purchaseroId
+     * @param int $pembayaranId
      * @param Request $request
      * @param string $sourceType
-     * @return Purchasero
+     * @return Pembayaran
      */
-    public function resubmitToPurchasero(int $purchaseroId, Request $request, string $sourceType): Purchasero
+    public function resubmitToPembayaran(int $pembayaranId, Request $request, string $sourceType): Pembayaran
     {
         DB::beginTransaction();
         
         try {
-            $purchasero = Purchasero::findOrFail($purchaseroId);
+            $pembayaran = Pembayaran::findOrFail($pembayaranId);
             
             // Validation: Only rejected pengeluaran can be resubmitted
-            if ($purchasero->status !== 'Ditolak') {
+            if ($pembayaran->status !== 'Ditolak') {
                 throw new \Exception('Hanya pengajuan yang ditolak yang dapat diajukan ulang.');
             }
             
-            if (!$purchasero->can_edit) {
+            if (!$pembayaran->can_edit) {
                 throw new \Exception('Pengajuan ini tidak dapat diedit.');
             }
             
@@ -263,13 +266,13 @@ class PengeluaranInterceptorService
             $interceptedData = $this->intercept($request, $sourceType);
             
             // Delete old temp files
-            $this->deleteTemporaryFiles($purchaseroId);
+            $this->deleteTemporaryFiles($pembayaranId);
             
             // Upload new temp files
-            $uploadedFiles = $this->uploadTemporaryFiles($request, $purchaseroId);
+            $uploadedFiles = $this->uploadTemporaryFiles($request, $pembayaranId);
             
-            // Update purchasero
-            $purchasero->update([
+            // Update pembayaran
+            $pembayaran->update([
                 'source_data' => array_merge($interceptedData['source_data'], ['temp_files' => $uploadedFiles]),
                 'alasan_permintaan' => $interceptedData['alasan_permintaan'],
                 'nominal' => $interceptedData['nominal'],
@@ -283,7 +286,7 @@ class PengeluaranInterceptorService
             
             DB::commit();
             
-            return $purchasero;
+            return $pembayaran;
             
         } catch (\Exception $e) {
             DB::rollBack();
@@ -292,14 +295,14 @@ class PengeluaranInterceptorService
     }
 
     /**
-     * Handle perpanjang flow - create purchasero for renewal approval
+     * Handle perpanjang flow - create pembayaran for renewal approval
      * 
      * @param Request $request
      * @param string $sourceType
      * @param mixed $existingRecord (GPS/Asuransi/Pajak/KIR/STNK record)
-     * @return Purchasero
+     * @return Pembayaran
      */
-    public function perpanjangViaPurchasero(Request $request, string $sourceType, $existingRecord): Purchasero
+    public function perpanjangViaPembayaran(Request $request, string $sourceType, $existingRecord): Pembayaran
     {
         DB::beginTransaction();
         
@@ -325,20 +328,20 @@ class PengeluaranInterceptorService
             // Modify alasan_permintaan untuk perpanjang
             $interceptedData['alasan_permintaan'] = 'Perpanjangan ' . $this->getSourceTypeName($sourceType);
             
-            // Save to Purchasero
-            $purchasero = $this->saveToPurchasero($interceptedData, $sourceType);
+            // Save to Pembayaran
+            $pembayaran = $this->saveToPembayaran($interceptedData, $sourceType);
             
             // Upload files
-            $uploadedFiles = $this->uploadTemporaryFiles($fakeRequest, $purchasero->id);
+            $uploadedFiles = $this->uploadTemporaryFiles($fakeRequest, $pembayaran->id);
             
             // Update source_data
-            $sourceData = $purchasero->source_data;
+            $sourceData = $pembayaran->source_data;
             $sourceData['temp_files'] = $uploadedFiles;
-            $purchasero->update(['source_data' => $sourceData]);
+            $pembayaran->update(['source_data' => $sourceData]);
             
             DB::commit();
             
-            return $purchasero;
+            return $pembayaran;
             
         } catch (\Exception $e) {
             DB::rollBack();
@@ -359,25 +362,26 @@ class PengeluaranInterceptorService
             'stnk' => 'STNK',
             'service_asuransi' => 'Service Asuransi',
             'service_part' => 'Service Part',
+            'purchase_order' => 'Purchase Order',
             default => ucfirst($sourceType),
         };
     }
 
     /**
-     * Delete temporary files untuk purchasero yang dibatalkan
+     * Delete temporary files untuk pembayaran yang dibatalkan
      *
-     * @param int $purchaseroId
+     * @param int $pembayaranId
      * @return bool
      */
-    public function deleteTemporaryFiles(int $purchaseroId): bool
+    public function deleteTemporaryFiles(int $pembayaranId): bool
     {
-        $tempDir = "purchasero/temp/{$purchaseroId}";
+        $tempDir = "pembayaran/temp/{$pembayaranId}";
         
         try {
             Storage::disk('public')->deleteDirectory($tempDir);
             return true;
         } catch (\Exception $e) {
-            \Log::error("Failed to delete temp files for purchasero {$purchaseroId}: " . $e->getMessage());
+            \Log::error("Failed to delete temp files for pembayaran {$pembayaranId}: " . $e->getMessage());
             return false;
         }
     }

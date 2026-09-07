@@ -5,17 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Purchasero extends Model
+class Pembayaran extends Model
 {
     use HasFactory;
 
-    protected $table = 'purchaseros';
+    protected $table = 'pembayarans';
 
     protected $fillable = [
         'no_pr',
         'tanggal',
         'departemen',
-        'tipe_pengadaan',
+        'tipe_pembayaran',
         'pemohon',
         'supplier_id',
         'barang_jasa',
@@ -62,11 +62,11 @@ class Purchasero extends Model
     }
 
     /**
-     * Cek apakah pengadaan ini tipe service
+     * Cek apakah pembayaran ini tipe service
      */
     public function isService(): bool
     {
-        return $this->tipe_pengadaan === 'service';
+        return $this->tipe_pembayaran === 'service';
     }
 
     /**
@@ -78,7 +78,7 @@ class Purchasero extends Model
     }
 
     /**
-     * Relation to Kendaraan (untuk pengadaan tipe service)
+     * Relation to Kendaraan (untuk pembayaran tipe service)
      */
     public function kendaraan()
     {
@@ -98,7 +98,7 @@ class Purchasero extends Model
      */
     public function items()
     {
-        return $this->hasMany(PurchaseroItem::class);
+        return $this->hasMany(PembayaranItem::class);
     }
 
     /**
@@ -106,7 +106,7 @@ class Purchasero extends Model
      */
     public function serviceParts()
     {
-        return $this->hasMany(PurchaseroServicePart::class);
+        return $this->hasMany(PembayaranServicePart::class);
     }
 
     /**
@@ -114,7 +114,7 @@ class Purchasero extends Model
      */
     public function getTotalNominalAttribute()
     {
-        if ($this->tipe_pengadaan === 'service') {
+        if ($this->tipe_pembayaran === 'service') {
             if ($this->serviceParts && $this->serviceParts->isNotEmpty()) {
                 return $this->serviceParts->sum('biaya');
             }
@@ -133,7 +133,7 @@ class Purchasero extends Model
      */
     public function approvals()
     {
-        return $this->hasMany(PurchaseroApproval::class)->orderBy('created_at', 'desc');
+        return $this->hasMany(PembayaranApproval::class)->orderBy('created_at', 'desc');
     }
 
     /**
@@ -141,7 +141,7 @@ class Purchasero extends Model
      */
     public function latestApproval()
     {
-        return $this->hasOne(PurchaseroApproval::class)->latestOfMany();
+        return $this->hasOne(PembayaranApproval::class)->latestOfMany();
     }
 
     /**
@@ -205,7 +205,7 @@ class Purchasero extends Model
             'kir' => 'KIR',
             'stnk' => 'STNK',
             'service_asuransi' => 'Service Asuransi',
-            default => $this->tipe_pengadaan ?? 'Belanja',
+            default => $this->tipe_pembayaran ?? 'Belanja',
         };
     }
 }

@@ -5,14 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class PurchaseroApproval extends Model
+class PembayaranApproval extends Model
 {
     use HasFactory;
 
-    protected $table = 'purchasero_approvals';
+    protected $table = 'pembayaran_approvals';
 
     protected $fillable = [
-        'purchasero_id',
+        'pembayaran_id',
         'user_id',
         'action',
         'catatan',
@@ -32,11 +32,11 @@ class PurchaseroApproval extends Model
     */
 
     /**
-     * Relasi ke Purchasero
+     * Relasi ke Pembayaran
      */
-    public function purchasero()
+    public function pembayaran()
     {
-        return $this->belongsTo(Purchasero::class);
+        return $this->belongsTo(Pembayaran::class);
     }
 
     /**

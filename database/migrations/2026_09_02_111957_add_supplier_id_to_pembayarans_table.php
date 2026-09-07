@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             $table->foreignId('supplier_id')
                 ->nullable()
                 ->after('pemohon')
@@ -25,7 +25,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             $table->dropForeign(['supplier_id']);
             $table->dropColumn('supplier_id');
         });

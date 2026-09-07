@@ -153,8 +153,8 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">RFQ Terkait</label>
                     <input type="text" name="terkait_rfq" id="f_terkait_rfq" placeholder="RFQ-001 (opsional)" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('terkait_rfq') }}"></div>
-                <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
-                    <select name="status_po" id="f_status_po" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <div id="statusRow"><label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span class="text-red-500">*</span></label>
+                    <select name="status_po" id="f_status_po" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">- Pilih Status -</option>
                         <option value="Pending" {{ old('status_po') == 'Pending' ? 'selected' : '' }}>Pending</option><option value="Approved" {{ old('status_po') == 'Approved' ? 'selected' : '' }}>Approved</option><option value="Closed" {{ old('status_po') == 'Closed' ? 'selected' : '' }}>Closed</option>
                     </select></div>
@@ -173,8 +173,44 @@
             </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan</label>
                 <textarea name="catatan" id="f_catatan" rows="3" placeholder="Catatan tambahan..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('catatan') }}</textarea></div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
-                <i class="fa fa-save"></i> Simpan Data
+
+            {{-- Rekening Bank (hanya tampil saat create) --}}
+            <div id="rekeningRow" class="border-t border-gray-100 pt-4 hidden">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                    <i class="bi bi-bank mr-1"></i> Informasi Rekening Pembayaran
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bank</label>
+                        <input type="text" name="nama_bank" id="f_nama_bank" placeholder="BCA, Mandiri, BNI..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Rekening</label>
+                        <input type="text" name="no_rekening" id="f_no_rekening" placeholder="1234567890"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik Rekening</label>
+                        <input type="text" name="nama_rekening" id="f_nama_rekening" placeholder="Nama sesuai rekening"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Informasi Tambahan</label>
+                        <input type="text" name="informasi" id="f_informasi" placeholder="Kode transfer, dll..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                </div>
+            </div>
+
+            {{-- Info banner (hanya tampil saat create) --}}
+            <div id="createBanner" class="hidden bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700">
+                <i class="fa fa-info-circle mr-1"></i>
+                Purchase Order ini akan dikirim ke <strong>Pembayaran</strong> untuk disetujui Superadmin sebelum dibuat.
+            </div>
+
+            <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+                <i class="fa fa-save" id="submitIcon"></i> <span id="submitLabel">Simpan Data</span>
             </button>
         </form>
     </div>
@@ -213,13 +249,35 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const mainModal=document.getElementById('mainModal'),mainForm=document.getElementById('mainForm'),methodContainer=document.getElementById('methodContainer'),idBox=document.getElementById('idBox'),createUrl="{{ route('purchase-order.store') }}";
-function openModal(){document.getElementById('modalTitle').innerText='Tambah PO';document.getElementById('modalSubtitle').innerText='PO ID akan dibuat otomatis';mainForm.action=createUrl;methodContainer.innerHTML='';idBox.classList.add('hidden');mainForm.reset();mainModal.classList.remove('hidden');mainModal.classList.add('flex');}
+function openModal(){
+    document.getElementById('modalTitle').innerText='Tambah PO';
+    document.getElementById('modalSubtitle').innerText='PO akan dikirim ke Pembayaran untuk approval';
+    mainForm.action=createUrl;
+    methodContainer.innerHTML='';
+    idBox.classList.add('hidden');
+    mainForm.reset();
+    // Show rekening & banner, hide status (create mode → goes to Pembayaran)
+    document.getElementById('statusRow').classList.add('hidden');
+    document.getElementById('rekeningRow').classList.remove('hidden');
+    document.getElementById('createBanner').classList.remove('hidden');
+    document.getElementById('submitIcon').className='fa fa-paper-plane';
+    document.getElementById('submitLabel').innerText='Ajukan ke Pembayaran';
+    mainModal.classList.remove('hidden');mainModal.classList.add('flex');
+}
 function closeModal(){mainModal.classList.add('hidden');mainModal.classList.remove('flex');}
 mainModal.addEventListener('click',e=>{if(e.target===mainModal)closeModal();});
 function triggerEdit(btn){
-    document.getElementById('modalTitle').innerText='Edit PO';document.getElementById('modalSubtitle').innerText='Perbarui data Purchase Order';
-    mainForm.action=btn.dataset.action;methodContainer.innerHTML='<input type="hidden" name="_method" value="PUT">';
+    document.getElementById('modalTitle').innerText='Edit PO';
+    document.getElementById('modalSubtitle').innerText='Perbarui data Purchase Order';
+    mainForm.action=btn.dataset.action;
+    methodContainer.innerHTML='<input type="hidden" name="_method" value="PUT">';
     document.getElementById('f_id_display').innerText=btn.dataset.po_id;idBox.classList.remove('hidden');
+    // Show status, hide rekening & banner (edit mode → direct update)
+    document.getElementById('statusRow').classList.remove('hidden');
+    document.getElementById('rekeningRow').classList.add('hidden');
+    document.getElementById('createBanner').classList.add('hidden');
+    document.getElementById('submitIcon').className='fa fa-save';
+    document.getElementById('submitLabel').innerText='Simpan Perubahan';
     document.getElementById('f_tanggal_po').value=btn.dataset.tanggal_po??'';
     document.getElementById('f_vendor').value=btn.dataset.vendor??'';
     document.getElementById('f_terkait_rfq').value=btn.dataset.terkait_rfq??'';

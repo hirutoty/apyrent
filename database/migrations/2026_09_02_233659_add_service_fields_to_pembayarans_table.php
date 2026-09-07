@@ -8,14 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
-            // Tipe pengadaan: belanja atau service (default belanja)
-            $table->enum('tipe_pengadaan', ['belanja', 'service'])->default('belanja')->after('departemen');
+        Schema::table('pembayarans', function (Blueprint $table) {
+            // Tipe pembayaran: belanja atau service (default belanja)
+            $table->enum('tipe_pembayaran', ['belanja', 'service'])->default('belanja')->after('departemen');
 
             // Data khusus service kendaraan
             $table->foreignId('kendaraan_id')
                 ->nullable()
-                ->after('tipe_pengadaan')
+                ->after('tipe_pembayaran')
                 ->constrained('kendaraan')
                 ->nullOnDelete();
 
@@ -36,10 +36,10 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('purchaseros', function (Blueprint $table) {
+        Schema::table('pembayarans', function (Blueprint $table) {
             $table->dropForeign(['kendaraan_id']);
             $table->dropColumn([
-                'tipe_pengadaan',
+                'tipe_pembayaran',
                 'kendaraan_id',
                 'tanggal_service',
                 'kilometer',

@@ -1,6 +1,6 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
-@section('title', 'Pengadaan')
+@section('title', 'Pembayaran')
 
 @section('content')
 
@@ -15,16 +15,16 @@
             <h1 class="text-2xl font-bold text-gray-800">Pembayaran</h1>
             <p class="text-sm text-gray-500 mt-0.5">Kelola pengajuan permintaan pembelian barang &amp; jasa</p>
         </div>
-        <a href="{{ route('purchasero.create') }}"
+        <a href="{{ route('pembayaran.create') }}"
             class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors">
-            <i class="fa fa-plus"></i> Tambah Pengadaan
+            <i class="fa fa-plus"></i> Tambah Pembayaran
         </a>
     </div>
 
     {{-- STAT CARDS --}}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
-            <p class="text-sm text-gray-500">Total Pengadaan</p>
+            <p class="text-sm text-gray-500">Total Pembayaran</p>
             <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $totalPR }}</h2>
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
@@ -56,16 +56,16 @@
         $deptList = collect(['Keuangan','Produksi','HRD','Purchase','Sales','Marketing','IT'])
             ->map(fn($d) => ['id' => $d, 'nama' => $d]);
     @endphp
-    <x-chart-filter id="purchaseroChartFilter" defaultFilter="month" :showCustomRange="true"
+    <x-chart-filter id="pembayaranChartFilter" defaultFilter="month" :showCustomRange="true"
         :showCategoryFilter="true" :categories="$deptList" />
 
     {{-- CHART CONTAINER --}}
     <x-chart-container
-        id="purchaseroChartContainer"
+        id="pembayaranChartContainer"
         layout="stacked"
-        pieTitle="Distribusi Status" pieId="purchaseroPieChart"
-        barTitle="Nominal Pengadaan per Bulan" barId="purchaseroBarChart"
-        lineTitle="Trend Nominal Pengadaan" lineId="purchaseroLineChart"
+        pieTitle="Distribusi Status" pieId="pembayaranPieChart"
+        barTitle="Nominal Pembayaran per Bulan" barId="pembayaranBarChart"
+        lineTitle="Trend Nominal Pembayaran" lineId="pembayaranLineChart"
         :showStats="true" :statsData="[]"
     />
 
@@ -83,7 +83,7 @@
                         ['key' => 'Ditolak',   'label' => 'Ditolak',   'icon' => 'bi bi-x-circle-fill',      'count' => $totalDitolak,   'color' => 'red'],
                     ] as $t)
                         @php $isActive = $tab === $t['key']; @endphp
-                        <a href="{{ route('purchasero.index', ['tab' => $t['key'], 'sort' => $sort]) }}"
+                        <a href="{{ route('pembayaran.index', ['tab' => $t['key'], 'sort' => $sort]) }}"
                             class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
                                 {{ $isActive ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
                             <i class="{{ $t['icon'] }}"></i>
@@ -112,7 +112,7 @@
                     @endphp
                     @foreach ($navTabs as $t)
                         @php $isActive = $tab === $t['key']; @endphp
-                        <a href="{{ route('purchasero.index', ['tab' => $t['key'], 'sort' => $sort]) }}"
+                        <a href="{{ route('pembayaran.index', ['tab' => $t['key'], 'sort' => $sort]) }}"
                             class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
                                 {{ $isActive ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
                             <i class="{{ $t['icon'] }}"></i>
@@ -132,12 +132,12 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-gray-500 whitespace-nowrap">Urutkan:</span>
-                    <a href="{{ route('purchasero.index', array_merge(request()->except('sort'), ['sort' => 'terbaru'])) }}"
+                    <a href="{{ route('pembayaran.index', array_merge(request()->except('sort'), ['sort' => 'terbaru'])) }}"
                         class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
                             {{ $sort === 'terbaru' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
                         <i class="bi bi-sort-down"></i> Terbaru
                     </a>
-                    <a href="{{ route('purchasero.index', array_merge(request()->except('sort'), ['sort' => 'terlama'])) }}"
+                    <a href="{{ route('pembayaran.index', array_merge(request()->except('sort'), ['sort' => 'terlama'])) }}"
                         class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
                             {{ $sort === 'terlama' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
                         <i class="bi bi-sort-up"></i> Terlama
@@ -170,7 +170,7 @@
                     <i class="fa fa-filter text-xs mr-1"></i> Filter
                 </button>
                 @if($bulan || $deptFilter)
-                    <a href="{{ route('purchasero.index', ['tab' => $tab, 'sort' => $sort]) }}"
+                    <a href="{{ route('pembayaran.index', ['tab' => $tab, 'sort' => $sort]) }}"
                         class="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
                         Reset
                     </a>
@@ -183,6 +183,7 @@
             <table class="w-full text-sm">
                 <thead>
                     <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="w-8 px-2 py-3"></th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">No PR</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jenis</th>
@@ -207,7 +208,10 @@
                                 default     => 'bg-gray-100 text-gray-500',
                             };
                         @endphp
-                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors">
+                        <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors cursor-pointer" onclick="toggleExpand({{ $d->id }})">
+                            <td class="px-2 py-3.5 text-center">
+                                <i id="chevron-{{ $d->id }}" class="fa fa-chevron-right text-[10px] text-gray-400 transition-transform duration-200"></i>
+                            </td>
                             <td class="px-4 py-3.5 text-xs text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3.5">
                                 <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{{ $d->no_pr }}</span>
@@ -246,9 +250,18 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3.5">
+                                @php
+                                    if ($d->items->count() > 0) {
+                                        $itemCount = $d->items->count();
+                                    } elseif ($d->source_type === 'gps' && !empty($d->source_data['gps_items'])) {
+                                        $itemCount = count($d->source_data['gps_items']);
+                                    } else {
+                                        $itemCount = 1;
+                                    }
+                                @endphp
                                 <span class="inline-flex items-center gap-1 text-sm font-medium text-gray-600">
                                     <i class="fa fa-boxes text-blue-400 text-xs"></i>
-                                    {{ $d->items->count() > 0 ? $d->items->count() : '1' }} item{{ ($d->items->count() > 1) ? 's' : '' }}
+                                    {{ $itemCount }} item{{ $itemCount > 1 ? 's' : '' }}
                                 </span>
                             </td>
                             <td class="px-4 py-3.5 text-right">
@@ -288,18 +301,18 @@
                                                 </button>
                                             @else
                                                 {{-- BELANJA REGULAR: Existing flow --}}
-                                                @if($d->tipe_pengadaan === 'service')
+                                                @if($d->tipe_pembayaran === 'service')
                                                     <button type="button"
                                                         onclick="openApproveServiceModal({{ $d->id }}, '{{ $d->no_pr }}')"
                                                         class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
                                                         <i class="fa fa-check text-[10px]"></i> Setujui
                                                     </button>
                                                 @else
-                                                    <form action="{{ route('purchasero.status', $d->id) }}" method="POST" class="inline">
+                                                    <form action="{{ route('pembayaran.status', $d->id) }}" method="POST" class="inline">
                                                         @csrf
                                                         <input type="hidden" name="status" value="Disetujui">
                                                         <button type="submit"
-                                                            onclick="return confirm('Setujui pengadaan {{ $d->no_pr }}?')"
+                                                            onclick="return confirm('Setujui pembayaran {{ $d->no_pr }}?')"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
                                                             <i class="fa fa-check text-[10px]"></i> Setujui
                                                         </button>
@@ -313,18 +326,18 @@
                                             @endif
                                         @elseif($d->status === 'Diajukan')
                                             {{-- Status Diajukan (Old logic) --}}
-                                            @if($d->tipe_pengadaan === 'service')
+                                            @if($d->tipe_pembayaran === 'service')
                                                 <button type="button"
                                                     onclick="openApproveServiceModal({{ $d->id }}, '{{ $d->no_pr }}')"
                                                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
                                                     <i class="fa fa-check text-[10px]"></i> Setujui
                                                 </button>
                                             @else
-                                                <form action="{{ route('purchasero.status', $d->id) }}" method="POST" class="inline">
+                                                <form action="{{ route('pembayaran.status', $d->id) }}" method="POST" class="inline">
                                                     @csrf
                                                     <input type="hidden" name="status" value="Disetujui">
                                                     <button type="submit"
-                                                        onclick="return confirm('Setujui pengadaan {{ $d->no_pr }}?')"
+                                                        onclick="return confirm('Setujui pembayaran {{ $d->no_pr }}?')"
                                                         class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
                                                         <i class="fa fa-check text-[10px]"></i> Setujui
                                                     </button>
@@ -337,7 +350,7 @@
                                             </button>
                                         @elseif($d->status === 'Ditolak' && $d->source_type && $d->can_edit)
                                             {{-- PENGELUARAN DITOLAK: Button Edit & Ajukan Ulang --}}
-                                            <a href="{{ route('purchasero.edit-rejected', $d->id) }}"
+                                            <a href="{{ route('pembayaran.edit-rejected', $d->id) }}"
                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200">
                                                 <i class="fa fa-edit text-[10px]"></i> Edit & Ajukan Ulang
                                             </a>
@@ -346,7 +359,7 @@
                                             <a href="{{ route(match($d->source_type) {
                                                 'asuransi_kendaraan' => 'asuransi-kendaraan.index',
                                                 'pajak' => 'pajak-kendaraan.index',
-                                                default => 'purchasero.index',
+                                                default => 'pembayaran.index',
                                             }) }}" target="_blank"
                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors border border-indigo-200">
                                                 <i class="bi bi-box-arrow-up-right text-[10px]"></i> Lihat Data
@@ -356,12 +369,12 @@
                                     @else
                                         {{-- Non-superadmin: Edit + Hapus (hanya jika belum diajukan/disetujui) --}}
                                         @if(!in_array($d->status, ['Diajukan', 'Disetujui']))
-                                            <a href="{{ route('purchasero.edit', $d->id) }}"
+                                            <a href="{{ route('pembayaran.edit', $d->id) }}"
                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors border border-yellow-200">
                                                 <i class="fa fa-edit text-[10px]"></i> Edit
                                             </a>
                                             <button type="button"
-                                                data-action="{{ route('purchasero.destroy', $d->id) }}"
+                                                data-action="{{ route('pembayaran.destroy', $d->id) }}"
                                                 data-name="{{ $d->no_pr }}"
                                                 onclick="triggerDelete(this)"
                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-200">
@@ -371,10 +384,10 @@
 
                                         {{-- Ajukan: hanya saat Pending atau Ditolak --}}
                                         @if(in_array($d->status, ['Pending', 'Ditolak']))
-                                            <form action="{{ route('purchasero.ajukan', $d->id) }}" method="POST" class="inline">
+                                            <form action="{{ route('pembayaran.ajukan', $d->id) }}" method="POST" class="inline">
                                                 @csrf
                                                 <button type="submit"
-                                                    onclick="return confirm('Ajukan pengadaan {{ $d->no_pr }}?')"
+                                                    onclick="return confirm('Ajukan pembayaran {{ $d->no_pr }}?')"
                                                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors border border-indigo-200">
                                                     <i class="fa fa-paper-plane text-[10px]"></i> Ajukan
                                                 </button>
@@ -385,11 +398,355 @@
                                 </div>
                             </td>
                         </tr>
+
+                        {{-- ===== EXPAND ROW ===== --}}
+                        <tr id="expand-{{ $d->id }}" class="hidden bg-blue-50/30 border-t-0">
+                            <td colspan="11" class="px-6 pb-4 pt-1">
+                                <div class="rounded-xl border border-blue-100 bg-white overflow-hidden shadow-sm">
+
+                                    {{-- Items --}}
+                                    @if($d->items->count() > 0)
+                                        <div class="px-4 pt-3 pb-1">
+                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                                <i class="fa fa-list-ul mr-1"></i> Detail Items ({{ $d->items->count() }})
+                                            </p>
+                                        </div>
+                                        <table class="w-full text-xs">
+                                            <thead>
+                                                <tr class="bg-gray-50 border-y border-gray-100">
+                                                    <th class="text-left px-4 py-2 font-semibold text-gray-500">#</th>
+                                                    <th class="text-left px-4 py-2 font-semibold text-gray-500">Nama Barang</th>
+                                                    <th class="text-left px-4 py-2 font-semibold text-gray-500">Kategori</th>
+                                                    <th class="text-left px-4 py-2 font-semibold text-gray-500">Qty</th>
+                                                    <th class="text-right px-4 py-2 font-semibold text-gray-500">Harga Satuan</th>
+                                                    <th class="text-right px-4 py-2 font-semibold text-gray-500">Subtotal</th>
+                                                    <th class="text-left px-4 py-2 font-semibold text-gray-500">Keterangan</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($d->items as $idx => $item)
+                                                    <tr class="border-t border-gray-50 {{ $idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50' }}">
+                                                        <td class="px-4 py-2 text-gray-400">{{ $idx + 1 }}</td>
+                                                        <td class="px-4 py-2 font-medium text-gray-700">{{ $item->nama_barang }}</td>
+                                                        <td class="px-4 py-2 text-gray-500">{{ $item->kategori ?: '-' }}</td>
+                                                        <td class="px-4 py-2 text-gray-600">{{ $item->qty }} {{ $item->satuan }}</td>
+                                                        <td class="px-4 py-2 text-right text-gray-600">
+                                                            {{ $item->harga_satuan ? 'Rp ' . number_format($item->harga_satuan, 0, ',', '.') : '-' }}
+                                                        </td>
+                                                        <td class="px-4 py-2 text-right font-semibold text-emerald-600">
+                                                            {{ $item->subtotal ? 'Rp ' . number_format($item->subtotal, 0, ',', '.') : '-' }}
+                                                        </td>
+                                                        <td class="px-4 py-2 text-gray-400 max-w-[200px] truncate">{{ $item->keterangan ?: '-' }}</td>
+                                                    </tr>
+                                                @endforeach
+                                                <tr class="border-t-2 border-gray-200 bg-gray-50">
+                                                    <td colspan="5" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
+                                                    <td class="px-4 py-2 text-right text-sm font-bold text-emerald-600">
+                                                        Rp {{ number_format($d->total_nominal, 0, ',', '.') }}
+                                                    </td>
+                                                    <td></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    @elseif($d->source_type)
+                                        {{-- ===== PENGELUARAN KENDARAAN: detail per source_type ===== --}}
+                                        @php $sd = $d->source_data ?? []; @endphp
+
+                                        {{-- Header strip --}}
+                                        <div class="flex items-center justify-between px-4 pt-3 pb-2 border-b border-gray-100">
+                                            <p class="text-[10px] font-semibold text-purple-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                <i class="bi bi-wallet2"></i> Detail Pengeluaran — {{ $d->source_type_name }}
+                                            </p>
+                                            <span class="text-xs font-bold text-emerald-600">
+                                                Total: Rp {{ number_format($d->nominal ?? 0, 0, ',', '.') }}
+                                            </span>
+                                        </div>
+
+                                        {{-- Info baris atas: kendaraan + tanggal --}}
+                                        @php
+                                            $kendaraan = isset($sd['kendaraan_id'])
+                                                ? \App\Models\Kendaraan::find($sd['kendaraan_id'])
+                                                : null;
+                                        @endphp
+                                        @if($kendaraan || isset($sd['tanggal_bayar']) || isset($sd['tanggal_habis']))
+                                        <div class="px-4 py-2.5 grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50/50 border-b border-gray-100">
+                                            @if($kendaraan)
+                                            <div>
+                                                <p class="text-[10px] text-gray-400 uppercase">Kendaraan</p>
+                                                <p class="text-xs font-semibold text-gray-700">{{ $kendaraan->nopol }} — {{ $kendaraan->merk }}</p>
+                                            </div>
+                                            @endif
+                                            @if(isset($sd['tanggal_bayar']))
+                                            <div>
+                                                <p class="text-[10px] text-gray-400 uppercase">Tgl Bayar</p>
+                                                <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') }}</p>
+                                            </div>
+                                            @endif
+                                            @if(isset($sd['tanggal_habis']))
+                                            <div>
+                                                <p class="text-[10px] text-gray-400 uppercase">Berlaku s/d</p>
+                                                <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_habis'])->format('d M Y') }}</p>
+                                            </div>
+                                            @endif
+                                            @if(isset($sd['keterangan']) && $sd['keterangan'])
+                                            <div>
+                                                <p class="text-[10px] text-gray-400 uppercase">Keterangan</p>
+                                                <p class="text-xs text-gray-600">{{ $sd['keterangan'] }}</p>
+                                            </div>
+                                            @endif
+                                        </div>
+                                        @endif
+
+                                        {{-- ── GPS: tabel gps_items ── --}}
+                                        @if($d->source_type === 'gps' && !empty($sd['gps_items']))
+                                            @php $gpsItems = $sd['gps_items']; $totalBiaya = 0; @endphp
+                                            <table class="w-full text-xs">
+                                                <thead>
+                                                    <tr class="bg-purple-50 border-y border-purple-100">
+                                                        <th class="text-left px-4 py-2 font-semibold text-purple-500">#</th>
+                                                        <th class="text-left px-4 py-2 font-semibold text-purple-500">Nama GPS</th>
+                                                        <th class="text-left px-4 py-2 font-semibold text-purple-500">Type</th>
+                                                        <th class="text-right px-4 py-2 font-semibold text-purple-500">Biaya Sewa</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($gpsItems as $gi => $gItem)
+                                                        @php
+                                                            $gpsModel = isset($gItem['gps_id']) ? \App\Models\Gps::find($gItem['gps_id']) : null;
+                                                            $biaya = (int)($gItem['biaya_sewa'] ?? 0);
+                                                            $totalBiaya += $biaya;
+                                                        @endphp
+                                                        <tr class="border-t border-gray-50 {{ $gi % 2 === 0 ? 'bg-white' : 'bg-gray-50/50' }}">
+                                                            <td class="px-4 py-2 text-gray-400">{{ $gi + 1 }}</td>
+                                                            <td class="px-4 py-2 font-medium text-gray-700">{{ $gpsModel->nama_gps ?? '-' }}</td>
+                                                            <td class="px-4 py-2 text-gray-600">{{ $gItem['type'] ?? '-' }}</td>
+                                                            <td class="px-4 py-2 text-right font-semibold text-emerald-600">
+                                                                Rp {{ number_format($biaya, 0, ',', '.') }}
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                    <tr class="border-t-2 border-gray-200 bg-gray-50">
+                                                        <td colspan="3" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
+                                                        <td class="px-4 py-2 text-right text-sm font-bold text-emerald-600">
+                                                            Rp {{ number_format($totalBiaya, 0, ',', '.') }}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+
+                                        {{-- ── Asuransi Kendaraan ── --}}
+                                        @elseif($d->source_type === 'asuransi_kendaraan')
+                                            @php
+                                                $asuransi = isset($sd['asuransi_id']) ? \App\Models\Asuransi::find($sd['asuransi_id']) : null;
+                                                $jenisAsr = isset($sd['jenis_asuransi_id']) ? \App\Models\JenisAsuransi::find($sd['jenis_asuransi_id']) : null;
+                                            @endphp
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Perusahaan Asuransi</p>
+                                                    <p class="text-xs font-semibold text-gray-700">{{ $asuransi->nama_asuransi ?? ($sd['asuransi_id'] ?? '-') }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Jenis Asuransi</p>
+                                                    <p class="text-xs text-gray-700">{{ $jenisAsr->nama_jenis ?? ($sd['jenis_asuransi_id'] ?? '-') }}</p>
+                                                </div>
+                                                @if(isset($sd['no_polis']) && $sd['no_polis'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">No. Polis</p>
+                                                    <p class="text-xs font-mono text-gray-700">{{ $sd['no_polis'] }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Premi</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['premi'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── Pajak Kendaraan ── --}}
+                                        @elseif($d->source_type === 'pajak')
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Jenis Pajak</p>
+                                                    <p class="text-xs font-semibold text-gray-700">{{ $sd['jenis_pajak'] ?? '-' }}</p>
+                                                </div>
+                                                @if(isset($sd['tahun_pajak']) && $sd['tahun_pajak'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Tahun Pajak</p>
+                                                    <p class="text-xs text-gray-700">{{ $sd['tahun_pajak'] }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['tanggal_jatuh_tempo']) && $sd['tanggal_jatuh_tempo'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Jatuh Tempo</p>
+                                                    <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_jatuh_tempo'])->format('d M Y') }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Nominal</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['nominal'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── KIR ── --}}
+                                        @elseif($d->source_type === 'kir')
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                @if(isset($sd['no_kir']) && $sd['no_kir'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">No. KIR</p>
+                                                    <p class="text-xs font-mono text-gray-700">{{ $sd['no_kir'] }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['tanggal_kir']) && $sd['tanggal_kir'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Tgl KIR</p>
+                                                    <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_kir'])->format('d M Y') }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['tanggal_habis_kir']) && $sd['tanggal_habis_kir'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Berlaku s/d</p>
+                                                    <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_habis_kir'])->format('d M Y') }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Biaya</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── STNK ── --}}
+                                        @elseif($d->source_type === 'stnk')
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                @if(isset($sd['tahun_stnk']) && $sd['tahun_stnk'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Tahun STNK</p>
+                                                    <p class="text-xs font-semibold text-gray-700">{{ $sd['tahun_stnk'] }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['tanggal_stnk']) && $sd['tanggal_stnk'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Tgl STNK</p>
+                                                    <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_stnk'])->format('d M Y') }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['tanggal_habis_stnk']) && $sd['tanggal_habis_stnk'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Berlaku s/d</p>
+                                                    <p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_habis_stnk'])->format('d M Y') }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Biaya</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── Service Part ── --}}
+                                        @elseif($d->source_type === 'service_part')
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                @if(isset($sd['nama_part']) && $sd['nama_part'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Nama Part</p>
+                                                    <p class="text-xs font-semibold text-gray-700">{{ $sd['nama_part'] }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['jumlah']) && $sd['jumlah'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Jumlah</p>
+                                                    <p class="text-xs text-gray-700">{{ $sd['jumlah'] }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Biaya</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── Service Asuransi ── --}}
+                                        @elseif($d->source_type === 'service_asuransi')
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                @if(isset($sd['no_klaim']) && $sd['no_klaim'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">No. Klaim</p>
+                                                    <p class="text-xs font-mono text-gray-700">{{ $sd['no_klaim'] }}</p>
+                                                </div>
+                                                @endif
+                                                @if(isset($sd['keterangan']) && $sd['keterangan'])
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Keterangan</p>
+                                                    <p class="text-xs text-gray-600">{{ $sd['keterangan'] }}</p>
+                                                </div>
+                                                @endif
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Biaya</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya'] ?? $d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+
+                                        {{-- ── Fallback: generic info ── --}}
+                                        @else
+                                            <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Alasan</p>
+                                                    <p class="text-xs text-gray-600">{{ $d->alasan_permintaan ?: '-' }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[10px] text-gray-400 uppercase">Total</p>
+                                                    <p class="text-xs font-bold text-emerald-600">Rp {{ number_format($d->nominal ?? 0, 0, ',', '.') }}</p>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    @else
+                                        {{-- Legacy single item --}}
+                                        <div class="px-4 py-3 text-xs text-gray-500">
+                                            <span class="font-medium text-gray-700">{{ $d->barang_jasa ?: '-' }}</span>
+                                            @if($d->qty) — {{ $d->qty }} {{ $d->satuan }} @endif
+                                            @if($d->nominal) — <span class="font-semibold text-emerald-600">Rp {{ number_format($d->nominal, 0, ',', '.') }}</span> @endif
+                                        </div>
+                                    @endif
+
+                                    {{-- Rekening Bank (kalau ada) --}}
+                                    @if($d->nama_bank || $d->no_rekening || $d->nama_rekening || $d->informasi)
+                                        <div class="mx-4 mb-3 mt-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                                            <p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-2">
+                                                <i class="bi bi-bank mr-1"></i> Informasi Rekening Bank
+                                            </p>
+                                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                @if($d->nama_bank)
+                                                    <div>
+                                                        <p class="text-[10px] text-amber-500 uppercase">Bank</p>
+                                                        <p class="text-xs font-medium text-gray-700">{{ $d->nama_bank }}</p>
+                                                    </div>
+                                                @endif
+                                                @if($d->no_rekening)
+                                                    <div>
+                                                        <p class="text-[10px] text-amber-500 uppercase">No. Rekening</p>
+                                                        <p class="text-xs font-medium text-gray-700 font-mono">{{ $d->no_rekening }}</p>
+                                                    </div>
+                                                @endif
+                                                @if($d->nama_rekening)
+                                                    <div>
+                                                        <p class="text-[10px] text-amber-500 uppercase">Atas Nama</p>
+                                                        <p class="text-xs font-medium text-gray-700">{{ $d->nama_rekening }}</p>
+                                                    </div>
+                                                @endif
+                                                @if($d->informasi)
+                                                    <div class="col-span-full md:col-span-1">
+                                                        <p class="text-[10px] text-amber-500 uppercase">Informasi</p>
+                                                        <p class="text-xs text-gray-600">{{ $d->informasi }}</p>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
                             <td colspan="8" class="text-center py-12 text-gray-400 text-sm">
                                 <i class="fa fa-inbox text-3xl mb-3 block text-gray-300"></i>
-                                Belum ada data Pengadaan
+                                Belum ada data Pembayaran
                             </td>
                         </tr>
                     @endforelse
@@ -413,7 +770,7 @@
         <div class="flex items-start justify-between px-6 py-4 border-b border-gray-100">
             <div>
                 <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                    <i class="fa fa-file-lines text-blue-500"></i> Detail Pengadaan
+                    <i class="fa fa-file-lines text-blue-500"></i> Detail Pembayaran
                 </h2>
                 <p id="d_no_pr" class="text-xs text-gray-400 mt-0.5 font-mono"></p>
             </div>
@@ -563,7 +920,7 @@
             <div>
                 <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
                     <span class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm flex-shrink-0"><i class="fa fa-times"></i></span>
-                    Tolak Pengadaan
+                    Tolak Pembayaran
                 </h2>
                 <p id="tolakSubtitle" class="text-xs text-gray-500 mt-1 ml-10"></p>
             </div>
@@ -595,7 +952,7 @@
             <div class="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto text-red-500 text-2xl">
                 <i class="fa fa-triangle-exclamation"></i>
             </div>
-            <h2 class="text-base font-bold text-gray-800 mt-4">Hapus Pengadaan?</h2>
+            <h2 class="text-base font-bold text-gray-800 mt-4">Hapus Pembayaran?</h2>
             <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">
                 Kamu akan menghapus <strong id="deleteName" class="text-gray-700"></strong>. Tindakan ini tidak dapat dibatalkan.
             </p>
@@ -618,7 +975,7 @@
             <div>
                 <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
                     <span class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-sm flex-shrink-0"><i class="fa fa-check"></i></span>
-                    Setujui Pengadaan Service
+                    Setujui Pembayaran Service
                 </h2>
                 <p id="approveServiceSubtitle" class="text-xs text-gray-500 mt-1 ml-10"></p>
             </div>
@@ -685,12 +1042,12 @@
 
 <script>
 // ── Approve Service Modal ─────────────────────────────────────
-function openApproveServiceModal(purchaseroId, noPr) {
+function openApproveServiceModal(pembayaranId, noPr) {
     const modal = document.getElementById('approveServiceModal');
     const form  = document.getElementById('approveServiceForm');
     const subtitle = document.getElementById('approveServiceSubtitle');
     if (!modal || !form) return;
-    form.action = '/admin/purchasero/' + purchaseroId + '/approve-service';
+    form.action = '/admin/pembayaran/' + pembayaranId + '/approve-service';
     subtitle.textContent = 'No PR: ' + noPr;
     form.reset();
     modal.classList.remove('hidden');
@@ -705,7 +1062,7 @@ document.getElementById('approveServiceModal')?.addEventListener('click', functi
 });
 
 // ── Detail Modal ──────────────────────────────────────────────
-function openDetailModal(purchaseroId) {
+function openDetailModal(pembayaranId) {
     // Show modal immediately with loading state
     var modal = document.getElementById('detailModal');
     modal.classList.remove('hidden'); 
@@ -716,11 +1073,11 @@ function openDetailModal(purchaseroId) {
     document.getElementById('d_items_container').innerHTML = '<div class="px-4 py-6 text-center text-gray-400"><i class="fa fa-spinner fa-spin mr-2"></i>Loading items...</div>';
     
     // Fetch data via AJAX
-    fetch('/admin/purchasero/' + purchaseroId + '/details')
+    fetch('/admin/pembayaran/' + pembayaranId + '/details')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                populateDetailModal(data.purchasero);
+                populateDetailModal(data.pembayaran);
             } else {
                 alert('Gagal memuat detail: ' + (data.message || 'Unknown error'));
                 closeDetailModal();
@@ -885,7 +1242,7 @@ document.getElementById('detailModal').addEventListener('click', function(e) { i
 var tolakModal = document.getElementById('tolakModal');
 var tolakForm  = document.getElementById('tolakForm');
 function openTolakModal(id, noPr) {
-    tolakForm.action = '/admin/purchasero/' + id + '/status';
+    tolakForm.action = '/admin/pembayaran/' + id + '/status';
     document.getElementById('tolakSubtitle').innerText = 'No PR: ' + noPr;
     document.getElementById('catatanTolak').value = '';
     tolakModal.classList.remove('hidden'); tolakModal.classList.add('flex');
@@ -932,63 +1289,93 @@ deleteModal.addEventListener('click', function(e) { if (e.target === this) close
 // ========================================
 // APPROVAL MODAL FUNCTIONS
 // ========================================
-function openApprovalModal(purchaseroId) {
+function openApprovalModal(pembayaranId) {
     window.dispatchEvent(new CustomEvent('open-approval-modal', {
-        detail: { id: purchaseroId }
+        detail: { id: pembayaranId }
     }));
 }
 
-function openRejectModal(purchaseroId) {
+function openRejectModal(pembayaranId) {
     window.dispatchEvent(new CustomEvent('open-approval-modal', {
-        detail: { id: purchaseroId, action: 'reject' }
+        detail: { id: pembayaranId, action: 'reject' }
     }));
 }
 
 // ========================================
 // CHART INITIALIZATION
 // ========================================
-const purchaseroChartManager = new ChartManager();
+const pembayaranChartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function() {
-    initPurchaseroCharts({ filter_type: 'month' });
+    initPembayaranCharts({ filter_type: 'month' });
 
     document.addEventListener('chartFilterChange', function(e) {
-        if (e.detail.filterId === 'purchaseroChartFilter') {
+        if (e.detail.filterId === 'pembayaranChartFilter') {
             const filters = {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
                 departemen:  e.detail.categoryId ?? '',
             };
-            updatePurchaseroCharts(filters);
+            updatePembayaranCharts(filters);
         }
     });
 });
 
-async function initPurchaseroCharts(filters) {
+async function initPembayaranCharts(filters) {
     try {
-        await purchaseroChartManager.initChartsFromAPI('purchasero', {
-            pie:  'purchaseroPieChart',
-            bar:  'purchaseroBarChart',
-            line: 'purchaseroLineChart',
+        await pembayaranChartManager.initChartsFromAPI('pembayaran', {
+            pie:  'pembayaranPieChart',
+            bar:  'pembayaranBarChart',
+            line: 'pembayaranLineChart',
         }, filters);
     } catch (error) {
-        console.error('Error loading purchasero charts:', error);
+        console.error('Error loading pembayaran charts:', error);
     }
 }
 
-async function updatePurchaseroCharts(filters) {
+async function updatePembayaranCharts(filters) {
     try {
         const barOptions = { scrollable: filters.filter_type === 'custom' };
-        await purchaseroChartManager.updateChartsFromAPI('purchasero', {
-            pie:  'purchaseroPieChart',
-            bar:  'purchaseroBarChart',
-            line: 'purchaseroLineChart',
+        await pembayaranChartManager.updateChartsFromAPI('pembayaran', {
+            pie:  'pembayaranPieChart',
+            bar:  'pembayaranBarChart',
+            line: 'pembayaranLineChart',
         }, filters, barOptions);
     } catch (error) {
-        console.error('Error updating purchasero charts:', error);
+        console.error('Error updating pembayaran charts:', error);
     }
 }
+
+// ── Expandable Rows ───────────────────────────────────────────
+function toggleExpand(id) {
+    var expandRow = document.getElementById('expand-' + id);
+    var chevron   = document.getElementById('chevron-' + id);
+    if (!expandRow) return;
+
+    var isHidden = expandRow.classList.contains('hidden');
+
+    if (isHidden) {
+        expandRow.classList.remove('hidden');
+        chevron.style.transform = 'rotate(90deg)';
+        chevron.classList.remove('text-gray-400');
+        chevron.classList.add('text-blue-500');
+    } else {
+        expandRow.classList.add('hidden');
+        chevron.style.transform = 'rotate(0deg)';
+        chevron.classList.remove('text-blue-500');
+        chevron.classList.add('text-gray-400');
+    }
+}
+
+// Prevent row click from firing when clicking action buttons/forms
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('td button, td form, td a').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+});
 </script>
 
 @endsection

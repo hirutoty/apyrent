@@ -5,12 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class PurchaseroItem extends Model
+class PembayaranItem extends Model
 {
     use HasFactory;
 
+    protected $table = 'pembayaran_items';
+
     protected $fillable = [
-        'purchasero_id',
+        'pembayaran_id',
         'nama_barang',
         'kategori',
         'posisi',
@@ -34,11 +36,10 @@ class PurchaseroItem extends Model
     ];
 
     /**
-     * Relation to purchasero (parent)
+     * Relation to pembayaran (parent)
      */
-    public function purchasero()
+    public function pembayaran()
     {
-        return $this->belongsTo(Purchasero::class);
+        return $this->belongsTo(Pembayaran::class);
     }
 }
-

@@ -3,11 +3,11 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Purchasero;
-use App\Models\PurchaseroItem;
+use App\Models\Pembayaran;
+use App\Models\PembayaranItem;
 use Carbon\Carbon;
 
-class PurchaseroSeeder extends Seeder
+class PembayaranSeeder extends Seeder
 {
     public function run(): void
     {
@@ -67,7 +67,7 @@ class PurchaseroSeeder extends Seeder
         $current   = $startDate->copy();
 
         while ($current->lte($endDate)) {
-            // 2–5 pengadaan per minggu, acak
+            // 2–5 pembayaran per minggu, acak
             if ($current->dayOfWeek === Carbon::MONDAY) {
                 $jumlahPR = rand(2, 5);
 
@@ -102,7 +102,7 @@ class PurchaseroSeeder extends Seeder
                         ];
                     }
 
-                    $pr = Purchasero::create([
+                    $pr = Pembayaran::create([
                         'no_pr'              => $noPr,
                         'tanggal'            => $tgl->toDateString(),
                         'departemen'         => $dept,
@@ -121,7 +121,7 @@ class PurchaseroSeeder extends Seeder
                     ]);
 
                     foreach ($items as $item) {
-                        PurchaseroItem::create(array_merge($item, ['purchasero_id' => $pr->id]));
+                        PembayaranItem::create(array_merge($item, ['pembayaran_id' => $pr->id]));
                     }
 
                     $prCounter++;
@@ -131,7 +131,7 @@ class PurchaseroSeeder extends Seeder
             $current->addDay();
         }
 
-        $this->command->info("Seeder selesai: {$prCounter} pengadaan dibuat dari 1 Jan – 30 Des {$year}.");
+        $this->command->info("Seeder selesai: {$prCounter} pembayaran dibuat dari 1 Jan – 30 Des {$year}.");
     }
 
     /**

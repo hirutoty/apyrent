@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Service Kendaraan')
 
@@ -306,7 +306,7 @@
                                         title="Lihat detail service kendaraan ini">
                                         Detail
                                     </a>
-                                    {{-- Tombol Terpasang: hanya untuk service dari pengadaan yang sudah approved --}}
+                                    {{-- Tombol Terpasang: hanya untuk service dari pembayaran yang sudah approved --}}
                                     @if($d->is_request && $d->status_approval === 'approved' && $d->status === 'proses')
                                         <form action="{{ route('service-history.terpasang', $d->id) }}" method="POST"
                                             onsubmit="return confirm('Tandai service ini sebagai Selesai (Terpasang)?')" class="inline">
