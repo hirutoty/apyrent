@@ -296,7 +296,7 @@ body { padding-top: 52px; }
             <div class="meta-date">Jakarta, {{ $tgl }}</div>
             <div class="meta-row"><span class="meta-lbl">Kepada</span><span class="meta-sep">:</span><span class="meta-val">{{ $penawaran->kepada }}</span></div>
             <div class="meta-row"><span class="meta-lbl">No</span><span class="meta-sep">:</span><span class="meta-val">{{ $penawaran->no_penawaran }}</span></div>
-            <div class="meta-row"><span class="meta-lbl">Hal</span><span class="meta-sep">:</span><span class="meta-val">{{ $penawaran->perihal ?? 'Penawaran Harga Sewa Kendaraan' }}</span></div>
+            <div class="meta-row"><span class="meta-lbl">Perihal</span><span class="meta-sep">:</span><span class="meta-val">{{ $penawaran->perihal ?? 'Penawaran Harga Sewa Kendaraan' }}</span></div>
             <div class="meta-row"><span class="meta-lbl">UP.</span><span class="meta-sep">:</span><span class="meta-val">{{ $penawaran->up }}</span></div>
         </div>
 
