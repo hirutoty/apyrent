@@ -201,11 +201,12 @@
                     @forelse($data as $d)
                         @php
                             $bc = match($d->status) {
-                                'Disetujui' => 'bg-green-100 text-green-600',
-                                'Ditolak'   => 'bg-red-100 text-red-600',
-                                'Diajukan'  => 'bg-indigo-100 text-indigo-600',
-                                'Pending'   => 'bg-yellow-100 text-yellow-600',
-                                default     => 'bg-gray-100 text-gray-500',
+                                'Disetujui'          => 'bg-green-100 text-green-600',
+                                'Ditolak'            => 'bg-red-100 text-red-600',
+                                'Diajukan'           => 'bg-indigo-100 text-indigo-600',
+                                'Pending'            => 'bg-yellow-100 text-yellow-600',
+                                'Disetujui Sebagian' => 'bg-teal-100 text-teal-700',
+                                default              => 'bg-gray-100 text-gray-500',
                             };
                         @endphp
                         <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors cursor-pointer" onclick="toggleExpand({{ $d->id }})">
@@ -499,7 +500,37 @@
 
                                         {{-- ── GPS: tabel gps_items ── --}}
                                         @if($d->source_type === 'gps' && !empty($sd['gps_items']))
-                                            @php $gpsItems = $sd['gps_items']; $totalBiaya = 0; @endphp
+                                            @php
+                                                $allGpsItems = $sd['gps_items'];
+                                                $totalBiaya  = 0;
+
+                                                // Filter item sesuai tab: ambil record gps_kendaraan milik PR ini
+                                                // berdasarkan kendaraan_id + gps_id + type yang cocok
+                                                $kendaraanId = $sd['kendaraan_id'] ?? null;
+                                                $gpsRecords  = $kendaraanId
+                                                    ? \App\Models\GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                                                        ->whereNotNull('persetujuan')
+                                                        ->get()
+                                                        ->keyBy(fn($r) => $r->gps_id . '_' . $r->type)
+                                                    : collect();
+
+                                                // Tentukan filter persetujuan berdasarkan tab
+                                                $filterPersetujuan = null;
+                                                if ($tab === 'Disetujui') $filterPersetujuan = 'Disetujui';
+                                                if ($tab === 'Ditolak')   $filterPersetujuan = 'Ditolak';
+
+                                                // Jika PR status Disetujui Sebagian & ada filter tab → hanya tampil item yang relevan
+                                                if ($filterPersetujuan && $d->status === 'Disetujui Sebagian') {
+                                                    $gpsItems = array_filter($allGpsItems, function($item) use ($gpsRecords, $filterPersetujuan) {
+                                                        $key    = ($item['gps_id'] ?? '') . '_' . ($item['type'] ?? '');
+                                                        $record = $gpsRecords->get($key);
+                                                        return $record && $record->persetujuan === $filterPersetujuan;
+                                                    });
+                                                    $gpsItems = array_values($gpsItems);
+                                                } else {
+                                                    $gpsItems = $allGpsItems;
+                                                }
+                                            @endphp
                                             <table class="w-full text-xs">
                                                 <thead>
                                                     <tr class="bg-purple-50 border-y border-purple-100">
@@ -507,6 +538,9 @@
                                                         <th class="text-left px-4 py-2 font-semibold text-purple-500">Nama GPS</th>
                                                         <th class="text-left px-4 py-2 font-semibold text-purple-500">Type</th>
                                                         <th class="text-right px-4 py-2 font-semibold text-purple-500">Biaya Sewa</th>
+                                                        <th class="text-left px-4 py-2 font-semibold text-purple-500">Keterangan Bank</th>
+                                                        <th class="text-left px-4 py-2 font-semibold text-purple-500">Bukti</th>
+                                                        <th class="text-left px-4 py-2 font-semibold text-purple-500">Lampiran</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -515,6 +549,11 @@
                                                             $gpsModel = isset($gItem['gps_id']) ? \App\Models\Gps::find($gItem['gps_id']) : null;
                                                             $biaya = (int)($gItem['biaya_sewa'] ?? 0);
                                                             $totalBiaya += $biaya;
+
+                                                            // Cari bukti & lampiran per-item dari temp_files
+                                                            $tempFiles       = $sd['temp_files'] ?? [];
+                                                            $buktiBayarItems = $tempFiles['gps_items'][$gi]['bukti_bayar'] ?? null;
+                                                            $lampiranItems   = $tempFiles['gps_items'][$gi]['lampiran'] ?? [];
                                                         @endphp
                                                         <tr class="border-t border-gray-50 {{ $gi % 2 === 0 ? 'bg-white' : 'bg-gray-50/50' }}">
                                                             <td class="px-4 py-2 text-gray-400">{{ $gi + 1 }}</td>
@@ -523,6 +562,119 @@
                                                             <td class="px-4 py-2 text-right font-semibold text-emerald-600">
                                                                 Rp {{ number_format($biaya, 0, ',', '.') }}
                                                             </td>
+
+                                                            {{-- Keterangan Bank --}}
+                                                            <td class="px-4 py-2">
+                                                                @if(!empty($gItem['nama_bank']) || !empty($gItem['no_rekening']) || !empty($gItem['nama_pemilik']))
+                                                                    <div class="flex flex-col gap-0.5">
+                                                                        @if(!empty($gItem['nama_bank']))
+                                                                            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700">
+                                                                                <i class="fa-solid fa-building-columns text-[9px]"></i>
+                                                                                {{ $gItem['nama_bank'] }}
+                                                                            </span>
+                                                                        @endif
+                                                                        @if(!empty($gItem['no_rekening']))
+                                                                            <span class="text-[11px] font-mono text-gray-600">
+                                                                                {{ $gItem['no_rekening'] }}
+                                                                            </span>
+                                                                        @endif
+                                                                        @if(!empty($gItem['nama_pemilik']))
+                                                                            <span class="text-[11px] text-gray-500">
+                                                                                a/n {{ $gItem['nama_pemilik'] }}
+                                                                            </span>
+                                                                        @endif
+                                                                    </div>
+                                                                @else
+                                                                    <span class="text-gray-300 text-[11px]">—</span>
+                                                                @endif
+                                                            </td>
+
+                                                            {{-- Bukti --}}
+                                                            <td class="px-4 py-2">
+                                                                @php
+                                                                    // Bukti dari pengaju (temp file)
+                                                                    $hasTempBukti = $buktiBayarItems && !empty($buktiBayarItems['path']);
+
+                                                                    // Bukti dari approval superadmin — cari dari approvals per item (gps_id+type match)
+                                                                    $approvalBuktiUrl  = null;
+                                                                    $approvalBuktiName = null;
+                                                                    foreach($d->approvals ?? [] as $apv) {
+                                                                        if ($apv->action === 'approved' && !empty($apv->bukti_files)) {
+                                                                            $apvFile = collect($apv->bukti_files)->first();
+                                                                            if ($apvFile && !empty($apvFile['path'])) {
+                                                                                // Match berdasarkan idx — approvals disimpan per item
+                                                                                // Gunakan gps_kendaraan record untuk cocokkan bukti
+                                                                                $gpsRec = \App\Models\GpsKendaraan::where('pembayaran_id', $d->id)
+                                                                                    ->where('gps_id', $gItem['gps_id'] ?? null)
+                                                                                    ->where('type', $gItem['type'] ?? null)
+                                                                                    ->where('persetujuan', 'Disetujui')
+                                                                                    ->first();
+                                                                                if ($gpsRec && $gpsRec->bukti_bayar) {
+                                                                                    $approvalBuktiUrl  = asset($gpsRec->bukti_bayar);
+                                                                                    $approvalBuktiName = basename($gpsRec->bukti_bayar);
+                                                                                }
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                @endphp
+
+                                                                <div class="flex flex-col gap-1">
+                                                                    {{-- Bukti dari pengaju --}}
+                                                                    @if($hasTempBukti)
+                                                                        @php
+                                                                            $buktiBayarUrl  = asset('storage/' . $buktiBayarItems['path']);
+                                                                            $buktiBayarName = $buktiBayarItems['original_name'] ?? basename($buktiBayarItems['path']);
+                                                                        @endphp
+                                                                        <a href="{{ $buktiBayarUrl }}" target="_blank"
+                                                                            class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 underline max-w-[130px] truncate"
+                                                                            title="{{ $buktiBayarName }}">
+                                                                            <i class="fa-solid fa-file text-[9px]"></i>
+                                                                            {{ $buktiBayarName }}
+                                                                        </a>
+                                                                    @endif
+
+                                                                    {{-- Bukti dari approval superadmin --}}
+                                                                    @if($approvalBuktiUrl)
+                                                                        <a href="{{ $approvalBuktiUrl }}" target="_blank"
+                                                                            class="inline-flex items-center gap-1 text-[11px] text-green-600 hover:text-green-800 underline max-w-[130px] truncate"
+                                                                            title="{{ $approvalBuktiName }}">
+                                                                            <i class="fa-solid fa-file-circle-check text-[9px]"></i>
+                                                                            {{ $approvalBuktiName }}
+                                                                        </a>
+                                                                    @endif
+
+                                                                    @if(!$hasTempBukti && !$approvalBuktiUrl)
+                                                                        <span class="text-gray-300 text-[11px]">—</span>
+                                                                    @endif
+                                                                </div>
+                                                            </td>
+
+                                                            {{-- Lampiran --}}
+                                                            <td class="px-4 py-2">
+                                                                @if(!empty($lampiranItems))
+                                                                    <div class="flex flex-col gap-1">
+                                                                        @foreach($lampiranItems as $li => $lamp)
+                                                                            @if(!empty($lamp['path']))
+                                                                                @php
+                                                                                    $lampUrl  = asset('storage/' . $lamp['path']);
+                                                                                    $lampName = $lamp['original_name'] ?? basename($lamp['path']);
+                                                                                    $lampExt  = strtolower($lamp['extension'] ?? pathinfo($lamp['path'], PATHINFO_EXTENSION));
+                                                                                    $isImage  = in_array($lampExt, ['jpg','jpeg','png','gif','webp']);
+                                                                                @endphp
+                                                                                <a href="{{ $lampUrl }}" target="_blank"
+                                                                                    class="inline-flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-800 underline max-w-[130px] truncate"
+                                                                                    title="{{ $lampName }}">
+                                                                                    <i class="fa-solid {{ $isImage ? 'fa-image' : 'fa-paperclip' }} text-[9px]"></i>
+                                                                                    {{ $lampName }}
+                                                                                </a>
+                                                                            @endif
+                                                                        @endforeach
+                                                                    </div>
+                                                                @else
+                                                                    <span class="text-gray-300 text-[11px]">—</span>
+                                                                @endif
+                                                            </td>
                                                         </tr>
                                                     @endforeach
                                                     <tr class="border-t-2 border-gray-200 bg-gray-50">
@@ -530,6 +682,7 @@
                                                         <td class="px-4 py-2 text-right text-sm font-bold text-emerald-600">
                                                             Rp {{ number_format($totalBiaya, 0, ',', '.') }}
                                                         </td>
+                                                        <td colspan="3"></td>
                                                     </tr>
                                                 </tbody>
                                             </table>

@@ -43,7 +43,7 @@ class DatabaseSeeder extends Seeder
             AsuransiKendaraanSeeder::class,
             PajakKendaraanSeeder::class,
             GpsSeeder::class,
-            GpsKendaraanSeeder::class,
+            // GpsKendaraanSeeder::class,
             SupplierSeeder::class,
             ServiceSeeder::class,
             ServiceHistorySeeder::class,
@@ -63,7 +63,7 @@ class DatabaseSeeder extends Seeder
             LaporanKeuanganSeeder::class,
             SettingSeeder::class,
             ProcurementoSeeder::class,
-            PembayaranSeeder::class,
+            // PembayaranSeeder::class,
             VendoreoSeeder::class,
             // Sales Seeders
             CrmProspekSeeder::class,

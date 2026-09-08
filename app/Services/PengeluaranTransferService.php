@@ -31,7 +31,7 @@ class PengeluaranTransferService
      * @param array $approvalFiles Files yang diupload saat approval
      * @return int Target ID dari record yang dibuat
      */
-    public function transfer(Pembayaran $pembayaran, array $approvalFiles): int
+    public function transfer(Pembayaran $pembayaran, array $approvalFiles, ?array $selectedItems = null): int
     {
         DB::beginTransaction();
         
@@ -40,7 +40,8 @@ class PengeluaranTransferService
                 'asuransi_kendaraan' => $this->transferAsuransi($pembayaran, $approvalFiles),
                 'pajak' => $this->transferPajak($pembayaran, $approvalFiles),
                 'service_part' => $this->transferServicePart($pembayaran, $approvalFiles),
-                'gps' => $this->transferGps($pembayaran, $approvalFiles),
+                'gps' => $this->transferGps($pembayaran, $approvalFiles, $selectedItems),
+                'gps_perpanjang' => $this->transferGpsPerpanjang($pembayaran, $approvalFiles, $selectedItems),
                 'kir' => $this->transferKir($pembayaran, $approvalFiles),
                 'stnk' => $this->transferStnk($pembayaran, $approvalFiles),
                 'service_asuransi' => $this->transferServiceAsuransi($pembayaran, $approvalFiles),
@@ -249,43 +250,95 @@ class PengeluaranTransferService
     /**
      * Transfer GPS Kendaraan
      * source_data berisi: kendaraan_id, status_gps, tanggal_bayar, tanggal_habis,
-     *                     keterangan, gps_items[]{gps_id, type, biaya_sewa}
+     *                     keterangan, gps_items[]{gps_id, type, biaya_sewa,
+     *                     nama_bank, no_rekening, nama_pemilik}
+     *
+     * @param  array|null $selectedItems  Subset item yang di-approve. Jika null → semua item.
+     *                                    Format: [ ['idx'=>0, 'bukti_file'=>UploadedFile|null, ...], ... ]
      */
-    protected function transferGps(Pembayaran $pembayaran, array $approvalFiles): int
+    protected function transferGps(Pembayaran $pembayaran, array $approvalFiles, ?array $selectedItems = null): int
     {
-        $sourceData  = $pembayaran->source_data;
-        $gpsItems    = $sourceData['gps_items'] ?? [];
-        $kendaraanId = $sourceData['kendaraan_id'];
+        $sourceData   = $pembayaran->source_data;
+        $allGpsItems  = $sourceData['gps_items'] ?? [];
+        $kendaraanId  = $sourceData['kendaraan_id'];
         $tanggalBayar = $sourceData['tanggal_bayar'] ?? now()->toDateString();
         $tanggalHabis = $sourceData['tanggal_habis'] ?? now()->addYear()->toDateString();
         $statusGps    = $sourceData['status_gps'] ?? 'aktif';
         $keterangan   = $sourceData['keterangan'] ?? null;
 
+        // Filter: jika selectedItems diberikan, hanya proses item yang ada di dalamnya
+        if ($selectedItems !== null) {
+            $selectedIdx = array_column($selectedItems, 'idx');
+            $gpsItems    = array_values(array_filter(
+                $allGpsItems,
+                fn($item, $idx) => in_array($idx, $selectedIdx),
+                ARRAY_FILTER_USE_BOTH
+            ));
+        } else {
+            $gpsItems = $allGpsItems;
+        }
+
         $kendaraan  = Kendaraan::find($kendaraanId);
         $totalBiaya = 0;
         $lastId     = null;
 
-        // Copy bukti bayar dari approval (satu bukti untuk semua GPS)
-        $buktiBayar = $this->copyBuktiToFinalStorage(
-            $approvalFiles['bukti'][0] ?? null,
-            'gps/bukti_bayar',
-            $pembayaran->id
-        );
+        $buktiDir = public_path('gps/bukti_bayar');
+        if (!file_exists($buktiDir)) mkdir($buktiDir, 0777, true);
 
-        // Buat satu GpsKendaraan per item
-        foreach ($gpsItems as $item) {
+        // Update atau buat record GpsKendaraan per item yang diapprove
+        foreach ($gpsItems as $loopIdx => $item) {
             $biayaSewa = (int) ($item['biaya_sewa'] ?? 0);
             $totalBiaya += $biayaSewa;
 
-            // Hitung durasi bulan dari tanggal_bayar ke tanggal_habis
+            // Hitung durasi bulan
             $durasiBulan = (int) \Carbon\Carbon::parse($tanggalBayar)
                 ->diffInMonths(\Carbon\Carbon::parse($tanggalHabis));
             $durasiBulan = max($durasiBulan, 1);
 
-            $gpsRecord = GpsKendaraan::create([
-                'kendaraan_id'  => $kendaraanId,
-                'gps_id'        => $item['gps_id'] ?? null,
-                'type'          => $item['type'] ?? null,
+            // Bukti per item: cocokkan berdasarkan gps_id + type dari selectedItems
+            $buktiBayar = null;
+            if ($selectedItems !== null) {
+                foreach ($selectedItems as $sel) {
+                    // Cari entry selectedItems yang cocok dengan item ini via gps_id+type atau idx
+                    $selGpsId = $sel['gps_id'] ?? null;
+                    $selType  = $sel['type'] ?? null;
+                    $itemGpsId = $item['gps_id'] ?? null;
+                    $itemType  = $item['type'] ?? null;
+
+                    $matchByIdentity = $selGpsId && $selType
+                        && $selGpsId == $itemGpsId && $selType == $itemType;
+
+                    // Fallback: cocokkan by idx vs posisi di allGpsItems
+                    $matchByIdx = false;
+                    if (!$matchByIdentity) {
+                        foreach ($allGpsItems as $ai => $ai_item) {
+                            if (($ai_item['gps_id'] ?? null) == $itemGpsId
+                                && ($ai_item['type'] ?? null) == $itemType
+                                && $ai === (int) ($sel['idx'] ?? -1)) {
+                                $matchByIdx = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (($matchByIdentity || $matchByIdx) && !empty($sel['bukti_path'])) {
+                        $buktiBayar = $sel['bukti_path'];
+                        break;
+                    }
+                }
+            }
+
+            // Coba update record Pending yang sudah ada (dibuat saat store())
+            $existing = GpsKendaraan::where('pembayaran_id', $pembayaran->id)
+                ->where('gps_id', $item['gps_id'] ?? null)
+                ->where('type', $item['type'] ?? null)
+                ->where(function($q) {
+                    $q->where('persetujuan', 'Pending')
+                      ->orWhereNull('persetujuan');
+                })
+                ->first();
+
+            $updateData = [
                 'status_gps'    => $statusGps,
                 'tanggal_pasang'=> $tanggalBayar,
                 'tanggal_habis' => $tanggalHabis,
@@ -295,9 +348,56 @@ class PengeluaranTransferService
                 'status_sewa'   => now()->lte($tanggalHabis) ? 'aktif' : 'habis',
                 'bukti_bayar'   => $buktiBayar,
                 'keterangan'    => $keterangan,
-            ]);
+                'nama_bank'     => $item['nama_bank'] ?? null,
+                'no_rekening'   => $item['no_rekening'] ?? null,
+                'nama_pemilik'  => $item['nama_pemilik'] ?? null,
+                'persetujuan'   => 'Disetujui',
+            ];
+
+            if ($existing) {
+                $existing->update($updateData);
+                $gpsRecord = $existing;
+            } else {
+                // Fallback: buat baru jika record Pending tidak ditemukan
+                $gpsRecord = GpsKendaraan::create(array_merge($updateData, [
+                    'pembayaran_id' => $pembayaran->id,
+                    'kendaraan_id'  => $kendaraanId,
+                    'gps_id'        => $item['gps_id'] ?? null,
+                    'type'          => $item['type'] ?? null,
+                ]));
+            }
 
             $lastId = $gpsRecord->id;
+
+            // Copy lampiran per item dari temp_files ke tabel attachments
+            $tempFiles    = $sourceData['temp_files'] ?? [];
+            $itemLampiran = [];
+
+            // Cari lampiran berdasarkan origIdx (posisi item di allGpsItems)
+            $origIdxForLamp = null;
+            foreach ($allGpsItems as $ai => $ai_item) {
+                if (($ai_item['gps_id'] ?? null) == ($item['gps_id'] ?? null)
+                    && ($ai_item['type'] ?? null) == ($item['type'] ?? null)) {
+                    $origIdxForLamp = $ai;
+                    break;
+                }
+            }
+            if ($origIdxForLamp !== null) {
+                $itemLampiran = $tempFiles['gps_items'][$origIdxForLamp]['lampiran'] ?? [];
+            }
+
+            foreach ($itemLampiran as $lampFile) {
+                if (empty($lampFile['path'])) continue;
+                $finalPath = $this->copyFileToPublic($lampFile['path'], 'gps/attachments', $pembayaran->id);
+                Attachment::create([
+                    'relation_type' => 'gps',
+                    'relation_id'   => $gpsRecord->id,
+                    'file_name'     => $lampFile['original_name'] ?? basename($lampFile['path']),
+                    'file_path'     => $finalPath,
+                    'file_type'     => $lampFile['extension'] ?? pathinfo($lampFile['path'], PATHINFO_EXTENSION),
+                    'file_size'     => $lampFile['size'] ?? null,
+                ]);
+            }
         }
 
         // Jika tidak ada item sama sekali (edge case), return 0
@@ -305,7 +405,7 @@ class PengeluaranTransferService
             throw new \Exception('GPS items kosong, tidak ada data yang ditransfer.');
         }
 
-        // Catat Keuangan & Buku Besar dengan total semua GPS
+        // Catat Keuangan & Buku Besar hanya untuk item yang diapprove
         $this->createKeuanganRecord(
             'GPS',
             $lastId,
@@ -330,6 +430,176 @@ class PengeluaranTransferService
             'gps',
             $lastId,
             $pembayaran->id
+        );
+
+        return $lastId;
+    }
+
+    /**
+     * Simpan item GPS yang ditolak ke gps_kendaraan dengan persetujuan = Ditolak.
+     *
+     * @param  Pembayaran $pembayaran
+     * @param  array      $rejectedItems  [ ['idx'=>int, 'catatan'=>string], ... ]
+     */
+    public function transferGpsRejected(Pembayaran $pembayaran, array $rejectedItems): void
+    {
+        $sourceData   = $pembayaran->source_data;
+        $allGpsItems  = $sourceData['gps_items'] ?? [];
+        $kendaraanId  = $sourceData['kendaraan_id'];
+        $tanggalBayar = $sourceData['tanggal_bayar'] ?? now()->toDateString();
+        $tanggalHabis = $sourceData['tanggal_habis'] ?? now()->addYear()->toDateString();
+        $statusGps    = $sourceData['status_gps'] ?? 'aktif';
+        $keterangan   = $sourceData['keterangan'] ?? null;
+
+        $durasiBulan = (int) \Carbon\Carbon::parse($tanggalBayar)
+            ->diffInMonths(\Carbon\Carbon::parse($tanggalHabis));
+        $durasiBulan = max($durasiBulan, 1);
+
+        foreach ($rejectedItems as $entry) {
+            $idx  = $entry['idx'];
+            $item = $allGpsItems[$idx] ?? null;
+            if (!$item) continue;
+
+            $updateData = [
+                'status_gps'    => 'nonaktif',
+                'tanggal_pasang'=> $tanggalBayar,
+                'tanggal_habis' => $tanggalHabis,
+                'tanggal_bayar' => $tanggalBayar,
+                'biaya_sewa'    => (int) ($item['biaya_sewa'] ?? 0),
+                'durasi_bulan'  => $durasiBulan,
+                'status_sewa'   => 'tidak_aktif',
+                'bukti_bayar'   => null,
+                'keterangan'    => $entry['catatan'] ?? $keterangan,
+                'nama_bank'     => $item['nama_bank'] ?? null,
+                'no_rekening'   => $item['no_rekening'] ?? null,
+                'nama_pemilik'  => $item['nama_pemilik'] ?? null,
+                'persetujuan'   => 'Ditolak',
+            ];
+
+            // Coba update record Pending yang dibuat saat store()
+            $existing = GpsKendaraan::where('pembayaran_id', $pembayaran->id)
+                ->where('gps_id', $item['gps_id'] ?? null)
+                ->where('type', $item['type'] ?? null)
+                ->where(function($q) {
+                    $q->where('persetujuan', 'Pending')
+                      ->orWhereNull('persetujuan');
+                })
+                ->first();
+
+            if ($existing) {
+                $existing->update($updateData);
+            } else {
+                // Fallback: buat baru jika record Pending tidak ditemukan
+                GpsKendaraan::create(array_merge($updateData, [
+                    'pembayaran_id' => $pembayaran->id,
+                    'kendaraan_id'  => $kendaraanId,
+                    'gps_id'        => $item['gps_id'] ?? null,
+                    'type'          => $item['type'] ?? null,
+                ]));
+            }
+        }
+    }
+
+    /**
+     * Transfer Perpanjangan GPS — update record Pending yang dibuat saat perpanjang()
+     * Saat approved: update persetujuan=Disetujui, status aktif, isi bukti_bayar
+     */
+    protected function transferGpsPerpanjang(Pembayaran $pembayaran, array $approvalFiles, ?array $selectedItems = null): int
+    {
+        $sourceData   = $pembayaran->source_data;
+        $tanggalBayar = $sourceData['tanggal_bayar'] ?? now()->toDateString();
+        $tanggalHabis = $sourceData['tanggal_habis'] ?? now()->addYear()->toDateString();
+        $statusGps    = $sourceData['status_gps'] ?? 'aktif';
+        $gpsItems     = $sourceData['gps_items'] ?? [];
+
+        $lastId = null;
+        $totalBiaya = 0;
+
+        $buktiDir = public_path('gps/bukti_bayar');
+        if (!file_exists($buktiDir)) mkdir($buktiDir, 0777, true);
+
+        foreach ($gpsItems as $loopIdx => $item) {
+            $biayaSewa = (int) ($item['biaya_sewa'] ?? 0);
+            $totalBiaya += $biayaSewa;
+
+            $durasiBulan = max((int) \Carbon\Carbon::parse($tanggalBayar)->diffInMonths(\Carbon\Carbon::parse($tanggalHabis)), 1);
+
+            // Bukti dari selectedItems
+            $buktiBayar = null;
+            if ($selectedItems !== null) {
+                foreach ($selectedItems as $sel) {
+                    $selGpsId = $sel['gps_id'] ?? null;
+                    $selType  = $sel['type'] ?? null;
+                    if ($selGpsId == ($item['gps_id'] ?? null) && $selType == ($item['type'] ?? null)) {
+                        $buktiBayar = $sel['bukti_path'] ?? null;
+                        break;
+                    }
+                }
+            }
+            if (!$buktiBayar && !empty($approvalFiles['bukti'][0])) {
+                $buktiBayar = $this->copyBuktiToFinalStorage(
+                    $approvalFiles['bukti'][0],
+                    'gps/bukti_bayar',
+                    $pembayaran->id
+                );
+            }
+
+            // Update record Pending yang dibuat saat perpanjang()
+            $existing = GpsKendaraan::where('pembayaran_id', $pembayaran->id)
+                ->where('gps_id', $item['gps_id'] ?? null)
+                ->where('type', $item['type'] ?? null)
+                ->where(function($q) {
+                    $q->where('persetujuan', 'Pending')->orWhereNull('persetujuan');
+                })
+                ->first();
+
+            $updateData = [
+                'status_gps'    => $statusGps,
+                'tanggal_pasang'=> $tanggalBayar,
+                'tanggal_habis' => $tanggalHabis,
+                'tanggal_bayar' => $tanggalBayar,
+                'biaya_sewa'    => $biayaSewa,
+                'durasi_bulan'  => $durasiBulan,
+                'status_sewa'   => now()->lte($tanggalHabis) ? 'aktif' : 'habis',
+                'bukti_bayar'   => $buktiBayar,
+                'nama_bank'     => $item['nama_bank'] ?? null,
+                'no_rekening'   => $item['no_rekening'] ?? null,
+                'nama_pemilik'  => $item['nama_pemilik'] ?? null,
+                'persetujuan'   => 'Disetujui',
+            ];
+
+            if ($existing) {
+                $existing->update($updateData);
+                $lastId = $existing->id;
+            } else {
+                $new = GpsKendaraan::create(array_merge($updateData, [
+                    'pembayaran_id' => $pembayaran->id,
+                    'kendaraan_id'  => $sourceData['kendaraan_id'],
+                    'gps_id'        => $item['gps_id'] ?? null,
+                    'type'          => $item['type'] ?? null,
+                    'keterangan'    => 'Perpanjangan GPS',
+                ]));
+                $lastId = $new->id;
+            }
+        }
+
+        if (!$lastId) throw new \Exception('GPS perpanjang items kosong.');
+
+        $kendaraan = Kendaraan::find($sourceData['kendaraan_id']);
+
+        $this->createKeuanganRecord(
+            'GPS-PERP',
+            $lastId,
+            $totalBiaya,
+            'Perpanjangan GPS kendaraan - ' . ($kendaraan->nopol ?? '-')
+        );
+
+        $this->createBukubesarRecord(
+            'GPS-PERP',
+            $lastId,
+            $totalBiaya,
+            'Beban Perpanjangan GPS - ' . ($kendaraan->nopol ?? '-'),
+            'Auto-posting: Perpanjangan GPS ' . ($kendaraan->nopol ?? '-') . ' via PR #' . $pembayaran->no_pr
         );
 
         return $lastId;

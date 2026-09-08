@@ -22,10 +22,14 @@ class PembayaranController extends Controller
 
         if ($role === 'superadmin') {
             $tab = $request->input('tab', 'Diajukan');
-            if (in_array($tab, ['Pending', 'Diajukan', 'Disetujui', 'Ditolak'])) {
+            if ($tab === 'Disetujui') {
+                $query->whereIn('status', ['Disetujui', 'Disetujui Sebagian']);
+            } elseif ($tab === 'Ditolak') {
+                $query->whereIn('status', ['Ditolak', 'Disetujui Sebagian']);
+            } elseif (in_array($tab, ['Pending', 'Diajukan'])) {
                 $query->where('status', $tab);
             } else {
-                $query->whereIn('status', ['Pending', 'Diajukan', 'Disetujui', 'Ditolak']);
+                $query->whereIn('status', ['Pending', 'Diajukan', 'Disetujui', 'Ditolak', 'Disetujui Sebagian']);
             }
             // Filter departemen (superadmin saja)
             if ($deptFilter) {
@@ -63,7 +67,7 @@ class PembayaranController extends Controller
             $query->latest('id');
         }
 
-        $data = $query->with('items')->paginate(15)->withQueryString();
+        $data = $query->with(['items', 'approvals'])->paginate(15)->withQueryString();
 
         // Stats (scope sama dengan query utama tapi tanpa pagination)
         $baseQuery = Pembayaran::query();
@@ -90,11 +94,11 @@ class PembayaranController extends Controller
         }
 
         $totalPR        = (clone $baseQuery)->count();
-        $totalDisetujui = (clone $baseQuery)->where('status', 'Disetujui')->count();
+        $totalDisetujui = (clone $baseQuery)->whereIn('status', ['Disetujui', 'Disetujui Sebagian'])->count();
         $totalPending   = (clone $baseQuery)->where('status', 'Pending')->count();
-        $totalDitolak   = (clone $baseQuery)->where('status', 'Ditolak')->count();
+        $totalDitolak   = (clone $baseQuery)->whereIn('status', ['Ditolak', 'Disetujui Sebagian'])->count();
         $totalDiajukan  = (clone $baseQuery)->where('status', 'Diajukan')->count();
-        $totalNominal   = (clone $baseQuery)->whereIn('status', ['Diajukan', 'Disetujui'])->sum('nominal');
+        $totalNominal   = (clone $baseQuery)->whereIn('status', ['Diajukan', 'Disetujui', 'Disetujui Sebagian'])->sum('nominal');
 
         // Departemen label untuk auto-fill di form store
         $deptLabel = match($role) {
@@ -1054,13 +1058,23 @@ class PembayaranController extends Controller
                     $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
                     // Handle multi-item GPS (gps_items array)
                     if (!empty($sourceData['gps_items'])) {
-                        $data['gps_items'] = collect($sourceData['gps_items'])->map(function ($item) {
-                            $gpsModel = \App\Models\Gps::find($item['gps_id'] ?? null);
+                        $tempFiles = $sourceData['temp_files'] ?? [];
+                        $data['gps_items'] = collect($sourceData['gps_items'])->map(function ($item, $idx) use ($tempFiles) {
+                            $gpsModel    = \App\Models\Gps::find($item['gps_id'] ?? null);
+                            $buktiBayar  = $tempFiles['gps_items'][$idx]['bukti_bayar'] ?? null;
+                            $lampiranArr = $tempFiles['gps_items'][$idx]['lampiran'] ?? [];
                             return [
-                                'gps_id'     => $item['gps_id'] ?? null,
-                                'nama_gps'   => $gpsModel->nama_gps ?? '-',
-                                'type'       => $item['type'] ?? '-',
-                                'biaya_sewa' => $item['biaya_sewa'] ?? 0,
+                                'gps_id'       => $item['gps_id'] ?? null,
+                                'nama_gps'     => $gpsModel->nama_gps ?? '-',
+                                'type'         => $item['type'] ?? '-',
+                                'biaya_sewa'   => $item['biaya_sewa'] ?? 0,
+                                // Bank info per item
+                                'nama_bank'    => $item['nama_bank'] ?? null,
+                                'no_rekening'  => $item['no_rekening'] ?? null,
+                                'nama_pemilik' => $item['nama_pemilik'] ?? null,
+                                // File info per item
+                                'bukti_bayar'  => $buktiBayar,
+                                'lampiran'     => $lampiranArr,
                             ];
                         })->values()->toArray();
                     } else {
@@ -1212,6 +1226,133 @@ class PembayaranController extends Controller
             
             return back()
                 ->with('error', 'Terjadi kesalahan saat menolak pengeluaran: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Per-item approval untuk GPS multi-item.
+     * Menerima keputusan approve/reject per baris GPS beserta bukti masing-masing.
+     *
+     * Request:
+     *   items[{idx}][action]  = 'approved' | 'rejected'
+     *   items[{idx}][catatan] = string (wajib jika rejected)
+     *   items[{idx}][bukti]   = file (opsional)
+     */
+    public function approveItems(Request $request, Pembayaran $pembayaran)
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Hanya Superadmin yang dapat menyetujui pengeluaran.');
+        }
+
+        if ($pembayaran->status !== 'Pending') {
+            return back()->with('error', 'Pengeluaran ini tidak dalam status Pending.');
+        }
+
+        // Validasi
+        $request->validate([
+            'items'                  => 'required|array|min:1',
+            'items.*.action'         => 'required|in:approved,rejected',
+            'items.*.catatan'        => 'nullable|string|max:500',
+            'items.*.bukti'          => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,zip|max:5120',
+        ]);
+
+        $items = $request->input('items');
+
+        // Pastikan setiap item rejected punya catatan
+        foreach ($items as $idx => $item) {
+            if ($item['action'] === 'rejected' && empty(trim($item['catatan'] ?? ''))) {
+                return back()->with('error', "Item #" . ($idx + 1) . " ditolak tapi catatan alasan kosong. Wajib isi alasan penolakan.");
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            $approvedItems  = [];
+            $rejectedItems  = [];
+            $buktiDir       = public_path('gps/bukti_bayar');
+            if (!file_exists($buktiDir)) mkdir($buktiDir, 0777, true);
+
+            foreach ($items as $idx => $item) {
+                $action  = $item['action'];
+                $catatan = $item['catatan'] ?? null;
+
+                // Upload bukti per item jika ada
+                $buktiBayarPath = null;
+                if ($request->hasFile("items.{$idx}.bukti")) {
+                    $file           = $request->file("items.{$idx}.bukti");
+                    $filename       = time() . '_' . $idx . '_' . $file->getClientOriginalName();
+                    $file->move($buktiDir, $filename);
+                    $buktiBayarPath = 'gps/bukti_bayar/' . $filename;
+                }
+
+                // Catat ke approval history
+                \App\Models\PembayaranApproval::create([
+                    'pembayaran_id'    => $pembayaran->id,
+                    'user_id'          => auth()->id(),
+                    'action'           => $action,
+                    'catatan'          => $catatan,
+                    'bukti_files'      => $buktiBayarPath ? [['path' => $buktiBayarPath]] : null,
+                    'attachment_files' => null,
+                ]);
+
+                if ($action === 'approved') {
+                    // Sertakan gps_id + type dari source_data untuk matching di transferGps
+                    $sourceGpsItems = $pembayaran->source_data['gps_items'] ?? [];
+                    $sourceItem     = $sourceGpsItems[(int) $idx] ?? [];
+                    $approvedItems[] = [
+                        'idx'        => (int) $idx,
+                        'bukti_path' => $buktiBayarPath,
+                        'gps_id'     => $sourceItem['gps_id'] ?? null,
+                        'type'       => $sourceItem['type'] ?? null,
+                    ];
+                } else {
+                    $rejectedItems[] = ['idx' => (int) $idx, 'catatan' => $catatan];
+                }
+            }
+
+            $transferService = app(\App\Services\PengeluaranTransferService::class);
+
+            // Transfer item approved → gps_kendaraan (persetujuan = Disetujui)
+            $targetId = null;
+            if (!empty($approvedItems)) {
+                $targetId = $transferService->transfer($pembayaran, [], $approvedItems);
+            }
+
+            // Simpan item rejected → gps_kendaraan (persetujuan = Ditolak)
+            if (!empty($rejectedItems)) {
+                $transferService->transferGpsRejected($pembayaran, $rejectedItems);
+            }
+
+            // Tentukan status PR induk
+            $totalItems    = count($items);
+            $approvedCount = count($approvedItems);
+            $rejectedCount = count($rejectedItems);
+
+            if ($approvedCount === $totalItems) {
+                $newStatus = 'Disetujui';
+            } elseif ($rejectedCount === $totalItems) {
+                $newStatus = 'Ditolak';
+            } else {
+                $newStatus = 'Disetujui Sebagian';
+            }
+
+            $pembayaran->update([
+                'status'              => $newStatus,
+                'target_id'           => $targetId,
+                'can_edit'            => $rejectedCount > 0,
+                'disetujui_oleh'      => auth()->user()->nama ?? auth()->user()->email,
+                'tanggal_persetujuan' => now(),
+            ]);
+
+            DB::commit();
+
+            $msg = "Keputusan disimpan: {$approvedCount} disetujui, {$rejectedCount} ditolak. Status PR: {$newStatus}.";
+            return redirect()->route('pembayaran.index')->with('success', $msg);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("approveItems failed for Pembayaran #{$pembayaran->id}: " . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
 

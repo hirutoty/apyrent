@@ -415,6 +415,14 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   
   Route::post('pembayaran/{pembayaran}/reject', [PembayaranController::class, 'reject'])
     ->name('pembayaran.reject');
+
+  // Per-item approval (GPS multi-item)
+  Route::post('pembayaran/{pembayaran}/approve-items', [PembayaranController::class, 'approveItems'])
+    ->name('pembayaran.approve-items');
+
+  // Per-item approval (GPS multi-item)
+  Route::post('pembayaran/{pembayaran}/approve-items', [PembayaranController::class, 'approveItems'])
+    ->name('pembayaran.approve-items');
   
   Route::post('pembayaran/bulk-approve', [PembayaranController::class, 'bulkApprove'])
     ->name('pembayaran.bulk-approve');

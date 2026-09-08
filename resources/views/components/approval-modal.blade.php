@@ -1,9 +1,11 @@
-﻿{{-- 
+{{--
     Approval Modal Component for Pengeluaran Kendaraan
+    GPS: per-item approve/reject dengan bukti & catatan masing-masing
+    Non-GPS: approve/reject global (existing flow)
     Usage: <x-approval-modal />
 --}}
 
-<div 
+<div
     x-data="approvalModal()"
     x-show="show"
     x-cloak
@@ -13,7 +15,7 @@
     style="display: none;"
 >
     {{-- Backdrop --}}
-    <div 
+    <div
         x-show="show"
         x-transition:enter="ease-out duration-300"
         x-transition:enter-start="opacity-0"
@@ -27,7 +29,7 @@
 
     {{-- Modal Content --}}
     <div class="flex min-h-screen items-center justify-center p-4">
-        <div 
+        <div
             x-show="show"
             x-transition:enter="ease-out duration-300"
             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
@@ -44,7 +46,7 @@
                     <h3 class="text-xl font-bold text-white">Approval Pengeluaran</h3>
                     <p class="text-sm text-blue-100 mt-0.5" x-text="'No PR: ' + (data?.no_pr || '-')"></p>
                 </div>
-                <button 
+                <button
                     @click="closeModal()"
                     class="text-white/80 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-colors"
                 >
@@ -54,23 +56,34 @@
                 </button>
             </div>
 
+            {{-- Loading state --}}
+            <div x-show="loading" class="flex items-center justify-center py-20">
+                <div class="flex flex-col items-center gap-3">
+                    <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-sm text-gray-500">Memuat data...</p>
+                </div>
+            </div>
+
             {{-- Body --}}
-            <div class="overflow-y-auto max-h-[calc(90vh-180px)] px-6 py-6 space-y-6">
-                
-                {{-- Section 1: Detail Pengeluaran --}}
+            <div x-show="!loading" class="overflow-y-auto max-h-[calc(90vh-130px)] px-6 py-6 space-y-5">
+
+                {{-- Section 1: Info Pengeluaran --}}
                 <div class="bg-gray-50 rounded-xl p-5 border border-gray-200">
                     <h4 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <i class="bi bi-info-circle text-blue-600"></i>
                         Detail Pengeluaran
                     </h4>
-                    
+
                     <div class="grid grid-cols-2 gap-4 text-sm">
                         <div>
                             <p class="text-gray-500 mb-1">Jenis Pengeluaran</p>
                             <p class="font-semibold text-gray-800" x-text="data?.source_type_name || '-'"></p>
                         </div>
                         <div>
-                            <p class="text-gray-500 mb-1">Nominal</p>
+                            <p class="text-gray-500 mb-1">Total Nominal</p>
                             <p class="font-bold text-green-600" x-text="'Rp ' + formatNumber(data?.nominal || 0)"></p>
                         </div>
                         <div>
@@ -83,13 +96,226 @@
                         </div>
                     </div>
 
-                    {{-- Dynamic fields berdasarkan source_type --}}
-                    <div x-show="sourceData" class="mt-4 pt-4 border-t border-gray-300">
-                        <div x-show="data?.source_type === 'asuransi_kendaraan'" class="grid grid-cols-2 gap-4 text-sm">
+                    {{-- Info kendaraan & keterangan --}}
+                    <div x-show="relatedData?.kendaraan" class="mt-4 pt-4 border-t border-gray-200">
+                        <div class="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p class="text-gray-500 mb-1">Kendaraan</p>
-                                <p class="font-semibold text-gray-800" x-text="relatedData?.kendaraan?.nopol || '-'"></p>
+                                <p class="font-semibold text-gray-800"
+                                   x-text="(relatedData?.kendaraan?.nopol || '-') + ' — ' + (relatedData?.kendaraan?.merk || '')"></p>
                             </div>
+                            <div x-show="sourceData?.tanggal_habis">
+                                <p class="text-gray-500 mb-1">Berlaku s/d</p>
+                                <p class="font-semibold text-gray-800" x-text="formatDate(sourceData?.tanggal_habis)"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div x-show="sourceData?.keterangan" class="mt-3 pt-3 border-t border-gray-200">
+                        <p class="text-gray-500 text-xs mb-1">Keterangan</p>
+                        <p class="text-gray-700 text-sm" x-text="sourceData?.keterangan"></p>
+                    </div>
+                </div>
+
+                {{-- ============================================================
+                     GPS: TABEL PER-ITEM dengan Approve/Reject inline
+                ============================================================ --}}
+                <div x-show="data?.source_type === 'gps' && relatedData?.gps_items?.length > 0">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-bold text-gray-800 flex items-center gap-2 text-sm">
+                            <i class="fa-solid fa-satellite-dish text-purple-600"></i>
+                            GPS Items — Tentukan keputusan per item
+                        </h4>
+                        {{-- Progress badge --}}
+                        <span class="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-semibold"
+                              x-text="decidedCount() + ' / ' + (relatedData?.gps_items?.length || 0) + ' diputuskan'">
+                        </span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <template x-for="(item, idx) in relatedData?.gps_items || []" :key="idx">
+                            <div class="border rounded-xl overflow-hidden transition-all"
+                                 :class="{
+                                     'border-green-300 bg-green-50/30' : itemDecisions[idx]?.action === 'approved',
+                                     'border-red-300 bg-red-50/30'    : itemDecisions[idx]?.action === 'rejected',
+                                     'border-gray-200 bg-white'       : !itemDecisions[idx]?.action
+                                 }">
+
+                                {{-- Row utama --}}
+                                <div class="flex items-start gap-3 px-4 py-3">
+
+                                    {{-- Status badge kiri --}}
+                                    <div class="flex-shrink-0 mt-0.5">
+                                        <span x-show="!itemDecisions[idx]?.action"
+                                              class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                                            <i class="fa-solid fa-circle text-[6px]"></i> Pending
+                                        </span>
+                                        <span x-show="itemDecisions[idx]?.action === 'approved'"
+                                              class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                            <i class="fa-solid fa-circle-check text-[10px]"></i> Approved
+                                        </span>
+                                        <span x-show="itemDecisions[idx]?.action === 'rejected'"
+                                              class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                            <i class="fa-solid fa-circle-xmark text-[10px]"></i> Rejected
+                                        </span>
+                                    </div>
+
+                                    {{-- Info GPS --}}
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="text-xs text-gray-400 font-medium" x-text="'#' + (idx + 1)"></span>
+                                            <span class="font-semibold text-gray-800 text-sm" x-text="item.nama_gps"></span>
+                                            <span class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded font-mono" x-text="item.type"></span>
+                                            <span class="text-xs font-bold text-emerald-600 ml-auto" x-text="'Rp ' + formatNumber(item.biaya_sewa)"></span>
+                                        </div>
+
+                                        {{-- Bank info per item (subtle) --}}
+                                        <div x-show="item.nama_bank || item.no_rekening || item.nama_pemilik"
+                                             class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                                            <span x-show="item.nama_bank"
+                                                  class="inline-flex items-center gap-1 text-[11px] text-blue-600">
+                                                <i class="fa-solid fa-building-columns text-[9px]"></i>
+                                                <span x-text="item.nama_bank"></span>
+                                            </span>
+                                            <span x-show="item.no_rekening"
+                                                  class="text-[11px] font-mono text-gray-500" x-text="item.no_rekening"></span>
+                                            <span x-show="item.nama_pemilik"
+                                                  class="text-[11px] text-gray-400" x-text="'a/n ' + item.nama_pemilik"></span>
+                                        </div>
+
+                                        {{-- File dari pengaju --}}
+                                        <div x-show="item.bukti_bayar?.path" class="mt-1.5 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-file-arrow-up text-[10px] text-blue-400"></i>
+                                            <a :href="'/storage/' + item.bukti_bayar?.path"
+                                               target="_blank"
+                                               class="text-[11px] text-blue-500 underline hover:text-blue-700"
+                                               x-text="item.bukti_bayar?.original_name || 'Lihat bukti pengaju'"></a>
+                                        </div>
+                                    </div>
+
+                                    {{-- Tombol Aksi --}}
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        {{-- Approve --}}
+                                        <button type="button"
+                                                @click="setAction(idx, 'approved')"
+                                                :class="itemDecisions[idx]?.action === 'approved'
+                                                    ? 'bg-green-600 text-white border-green-600 shadow-sm'
+                                                    : 'bg-white text-green-600 border-green-300 hover:bg-green-50'"
+                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all">
+                                            <i class="fa-solid fa-check text-[10px]"></i> Approve
+                                        </button>
+                                        {{-- Reject --}}
+                                        <button type="button"
+                                                @click="setAction(idx, 'rejected')"
+                                                :class="itemDecisions[idx]?.action === 'rejected'
+                                                    ? 'bg-red-600 text-white border-red-600 shadow-sm'
+                                                    : 'bg-white text-red-500 border-red-300 hover:bg-red-50'"
+                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all">
+                                            <i class="fa-solid fa-times text-[10px]"></i> Reject
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {{-- Panel expand: Upload Bukti (approved) + Catatan (rejected) --}}
+                                <div x-show="itemDecisions[idx]?.action"
+                                     x-transition:enter="transition ease-out duration-150"
+                                     x-transition:enter-start="opacity-0 -translate-y-1"
+                                     x-transition:enter-end="opacity-100 translate-y-0"
+                                     class="px-4 pb-3 pt-1 border-t"
+                                     :class="itemDecisions[idx]?.action === 'approved' ? 'border-green-200' : 'border-red-200'">
+
+                                    <div class="flex flex-col gap-2.5">
+
+                                        {{-- Upload bukti (tampil untuk APPROVE) --}}
+                                        <div x-show="itemDecisions[idx]?.action === 'approved'">
+                                            <p class="text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
+                                                <i class="fa-solid fa-cloud-arrow-up mr-1 text-green-500"></i>
+                                                Upload Bukti Bayar <span class="text-gray-400 font-normal">(opsional)</span>
+                                            </p>
+
+                                            <div x-show="!itemDecisions[idx]?.buktiFile">
+                                                <label :for="'bukti-item-' + idx"
+                                                       class="flex items-center gap-2 px-3 py-2 border border-dashed border-green-300 rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
+                                                    <i class="fa-solid fa-paperclip text-green-500 text-xs"></i>
+                                                    <span class="text-xs text-gray-500">Klik untuk pilih file (JPG, PNG, PDF, max 5MB)</span>
+                                                </label>
+                                                <input :id="'bukti-item-' + idx"
+                                                       type="file"
+                                                       accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                                                       class="hidden"
+                                                       @change="handleBuktiItem($event, idx)">
+                                            </div>
+
+                                            <div x-show="itemDecisions[idx]?.buktiFile"
+                                                 class="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                                                <i class="fa-solid fa-file-check text-green-600 text-xs"></i>
+                                                <span class="text-xs text-gray-700 flex-1 truncate"
+                                                      x-text="itemDecisions[idx]?.buktiFile?.name"></span>
+                                                <button type="button"
+                                                        @click="removeItemBukti(idx)"
+                                                        class="text-red-400 hover:text-red-600 text-xs p-0.5">
+                                                    <i class="fa-solid fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {{-- Catatan wajib (tampil untuk REJECT) --}}
+                                        <div x-show="itemDecisions[idx]?.action === 'rejected'">
+                                            <p class="text-[11px] font-semibold text-red-500 mb-1.5 uppercase tracking-wide">
+                                                <i class="fa-solid fa-comment-dots mr-1"></i>
+                                                Alasan Penolakan <span class="text-red-500">*</span>
+                                            </p>
+                                            <textarea
+                                                :id="'catatan-item-' + idx"
+                                                x-model="itemDecisions[idx].catatan"
+                                                rows="2"
+                                                placeholder="Tulis alasan penolakan item ini..."
+                                                class="w-full text-xs px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-300"
+                                                :class="itemDecisions[idx]?.action === 'rejected' && !itemDecisions[idx]?.catatan?.trim()
+                                                    ? 'border-red-300 bg-red-50'
+                                                    : 'border-red-200'"
+                                            ></textarea>
+                                            <p x-show="itemDecisions[idx]?.action === 'rejected' && !itemDecisions[idx]?.catatan?.trim()"
+                                               class="text-[10px] text-red-500 mt-0.5">
+                                                <i class="fa-solid fa-circle-exclamation mr-0.5"></i>
+                                                Wajib diisi
+                                            </p>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    {{-- Ringkasan keputusan --}}
+                    <div x-show="decidedCount() > 0"
+                         class="mt-3 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-4 text-xs">
+                        <span class="text-gray-500">Ringkasan:</span>
+                        <span x-show="approvedCount() > 0"
+                              class="inline-flex items-center gap-1 font-semibold text-green-700">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span x-text="approvedCount() + ' disetujui'"></span>
+                        </span>
+                        <span x-show="rejectedCount() > 0"
+                              class="inline-flex items-center gap-1 font-semibold text-red-600">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                            <span x-text="rejectedCount() + ' ditolak'"></span>
+                        </span>
+                        <span class="ml-auto text-gray-400 italic" x-show="approvedCount() > 0 && rejectedCount() > 0">
+                            PR akan berstatus "Disetujui Sebagian"
+                        </span>
+                    </div>
+                </div>
+
+                {{-- ============================================================
+                     NON-GPS: Approval global (existing flow)
+                ============================================================ --}}
+                <div x-show="data?.source_type !== 'gps'">
+
+                    {{-- Info tambahan non-GPS --}}
+                    <div x-show="data?.source_type === 'asuransi_kendaraan'" class="bg-gray-50 rounded-xl p-4 border border-gray-200 text-sm">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <p class="text-gray-500 mb-1">Perusahaan Asuransi</p>
                                 <p class="font-semibold text-gray-800" x-text="relatedData?.asuransi?.nama_asuransi || '-'"></p>
@@ -98,310 +324,159 @@
                                 <p class="text-gray-500 mb-1">Jenis Asuransi</p>
                                 <p class="font-semibold text-gray-800" x-text="relatedData?.jenis_asuransi?.nama_jenis || '-'"></p>
                             </div>
-                            <div>
-                                <p class="text-gray-500 mb-1">Periode</p>
-                                <p class="font-semibold text-gray-800" x-text="formatDate(sourceData?.tgl_mulai) + ' - ' + formatDate(sourceData?.tgl_berakhir)"></p>
-                            </div>
                         </div>
+                    </div>
 
-                        <div x-show="data?.source_type === 'pajak'" class="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <p class="text-gray-500 mb-1">Kendaraan</p>
-                                <p class="font-semibold text-gray-800" x-text="relatedData?.kendaraan?.nopol || '-'"></p>
-                            </div>
+                    <div x-show="data?.source_type === 'pajak'" class="bg-gray-50 rounded-xl p-4 border border-gray-200 text-sm">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <p class="text-gray-500 mb-1">Jenis Pajak</p>
                                 <p class="font-semibold text-gray-800" x-text="sourceData?.jenis_pajak || '-'"></p>
                             </div>
-                            <div>
-                                <p class="text-gray-500 mb-1">Jatuh Tempo</p>
-                                <p class="font-semibold text-gray-800" x-text="formatDate(sourceData?.jatuh_tempo)"></p>
-                            </div>
-                            <div>
-                                <p class="text-gray-500 mb-1">Status</p>
-                                <p class="font-semibold text-gray-800" x-text="sourceData?.status || '-'"></p>
-                            </div>
-                        </div>
-
-                        {{-- GPS Items Table --}}
-                        <div x-show="data?.source_type === 'gps'" class="space-y-3 text-sm">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p class="text-gray-500 mb-1">Kendaraan</p>
-                                    <p class="font-semibold text-gray-800" x-text="(relatedData?.kendaraan?.nopol || '-') + ' — ' + (relatedData?.kendaraan?.merk || '')"></p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-500 mb-1">Berlaku s/d</p>
-                                    <p class="font-semibold text-gray-800" x-text="formatDate(sourceData?.tanggal_habis)"></p>
-                                </div>
-                            </div>
-                            <div x-show="relatedData?.gps_items?.length > 0">
-                                <p class="text-gray-500 mb-2 font-medium">Detail GPS (<span x-text="relatedData?.gps_items?.length"></span> item)</p>
-                                <table class="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
-                                    <thead>
-                                        <tr class="bg-purple-50">
-                                            <th class="text-left px-3 py-2 font-semibold text-purple-600">#</th>
-                                            <th class="text-left px-3 py-2 font-semibold text-purple-600">Nama GPS</th>
-                                            <th class="text-left px-3 py-2 font-semibold text-purple-600">Type</th>
-                                            <th class="text-right px-3 py-2 font-semibold text-purple-600">Biaya Sewa</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-for="(item, idx) in relatedData?.gps_items || []" :key="idx">
-                                            <tr class="border-t border-gray-100">
-                                                <td class="px-3 py-2 text-gray-400" x-text="idx + 1"></td>
-                                                <td class="px-3 py-2 font-medium text-gray-700" x-text="item.nama_gps"></td>
-                                                <td class="px-3 py-2 text-gray-600" x-text="item.type"></td>
-                                                <td class="px-3 py-2 text-right font-semibold text-emerald-600" x-text="'Rp ' + formatNumber(item.biaya_sewa)"></td>
-                                            </tr>
-                                        </template>
-                                        <tr class="border-t-2 border-gray-200 bg-gray-50">
-                                            <td colspan="3" class="px-3 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
-                                            <td class="px-3 py-2 text-right font-bold text-emerald-600" x-text="'Rp ' + formatNumber(data?.nominal || 0)"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div x-show="sourceData?.keterangan" class="mt-4 pt-4 border-t border-gray-300">
-                        <p class="text-gray-500 text-sm mb-1">Keterangan</p>
-                        <p class="text-gray-700 text-sm" x-text="sourceData?.keterangan"></p>
-                    </div>
-                </div>
-
-                {{-- Section 1.5: Rekening Bank Info --}}
-                <div x-show="data?.nama_bank || data?.no_rekening || data?.nama_rekening || data?.informasi" 
-                     class="bg-amber-50 rounded-xl p-5 border border-amber-200">
-                    <h4 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                        <i class="bi bi-bank text-amber-600"></i>
-                        Informasi Rekening Bank
-                    </h4>
-                    
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div x-show="data?.nama_bank">
-                            <p class="text-gray-500 mb-1">Nama Bank</p>
-                            <p class="font-semibold text-gray-800" x-text="data?.nama_bank || '-'"></p>
-                        </div>
-                        <div x-show="data?.no_rekening">
-                            <p class="text-gray-500 mb-1">No. Rekening</p>
-                            <p class="font-semibold text-gray-800" x-text="data?.no_rekening || '-'"></p>
-                        </div>
-                        <div x-show="data?.nama_rekening" class="col-span-2">
-                            <p class="text-gray-500 mb-1">Nama Pemilik Rekening</p>
-                            <p class="font-semibold text-gray-800" x-text="data?.nama_rekening || '-'"></p>
                         </div>
                     </div>
 
-                    <div x-show="data?.informasi" class="mt-4 pt-4 border-t border-amber-300">
-                        <p class="text-gray-500 text-sm mb-1">Informasi Tambahan</p>
-                        <p class="text-gray-700 text-sm" x-text="data?.informasi"></p>
-                    </div>
-                </div>
-
-                {{-- Section 2: Files dari User (Temp) --}}
-                <div x-show="tempFiles?.bukti?.length > 0 || tempFiles?.attachments?.length > 0" class="bg-blue-50 rounded-xl p-5 border border-blue-200">
-                    <h4 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                        <i class="bi bi-paperclip text-blue-600"></i>
-                        File dari Pengajuan Awal
-                    </h4>
-                    <div class="space-y-2">
-                        <template x-for="file in tempFiles?.bukti || []" :key="file.path">
-                            <div class="flex items-center gap-2 text-sm bg-white rounded-lg px-3 py-2 border border-blue-200">
-                                <i class="bi bi-file-earmark text-blue-600"></i>
-                                <span class="flex-1 text-gray-700" x-text="file.original_name"></span>
-                                <span class="text-xs text-gray-500" x-text="formatFileSize(file.size)"></span>
-                                <a :href="'/storage/' + file.path" target="_blank" 
-                                   class="text-blue-600 hover:text-blue-700 text-xs font-medium">
-                                    Preview
-                                </a>
-                            </div>
-                        </template>
-                        <template x-for="file in tempFiles?.attachments || []" :key="file.path">
-                            <div class="flex items-center gap-2 text-sm bg-white rounded-lg px-3 py-2 border border-blue-200">
-                                <i class="bi bi-file-earmark-text text-gray-600"></i>
-                                <span class="flex-1 text-gray-700" x-text="file.original_name"></span>
-                                <span class="text-xs text-gray-500" x-text="formatFileSize(file.size)"></span>
-                                <a :href="'/storage/' + file.path" target="_blank" 
-                                   class="text-blue-600 hover:text-blue-700 text-xs font-medium">
-                                    Preview
-                                </a>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                {{-- Action Type Selector --}}
-                <div class="flex gap-3 p-2 bg-gray-100 rounded-xl">
-                    <button 
-                        @click="actionType = 'approve'"
-                        :class="actionType === 'approve' ? 'bg-green-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-50'"
-                        class="flex-1 py-3 px-4 rounded-lg font-semibold transition-all"
-                    >
-                        <i class="bi bi-check-circle mr-2"></i>
-                        Approve
-                    </button>
-                    <button 
-                        @click="actionType = 'reject'"
-                        :class="actionType === 'reject' ? 'bg-red-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-50'"
-                        class="flex-1 py-3 px-4 rounded-lg font-semibold transition-all"
-                    >
-                        <i class="bi bi-x-circle mr-2"></i>
-                        Reject
-                    </button>
-                </div>
-
-                {{-- Section 3: Upload Bukti (for Approve) --}}
-                <div x-show="actionType === 'approve'">
-                    <div class="bg-green-50 rounded-xl p-5 border-2 border-green-200">
-                        <h4 class="font-bold text-gray-800 mb-1 flex items-center gap-2">
-                            <i class="bi bi-cloud-upload text-green-600"></i>
-                            Upload Bukti Pembayaran
-                            <span class="text-red-500">*</span>
+                    {{-- File dari pengaju (non-GPS) --}}
+                    <div x-show="tempFiles?.bukti?.length > 0 || tempFiles?.attachments?.length > 0"
+                         class="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                        <h4 class="font-bold text-gray-800 mb-3 flex items-center gap-2 text-sm">
+                            <i class="bi bi-paperclip text-blue-600"></i>
+                            File dari Pengajuan
                         </h4>
-                        <p class="text-sm text-gray-600 mb-4">Wajib upload minimal 1 file bukti pembayaran</p>
-                        
-                        <div class="border-2 border-dashed border-green-300 rounded-lg p-6 text-center bg-white hover:bg-green-50 transition-colors cursor-pointer"
-                             @click="$refs.buktiInput.click()"
-                             @dragover.prevent="isDragging = true"
-                             @dragleave.prevent="isDragging = false"
-                             @drop.prevent="handleDrop($event, 'bukti')"
-                             :class="isDragging ? 'border-green-500 bg-green-100' : ''">
-                            <input 
-                                type="file" 
-                                x-ref="buktiInput"
-                                @change="handleFileSelect($event, 'bukti')"
-                                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.zip"
-                                multiple
-                                class="hidden"
-                            >
-                            <i class="bi bi-cloud-arrow-up text-4xl text-green-600 mb-2"></i>
-                            <p class="text-sm font-medium text-gray-700">Klik atau drag & drop file</p>
-                            <p class="text-xs text-gray-500 mt-1">JPG, PNG, PDF, DOC, XLS, ZIP (Max 5MB per file)</p>
-                        </div>
-
-                        <div x-show="buktiFiles.length > 0" class="mt-4 space-y-2">
-                            <template x-for="(file, index) in buktiFiles" :key="index">
-                                <div class="flex items-center gap-3 bg-white rounded-lg px-4 py-3 border border-green-200">
-                                    <i class="bi bi-file-check text-green-600"></i>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-medium text-gray-700 truncate" x-text="file.name"></p>
-                                        <p class="text-xs text-gray-500" x-text="formatFileSize(file.size)"></p>
-                                    </div>
-                                    <button 
-                                        @click="removeFile(index, 'bukti')"
-                                        class="text-red-500 hover:text-red-700 hover:bg-red-50 rounded p-1.5"
-                                    >
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
+                        <div class="space-y-2">
+                            <template x-for="file in tempFiles?.bukti || []" :key="file.path">
+                                <div class="flex items-center gap-2 text-sm bg-white rounded-lg px-3 py-2 border border-blue-200">
+                                    <i class="bi bi-file-earmark text-blue-600"></i>
+                                    <span class="flex-1 text-gray-700" x-text="file.original_name"></span>
+                                    <a :href="'/storage/' + file.path" target="_blank"
+                                       class="text-blue-600 hover:text-blue-700 text-xs font-medium">Preview</a>
                                 </div>
                             </template>
                         </div>
                     </div>
 
-                    {{-- Section 4: Upload Attachment (Optional for Approve) --}}
-                    <div class="bg-gray-50 rounded-xl p-5 border border-gray-200 mt-4">
-                        <h4 class="font-bold text-gray-800 mb-1 flex items-center gap-2">
-                            <i class="bi bi-paperclip text-gray-600"></i>
-                            Attachment Tambahan
-                            <span class="text-xs text-gray-500 font-normal">(Opsional)</span>
-                        </h4>
-                        <p class="text-sm text-gray-600 mb-4">Upload dokumen pendukung lainnya</p>
-                        
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-white hover:bg-gray-50 transition-colors cursor-pointer"
-                             @click="$refs.attachmentInput.click()">
-                            <input 
-                                type="file" 
-                                x-ref="attachmentInput"
-                                @change="handleFileSelect($event, 'attachment')"
-                                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.zip"
-                                multiple
-                                class="hidden"
-                            >
-                            <i class="bi bi-file-plus text-2xl text-gray-400 mb-1"></i>
-                            <p class="text-xs text-gray-600">Klik untuk upload attachment</p>
-                        </div>
+                    {{-- Toggle Approve / Reject (non-GPS) --}}
+                    <div class="flex gap-3 p-2 bg-gray-100 rounded-xl">
+                        <button @click="actionType = 'approve'"
+                                :class="actionType === 'approve' ? 'bg-green-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                                class="flex-1 py-3 px-4 rounded-lg font-semibold transition-all text-sm">
+                            <i class="bi bi-check-circle mr-2"></i> Approve
+                        </button>
+                        <button @click="actionType = 'reject'"
+                                :class="actionType === 'reject' ? 'bg-red-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                                class="flex-1 py-3 px-4 rounded-lg font-semibold transition-all text-sm">
+                            <i class="bi bi-x-circle mr-2"></i> Reject
+                        </button>
+                    </div>
 
-                        <div x-show="attachmentFiles.length > 0" class="mt-3 space-y-2">
-                            <template x-for="(file, index) in attachmentFiles" :key="index">
-                                <div class="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-gray-200">
-                                    <i class="bi bi-file-earmark text-gray-600 text-sm"></i>
+                    {{-- Upload Bukti (Approve, non-GPS) --}}
+                    <div x-show="actionType === 'approve'"
+                         class="bg-green-50 rounded-xl p-5 border-2 border-green-200">
+                        <h4 class="font-bold text-gray-800 mb-1 flex items-center gap-2 text-sm">
+                            <i class="bi bi-cloud-upload text-green-600"></i>
+                            Upload Bukti Pembayaran <span class="text-red-500">*</span>
+                        </h4>
+                        <p class="text-xs text-gray-500 mb-3">Wajib upload minimal 1 file</p>
+                        <div class="border-2 border-dashed border-green-300 rounded-lg p-5 text-center bg-white cursor-pointer hover:bg-green-50 transition-colors"
+                             @click="$refs.buktiInput.click()"
+                             @dragover.prevent="isDragging = true"
+                             @dragleave.prevent="isDragging = false"
+                             @drop.prevent="handleDrop($event, 'bukti')"
+                             :class="isDragging ? 'border-green-500 bg-green-100' : ''">
+                            <input type="file" x-ref="buktiInput"
+                                   @change="handleFileSelect($event, 'bukti')"
+                                   accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.zip"
+                                   multiple class="hidden">
+                            <i class="bi bi-cloud-arrow-up text-3xl text-green-600 mb-1"></i>
+                            <p class="text-xs font-medium text-gray-700">Klik atau drag & drop</p>
+                            <p class="text-[11px] text-gray-400 mt-0.5">JPG, PNG, PDF, DOC, XLS, ZIP (Max 5MB)</p>
+                        </div>
+                        <div x-show="buktiFiles.length > 0" class="mt-3 space-y-2">
+                            <template x-for="(file, index) in buktiFiles" :key="index">
+                                <div class="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-green-200">
+                                    <i class="bi bi-file-check text-green-600 text-sm"></i>
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-sm text-gray-700 truncate" x-text="file.name"></p>
-                                        <p class="text-xs text-gray-500" x-text="formatFileSize(file.size)"></p>
+                                        <p class="text-xs font-medium text-gray-700 truncate" x-text="file.name"></p>
+                                        <p class="text-[11px] text-gray-400" x-text="formatFileSize(file.size)"></p>
                                     </div>
-                                    <button 
-                                        @click="removeFile(index, 'attachment')"
-                                        class="text-red-500 hover:text-red-700 hover:bg-red-50 rounded p-1"
-                                    >
+                                    <button @click="removeFile(index, 'bukti')" class="text-red-400 hover:text-red-600 rounded p-1">
                                         <i class="bi bi-x-lg text-xs"></i>
                                     </button>
                                 </div>
                             </template>
                         </div>
                     </div>
-                </div>
 
-                {{-- Section 5: Catatan --}}
-                <div>
-                    <label class="block font-bold text-gray-800 mb-2 flex items-center gap-2">
-                        <i class="bi bi-chat-left-text" :class="actionType === 'approve' ? 'text-green-600' : 'text-red-600'"></i>
-                        Catatan
-                        <span x-show="actionType === 'reject'" class="text-red-500">*</span>
-                        <span x-show="actionType === 'approve'" class="text-xs text-gray-500 font-normal">(Opsional)</span>
-                    </label>
-                    <textarea 
-                        x-model="catatan"
-                        rows="3"
-                        :placeholder="actionType === 'reject' ? 'Wajib isi alasan penolakan...' : 'Catatan tambahan (opsional)...'"
-                        class="w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                        :class="actionType === 'reject' ? 'border-red-300' : 'border-gray-300'"
-                    ></textarea>
-                    <p x-show="actionType === 'reject'" class="text-xs text-red-600 mt-1">
-                        <i class="bi bi-exclamation-circle mr-1"></i>
-                        Alasan penolakan wajib diisi agar pemohon dapat melakukan perbaikan
-                    </p>
+                    {{-- Catatan (non-GPS) --}}
+                    <div>
+                        <label class="block font-bold text-gray-800 mb-2 flex items-center gap-2 text-sm">
+                            <i class="bi bi-chat-left-text"
+                               :class="actionType === 'approve' ? 'text-green-600' : 'text-red-600'"></i>
+                            Catatan
+                            <span x-show="actionType === 'reject'" class="text-red-500">*</span>
+                            <span x-show="actionType === 'approve'" class="text-xs text-gray-400 font-normal">(Opsional)</span>
+                        </label>
+                        <textarea x-model="catatan" rows="3"
+                                  :placeholder="actionType === 'reject' ? 'Wajib isi alasan penolakan...' : 'Catatan tambahan (opsional)...'"
+                                  class="w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
+                                  :class="actionType === 'reject' ? 'border-red-300' : 'border-gray-300'"></textarea>
+                    </div>
                 </div>
 
             </div>
 
-            {{-- Footer Actions --}}
+            {{-- Footer --}}
             <div class="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-                <button 
-                    @click="closeModal()"
-                    class="px-6 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
-                >
+                <button @click="closeModal()"
+                        class="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors text-sm">
                     Batal
                 </button>
-                <button 
-                    x-show="actionType === 'approve'"
-                    @click="submitApprove()"
-                    :disabled="loading || buktiFiles.length === 0"
-                    :class="loading || buktiFiles.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700'"
-                    class="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                    <i x-show="!loading" class="bi bi-check-circle"></i>
-                    <svg x-show="loading" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+
+                {{-- GPS: Simpan Keputusan --}}
+                <button
+                    x-show="data?.source_type === 'gps'"
+                    @click="submitItemDecisions()"
+                    :disabled="submitting || decidedCount() === 0 || !allRejectedHaveCatatan()"
+                    :class="submitting || decidedCount() === 0 || !allRejectedHaveCatatan()
+                        ? 'opacity-50 cursor-not-allowed bg-blue-400'
+                        : 'bg-blue-600 hover:bg-blue-700'"
+                    class="px-5 py-2.5 text-white rounded-lg font-medium transition-colors text-sm flex items-center gap-2">
+                    <svg x-show="submitting" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span x-text="loading ? 'Processing...' : 'Approve'"></span>
+                    <i x-show="!submitting" class="fa-solid fa-floppy-disk text-sm"></i>
+                    <span x-text="submitting ? 'Menyimpan...' : 'Simpan Keputusan'"></span>
                 </button>
-                <button 
-                    x-show="actionType === 'reject'"
-                    @click="submitReject()"
-                    :disabled="loading || !catatan.trim()"
-                    :class="loading || !catatan.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'"
-                    class="px-6 py-2.5 bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                    <i x-show="!loading" class="bi bi-x-circle"></i>
-                    <svg x-show="loading" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+
+                {{-- Non-GPS: Approve --}}
+                <button
+                    x-show="data?.source_type !== 'gps' && actionType === 'approve'"
+                    @click="submitApprove()"
+                    :disabled="submitting || buktiFiles.length === 0"
+                    :class="submitting || buktiFiles.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700'"
+                    class="px-5 py-2.5 bg-green-600 text-white rounded-lg font-medium transition-colors text-sm flex items-center gap-2">
+                    <i x-show="!submitting" class="bi bi-check-circle"></i>
+                    <svg x-show="submitting" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span x-text="loading ? 'Processing...' : 'Reject'"></span>
+                    <span x-text="submitting ? 'Processing...' : 'Approve'"></span>
+                </button>
+
+                {{-- Non-GPS: Reject --}}
+                <button
+                    x-show="data?.source_type !== 'gps' && actionType === 'reject'"
+                    @click="submitReject()"
+                    :disabled="submitting || !catatan.trim()"
+                    :class="submitting || !catatan.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'"
+                    class="px-5 py-2.5 bg-red-600 text-white rounded-lg font-medium transition-colors text-sm flex items-center gap-2">
+                    <i x-show="!submitting" class="bi bi-x-circle"></i>
+                    <svg x-show="submitting" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span x-text="submitting ? 'Processing...' : 'Reject'"></span>
                 </button>
             </div>
         </div>
@@ -412,32 +487,38 @@
 <script>
 function approvalModal() {
     return {
-        show: false,
-        loading: false,
-        data: null,
-        sourceData: null,
-        relatedData: null,
-        tempFiles: null,
-        actionType: 'approve', // 'approve' or 'reject'
-        buktiFiles: [],
-        attachmentFiles: [],
-        catatan: '',
-        isDragging: false,
+        show:          false,
+        loading:       false,
+        submitting:    false,
+        data:          null,
+        sourceData:    null,
+        relatedData:   null,
+        tempFiles:     null,
 
+        // Non-GPS state
+        actionType:    'approve',
+        buktiFiles:    [],
+        catatan:       '',
+        isDragging:    false,
+
+        // GPS per-item decisions: { action: null|'approved'|'rejected', catatan: '', buktiFile: null }
+        itemDecisions: [],
+
+        // ── Open / Close ──────────────────────────────────────────────────────
         openModal(pembayaranData) {
-            this.show = true;
+            this.show    = true;
             this.loading = true;
             this.resetForm();
 
-            // Fetch full data from backend
             fetch(`/admin/pembayaran/${pembayaranData.id}/approval-modal`)
                 .then(res => res.json())
                 .then(response => {
                     if (response.success) {
-                        this.data = response.data.pembayaran;
-                        this.sourceData = response.data.source_data;
+                        this.data        = response.data.pembayaran;
+                        this.sourceData  = response.data.source_data;
                         this.relatedData = response.data.related_data;
-                        this.tempFiles = response.data.temp_files;
+                        this.tempFiles   = response.data.temp_files;
+                        this.initItemDecisions();
                     }
                 })
                 .catch(err => {
@@ -445,9 +526,7 @@ function approvalModal() {
                     alert('Gagal memuat data. Silakan coba lagi.');
                     this.closeModal();
                 })
-                .finally(() => {
-                    this.loading = false;
-                });
+                .finally(() => { this.loading = false; });
         },
 
         closeModal() {
@@ -456,163 +535,232 @@ function approvalModal() {
         },
 
         resetForm() {
-            this.data = null;
-            this.sourceData = null;
-            this.relatedData = null;
-            this.tempFiles = null;
-            this.actionType = 'approve';
-            this.buktiFiles = [];
-            this.attachmentFiles = [];
-            this.catatan = '';
-            this.isDragging = false;
+            this.data          = null;
+            this.sourceData    = null;
+            this.relatedData   = null;
+            this.tempFiles     = null;
+            this.actionType    = 'approve';
+            this.buktiFiles    = [];
+            this.catatan       = '';
+            this.isDragging    = false;
+            this.itemDecisions = [];
+            this.submitting    = false;
         },
 
-        handleFileSelect(event, type) {
-            const files = Array.from(event.target.files);
-            this.addFiles(files, type);
-            event.target.value = ''; // Reset input
+        // ── GPS per-item helpers ──────────────────────────────────────────────
+        initItemDecisions() {
+            const count = this.relatedData?.gps_items?.length || 0;
+            this.itemDecisions = Array.from({ length: count }, () => ({
+                action:    null,
+                catatan:   '',
+                buktiFile: null,
+            }));
         },
 
-        handleDrop(event, type) {
-            this.isDragging = false;
-            const files = Array.from(event.dataTransfer.files);
-            this.addFiles(files, type);
+        setAction(idx, action) {
+            if (!this.itemDecisions[idx]) return;
+            // Toggle off jika klik ulang
+            if (this.itemDecisions[idx].action === action) {
+                this.itemDecisions[idx].action = null;
+            } else {
+                this.itemDecisions[idx].action = action;
+            }
+            // Reactivity: replace array element
+            this.itemDecisions = [...this.itemDecisions];
         },
 
-        addFiles(files, type) {
-            const maxSize = 5 * 1024 * 1024; // 5MB
-            const validFiles = files.filter(file => {
-                if (file.size > maxSize) {
-                    alert(`File ${file.name} terlalu besar. Max 5MB.`);
-                    return false;
+        handleBuktiItem(event, idx) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File terlalu besar. Max 5MB.');
+                return;
+            }
+            this.itemDecisions[idx].buktiFile = file;
+            this.itemDecisions = [...this.itemDecisions];
+            event.target.value = '';
+        },
+
+        removeItemBukti(idx) {
+            this.itemDecisions[idx].buktiFile = null;
+            this.itemDecisions = [...this.itemDecisions];
+        },
+
+        decidedCount() {
+            return this.itemDecisions.filter(d => d.action !== null).length;
+        },
+
+        approvedCount() {
+            return this.itemDecisions.filter(d => d.action === 'approved').length;
+        },
+
+        rejectedCount() {
+            return this.itemDecisions.filter(d => d.action === 'rejected').length;
+        },
+
+        allRejectedHaveCatatan() {
+            return this.itemDecisions
+                .filter(d => d.action === 'rejected')
+                .every(d => d.catatan.trim() !== '');
+        },
+
+        // ── Submit GPS per-item ───────────────────────────────────────────────
+        async submitItemDecisions() {
+            if (this.decidedCount() === 0) {
+                alert('Minimal satu item harus diberi keputusan.');
+                return;
+            }
+            if (!this.allRejectedHaveCatatan()) {
+                alert('Semua item yang ditolak harus memiliki alasan penolakan.');
+                return;
+            }
+
+            const decided = this.itemDecisions.filter(d => d.action !== null);
+            if (!confirm(`Simpan keputusan: ${this.approvedCount()} disetujui, ${this.rejectedCount()} ditolak?`)) return;
+
+            this.submitting = true;
+
+            const formData = new FormData();
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+
+            this.itemDecisions.forEach((decision, idx) => {
+                if (decision.action === null) return;
+                formData.append(`items[${idx}][action]`,  decision.action);
+                formData.append(`items[${idx}][catatan]`, decision.catatan || '');
+                if (decision.buktiFile) {
+                    formData.append(`items[${idx}][bukti]`, decision.buktiFile);
                 }
-                return true;
             });
 
-            if (type === 'bukti') {
-                this.buktiFiles.push(...validFiles);
-            } else {
-                this.attachmentFiles.push(...validFiles);
+            try {
+                const response = await fetch(`/admin/pembayaran/${this.data.id}/approve-items`, {
+                    method: 'POST',
+                    body:   formData,
+                });
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    const result = await response.json().catch(() => null);
+                    if (result?.success) {
+                        window.location.reload();
+                    } else {
+                        alert(result?.message || 'Terjadi kesalahan, silakan coba lagi.');
+                    }
+                }
+            } catch (error) {
+                console.error('Submit error:', error);
+                alert('Terjadi kesalahan jaringan. Silakan coba lagi.');
+            } finally {
+                this.submitting = false;
             }
         },
 
-        removeFile(index, type) {
-            if (type === 'bukti') {
-                this.buktiFiles.splice(index, 1);
-            } else {
-                this.attachmentFiles.splice(index, 1);
-            }
-        },
-
+        // ── Non-GPS: Global Approve ───────────────────────────────────────────
         async submitApprove() {
             if (this.buktiFiles.length === 0) {
                 alert('Wajib upload minimal 1 bukti pembayaran!');
                 return;
             }
+            if (!confirm('Yakin ingin menyetujui pengeluaran ini?')) return;
 
-            if (!confirm('Yakin ingin menyetujui pengeluaran ini?')) {
-                return;
-            }
-
-            this.loading = true;
-
-            const formData = new FormData();
-            this.buktiFiles.forEach((file, index) => {
-                formData.append(`bukti[${index}]`, file);
-            });
-            this.attachmentFiles.forEach((file, index) => {
-                formData.append(`attachment[${index}]`, file);
-            });
-            if (this.catatan.trim()) {
-                formData.append('catatan', this.catatan);
-            }
+            this.submitting = true;
+            const formData  = new FormData();
+            this.buktiFiles.forEach((file, i) => formData.append(`bukti[${i}]`, file));
+            if (this.catatan.trim()) formData.append('catatan', this.catatan);
             formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
 
             try {
                 const response = await fetch(`/admin/pembayaran/${this.data.id}/approve`, {
-                    method: 'POST',
-                    body: formData
+                    method: 'POST', body: formData,
                 });
-
                 if (response.redirected) {
                     window.location.href = response.url;
                 } else {
-                    const result = await response.json();
-                    if (result.success) {
-                        window.location.reload();
-                    } else {
-                        alert(result.message || 'Terjadi kesalahan');
-                    }
+                    const result = await response.json().catch(() => null);
+                    if (result?.success) window.location.reload();
+                    else alert(result?.message || 'Terjadi kesalahan');
                 }
-            } catch (error) {
-                console.error('Error:', error);
+            } catch (e) {
                 alert('Terjadi kesalahan. Silakan coba lagi.');
             } finally {
-                this.loading = false;
+                this.submitting = false;
             }
         },
 
+        // ── Non-GPS: Global Reject ────────────────────────────────────────────
         async submitReject() {
             if (!this.catatan.trim()) {
                 alert('Alasan penolakan wajib diisi!');
                 return;
             }
+            if (!confirm('Yakin ingin menolak pengeluaran ini?')) return;
 
-            if (!confirm('Yakin ingin menolak pengeluaran ini? User dapat mengajukan ulang setelah memperbaiki.')) {
-                return;
-            }
-
-            this.loading = true;
-
-            const formData = new FormData();
+            this.submitting = true;
+            const formData  = new FormData();
             formData.append('catatan', this.catatan);
             formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
 
             try {
                 const response = await fetch(`/admin/pembayaran/${this.data.id}/reject`, {
-                    method: 'POST',
-                    body: formData
+                    method: 'POST', body: formData,
                 });
-
                 if (response.redirected) {
                     window.location.href = response.url;
                 } else {
-                    const result = await response.json();
-                    if (result.success) {
-                        window.location.reload();
-                    } else {
-                        alert(result.message || 'Terjadi kesalahan');
-                    }
+                    const result = await response.json().catch(() => null);
+                    if (result?.success) window.location.reload();
+                    else alert(result?.message || 'Terjadi kesalahan');
                 }
-            } catch (error) {
-                console.error('Error:', error);
+            } catch (e) {
                 alert('Terjadi kesalahan. Silakan coba lagi.');
             } finally {
-                this.loading = false;
+                this.submitting = false;
             }
         },
 
+        // ── Non-GPS File Handlers ─────────────────────────────────────────────
+        handleFileSelect(event, type) {
+            const files = Array.from(event.target.files);
+            this.addFiles(files, type);
+            event.target.value = '';
+        },
+
+        handleDrop(event, type) {
+            this.isDragging = false;
+            this.addFiles(Array.from(event.dataTransfer.files), type);
+        },
+
+        addFiles(files, type) {
+            const maxSize    = 5 * 1024 * 1024;
+            const validFiles = files.filter(f => {
+                if (f.size > maxSize) { alert(`File ${f.name} terlalu besar. Max 5MB.`); return false; }
+                return true;
+            });
+            if (type === 'bukti') this.buktiFiles.push(...validFiles);
+        },
+
+        removeFile(index, type) {
+            if (type === 'bukti') this.buktiFiles.splice(index, 1);
+        },
+
+        // ── Formatters ────────────────────────────────────────────────────────
         formatNumber(num) {
             return new Intl.NumberFormat('id-ID').format(num);
         },
 
         formatDate(dateStr) {
             if (!dateStr) return '-';
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('id-ID', { 
-                day: '2-digit', 
-                month: 'short', 
-                year: 'numeric' 
+            return new Date(dateStr).toLocaleDateString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric'
             });
         },
 
         formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB'];
+            if (!bytes) return '0 B';
+            const k = 1024, sizes = ['B','KB','MB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-        }
+            return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
+        },
     };
 }
 </script>
