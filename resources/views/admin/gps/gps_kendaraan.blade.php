@@ -196,14 +196,14 @@
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Kendaraan</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">GPS</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Type</th>
-                            <th class="px-5 py-4 text-left font-semibold text-slate-600">Status GPS</th>
-                            <th class="px-5 py-4 text-left font-semibold text-slate-600">Tgl Bayar</th>
+                            <th class="px-5 py-4 text-left font-semibold text-slate-600">Tgl Ketentuan Bayar</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Jatuh Tempo</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Biaya</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Durasi</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Status Sewa</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Bukti</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Lampiran</th>
+                            <th class="px-5 py-4 text-left font-semibold text-slate-600">Persetujuan</th>
                             <th class="px-5 py-4 text-center font-semibold text-slate-600">Aksi</th>
                         </tr>
                     </thead>
@@ -211,7 +211,7 @@
 
                         @forelse ($data as $d)
                             <tr class="hover:bg-slate-50 transition"
-                                data-search="{{ strtolower(($d->kendaraan->merk ?? '') . ' ' . ($d->kendaraan->nopol ?? '') . ' ' . ($d->gps->nama_gps ?? '') . ' ' . $d->type . ' ' . $d->status_gps . ' ' . $d->status_sewa) }}"
+                                data-search="{{ strtolower(($d->kendaraan->merk ?? '') . ' ' . ($d->kendaraan->nopol ?? '') . ' ' . ($d->gps->nama_gps ?? '') . ' ' . $d->type . ' ' . $d->status_sewa) }}"
                                 data-tanggal-habis="{{ $d->tanggal_habis ? \Carbon\Carbon::parse($d->tanggal_habis)->format('Y-m-d') : '' }}">
 
                                 {{-- No --}}
@@ -228,17 +228,6 @@
 
                                 {{-- Type --}}
                                 <td class="px-5 py-4 text-slate-700">{{ $d->type }}</td>
-
-                                {{-- Status GPS --}}
-                                <td class="px-5 py-4">
-                                    @if ($d->status_gps == 'aktif')
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
-                                    @else
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">Nonaktif</span>
-                                    @endif
-                                </td>
 
                                 {{-- Tgl Pasang --}}
                                 <td class="px-5 py-4 text-slate-600">
@@ -278,10 +267,7 @@
                                                 @endif
                                             </span>
                                         @else
-                                            <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full w-fit">
-                                                <i class="fa-solid fa-circle-check text-[10px]"></i>
-                                                Aktif
-                                            </span>
+                                            
                                         @endif
 
                                     </div>
@@ -298,12 +284,11 @@
                                 {{-- Status Sewa --}}
                                 <td class="px-5 py-4">
                                     @if ($d->status_sewa == 'habis')
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Masa
-                                            Habis</span>
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Masa Habis</span>
+                                    @elseif ($d->status_sewa == 'tidak_aktif')
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Tidak Aktif</span>
                                     @else
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
                                     @endif
                                 </td>
 
@@ -324,29 +309,39 @@
 
                                 <td class="px-5 py-4">
                                     @if($d->attachments->isNotEmpty())
-                                        @php
-                                            $gpsAtts = $d->attachments->map(fn($a) => ['path' => asset($a->file_path), 'name' => $a->file_name])->values()->toArray();
-                                        @endphp
-                                        <button type="button"
-                                            onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
-                                            data-imgs="{!! json_encode($gpsAtts, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                                            <i class="bi bi-images text-sm"></i>
-                                            Lihat ({{ $d->attachments->count() }})
-                                        </button>
-                                        <div class="mt-1 flex flex-col gap-0.5">
+                                        <div class="flex flex-col gap-1">
                                             @foreach ($d->attachments as $att)
-                                                <form action="{{ route('gps.attachment.destroy', $att->id) }}" method="POST"
-                                                    onsubmit="return confirm('Hapus lampiran ini?')" class="inline">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit"
-                                                        class="text-red-400 hover:text-red-600 text-[10px]">
-                                                        <i class="fa fa-times"></i> {{ $att->file_name }}
-                                                    </button>
-                                                </form>
+                                                @php
+                                                    $attExt   = strtolower(pathinfo($att->file_name, PATHINFO_EXTENSION));
+                                                    $isImage  = in_array($attExt, ['jpg','jpeg','png','gif','webp']);
+                                                @endphp
+                                                <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                    class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 underline max-w-[140px] truncate"
+                                                    title="{{ $att->file_name }}">
+                                                    <i class="fa-solid {{ $isImage ? 'fa-image' : 'fa-paperclip' }} text-[9px]"></i>
+                                                    {{ $att->file_name }}
+                                                </a>
                                             @endforeach
                                         </div>
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
+                                </td>
+
+                                {{-- Persetujuan --}}
+                                <td class="px-5 py-4">
+                                    @if($d->persetujuan === 'Disetujui')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                            <i class="fa-solid fa-circle-check text-[10px]"></i> Disetujui
+                                        </span>
+                                    @elseif($d->persetujuan === 'Ditolak')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                            <i class="fa-solid fa-circle-xmark text-[10px]"></i> Ditolak
+                                        </span>
+                                    @elseif($d->persetujuan === 'Pending')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+                                            <i class="fa-solid fa-clock text-[10px]"></i> Pending
+                                        </span>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
@@ -478,11 +473,15 @@
                             @endforeach
                         </select>
                     </div>
-
-                    {{-- Status GPS --}}
+  <div>
+                        <label class="text-sm font-medium text-slate-700 mb-1.5 block">Jatuh Tempo</label>
+                        <input type="date" id="shared_jatuh_tempo_display" disabled
+                            class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 text-slate-400 cursor-not-allowed outline-none">
+                        <input type="hidden" name="tanggal_habis" id="shared_tanggal_habis">
+                        <p class="text-[11px] text-slate-400 mt-1">Otomatis tanggal bayar + 1 tahun</p>
+                    </div>
                     <div>
-                        <label class="text-sm font-medium text-slate-700 mb-1.5 block">Status GPS <span class="text-red-500">*</span></label>
-                        <select name="status_gps" id="shared_status_gps" required
+                        <select name="status_gps" id="shared_status_gps" required hidden
                             class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                             <option value="aktif">Aktif</option>
                             <option value="nonaktif">Nonaktif</option>
@@ -498,13 +497,7 @@
                     </div>
 
                     {{-- Jatuh Tempo (readonly) --}}
-                    <div>
-                        <label class="text-sm font-medium text-slate-700 mb-1.5 block">Jatuh Tempo</label>
-                        <input type="date" id="shared_jatuh_tempo_display" disabled
-                            class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 text-slate-400 cursor-not-allowed outline-none">
-                        <input type="hidden" name="tanggal_habis" id="shared_tanggal_habis">
-                        <p class="text-[11px] text-slate-400 mt-1">Otomatis tanggal bayar + 1 tahun</p>
-                    </div>
+                  
 
                     {{-- (Biaya dipindah ke per-baris GPS) --}}
                     {{-- (Bukti bayar & lampiran dipindah ke per-baris GPS) --}}
@@ -700,7 +693,7 @@
         // ── GPS Items (hanya GPS + Type) ─────────────────────────────────────
         let gpsItemCount = 0;
 
-        function tambahGpsItem(gpsId = '', type = '', biaya = '') {
+        function tambahGpsItem(gpsId = '', type = '', biaya = '', namaBank = '', noRekening = '', namaPemilik = '') {
             const idx       = gpsItemCount++;
             const container = document.getElementById('gpsItemsContainer');
             const div       = document.createElement('div');
@@ -745,15 +738,310 @@
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
-                    <div>
-                        <label class="text-[11px] font-semibold text-slate-500 mb-1 block">Bukti Bayar <span class="text-red-400"></span></label>
-                        <input type="file" name="gps_items[${idx}][bukti_bayar]" 
+               {{--      <div>
+                        <label class="text-[11px] font-semibold text-slate-500 mb-1 block">Bukti Bayar</label>
+                        <input type="file" name="gps_items[${idx}][bukti_bayar]"
                             accept="image/*,.pdf,.doc,.docx"
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
+                     --}}
+
+                    {{-- Divider info bank --}}
+                    <div class="md:col-span-2">
+                        <div class="flex items-center gap-2 mt-1 mb-1">
+                            <div class="h-px flex-1 bg-slate-100"></div>
+                            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                <i class="fa-solid fa-building-columns text-[9px]"></i> Info Bank Tujuan
+                            </span>
+                            <div class="h-px flex-1 bg-slate-100"></div>
+                        </div>
+                    </div>
+
+                 <div>
+    <label class="text-[11px] font-semibold text-slate-500 mb-1 block">
+        Nama Bank
+    </label>
+
+    <select name="gps_items[${idx}][nama_bank]"
+        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+
+        <option value="">-- Pilih Bank --</option>
+
+        <!-- ==================== BANK PERSERO ==================== -->
+        <option value="Bank Rakyat Indonesia" ${namaBank === 'Bank Rakyat Indonesia' ? 'selected' : ''}>
+            Bank Rakyat Indonesia (002)
+        </option>
+        <option value="Bank Mandiri" ${namaBank === 'Bank Mandiri' ? 'selected' : ''}>
+            Bank Mandiri (008)
+        </option>
+        <option value="Bank Negara Indonesia" ${namaBank === 'Bank Negara Indonesia' ? 'selected' : ''}>
+            Bank Negara Indonesia (009)
+        </option>
+        <option value="Bank Tabungan Negara" ${namaBank === 'Bank Tabungan Negara' ? 'selected' : ''}>
+            Bank Tabungan Negara (200)
+        </option>
+
+
+        <!-- ==================== BANK SWASTA ==================== -->
+        <option value="Bank Central Asia" ${namaBank === 'Bank Central Asia' ? 'selected' : ''}>
+            Bank Central Asia (014)
+        </option>
+        <option value="Bank Danamon Indonesia" ${namaBank === 'Bank Danamon Indonesia' ? 'selected' : ''}>
+            Bank Danamon Indonesia (011)
+        </option>
+        <option value="Bank Permata" ${namaBank === 'Bank Permata' ? 'selected' : ''}>
+            Bank Permata (013)
+        </option>
+        <option value="Bank Maybank Indonesia" ${namaBank === 'Bank Maybank Indonesia' ? 'selected' : ''}>
+            Bank Maybank Indonesia (016)
+        </option>
+        <option value="Bank Panin" ${namaBank === 'Bank Panin' ? 'selected' : ''}>
+            Bank Panin (019)
+        </option>
+        <option value="Bank CIMB Niaga" ${namaBank === 'Bank CIMB Niaga' ? 'selected' : ''}>
+            Bank CIMB Niaga (022)
+        </option>
+        <option value="Bank UOB Indonesia" ${namaBank === 'Bank UOB Indonesia' ? 'selected' : ''}>
+            Bank UOB Indonesia (023)
+        </option>
+        <option value="Bank OCBC Indonesia" ${namaBank === 'Bank OCBC Indonesia' ? 'selected' : ''}>
+            Bank OCBC Indonesia (028)
+        </option>
+        <option value="Bank DBS Indonesia" ${namaBank === 'Bank DBS Indonesia' ? 'selected' : ''}>
+            Bank DBS Indonesia (046)
+        </option>
+        <option value="Bank Capital Indonesia" ${namaBank === 'Bank Capital Indonesia' ? 'selected' : ''}>
+            Bank Capital Indonesia (054)
+        </option>
+        <option value="Bank Artha Graha Internasional" ${namaBank === 'Bank Artha Graha Internasional' ? 'selected' : ''}>
+            Bank Artha Graha Internasional (037)
+        </option>
+        <option value="Bank Bumi Arta" ${namaBank === 'Bank Bumi Arta' ? 'selected' : ''}>
+            Bank Bumi Arta (076)
+        </option>
+        <option value="Bank Ganesha" ${namaBank === 'Bank Ganesha' ? 'selected' : ''}>
+            Bank Ganesha (161)
+        </option>
+        <option value="Bank Ina Perdana" ${namaBank === 'Bank Ina Perdana' ? 'selected' : ''}>
+            Bank Ina Perdana (513)
+        </option>
+        <option value="Bank Jago" ${namaBank === 'Bank Jago' ? 'selected' : ''}>
+            Bank Jago (542)
+        </option>
+        <option value="Bank Jasa Jakarta" ${namaBank === 'Bank Jasa Jakarta' ? 'selected' : ''}>
+            Bank Jasa Jakarta (472)
+        </option>
+        <option value="Bank Maspion Indonesia" ${namaBank === 'Bank Maspion Indonesia' ? 'selected' : ''}>
+            Bank Maspion Indonesia (157)
+        </option>
+        <option value="Bank Mayapada Internasional" ${namaBank === 'Bank Mayapada Internasional' ? 'selected' : ''}>
+            Bank Mayapada Internasional (097)
+        </option>
+        <option value="Bank Mega" ${namaBank === 'Bank Mega' ? 'selected' : ''}>
+            Bank Mega (426)
+        </option>
+        <option value="Bank MNC Internasional" ${namaBank === 'Bank MNC Internasional' ? 'selected' : ''}>
+            Bank MNC Internasional (485)
+        </option>
+        <option value="Bank Nationalnobu" ${namaBank === 'Bank Nationalnobu' ? 'selected' : ''}>
+            Bank Nationalnobu (503)
+        </option>
+        <option value="Bank Neo Commerce" ${namaBank === 'Bank Neo Commerce' ? 'selected' : ''}>
+            Bank Neo Commerce (490)
+        </option>
+        <option value="Bank Oke Indonesia" ${namaBank === 'Bank Oke Indonesia' ? 'selected' : ''}>
+            Bank Oke Indonesia (526)
+        </option>
+        <option value="Bank Sahabat Sampoerna" ${namaBank === 'Bank Sahabat Sampoerna' ? 'selected' : ''}>
+            Bank Sahabat Sampoerna (523)
+        </option>
+        <option value="Bank Sinarmas" ${namaBank === 'Bank Sinarmas' ? 'selected' : ''}>
+            Bank Sinarmas (153)
+        </option>
+        <option value="Bank Victoria International" ${namaBank === 'Bank Victoria International' ? 'selected' : ''}>
+            Bank Victoria International (566)
+        </option>
+
+
+        <!-- ==================== BANK DIGITAL ==================== -->
+        <option value="Bank Jago" ${namaBank === 'Bank Jago' ? 'selected' : ''}>
+            Bank Jago (542)
+        </option>
+        <option value="SeaBank Indonesia" ${namaBank === 'SeaBank Indonesia' ? 'selected' : ''}>
+            SeaBank Indonesia (535)
+        </option>
+        <option value="Bank Neo Commerce" ${namaBank === 'Bank Neo Commerce' ? 'selected' : ''}>
+            Bank Neo Commerce (490)
+        </option>
+        <option value="Allo Bank Indonesia" ${namaBank === 'Allo Bank Indonesia' ? 'selected' : ''}>
+            Allo Bank Indonesia (567)
+        </option>
+        <option value="Superbank Indonesia" ${namaBank === 'Superbank Indonesia' ? 'selected' : ''}>
+            Superbank Indonesia (562)
+        </option>
+        <option value="Krom Bank Indonesia" ${namaBank === 'Krom Bank Indonesia' ? 'selected' : ''}>
+            Krom Bank Indonesia (459)
+        </option>
+        <option value="Bank Raya Indonesia" ${namaBank === 'Bank Raya Indonesia' ? 'selected' : ''}>
+            Bank Raya Indonesia (494)
+        </option>
+
+
+        <!-- ==================== BANK SYARIAH ==================== -->
+        <option value="Bank Syariah Indonesia" ${namaBank === 'Bank Syariah Indonesia' ? 'selected' : ''}>
+            Bank Syariah Indonesia (451)
+        </option>
+        <option value="Bank Muamalat Indonesia" ${namaBank === 'Bank Muamalat Indonesia' ? 'selected' : ''}>
+            Bank Muamalat Indonesia (147)
+        </option>
+        <option value="Bank Mega Syariah" ${namaBank === 'Bank Mega Syariah' ? 'selected' : ''}>
+            Bank Mega Syariah (506)
+        </option>
+        <option value="Bank BCA Syariah" ${namaBank === 'Bank BCA Syariah' ? 'selected' : ''}>
+            Bank BCA Syariah (536)
+        </option>
+        <option value="Bank Panin Dubai Syariah" ${namaBank === 'Bank Panin Dubai Syariah' ? 'selected' : ''}>
+            Bank Panin Dubai Syariah (517)
+        </option>
+        <option value="Bank BTPN Syariah" ${namaBank === 'Bank BTPN Syariah' ? 'selected' : ''}>
+            Bank BTPN Syariah (547)
+        </option>
+        <option value="Bank Victoria Syariah" ${namaBank === 'Bank Victoria Syariah' ? 'selected' : ''}>
+            Bank Victoria Syariah (405)
+        </option>
+        <option value="Bank Jabar Banten Syariah" ${namaBank === 'Bank Jabar Banten Syariah' ? 'selected' : ''}>
+            Bank Jabar Banten Syariah (425)
+        </option>
+
+
+        <!-- ==================== BPD ==================== -->
+        <option value="Bank DKI" ${namaBank === 'Bank DKI' ? 'selected' : ''}>
+            Bank DKI (111)
+        </option>
+        <option value="Bank BJB" ${namaBank === 'Bank BJB' ? 'selected' : ''}>
+            Bank BJB (110)
+        </option>
+        <option value="Bank Jateng" ${namaBank === 'Bank Jateng' ? 'selected' : ''}>
+            Bank Jateng (113)
+        </option>
+        <option value="Bank Jatim" ${namaBank === 'Bank Jatim' ? 'selected' : ''}>
+            Bank Jatim (114)
+        </option>
+        <option value="Bank BPD DIY" ${namaBank === 'Bank BPD DIY' ? 'selected' : ''}>
+            Bank BPD DIY (112)
+        </option>
+        <option value="Bank BPD Bali" ${namaBank === 'Bank BPD Bali' ? 'selected' : ''}>
+            Bank BPD Bali (129)
+        </option>
+        <option value="Bank Sumut" ${namaBank === 'Bank Sumut' ? 'selected' : ''}>
+            Bank Sumut (117)
+        </option>
+        <option value="Bank Nagari" ${namaBank === 'Bank Nagari' ? 'selected' : ''}>
+            Bank Nagari (118)
+        </option>
+        <option value="Bank Jambi" ${namaBank === 'Bank Jambi' ? 'selected' : ''}>
+            Bank Jambi (115)
+        </option>
+        <option value="Bank Bengkulu" ${namaBank === 'Bank Bengkulu' ? 'selected' : ''}>
+            Bank Bengkulu (133)
+        </option>
+        <option value="Bank Lampung" ${namaBank === 'Bank Lampung' ? 'selected' : ''}>
+            Bank Lampung (121)
+        </option>
+        <option value="Bank Sumsel Babel" ${namaBank === 'Bank Sumsel Babel' ? 'selected' : ''}>
+            Bank Sumsel Babel (120)
+        </option>
+        <option value="Bank Riau Kepri" ${namaBank === 'Bank Riau Kepri' ? 'selected' : ''}>
+            Bank Riau Kepri (119)
+        </option>
+        <option value="Bank Kalbar" ${namaBank === 'Bank Kalbar' ? 'selected' : ''}>
+            Bank Kalbar (123)
+        </option>
+        <option value="Bank Kalsel" ${namaBank === 'Bank Kalsel' ? 'selected' : ''}>
+            Bank Kalsel (122)
+        </option>
+        <option value="Bank Kaltimtara" ${namaBank === 'Bank Kaltimtara' ? 'selected' : ''}>
+            Bank Kaltimtara (124)
+        </option>
+        <option value="Bank Kalteng" ${namaBank === 'Bank Kalteng' ? 'selected' : ''}>
+            Bank Kalteng (125)
+        </option>
+        <option value="Bank Sulselbar" ${namaBank === 'Bank Sulselbar' ? 'selected' : ''}>
+            Bank Sulselbar (126)
+        </option>
+        <option value="Bank SulutGo" ${namaBank === 'Bank SulutGo' ? 'selected' : ''}>
+            Bank SulutGo (127)
+        </option>
+        <option value="Bank Sulteng" ${namaBank === 'Bank Sulteng' ? 'selected' : ''}>
+            Bank Sulteng (134)
+        </option>
+        <option value="Bank Sultra" ${namaBank === 'Bank Sultra' ? 'selected' : ''}>
+            Bank Sultra (135)
+        </option>
+        <option value="Bank Maluku Malut" ${namaBank === 'Bank Maluku Malut' ? 'selected' : ''}>
+            Bank Maluku Malut (131)
+        </option>
+        <option value="Bank Papua" ${namaBank === 'Bank Papua' ? 'selected' : ''}>
+            Bank Papua (132)
+        </option>
+        <option value="Bank NTT" ${namaBank === 'Bank NTT' ? 'selected' : ''}>
+            Bank NTT (130)
+        </option>
+        <option value="Bank Banten" ${namaBank === 'Bank Banten' ? 'selected' : ''}>
+            Bank Banten (137)
+        </option>
+
+
+        <!-- ==================== BANK ASING ==================== -->
+        <option value="HSBC Indonesia" ${namaBank === 'HSBC Indonesia' ? 'selected' : ''}>
+            HSBC Indonesia (087)
+        </option>
+        <option value="Standard Chartered Bank" ${namaBank === 'Standard Chartered Bank' ? 'selected' : ''}>
+            Standard Chartered Bank (050)
+        </option>
+        <option value="Bank of China Indonesia" ${namaBank === 'Bank of China Indonesia' ? 'selected' : ''}>
+            Bank of China Indonesia (069)
+        </option>
+        <option value="MUFG Bank" ${namaBank === 'MUFG Bank' ? 'selected' : ''}>
+            MUFG Bank (042)
+        </option>
+        <option value="Citibank" ${namaBank === 'Citibank' ? 'selected' : ''}>
+            Citibank (031)
+        </option>
+        <option value="J.P. Morgan Chase Bank" ${namaBank === 'J.P. Morgan Chase Bank' ? 'selected' : ''}>
+            J.P. Morgan Chase Bank (032)
+        </option>
+        <option value="Bank of America" ${namaBank === 'Bank of America' ? 'selected' : ''}>
+            Bank of America (033)
+        </option>
+        <option value="Deutsche Bank" ${namaBank === 'Deutsche Bank' ? 'selected' : ''}>
+            Deutsche Bank (067)
+        </option>
+        <option value="Bangkok Bank" ${namaBank === 'Bangkok Bank' ? 'selected' : ''}>
+            Bangkok Bank (040)
+        </option>
+
+    </select>
+</div>
+
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-500 mb-1 block">No. Rekening atau Virtual Account</label>
+                        <input type="text" name="gps_items[${idx}][no_rekening]"
+                            placeholder="Contoh: 1234567890"
+                            value="${noRekening}"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-500 mb-1 block">Nama Pemilik Rekening</label>
+                        <input type="text" name="gps_items[${idx}][nama_pemilik]"
+                            placeholder="Nama sesuai rekening"
+                            value="${namaPemilik}"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
 
                     <div class="md:col-span-2">
-                        <label class="text-[11px] font-semibold text-slate-500 mb-1 block">Lampiran <span class="text-slate-400 font-normal">(opsional)</span></label>
+                        <label class="text-[11px] font-semibold text-slate-500 mb-1 block">Attachment <span class="text-slate-400 font-normal">(opsional)</span></label>
                         <input type="file" name="gps_items[${idx}][lampiran][]" multiple
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
@@ -919,8 +1207,8 @@
             const tanggalHabisBaru = btn.dataset.tanggalHabisBaru;
             const tanggalBayarLama = btn.dataset.tanggalBayar;
 
-            // Action ke route perpanjang per-ID (bukan perpanjang-semua)
-            formPerpanjang.action = `/admin/gps-kendaraan/kendaraan/${kendaraanId}/perpanjang-semua`;
+            // Action ke route perpanjang per-ID
+            formPerpanjang.action = `/admin/gps-kendaraan/${gpsId}/perpanjang`;
 
             // Label kendaraan
             document.getElementById('perp_kendaraan_label').textContent = `${merk} — ${nopol}`;
@@ -970,21 +1258,15 @@
 
                     <div>
                         <label class="text-xs font-semibold text-slate-600 mb-1 block">Biaya Sewa <span class="text-red-500">*</span></label>
-                        <input type="number" name="gps_items[0][biaya_sewa]" required min="0" max="9999999999"
+                        <input type="number" name="biaya_sewa" required min="0" max="9999999999"
                             value="${biaya}" placeholder="0"
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
 
-                    <div>
-                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Bukti Bayar <span class="text-red-500"></span></label>
-                        <input type="file" name="gps_items[0][bukti_bayar]" 
-                            accept="image/*,.pdf,.doc,.docx"
-                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-
                     <div class="md:col-span-2">
-                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Lampiran Tambahan <span class="text-slate-400 font-normal">(opsional)</span></label>
-                        <input type="file" name="gps_items[0][lampiran][]" multiple
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Lampiran <span class="text-slate-400 font-normal">(opsional)</span></label>
+                        <input type="file" name="lampiran[]" multiple
+                            accept="image/*,.pdf,.doc,.docx"
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                 </div>

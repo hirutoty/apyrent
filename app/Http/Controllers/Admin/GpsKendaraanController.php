@@ -155,9 +155,12 @@ class GpsKendaraanController extends Controller
             'gps_items.*.gps_id'              => 'required|exists:gps,id',
             'gps_items.*.type'                => 'required|string|max:100',
             'gps_items.*.biaya_sewa'          => 'required|integer|min:0',
-            'gps_items.*.bukti_bayar'         => 'nullable|file|max:5120',  // Changed to nullable - upload saat approval
+            'gps_items.*.bukti_bayar'         => 'nullable|file|max:5120',
             'gps_items.*.lampiran'            => 'nullable|array',
             'gps_items.*.lampiran.*'          => 'file|max:5120',
+            'gps_items.*.nama_bank'           => 'nullable|string|max:255',
+            'gps_items.*.no_rekening'         => 'nullable|string|max:100',
+            'gps_items.*.nama_pemilik'        => 'nullable|string|max:255',
         ], [
             'kendaraan_id.required'            => 'Kendaraan wajib dipilih.',
             'tanggal_bayar.required'           => 'Tanggal bayar wajib diisi.',
@@ -207,8 +210,7 @@ class GpsKendaraanController extends Controller
                 // Resubmit: Update existing pembayaran
                 $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'gps');
                 
-                return redirect()
-                    ->route('pembayaran.index', ['tab' => 'Pending'])
+                return back()
                     ->with('success', 'Pengajuan GPS berhasil diajukan ulang. Menunggu approval dari Superadmin.');
             }
             
@@ -225,9 +227,60 @@ class GpsKendaraanController extends Controller
             $sourceData = $pembayaran->source_data;
             $sourceData['temp_files'] = $uploadedFiles;
             $pembayaran->update(['source_data' => $sourceData]);
-            
-            return redirect()
-                ->route('pembayaran.index', ['tab' => 'Pending'])
+
+            // Step 5: Buat record gps_kendaraan per item dengan persetujuan=Pending
+            $tanggalBayar = $request->tanggal_bayar;
+            $tanggalHabis = $request->tanggal_habis;
+            $durasiBulan  = $tanggalBayar && $tanggalHabis
+                ? max((int) \Carbon\Carbon::parse($tanggalBayar)->diffInMonths(\Carbon\Carbon::parse($tanggalHabis)), 1)
+                : 12;
+
+            $lampiranDir = public_path('gps/attachments');
+            if (!file_exists($lampiranDir)) mkdir($lampiranDir, 0777, true);
+
+            foreach ($gpsItems as $idx => $item) {
+                $gpsRecord = GpsKendaraan::create([
+                    'pembayaran_id' => $pembayaran->id,
+                    'kendaraan_id'  => $kendaraanId,
+                    'gps_id'        => $item['gps_id'] ?? null,
+                    'type'          => $item['type'] ?? null,
+                    'status_gps'    => 'nonaktif',
+                    'tanggal_pasang'=> $tanggalBayar,
+                    'tanggal_habis' => $tanggalHabis,
+                    'tanggal_bayar' => $tanggalBayar,
+                    'biaya_sewa'    => (int) ($item['biaya_sewa'] ?? 0),
+                    'durasi_bulan'  => $durasiBulan,
+                    'status_sewa'   => 'tidak_aktif',
+                    'bukti_bayar'   => null,
+                    'keterangan'    => $request->keterangan ?? null,
+                    'nama_bank'     => $item['nama_bank'] ?? null,
+                    'no_rekening'   => $item['no_rekening'] ?? null,
+                    'nama_pemilik'  => $item['nama_pemilik'] ?? null,
+                    'persetujuan'   => 'Pending',
+                ]);
+
+                // Simpan lampiran per item langsung ke attachments
+                if ($request->hasFile("gps_items.{$idx}.lampiran")) {
+                    foreach ($request->file("gps_items.{$idx}.lampiran") as $lampiranFile) {
+                        if (!$lampiranFile->isValid()) continue;
+                        $origName  = $lampiranFile->getClientOriginalName();
+                        $ext       = $lampiranFile->getClientOriginalExtension();
+                        $fileSize  = $lampiranFile->getSize(); // ambil SEBELUM move
+                        $filename  = time() . '_' . uniqid() . '.' . $ext;
+                        $lampiranFile->move($lampiranDir, $filename);
+                        Attachment::create([
+                            'relation_type' => 'gps',
+                            'relation_id'   => $gpsRecord->id,
+                            'file_name'     => $origName,
+                            'file_path'     => 'gps/attachments/' . $filename,
+                            'file_type'     => $ext,
+                            'file_size'     => $fileSize,
+                        ]);
+                    }
+                }
+            }
+
+            return back()
                 ->with('success', 'Pengajuan pengeluaran GPS berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
@@ -450,42 +503,113 @@ class GpsKendaraanController extends Controller
     public function perpanjang(Request $request, $id, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
-            'durasi_bulan'   => 'required|integer|min:1',
-            'biaya_sewa'     => 'required|integer',
-            'tanggal_bayar'  => 'nullable|date',
-            'bukti_bayar'    => 'nullable|file|max:5120',  // Changed to nullable - upload saat approval
-            'bukti_attachment'   => 'nullable|array',
-            'bukti_attachment.*' => 'file|max:5120',
-            'nama_bank'      => 'nullable|string|max:255',
-            'no_rekening'    => 'nullable|string|max:100',
-            'nama_rekening'  => 'nullable|string|max:255',
-            'informasi'      => 'nullable|string',
+            'tanggal_bayar'  => 'required|date',
+            'biaya_sewa'     => 'required|integer|min:0',
+            'gps_items'      => 'nullable|array',
         ]);
 
-        $gpsKendaraan = GpsKendaraan::findOrFail($id);
+        $gpsKendaraan = GpsKendaraan::with(['kendaraan', 'gps'])->findOrFail($id);
 
-        // Cek: masa berlaku masih > 30 hari ke depan, perpanjangan belum diperlukan
+        // Cek: masa berlaku masih > 30 hari ke depan
         if ($gpsKendaraan->tanggal_habis && Carbon::parse($gpsKendaraan->tanggal_habis)->diffInDays(now(), false) < -30) {
             return back()->with('error', 'Masa berlaku GPS masih panjang (> 30 hari), perpanjangan belum diperlukan.');
         }
 
-        // ===========================================================================
-        // APPROVAL WORKFLOW: Perpanjang melalui Pembayaran untuk approval
-        // ===========================================================================
-        
         try {
-            $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'gps', $gpsKendaraan);
-            
-            return redirect()
-                ->route('pembayaran.index', ['tab' => 'Pending'])
-                ->with('success', 'Pengajuan perpanjangan GPS berhasil dikirim. Menunggu approval dari Superadmin.');
-                
+            $tanggalBayar = $request->tanggal_bayar;
+            $biayaSewa    = (int) $request->biaya_sewa;
+            $tanggalHabis = Carbon::parse($gpsKendaraan->tanggal_habis)->addYear()->toDateString();
+            $durasiBulan  = (int) Carbon::parse($tanggalBayar)->diffInMonths(Carbon::parse($tanggalHabis));
+            $durasiBulan  = max($durasiBulan, 1);
+
+            // Simpan ke Pembayaran
+            $sourceData = [
+                'is_perpanjang'       => true,
+                'existing_record_id'  => $gpsKendaraan->id,
+                'kendaraan_id'        => $gpsKendaraan->kendaraan_id,
+                'kendaraan_nopol'     => $gpsKendaraan->kendaraan->nopol ?? '-',
+                'tanggal_bayar'       => $tanggalBayar,
+                'tanggal_habis'       => $tanggalHabis,
+                'status_gps'          => $gpsKendaraan->status_gps,
+                'gps_items'           => [[
+                    'gps_id'       => $gpsKendaraan->gps_id,
+                    'type'         => $gpsKendaraan->type,
+                    'biaya_sewa'   => $biayaSewa,
+                    'nama_bank'    => $gpsKendaraan->nama_bank,
+                    'no_rekening'  => $gpsKendaraan->no_rekening,
+                    'nama_pemilik' => $gpsKendaraan->nama_pemilik,
+                ]],
+            ];
+
+            $user      = auth()->user();
+            $pembayaran = \App\Models\Pembayaran::create([
+                'no_pr'             => $interceptor->generateNoPR('gps_perpanjang'),
+                'tanggal'           => now(),
+                'departemen'        => $user->departemen ?? 'Umum',
+                'tipe_pembayaran'   => 'service',
+                'pemohon'           => $user->nama ?? $user->email,
+                'alasan_permintaan' => 'Perpanjangan GPS - ' . ($gpsKendaraan->gps->nama_gps ?? '-') . ' (' . $gpsKendaraan->type . ')',
+                'nominal'           => $biayaSewa,
+                'nama_bank'         => $gpsKendaraan->nama_bank,
+                'no_rekening'       => $gpsKendaraan->no_rekening,
+                'nama_rekening'     => $gpsKendaraan->nama_pemilik,
+                'status'            => 'Pending',
+                'source_type'       => 'gps_perpanjang',
+                'source_data'       => $sourceData,
+                'target_id'         => null,
+                'can_edit'          => false,
+            ]);
+
+            // Upload lampiran jika ada
+            $lampiranDir = public_path('gps/attachments');
+            if (!file_exists($lampiranDir)) mkdir($lampiranDir, 0777, true);
+
+            // Buat record baru gps_kendaraan dengan persetujuan=Pending
+            $newRecord = GpsKendaraan::create([
+                'pembayaran_id' => $pembayaran->id,
+                'kendaraan_id'  => $gpsKendaraan->kendaraan_id,
+                'gps_id'        => $gpsKendaraan->gps_id,
+                'type'          => $gpsKendaraan->type,
+                'status_gps'    => 'nonaktif',
+                'tanggal_pasang'=> $tanggalBayar,
+                'tanggal_habis' => $tanggalHabis,
+                'tanggal_bayar' => $tanggalBayar,
+                'biaya_sewa'    => $biayaSewa,
+                'durasi_bulan'  => $durasiBulan,
+                'status_sewa'   => 'tidak_aktif',
+                'bukti_bayar'   => null,
+                'keterangan'    => 'Perpanjangan GPS',
+                'nama_bank'     => $gpsKendaraan->nama_bank,
+                'no_rekening'   => $gpsKendaraan->no_rekening,
+                'nama_pemilik'  => $gpsKendaraan->nama_pemilik,
+                'persetujuan'   => 'Pending',
+            ]);
+
+            // Lampiran
+            if ($request->hasFile('gps_items.0.lampiran')) {
+                foreach ($request->file('gps_items.0.lampiran') as $lampiranFile) {
+                    if (!$lampiranFile->isValid()) continue;
+                    $origName = $lampiranFile->getClientOriginalName();
+                    $ext      = $lampiranFile->getClientOriginalExtension();
+                    $fileSize = $lampiranFile->getSize();
+                    $filename = time() . '_' . uniqid() . '.' . $ext;
+                    $lampiranFile->move($lampiranDir, $filename);
+                    Attachment::create([
+                        'relation_type' => 'gps',
+                        'relation_id'   => $newRecord->id,
+                        'file_name'     => $origName,
+                        'file_path'     => 'gps/attachments/' . $filename,
+                        'file_type'     => $ext,
+                        'file_size'     => $fileSize,
+                    ]);
+                }
+            }
+
+            return back()->with('success', 'Pengajuan perpanjangan GPS berhasil dikirim. Menunggu approval dari Superadmin.');
+
         } catch (\Exception $e) {
-            \Log::error('Error perpanjang GPS via Pembayaran: ' . $e->getMessage());
-            
-            return back()
-                ->withInput()
-                ->with('error', 'Terjadi kesalahan saat mengajukan perpanjangan. Silakan coba lagi.');
+            \Log::error('Error perpanjang GPS: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Terjadi kesalahan saat mengajukan perpanjangan. Silakan coba lagi.');
         }
     }
 

@@ -148,6 +148,52 @@ class PengeluaranInterceptorService
                 }
             }
         }
+
+        // Upload gps_items per-item bukti_bayar (GPS multi-item form)
+        $gpsItemFiles = $request->file('gps_items');
+        if (is_array($gpsItemFiles)) {
+            foreach ($gpsItemFiles as $idx => $gpsItem) {
+                if (!empty($gpsItem['bukti_bayar']) && $gpsItem['bukti_bayar']->isValid()) {
+                    $file = $gpsItem['bukti_bayar'];
+                    $originalName = $file->getClientOriginalName();
+                    $extension    = $file->getClientOriginalExtension();
+                    $storedName   = "{$timestamp}_{$idx}_{$originalName}";
+
+                    $path = $file->storeAs($tempDir . '/gps_items/' . $idx, $storedName, 'public');
+
+                    $uploadedFiles['gps_items'][$idx]['bukti_bayar'] = [
+                        'original_name' => $originalName,
+                        'stored_name'   => $storedName,
+                        'path'          => $path,
+                        'full_path'     => storage_path('app/public/' . $path),
+                        'size'          => $file->getSize(),
+                        'extension'     => $extension,
+                    ];
+                }
+
+                // Lampiran per item GPS (opsional)
+                if (!empty($gpsItem['lampiran']) && is_array($gpsItem['lampiran'])) {
+                    foreach ($gpsItem['lampiran'] as $li => $lampiranFile) {
+                        if ($lampiranFile && $lampiranFile->isValid()) {
+                            $originalName = $lampiranFile->getClientOriginalName();
+                            $extension    = $lampiranFile->getClientOriginalExtension();
+                            $storedName   = "{$timestamp}_{$idx}_{$li}_{$originalName}";
+
+                            $path = $lampiranFile->storeAs($tempDir . '/gps_items/' . $idx . '/lampiran', $storedName, 'public');
+
+                            $uploadedFiles['gps_items'][$idx]['lampiran'][] = [
+                                'original_name' => $originalName,
+                                'stored_name'   => $storedName,
+                                'path'          => $path,
+                                'full_path'     => storage_path('app/public/' . $path),
+                                'size'          => $lampiranFile->getSize(),
+                                'extension'     => $extension,
+                            ];
+                        }
+                    }
+                }
+            }
+        }
         
         return $uploadedFiles;
     }
@@ -166,6 +212,7 @@ class PengeluaranInterceptorService
             'pajak' => 'PJK',
             'service_part' => 'SVC',
             'gps' => 'GPS',
+            'gps_perpanjang' => 'GPP',
             'kir' => 'KIR',
             'stnk' => 'STN',
             'service_asuransi' => 'SAS',
@@ -356,6 +403,7 @@ class PengeluaranInterceptorService
     {
         return match($sourceType) {
             'gps' => 'GPS Kendaraan',
+            'gps_perpanjang' => 'Perpanjangan GPS',
             'asuransi_kendaraan' => 'Asuransi Kendaraan',
             'pajak' => 'Pajak Kendaraan',
             'kir' => 'KIR',

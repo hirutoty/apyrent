@@ -12,6 +12,7 @@ class GpsKendaraan extends Model
     protected $table = 'gps_kendaraan';
 
     protected $fillable = [
+        'pembayaran_id',
         'kendaraan_id',
         'gps_id',
         'type',
@@ -24,6 +25,10 @@ class GpsKendaraan extends Model
         'bukti_bayar',
         'tanggal_bayar',
         'keterangan',
+        'nama_bank',
+        'no_rekening',
+        'nama_pemilik',
+        'persetujuan',
     ];
 
     /**
