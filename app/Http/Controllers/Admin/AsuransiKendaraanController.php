@@ -154,7 +154,6 @@ class AsuransiKendaraanController extends Controller
 
     public function store(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
-        // Validation tetap lengkap
         $request->validate([
             'kendaraan_id'       => 'required|exists:kendaraan,id',
             'asuransi_id'        => 'required|exists:asuransi,id',
@@ -163,66 +162,176 @@ class AsuransiKendaraanController extends Controller
             'tgl_berakhir'       => 'required|date|after_or_equal:tgl_mulai',
             'durasi_bulan'       => 'required|integer|min:1',
             'biaya'              => 'required|numeric|min:0',
-            'bukti_bayar'        => 'nullable|file|max:5120',  // Changed to nullable karena upload saat approval
-            'bukti_attachment'   => 'nullable|array',
+            'nama_rekening'      => 'nullable|string|max:255',
+            'nama_bank'          => 'nullable|string|max:255',
+            'no_rekening'        => 'nullable|string|max:100',
+            'bukti_attachment'   => 'required|array|min:1',
             'bukti_attachment.*' => 'file|max:5120',
         ]);
 
-        $kendaraan = \App\Models\Kendaraan::findOrFail($request->kendaraan_id);
+        // ── RESUBMIT: edit_pembayaran diisi (dari halaman Ajukan Ulang setelah ditolak) ──
+        if ($request->filled('edit_pembayaran')) {
+            $pembayaranId = (int) $request->input('edit_pembayaran');
 
-        // 🔥 CEK DUPLIKAT FULL KOMBINASI
-        $exists = AsuransiKendaraan::where('kendaraan_id', $request->kendaraan_id)
-            ->exists();
+            try {
+                $pembayaran = \App\Models\Pembayaran::findOrFail($pembayaranId);
 
-        if ($exists) {
-            return back()->with(
-                'error',
-                'Kendaraan / nopol ini sudah terdaftar pada data asuransi'
-            );
-        }
+                \Log::info("Resubmit asuransi kendaraan: pembayaran #{$pembayaranId} status={$pembayaran->status}");
 
-        // ===========================================================================
-        // APPROVAL WORKFLOW: Intercept dan kirim ke Pembayaran
-        // ===========================================================================
-        
-        try {
-            // Check if this is a resubmit (from rejected pembayaran)
-            if ($request->filled('edit_pembayaran')) {
-                $pembayaranId = $request->input('edit_pembayaran');
-                
-                // Resubmit: Update existing pembayaran
-                $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'asuransi_kendaraan');
-                
+                if (!in_array($pembayaran->status, ['Ditolak', 'Pending'])) {
+                    return redirect()
+                        ->route('asuransi-kendaraan.index')
+                        ->with('error', 'Pengajuan ini tidak dapat diajukan ulang (status: ' . $pembayaran->status . ').');
+                }
+
+                // Gabungkan source_data lama dengan data baru dari form
+                $sourceData = $pembayaran->source_data ?? [];
+                $sourceData = array_merge($sourceData, [
+                    'kendaraan_id'      => $request->kendaraan_id,
+                    'asuransi_id'       => $request->asuransi_id,
+                    'jenis_asuransi_id' => $request->jenis_asuransi_id,
+                    'tgl_mulai'         => $request->tgl_mulai,
+                    'tgl_berakhir'      => $request->tgl_berakhir,
+                    'durasi_bulan'      => $request->durasi_bulan,
+                    'biaya'             => $request->biaya,
+                    'nama_rekening'     => $request->nama_rekening,
+                    'nama_bank'         => $request->nama_bank,
+                    'no_rekening'       => $request->no_rekening,
+                ]);
+
+                $pembayaran->update([
+                    'source_data' => $sourceData,
+                    'nominal'     => $request->biaya,
+                    'nama_bank'   => $request->nama_bank,
+                    'no_rekening' => $request->no_rekening,
+                    'status'      => 'Pending',
+                    'can_edit'    => false,
+                ]);
+
+                // Update persetujuan & data asuransi record → Pending
+                $existingId = $sourceData['existing_record_id'] ?? null;
+                if ($existingId) {
+                    AsuransiKendaraan::where('id', $existingId)->update([
+                        'persetujuan'       => 'Pending',
+                        'asuransi_id'       => $request->asuransi_id,
+                        'jenis_asuransi_id' => $request->jenis_asuransi_id,
+                        'tgl_mulai'         => $request->tgl_mulai,
+                        'tgl_berakhir'      => $request->tgl_berakhir,
+                        'durasi_bulan'      => $request->durasi_bulan,
+                        'biaya'             => $request->biaya,
+                        'nama_rekening'     => $request->nama_rekening,
+                        'nama_bank'         => $request->nama_bank,
+                        'no_rekening'       => $request->no_rekening,
+                    ]);
+                }
+
+                // Simpan lampiran baru jika ada
+                if ($request->hasFile('bukti_attachment') && $existingId) {
+                    $this->simpanAttachments($request->file('bukti_attachment'), $existingId);
+                }
+
                 return redirect()
-                    ->route('pembayaran.index', ['tab' => 'Pending'])
+                    ->route('asuransi-kendaraan.index')
                     ->with('success', 'Pengajuan asuransi berhasil diajukan ulang. Menunggu approval dari Superadmin.');
+
+            } catch (\Exception $e) {
+                \Log::error('Error resubmit asuransi kendaraan: ' . $e->getMessage());
+                return redirect()
+                    ->route('asuransi-kendaraan.ajukan-ulang', $pembayaranId)
+                    ->withInput()
+                    ->with('error', 'Terjadi kesalahan saat mengajukan ulang: ' . $e->getMessage());
             }
-            
-            // Step 1: Intercept data dari form
-            $interceptedData = $interceptor->intercept($request, 'asuransi_kendaraan');
-            
-            // Step 2: Save ke Pembayaran
-            $pembayaran = $interceptor->saveToPembayaran($interceptedData, 'asuransi_kendaraan');
-            
-            // Step 3: Upload temporary files
-            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $pembayaran->id);
-            
-            // Step 4: Update source_data dengan file info
-            $sourceData = $pembayaran->source_data;
-            $sourceData['temp_files'] = $uploadedFiles;
-            $pembayaran->update(['source_data' => $sourceData]);
-            
-            return redirect()
-                ->route('pembayaran.index', ['tab' => 'Pending'])
-                ->with('success', 'Pengajuan pengeluaran asuransi berhasil dikirim. Menunggu approval dari Superadmin.');
-                
-        } catch (\Exception $e) {
-            \Log::error('Error intercepting asuransi kendaraan submission: ' . $e->getMessage());
-            
-            return back()
-                ->withInput()
-                ->with('error', 'Terjadi kesalahan saat mengajukan pengeluaran. Silakan coba lagi.');
         }
+
+        // Cek duplikat: hanya blokir jika sudah ada data Pending atau Disetujui
+        // (data Ditolak boleh daftar ulang)
+        $exists = AsuransiKendaraan::where('kendaraan_id', $request->kendaraan_id)
+            ->whereIn('persetujuan', ['Pending', 'Disetujui'])
+            ->exists();
+        if ($exists) {
+            return back()->with('error', 'Kendaraan ini sudah memiliki data asuransi aktif atau sedang dalam proses approval.');
+        }
+
+        try {
+            // Step 1: Intercept & buat Pembayaran untuk approval
+            $interceptedData = $interceptor->intercept($request, 'asuransi_kendaraan');
+            $pembayaran      = $interceptor->saveToPembayaran($interceptedData, 'asuransi_kendaraan');
+
+            // Step 2: Simpan record ke asuransi_kendaraan dengan status tidak_aktif & Pending
+            // Bukti bayar diisi saat Superadmin approve di halaman Pembayaran
+            $asuransi = AsuransiKendaraan::create([
+                'pembayaran_id'     => $pembayaran->id,
+                'kendaraan_id'      => $request->kendaraan_id,
+                'asuransi_id'       => $request->asuransi_id,
+                'jenis_asuransi_id' => $request->jenis_asuransi_id,
+                'tgl_mulai'         => $request->tgl_mulai,
+                'tgl_berakhir'      => $request->tgl_berakhir,
+                'durasi_bulan'      => $request->durasi_bulan,
+                'biaya'             => $request->biaya,
+                'bukti_bayar'       => null,
+                'status_kendaraan'  => 'tidak_aktif',
+                'persetujuan'       => 'Pending',
+                'nama_rekening'     => $request->nama_rekening,
+                'nama_bank'         => $request->nama_bank,
+                'no_rekening'       => $request->no_rekening,
+            ]);
+
+            // Step 3: Simpan lampiran
+            if ($request->hasFile('bukti_attachment')) {
+                $this->simpanAttachments($request->file('bukti_attachment'), $asuransi->id);
+            }
+
+            // Step 4: Tandai existing_record_id di source_data pembayaran
+            $sourceData = $pembayaran->source_data;
+            $sourceData['existing_record_id'] = $asuransi->id;
+            $pembayaran->update(['source_data' => $sourceData]);
+
+            return redirect()
+                ->route('asuransi-kendaraan.index')
+                ->with('success', 'Pengajuan asuransi berhasil dikirim. Menunggu approval dari Superadmin.');
+
+        } catch (\Exception $e) {
+            \Log::error('Error store asuransi kendaraan: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Terjadi kesalahan saat menyimpan data. Silakan coba lagi.');
+        }
+    }
+
+    /**
+     * Halaman ajukan ulang asuransi yang ditolak (dedicated page)
+     */
+    public function ajukanUlangForm($pembayaranId)
+    {
+        $pembayaran = \App\Models\Pembayaran::findOrFail($pembayaranId);
+
+        if ($pembayaran->status !== 'Ditolak') {
+            return redirect()->route('asuransi-kendaraan.index')
+                ->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
+        }
+
+        $sourceData = $pembayaran->source_data ?? [];
+        $existingId = $sourceData['existing_record_id'] ?? null;
+
+        if (!$existingId) {
+            return redirect()->route('asuransi-kendaraan.index')
+                ->with('error', 'Data asuransi tidak ditemukan.');
+        }
+
+        $asuransi = AsuransiKendaraan::with(['kendaraan', 'asuransi', 'jenisAsuransi', 'attachments'])
+            ->findOrFail($existingId);
+
+        $rejectionReason  = $pembayaran->latestApproval?->catatan ?? null;
+        $kendaraan        = Kendaraan::all();
+        $allAsuransi      = Asuransi::all();
+        $jenisAsuransi    = JenisAsuransi::all();
+
+        return view('admin.asuransi.ajukan-ulang', compact(
+            'asuransi',
+            'pembayaranId',
+            'rejectionReason',
+            'kendaraan',
+            'allAsuransi',
+            'jenisAsuransi'
+        ));
     }
 
     public function update(Request $request, $id)
@@ -453,8 +562,8 @@ class AsuransiKendaraanController extends Controller
             'durasi_bulan'      => 'required|integer|min:1',
             'biaya'             => 'required|numeric|min:0',
             'tanggal_bayar'     => 'nullable|date',
-            'bukti_bayar'       => 'nullable|file|max:5120',  // Changed to nullable - upload saat approval
-            'bukti_attachment'   => 'nullable|array',
+            'bukti_bayar'       => 'nullable|file|max:5120',
+            'bukti_attachment'   => 'required|array|min:1',
             'bukti_attachment.*' => 'file|max:5120',
             'nama_bank'      => 'nullable|string|max:255',
             'no_rekening'    => 'nullable|string|max:100',
@@ -463,6 +572,11 @@ class AsuransiKendaraanController extends Controller
         ]);
 
         $asuransi = AsuransiKendaraan::findOrFail($id);
+
+        // Guard: masa berlaku masih > 30 hari ke depan, perpanjangan belum diperlukan
+        if ($asuransi->tgl_berakhir && Carbon::parse($asuransi->tgl_berakhir)->diffInDays(now(), false) < -30) {
+            return back()->with('error', 'Masa berlaku asuransi masih panjang (> 30 hari), perpanjangan belum diperlukan.');
+        }
 
         // ===========================================================================
         // APPROVAL WORKFLOW: Perpanjang melalui Pembayaran untuk approval
@@ -483,4 +597,5 @@ class AsuransiKendaraanController extends Controller
                 ->with('error', 'Terjadi kesalahan saat mengajukan perpanjangan. Silakan coba lagi.');
         }
     }
+
 }

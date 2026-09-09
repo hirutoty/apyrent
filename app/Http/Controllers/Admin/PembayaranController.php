@@ -1044,9 +1044,22 @@ class PembayaranController extends Controller
                     $data['asuransi'] = \App\Models\Asuransi::find($sourceData['asuransi_id']);
                     $data['jenis_asuransi'] = \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id']);
                     break;
+
+                case 'asuransi_kendaraan_perpanjang':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    $data['asuransi_lama'] = \App\Models\AsuransiKendaraan::with(['asuransi', 'jenisAsuransi'])
+                        ->find($sourceData['existing_record_id']);
+                    $data['asuransi'] = \App\Models\Asuransi::find($sourceData['asuransi_id'] ?? $data['asuransi_lama']?->asuransi_id);
+                    $data['jenis_asuransi'] = \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id'] ?? $data['asuransi_lama']?->jenis_asuransi_id);
+                    break;
                     
                 case 'pajak':
                     $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    break;
+
+                case 'pajak_perpanjang':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    $data['pajak_lama'] = \App\Models\PajakKendaraan::find($sourceData['existing_record_id']);
                     break;
                     
                 case 'service_part':
@@ -1068,22 +1081,27 @@ class PembayaranController extends Controller
                                 'nama_gps'     => $gpsModel->nama_gps ?? '-',
                                 'type'         => $item['type'] ?? '-',
                                 'biaya_sewa'   => $item['biaya_sewa'] ?? 0,
-                                // Bank info per item
                                 'nama_bank'    => $item['nama_bank'] ?? null,
                                 'no_rekening'  => $item['no_rekening'] ?? null,
                                 'nama_pemilik' => $item['nama_pemilik'] ?? null,
-                                // File info per item
                                 'bukti_bayar'  => $buktiBayar,
                                 'lampiran'     => $lampiranArr,
                             ];
                         })->values()->toArray();
                     } else {
-                        // Legacy single GPS
                         $data['gps'] = \App\Models\Gps::find($sourceData['gps_id'] ?? null);
                     }
                     break;
                     
                 case 'kir':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    break;
+
+                case 'kir_perpanjang':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    $data['kir_lama'] = \App\Models\Kir::find($sourceData['existing_record_id']);
+                    break;
+
                 case 'stnk':
                     $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
                     break;
@@ -1213,6 +1231,9 @@ class PembayaranController extends Controller
                 'status' => 'Ditolak',
                 'can_edit' => true,  // User bisa edit & ajukan ulang
             ]);
+
+            // Sync persetujuan ke tabel sumber jika ada existing_record_id
+            $this->syncPersetujuanToSource($pembayaran, 'Ditolak');
             
             DB::commit();
             
@@ -1498,6 +1519,30 @@ class PembayaranController extends Controller
     }
 
     /**
+     * Sync persetujuan ke tabel sumber (pajak_kendaraans, dll) berdasarkan existing_record_id
+     * Dipanggil saat reject/approve agar badge persetujuan di halaman modul ikut update.
+     */
+    protected function syncPersetujuanToSource(\App\Models\Pembayaran $pembayaran, string $status): void
+    {
+        $sourceData = $pembayaran->source_data ?? [];
+        $existingId = $sourceData['existing_record_id'] ?? null;
+
+        if (!$existingId) return;
+
+        try {
+            match($pembayaran->source_type) {
+                'pajak'               => \App\Models\PajakKendaraan::where('id', $existingId)
+                    ->update(['persetujuan' => $status]),
+                'asuransi_kendaraan'  => \App\Models\AsuransiKendaraan::where('id', $existingId)
+                    ->update(['persetujuan' => $status]),
+                default => null,
+            };
+        } catch (\Exception $e) {
+            \Log::warning("syncPersetujuanToSource failed for Pembayaran #{$pembayaran->id}: " . $e->getMessage());
+        }
+    }
+
+    /**
      * Upload approval files (bukti & attachments)
      */
     protected function uploadApprovalFiles(Request $request, int $pembayaranId): array
@@ -1624,22 +1669,38 @@ class PembayaranController extends Controller
         
         // Map source_type to route
         $routeMap = [
-            'asuransi_kendaraan' => 'asuransi-kendaraan.index',
-            'pajak'              => 'pajak-kendaraan.index',
-            'gps'                => 'gps-kendaraan.index',
-            'kir'                => 'kir.index',
-            'stnk'               => 'stnk.index',
-            'service_asuransi'   => 'service-asuransi.index',
-            'service_part'       => 'service-history.create',
-            'purchase_order'     => 'purchase-order.index',
+            'asuransi_kendaraan'            => 'asuransi-kendaraan.ajukan-ulang',
+            'asuransi_kendaraan_perpanjang' => 'asuransi-kendaraan.index',
+            'pajak'                         => 'pajak.ajukan-ulang',
+            'pajak_perpanjang'              => 'pajak.index',
+            'gps'                           => 'gps-kendaraan.index',
+            'gps_perpanjang'                => 'gps-kendaraan.index',
+            'kir'                           => 'kir.index',
+            'kir_perpanjang'                => 'kir.index',
+            'stnk'                          => 'stnk.index',
+            'service_asuransi'              => 'service-asuransi.index',
+            'service_part'                  => 'service-history.create',
+            'purchase_order'                => 'purchase-order.index',
         ];
-        
+
         $route = $routeMap[$pembayaran->source_type] ?? null;
-        
+
         if (!$route) {
             return back()->with('error', 'Form untuk jenis pengeluaran ini tidak ditemukan.');
         }
-        
+
+        // Pajak pakai dedicated page dengan parameter ID pembayaran
+        if ($pembayaran->source_type === 'pajak') {
+            return redirect()->route('pajak.ajukan-ulang', $pembayaran->id)
+                ->with('info', 'Silakan perbaiki data sesuai catatan penolakan, lalu ajukan ulang.');
+        }
+
+        // Asuransi kendaraan pakai dedicated page
+        if ($pembayaran->source_type === 'asuransi_kendaraan') {
+            return redirect()->route('asuransi-kendaraan.ajukan-ulang', $pembayaran->id)
+                ->with('info', 'Silakan perbaiki data sesuai catatan penolakan, lalu ajukan ulang.');
+        }
+
         // Redirect to form with edit parameters
         return redirect()
             ->route($route, [

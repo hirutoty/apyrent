@@ -13,9 +13,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use App\Models\GpsKendaraanHistory;
-use App\Models\Keuangan;
-use App\Models\Bukubesar;
-use App\Models\User;
 
 class GpsKendaraanController extends Controller
 {
@@ -23,7 +20,7 @@ class GpsKendaraanController extends Controller
     {
         GpsKendaraan::where('tanggal_habis', '<=', now())
             ->where('status_sewa', 'aktif')
-            ->update(['status_sewa' => 'habis']);
+            ->update(['status_sewa' => 'expired']);
 
         $query = GpsKendaraan::with(['kendaraan', 'gps', 'attachments'])->latest();
 
@@ -147,7 +144,7 @@ class GpsKendaraanController extends Controller
         // Validasi shared fields + gps_items array
         $request->validate([
             'kendaraan_id'                    => 'required|exists:kendaraan,id',
-            'status_gps'                      => 'required|in:aktif,nonaktif',
+            'status_gps'                      => 'nullable|in:aktif,nonaktif',
             'tanggal_bayar'                   => 'required|date',
             'tanggal_habis'                   => 'required|date',
             'keterangan'                      => 'nullable|string|max:1000',
@@ -156,7 +153,7 @@ class GpsKendaraanController extends Controller
             'gps_items.*.type'                => 'required|string|max:100',
             'gps_items.*.biaya_sewa'          => 'required|integer|min:0',
             'gps_items.*.bukti_bayar'         => 'nullable|file|max:5120',
-            'gps_items.*.lampiran'            => 'nullable|array',
+            'gps_items.*.lampiran'            => 'required|array|min:1',
             'gps_items.*.lampiran.*'          => 'file|max:5120',
             'gps_items.*.nama_bank'           => 'nullable|string|max:255',
             'gps_items.*.no_rekening'         => 'nullable|string|max:100',
@@ -318,7 +315,7 @@ class GpsKendaraanController extends Controller
         }
 
         $data   = GpsKendaraan::findOrFail($id);
-        $status = now()->lte($request->tanggal_habis) ? 'aktif' : 'habis';
+        $status = now()->lte($request->tanggal_habis) ? 'aktif' : 'expired';
 
         // Upload bukti bayar baru, hapus yang lama
         $buktiPath = $data->bukti_bayar;
@@ -503,14 +500,15 @@ class GpsKendaraanController extends Controller
     public function perpanjang(Request $request, $id, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
-            'tanggal_bayar'  => 'required|date',
-            'biaya_sewa'     => 'required|integer|min:0',
-            'gps_items'      => 'nullable|array',
+            'tanggal_bayar' => 'required|date',
+            'biaya_sewa'    => 'required|integer|min:0',
+            'lampiran'      => 'required|array|min:1',
+            'lampiran.*'    => 'file|max:5120',
         ]);
 
         $gpsKendaraan = GpsKendaraan::with(['kendaraan', 'gps'])->findOrFail($id);
 
-        // Cek: masa berlaku masih > 30 hari ke depan
+        // Guard: masa berlaku masih > 30 hari ke depan
         if ($gpsKendaraan->tanggal_habis && Carbon::parse($gpsKendaraan->tanggal_habis)->diffInDays(now(), false) < -30) {
             return back()->with('error', 'Masa berlaku GPS masih panjang (> 30 hari), perpanjangan belum diperlukan.');
         }
@@ -519,112 +517,46 @@ class GpsKendaraanController extends Controller
             $tanggalBayar = $request->tanggal_bayar;
             $biayaSewa    = (int) $request->biaya_sewa;
             $tanggalHabis = Carbon::parse($gpsKendaraan->tanggal_habis)->addYear()->toDateString();
-            $durasiBulan  = (int) Carbon::parse($tanggalBayar)->diffInMonths(Carbon::parse($tanggalHabis));
-            $durasiBulan  = max($durasiBulan, 1);
 
-            // Simpan ke Pembayaran
-            $sourceData = [
-                'is_perpanjang'       => true,
-                'existing_record_id'  => $gpsKendaraan->id,
-                'kendaraan_id'        => $gpsKendaraan->kendaraan_id,
-                'kendaraan_nopol'     => $gpsKendaraan->kendaraan->nopol ?? '-',
-                'tanggal_bayar'       => $tanggalBayar,
-                'tanggal_habis'       => $tanggalHabis,
-                'status_gps'          => $gpsKendaraan->status_gps,
-                'gps_items'           => [[
-                    'gps_id'       => $gpsKendaraan->gps_id,
-                    'type'         => $gpsKendaraan->type,
-                    'biaya_sewa'   => $biayaSewa,
-                    'nama_bank'    => $gpsKendaraan->nama_bank,
-                    'no_rekening'  => $gpsKendaraan->no_rekening,
-                    'nama_pemilik' => $gpsKendaraan->nama_pemilik,
+            // Merge data konteks GPS ke dalam request agar perpanjangViaPembayaran bisa memakai
+            $request->merge([
+                'biaya_sewa'   => $biayaSewa,
+                'tanggal_bayar'=> $tanggalBayar,
+                'tanggal_habis'=> $tanggalHabis,
+                'status_gps'   => $gpsKendaraan->status_gps,
+                'gps_items'    => [[
+                    'gps_kendaraan_id' => $gpsKendaraan->id,
+                    'gps_id'           => $gpsKendaraan->gps_id,
+                    'type'             => $gpsKendaraan->type,
+                    'biaya_sewa'       => $biayaSewa,
+                    'nama_bank'        => $gpsKendaraan->nama_bank,
+                    'no_rekening'      => $gpsKendaraan->no_rekening,
+                    'nama_pemilik'     => $gpsKendaraan->nama_pemilik,
                 ]],
-            ];
-
-            $user      = auth()->user();
-            $pembayaran = \App\Models\Pembayaran::create([
-                'no_pr'             => $interceptor->generateNoPR('gps_perpanjang'),
-                'tanggal'           => now(),
-                'departemen'        => $user->departemen ?? 'Umum',
-                'tipe_pembayaran'   => 'service',
-                'pemohon'           => $user->nama ?? $user->email,
-                'alasan_permintaan' => 'Perpanjangan GPS - ' . ($gpsKendaraan->gps->nama_gps ?? '-') . ' (' . $gpsKendaraan->type . ')',
-                'nominal'           => $biayaSewa,
-                'nama_bank'         => $gpsKendaraan->nama_bank,
-                'no_rekening'       => $gpsKendaraan->no_rekening,
-                'nama_rekening'     => $gpsKendaraan->nama_pemilik,
-                'status'            => 'Pending',
-                'source_type'       => 'gps_perpanjang',
-                'source_data'       => $sourceData,
-                'target_id'         => null,
-                'can_edit'          => false,
             ]);
 
-            // Upload lampiran jika ada
-            $lampiranDir = public_path('gps/attachments');
-            if (!file_exists($lampiranDir)) mkdir($lampiranDir, 0777, true);
+            $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'gps', $gpsKendaraan);
 
-            // Buat record baru gps_kendaraan dengan persetujuan=Pending
-            $newRecord = GpsKendaraan::create([
-                'pembayaran_id' => $pembayaran->id,
-                'kendaraan_id'  => $gpsKendaraan->kendaraan_id,
-                'gps_id'        => $gpsKendaraan->gps_id,
-                'type'          => $gpsKendaraan->type,
-                'status_gps'    => 'nonaktif',
-                'tanggal_pasang'=> $tanggalBayar,
-                'tanggal_habis' => $tanggalHabis,
-                'tanggal_bayar' => $tanggalBayar,
-                'biaya_sewa'    => $biayaSewa,
-                'durasi_bulan'  => $durasiBulan,
-                'status_sewa'   => 'tidak_aktif',
-                'bukti_bayar'   => null,
-                'keterangan'    => 'Perpanjangan GPS',
-                'nama_bank'     => $gpsKendaraan->nama_bank,
-                'no_rekening'   => $gpsKendaraan->no_rekening,
-                'nama_pemilik'  => $gpsKendaraan->nama_pemilik,
-                'persetujuan'   => 'Pending',
-            ]);
-
-            // Lampiran
-            if ($request->hasFile('gps_items.0.lampiran')) {
-                foreach ($request->file('gps_items.0.lampiran') as $lampiranFile) {
-                    if (!$lampiranFile->isValid()) continue;
-                    $origName = $lampiranFile->getClientOriginalName();
-                    $ext      = $lampiranFile->getClientOriginalExtension();
-                    $fileSize = $lampiranFile->getSize();
-                    $filename = time() . '_' . uniqid() . '.' . $ext;
-                    $lampiranFile->move($lampiranDir, $filename);
-                    Attachment::create([
-                        'relation_type' => 'gps',
-                        'relation_id'   => $newRecord->id,
-                        'file_name'     => $origName,
-                        'file_path'     => 'gps/attachments/' . $filename,
-                        'file_type'     => $ext,
-                        'file_size'     => $fileSize,
-                    ]);
-                }
-            }
-
-            return back()->with('success', 'Pengajuan perpanjangan GPS berhasil dikirim. Menunggu approval dari Superadmin.');
+            return redirect()
+                ->route('pembayaran.index', ['tab' => 'Pending'])
+                ->with('success', 'Pengajuan perpanjangan GPS berhasil dikirim. Menunggu approval dari Superadmin.');
 
         } catch (\Exception $e) {
-            \Log::error('Error perpanjang GPS: ' . $e->getMessage());
+            \Log::error('Error perpanjang GPS via Pembayaran: ' . $e->getMessage());
             return back()->withInput()->with('error', 'Terjadi kesalahan saat mengajukan perpanjangan. Silakan coba lagi.');
         }
     }
 
     /**
-     * Perpanjang SEMUA GPS yang dimiliki satu kendaraan sekaligus.
-     * Setiap GPS memiliki biaya & bukti bayar sendiri-sendiri.
+     * Perpanjang SEMUA GPS yang dimiliki satu kendaraan sekaligus via approval workflow.
      */
-    public function perpanjangKendaraan(Request $request, $kendaraanId)
+    public function perpanjangKendaraan(Request $request, $kendaraanId, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
             'tanggal_bayar'                    => 'required|date',
             'gps_items'                        => 'required|array|min:1',
             'gps_items.*.gps_kendaraan_id'     => 'required|exists:gps_kendaraan,id',
             'gps_items.*.biaya_sewa'           => 'required|integer|min:0',
-            'gps_items.*.bukti_bayar'          => 'required|file|max:5120',
             'gps_items.*.lampiran'             => 'nullable|array',
             'gps_items.*.lampiran.*'           => 'file|max:5120',
         ], [
@@ -632,119 +564,59 @@ class GpsKendaraanController extends Controller
             'gps_items.required'                    => 'Data GPS tidak ditemukan.',
             'gps_items.*.gps_kendaraan_id.required' => 'ID GPS kendaraan wajib ada.',
             'gps_items.*.biaya_sewa.required'       => 'Biaya sewa wajib diisi untuk setiap GPS.',
-            'gps_items.*.bukti_bayar.required'      => 'Bukti bayar wajib diupload untuk setiap GPS.',        ]);
+        ]);
 
         $tanggalBayar = Carbon::parse($request->tanggal_bayar)->toDateString();
-        $gpsItems     = $request->input('gps_items');
+        $inputItems   = $request->input('gps_items');
 
-        // Siapkan dir upload
-        $buktiDir = public_path('gps/bukti_bayar');
-        if (!file_exists($buktiDir)) mkdir($buktiDir, 0777, true);
+        // Bangun gps_items array yang lengkap (termasuk data dari record existing)
+        $gpsItemsMerged = [];
+        foreach ($inputItems as $item) {
+            $gpsKendaraan = GpsKendaraan::with(['kendaraan', 'gps'])->findOrFail($item['gps_kendaraan_id']);
+            $tanggalHabis = Carbon::parse($gpsKendaraan->tanggal_habis)->addYear()->toDateString();
 
-        \Illuminate\Support\Facades\DB::transaction(function () use (
-            $request, $gpsItems, $tanggalBayar, $buktiDir
-        ) {
-            foreach ($gpsItems as $idx => $item) {
-                $gpsKendaraan = GpsKendaraan::findOrFail($item['gps_kendaraan_id']);
-                $tanggalHabis = Carbon::parse($gpsKendaraan->tanggal_habis)->addYear()->toDateString();
+            $gpsItemsMerged[] = [
+                'gps_kendaraan_id' => $gpsKendaraan->id,
+                'gps_id'           => $gpsKendaraan->gps_id,
+                'type'             => $gpsKendaraan->type,
+                'biaya_sewa'       => (int) $item['biaya_sewa'],
+                'tanggal_habis'    => $tanggalHabis,
+                'nama_bank'        => $gpsKendaraan->nama_bank,
+                'no_rekening'      => $gpsKendaraan->no_rekening,
+                'nama_pemilik'     => $gpsKendaraan->nama_pemilik,
+                'status_gps'       => $gpsKendaraan->status_gps,
+            ];
+        }
 
-                // Upload bukti bayar per-GPS
-                $buktiBayarBaru = $gpsKendaraan->bukti_bayar; // fallback
-                if ($request->hasFile("gps_items.{$idx}.bukti_bayar")) {
-                    $file     = $request->file("gps_items.{$idx}.bukti_bayar");
-                    $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                    $file->move($buktiDir, $filename);
-                    $buktiBayarBaru = 'gps/bukti_bayar/' . $filename;
-                }
+        // Nominal total untuk header Pembayaran
+        $totalBiaya = array_sum(array_column($gpsItemsMerged, 'biaya_sewa'));
 
-                // Simpan ke history
-                $history = GpsKendaraanHistory::create([
-                    'gps_id'           => $gpsKendaraan->gps_id,
-                    'gps_kendaraan_id' => $gpsKendaraan->id,
-                    'kendaraan_id'     => $gpsKendaraan->kendaraan_id,
-                    'type'             => $gpsKendaraan->type,
-                    'tanggal_pasang'   => $tanggalBayar,
-                    'tanggal_habis'    => $tanggalHabis,
-                    'durasi_bulan'     => 12,
-                    'biaya_sewa'       => $item['biaya_sewa'],
-                    'status_sewa'      => 'aktif',
-                    'status_gps'       => $gpsKendaraan->status_gps,
-                    'bukti_bayar'      => $buktiBayarBaru,
-                    'tanggal_bayar'    => $tanggalBayar,
-                    'diperpanjang_pada'=> now(),
-                ]);
+        // Ambil kendaraan dari item pertama (semua item milik kendaraan yang sama)
+        $firstGps  = GpsKendaraan::with('kendaraan')->findOrFail($inputItems[0]['gps_kendaraan_id']);
+        $kendaraan = $firstGps->kendaraan;
 
-                // Catat ke Keuangan
-                $lastSaldo   = (float) \Illuminate\Support\Facades\DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-                $pengeluaran = (int) $item['biaya_sewa'];
-                $kodeJurnal  = 'GPS-' . $gpsKendaraan->id . '-' . now()->timestamp;
+        // Merge ke request agar perpanjangViaPembayaran bisa membaca data lengkap
+        $request->merge([
+            'kendaraan_id'  => $kendaraanId,
+            'tanggal_bayar' => $tanggalBayar,
+            'tanggal_habis' => $gpsItemsMerged[0]['tanggal_habis'],   // representatif (transfer service handles per-item)
+            'status_gps'    => 'aktif',
+            'gps_items'     => $gpsItemsMerged,
+            'biaya_sewa'    => $totalBiaya,   // nominal total (dipakai extractNominal)
+        ]);
 
-                Keuangan::create([
-                    'tanggal'     => now(),
-                    'reference'   => $kodeJurnal,
-                    'user_id'     => auth()->id(),
-                    'divisi'      => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
-                    'kategori'    => 'Pengeluaran',
-                    'metode'      => 'Cash',
-                    'keterangan'  => 'Perpanjangan GPS: ' . $gpsKendaraan->type . ' - ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
-                    'pemasukan'   => 0,
-                    'pengeluaran' => $pengeluaran,
-                    'saldo'       => $lastSaldo - $pengeluaran,
-                    'sumber'      => 'auto',
-                ]);
+        // Buat dummy existingRecord agar perpanjangViaPembayaran bisa mengisi kendaraan_id & existing_record_id
+        // Untuk multi-item kita pakai firstGps sebagai anchor; transfer service akan loop gps_items
+        try {
+            $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'gps', $firstGps);
 
-                // Auto-posting Buku Besar
-                $saldoBB = (float) \Illuminate\Support\Facades\DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-                Bukubesar::create([
-                    'kode_jurnal' => $kodeJurnal,
-                    'transaksi'   => 'Beban GPS - ' . $gpsKendaraan->type,
-                    'kategori'    => 'Beban',
-                    'tanggal'     => now()->toDateString(),
-                    'debit'       => $pengeluaran,
-                    'kredit'      => 0,
-                    'saldo'       => $saldoBB - $pengeluaran,
-                    'aktivitas'   => 'Operasi',
-                    'keterangan'  => 'Perpanjangan GPS ' . ($gpsKendaraan->kendaraan->nopol ?? '-'),
-                ]);
+            return redirect()
+                ->route('pembayaran.index', ['tab' => 'Pending'])
+                ->with('success', count($gpsItemsMerged) . ' GPS kendaraan berhasil diajukan perpanjangan. Menunggu approval dari Superadmin.');
 
-                // Update record aktif
-                $gpsKendaraan->update([
-                    'status_gps'     => 'aktif',
-                    'tanggal_pasang' => $tanggalBayar,
-                    'tanggal_habis'  => $tanggalHabis,
-                    'durasi_bulan'   => 12,
-                    'biaya_sewa'     => $item['biaya_sewa'],
-                    'status_sewa'    => 'aktif',
-                    'bukti_bayar'    => $buktiBayarBaru,
-                    'tanggal_bayar'  => $tanggalBayar,
-                ]);
-
-                // Lampiran per-GPS
-                if ($request->hasFile("gps_items.{$idx}.lampiran")) {
-                    Attachment::where('relation_type', 'gps')->where('relation_id', $gpsKendaraan->id)->delete();
-                    $this->simpanAttachments(
-                        $request->file("gps_items.{$idx}.lampiran"),
-                        $gpsKendaraan->id,
-                        'gps',
-                        $history->id
-                    );
-                } else {
-                    // Salin lampiran lama ke history
-                    $oldAtts = Attachment::where('relation_type', 'gps')->where('relation_id', $gpsKendaraan->id)->get();
-                    foreach ($oldAtts as $att) {
-                        Attachment::create([
-                            'relation_type' => 'gps_history',
-                            'relation_id'   => $history->id,
-                            'file_name'     => $att->file_name,
-                            'file_path'     => $att->file_path,
-                            'file_type'     => $att->file_type,
-                            'file_size'     => $att->file_size,
-                        ]);
-                    }
-                }
-            }
-        });
-
-        return back()->with('success', count($gpsItems) . ' GPS kendaraan berhasil diperpanjang.');
+        } catch (\Exception $e) {
+            \Log::error('Error perpanjangKendaraan GPS via Pembayaran: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Terjadi kesalahan saat mengajukan perpanjangan. Silakan coba lagi.');
+        }
     }
 }

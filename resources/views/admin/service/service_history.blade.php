@@ -306,14 +306,17 @@
                                         title="Lihat detail service kendaraan ini">
                                         Detail
                                     </a>
-                                    {{-- Tombol Terpasang: hanya untuk service dari pembayaran yang sudah approved --}}
-                                    @if($d->is_request && $d->status_approval === 'approved' && $d->status === 'proses')
+                                    {{-- Tombol Terpasang di level service: hanya untuk service yang semua partnya tidak_aktif dengan persetujuan Disetujui --}}
+                                    @php
+                                        $adaPartTidakAktif = $d->parts->where('persetujuan', 'Disetujui')->where('status', 'tidak_aktif')->count() > 0;
+                                    @endphp
+                                    @if($adaPartTidakAktif)
                                         <form action="{{ route('service-history.terpasang', $d->id) }}" method="POST"
-                                            onsubmit="return confirm('Tandai service ini sebagai Selesai (Terpasang)?')" class="inline">
+                                            onsubmit="return confirm('Tandai semua part yang disetujui sebagai Selesai?')" class="inline">
                                             @csrf
                                             <button type="submit"
                                                 class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
-                                                <i class="fa fa-wrench text-xs"></i> Terpasang
+                                                <i class="fa fa-wrench text-xs"></i> Selesaikan
                                             </button>
                                         </form>
                                     @endif
@@ -355,13 +358,13 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Tgl Limit</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Kondisi</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Status</th>
+                                                    <th class="text-left px-3 py-2 font-semibold">Persetujuan</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Pengeluaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Keterangan</th>
+                                                    <th class="text-left px-3 py-2 font-semibold">Info Pembayaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Bukti</th>
                                                     <th class="text-right px-3 py-2 font-semibold">Biaya</th>
-                                                    @if ($d->parts->contains('is_request', true) && auth()->user()->role === 'superadmin')
-                                                        <th class="text-center px-3 py-2 font-semibold">Approval</th>
-                                                    @endif
+                                                    <th class="text-center px-3 py-2 font-semibold">Aksi</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -423,10 +426,15 @@
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600 cursor-default">
                                                                     <i class="fa fa-history text-[9px]"></i> Diganti
                                                                 </span>
+                                                            @elseif ($part->status === 'tidak_aktif')
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-300 cursor-default"
+                                                                    title="Disetujui keuangan, belum dipasang secara fisik">
+                                                                    <i class="fa fa-pause text-[9px]"></i> Tidak Aktif
+                                                                </span>
                                                             @elseif ($part->status === 'Proses')
-                                                                @if ($part->is_request && $part->status_approval !== 'approved')
+                                                                @if ($part->persetujuan !== 'Disetujui')
                                                                     <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-400 border border-amber-200 cursor-not-allowed"
-                                                                        title="Tidak bisa diubah — menunggu approval superadmin">
+                                                                        title="Tidak bisa diubah — menunggu approval keuangan">
                                                                         <i class="fa fa-lock text-[9px]"></i> Proses
                                                                     </span>
                                                                 @else
@@ -440,6 +448,22 @@
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 cursor-default"
                                                                     title="Part sudah terpasang, tidak bisa diubah">
                                                                     <i class="fa fa-check text-[9px]"></i> Terpasang
+                                                                </span>
+                                                            @endif
+                                                        </td>
+                                                        {{-- Kolom Persetujuan --}}
+                                                        <td class="px-3 py-2">
+                                                            @if ($part->persetujuan === 'Disetujui')
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                    <i class="fa fa-check text-[9px]"></i> Disetujui
+                                                                </span>
+                                                            @elseif ($part->persetujuan === 'Ditolak')
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                                                                    <i class="fa fa-times text-[9px]"></i> Ditolak
+                                                                </span>
+                                                            @else
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
+                                                                    <i class="fa fa-clock text-[9px]"></i> Pending
                                                                 </span>
                                                             @endif
                                                         </td>
@@ -464,6 +488,30 @@
                                                                 </span>
                                                             @else
                                                                 —
+                                                            @endif
+                                                        </td>
+                                                        {{-- Info Pembayaran Column --}}
+                                                        <td class="px-3 py-2">
+                                                            @if($part->nama_rekening || $part->nama_bank || $part->no_rekening)
+                                                                <div class="flex flex-col gap-0.5">
+                                                                    @if($part->nama_rekening)
+                                                                        <span class="text-xs text-gray-700 font-medium">
+                                                                            <i class="fa fa-user text-[9px] text-gray-400 mr-1"></i>{{ $part->nama_rekening }}
+                                                                        </span>
+                                                                    @endif
+                                                                    @if($part->nama_bank)
+                                                                        <span class="text-xs text-gray-500">
+                                                                            <i class="fa fa-university text-[9px] text-gray-400 mr-1"></i>{{ $part->nama_bank }}
+                                                                        </span>
+                                                                    @endif
+                                                                    @if($part->no_rekening)
+                                                                        <span class="text-xs font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">
+                                                                            {{ $part->no_rekening }}
+                                                                        </span>
+                                                                    @endif
+                                                                </div>
+                                                            @else
+                                                                <span class="text-gray-300">—</span>
                                                             @endif
                                                         </td>
                                                         {{-- Bukti Column --}}
@@ -507,45 +555,47 @@
                                                                 </span>
                                                             @endif
                                                         </td>
-                                                        @if ($d->parts->contains('is_request', true) && auth()->user()->role === 'superadmin')
-                                                            <td class="px-3 py-2 text-center whitespace-nowrap">
-                                                                @if ($part->is_request && $part->status_approval === 'pending')
-                                                                    <div class="flex items-center justify-center gap-1">
-                                                                        <form action="{{ route('service-parts.approve', $part->id) }}" method="POST" class="inline" onclick="event.stopPropagation()">
-                                                                            @csrf
-                                                                            <button type="submit"
-                                                                                class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
-                                                                                <i class="fa fa-check text-[9px]"></i> Setuju
-                                                                            </button>
-                                                                        </form>
-                                                                        <form action="{{ route('service-parts.reject', $part->id) }}" method="POST" class="inline" onclick="event.stopPropagation()" onsubmit="return confirm('Yakin tolak part ini?')">
-                                                                            @csrf
-                                                                            <button type="submit"
-                                                                                class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
-                                                                                <i class="fa fa-times text-[9px]"></i> Tolak
-                                                                            </button>
-                                                                        </form>
-                                                                    </div>
-                                                                @elseif ($part->is_request && $part->status_approval === 'approved')
-                                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
-                                                                        <i class="fa fa-check text-[9px]"></i> Approved
-                                                                    </span>
-                                                                @elseif ($part->is_request && $part->status_approval === 'rejected')
-                                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
-                                                                        <i class="fa fa-times text-[9px]"></i> Rejected
-                                                                    </span>
-                                                                @else
-                                                                    <span class="text-xs text-gray-400">—</span>
-                                                                @endif
-                                                            </td>
-                                                        @endif
+                                                        {{-- Kolom Aksi per-part: tombol Terpasang --}}
+                                                        <td class="px-3 py-2 text-center whitespace-nowrap" onclick="event.stopPropagation()">
+                                                            @if ($part->persetujuan === 'Disetujui' && $part->status === 'tidak_aktif')
+                                                                <form action="{{ route('service-parts.update-status', $part->id) }}" method="POST"
+                                                                    onsubmit="return confirm('Tandai part ini sebagai Terpasang?')" class="inline">
+                                                                    @csrf @method('PUT')
+                                                                    <input type="hidden" name="status" value="Terpasang">
+                                                                    <button type="submit"
+                                                                        class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
+                                                                        <i class="fa fa-wrench text-[9px]"></i> Terpasang
+                                                                    </button>
+                                                                </form>
+                                                            @elseif ($part->persetujuan === 'Pending' && auth()->user()->role === 'superadmin')
+                                                                <div class="flex items-center justify-center gap-1">
+                                                                    <form action="{{ route('service-parts.approve', $part->id) }}" method="POST" class="inline">
+                                                                        @csrf
+                                                                        <button type="submit"
+                                                                            class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
+                                                                            <i class="fa fa-check text-[9px]"></i> Setuju
+                                                                        </button>
+                                                                    </form>
+                                                                    <form action="{{ route('service-parts.reject', $part->id) }}" method="POST" class="inline"
+                                                                        onsubmit="return confirm('Yakin tolak part ini?')">
+                                                                        @csrf
+                                                                        <button type="submit"
+                                                                            class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
+                                                                            <i class="fa fa-times text-[9px]"></i> Tolak
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            @else
+                                                                <span class="text-xs text-gray-300">—</span>
+                                                            @endif
+                                                        </td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
                                             <tfoot>
                                                 <tr class="bg-slate-100 border-t border-slate-200">
-                                                    <td colspan="{{ ($d->parts->contains('is_request', true) && auth()->user()->role === 'superadmin') ? 15 : 14 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
-                                                    <td class="px-3 py-2 text-right text-xs font-bold text-gray-800">
+                                                    <td colspan="16" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
+                                                    <td colspan="2" class="px-3 py-2 text-right text-xs font-bold text-gray-800">
                                                         Rp {{ number_format($d->parts->sum('biaya'), 0, ',', '.') }}
                                                     </td>
                                                 </tr>
@@ -951,6 +1001,18 @@ var _mpsPartId = null;
 function openModalPartStatus(partId, currentStatus) {
     _mpsPartId = partId;
     document.getElementById('mps-current').textContent = 'Status saat ini: ' + currentStatus;
+
+    // Untuk status tidak_aktif, hanya tampilkan opsi Terpasang
+    var isNotAktif = currentStatus === 'tidak_aktif';
+    var optProses    = document.getElementById('mps-opt-proses');
+    var optTerpasang = document.getElementById('mps-opt-terpasang');
+
+    if (isNotAktif) {
+        // Sembunyikan opsi Proses, hanya bisa Terpasang
+        if (optProses) optProses.style.display = 'none';
+    } else {
+        if (optProses) optProses.style.display = '';
+    }
 
     // Highlight opsi aktif
     var labels = { 'Proses': 'mps-opt-proses', 'Terpasang': 'mps-opt-terpasang' };

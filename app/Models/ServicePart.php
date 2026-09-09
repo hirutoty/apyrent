@@ -37,6 +37,10 @@ class ServicePart extends Model
         'status_approval',
         'approval_by',
         'approval_at',
+        'persetujuan',
+        'nama_rekening',
+        'nama_bank',
+        'no_rekening',
     ];
 
     protected $casts = [

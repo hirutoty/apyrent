@@ -283,8 +283,8 @@
 
                                 {{-- Status Sewa --}}
                                 <td class="px-5 py-4">
-                                    @if ($d->status_sewa == 'habis')
-                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Masa Habis</span>
+                                    @if ($d->status_sewa == 'expired')
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Expired</span>
                                     @elseif ($d->status_sewa == 'tidak_aktif')
                                         <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Tidak Aktif</span>
                                     @else
@@ -480,17 +480,9 @@
                         <input type="hidden" name="tanggal_habis" id="shared_tanggal_habis">
                         <p class="text-[11px] text-slate-400 mt-1">Otomatis tanggal bayar + 1 tahun</p>
                     </div>
-                    <div>
-                        <select name="status_gps" id="shared_status_gps" required hidden
-                            class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="aktif">Aktif</option>
-                            <option value="nonaktif">Nonaktif</option>
-                        </select>
-                    </div>
-
                     {{-- Tanggal Bayar --}}
                     <div>
-                        <label class="text-sm font-medium text-slate-700 mb-1.5 block">Tanggal Bayar <span class="text-red-500">*</span></label>
+                        <label class="text-sm font-medium text-slate-700 mb-1.5 block">Tanggal Ketentuan Bayar <span class="text-red-500">*</span></label>
                         <input type="date" name="tanggal_bayar" id="shared_tanggal_bayar" required
                             oninput="onSharedTglBayarChange()"
                             class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
@@ -558,7 +550,7 @@
             <div class="flex items-center justify-between mb-5">
                 <div>
                     <h2 class="text-xl font-bold text-slate-800">Perpanjang GPS Kendaraan</h2>
-                    <p class="text-sm text-slate-500 mt-0.5">Setiap GPS diperpanjang +1 tahun dengan biaya & bukti masing-masing</p>
+                    <p class="text-sm text-slate-500 mt-0.5">Pengajuan akan dikirim ke Superadmin untuk disetujui. Bukti bayar diunggah saat approval.</p>
                 </div>
                 <button onclick="closeModalPerpanjang()"
                     class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center">
@@ -582,7 +574,7 @@
 
                 {{-- Tanggal Bayar (shared) --}}
                 <div class="mb-5">
-                    <label class="text-sm font-medium text-slate-700 mb-1.5 block">Tanggal Bayar <span class="text-red-500">*</span></label>
+                    <label class="text-sm font-medium text-slate-700 mb-1.5 block">Tanggal Ketentuan Bayar <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_bayar" id="perp_tanggal_bayar" required
                         class="w-full md:w-64 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
@@ -1041,9 +1033,10 @@
                     </div>
 
                     <div class="md:col-span-2">
-                        <label class="text-[11px] font-semibold text-slate-500 mb-1 block">Attachment <span class="text-slate-400 font-normal">(opsional)</span></label>
-                        <input type="file" name="gps_items[${idx}][lampiran][]" multiple
+                        <label class="text-[11px] font-semibold text-slate-500 mb-1 block">Attachment <span class="text-red-500">*</span></label>
+                        <input type="file" name="gps_items[${idx}][lampiran][]" multiple required
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <p class="text-[10px] text-red-500 mt-0.5">Wajib upload minimal 1 lampiran</p>
                     </div>
                 </div>
             `;
@@ -1264,10 +1257,11 @@
                     </div>
 
                     <div class="md:col-span-2">
-                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Lampiran <span class="text-slate-400 font-normal">(opsional)</span></label>
-                        <input type="file" name="lampiran[]" multiple
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Lampiran <span class="text-red-500">*</span></label>
+                        <input type="file" name="lampiran[]" multiple required
                             accept="image/*,.pdf,.doc,.docx"
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <p class="text-[10px] text-red-500 mt-0.5">Wajib upload minimal 1 lampiran</p>
                     </div>
                 </div>
             `;

@@ -151,26 +151,6 @@
                     @error('supplier_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
 
-                {{-- Bukti Pembayaran --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Bukti Pembayaran
-                        <span class="text-gray-400 text-[10px] font-normal ml-1">(opsional — bisa diisi saat disetujui)</span>
-                    </label>
-                    <input type="file" name="bukti_pembayaran"
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                </div>
-
-                {{-- Lampiran --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Lampiran Tambahan
-                        <span class="text-gray-400 text-[10px] font-normal ml-1">(opsional — bisa diisi saat disetujui)</span>
-                    </label>
-                    <input type="file" name="bukti_attachment[]" multiple
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100">
-                </div>
-
             </div>
         </div>
 
@@ -620,17 +600,49 @@ function addPartRow(data = null) {
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none">${data?.keterangan || ''}</textarea>
             </div>
 
+            <!-- Info Pembayaran (nama rekening, bank, no rekening) -->
+            <div class="md:col-span-3">
+                <div class="border border-dashed border-blue-200 rounded-xl p-3 bg-blue-50/40 space-y-3">
+                    <p class="text-[10px] font-semibold text-blue-600 uppercase tracking-wide flex items-center gap-1.5">
+                        <i class="fa fa-university text-[10px]"></i> Info Pembayaran
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Rekening</label>
+                            <input type="text" name="parts[${idx}][nama_rekening]"
+                                value="${data?.nama_rekening || ''}"
+                                placeholder="cth: Budi Santoso"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Bank</label>
+                            <input type="text" name="parts[${idx}][nama_bank]"
+                                value="${data?.nama_bank || ''}"
+                                placeholder="cth: BCA, Mandiri, BRI..."
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 mb-1 block">No. Rekening</label>
+                            <input type="text" name="parts[${idx}][no_rekening]"
+                                value="${data?.no_rekening || ''}"
+                                placeholder="cth: 1234567890"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Bukti (full width) -->
             <div class="md:col-span-3">
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">
-                    Bukti / Attachment
-                    <span class="text-[10px] font-normal text-gray-400 ml-1">(opsional — bisa lebih dari 1 file)</span>
+                    Bukti / Attachment <span class="text-red-400">*</span>
+                    <span class="text-[10px] font-normal text-gray-400 ml-1">(wajib — bisa lebih dari 1 file)</span>
                 </label>
-                <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 hover:border-blue-400 bg-gray-50 hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors group">
-                    <i class="fa fa-paperclip text-gray-400 group-hover:text-blue-500 text-sm transition-colors"></i>
+                <label class="flex items-center gap-2 cursor-pointer border border-dashed border-blue-300 hover:border-blue-400 bg-gray-50 hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors group">
+                    <i class="fa fa-paperclip text-blue-400 group-hover:text-blue-500 text-sm transition-colors"></i>
                     <span class="text-xs text-gray-500 group-hover:text-blue-600 transition-colors">Klik untuk pilih file...</span>
                     <input type="file" id="bukti-input-${idx}" name="parts[${idx}][bukti][]"
-                        multiple accept="image/*,video/mp4,video/mov"
+                        multiple required accept="image/*,video/mp4,video/mov"
                         onchange="updateFileList(${idx})"
                         class="hidden">
                 </label>

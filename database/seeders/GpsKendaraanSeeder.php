@@ -16,7 +16,7 @@ class GpsKendaraanSeeder extends Seeder
             $durasibulan   = rand(6, 24);
             $tanggalPasang = Carbon::now()->subMonths(rand(1, 18));
             $tanggalHabis  = (clone $tanggalPasang)->addMonths($durasibulan);
-            $statusSewa    = $tanggalHabis->isFuture() ? 'aktif' : 'habis';
+            $statusSewa    = $tanggalHabis->isFuture() ? 'aktif' : 'expired';
 
             GpsKendaraan::create([
                 'kendaraan_id'  => (($i - 1) % 50) + 1,

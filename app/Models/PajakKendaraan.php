@@ -18,8 +18,14 @@ class PajakKendaraan extends Model
         'jatuh_tempo',
         'tanggal_bayar',
         'status',
+        'status_aktif',
         'keterangan',
         'bukti',
+        'nama_pemilik',
+        'nama_bank',
+        'no_rekening',
+        'pembayaran_id',
+        'persetujuan',
     ];
 
     protected $casts = [
