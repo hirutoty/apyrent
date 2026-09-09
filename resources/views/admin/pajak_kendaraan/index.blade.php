@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 
 @section('title', 'Data Pajak Kendaraan')
 
@@ -212,7 +212,7 @@
                                 Jenis Pajak</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Nominal</th>
-                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl
+                                <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl Ketentuan
                                     Bayar</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Jatuh Tempo</th>
@@ -225,8 +225,9 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Keterangan</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
-                                Aksi</th>
-                        </tr>
+                                Persetujuan</th>
+                            <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Aksi</th>                        </tr>
                     </thead>
                     <tbody id="pajakTableBody">
                         @forelse($data as $item)
@@ -303,17 +304,26 @@
                                 
 
                                 <td class="px-4 py-3.5">
-                                    @if ($item->status == 'sudah_bayar')
-                                        <span
-                                            class="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">
-                                            <i class="fa fa-check text-[10px]"></i> Lunas
+                                    @if ($item->status_aktif === 'aktif')
+                                        <span class="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                            <i class="fa fa-circle-check text-[10px]"></i> Aktif
+                                        </span>
+                                    @elseif ($item->status_aktif === 'expired')
+                                        <span class="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                            <i class="fa fa-circle-xmark text-[10px]"></i> Expired
                                         </span>
                                     @else
-                                        <span
-                                            class="inline-flex items-center gap-1 bg-red-100 text-red-600 text-xs font-semibold px-2.5 py-1 rounded-full">
-                                            <i class="fa fa-times text-[10px]"></i> Belum
+                                        <span class="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                            <i class="fa fa-circle text-[10px]"></i> Tidak Aktif
                                         </span>
                                     @endif
+                                    <div class="mt-1">
+                                        @if ($item->status == 'sudah_bayar')
+                                            <span class="text-[10px] text-green-600 font-medium">Lunas</span>
+                                        @else
+                                            <span class="text-[10px] text-red-500 font-medium">Belum Lunas</span>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3.5">
                                     @if ($item->bukti)
@@ -335,13 +345,7 @@
                                         @php
                                             $pajakAtts = $item->attachments->map(fn($a) => ['path' => asset($a->file_path), 'name' => $a->file_name])->values()->toArray();
                                         @endphp
-                                        <button type="button"
-                                            onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
-                                            data-imgs="{!! json_encode($pajakAtts, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                                            <i class="bi bi-images text-sm"></i>
-                                            Lihat ({{ $item->attachments->count() }})
-                                        </button>
+                                      
                                         <div class="mt-1 flex flex-col gap-0.5">
                                             @foreach ($item->attachments as $att)
                                                 <form action="{{ route('pajak.attachment.destroy', $att->id) }}"
@@ -363,6 +367,28 @@
 
                                 <td class="px-4 py-3.5 text-sm text-gray-500 max-w-[140px] truncate">
                                     {{ $item->keterangan ?? '-' }}</td>
+
+                                <td class="px-4 py-3.5 text-center">
+                                    @php
+                                        $p = $item->persetujuan;
+                                        $pClass = match($p) {
+                                            'Disetujui' => 'bg-green-100 text-green-700',
+                                            'Ditolak'   => 'bg-red-100 text-red-600',
+                                            'Pending'   => 'bg-yellow-100 text-yellow-700',
+                                            default     => 'bg-gray-100 text-gray-500',
+                                        };
+                                        $pIcon = match($p) {
+                                            'Disetujui' => 'fa-circle-check',
+                                            'Ditolak'   => 'fa-circle-xmark',
+                                            'Pending'   => 'fa-hourglass-half',
+                                            default     => 'fa-circle',
+                                        };
+                                    @endphp
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold {{ $pClass }}">
+                                        <i class="fa {{ $pIcon }} text-[10px]"></i>
+                                        {{ $p ?? 'Tidak Ada' }}
+                                    </span>
+                                </td>
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
@@ -468,7 +494,7 @@
             <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
                 <div>
                     <h2 class="text-base font-bold text-gray-800">Tambah Pajak Kendaraan</h2>
-                    <p class="text-xs text-gray-500 mt-0.5">Isi data pajak kendaraan</p>
+                    <p class="text-xs text-gray-500 mt-0.5">Pengajuan akan masuk ke antrian approval Superadmin</p>
                 </div>
                 <button onclick="closeModalTambah()"
                     class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
@@ -510,7 +536,7 @@
                     
 
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Mulai <span
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tgl Ketentuan Bayar <span
                                 class="text-red-500">*</span></label>
                         <input type="date" name="tanggal_bayar" id="tambah_tanggal_bayar" required
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('tanggal_bayar') }}">
@@ -525,92 +551,46 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span
-                                class="text-red-500">*</span></label>
-                        <select name="status" required
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                            <option value="belum_bayar" {{ old('status') == 'belum_bayar' ? 'selected' : '' }}>Belum Lunas</option>
-                            <option value="sudah_bayar" {{ old('status') == 'sudah_bayar' ? 'selected' : '' }}>Lunas</option>
-                        </select>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik</label>
+                        <input type="text" name="nama_pemilik" placeholder="Nama pemilik rekening"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_pemilik') }}">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bank</label>
+                        <input type="text" name="nama_bank" placeholder="Contoh: BRI, BCA, Mandiri"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nama_bank') }}">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Rekening</label>
+                        <input type="text" name="no_rekening" placeholder="Nomor rekening tujuan"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('no_rekening') }}">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan</label>
+                        <textarea name="keterangan" rows="3" placeholder="Tambahkan keterangan..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
                     </div>
 
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                            Bukti Pembayaran
+                            Lampiran <span class="text-red-500">*</span>
                         </label>
-
-                        {{-- Preview --}}
-                        <div id="previewWrapPajak" class="hidden mb-3 relative">
-
-                            {{-- Preview Gambar --}}
-                            <img id="previewImgPajak" src=""
-                                class="hidden h-40 w-full rounded-xl border border-gray-200 object-cover cursor-pointer"
-                                onclick="window.open(this.src,'_blank')">
-
-                            {{-- Preview File --}}
-                            <a id="previewFilePajak" href="#" target="_blank"
-                                class="hidden flex items-center gap-3 p-4 border border-gray-200 rounded-xl bg-gray-50 hover:bg-gray-100">
-
-                                <i class="fa-solid fa-file text-2xl text-red-500"></i>
-
-                                <div>
-                                    <div class="font-medium text-sm text-gray-700">
-                                        File Bukti Pembayaran
-                                    </div>
-                                    <div class="text-xs text-gray-500">
-
-                                    </div>
-                                </div>
-                            </a>
-
-                            <button type="button" onclick="hapusPreviewPajak()"
-                                class="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs flex items-center justify-center">
-                                <i class="fa-solid fa-xmark text-[10px]"></i>
-                            </button>
-                        </div>
-
-                        {{-- Upload Area --}}
-                        <label for="bukti"
-                            class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
-
-                            <i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-400 mb-1"></i>
-
-                            <span class="text-xs text-gray-500">
-                                Klik untuk upload bukti pembayaran
-                            </span>
-
-                            <span class="text-xs text-gray-400">
-                                (Maks 5MB)
-                            </span>
-                        </label>
-
-                        <input type="file" name="bukti" id="bukti" required class="hidden"
-                            onchange="previewBuktiPajak(this)">
-                    </div>
-
-                    <div class="sm:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                            Lampiran Tambahan (opsional, bisa lebih dari 1)
-                        </label>
-
                         <label for="bukti_attachment"
                             class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
                             <i class="fa-solid fa-paperclip text-xl text-gray-400 mb-1"></i>
-                            <span class="text-xs text-gray-500">Klik untuk upload lampiran tambahan</span>
+                            <span class="text-xs text-gray-500">Klik untuk upload lampiran</span>
                             <span class="text-xs text-gray-400">(Maks 5MB per file)</span>
                         </label>
-
-                        <input type="file" name="bukti_attachment[]" id="bukti_attachment" class="hidden" multiple
+                        <input type="file" name="bukti_attachment[]" id="bukti_attachment" class="hidden" multiple required
                             onchange="renderListAttachment(this, 'listAttachmentTambah')">
-
                         <ul id="listAttachmentTambah" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
-                    </div>
-
-                    <div class="sm:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan <span
-                                class="text-red-500">*</span></label>
-                        <textarea name="keterangan" rows="3" placeholder="Tambahkan keterangan..."
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
+                        <p class="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                            <i class="fa fa-circle-exclamation text-[10px]"></i>
+                            Wajib upload minimal 1 lampiran. Bukti bayar diunggah saat Superadmin approve.
+                        </p>
                     </div>
 
                 </div>
@@ -622,7 +602,7 @@
                     </button>
                     <button type="submit"
                         class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
-                        <i class="fa fa-save text-sm"></i> Simpan Data
+                        <i class="fa fa-paper-plane text-sm"></i> Kirim Pengajuan
                     </button>
                 </div>
             </form>
@@ -899,14 +879,18 @@ MODAL PERPANJANG
 
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1">
-                            Lampiran Tambahan (opsional, bisa lebih dari 1)
+                            Lampiran <span class="text-red-500">*</span>
                         </label>
 
-                        <input id="perpanjang_bukti_attachment" type="file" name="bukti_attachment[]" multiple
+                        <input id="perpanjang_bukti_attachment" type="file" name="bukti_attachment[]" multiple required
                             class="w-full border rounded-lg px-3 py-2"
                             onchange="renderListAttachment(this, 'listAttachmentPerpanjang')">
 
                         <ul id="listAttachmentPerpanjang" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
+                        <p class="text-xs text-red-500 mt-1 flex items-center gap-1">
+                            <i class="fa fa-circle-exclamation text-[10px]"></i>
+                            Wajib upload minimal 1 lampiran
+                        </p>
                     </div>
 
                     <div class="sm:col-span-2">
@@ -1409,6 +1393,206 @@ MODAL PERPANJANG
             // deprecated — replaced by openDetailModal
         }
 </script>
+
+{{-- ============================================================
+     MODAL AJUKAN ULANG (muncul saat URL punya ?edit_pembayaran=X)
+============================================================ --}}
+@if($editPembayaranId && $pajakDitolak)
+<div id="modalAjukanUlang" class="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto py-6"
+     style="backdrop-filter:blur(2px)">
+    <div id="modalAjukanUlangInner" class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4"
+         style="animation:slideUp .2s ease">
+
+        <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div>
+                <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-100 text-amber-600 text-xs"><i class="fa fa-rotate-right"></i></span>
+                    Ajukan Ulang Pajak Kendaraan
+                </h2>
+                <p class="text-xs text-gray-500 mt-0.5 ml-9">
+                    Kendaraan: <span class="font-semibold text-gray-700">{{ $pajakDitolak->kendaraan->nopol ?? '-' }} — {{ $pajakDitolak->kendaraan->merk ?? '-' }}</span>
+                </p>
+            </div>
+            <a href="{{ route('pajak.index') }}"
+               class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
+                <i class="fa fa-times"></i>
+            </a>
+        </div>
+
+        {{-- Catatan penolakan --}}
+        @if($rejectionReason)
+        <div class="mx-6 mt-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">
+            <p class="font-semibold mb-0.5"><i class="fa fa-comment-slash mr-1"></i>Alasan Penolakan:</p>
+            <p>{{ $rejectionReason }}</p>
+        </div>
+        @endif
+
+        <form id="formAjukanUlang" action="{{ route('pajak.store') }}" method="POST" enctype="multipart/form-data" class="px-6 py-5" novalidate>
+            @csrf
+            <input type="hidden" name="edit_pembayaran" value="{{ $editPembayaranId }}">
+            {{-- Field readonly: kendaraan & jenis pajak tidak bisa diubah --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan</label>
+                    <div class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 select-none cursor-not-allowed">
+                        {{ $pajakDitolak->kendaraan->nopol ?? '-' }} — {{ $pajakDitolak->kendaraan->merk ?? '-' }}
+                    </div>
+                    <input type="hidden" name="kendaraan_id" value="{{ $pajakDitolak->kendaraan_id }}">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pajak</label>
+                    <div class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
+                        {{ $pajakDitolak->jenis_pajak }}
+                    </div>
+                    <input type="hidden" name="jenis_pajak" value="{{ $pajakDitolak->jenis_pajak }}">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal <span class="text-red-500">*</span></label>
+                    <input type="number" min="0" name="nominal"
+                        value="{{ old('nominal', $pajakDitolak->nominal) }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tgl Ketentuan Bayar</label>
+                    <input type="date" name="tanggal_bayar" id="resubmit_tanggal_bayar"
+                        value="{{ old('tanggal_bayar', $pajakDitolak->tanggal_bayar ? \Carbon\Carbon::parse($pajakDitolak->tanggal_bayar)->format('Y-m-d') : '') }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Jatuh Tempo</label>
+                    <input type="date" id="resubmit_jatuh_tempo" readonly
+                        value="{{ old('jatuh_tempo', $pajakDitolak->jatuh_tempo ? \Carbon\Carbon::parse($pajakDitolak->jatuh_tempo)->format('Y-m-d') : '') }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none">
+                    <input type="hidden" name="jatuh_tempo" id="resubmit_jatuh_tempo_hidden"
+                        value="{{ old('jatuh_tempo', $pajakDitolak->jatuh_tempo ? \Carbon\Carbon::parse($pajakDitolak->jatuh_tempo)->format('Y-m-d') : '') }}">
+                    <p class="text-xs text-gray-400 mt-1">Otomatis tanggal bayar + 1 tahun</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik</label>
+                    <input type="text" name="nama_pemilik"
+                        value="{{ old('nama_pemilik', $pajakDitolak->nama_pemilik) }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bank</label>
+                    <input type="text" name="nama_bank"
+                        value="{{ old('nama_bank', $pajakDitolak->nama_bank) }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Rekening</label>
+                    <input type="text" name="no_rekening"
+                        value="{{ old('no_rekening', $pajakDitolak->no_rekening) }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan</label>
+                    <textarea name="keterangan" rows="2"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan', $pajakDitolak->keterangan) }}</textarea>
+                </div>
+
+                {{-- Lampiran lama --}}
+                @if($pajakDitolak->attachments && $pajakDitolak->attachments->count() > 0)
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-2">
+                        Lampiran Sebelumnya
+                    </label>
+                    <div class="space-y-1.5">
+                        @foreach($pajakDitolak->attachments as $att)
+                        <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                            <a href="{{ asset($att->file_path) }}" target="_blank"
+                               class="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 truncate max-w-xs">
+                                <i class="fa fa-paperclip text-[10px] flex-shrink-0"></i>
+                                <span class="truncate">{{ $att->file_name }}</span>
+                            </a>
+                            <div class="flex items-center gap-2 ml-2 flex-shrink-0">
+                                <span class="text-[10px] text-gray-400">
+                                    {{ $att->file_size ? round($att->file_size / 1024, 1) . ' KB' : '' }}
+                                </span>
+                                <form action="{{ route('pajak.attachment.destroy', $att->id) }}" method="POST"
+                                      onsubmit="return confirm('Hapus lampiran ini?')" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit"
+                                        class="text-red-400 hover:text-red-600 text-xs p-0.5 transition-colors">
+                                        <i class="fa fa-times"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+                {{-- Upload lampiran baru --}}
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Tambah Lampiran Baru <span class="text-gray-400 font-normal">(opsional)</span>
+                    </label>
+                    <label for="resubmit_attachment"
+                        class="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                        <i class="fa-solid fa-paperclip text-lg text-gray-400 mb-0.5"></i>
+                        <span class="text-xs text-gray-500">Klik untuk upload lampiran tambahan</span>
+                        <span class="text-xs text-gray-400">(Maks 5MB per file)</span>
+                    </label>
+                    <input type="file" name="bukti_attachment[]" id="resubmit_attachment" class="hidden" multiple
+                        onchange="renderListAttachment(this, 'listResubmitAttachment')">
+                    <ul id="listResubmitAttachment" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
+                </div>
+
+            </div>
+
+            <div class="flex gap-3 pt-4 sticky bottom-0 bg-white pb-1">
+                <a href="{{ route('pajak.index') }}"
+                   class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-center">
+                    Batal
+                </a>
+                <button type="submit"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+                    <i class="fa fa-paper-plane text-sm"></i> Ajukan Ulang
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Auto-hitung jatuh tempo di modal ajukan ulang
+(function() {
+    // Scroll ke atas modal saat dibuka
+    const modalEl = document.getElementById('modalAjukanUlang');
+    if (modalEl) {
+        modalEl.scrollTop = 0;
+        // Juga scroll window ke atas
+        window.scrollTo(0, 0);
+    }
+
+    const tgl    = document.getElementById('resubmit_tanggal_bayar');
+    const jt     = document.getElementById('resubmit_jatuh_tempo');
+    const jtHide = document.getElementById('resubmit_jatuh_tempo_hidden');
+    if (!tgl || !jt) return;
+    tgl.addEventListener('change', function() {
+        if (!this.value) { jt.value = ''; if(jtHide) jtHide.value = ''; return; }
+        const d = new Date(this.value);
+        d.setFullYear(d.getFullYear() + 1);
+        const val = d.getFullYear() + '-'
+            + String(d.getMonth() + 1).padStart(2, '0') + '-'
+            + String(d.getDate()).padStart(2, '0');
+        jt.value = val;
+        if (jtHide) jtHide.value = val;
+    });
+})();
+</script>
+@endif
 
 @include('admin.partials.detail-modal')
 

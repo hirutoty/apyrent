@@ -85,11 +85,11 @@ class ReminderGpsCommand extends Command
 
 
             // otomatis expired
-            if ($sisaHari < 0 && $gps->status_sewa != 'habis') {
+            if ($sisaHari < 0 && $gps->status_sewa != 'expired') {
 
 
                 $gps->update([
-                    'status_sewa' => 'habis'
+                    'status_sewa' => 'expired'
                 ]);
 
 

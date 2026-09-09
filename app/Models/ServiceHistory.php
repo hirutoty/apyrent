@@ -28,6 +28,7 @@ class ServiceHistory extends Model
         'approval_by',
         'approval_at',
         'is_request',
+        'persetujuan',
     ];
 
     protected $casts = [

@@ -217,7 +217,7 @@
                                 Status</th>
                             
                                 <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl
-                                    Bayar</th>
+                                    Ketentuan Bayar</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Jatuh
                                 Tempo</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -226,6 +226,8 @@
                                 Bukti</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Lampiran</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Persetujuan</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>
                         </tr>
@@ -268,16 +270,16 @@
                                 {{-- Status --}}
                                 <td class="px-4 py-3.5">
                                     @if ($d->status_kendaraan == 'aktif')
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
+                                    @elseif ($d->status_kendaraan == 'tidak_aktif')
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Tidak Aktif</span>
                                     @else
-                                        <span
-                                            class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Expired</span>
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Expired</span>
                                     @endif
                                 </td>
 
                                <td class="px-4 py-3 text-center">
-                                    {{ \Carbon\Carbon::parse($d->tanggal_bayar)->format('d M Y') }}
+                                    {{ $d->tanggal_bayar ? \Carbon\Carbon::parse($d->tanggal_bayar)->format('d M Y') : '-' }}
                                 </td>
 
 
@@ -345,13 +347,7 @@
                                         @php
                                             $asAtts = $d->attachments->map(fn($a) => ['path' => asset($a->file_path), 'name' => $a->file_name])->values()->toArray();
                                         @endphp
-                                        <button type="button"
-                                            onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
-                                            data-imgs="{!! json_encode($asAtts, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                                            <i class="bi bi-images text-sm"></i>
-                                            Lihat ({{ $d->attachments->count() }})
-                                        </button>
+                                       
                                         <div class="mt-1 flex flex-col gap-0.5">
                                             @foreach ($d->attachments as $att)
                                                 <form action="{{ route('asuransi.attachment.destroy', $att->id) }}"
@@ -370,9 +366,36 @@
                                         <span class="text-gray-400 text-xs">-</span>
                                     @endif
                                 </td>
+                                {{-- Persetujuan --}}
+                                <td class="px-4 py-3.5">
+                                    @if($d->persetujuan === 'Disetujui')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                            <i class="fa-solid fa-circle-check text-[10px]"></i> Disetujui
+                                        </span>
+                                    @elseif($d->persetujuan === 'Ditolak')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                            <i class="fa-solid fa-circle-xmark text-[10px]"></i> Ditolak
+                                        </span>
+                                    @elseif($d->persetujuan === 'Pending')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+                                            <i class="fa-solid fa-clock text-[10px]"></i> Pending
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
+                                </td>
+
                                 {{-- Aksi --}}
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
+                                        {{-- Ajukan Ulang: tampil jika Ditolak --}}
+                                        @if($d->persetujuan === 'Ditolak' && $d->pembayaran_id)
+                                        <a href="{{ route('asuransi-kendaraan.ajukan-ulang', $d->pembayaran_id) }}"
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
+                                            <i class="fa fa-rotate-right text-xs"></i> Ajukan Ulang
+                                        </a>
+                                        @endif
+
                                         {{-- Perpanjang: hanya tampil jika sudah dalam batas reminder --}}
                                         @if ($d->sisaHari <= $reminder)
                                         <button
@@ -538,96 +561,117 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Biaya Asuransi <span class="text-red-500">*</span>
                     </label>
+                    <input type="number" min="0" max="9999999999" name="biaya" required placeholder="0"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
 
-                    <div class="relative">
-                        <input type="number" min="0" max="9999999999" name="biaya" required placeholder="0"
-                            class="w-full border border-gray-200 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                {{-- ── Info Bank ─────────────────────────────────────────── --}}
+                <div class="md:col-span-2">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="h-px flex-1 bg-gray-100"></div>
+                        <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                            <i class="fa-solid fa-building-columns text-[9px]"></i> Info Bank Tujuan
+                        </span>
+                        <div class="h-px flex-1 bg-gray-100"></div>
                     </div>
                 </div>
 
-                <div class="sm:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Bukti Pembayaran
-                    </label>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Rekening</label>
+                    <input type="text" name="nama_rekening" placeholder="Nama pemilik rekening"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
 
-                    {{-- Preview --}}
-                    <div id="previewWrapAsuransi" class="hidden mb-3 relative">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bank</label>
+                    <select name="nama_bank"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Bank --</option>
+                        <optgroup label="Bank Persero">
+                            <option value="Bank Rakyat Indonesia">Bank Rakyat Indonesia (002)</option>
+                            <option value="Bank Mandiri">Bank Mandiri (008)</option>
+                            <option value="Bank Negara Indonesia">Bank Negara Indonesia (009)</option>
+                            <option value="Bank Tabungan Negara">Bank Tabungan Negara (200)</option>
+                        </optgroup>
+                        <optgroup label="Bank Swasta">
+                            <option value="Bank Central Asia">Bank Central Asia (014)</option>
+                            <option value="Bank Danamon Indonesia">Bank Danamon Indonesia (011)</option>
+                            <option value="Bank Permata">Bank Permata (013)</option>
+                            <option value="Bank Maybank Indonesia">Bank Maybank Indonesia (016)</option>
+                            <option value="Bank Panin">Bank Panin (019)</option>
+                            <option value="Bank CIMB Niaga">Bank CIMB Niaga (022)</option>
+                            <option value="Bank UOB Indonesia">Bank UOB Indonesia (023)</option>
+                            <option value="Bank OCBC Indonesia">Bank OCBC Indonesia (028)</option>
+                            <option value="Bank DBS Indonesia">Bank DBS Indonesia (046)</option>
+                            <option value="Bank Mega">Bank Mega (426)</option>
+                            <option value="Bank Sinarmas">Bank Sinarmas (153)</option>
+                            <option value="Bank Jago">Bank Jago (542)</option>
+                            <option value="SeaBank Indonesia">SeaBank Indonesia (535)</option>
+                        </optgroup>
+                        <optgroup label="Bank Syariah">
+                            <option value="Bank Syariah Indonesia">Bank Syariah Indonesia (451)</option>
+                            <option value="Bank Muamalat Indonesia">Bank Muamalat Indonesia (147)</option>
+                            <option value="Bank Mega Syariah">Bank Mega Syariah (506)</option>
+                            <option value="Bank BCA Syariah">Bank BCA Syariah (536)</option>
+                        </optgroup>
+                        <optgroup label="BPD">
+                            <option value="Bank DKI">Bank DKI (111)</option>
+                            <option value="Bank BJB">Bank BJB (110)</option>
+                            <option value="Bank Jateng">Bank Jateng (113)</option>
+                            <option value="Bank Jatim">Bank Jatim (114)</option>
+                            <option value="Bank BPD DIY">Bank BPD DIY (112)</option>
+                            <option value="Bank BPD Bali">Bank BPD Bali (129)</option>
+                        </optgroup>
+                        <optgroup label="Bank Asing">
+                            <option value="HSBC Indonesia">HSBC Indonesia (087)</option>
+                            <option value="Standard Chartered Bank">Standard Chartered Bank (050)</option>
+                            <option value="Citibank">Citibank (031)</option>
+                        </optgroup>
+                    </select>
+                </div>
 
-                        {{-- Preview gambar --}}
-                        <img id="previewImgAsuransi" src="" alt="Preview Bukti"
-                            class="hidden h-36 w-full rounded-xl border border-gray-200 object-cover cursor-pointer"
-                            onclick="window.open(this.src,'_blank')">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Rekening / Virtual Account</label>
+                    <input type="text" name="no_rekening" placeholder="Contoh: 1234567890"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
 
-                        {{-- Preview file --}}
-                        <div id="previewFileAsuransi"
-                            class="hidden flex items-center gap-3 p-4 border border-gray-200 rounded-xl bg-gray-50">
-
-                            <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
-                                <i class="fa-solid fa-file text-red-500 text-xl"></i>
-                            </div>
-
-                            <div class="flex-1 min-w-0">
-                                <p id="fileNameAsuransi" class="text-sm font-medium text-gray-700 truncate"></p>
-
-                                <p class="text-xs text-gray-400">
-                                    Dokumen siap diupload
-                                </p>
-                            </div>
-                        </div>
-
-                        <button type="button" onclick="hapusPreviewAsuransi()"
-                            class="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center">
-                            <i class="fa-solid fa-xmark text-xs"></i>
-                        </button>
-
+                {{-- ── Lampiran ──────────────────────────────────────────── --}}
+                <div class="md:col-span-2">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="h-px flex-1 bg-gray-100"></div>
+                        <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                            <i class="fa-solid fa-paperclip text-[9px]"></i> Lampiran
+                        </span>
+                        <div class="h-px flex-1 bg-gray-100"></div>
                     </div>
-
-                    {{-- Upload Area --}}
-                    <label for="bukti_bayar"
-                        class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
-
-                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 mb-2"></i>
-
-                        <span class="text-sm text-gray-600 font-medium">
-                            Klik untuk upload bukti pembayaran
-                        </span>
-
-                        <span class="text-xs text-gray-400 mt-1">
-                            (Maks 5MB)
-                        </span>
-
-                    </label>
-
-                    <input type="file" name="bukti_bayar" id="bukti_bayar" class="hidden" required
-                        onchange="previewBuktiAsuransi(this)">
                 </div>
 
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Lampiran Tambahan (opsional, bisa lebih dari 1)
+                        Lampiran <span class="text-red-500">*</span>
                     </label>
-
-                    <label for="bukti_attachment"
+                    <label for="bukti_attachment_tambah"
                         class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
                         <i class="fa-solid fa-paperclip text-xl text-gray-400 mb-1"></i>
-                        <span class="text-xs text-gray-500">Klik untuk upload lampiran tambahan</span>
+                        <span class="text-xs text-gray-500">Klik untuk upload lampiran</span>
                         <span class="text-xs text-gray-400">(Maks 5MB per file)</span>
                     </label>
-
-                    <input type="file" name="bukti_attachment[]" id="bukti_attachment" class="hidden" multiple
+                    <input type="file" name="bukti_attachment[]" id="bukti_attachment_tambah" class="hidden" multiple required
                         onchange="renderListAttachment(this, 'listAttachmentTambah')">
-
                     <ul id="listAttachmentTambah" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
+                    <p class="text-xs text-red-500 mt-1 flex items-center gap-1">
+                        <i class="fa fa-circle-exclamation text-[10px]"></i>
+                        Wajib upload minimal 1 lampiran
+                    </p>
                 </div>
 
+                {{-- Info bukti bayar --}}
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status <span
-                            class="text-red-500">*</span></label>
-                    <select name="status_kendaraan" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="aktif">Aktif</option>
-                        <option value="expired">Expired</option>
-                    </select>
+                    <div class="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
+                        <i class="fa fa-circle-info mt-0.5 flex-shrink-0"></i>
+                        <span>Bukti pembayaran akan diunggah oleh Superadmin saat melakukan approval di halaman Pembayaran. Status asuransi akan aktif setelah disetujui.</span>
+                    </div>
                 </div>
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
@@ -637,7 +681,7 @@
                     </button>
                     <button type="submit"
                         class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
-                        <i class="fa fa-save text-sm"></i> Simpan
+                        <i class="fa fa-paper-plane text-sm"></i> Kirim Pengajuan
                     </button>
                 </div>
 
@@ -935,22 +979,27 @@
                     </div>
                 </div>
 
-                {{-- Bukti --}}
+                {{-- Bukti bayar: diupload saat Superadmin approve --}}
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Bukti Pembayaran Baru</label>
-                    <input type="file" name="bukti_bayar" required
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                    <div class="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
+                        <i class="fa fa-circle-info mt-0.5 flex-shrink-0"></i>
+                        <span>Bukti pembayaran akan diunggah oleh Superadmin saat melakukan approval di halaman Pembayaran.</span>
+                    </div>
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1">
-                        Lampiran Tambahan (opsional, bisa lebih dari 1)
+                        Lampiran <span class="text-red-500">*</span>
                     </label>
 
-                    <input id="perpanjang_bukti_attachment" type="file" name="bukti_attachment[]" multiple
+                    <input id="perpanjang_bukti_attachment" type="file" name="bukti_attachment[]" multiple required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
                         onchange="renderListAttachment(this, 'listAttachmentPerpanjang')">
 
                     <ul id="listAttachmentPerpanjang" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
+                    <p class="text-xs text-red-500 mt-1 flex items-center gap-1">
+                        <i class="fa fa-circle-exclamation text-[10px]"></i>
+                        Wajib upload minimal 1 lampiran
+                    </p>
                 </div>
 
                 <div class="md:col-span-2 flex gap-3 pt-1">
@@ -1107,7 +1156,8 @@
             m.classList.add('hidden');
             m.classList.remove('flex');
             document.getElementById('listAttachmentTambah').innerHTML = '';
-            document.getElementById('bukti_attachment').value = '';
+            var att = document.getElementById('bukti_attachment_tambah');
+            if (att) att.value = '';
         }
         document.getElementById('modalTambah').addEventListener('click', function(e) {
             if (e.target === this) closeModalTambah();

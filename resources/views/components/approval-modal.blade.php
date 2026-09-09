@@ -120,7 +120,7 @@
                 {{-- ============================================================
                      GPS: TABEL PER-ITEM dengan Approve/Reject inline
                 ============================================================ --}}
-                <div x-show="data?.source_type === 'gps' && relatedData?.gps_items?.length > 0">
+                <div x-show="data?.source_type === 'gps' || data?.source_type === 'gps_perpanjang'">
                     <div class="flex items-center justify-between mb-3">
                         <h4 class="font-bold text-gray-800 flex items-center gap-2 text-sm">
                             <i class="fa-solid fa-satellite-dish text-purple-600"></i>
@@ -311,7 +311,7 @@
                 {{-- ============================================================
                      NON-GPS: Approval global (existing flow)
                 ============================================================ --}}
-                <div x-show="data?.source_type !== 'gps'">
+                <div x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang'">
 
                     {{-- Info tambahan non-GPS --}}
                     <div x-show="data?.source_type === 'asuransi_kendaraan'" class="bg-gray-50 rounded-xl p-4 border border-gray-200 text-sm">
@@ -332,6 +332,103 @@
                             <div>
                                 <p class="text-gray-500 mb-1">Jenis Pajak</p>
                                 <p class="font-semibold text-gray-800" x-text="sourceData?.jenis_pajak || '-'"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- ── PAJAK PERPANJANG: Sebelum vs Sesudah ── --}}
+                    <div x-show="data?.source_type === 'pajak_perpanjang'"
+                         class="bg-amber-50 rounded-xl p-4 border border-amber-200 text-sm">
+                        <h4 class="font-bold text-amber-800 mb-3 flex items-center gap-2 text-sm">
+                            <i class="bi bi-arrow-repeat text-amber-600"></i>
+                            Perpanjangan Pajak Kendaraan
+                        </h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white rounded-lg p-3 border border-amber-200">
+                                <p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-2">Sebelum</p>
+                                <div class="space-y-1.5 text-xs">
+                                    <div><span class="text-gray-500">Jenis Pajak:</span> <span class="font-medium text-gray-800" x-text="relatedData?.pajak_lama?.jenis_pajak || '-'"></span></div>
+                                    <div><span class="text-gray-500">Nominal:</span> <span class="font-medium text-gray-800" x-text="relatedData?.pajak_lama?.nominal ? 'Rp ' + formatNumber(relatedData.pajak_lama.nominal) : '-'"></span></div>
+                                    <div><span class="text-gray-500">Jatuh Tempo:</span> <span class="font-medium text-gray-800" x-text="formatDate(relatedData?.pajak_lama?.jatuh_tempo)"></span></div>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 border border-green-200">
+                                <p class="text-[10px] font-semibold text-green-600 uppercase tracking-wide mb-2">Sesudah</p>
+                                <div class="space-y-1.5 text-xs">
+                                    <div><span class="text-gray-500">Jenis Pajak:</span> <span class="font-medium text-gray-800" x-text="sourceData?.jenis_pajak || relatedData?.pajak_lama?.jenis_pajak || '-'"></span></div>
+                                    <div><span class="text-gray-500">Nominal:</span> <span class="font-medium text-green-700" x-text="sourceData?.nominal ? 'Rp ' + formatNumber(sourceData.nominal) : '-'"></span></div>
+                                    <div><span class="text-gray-500">Jatuh Tempo:</span> <span class="font-medium text-green-700" x-text="formatDate(sourceData?.jatuh_tempo)"></span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- ── ASURANSI PERPANJANG: Sebelum vs Sesudah ── --}}
+                    <div x-show="data?.source_type === 'asuransi_kendaraan_perpanjang'"
+                         class="bg-amber-50 rounded-xl p-4 border border-amber-200 text-sm">
+                        <h4 class="font-bold text-amber-800 mb-3 flex items-center gap-2 text-sm">
+                            <i class="bi bi-arrow-repeat text-amber-600"></i>
+                            Perpanjangan Asuransi Kendaraan
+                        </h4>
+                        <div class="mb-3 text-xs">
+                            <span class="text-gray-500">Perusahaan Asuransi:</span>
+                            <span class="font-semibold text-gray-800 ml-1" x-text="relatedData?.asuransi?.nama_asuransi || '-'"></span>
+                            <span class="mx-1 text-gray-400">·</span>
+                            <span class="text-gray-500">Jenis:</span>
+                            <span class="font-semibold text-gray-800 ml-1" x-text="relatedData?.jenis_asuransi?.nama_jenis || '-'"></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white rounded-lg p-3 border border-amber-200">
+                                <p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-2">Sebelum</p>
+                                <div class="space-y-1.5 text-xs">
+                                    <div><span class="text-gray-500">Mulai:</span> <span class="font-medium text-gray-800" x-text="formatDate(relatedData?.asuransi_lama?.tgl_mulai)"></span></div>
+                                    <div><span class="text-gray-500">Berakhir:</span> <span class="font-medium text-gray-800" x-text="formatDate(relatedData?.asuransi_lama?.tgl_berakhir)"></span></div>
+                                    <div><span class="text-gray-500">Biaya:</span> <span class="font-medium text-gray-800" x-text="relatedData?.asuransi_lama?.biaya ? 'Rp ' + formatNumber(relatedData.asuransi_lama.biaya) : '-'"></span></div>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 border border-green-200">
+                                <p class="text-[10px] font-semibold text-green-600 uppercase tracking-wide mb-2">Sesudah</p>
+                                <div class="space-y-1.5 text-xs">
+                                    <div><span class="text-gray-500">Mulai:</span> <span class="font-medium text-green-700" x-text="formatDate(sourceData?.tgl_mulai)"></span></div>
+                                    <div><span class="text-gray-500">Berakhir:</span> <span class="font-medium text-green-700" x-text="formatDate(sourceData?.tgl_berakhir)"></span></div>
+                                    <div><span class="text-gray-500">Biaya:</span> <span class="font-medium text-green-700" x-text="sourceData?.biaya ? 'Rp ' + formatNumber(sourceData.biaya) : '-'"></span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- ── KIR PERPANJANG: Sebelum vs Sesudah ── --}}
+                    <div x-show="data?.source_type === 'kir_perpanjang'"
+                         class="bg-amber-50 rounded-xl p-4 border border-amber-200 text-sm">
+                        <h4 class="font-bold text-amber-800 mb-3 flex items-center gap-2 text-sm">
+                            <i class="bi bi-arrow-repeat text-amber-600"></i>
+                            Perpanjangan KIR Kendaraan
+                        </h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white rounded-lg p-3 border border-amber-200">
+                                <p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-2">Sebelum</p>
+                                <div class="space-y-1.5 text-xs">
+                                    <div><span class="text-gray-500">No Uji:</span> <span class="font-medium text-gray-800" x-text="relatedData?.kir_lama?.no_uji || '-'"></span></div>
+                                    <div><span class="text-gray-500">Masa Berlaku:</span> <span class="font-medium text-gray-800" x-text="formatDate(relatedData?.kir_lama?.masa_berlaku)"></span></div>
+                                    <div><span class="text-gray-500">Biaya:</span> <span class="font-medium text-gray-800" x-text="relatedData?.kir_lama?.biaya ? 'Rp ' + formatNumber(relatedData.kir_lama.biaya) : '-'"></span></div>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 border border-green-200">
+                                <p class="text-[10px] font-semibold text-green-600 uppercase tracking-wide mb-2">Sesudah (+6 bulan)</p>
+                                <div class="space-y-1.5 text-xs">
+                                    <div><span class="text-gray-500">No Uji:</span> <span class="font-medium text-green-700" x-text="sourceData?.no_uji || '-'"></span></div>
+                                    <div><span class="text-gray-500">Masa Berlaku:</span>
+                                        <span class="font-medium text-green-700">
+                                            <template x-if="relatedData?.kir_lama?.masa_berlaku">
+                                                <span x-text="formatDate(addMonths(relatedData.kir_lama.masa_berlaku, 6))"></span>
+                                            </template>
+                                            <template x-if="!relatedData?.kir_lama?.masa_berlaku">
+                                                <span>-</span>
+                                            </template>
+                                        </span>
+                                    </div>
+                                    <div><span class="text-gray-500">Biaya:</span> <span class="font-medium text-green-700" x-text="sourceData?.biaya ? 'Rp ' + formatNumber(sourceData.biaya) : '-'"></span></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -434,7 +531,7 @@
 
                 {{-- GPS: Simpan Keputusan --}}
                 <button
-                    x-show="data?.source_type === 'gps'"
+                    x-show="data?.source_type === 'gps' || data?.source_type === 'gps_perpanjang'"
                     @click="submitItemDecisions()"
                     :disabled="submitting || decidedCount() === 0 || !allRejectedHaveCatatan()"
                     :class="submitting || decidedCount() === 0 || !allRejectedHaveCatatan()
@@ -451,7 +548,7 @@
 
                 {{-- Non-GPS: Approve --}}
                 <button
-                    x-show="data?.source_type !== 'gps' && actionType === 'approve'"
+                    x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && actionType === 'approve'"
                     @click="submitApprove()"
                     :disabled="submitting || buktiFiles.length === 0"
                     :class="submitting || buktiFiles.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700'"
@@ -466,7 +563,7 @@
 
                 {{-- Non-GPS: Reject --}}
                 <button
-                    x-show="data?.source_type !== 'gps' && actionType === 'reject'"
+                    x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && actionType === 'reject'"
                     @click="submitReject()"
                     :disabled="submitting || !catatan.trim()"
                     :class="submitting || !catatan.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'"
@@ -760,6 +857,18 @@ function approvalModal() {
             const k = 1024, sizes = ['B','KB','MB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
+        },
+
+        // ── Helpers ───────────────────────────────────────────────────────────
+        addMonths(dateStr, months) {
+            if (!dateStr) return null;
+            const d = new Date(dateStr);
+            d.setMonth(d.getMonth() + months);
+            return d.toISOString().split('T')[0];
+        },
+
+        isGpsType() {
+            return this.data?.source_type === 'gps' || this.data?.source_type === 'gps_perpanjang';
         },
     };
 }

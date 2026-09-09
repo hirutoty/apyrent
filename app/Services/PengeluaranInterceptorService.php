@@ -208,15 +208,18 @@ class PengeluaranInterceptorService
     {
         // Format: PR-PENGELUARAN-{TYPE}-{INCREMENT}
         $typeMap = [
-            'asuransi_kendaraan' => 'ASR',
-            'pajak' => 'PJK',
-            'service_part' => 'SVC',
-            'gps' => 'GPS',
-            'gps_perpanjang' => 'GPP',
-            'kir' => 'KIR',
-            'stnk' => 'STN',
-            'service_asuransi' => 'SAS',
-            'purchase_order'   => 'PO',
+            'asuransi_kendaraan'             => 'ASR',
+            'asuransi_kendaraan_perpanjang'  => 'APP',
+            'pajak'                          => 'PJK',
+            'pajak_perpanjang'               => 'PJP',
+            'service_part'                   => 'SVC',
+            'gps'                            => 'GPS',
+            'gps_perpanjang'                 => 'GPP',
+            'kir'                            => 'KIR',
+            'kir_perpanjang'                 => 'KRP',
+            'stnk'                           => 'STN',
+            'service_asuransi'               => 'SAS',
+            'purchase_order'                 => 'PO',
         ];
         
         $typeCode = $typeMap[$sourceType] ?? 'PGL';
@@ -250,14 +253,22 @@ class PengeluaranInterceptorService
     protected function getAlasanPermintaan(string $sourceType, array $data): string
     {
         return match($sourceType) {
-            'asuransi_kendaraan' => 'Pembayaran Asuransi Kendaraan - ' . ($data['keterangan'] ?? 'N/A'),
-            'pajak' => 'Pembayaran Pajak Kendaraan - ' . ($data['jenis_pajak'] ?? 'N/A'),
-            'service_part' => 'Pembelian Service Part - ' . ($data['nama_part'] ?? 'N/A'),
-            'gps' => 'Pembayaran GPS Kendaraan - ' . ($data['keterangan'] ?? 'N/A'),
-            'kir' => 'Pembayaran KIR Kendaraan',
-            'stnk' => 'Pembayaran STNK Kendaraan',
-            'service_asuransi' => 'Klaim Asuransi Service - ' . ($data['keterangan'] ?? 'N/A'),
-            'purchase_order'   => 'Purchase Order - ' . ($data['vendor'] ?? 'N/A'),
+            'asuransi_kendaraan'            => 'Pembayaran Asuransi Kendaraan - ' . ($data['keterangan'] ?? 'N/A'),
+            'asuransi_kendaraan_perpanjang' => 'Perpanjangan Asuransi Kendaraan',
+            'pajak'                         => 'Pembayaran Pajak Kendaraan - ' . ($data['jenis_pajak'] ?? 'N/A'),
+            'pajak_perpanjang'              => 'Perpanjangan Pajak Kendaraan',
+            'service_part'                  => 'Pembelian Service Part - ' . (
+                isset($data['parts']) && is_array($data['parts'])
+                    ? collect($data['parts'])->pluck('nama_part')->filter()->take(3)->implode(', ')
+                    : ($data['nama_part'] ?? 'N/A')
+            ),
+            'gps'                           => 'Pembayaran GPS Kendaraan - ' . ($data['keterangan'] ?? 'N/A'),
+            'gps_perpanjang'                => 'Perpanjangan GPS Kendaraan',
+            'kir'                           => 'Pembayaran KIR Kendaraan',
+            'kir_perpanjang'                => 'Perpanjangan KIR Kendaraan',
+            'stnk'                          => 'Pembayaran STNK Kendaraan',
+            'service_asuransi'              => 'Klaim Asuransi Service - ' . ($data['keterangan'] ?? 'N/A'),
+            'purchase_order'                => 'Purchase Order - ' . ($data['vendor'] ?? 'N/A'),
             default => 'Pengeluaran Kendaraan',
         };
     }
@@ -272,14 +283,23 @@ class PengeluaranInterceptorService
     protected function extractNominal(string $sourceType, array $data): float
     {
         return match($sourceType) {
-            'asuransi_kendaraan' => floatval($data['premi'] ?? 0),
-            'pajak' => floatval($data['nominal'] ?? 0),
-            'service_part' => floatval($data['biaya'] ?? 0),
-            'gps' => collect($data['gps_items'] ?? [])->sum(fn($item) => floatval($item['biaya_sewa'] ?? 0)),
-            'kir' => floatval($data['biaya'] ?? 0),
-            'stnk' => floatval($data['biaya'] ?? 0),
-            'service_asuransi' => floatval($data['biaya'] ?? 0),
-            'purchase_order'   => floatval($data['total_harga'] ?? 0),
+            'asuransi_kendaraan',
+            'asuransi_kendaraan_perpanjang' => floatval($data['biaya'] ?? $data['premi'] ?? 0),
+            'pajak',
+            'pajak_perpanjang'              => floatval($data['nominal'] ?? 0),
+            'service_part'                  => floatval(
+                // Jika ada total_biaya_override, pakai itu; jika tidak, sum dari semua parts
+                ($data['total_biaya_override'] ?? 0) > 0
+                    ? $data['total_biaya_override']
+                    : collect($data['parts'] ?? [])->sum(fn($p) => floatval($p['biaya'] ?? 0))
+            ),
+            'gps'                           => collect($data['gps_items'] ?? [])->sum(fn($item) => floatval($item['biaya_sewa'] ?? 0)),
+            'gps_perpanjang'                => collect($data['gps_items'] ?? [])->sum(fn($item) => floatval($item['biaya_sewa'] ?? 0)),
+            'kir',
+            'kir_perpanjang'                => floatval($data['biaya'] ?? 0),
+            'stnk'                          => floatval($data['biaya'] ?? 0),
+            'service_asuransi'              => floatval($data['biaya'] ?? 0),
+            'purchase_order'                => floatval($data['total_harga'] ?? 0),
             default => 0,
         };
     }
@@ -345,12 +365,21 @@ class PengeluaranInterceptorService
      * Handle perpanjang flow - create pembayaran for renewal approval
      * 
      * @param Request $request
-     * @param string $sourceType
-     * @param mixed $existingRecord (GPS/Asuransi/Pajak/KIR/STNK record)
+     * @param string $sourceType  Base source type (pajak, asuransi_kendaraan, kir, gps)
+     * @param mixed $existingRecord
      * @return Pembayaran
      */
     public function perpanjangViaPembayaran(Request $request, string $sourceType, $existingRecord): Pembayaran
     {
+        // Map base source_type ke perpanjang source_type
+        $perpanjangTypeMap = [
+            'pajak'              => 'pajak_perpanjang',
+            'asuransi_kendaraan' => 'asuransi_kendaraan_perpanjang',
+            'kir'                => 'kir_perpanjang',
+            'gps'                => 'gps_perpanjang',
+        ];
+        $perpanjangSourceType = $perpanjangTypeMap[$sourceType] ?? $sourceType;
+
         DB::beginTransaction();
         
         try {
@@ -360,8 +389,10 @@ class PengeluaranInterceptorService
             $perpanjangData['existing_record_id'] = $existingRecord->id;
             
             // Add existing record info for context
-            if (method_exists($existingRecord, 'kendaraan') && $existingRecord->kendaraan) {
+            if (property_exists($existingRecord, 'kendaraan_id')) {
                 $perpanjangData['kendaraan_id'] = $existingRecord->kendaraan_id;
+            }
+            if (method_exists($existingRecord, 'kendaraan') && $existingRecord->kendaraan) {
                 $perpanjangData['kendaraan_nopol'] = $existingRecord->kendaraan->nopol ?? '-';
             }
             
@@ -369,16 +400,15 @@ class PengeluaranInterceptorService
             $fakeRequest = new Request($perpanjangData);
             $fakeRequest->merge($request->all());
             
-            // Intercept data
-            $interceptedData = $this->intercept($fakeRequest, $sourceType);
+            // Intercept data (menggunakan perpanjang source_type)
+            $interceptedData = $this->intercept($fakeRequest, $perpanjangSourceType);
             
-            // Modify alasan_permintaan untuk perpanjang
-            $interceptedData['alasan_permintaan'] = 'Perpanjangan ' . $this->getSourceTypeName($sourceType);
+            // Alasan permintaan sudah di-set oleh getAlasanPermintaan untuk perpanjang types
             
-            // Save to Pembayaran
-            $pembayaran = $this->saveToPembayaran($interceptedData, $sourceType);
+            // Save to Pembayaran dengan perpanjang source_type
+            $pembayaran = $this->saveToPembayaran($interceptedData, $perpanjangSourceType);
             
-            // Upload files
+            // Upload files (file image/bukti dari form perpanjangan)
             $uploadedFiles = $this->uploadTemporaryFiles($fakeRequest, $pembayaran->id);
             
             // Update source_data
@@ -402,16 +432,19 @@ class PengeluaranInterceptorService
     private function getSourceTypeName(string $sourceType): string
     {
         return match($sourceType) {
-            'gps' => 'GPS Kendaraan',
-            'gps_perpanjang' => 'Perpanjangan GPS',
-            'asuransi_kendaraan' => 'Asuransi Kendaraan',
-            'pajak' => 'Pajak Kendaraan',
-            'kir' => 'KIR',
-            'stnk' => 'STNK',
-            'service_asuransi' => 'Service Asuransi',
-            'service_part' => 'Service Part',
-            'purchase_order' => 'Purchase Order',
-            default => ucfirst($sourceType),
+            'gps'                            => 'GPS Kendaraan',
+            'gps_perpanjang'                 => 'Perpanjangan GPS',
+            'asuransi_kendaraan'             => 'Asuransi Kendaraan',
+            'asuransi_kendaraan_perpanjang'  => 'Perpanjangan Asuransi Kendaraan',
+            'pajak'                          => 'Pajak Kendaraan',
+            'pajak_perpanjang'               => 'Perpanjangan Pajak Kendaraan',
+            'kir'                            => 'KIR',
+            'kir_perpanjang'                 => 'Perpanjangan KIR',
+            'stnk'                           => 'STNK',
+            'service_asuransi'               => 'Service Asuransi',
+            'service_part'                   => 'Service Part',
+            'purchase_order'                 => 'Purchase Order',
+            default => ucfirst(str_replace('_', ' ', $sourceType)),
         };
     }
 

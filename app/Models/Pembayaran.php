@@ -198,13 +198,18 @@ class Pembayaran extends Model
     public function getSourceTypeNameAttribute(): string
     {
         return match($this->source_type) {
-            'asuransi_kendaraan' => 'Asuransi Kendaraan',
-            'pajak' => 'Pajak Kendaraan',
-            'service_part' => 'Service Part',
-            'gps' => 'GPS Kendaraan',
-            'kir' => 'KIR',
-            'stnk' => 'STNK',
-            'service_asuransi' => 'Service Asuransi',
+            'asuransi_kendaraan'            => 'Asuransi Kendaraan',
+            'asuransi_kendaraan_perpanjang' => 'Perpanjangan Asuransi',
+            'pajak'                         => 'Pajak Kendaraan',
+            'pajak_perpanjang'              => 'Perpanjangan Pajak',
+            'service_part'                  => 'Service Part',
+            'gps'                           => 'GPS Kendaraan',
+            'gps_perpanjang'                => 'Perpanjangan GPS',
+            'kir'                           => 'KIR',
+            'kir_perpanjang'                => 'Perpanjangan KIR',
+            'stnk'                          => 'STNK',
+            'service_asuransi'              => 'Service Asuransi',
+            'purchase_order'                => 'Purchase Order',
             default => $this->tipe_pembayaran ?? 'Belanja',
         };
     }

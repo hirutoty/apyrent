@@ -139,9 +139,10 @@ class ServiceHistoryController extends Controller
     }
 
     /**
-     * Store Request Part — semua parts masuk sebagai pending (no duplicate check)
+     * Store Request Part — semua parts masuk melalui PengeluaranInterceptorService
+     * (alur seragam dengan Tambah Service: tampil di pembayaran.index tab Pending)
      */
-    public function requestStore(Request $request)
+    public function requestStore(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
             'kendaraan_id'                 => 'required|exists:kendaraan,id',
@@ -152,7 +153,8 @@ class ServiceHistoryController extends Controller
             'alasan_permintaan'            => 'nullable|string',
             'keterangan_pengadaan'         => 'nullable|string|max:500',
             'total_biaya_override'         => 'nullable|numeric|min:0',
-            'bukti_pembayaran'             => 'nullable|file|max:5120',
+            'bukti_attachment'             => 'nullable|array',
+            'bukti_attachment.*'           => 'file|max:5120',
             'supplier_id'                  => 'nullable|exists:supplier,id',
             'parts'                        => 'required|array|min:1',
             'parts.*.nama_part'            => 'required_with:parts|string|max:255',
@@ -168,143 +170,43 @@ class ServiceHistoryController extends Controller
             'parts.*.interval_nilai'       => 'required_with:parts|integer|min:1',
             'parts.*.interval_satuan'      => 'required_with:parts|in:hari,minggu,bulan,tahun',
             'parts.*.biaya'                => 'nullable|numeric|min:0',
-            'parts.*.bukti'                => 'nullable|array',
+            'parts.*.bukti'                => 'required|array|min:1',
             'parts.*.bukti.*'              => 'file|mimes:jpg,jpeg,png,mp4,mov',
             'parts.*.keterangan'           => 'nullable|string|max:1000',
+            'parts.*.nama_rekening'        => 'nullable|string|max:150',
+            'parts.*.nama_bank'            => 'nullable|string|max:100',
+            'parts.*.no_rekening'          => 'nullable|string|max:50',
         ]);
 
-        $kendaraan     = Kendaraan::findOrFail($request->kendaraan_id);
-        $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
-
-        // Tentukan status_pengeluaran per-part berdasarkan limit_price kategori
-        $partStatuses  = $this->resolvePartStatusPengeluaran($resolvedParts, $request->kendaraan_id);
-
-        $sumBiayaParts = collect($resolvedParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
-        $totalBiaya    = filled($request->total_biaya_override) && (int)$request->total_biaya_override > 0
-            ? (int)$request->total_biaya_override
-            : $sumBiayaParts;
-
-        $buktiBayarMeta  = $this->prepBuktiBayar($request);
-        $attachmentsMeta = $this->prepAttachments($request);
-        $movedFiles      = [];
-        $purchaseroResult = ['created' => false, 'no_pr' => null, 'skipped_count' => 0];
-
+        // =======================================================================
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Pembayaran (sama seperti store)
+        // =======================================================================
         try {
-            \Illuminate\Support\Facades\DB::transaction(function () use (
-                $request, $kendaraan, $totalBiaya, $partStatuses, $buktiBayarMeta, $attachmentsMeta,
-                $resolvedParts, &$movedFiles, &$purchaseroResult
-            ) {
-                $buktiBayar = null;
-                if ($buktiBayarMeta) {
-                    if (!file_exists($buktiBayarMeta['destination'])) mkdir($buktiBayarMeta['destination'], 0777, true);
-                    $buktiBayarMeta['file']->move($buktiBayarMeta['destination'], $buktiBayarMeta['filename']);
-                    $buktiBayar   = $buktiBayarMeta['path'];
-                    $movedFiles[] = public_path($buktiBayar);
-                }
+            // Step 1: Intercept data dari form
+            $interceptedData = $interceptor->intercept($request, 'service_part');
 
-                // Merge ke service history yang ada, atau buat baru jika belum ada
-                $existing = ServiceHistory::where('kendaraan_id', $request->kendaraan_id)
-                    ->latest()
-                    ->first();
+            // Step 2: Save ke Pembayaran
+            $pembayaran = $interceptor->saveToPembayaran($interceptedData, 'service_part');
 
-                if ($existing) {
-                    $existing->update([
-                        'keluhan'         => $request->keluhan,
-                        'kilometer'       => $request->kilometer,
-                        'total_biaya'     => $existing->total_biaya + $totalBiaya,
-                        'status'          => $this->deriveServiceStatus($resolvedParts),
-                        'tanggal_service' => $request->tanggal_service,
-                        'bukti_pembayaran' => $buktiBayar ?: $existing->bukti_pembayaran,
-                    ]);
-                    $service = $existing;
-                } else {
-                    // Buat service history baru dengan status_approval = pending
-                    $service = ServiceHistory::create([
-                        'kendaraan_id'    => $request->kendaraan_id,
-                        'keluhan'         => $request->keluhan,
-                        'kilometer'       => $request->kilometer,
-                        'total_biaya'     => $totalBiaya,
-                        'status'          => $this->deriveServiceStatus($resolvedParts),
-                        'tanggal_service' => $request->tanggal_service,
-                        'bukti_pembayaran' => $buktiBayar,
-                        'status_approval' => 'pending',
-                        'is_request'      => true,
-                    ]);
-                }
+            // Step 3: Upload temporary files (attachment)
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $pembayaran->id);
 
-                // Simpan semua parts sebagai pending (no duplicate check)
-                foreach ($resolvedParts as $idx => $partData) {
-                    $tglPasang    = Carbon::parse($partData['tgl_pasang']);
-                    $tanggalLimit = $this->hitungTanggalLimitPart(
-                        $tglPasang, (int)$partData['interval_nilai'], $partData['interval_satuan']
-                    );
+            // Step 4: Update source_data dengan file info
+            $sourceData = $pembayaran->source_data;
+            $sourceData['temp_files'] = $uploadedFiles;
+            $pembayaran->update(['source_data' => $sourceData]);
 
-                    $buktiFiles = $this->uploadPartBuktiFiles($request, $idx);
-                    foreach ($buktiFiles as $bf) {
-                        $movedFiles[] = public_path($bf['path']);
-                    }
+            return redirect()
+                ->route('pembayaran.index', ['tab' => 'Pending'])
+                ->with('success', 'Request part berhasil dikirim. Menunggu approval dari Superadmin.');
 
-                    ServicePart::create([
-                        'service_history_id'  => $service->id,
-                        'kendaraan_id'        => $request->kendaraan_id,
-                        'category_id'         => $partData['category_id'] ?? null,
-                        'nama_part'           => $partData['nama_part'],
-                        'part_number'         => $partData['part_number'] ?? null,
-                        'serial_number'       => $partData['serial_number'] ?? null,
-                        'posisi'              => $partData['posisi'] ?? null,
-                        'tgl_pasang'          => $tglPasang->toDateString(),
-                        'kilometer_pasang'    => $partData['kilometer_pasang'] ?? $request->kilometer,
-                        'kondisi'             => $partData['kondisi'] ?? 'Baik',
-                        'status'              => in_array($partData['status'] ?? '', ['Terpasang','Proses','Diganti']) ? $partData['status'] : 'Proses',
-                        'interval_nilai'      => (int)$partData['interval_nilai'],
-                        'interval_satuan'     => $partData['interval_satuan'],
-                        'tanggal_limit'       => $tanggalLimit->toDateString(),
-                        'biaya'               => (int)($partData['biaya'] ?? 0),
-                        'status_pengeluaran'  => $partStatuses[$idx] ?? 'stabil',
-                        'bukti'               => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
-                        'keterangan'          => $partData['keterangan'] ?? null,
-                        'is_request'          => true,
-                        'status_approval'     => 'pending',
-                    ]);
-                }
+        } catch (\Exception $e) {
+            \Log::error('Error intercepting request part submission: ' . $e->getMessage());
 
-                // Auto-submit ke Pengadaan dengan status Pending
-                $purchaseroResult = $this->createPurchaseroFromService(
-                    $service,
-                    $resolvedParts,
-                    'Pending',
-                    $request->supplier_id ? (int)$request->supplier_id : null,
-                    $request->alasan_permintaan ?: null,
-                    $request->keterangan_pengadaan ?: null
-                );
-
-                // Attachments
-                if (!empty($attachmentsMeta)) {
-                    if (!file_exists($attachmentsMeta[0]['destination'])) mkdir($attachmentsMeta[0]['destination'], 0777, true);
-                    foreach ($attachmentsMeta as $att) {
-                        $att['file']->move($att['destination'], $att['filename']);
-                        $movedFiles[] = public_path($att['file_path']);
-                        Attachment::create([
-                            'relation_type' => 'service',
-                            'relation_id'   => $service->id,
-                            'file_name'     => $att['file_name'],
-                            'file_path'     => $att['file_path'],
-                            'file_type'     => $att['file_type'],
-                            'file_size'     => $att['file_size'] ?? 0,
-                        ]);
-                    }
-                }
-            });
-        } catch (\Throwable $e) {
-            foreach ($movedFiles as $f) { if (file_exists($f)) unlink($f); }
-            throw $e;
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengajukan request part. Silakan coba lagi.');
         }
-
-        return redirect()->route('service-history.index')
-            ->with('success', $purchaseroResult['created'] && $purchaseroResult['no_pr']
-                ? "Request part berhasil dikirim dan masuk ke pengadaan (No PR: {$purchaseroResult['no_pr']}). Ajukan ke superadmin untuk disetujui."
-                . ($purchaseroResult['skipped_count'] > 0 ? " {$purchaseroResult['skipped_count']} part tidak diajukan ulang karena sudah ada yang Pending/Diajukan." : '')
-                : 'Request part berhasil dikirim dan menunggu approval.');
     }
 
     /**
@@ -362,6 +264,9 @@ class ServiceHistoryController extends Controller
             'parts.*.bukti'                => 'nullable|array',
             'parts.*.bukti.*'              => 'file|mimes:jpg,jpeg,png,mp4,mov',
             'parts.*.keterangan'           => 'nullable|string|max:1000',
+            'parts.*.nama_rekening'        => 'nullable|string|max:150',
+            'parts.*.nama_bank'            => 'nullable|string|max:100',
+            'parts.*.no_rekening'          => 'nullable|string|max:50',
         ]);
 
         $kendaraan     = Kendaraan::findOrFail($request->kendaraan_id);
@@ -454,6 +359,9 @@ class ServiceHistoryController extends Controller
                         'status_pengeluaran'  => $partStatuses[$idx] ?? 'stabil',
                         'bukti'               => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
                         'keterangan'          => $partData['keterangan'] ?? null,
+                        'nama_rekening'       => $partData['nama_rekening'] ?? null,
+                        'nama_bank'           => $partData['nama_bank'] ?? null,
+                        'no_rekening'         => $partData['no_rekening'] ?? null,
                     ]);
                 }
 
@@ -545,9 +453,12 @@ class ServiceHistoryController extends Controller
             'parts.*.interval_nilai'       => 'required_with:parts|integer|min:1',
             'parts.*.interval_satuan'      => 'required_with:parts|in:hari,minggu,bulan,tahun',
             'parts.*.biaya'                => 'nullable|numeric|min:0',
-            'parts.*.bukti'                => 'nullable|array',
+            'parts.*.bukti'                => 'required_with:parts|array|min:1',
             'parts.*.bukti.*'              => 'file|mimes:jpg,jpeg,png,mp4,mov',
             'parts.*.keterangan'           => 'nullable|string|max:1000',
+            'parts.*.nama_rekening'        => 'nullable|string|max:150',
+            'parts.*.nama_bank'            => 'nullable|string|max:100',
+            'parts.*.no_rekening'          => 'nullable|string|max:50',
         ]);
 
         // ===========================================================================
@@ -746,6 +657,9 @@ class ServiceHistoryController extends Controller
                         'status_pengeluaran'  => $partStatuses[$idx] ?? 'stabil',
                         'bukti'               => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
                         'keterangan'          => $partData['keterangan'] ?? null,
+                        'nama_rekening'       => $partData['nama_rekening'] ?? null,
+                        'nama_bank'           => $partData['nama_bank'] ?? null,
+                        'no_rekening'         => $partData['no_rekening'] ?? null,
                     ]);
 
                     // Jika ini part pertama dari reminder (replacement), archive part lama
@@ -875,6 +789,9 @@ class ServiceHistoryController extends Controller
             'parts.*.bukti'                => 'nullable|array',
             'parts.*.bukti.*'              => 'file|mimes:jpg,jpeg,png,mp4,mov',
             'parts.*.keterangan'           => 'nullable|string|max:1000',
+            'parts.*.nama_rekening'        => 'nullable|string|max:150',
+            'parts.*.nama_bank'            => 'nullable|string|max:100',
+            'parts.*.no_rekening'          => 'nullable|string|max:50',
         ]);
 
         $service   = ServiceHistory::findOrFail($id);
@@ -958,6 +875,9 @@ class ServiceHistoryController extends Controller
                         'status_pengeluaran'  => $partStatuses[$idx] ?? 'stabil',
                         'bukti'               => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
                         'keterangan'          => $partData['keterangan'] ?? null,
+                        'nama_rekening'       => $partData['nama_rekening'] ?? null,
+                        'nama_bank'           => $partData['nama_bank'] ?? null,
+                        'no_rekening'         => $partData['no_rekening'] ?? null,
                     ]);
 
                     $this->autoCloseReminderPart($kendaraan->id, $part);
@@ -1242,7 +1162,8 @@ class ServiceHistoryController extends Controller
      * Resolve category per part: buat category baru jika nama_category_baru diisi
 
     /**
-     * Update status per-part (Proses ↔ Terpasang), lalu recalculate header ServiceHistory.
+     * Update status per-part (tidak_aktif → Terpasang, atau Proses ↔ Terpasang),
+     * lalu recalculate header ServiceHistory.
      */
     public function updatePartStatus(Request $request, $id)
     {
@@ -1257,21 +1178,41 @@ class ServiceHistoryController extends Controller
             return back()->with('error', 'Part yang sudah Terpasang tidak bisa diubah statusnya.');
         }
 
-        // Jika part ini adalah request part, wajib sudah di-approve terlebih dahulu
-        if ($part->is_request && $part->status_approval !== 'approved') {
-            return back()->with('error', 'Status part tidak bisa diubah sebelum part ini disetujui oleh superadmin.');
+        // Jika status saat ini tidak_aktif, hanya boleh ke Terpasang (bukan Proses)
+        if ($part->status === 'tidak_aktif' && $request->status !== 'Terpasang') {
+            return back()->with('error', 'Part dengan status Tidak Aktif hanya bisa ditandai sebagai Terpasang.');
         }
 
-        $part->update(['status' => $request->status]);
+        // Jika part ini sudah diapprove keuangan (persetujuan=Disetujui), boleh update
+        // Jika belum diapprove (Pending/Ditolak), tidak boleh diubah
+        if ($part->persetujuan !== 'Disetujui') {
+            return back()->with('error', 'Status part tidak bisa diubah sebelum disetujui oleh keuangan.');
+        }
+
+        $updateData = ['status' => $request->status];
+
+        // Saat ditandai Terpasang dari tidak_aktif, set kondisi ke Baik
+        if ($request->status === 'Terpasang' && $part->status === 'tidak_aktif') {
+            $updateData['kondisi'] = 'Baik';
+        }
+
+        $part->update($updateData);
 
         // Recalculate header status dari semua parts di service history ini
         $sh = ServiceHistory::with('parts')->find($part->service_history_id);
         if ($sh) {
-            $adaProses = $sh->parts->contains('status', 'Proses');
-            $newStatus = $adaProses ? 'proses' : 'selesai';
-            // Jangan override jika ada part Limit dan tidak ada Proses
-            if (!$adaProses && $sh->parts->contains('status', 'Limit')) {
+            $parts = $sh->parts;
+            // Tidak hitung part dengan status tidak_aktif sebagai "proses"
+            $adaProses   = $parts->contains(fn($p) => $p->status === 'Proses');
+            $adaTidakAktif = $parts->contains(fn($p) => $p->status === 'tidak_aktif');
+            $adaLimit    = $parts->contains(fn($p) => $p->status === 'Limit');
+
+            if ($adaLimit && !$adaProses) {
                 $newStatus = 'limit';
+            } elseif ($adaProses || $adaTidakAktif) {
+                $newStatus = 'proses';
+            } else {
+                $newStatus = 'selesai';
             }
             $sh->update(['status' => $newStatus]);
         }
@@ -1598,24 +1539,45 @@ class ServiceHistoryController extends Controller
     }
 
     /**
-     * Tandai service_history dari pembayaran sebagai Selesai (Terpasang).
-     * Hanya bisa dilakukan superadmin pada service yang status_approval = approved dan status = proses.
+     * Tandai semua part yang berstatus tidak_aktif+Disetujui di service history ini sebagai Terpasang.
+     * Cashflow sudah dicatat saat approval keuangan, tidak dicatat lagi di sini.
      */
     public function terpasang(int $id)
     {
-        if (auth()->user()->role !== 'superadmin') {
-            return redirect()->back()->with('error', 'Tidak memiliki izin.');
+        $sh = ServiceHistory::with('parts')->findOrFail($id);
+
+        $partsTidakAktif = $sh->parts
+            ->where('persetujuan', 'Disetujui')
+            ->where('status', 'tidak_aktif');
+
+        if ($partsTidakAktif->isEmpty()) {
+            return redirect()->back()->with('error', 'Tidak ada part yang perlu ditandai Terpasang.');
         }
 
-        $sh = ServiceHistory::findOrFail($id);
-
-        if ($sh->status !== 'proses' || $sh->status_approval !== 'approved') {
-            return redirect()->back()->with('error', 'Service tidak bisa ditandai Terpasang dalam kondisi saat ini.');
+        foreach ($partsTidakAktif as $part) {
+            $part->update([
+                'status'  => 'Terpasang',
+                'kondisi' => 'Baik',
+            ]);
         }
 
-        $sh->update(['status' => 'selesai']);
+        // Recalculate status service history
+        $sh->refresh();
+        $parts = $sh->parts;
+        $adaProses     = $parts->contains(fn($p) => $p->status === 'Proses');
+        $adaTidakAktif = $parts->contains(fn($p) => $p->status === 'tidak_aktif');
+        $adaLimit      = $parts->contains(fn($p) => $p->status === 'Limit');
 
-        return redirect()->back()->with('success', 'Service berhasil ditandai sebagai Selesai (Terpasang).');
+        if ($adaLimit && !$adaProses) {
+            $newStatus = 'limit';
+        } elseif ($adaProses || $adaTidakAktif) {
+            $newStatus = 'proses';
+        } else {
+            $newStatus = 'selesai';
+        }
+        $sh->update(['status' => $newStatus]);
+
+        return redirect()->back()->with('success', 'Part berhasil ditandai sebagai Terpasang.');
     }
 
     // =========================================================================

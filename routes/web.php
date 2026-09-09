@@ -224,6 +224,10 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   // Taruh SEBELUM Route::resource('asuransi-kendaraan', ...)
   Route::post('asuransi-kendaraan/{id}/perpanjang', [AsuransiKendaraanController::class, 'perpanjang'])
     ->name('asuransi-kendaraan.perpanjang');
+  Route::get('asuransi-kendaraan/{id}/detail', [AsuransiKendaraanController::class, 'detail'])
+    ->name('asuransi-kendaraan.detail');
+  Route::get('asuransi-kendaraan/ajukan-ulang/{pembayaranId}', [AsuransiKendaraanController::class, 'ajukanUlangForm'])
+    ->name('asuransi-kendaraan.ajukan-ulang');
 
   Route::get(
     'asuransi-history',
@@ -244,6 +248,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     'pajak/{id}/perpanjang',
     [PajakController::class, 'perpanjang']
   )->middleware('throttle:5,1')->name('pajak.perpanjang');
+  Route::get('/pajak/ajukan-ulang/{pembayaranId}', [PajakController::class, 'ajukanUlangForm'])
+    ->name('pajak.ajukan-ulang');
   Route::delete('/admin/history/pajak/{id}', [PajakHistoryController::class, 'destroy'])
     ->name('history.pajak.destroy');
 
@@ -361,7 +367,6 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::post('kir/{id}/perpanjang', [KirController::class, 'perpanjang'])
     ->middleware('throttle:5,1')
     ->name('kir.perpanjang');
-  Route::post('kir/perpanjang-semua', [KirController::class, 'perpanjangSemua'])->name('kir.perpanjang-semua');
   Route::get('/kir-history', [KirHistoryController::class, 'index'])
     ->name('history.kir.index');
 

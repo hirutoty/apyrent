@@ -1,0 +1,23 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('pajak_kendaraans', function (Blueprint $table) {
+            $table->unsignedBigInteger('pembayaran_id')->nullable()->after('bukti');
+            $table->string('persetujuan')->nullable()->after('pembayaran_id');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('pajak_kendaraans', function (Blueprint $table) {
+            $table->dropColumn(['pembayaran_id', 'persetujuan']);
+        });
+    }
+};

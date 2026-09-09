@@ -41,7 +41,7 @@ class DatabaseSeeder extends Seeder
             JenisAsuransiSeeder::class,
             AsuransiSeeder::class,
             AsuransiKendaraanSeeder::class,
-            PajakKendaraanSeeder::class,
+            // PajakKendaraanSeeder::class,
             GpsSeeder::class,
             // GpsKendaraanSeeder::class,
             SupplierSeeder::class,

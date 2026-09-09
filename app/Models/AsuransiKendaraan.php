@@ -22,6 +22,11 @@ class AsuransiKendaraan extends Model
         'biaya',
         'bukti_bayar',
         'tanggal_bayar',
+        'pembayaran_id',
+        'persetujuan',
+        'nama_rekening',
+        'nama_bank',
+        'no_rekening',
     ];
 
     protected $casts = [
