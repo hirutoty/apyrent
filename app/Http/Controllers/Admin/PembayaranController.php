@@ -165,6 +165,15 @@ class PembayaranController extends Controller
         return view('admin.pembayaran.edit', compact('pembayaran'));
     }
 
+    public function show(Pembayaran $pembayaran)
+    {
+        $role = auth()->user()->role;
+
+        $pembayaran->load(['items', 'approvals.user', 'supplier', 'kendaraan', 'serviceParts']);
+
+        return view('admin.pembayaran.show', compact('pembayaran', 'role'));
+    }
+
     public function details($id)
     {
         try {
@@ -1364,6 +1373,22 @@ class PembayaranController extends Controller
                 'disetujui_oleh'      => auth()->user()->nama ?? auth()->user()->email,
                 'tanggal_persetujuan' => now(),
             ]);
+
+            // Simpan keputusan per item ke source_data untuk ditampilkan di UI
+            $sourceGpsItems = $pembayaran->source_data['gps_items'] ?? [];
+            $itemDecisions  = [];
+            foreach ($items as $idx => $decision) {
+                $gpsItem = $sourceGpsItems[(int) $idx] ?? [];
+                $gpsModel = isset($gpsItem['gps_id']) ? \App\Models\Gps::find($gpsItem['gps_id']) : null;
+                $itemDecisions[] = [
+                    'idx'      => (int) $idx,
+                    'nama_gps' => $gpsModel->nama_gps ?? '-',
+                    'type'     => $gpsItem['type'] ?? '-',
+                    'action'   => $decision['action'],
+                ];
+            }
+            $updatedSourceData = array_merge($pembayaran->source_data ?? [], ['item_decisions' => $itemDecisions]);
+            $pembayaran->update(['source_data' => $updatedSourceData]);
 
             DB::commit();
 

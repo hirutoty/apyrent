@@ -45,6 +45,9 @@ class Pembayaran extends Model
         'source_data',
         'target_id',
         'can_edit',
+        // Rekening & informasi tambahan
+        'nama_rekening',
+        'informasi',
     ];
 
     protected $casts = [

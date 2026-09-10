@@ -148,6 +148,7 @@ class GpsKendaraanController extends Controller
             'tanggal_bayar'                   => 'required|date',
             'tanggal_habis'                   => 'required|date',
             'keterangan'                      => 'nullable|string|max:1000',
+            'vendor'                          => 'nullable|string|max:255',
             'gps_items'                       => 'required|array|min:1',
             'gps_items.*.gps_id'              => 'required|exists:gps,id',
             'gps_items.*.type'                => 'required|string|max:100',
@@ -196,36 +197,39 @@ class GpsKendaraanController extends Controller
         }
 
         // ===========================================================================
-        // APPROVAL WORKFLOW: Intercept dan kirim ke Pembayaran
+        // NEW FLOW: Intercept dan kirim ke Purchase Order (bukan langsung Pembayaran)
         // ===========================================================================
         
         try {
-            // Check if this is a resubmit (from rejected pembayaran)
-            if ($request->filled('edit_pembayaran')) {
-                $pembayaranId = $request->input('edit_pembayaran');
+            // Check if this is a resubmit (from rejected PO)
+            if ($request->filled('edit_purchase_order')) {
+                $poId = $request->input('edit_purchase_order');
+                $approvalService = app(\App\Services\PurchaseOrderApprovalService::class);
+                $po = \App\Models\PurchaseOrder::findOrFail($poId);
                 
-                // Resubmit: Update existing pembayaran
-                $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'gps');
+                // Resubmit: Update existing PO
+                $po = $approvalService->resubmit($po, $request->all(), $request);
                 
                 return back()
-                    ->with('success', 'Pengajuan GPS berhasil diajukan ulang. Menunggu approval dari Superadmin.');
+                    ->with('success', 'Pengajuan GPS berhasil diajukan ulang ke Purchase Order. Menunggu approval dari Superadmin.');
             }
             
             // Step 1: Intercept data dari form
             $interceptedData = $interceptor->intercept($request, 'gps');
             
-            // Step 2: Save ke Pembayaran
-            $pembayaran = $interceptor->saveToPembayaran($interceptedData, 'gps');
+            // Step 2: Save ke Purchase Order (bukan Pembayaran)
+            $po = $interceptor->saveToPurchaseOrder($interceptedData, 'gps');
             
-            // Step 3: Upload temporary files
-            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $pembayaran->id);
+            // Step 3: Upload temporary files ke PO temp storage
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $po->id, 'purchase_order');
             
             // Step 4: Update source_data dengan file info
-            $sourceData = $pembayaran->source_data;
+            $sourceData = $po->source_data;
             $sourceData['temp_files'] = $uploadedFiles;
-            $pembayaran->update(['source_data' => $sourceData]);
+            $po->update(['source_data' => $sourceData]);
 
             // Step 5: Buat record gps_kendaraan per item dengan persetujuan=Pending
+            // GPS records linked ke PO lewat source_data (belum ada pembayaran_id)
             $tanggalBayar = $request->tanggal_bayar;
             $tanggalHabis = $request->tanggal_habis;
             $durasiBulan  = $tanggalBayar && $tanggalHabis
@@ -235,9 +239,10 @@ class GpsKendaraanController extends Controller
             $lampiranDir = public_path('gps/attachments');
             if (!file_exists($lampiranDir)) mkdir($lampiranDir, 0777, true);
 
+            $gpsRecordIds = [];
             foreach ($gpsItems as $idx => $item) {
                 $gpsRecord = GpsKendaraan::create([
-                    'pembayaran_id' => $pembayaran->id,
+                    'pembayaran_id' => null, // Akan diisi setelah PO approved & Pembayaran created
                     'kendaraan_id'  => $kendaraanId,
                     'gps_id'        => $item['gps_id'] ?? null,
                     'type'          => $item['type'] ?? null,
@@ -255,6 +260,8 @@ class GpsKendaraanController extends Controller
                     'nama_pemilik'  => $item['nama_pemilik'] ?? null,
                     'persetujuan'   => 'Pending',
                 ]);
+
+                $gpsRecordIds[] = $gpsRecord->id;
 
                 // Simpan lampiran per item langsung ke attachments
                 if ($request->hasFile("gps_items.{$idx}.lampiran")) {
@@ -277,8 +284,13 @@ class GpsKendaraanController extends Controller
                 }
             }
 
+            // Store GPS record IDs di PO source_data untuk tracking
+            $sourceData = $po->source_data;
+            $sourceData['gps_record_ids'] = $gpsRecordIds;
+            $po->update(['source_data' => $sourceData]);
+
             return back()
-                ->with('success', 'Pengajuan pengeluaran GPS berhasil dikirim. Menunggu approval dari Superadmin.');
+                ->with('success', 'Pengajuan GPS berhasil dikirim ke Purchase Order. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
             \Log::error('Error intercepting GPS kendaraan submission: ' . $e->getMessage());

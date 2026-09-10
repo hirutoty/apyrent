@@ -7,26 +7,358 @@ use App\Models\Bukubesar;
 use App\Models\Keuangan;
 use App\Models\PurchaseOrder;
 use App\Services\PengeluaranInterceptorService;
+use App\Services\PurchaseOrderApprovalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseOrderController extends Controller
 {
-    public function index()
-    {
-        $data = PurchaseOrder::latest()->paginate(15)->withQueryString();
+    protected $approvalService;
 
-        $statusStats = PurchaseOrder::selectRaw('status_po, count(*) as total')->groupBy('status_po')->pluck('total', 'status_po');
+    public function __construct(PurchaseOrderApprovalService $approvalService)
+    {
+        $this->approvalService = $approvalService;
+    }
+
+    public function index(Request $request)
+    {
+        // Tab filter
+        $statusFilter = $request->input('status', 'Pending');
+        
+        $query = PurchaseOrder::with(['approver', 'pembayaran'])
+            ->where('status', $statusFilter)
+            ->latest();
+
+        $data = $query->paginate(15)->withQueryString();
+
+        // Statistics
+        $statusStats = PurchaseOrder::selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
 
         $totalPO       = PurchaseOrder::count();
-        $totalApproved = PurchaseOrder::where('status_po', 'Approved')->count();
-        $totalPending  = PurchaseOrder::where('status_po', 'Pending')->count();
+        $totalApproved = PurchaseOrder::where('status', 'Disetujui')->count();
+        $totalPending  = PurchaseOrder::where('status', 'Pending')->count();
+        $totalRejected = PurchaseOrder::where('status', 'Ditolak')->count();
+
+        // Legacy stats (for old status_po field)
         $totalClosed   = PurchaseOrder::where('status_po', 'Closed')->count();
 
         return view('admin.purchaseo.index', compact(
-            'data', 'statusStats',
-            'totalPO', 'totalApproved', 'totalPending', 'totalClosed'
+            'data',
+            'statusStats',
+            'statusFilter',
+            'totalPO',
+            'totalApproved',
+            'totalPending',
+            'totalRejected',
+            'totalClosed'
         ));
+    }
+
+    /**
+     * Get PO detail untuk modal (AJAX)
+     */
+    public function detail($id)
+    {
+        try {
+            $po = PurchaseOrder::with(['approver', 'pembayaran'])->findOrFail($id);
+            $sourceData = $po->source_data ?? [];
+            
+            // Build detail berdasarkan source_type
+            $details = $this->buildDetailBySourceType($po->source_type, $sourceData);
+            
+            return response()->json([
+                'success' => true,
+                'po' => [
+                    'po_id' => $po->po_id,
+                    'source_type' => $po->source_type,
+                    'vendor' => $po->vendor,
+                    'total_barang' => $po->total_barang,
+                    'total_harga' => $po->total_harga,
+                    'tanggal_po' => $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-',
+                    'status' => $po->status,
+                    'catatan' => $po->catatan,
+                    'catatan_approval' => $po->catatan_approval,
+                    'disetujui_oleh' => $po->approver ? $po->approver->nama : null,
+                    'tanggal_persetujuan' => $po->tanggal_persetujuan ? $po->tanggal_persetujuan->format('d M Y H:i') : null,
+                    'pembayaran_no_pr' => $po->pembayaran ? $po->pembayaran->no_pr : null,
+                ],
+                'details' => $details,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PO tidak ditemukan: ' . $e->getMessage()
+            ], 404);
+        }
+    }
+
+    /**
+     * Build detail content berdasarkan source type
+     */
+    protected function buildDetailBySourceType($sourceType, $sourceData)
+    {
+        if ($sourceType === 'gps') {
+            return $this->buildGpsDetails($sourceData);
+        }
+        
+        // For other types, return raw data
+        return [
+            'type' => 'raw',
+            'data' => $sourceData,
+        ];
+    }
+
+    /**
+     * Build GPS-specific details
+     */
+    protected function buildGpsDetails($sourceData)
+    {
+        $gpsItems = $sourceData['gps_items'] ?? [];
+        $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+        $kendaraan = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+        
+        $items = [];
+        foreach ($gpsItems as $item) {
+            $gps = isset($item['gps_id']) ? \App\Models\Gps::find($item['gps_id']) : null;
+            $items[] = [
+                'gps_name' => $gps ? $gps->nama_gps : '-',
+                'type' => $item['type'] ?? '-',
+                'biaya_sewa' => $item['biaya_sewa'] ?? 0,
+                'nama_bank' => $item['nama_bank'] ?? '-',
+                'no_rekening' => $item['no_rekening'] ?? '-',
+                'nama_pemilik' => $item['nama_pemilik'] ?? '-',
+            ];
+        }
+        
+        return [
+            'type' => 'gps',
+            'kendaraan' => [
+                'nopol' => $kendaraan ? $kendaraan->nopol : '-',
+                'merk' => $kendaraan ? $kendaraan->merk : '-',
+            ],
+            'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '-',
+            'tanggal_habis' => $sourceData['tanggal_habis'] ?? '-',
+            'keterangan' => $sourceData['keterangan'] ?? '-',
+            'items' => $items,
+        ];
+    }
+
+    /**
+     * Approve Purchase Order dan auto-create Pembayaran
+     */
+    public function approve(Request $request, $id)
+    {
+        // Only Superadmin can approve
+        if (auth()->user()->role !== 'superadmin') {
+            return back()->with('error', 'Hanya Superadmin yang dapat menyetujui Purchase Order.');
+        }
+
+        $request->validate([
+            'catatan' => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            $po = PurchaseOrder::findOrFail($id);
+            
+            // Approve PO and auto-create Pembayaran
+            $pembayaran = $this->approvalService->approve($po, [
+                'catatan' => $request->catatan,
+            ]);
+
+            return redirect()
+                ->route('purchase-order.index', ['status' => 'Disetujui'])
+                ->with('success', "Purchase Order {$po->po_id} telah disetujui. Pembayaran {$pembayaran->no_pr} otomatis dibuat dan menunggu approval.");
+
+        } catch (\Exception $e) {
+            \Log::error('Error approving PO #' . $id . ': ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Reject Purchase Order
+     */
+    public function reject(Request $request, $id)
+    {
+        // Only Superadmin can reject
+        if (auth()->user()->role !== 'superadmin') {
+            return back()->with('error', 'Hanya Superadmin yang dapat menolak Purchase Order.');
+        }
+
+        $request->validate([
+            'catatan' => 'required|string|max:1000',
+        ], [
+            'catatan.required' => 'Catatan penolakan wajib diisi.',
+        ]);
+
+        try {
+            $po = PurchaseOrder::findOrFail($id);
+            
+            // Reject PO
+            $this->approvalService->reject($po, $request->catatan);
+
+            return redirect()
+                ->route('purchase-order.index', ['status' => 'Ditolak'])
+                ->with('success', "Purchase Order {$po->po_id} telah ditolak. User dapat melakukan edit dan mengajukan ulang.");
+
+        } catch (\Exception $e) {
+            \Log::error('Error rejecting PO #' . $id . ': ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Approve GPS Purchase Order per-item (pilih item mana yang disetujui/ditolak + bukti per item)
+     */
+    public function approveItems(Request $request, $id)
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            return response()->json(['success' => false, 'message' => 'Tidak ada akses.'], 403);
+        }
+
+        $po = PurchaseOrder::findOrFail($id);
+
+        if (!$po->isPending()) {
+            return response()->json(['success' => false, 'message' => 'Purchase Order bukan status Pending.'], 422);
+        }
+
+        $items   = $request->input('items', []);
+        $catatan = $request->input('catatan', '');
+
+        if (empty($items)) {
+            return response()->json(['success' => false, 'message' => 'Tidak ada item yang diputuskan.'], 422);
+        }
+
+        $sourceData  = $po->source_data ?? [];
+        $gpsItems    = $sourceData['gps_items'] ?? [];
+        $approvedIdx = [];
+        $rejectedIdx = [];
+
+        // Validasi: item yang ditolak wajib ada catatannya
+        foreach ($items as $idx => $decision) {
+            $action = $decision['action'] ?? null;
+            if ($action === 'rejected' && empty(trim($decision['catatan'] ?? ''))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item #' . ((int)$idx + 1) . ' yang ditolak wajib ada alasan penolakan.',
+                ], 422);
+            }
+            if ($action === 'approved') $approvedIdx[] = (int) $idx;
+            if ($action === 'rejected') $rejectedIdx[] = (int) $idx;
+        }
+
+        if (empty($approvedIdx) && empty($rejectedIdx)) {
+            return response()->json(['success' => false, 'message' => 'Tidak ada keputusan yang diberikan.'], 422);
+        }
+
+        try {
+            \DB::beginTransaction();
+
+            // Simpan bukti bayar per item yang diapprove ke disk
+            $buktiDir = public_path('gps/bukti_bayar');
+            if (!file_exists($buktiDir)) mkdir($buktiDir, 0777, true);
+
+            $perItemBukti = [];
+            foreach ($approvedIdx as $idx) {
+                $fileInput = $request->file("items.{$idx}.bukti");
+                if ($fileInput) {
+                    $filename = time() . '_' . $idx . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $fileInput->getClientOriginalName());
+                    $fileInput->move($buktiDir, $filename);
+                    $perItemBukti[$idx] = 'gps/bukti_bayar/' . $filename;
+                }
+            }
+
+            $hasApproved = !empty($approvedIdx);
+            $hasRejected = !empty($rejectedIdx);
+
+            // Jika semua ditolak → reject PO
+            if (!$hasApproved) {
+                $po->update([
+                    'status'              => 'Ditolak',
+                    'disetujui_oleh'      => auth()->id(),
+                    'tanggal_persetujuan' => now(),
+                    'catatan_approval'    => $catatan ?: collect($items)->pluck('catatan')->filter()->implode('; '),
+                    'can_edit'            => true,
+                ]);
+
+                foreach ($gpsItems as $idx => $item) {
+                    if (isset($item['gps_record_id'])) {
+                        \App\Models\GpsKendaraan::where('id', $item['gps_record_id'])
+                            ->update(['persetujuan' => 'Ditolak']);
+                    }
+                }
+
+                \DB::commit();
+                return response()->json([
+                    'success'  => true,
+                    'message'  => 'Semua item ditolak. Purchase Order ditolak.',
+                    'redirect' => route('purchase-order.index', ['status' => 'Ditolak']),
+                ]);
+            }
+
+            // Ada item yang diapprove → proses hanya approved items
+            $approvedGpsItems = array_values(
+                array_filter($gpsItems, fn($item, $idx) => in_array($idx, $approvedIdx), ARRAY_FILTER_USE_BOTH)
+            );
+
+            $nominalApproved = collect($approvedGpsItems)->sum(fn($i) => $i['biaya_sewa'] ?? 0);
+
+            $po->update([
+                'status'              => 'Disetujui',
+                'disetujui_oleh'      => auth()->id(),
+                'tanggal_persetujuan' => now(),
+                'catatan_approval'    => $catatan,
+                'total_harga'         => $nominalApproved,
+                'total_barang'        => count($approvedGpsItems),
+            ]);
+
+            // Buat Pembayaran hanya dari approved items
+            // Simpan item_decisions lengkap (approved + rejected) untuk ditampilkan di UI
+            $allGpsItemNames = [];
+            foreach ($gpsItems as $idx => $gpsItem) {
+                $gpsModel = isset($gpsItem['gps_id']) ? \App\Models\Gps::find($gpsItem['gps_id']) : null;
+                $allGpsItemNames[$idx] = [
+                    'nama_gps' => $gpsModel->nama_gps ?? '-',
+                    'type'     => $gpsItem['type'] ?? '-',
+                    'action'   => in_array($idx, $approvedIdx) ? 'approved' : 'rejected',
+                    'catatan'  => $items[$idx]['catatan'] ?? null,
+                ];
+            }
+
+            $approvedSourceData = array_merge($sourceData, [
+                'gps_items'      => $approvedGpsItems,
+                'item_decisions' => array_values($allGpsItemNames),
+            ]);
+            $pembayaran = $this->approvalService->approveWithItems($po, $approvedSourceData, $perItemBukti, $catatan, $hasRejected);
+
+            // Update status GpsKendaraan yang ditolak
+            foreach ($rejectedIdx as $idx) {
+                $item = $gpsItems[$idx] ?? null;
+                if ($item && isset($item['gps_record_id'])) {
+                    \App\Models\GpsKendaraan::where('id', $item['gps_record_id'])
+                        ->update(['persetujuan' => 'Ditolak']);
+                }
+            }
+
+            \DB::commit();
+
+            $msg = "PO {$po->po_id}: " . count($approvedIdx) . " item disetujui";
+            if ($hasRejected) $msg .= ", " . count($rejectedIdx) . " item ditolak";
+            $msg .= ". Pembayaran {$pembayaran->no_pr} otomatis dibuat.";
+
+            return response()->json([
+                'success'  => true,
+                'message'  => $msg,
+                'redirect' => route('purchase-order.index', ['status' => 'Disetujui']),
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Error approveItems PO #' . $id . ': ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+        }
     }
 
     public function store(Request $request, PengeluaranInterceptorService $interceptor)
@@ -46,7 +378,7 @@ class PurchaseOrderController extends Controller
             'informasi'      => 'nullable|string',
         ]);
 
-        // Resubmit dari penolakan
+        // Resubmit dari penolakan (untuk manual PO entry, not GPS)
         if ($request->filled('edit_pembayaran')) {
             $pembayaranId = $request->input('edit_pembayaran');
             $interceptor->resubmitToPembayaran($pembayaranId, $request, 'purchase_order');
@@ -56,7 +388,7 @@ class PurchaseOrderController extends Controller
                 ->with('success', 'Pengajuan Purchase Order berhasil diajukan ulang. Menunggu approval.');
         }
 
-        // Intercept & kirim ke Pembayaran
+        // Intercept & kirim ke Pembayaran (legacy flow for manual PO)
         try {
             $interceptedData = $interceptor->intercept($request, 'purchase_order');
             $pembayaran      = $interceptor->saveToPembayaran($interceptedData, 'purchase_order');
@@ -166,33 +498,55 @@ class PurchaseOrderController extends Controller
 
     public function destroy(PurchaseOrder $purchaseOrder)
     {
-        // Hapus jurnal terkait jika PO berstatus Closed
-        if ($purchaseOrder->status_po === 'Closed') {
-            DB::transaction(function () use ($purchaseOrder) {
-                $kodeJurnal = 'PO-' . $purchaseOrder->id;
+        // Hanya PO dengan status Pending atau Ditolak yang bisa dihapus
+        if (!in_array($purchaseOrder->status, ['Pending', 'Ditolak'])) {
+            return back()->with('error', 'Hanya Purchase Order dengan status Pending atau Ditolak yang dapat dihapus.');
+        }
 
-                $keuangan = Keuangan::where('reference', $kodeJurnal)->first();
-                if ($keuangan) {
-                    $keuanganId = $keuangan->id;
-                    $keuangan->delete();
-                    PaymentsController::recalculateKeuanganSaldo($keuanganId);
+        try {
+            DB::transaction(function () use ($purchaseOrder) {
+                // Delete temp files jika ada
+                if (!empty($purchaseOrder->source_data['temp_files'])) {
+                    $tempDir = "purchase_order/temp/{$purchaseOrder->id}";
+                    \Storage::disk('public')->deleteDirectory($tempDir);
                 }
 
-                $jurnal = Bukubesar::where('kode_jurnal', $kodeJurnal)->first();
-                if ($jurnal) {
-                    $jurnalId = $jurnal->id;
-                    $jurnal->delete();
-                    PaymentsController::recalculateBukubesarSaldo($jurnalId);
+                // Delete GPS records yang linked (jika ada) dengan persetujuan Pending
+                if ($purchaseOrder->source_type === 'gps' && !empty($purchaseOrder->source_data['gps_record_ids'])) {
+                    \App\Models\GpsKendaraan::whereIn('id', $purchaseOrder->source_data['gps_record_ids'])
+                        ->where('persetujuan', 'Pending')
+                        ->delete();
+                }
+
+                // Hapus jurnal terkait jika PO berstatus Closed (legacy)
+                if ($purchaseOrder->status_po === 'Closed') {
+                    $kodeJurnal = 'PO-' . $purchaseOrder->id;
+
+                    $keuangan = Keuangan::where('reference', $kodeJurnal)->first();
+                    if ($keuangan) {
+                        $keuanganId = $keuangan->id;
+                        $keuangan->delete();
+                        PaymentsController::recalculateKeuanganSaldo($keuanganId);
+                    }
+
+                    $jurnal = Bukubesar::where('kode_jurnal', $kodeJurnal)->first();
+                    if ($jurnal) {
+                        $jurnalId = $jurnal->id;
+                        $jurnal->delete();
+                        PaymentsController::recalculateBukubesarSaldo($jurnalId);
+                    }
                 }
 
                 $purchaseOrder->delete();
             });
-        } else {
-            $purchaseOrder->delete();
-        }
 
-        return redirect()->route('purchase-order.index')
-            ->with('success', 'Purchase Order berhasil dihapus.');
+            return redirect()->route('purchase-order.index')
+                ->with('success', 'Purchase Order berhasil dihapus.');
+
+        } catch (\Exception $e) {
+            \Log::error('Error deleting PO #' . $purchaseOrder->id . ': ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
     }
 
     private function validateData(Request $request): array

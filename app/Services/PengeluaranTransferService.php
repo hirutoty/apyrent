@@ -508,17 +508,25 @@ class PengeluaranTransferService
                 }
             }
 
-            // Coba update record Pending yang sudah ada (dibuat saat store())
-            $existing = GpsKendaraan::where('pembayaran_id', $pembayaran->id)
+            // Coba update record Pending yang sudah ada (dibuat saat store() via PO atau langsung)
+            // Case 1: GPS dari PO flow (pembayaran_id null, persetujuan Pending)
+            // Case 2: GPS dari langsung ke Pembayaran (pembayaran_id sudah terisi)
+            $existing = GpsKendaraan::where('kendaraan_id', $kendaraanId)
                 ->where('gps_id', $item['gps_id'] ?? null)
                 ->where('type', $item['type'] ?? null)
-                ->where(function($q) {
-                    $q->where('persetujuan', 'Pending')
-                      ->orWhereNull('persetujuan');
+                ->where(function($q) use ($pembayaran) {
+                    // Try find by pembayaran_id first (old flow)
+                    $q->where('pembayaran_id', $pembayaran->id)
+                      // Or find by null pembayaran_id with Pending status (new PO flow)
+                      ->orWhere(function($sq) {
+                          $sq->whereNull('pembayaran_id')
+                             ->where('persetujuan', 'Pending');
+                      });
                 })
                 ->first();
 
             $updateData = [
+                'pembayaran_id' => $pembayaran->id, // Link to Pembayaran (important for PO flow)
                 'status_gps'    => $statusGps,
                 'tanggal_pasang'=> $tanggalBayar,
                 'tanggal_habis' => $tanggalHabis,
@@ -538,9 +546,9 @@ class PengeluaranTransferService
                 $existing->update($updateData);
                 $gpsRecord = $existing;
             } else {
-                // Fallback: buat baru jika record Pending tidak ditemukan
+                // Fallback: buat baru jika record Pending tidak ditemukan (shouldn't happen in normal flow)
+                \Log::warning("GPS record not found during transfer for kendaraan {$kendaraanId}, creating new record. This should not happen in normal flow.");
                 $gpsRecord = GpsKendaraan::create(array_merge($updateData, [
-                    'pembayaran_id' => $pembayaran->id,
                     'kendaraan_id'  => $kendaraanId,
                     'gps_id'        => $item['gps_id'] ?? null,
                     'type'          => $item['type'] ?? null,
@@ -566,17 +574,27 @@ class PengeluaranTransferService
                 $itemLampiran = $tempFiles['gps_items'][$origIdxForLamp]['lampiran'] ?? [];
             }
 
+            // Copy lampiran dari temp storage (jika belum ada attachments)
             foreach ($itemLampiran as $lampFile) {
                 if (empty($lampFile['path'])) continue;
-                $finalPath = $this->copyFileToPublic($lampFile['path'], 'gps/attachments', $pembayaran->id);
-                Attachment::create([
-                    'relation_type' => 'gps',
-                    'relation_id'   => $gpsRecord->id,
-                    'file_name'     => $lampFile['original_name'] ?? basename($lampFile['path']),
-                    'file_path'     => $finalPath,
-                    'file_type'     => $lampFile['extension'] ?? pathinfo($lampFile['path'], PATHINFO_EXTENSION),
-                    'file_size'     => $lampFile['size'] ?? null,
-                ]);
+                
+                // Check if attachment already exists (untuk avoid duplicate)
+                $attachmentExists = Attachment::where('relation_type', 'gps')
+                    ->where('relation_id', $gpsRecord->id)
+                    ->where('file_name', $lampFile['original_name'] ?? basename($lampFile['path']))
+                    ->exists();
+                
+                if (!$attachmentExists) {
+                    $finalPath = $this->copyFileToPublic($lampFile['path'], 'gps/attachments', $pembayaran->id);
+                    Attachment::create([
+                        'relation_type' => 'gps',
+                        'relation_id'   => $gpsRecord->id,
+                        'file_name'     => $lampFile['original_name'] ?? basename($lampFile['path']),
+                        'file_path'     => $finalPath,
+                        'file_type'     => $lampFile['extension'] ?? pathinfo($lampFile['path'], PATHINFO_EXTENSION),
+                        'file_size'     => $lampFile['size'] ?? null,
+                    ]);
+                }
             }
         }
 
