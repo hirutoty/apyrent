@@ -847,7 +847,19 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   // ── PURCHASE ───────────────────────────────────────────────
   Route::resource('requestfor-quotation', RequestforQuotationController::class)->except(['create', 'edit', 'show']);
-  Route::resource('purchase-order', PurchaseOrderController::class)->except(['create', 'edit', 'show']);
+  
+  // Purchase Order routes dengan approval actions
+  Route::prefix('purchase-order')->name('purchase-order.')->group(function () {
+      Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
+      Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
+      Route::get('/{id}/detail', [PurchaseOrderController::class, 'detail'])->name('detail');
+      Route::post('/{id}/approve', [PurchaseOrderController::class, 'approve'])->name('approve');
+      Route::post('/{id}/approve-items', [PurchaseOrderController::class, 'approveItems'])->name('approve-items');
+      Route::post('/{id}/reject', [PurchaseOrderController::class, 'reject'])->name('reject');
+      Route::put('/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('update');
+      Route::delete('/{purchaseOrder}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
+  });
+  
   Route::resource('vendor-pricelist', VendorPricelistController::class)->except(['create', 'edit', 'show']);
   Route::resource('approval-workflow', ApprovalWorkflowController::class)->except(['create', 'edit', 'show']);
   Route::resource('dropshipping', DropshippingController::class)->except(['create', 'edit', 'show']);

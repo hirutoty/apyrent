@@ -261,14 +261,40 @@
                                 <tbody>
                                 @foreach($items as $di => $d)
                                     @php
+                                        // Hitung approved/rejected dari approval history untuk GPS
+                                        $approvedCount = 0;
+                                        $rejectedCount = 0;
+                                        $isGpsPartial  = false;
+                                        if ($d->status === 'Disetujui Sebagian' && in_array($d->source_type, ['gps','gps_perpanjang'])) {
+                                            $approvedCount = $d->approvals->where('action','approved')->count();
+                                            $rejectedCount = $d->approvals->where('action','rejected')->count();
+                                            $isGpsPartial  = true;
+                                        }
+
+                                        // Status color: Disetujui Sebagian diperlakukan berbeda per tab
                                         $statusColor = match($d->status) {
-                                            'Disetujui'          => 'bg-green-100 text-green-600',
-                                            'Ditolak'            => 'bg-red-100 text-red-600',
+                                            'Disetujui'          => 'bg-green-100 text-green-700',
+                                            'Ditolak'            => 'bg-red-100 text-red-700',
                                             'Diajukan'           => 'bg-indigo-100 text-indigo-600',
                                             'Pending'            => 'bg-yellow-100 text-yellow-600',
-                                            'Disetujui Sebagian' => 'bg-teal-100 text-teal-700',
+                                            'Disetujui Sebagian' => $tab === 'Ditolak'
+                                                                        ? 'bg-red-100 text-red-700'
+                                                                        : 'bg-green-100 text-green-700',
                                             default              => 'bg-gray-100 text-gray-500',
                                         };
+                                        $statusIcon = match($d->status) {
+                                            'Disetujui'          => 'fa-check-circle',
+                                            'Ditolak'            => 'fa-times-circle',
+                                            'Diajukan'           => 'fa-paper-plane',
+                                            'Pending'            => 'fa-clock',
+                                            'Disetujui Sebagian' => $tab === 'Ditolak' ? 'fa-times-circle' : 'fa-check-circle',
+                                            default              => 'fa-circle',
+                                        };
+                                        $statusLabel = match($d->status) {
+                                            'Disetujui Sebagian' => $tab === 'Ditolak' ? 'Ditolak' : 'Disetujui',
+                                            default              => $d->status ?? '-',
+                                        };
+
                                         $rowUid = 'r'.$gIdx.'i'.$di;
                                         if ($d->items->count() > 0) {
                                             $itemCount = $d->items->count();
@@ -307,10 +333,28 @@
                                             @endif
                                         </td>
                                         <td class="px-3 py-3">
-                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
-                                                <i class="fa fa-boxes text-blue-400 text-[10px]"></i>
-                                                {{ $itemCount }} item{{ $itemCount > 1 ? 's' : '' }}
-                                            </span>
+                                            @if($isGpsPartial && !empty($d->source_data['item_decisions']))
+                                                <div class="flex flex-col gap-0.5">
+                                                    @foreach($d->source_data['item_decisions'] as $dec)
+                                                        <span class="inline-flex items-center gap-1 text-[11px]">
+                                                            @if($dec['action'] === 'approved')
+                                                                <i class="fa fa-check-circle text-green-500 text-[9px]"></i>
+                                                                <span class="text-gray-700">{{ $dec['nama_gps'] }}</span>
+                                                                <span class="text-gray-400">({{ $dec['type'] }})</span>
+                                                            @else
+                                                                <i class="fa fa-times-circle text-red-400 text-[9px]"></i>
+                                                                <span class="text-gray-400 line-through">{{ $dec['nama_gps'] }}</span>
+                                                                <span class="text-gray-300">({{ $dec['type'] }})</span>
+                                                            @endif
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
+                                                    <i class="fa fa-boxes text-blue-400 text-[10px]"></i>
+                                                    {{ $itemCount }} item{{ $itemCount > 1 ? 's' : '' }}
+                                                </span>
+                                            @endif
                                         </td>
                                         <td class="px-3 py-3 text-right">
                                             <span class="text-xs font-semibold text-emerald-600">
@@ -319,7 +363,7 @@
                                         </td>
                                         <td class="px-3 py-3">
                                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium {{ $statusColor }}">
-                                                <i class="fa fa-circle text-[6px]"></i> {{ $d->status ?? '-' }}
+                                                <i class="fa {{ $statusIcon }} text-[8px]"></i> {{ $statusLabel }}
                                             </span>
                                         </td>
                                         <td class="px-3 py-3" onclick="event.stopPropagation()">
@@ -333,16 +377,30 @@
                                                 @if($role === 'superadmin')
                                                     @if(in_array($d->status, ['Pending', 'Diajukan']))
                                                         @if($d->source_type)
-                                                            <button type="button"
-                                                                onclick="openSingleApproveModal({{ $d->id }}, '{{ $d->no_pr }}')"
-                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors">
-                                                                <i class="fa fa-check text-[10px]"></i> Approve
-                                                            </button>
-                                                            <button type="button"
-                                                                onclick="openSingleRejectModal({{ $d->id }}, '{{ $d->no_pr }}')"
-                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors">
-                                                                <i class="fa fa-times text-[10px]"></i> Reject
-                                                            </button>
+                                                            @if(in_array($d->source_type, ['gps', 'gps_perpanjang']))
+                                                                {{-- GPS: pakai approval modal dengan per-item approve/reject --}}
+                                                                <button type="button"
+                                                                    onclick="openApprovalModal({{ $d->id }})"
+                                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors">
+                                                                    <i class="fa fa-check text-[10px]"></i> Approve
+                                                                </button>
+                                                                <button type="button"
+                                                                    onclick="openRejectModal({{ $d->id }})"
+                                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors">
+                                                                    <i class="fa fa-times text-[10px]"></i> Reject
+                                                                </button>
+                                                            @else
+                                                                <button type="button"
+                                                                    onclick="openSingleApproveModal({{ $d->id }}, '{{ $d->no_pr }}')"
+                                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors">
+                                                                    <i class="fa fa-check text-[10px]"></i> Approve
+                                                                </button>
+                                                                <button type="button"
+                                                                    onclick="openSingleRejectModal({{ $d->id }}, '{{ $d->no_pr }}')"
+                                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors">
+                                                                    <i class="fa fa-times text-[10px]"></i> Reject
+                                                                </button>
+                                                            @endif
                                                         @else
                                                             @if($d->tipe_pembayaran === 'service')
                                                                 <button type="button"
@@ -494,6 +552,62 @@
                                                         @if(isset($sd['tanggal_stnk']))<div><p class="text-[10px] text-gray-400 uppercase">Tgl STNK</p><p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_stnk'])->format('d M Y') }}</p></div>@endif
                                                         <div><p class="text-[10px] text-gray-400 uppercase">Biaya</p><p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya']??$d->nominal??0,0,',','.') }}</p></div>
                                                     </div>
+                                                    {{-- GPS --}}
+                                                    @elseif(in_array($d->source_type, ['gps', 'gps_perpanjang']))
+                                                    @php $gpsItems = $sd['gps_items'] ?? []; @endphp
+                                                    @if(count($gpsItems) > 0)
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="bg-green-50/60 border-y border-green-100">
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">#</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Type GPS</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Tgl Bayar</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Berlaku s/d</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
+                                                                <th class="text-right px-4 py-2 font-semibold text-gray-500">Biaya Sewa</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        @foreach($gpsItems as $gi => $gitem)
+                                                            @php $gps = isset($gitem['gps_id']) ? \App\Models\Gps::find($gitem['gps_id']) : null; @endphp
+                                                            <tr class="border-t border-gray-50 {{ $gi%2===0 ? 'bg-white' : 'bg-gray-50/40' }}">
+                                                                <td class="px-4 py-2 text-gray-400">{{ $gi+1 }}</td>
+                                                                <td class="px-4 py-2 font-medium text-gray-700">
+                                                                    @if($gps)
+                                                                        <span class="font-semibold">{{ $gps->nama_gps ?? '-' }}</span>
+                                                                        <span class="text-gray-400 ml-1">({{ $gitem['type'] ?? '-' }})</span>
+                                                                    @else
+                                                                        {{ $gitem['type'] ?? '-' }}
+                                                                    @endif
+                                                                </td>
+                                                                <td class="px-4 py-2 text-gray-600">
+                                                                    {{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}
+                                                                </td>
+                                                                <td class="px-4 py-2 text-gray-600">
+                                                                    {{ isset($sd['tanggal_habis']) ? \Carbon\Carbon::parse($sd['tanggal_habis'])->format('d M Y') : '-' }}
+                                                                </td>
+                                                                <td class="px-4 py-2 text-gray-600">{{ $gitem['nama_bank'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 font-mono text-gray-600">{{ $gitem['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-right font-semibold text-emerald-600">
+                                                                    Rp {{ number_format($gitem['biaya_sewa'] ?? 0, 0, ',', '.') }}
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
+                                                            <tr class="border-t-2 border-gray-200 bg-gray-50">
+                                                                <td colspan="6" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
+                                                                <td class="px-4 py-2 text-right text-sm font-bold text-emerald-600">
+                                                                    Rp {{ number_format(collect($gpsItems)->sum(fn($g) => $g['biaya_sewa'] ?? 0), 0, ',', '.') }}
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                    @else
+                                                    <div class="px-4 py-3 grid grid-cols-2 gap-3">
+                                                        <div><p class="text-[10px] text-gray-400 uppercase">Alasan</p><p class="text-xs text-gray-600">{{ $d->alasan_permintaan ?: '-' }}</p></div>
+                                                        <div><p class="text-[10px] text-gray-400 uppercase">Total</p><p class="text-xs font-bold text-emerald-600">Rp {{ number_format($d->nominal??0,0,',','.') }}</p></div>
+                                                    </div>
+                                                    @endif
                                                     {{-- Fallback --}}
                                                     @else
                                                     <div class="px-4 py-3 grid grid-cols-2 gap-3">

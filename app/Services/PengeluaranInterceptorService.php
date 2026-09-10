@@ -83,122 +83,6 @@ class PengeluaranInterceptorService
     }
 
     /**
-     * Upload temporary files untuk pengeluaran yang menunggu approval
-     *
-     * @param Request $request
-     * @param int $pembayaranId
-     * @return array Array of file metadata
-     */
-    public function uploadTemporaryFiles(Request $request, int $pembayaranId): array
-    {
-        $uploadedFiles = [];
-        $timestamp = time();
-        
-        // Directory untuk temp files
-        $tempDir = "pembayaran/temp/{$pembayaranId}";
-        
-        // Upload bukti files
-        if ($request->hasFile('bukti')) {
-            $files = is_array($request->file('bukti')) 
-                ? $request->file('bukti') 
-                : [$request->file('bukti')];
-            
-            foreach ($files as $index => $file) {
-                $originalName = $file->getClientOriginalName();
-                $extension = $file->getClientOriginalExtension();
-                $storedName = "{$timestamp}_{$index}_{$originalName}";
-                
-                $path = $file->storeAs($tempDir . '/bukti', $storedName, 'public');
-                
-                $uploadedFiles['bukti'][] = [
-                    'original_name' => $originalName,
-                    'stored_name' => $storedName,
-                    'path' => $path,
-                    'full_path' => storage_path('app/public/' . $path),
-                    'size' => $file->getSize(),
-                    'extension' => $extension,
-                ];
-            }
-        }
-        
-        // Upload attachment files (opsional)
-        $attachmentFields = ['bukti_attachment', 'attachment', 'attachments'];
-        
-        foreach ($attachmentFields as $field) {
-            if ($request->hasFile($field)) {
-                $files = is_array($request->file($field)) 
-                    ? $request->file($field) 
-                    : [$request->file($field)];
-                
-                foreach ($files as $index => $file) {
-                    $originalName = $file->getClientOriginalName();
-                    $extension = $file->getClientOriginalExtension();
-                    $storedName = "{$timestamp}_{$index}_{$originalName}";
-                    
-                    $path = $file->storeAs($tempDir . '/attachments', $storedName, 'public');
-                    
-                    $uploadedFiles['attachments'][] = [
-                        'original_name' => $originalName,
-                        'stored_name' => $storedName,
-                        'path' => $path,
-                        'full_path' => storage_path('app/public/' . $path),
-                        'size' => $file->getSize(),
-                        'extension' => $extension,
-                    ];
-                }
-            }
-        }
-
-        // Upload gps_items per-item bukti_bayar (GPS multi-item form)
-        $gpsItemFiles = $request->file('gps_items');
-        if (is_array($gpsItemFiles)) {
-            foreach ($gpsItemFiles as $idx => $gpsItem) {
-                if (!empty($gpsItem['bukti_bayar']) && $gpsItem['bukti_bayar']->isValid()) {
-                    $file = $gpsItem['bukti_bayar'];
-                    $originalName = $file->getClientOriginalName();
-                    $extension    = $file->getClientOriginalExtension();
-                    $storedName   = "{$timestamp}_{$idx}_{$originalName}";
-
-                    $path = $file->storeAs($tempDir . '/gps_items/' . $idx, $storedName, 'public');
-
-                    $uploadedFiles['gps_items'][$idx]['bukti_bayar'] = [
-                        'original_name' => $originalName,
-                        'stored_name'   => $storedName,
-                        'path'          => $path,
-                        'full_path'     => storage_path('app/public/' . $path),
-                        'size'          => $file->getSize(),
-                        'extension'     => $extension,
-                    ];
-                }
-
-                // Lampiran per item GPS (opsional)
-                if (!empty($gpsItem['lampiran']) && is_array($gpsItem['lampiran'])) {
-                    foreach ($gpsItem['lampiran'] as $li => $lampiranFile) {
-                        if ($lampiranFile && $lampiranFile->isValid()) {
-                            $originalName = $lampiranFile->getClientOriginalName();
-                            $extension    = $lampiranFile->getClientOriginalExtension();
-                            $storedName   = "{$timestamp}_{$idx}_{$li}_{$originalName}";
-
-                            $path = $lampiranFile->storeAs($tempDir . '/gps_items/' . $idx . '/lampiran', $storedName, 'public');
-
-                            $uploadedFiles['gps_items'][$idx]['lampiran'][] = [
-                                'original_name' => $originalName,
-                                'stored_name'   => $storedName,
-                                'path'          => $path,
-                                'full_path'     => storage_path('app/public/' . $path),
-                                'size'          => $lampiranFile->getSize(),
-                                'extension'     => $extension,
-                            ];
-                        }
-                    }
-                }
-            }
-        }
-        
-        return $uploadedFiles;
-    }
-
-    /**
      * Generate No PR unik untuk pengeluaran
      *
      * @param string $sourceType
@@ -359,6 +243,164 @@ class PengeluaranInterceptorService
             DB::rollBack();
             throw $e;
         }
+    }
+
+    /**
+     * Save data ke PurchaseOrder table (untuk tambah baru yang lewat PO)
+     *
+     * @param array $data Data hasil intercept
+     * @param string $sourceType
+     * @return \App\Models\PurchaseOrder
+     */
+    public function saveToPurchaseOrder(array $data, string $sourceType): \App\Models\PurchaseOrder
+    {
+        DB::beginTransaction();
+        
+        try {
+            // Extract vendor (opsional, default jika kosong)
+            $vendor = $data['source_data']['vendor'] ?? 'Vendor ' . ucfirst(str_replace('_', ' ', $sourceType));
+            
+            // Extract total items count
+            $totalItems = $this->extractTotalItems($sourceType, $data['source_data']);
+            
+            // Create Purchase Order
+            $po = \App\Models\PurchaseOrder::create([
+                'tanggal_po' => now()->toDateString(),
+                'vendor' => $vendor,
+                'terkait_rfq' => $data['source_data']['terkait_rfq'] ?? null,
+                'total_barang' => $totalItems,
+                'total_harga' => (int) $data['nominal'],
+                'status_po' => 'Pending', // Legacy field, not used in new flow
+                'catatan' => $data['informasi'] ?? $data['source_data']['keterangan'] ?? null,
+                // Approval workflow fields
+                'source_type' => $sourceType,
+                'source_data' => $data['source_data'],
+                'status' => 'Pending',
+                'can_edit' => false,
+                'terakhir_diajukan' => now(),
+            ]);
+            
+            DB::commit();
+            
+            return $po;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Extract total items count dari data berdasarkan source type
+     */
+    protected function extractTotalItems(string $sourceType, array $data): int
+    {
+        return match($sourceType) {
+            'gps' => count($data['gps_items'] ?? []),
+            'service_part' => count($data['parts'] ?? []),
+            default => 1,
+        };
+    }
+
+    /**
+     * Upload temporary files untuk pengeluaran yang menunggu approval
+     * Support both Pembayaran and PurchaseOrder
+     *
+     * @param Request $request
+     * @param int $entityId
+     * @param string $entityType 'pembayaran' or 'purchase_order'
+     * @return array Array of file metadata
+     */
+    public function uploadTemporaryFiles(Request $request, int $entityId, string $entityType = 'pembayaran'): array
+    {
+        $uploadedFiles = [];
+        $timestamp = time();
+        
+        // Directory untuk temp files
+        $tempDir = "{$entityType}/temp/{$entityId}";
+        
+        // Upload bukti files
+        if ($request->hasFile('bukti')) {
+            $files = is_array($request->file('bukti')) 
+                ? $request->file('bukti') 
+                : [$request->file('bukti')];
+            
+            foreach ($files as $index => $file) {
+                $originalName = $file->getClientOriginalName();
+                $extension = $file->getClientOriginalExtension();
+                $storedName = "{$timestamp}_{$index}_{$originalName}";
+                
+                $path = $file->storeAs($tempDir . '/bukti', $storedName, 'public');
+                
+                $uploadedFiles['bukti'][] = [
+                    'original_name' => $originalName,
+                    'stored_name' => $storedName,
+                    'path' => $path,
+                    'full_path' => storage_path('app/public/' . $path),
+                    'size' => $file->getSize(),
+                    'extension' => $extension,
+                ];
+            }
+        }
+        
+        // Upload attachment files (opsional)
+        $attachmentFields = ['bukti_attachment', 'attachment', 'attachments', 'lampiran'];
+        
+        foreach ($attachmentFields as $field) {
+            if ($request->hasFile($field)) {
+                $files = is_array($request->file($field)) 
+                    ? $request->file($field) 
+                    : [$request->file($field)];
+                
+                foreach ($files as $index => $file) {
+                    if (!$file->isValid()) continue;
+                    
+                    $originalName = $file->getClientOriginalName();
+                    $extension = $file->getClientOriginalExtension();
+                    $storedName = "{$timestamp}_{$index}_{$originalName}";
+                    
+                    $path = $file->storeAs($tempDir . '/attachments', $storedName, 'public');
+                    
+                    $uploadedFiles['attachments'][] = [
+                        'original_name' => $originalName,
+                        'stored_name' => $storedName,
+                        'path' => $path,
+                        'full_path' => storage_path('app/public/' . $path),
+                        'size' => $file->getSize(),
+                        'extension' => $extension,
+                    ];
+                }
+            }
+        }
+        
+        // Upload gps_items per-item lampiran (GPS multi-item form)
+        $gpsItemFiles = $request->file('gps_items');
+        if (is_array($gpsItemFiles)) {
+            foreach ($gpsItemFiles as $idx => $gpsItem) {
+                // Lampiran per item GPS
+                if (!empty($gpsItem['lampiran']) && is_array($gpsItem['lampiran'])) {
+                    foreach ($gpsItem['lampiran'] as $li => $lampiranFile) {
+                        if ($lampiranFile && $lampiranFile->isValid()) {
+                            $originalName = $lampiranFile->getClientOriginalName();
+                            $extension    = $lampiranFile->getClientOriginalExtension();
+                            $storedName   = "{$timestamp}_{$idx}_{$li}_{$originalName}";
+
+                            $path = $lampiranFile->storeAs($tempDir . '/gps_items/' . $idx . '/lampiran', $storedName, 'public');
+
+                            $uploadedFiles['gps_items'][$idx]['lampiran'][] = [
+                                'original_name' => $originalName,
+                                'stored_name'   => $storedName,
+                                'path'          => $path,
+                                'full_path'     => storage_path('app/public/' . $path),
+                                'size'          => $lampiranFile->getSize(),
+                                'extension'     => $extension,
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+        
+        return $uploadedFiles;
     }
 
     /**
