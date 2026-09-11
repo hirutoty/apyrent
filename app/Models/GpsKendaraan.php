@@ -52,4 +52,9 @@ class GpsKendaraan extends Model
         return $this->hasMany(Attachment::class, 'relation_id')
             ->where('relation_type', 'gps');
     }
+
+    public function pembayaran()
+    {
+        return $this->belongsTo(\App\Models\Pembayaran::class, 'pembayaran_id');
+    }
 }

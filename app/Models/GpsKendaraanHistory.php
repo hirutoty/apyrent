@@ -24,6 +24,7 @@ class GpsKendaraanHistory extends Model
         'durasi_bulan',
         'status_sewa',
         'bukti_bayar',
+        'tanggal_bayar',
         'diperpanjang_pada',
     ];
 

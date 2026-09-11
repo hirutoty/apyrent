@@ -211,6 +211,12 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::post('gps-kendaraan/{id}/ajukan-ulang', [GpsKendaraanController::class, 'ajukanUlang'])
     ->name('gps-kendaraan.ajukan-ulang');
 
+  Route::post('gps-kendaraan/{id}/update-biaya', [GpsKendaraanController::class, 'updateBiaya'])
+    ->name('gps-kendaraan.update-biaya');
+
+  Route::post('gps-kendaraan/perpanjang/{pembayaranId}/ajukan-ulang', [GpsKendaraanController::class, 'ajukanUlangPerpanjang'])
+    ->name('gps-kendaraan.perpanjang.ajukan-ulang');
+
   Route::get('gps-kendaraan/{id}/attachments', [GpsKendaraanController::class, 'getAttachments'])
     ->name('gps-kendaraan.attachments');
 

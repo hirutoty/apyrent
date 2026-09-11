@@ -1101,6 +1101,56 @@ class PembayaranController extends Controller
                         $data['gps'] = \App\Models\Gps::find($sourceData['gps_id'] ?? null);
                     }
                     break;
+
+                case 'gps_perpanjang':
+                    // kendaraan_id mungkin tidak ada di source_data perpanjangan
+                    // ambil dari existing GPS record jika perlu
+                    $existingGpsRecord = \App\Models\GpsKendaraan::find($sourceData['existing_record_id'] ?? null);
+                    $kendaraanId = $sourceData['kendaraan_id']
+                        ?? $existingGpsRecord?->kendaraan_id
+                        ?? null;
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($kendaraanId);
+
+                    $tempFiles = $sourceData['temp_files'] ?? [];
+                    $gpsItems  = $sourceData['gps_items'] ?? [];
+
+                    if (!empty($gpsItems)) {
+                        $data['gps_items'] = collect($gpsItems)->map(function ($item, $idx) use ($tempFiles) {
+                            $gpsModel    = \App\Models\Gps::find($item['gps_id'] ?? null);
+                            $buktiBayar  = $tempFiles['gps_items'][$idx]['bukti_bayar'] ?? null;
+                            $lampiranArr = $tempFiles['gps_items'][$idx]['lampiran'] ?? [];
+                            return [
+                                'gps_id'           => $item['gps_id'] ?? null,
+                                'gps_kendaraan_id' => $item['gps_kendaraan_id'] ?? null,
+                                'nama_gps'         => $gpsModel->nama_gps ?? '-',
+                                'type'             => $item['type'] ?? '-',
+                                'biaya_sewa'       => $item['biaya_sewa'] ?? 0,
+                                'nama_bank'        => $item['nama_bank'] ?? null,
+                                'no_rekening'      => $item['no_rekening'] ?? null,
+                                'nama_pemilik'     => $item['nama_pemilik'] ?? null,
+                                'bukti_bayar'      => $buktiBayar,
+                                'lampiran'         => $lampiranArr,
+                            ];
+                        })->values()->toArray();
+                    } else {
+                        // Fallback: single GPS item dari existing_record_id
+                        if ($existingGpsRecord) {
+                            $existingGpsRecord->load('gps');
+                            $data['gps_items'] = [[
+                                'gps_id'           => $existingGpsRecord->gps_id,
+                                'gps_kendaraan_id' => $existingGpsRecord->id,
+                                'nama_gps'         => $existingGpsRecord->gps->nama_gps ?? '-',
+                                'type'             => $existingGpsRecord->type,
+                                'biaya_sewa'       => $sourceData['biaya_sewa'] ?? $existingGpsRecord->biaya_sewa,
+                                'nama_bank'        => $existingGpsRecord->nama_bank,
+                                'no_rekening'      => $existingGpsRecord->no_rekening,
+                                'nama_pemilik'     => $existingGpsRecord->nama_pemilik,
+                                'bukti_bayar'      => null,
+                                'lampiran'         => [],
+                            ]];
+                        }
+                    }
+                    break;
                     
                 case 'kir':
                     $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
@@ -1244,11 +1294,27 @@ class PembayaranController extends Controller
             // Sync persetujuan ke tabel sumber jika ada existing_record_id
             $this->syncPersetujuanToSource($pembayaran, 'Ditolak');
 
-            // Untuk GPS: update semua record yang terkait pembayaran ini ke 'Ditolak'
-            if (in_array($pembayaran->source_type, ['gps', 'gps_perpanjang'])) {
+            // Untuk GPS (tambah baru): update semua record yang terkait pembayaran ini ke 'Ditolak'
+            if ($pembayaran->source_type === 'gps') {
                 \App\Models\GpsKendaraan::where('pembayaran_id', $pembayaran->id)
                     ->where('persetujuan', 'Diajukan ke Pembayaran')
                     ->update(['persetujuan' => 'Ditolak']);
+            }
+
+            // Untuk GPS perpanjang: update via gps_kendaraan_id dari source_data
+            if ($pembayaran->source_type === 'gps_perpanjang') {
+                $sourceData = $pembayaran->source_data ?? [];
+                $gpsItems   = $sourceData['gps_items'] ?? [];
+                foreach ($gpsItems as $item) {
+                    $gpsKendaraanId = $item['gps_kendaraan_id'] ?? null;
+                    if ($gpsKendaraanId) {
+                        \App\Models\GpsKendaraan::where('id', $gpsKendaraanId)
+                            ->update([
+                                'persetujuan' => 'Ditolak',
+                                'keterangan'  => $request->catatan,
+                            ]);
+                    }
+                }
             }
             
             DB::commit();
