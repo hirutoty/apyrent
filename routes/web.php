@@ -208,6 +208,12 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->middleware('throttle:5,1')
     ->name('gps-kendaraan.perpanjang');
 
+  Route::post('gps-kendaraan/{id}/ajukan-ulang', [GpsKendaraanController::class, 'ajukanUlang'])
+    ->name('gps-kendaraan.ajukan-ulang');
+
+  Route::get('gps-kendaraan/{id}/attachments', [GpsKendaraanController::class, 'getAttachments'])
+    ->name('gps-kendaraan.attachments');
+
   Route::resource('gps-kendaraan-history', GpsKendaraanHistoryController::class)
     ->only('index');
   Route::delete('/admin/gpskendaraan/pajak/{id}', [GpsKendaraanHistoryController::class, 'destroy'])
@@ -856,6 +862,7 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       Route::post('/{id}/approve', [PurchaseOrderController::class, 'approve'])->name('approve');
       Route::post('/{id}/approve-items', [PurchaseOrderController::class, 'approveItems'])->name('approve-items');
       Route::post('/{id}/reject', [PurchaseOrderController::class, 'reject'])->name('reject');
+      Route::post('/{id}/resubmit', [PurchaseOrderController::class, 'resubmit'])->name('resubmit');
       Route::put('/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('update');
       Route::delete('/{purchaseOrder}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
   });

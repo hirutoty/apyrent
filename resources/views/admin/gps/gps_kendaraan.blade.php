@@ -52,16 +52,16 @@
                 </div>
             </div>
 
-            {{-- GPS Nonaktif --}}
+            {{-- GPS Menunggu Pembayaran (sudah disetujui PO, belum disetujui Pembayaran) --}}
             <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-slate-500">GPS Nonaktif</p>
-                        <h3 class="text-3xl font-bold text-red-600 mt-2">
-                            {{ $data->where('status_gps', 'nonaktif')->count() }}</h3>
+                        <p class="text-sm text-slate-500">Menunggu Pembayaran</p>
+                        <h3 class="text-3xl font-bold text-blue-600 mt-2">
+                            {{ $data->where('persetujuan', 'Diajukan ke Pembayaran')->count() }}</h3>
                     </div>
-                    <div class="w-14 h-14 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center">
-                        <i class="fa-solid fa-circle-xmark text-2xl"></i>
+                    <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                        <i class="fa-solid fa-paper-plane text-2xl"></i>
                     </div>
                 </div>
             </div>
@@ -334,10 +334,17 @@
                                         <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                                             <i class="fa-solid fa-circle-check text-[10px]"></i> Disetujui
                                         </span>
-                                    @elseif($d->persetujuan === 'Ditolak')
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                            <i class="fa-solid fa-circle-xmark text-[10px]"></i> Ditolak
+                                    @elseif($d->persetujuan === 'Diajukan ke Pembayaran')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                                            <i class="fa-solid fa-paper-plane text-[10px]"></i> Diajukan ke Pembayaran
                                         </span>
+                                    @elseif($d->persetujuan === 'Ditolak')
+                                        <div class="flex flex-col gap-1">
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 w-fit">
+                                                <i class="fa-solid fa-circle-xmark text-[10px]"></i> Ditolak di Pembayaran
+                                            </span>
+                                            
+                                        </div>
                                     @elseif($d->persetujuan === 'Pending')
                                         <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
                                             <i class="fa-solid fa-clock text-[10px]"></i> Pending
@@ -350,6 +357,15 @@
                                 {{-- Aksi --}}
                                 <td class="px-5 py-4">
                                     <div class="flex items-center justify-center gap-2">
+
+                                        {{-- Ajukan Ulang: hanya untuk GPS Ditolak di Pembayaran --}}
+                                        @if($d->persetujuan === 'Ditolak' && $d->pembayaran_id)
+                                        <button type="button"
+                                            onclick="openAjukanUlangModal({{ $d->id }}, '{{ $d->kendaraan->nopol ?? '-' }}', '{{ $d->kendaraan->merk ?? '-' }}', '{{ $d->gps->nama_gps ?? '-' }}', '{{ $d->type }}')"
+                                            class="bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-2 rounded-lg text-xs font-medium transition inline-flex items-center gap-1">
+                                            <i class="fa-solid fa-rotate-right text-xs"></i> Ajukan Ulang
+                                        </button>
+                                        @endif
 
                                         {{-- Perpanjang: hanya tampil jika sudah dalam batas reminder --}}
                                         @if ($sisaHari <= $reminder)
@@ -1360,8 +1376,154 @@
 
         // ── EXPAND ROW GPS (deprecated) ─────────────────────────────────────
         function toggleGpsRow(id, rowEl) { /* replaced by openDetailModal */ }
+
+        // ── AJUKAN ULANG MODAL ───────────────────────────────────────────────
+        function openAjukanUlangModal(gpsId, nopol, merk, namaGps, type) {
+            const modal = document.getElementById('modalAjukanUlang');
+            const form  = document.getElementById('formAjukanUlang');
+
+            // Set subtitle
+            document.getElementById('ajukanUlangSubtitle').textContent =
+                nopol + ' — ' + merk + ' | ' + namaGps + ' (' + type + ')';
+
+            // Set form action
+            form.action = '/admin/gps-kendaraan/' + gpsId + '/ajukan-ulang';
+
+            // Load alasan penolakan dari keterangan GPS (via detail API)
+            document.getElementById('ajukanUlangAlasan').textContent = 'Memuat...';
+            document.getElementById('ajukanUlangLampiranLama').innerHTML = '<span class="italic">Memuat...</span>';
+
+            fetch('/admin/gps-kendaraan/' + gpsId + '/detail', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(function(data) {
+                if (!data.success) return;
+                const rec = data.record;
+
+                // Alasan ditolak
+                document.getElementById('ajukanUlangAlasan').textContent =
+                    rec.keterangan || 'Tidak ada catatan';
+
+                // Lampiran yang sudah ada
+                const container = document.getElementById('ajukanUlangLampiranLama');
+                // Lampiran dari histories / attachments sudah tidak dikembalikan via detail API
+                // Gunakan AJAX ke endpoint attachments
+                fetch('/admin/gps-kendaraan/' + gpsId + '/attachments', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(function(attData) {
+                    if (!attData.success || !attData.attachments.length) {
+                        container.innerHTML = '<span class="italic text-gray-400">Belum ada lampiran</span>';
+                        return;
+                    }
+                    container.innerHTML = attData.attachments.map(function(att) {
+                        const ext = (att.file_type || '').toLowerCase();
+                        const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
+                        const icon = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                        return '<a href="' + att.url + '" target="_blank"'
+                            + ' class="flex items-center gap-1.5 py-1 text-gray-600 hover:text-blue-600">'
+                            + '<i class="fa-solid ' + icon + ' text-[10px]"></i>'
+                            + '<span class="truncate max-w-[280px]">' + att.file_name + '</span>'
+                            + '</a>';
+                    }).join('');
+                })
+                .catch(function() {
+                    container.innerHTML = '<span class="italic text-gray-400">Gagal memuat lampiran</span>';
+                });
+            })
+            .catch(function() {
+                document.getElementById('ajukanUlangAlasan').textContent = 'Gagal memuat data';
+            });
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeAjukanUlangModal() {
+            const modal = document.getElementById('modalAjukanUlang');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.getElementById('formAjukanUlang').reset();
+        }
+
+        document.getElementById('modalAjukanUlang')?.addEventListener('click', function(e) {
+            if (e.target === this) closeAjukanUlangModal();
+        });
     </script>
 
 @include('admin.partials.detail-modal')
+
+{{-- MODAL: AJUKAN ULANG GPS (dari Pembayaran Ditolak) --}}
+<div id="modalAjukanUlang" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">Ajukan Ulang GPS</h3>
+                <p class="text-sm text-gray-500 mt-0.5" id="ajukanUlangSubtitle">–</p>
+            </div>
+            <button onclick="closeAjukanUlangModal()"
+                class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form id="formAjukanUlang" method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto">
+            @csrf
+            <div class="px-6 py-4 space-y-4">
+
+                {{-- Info penolakan --}}
+                <div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm">
+                    <p class="text-xs font-semibold text-red-600 mb-1"><i class="fa-solid fa-circle-xmark mr-1"></i> Alasan Penolakan Sebelumnya</p>
+                    <p class="text-red-700" id="ajukanUlangAlasan">–</p>
+                </div>
+
+                {{-- Lampiran yang sudah ada --}}
+                <div>
+                    <p class="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
+                        <i class="fa-solid fa-paperclip mr-1 text-gray-400"></i> Lampiran Saat Ini
+                    </p>
+                    <div id="ajukanUlangLampiranLama" class="space-y-1.5 text-xs text-gray-500">
+                        <span class="italic">Memuat...</span>
+                    </div>
+                </div>
+
+                {{-- Upload lampiran baru --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        <i class="fa-solid fa-plus mr-1 text-amber-500"></i> Tambah Lampiran Baru
+                        <span class="text-gray-400 font-normal">(opsional, akan ditambahkan)</span>
+                    </label>
+                    <input type="file" name="lampiran[]" multiple
+                        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600
+                            file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0
+                            file:text-xs file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+                    <p class="text-[11px] text-gray-400 mt-1">Lampiran lama tetap dipertahankan. File baru ditambahkan di atasnya.</p>
+                </div>
+
+                {{-- Catatan --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan <span class="text-gray-400 font-normal">(opsional)</span></label>
+                    <textarea name="catatan" rows="2"
+                        placeholder="Tambahkan keterangan jika diperlukan..."
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></textarea>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
+                <button type="button" onclick="closeAjukanUlangModal()"
+                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50">
+                    Batal
+                </button>
+                <button type="submit"
+                    class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl py-2.5 transition">
+                    <i class="fa-solid fa-paper-plane"></i> Ajukan Ulang
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 @endsection

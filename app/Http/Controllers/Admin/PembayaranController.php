@@ -1150,9 +1150,9 @@ class PembayaranController extends Controller
             abort(403, 'Hanya Superadmin yang dapat menyetujui pengeluaran.');
         }
         
-        // Status check
-        if ($pembayaran->status !== 'Pending') {
-            return back()->with('error', 'Pengeluaran ini tidak dalam status Pending. Status: ' . $pembayaran->status);
+        // Status check — terima Pending dan Diajukan (GPS flow menggunakan status Diajukan)
+        if (!in_array($pembayaran->status, ['Pending', 'Diajukan'])) {
+            return back()->with('error', 'Pengeluaran ini tidak dalam status yang dapat diproses. Status: ' . $pembayaran->status);
         }
         
         DB::beginTransaction();
@@ -1217,9 +1217,9 @@ class PembayaranController extends Controller
             abort(403, 'Hanya Superadmin yang dapat menolak pengeluaran.');
         }
         
-        // Status check
-        if ($pembayaran->status !== 'Pending') {
-            return back()->with('error', 'Pengeluaran ini tidak dalam status Pending. Status: ' . $pembayaran->status);
+        // Status check — terima Pending dan Diajukan (GPS flow menggunakan status Diajukan)
+        if (!in_array($pembayaran->status, ['Pending', 'Diajukan'])) {
+            return back()->with('error', 'Pengeluaran ini tidak dalam status yang dapat diproses. Status: ' . $pembayaran->status);
         }
         
         DB::beginTransaction();
@@ -1243,6 +1243,13 @@ class PembayaranController extends Controller
 
             // Sync persetujuan ke tabel sumber jika ada existing_record_id
             $this->syncPersetujuanToSource($pembayaran, 'Ditolak');
+
+            // Untuk GPS: update semua record yang terkait pembayaran ini ke 'Ditolak'
+            if (in_array($pembayaran->source_type, ['gps', 'gps_perpanjang'])) {
+                \App\Models\GpsKendaraan::where('pembayaran_id', $pembayaran->id)
+                    ->where('persetujuan', 'Diajukan ke Pembayaran')
+                    ->update(['persetujuan' => 'Ditolak']);
+            }
             
             DB::commit();
             
@@ -1274,8 +1281,11 @@ class PembayaranController extends Controller
             abort(403, 'Hanya Superadmin yang dapat menyetujui pengeluaran.');
         }
 
-        if ($pembayaran->status !== 'Pending') {
-            return back()->with('error', 'Pengeluaran ini tidak dalam status Pending.');
+        if (!in_array($pembayaran->status, ['Pending', 'Diajukan'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pengeluaran ini tidak dalam status yang dapat diproses (status: ' . $pembayaran->status . ').',
+            ], 422);
         }
 
         // Validasi
@@ -1292,6 +1302,16 @@ class PembayaranController extends Controller
         foreach ($items as $idx => $item) {
             if ($item['action'] === 'rejected' && empty(trim($item['catatan'] ?? ''))) {
                 return back()->with('error', "Item #" . ($idx + 1) . " ditolak tapi catatan alasan kosong. Wajib isi alasan penolakan.");
+            }
+        }
+
+        // Pastikan setiap item approved punya bukti pembayaran
+        foreach ($items as $idx => $item) {
+            if ($item['action'] === 'approved' && !$request->hasFile("items.{$idx}.bukti")) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Item #" . ($idx + 1) . " disetujui tapi bukti pembayaran belum diupload. Wajib upload bukti.",
+                ], 422);
             }
         }
 

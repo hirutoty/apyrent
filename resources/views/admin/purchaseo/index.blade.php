@@ -109,6 +109,13 @@
                                     </button>
                                 @endif
 
+                                @if($po->status === 'Ditolak' && $po->can_edit && $po->source_type === 'gps')
+                                    <button onclick="openResubmitModal({{ $po->id }}, '{{ $po->po_id }}')"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600">
+                                        <i class="fa fa-rotate-right text-xs"></i> Ajukan Ulang
+                                    </button>
+                                @endif
+
                                 @if(in_array($po->status, ['Pending', 'Ditolak']))
                                     <form action="{{ route('purchase-order.destroy', $po->id) }}" method="POST" class="inline"
                                         onsubmit="return confirm('Yakin ingin menghapus Purchase Order ini?')">
@@ -221,31 +228,144 @@
     </div>
 </div>
 
-{{-- MODAL REJECT --}}
+{{-- MODAL REJECT (per-item) --}}
 <div id="rejectModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="text-lg font-bold text-gray-800">Reject Purchase Order</h3>
-            <button onclick="closeRejectModal()" class="text-gray-400 hover:text-gray-600">
-                <i class="fa fa-times text-lg"></i>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">Tolak Purchase Order</h3>
+                <p class="text-sm text-gray-500 mt-0.5">No PO: <span id="rejectPoId" class="font-mono font-semibold text-red-600"></span></p>
+            </div>
+            <button onclick="closeRejectModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100">
+                <i class="fa fa-times"></i>
             </button>
         </div>
-        <form id="rejectForm" method="POST">
+
+        <div id="rejectModalLoading" class="flex items-center justify-center py-16">
+            <div class="flex flex-col items-center gap-2 text-gray-400">
+                <i class="fa fa-spinner fa-spin text-2xl"></i>
+                <p class="text-sm">Memuat data item...</p>
+            </div>
+        </div>
+
+        <div id="rejectModalContent" class="hidden flex-1 overflow-y-auto">
+            <div id="rejectKendaraanInfo" class="px-6 pt-4 pb-2"></div>
+            <div class="px-6 pb-2">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <i class="fa fa-list-ul mr-1 text-red-500"></i> Item GPS — Centang yang ingin ditolak
+                    </p>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="rejectSelectAll(true)"
+                            class="text-[11px] text-red-600 font-medium px-2 py-0.5 bg-red-50 rounded-md border border-red-200 hover:bg-red-100">
+                            Tolak Semua
+                        </button>
+                        <button type="button" onclick="rejectSelectAll(false)"
+                            class="text-[11px] text-gray-500 font-medium px-2 py-0.5 bg-gray-50 rounded-md border border-gray-200 hover:bg-gray-100">
+                            Hapus Pilihan
+                        </button>
+                    </div>
+                </div>
+                <div id="rejectItemList" class="space-y-2"></div>
+            </div>
+            <div class="px-6 pb-4 pt-2">
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Catatan Umum <span class="text-gray-400 font-normal">(opsional)</span>
+                </label>
+                <textarea id="rejectCatatan" rows="2" placeholder="Catatan umum untuk penolakan ini..."
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400"></textarea>
+            </div>
+            <div id="rejectSummary" class="mx-6 mb-4 px-4 py-3 bg-red-50 rounded-xl border border-red-200 text-xs text-red-700 hidden">
+                <span id="rejectSummaryText"></span>
+            </div>
+        </div>
+
+        <div id="rejectModalFooter" class="hidden border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
+            <button type="button" onclick="closeRejectModal()"
+                class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">
+                Batal
+            </button>
+            <button type="button" id="rejectSubmitBtn" onclick="submitRejectItems()"
+                class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl py-2.5 transition-colors">
+                <i class="fa fa-times"></i> Konfirmasi Penolakan
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL RESUBMIT GPS --}}
+<div id="resubmitModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">Ajukan Ulang GPS</h3>
+                <p class="text-sm text-gray-500 mt-0.5">PO: <span id="resubmitPoNumber" class="font-mono font-semibold text-amber-600"></span></p>
+            </div>
+            <button onclick="closeResubmitModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+
+        <div id="resubmitLoading" class="flex items-center justify-center py-16">
+            <div class="flex flex-col items-center gap-2 text-gray-400">
+                <i class="fa fa-spinner fa-spin text-2xl"></i>
+                <p class="text-sm">Memuat data...</p>
+            </div>
+        </div>
+
+        <form id="resubmitForm" method="POST" enctype="multipart/form-data"
+              action="{{ route('gps-kendaraan.store') }}"
+              class="hidden flex-1 overflow-y-auto flex flex-col">
             @csrf
-            <div class="p-6 space-y-4">
-                <p class="text-sm text-gray-600">Anda akan menolak Purchase Order <span id="rejectPoId" class="font-mono font-bold"></span>.</p>
+            <input type="hidden" name="edit_purchase_order" id="resubmitPoId">
+            <input type="hidden" name="kendaraan_id" id="resubmitKendaraanId">
+            <input type="hidden" name="tanggal_bayar" id="resubmitTanggalBayar">
+            <input type="hidden" name="tanggal_habis" id="resubmitTanggalHabis">
+
+            <div class="flex-1 overflow-y-auto px-6 pt-4 pb-2 space-y-4">
+                {{-- Info kendaraan --}}
+                <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
+                    <p class="font-semibold text-gray-800" id="resubmitKendaraanInfo">-</p>
+                    <p class="text-xs text-amber-600 mt-0.5" id="resubmitCatatan"></p>
+                </div>
+
+                {{-- Tanggal --}}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar <span class="text-red-500">*</span></label>
+                        <input type="date" id="resubmitTanggalBayarInput" name="tanggal_bayar_display"
+                               class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Habis <span class="text-red-500">*</span></label>
+                        <input type="date" id="resubmitTanggalHabisInput" name="tanggal_habis_display"
+                               class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">
+                    </div>
+                </div>
+
+                {{-- GPS Items --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Alasan Penolakan <span class="text-red-500">*</span></label>
-                    <textarea name="catatan" rows="3" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                        placeholder="Jelaskan alasan penolakan..."></textarea>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">GPS Items</p>
+                    <div id="resubmitItemsContainer" class="space-y-3"></div>
+                </div>
+
+                {{-- Keterangan --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Keterangan</label>
+                    <textarea name="keterangan" id="resubmitKeterangan" rows="2"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"
+                        placeholder="Keterangan tambahan..."></textarea>
                 </div>
             </div>
-            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
-                <button type="button" onclick="closeRejectModal()"
-                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button>
-                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
-                    <i class="fa fa-times mr-1"></i> Reject
+
+            <div class="border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
+                <button type="button" onclick="closeResubmitModal()"
+                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50">
+                    Batal
+                </button>
+                <button type="submit"
+                    class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl py-2.5">
+                    <i class="fa fa-rotate-right"></i> Ajukan Ulang
                 </button>
             </div>
         </form>
@@ -299,6 +419,29 @@ function buildDetailContent(data) {
 
         html += '<div><h4 class="font-semibold text-gray-800 mb-2">GPS Items (' + details.items.length + ')</h4><div class="space-y-2">';
         details.items.forEach(function(item) {
+            const lampiran = item.lampiran || [];
+            let lampiranHtml = '';
+            if (lampiran.length > 0) {
+                lampiranHtml = '<div class="mt-2 pt-2 border-t border-gray-100">'
+                    + '<p class="text-[10px] font-semibold text-gray-400 uppercase mb-1"><i class="fa fa-paperclip mr-1"></i>Lampiran (' + lampiran.length + ')</p>'
+                    + '<div class="flex flex-wrap gap-1.5">';
+                lampiran.forEach(function(att) {
+                    const ext = (att.file_type || '').toLowerCase();
+                    const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
+                    const icon = isImg ? 'fa-image' : (ext === 'pdf' ? 'fa-file-pdf' : 'fa-paperclip');
+                    const iconColor = isImg ? 'text-blue-400' : (ext === 'pdf' ? 'text-red-400' : 'text-gray-400');
+                    lampiranHtml += '<a href="' + att.file_path + '" target="_blank"'
+                        + ' class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-[11px] text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors max-w-[180px]"'
+                        + ' title="' + att.file_name + '">'
+                        + '<i class="fa ' + icon + ' ' + iconColor + ' text-[10px] flex-shrink-0"></i>'
+                        + '<span class="truncate">' + att.file_name + '</span>'
+                        + '</a>';
+                });
+                lampiranHtml += '</div></div>';
+            } else {
+                lampiranHtml = '<p class="mt-1 text-[11px] text-gray-300 italic">Tidak ada lampiran</p>';
+            }
+
             html += '<div class="border border-gray-200 rounded-lg p-3">'
                 + '<div class="flex items-start justify-between mb-1">'
                 + '<div><p class="font-semibold text-gray-800">' + (item.gps_name || '-') + '</p>'
@@ -308,7 +451,9 @@ function buildDetailContent(data) {
                 + '<div><span class="text-gray-400">Bank:</span> ' + (item.nama_bank || '-') + '</div>'
                 + '<div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div>'
                 + '<div><span class="text-gray-400">A/n:</span> ' + (item.nama_pemilik || '-') + '</div>'
-                + '</div></div>';
+                + '</div>'
+                + lampiranHtml
+                + '</div>';
         });
         html += '</div></div>';
     }
@@ -575,22 +720,313 @@ function formatNumber(n) {
     return Number(n).toLocaleString('id-ID');
 }
 
-// ── REJECT MODAL ──────────────────────────────────────────────
+// ── REJECT MODAL (per-item) ───────────────────────────────────
+let currentRejectPoId = null;
+let rejectItemDecisions = [];
+
 function openRejectModal(poId, poNumber) {
+    currentRejectPoId = poId;
     document.getElementById('rejectPoId').textContent = poNumber;
-    document.getElementById('rejectForm').action = '/admin/purchase-order/' + poId + '/reject';
+    document.getElementById('rejectModalLoading').classList.remove('hidden');
+    document.getElementById('rejectModalContent').classList.add('hidden');
+    document.getElementById('rejectModalFooter').classList.add('hidden');
     document.getElementById('rejectModal').classList.remove('hidden');
     document.getElementById('rejectModal').classList.add('flex');
+
+    fetch('/admin/purchase-order/' + poId + '/detail')
+        .then(r => r.json())
+        .then(function(data) {
+            if (!data.success) throw new Error(data.message || 'Gagal memuat data');
+            renderRejectItems(data);
+            document.getElementById('rejectModalLoading').classList.add('hidden');
+            document.getElementById('rejectModalContent').classList.remove('hidden');
+            document.getElementById('rejectModalFooter').classList.remove('hidden');
+        })
+        .catch(function(err) {
+            document.getElementById('rejectModalLoading').innerHTML =
+                '<div class="text-center text-red-500 py-8"><i class="fa fa-exclamation-circle text-2xl mb-2"></i><p class="text-sm">' + err.message + '</p></div>';
+        });
+}
+
+function renderRejectItems(data) {
+    const details = data.details;
+    const items   = details.items || [];
+    // Default: semua item tercentang untuk ditolak
+    rejectItemDecisions = items.map(function() { return { action: 'rejected', catatan: '' }; });
+
+    const k = details.kendaraan || {};
+    document.getElementById('rejectKendaraanInfo').innerHTML =
+        '<div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3">'
+        + '<i class="fa fa-car text-red-500"></i>'
+        + '<div class="text-sm">'
+        + '<span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
+        + '<span class="text-gray-500 ml-2">' + (k.merk || '') + '</span>'
+        + '<span class="ml-3 text-gray-400 text-xs">Tgl Bayar: <b>' + (details.tanggal_bayar || '-') + '</b></span>'
+        + '<span class="ml-3 text-gray-400 text-xs">Berlaku s/d: <b>' + (details.tanggal_habis || '-') + '</b></span>'
+        + '</div></div>';
+
+    const list = document.getElementById('rejectItemList');
+    list.innerHTML = '';
+
+    items.forEach(function(item, idx) {
+        const bankInfo = [
+            item.nama_bank    ? '<span><i class="fa fa-building text-[9px]"></i> ' + item.nama_bank + '</span>' : '',
+            item.no_rekening  ? '<span class="font-mono">' + item.no_rekening + '</span>' : '',
+            item.nama_pemilik ? '<span>a/n ' + item.nama_pemilik + '</span>' : '',
+        ].filter(Boolean).join(' ');
+
+        const card = document.createElement('div');
+        card.id = 'reject-item-card-' + idx;
+        // Default: tercentang → merah
+        card.className = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/20';
+
+        const row = document.createElement('div');
+        row.className = 'flex items-start gap-3 px-4 py-3';
+        row.innerHTML = '<div class="flex-shrink-0 pt-0.5">'
+            + '<input type="checkbox" id="reject-chk-' + idx + '" checked'
+            + ' class="w-4 h-4 rounded text-red-600 cursor-pointer border-gray-300 focus:ring-red-400">'
+            + '</div>'
+            + '<div class="flex-1 min-w-0">'
+            + '<label for="reject-chk-' + idx + '" class="cursor-pointer">'
+            + '<div class="flex items-center gap-2 flex-wrap">'
+            + '<span class="text-xs text-gray-400">#' + (idx + 1) + '</span>'
+            + '<span class="font-semibold text-gray-800 text-sm">' + (item.gps_name || '-') + '</span>'
+            + '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + (item.type || '-') + '</span>'
+            + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(item.biaya_sewa || 0) + '</span>'
+            + '</div>'
+            + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
+            + '</label>'
+            + '</div>'
+            + '<div id="reject-item-badge-' + idx + '" class="flex-shrink-0 self-center">'
+            + '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>'
+            + '</div>';
+        card.appendChild(row);
+
+        // Panel alasan (default tampil karena default = ditolak)
+        const reasonPanel = document.createElement('div');
+        reasonPanel.id = 'reject-reason-panel-' + idx;
+        reasonPanel.className = 'px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/30';
+        reasonPanel.innerHTML = '<label class="text-[11px] font-semibold text-red-500 uppercase tracking-wide mb-1.5 block">'
+            + '<i class="fa fa-comment-dots mr-1"></i> Alasan Penolakan <span class="text-red-400 font-normal">(wajib)</span></label>'
+            + '<textarea id="reject-reason-' + idx + '" rows="2"'
+            + ' placeholder="Tulis alasan penolakan item ini..."'
+            + ' class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 bg-white"'
+            + ' oninput="rejectItemDecisions[' + idx + '].catatan = this.value; updateRejectSummary()"></textarea>';
+        card.appendChild(reasonPanel);
+
+        const chk = row.querySelector('input[type=checkbox]');
+        chk.addEventListener('change', function() { toggleRejectItem(idx, this.checked); });
+
+        list.appendChild(card);
+    });
+
+    updateRejectSummary();
+}
+
+function toggleRejectItem(idx, checked) {
+    rejectItemDecisions[idx].action = checked ? 'rejected' : 'skip';
+    const card        = document.getElementById('reject-item-card-' + idx);
+    const reasonPanel = document.getElementById('reject-reason-panel-' + idx);
+    const badge       = document.getElementById('reject-item-badge-' + idx);
+    if (checked) {
+        card.className  = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/20';
+        reasonPanel.classList.remove('hidden');
+        badge.innerHTML = '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
+    } else {
+        card.className  = 'border border-gray-200 rounded-xl overflow-hidden transition-all bg-gray-50/10';
+        reasonPanel.classList.add('hidden');
+        badge.innerHTML = '<span class="text-[10px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-minus text-[8px]"></i> Dilewati</span>';
+    }
+    updateRejectSummary();
+}
+
+function rejectSelectAll(select) {
+    rejectItemDecisions.forEach(function(d, idx) {
+        const chk = document.getElementById('reject-chk-' + idx);
+        if (chk) { chk.checked = select; toggleRejectItem(idx, select); }
+    });
+}
+
+function updateRejectSummary() {
+    const rejected = rejectItemDecisions.filter(function(d) { return d.action === 'rejected'; }).length;
+    const total    = rejectItemDecisions.length;
+    const summary  = document.getElementById('rejectSummary');
+    const text     = document.getElementById('rejectSummaryText');
+    summary.classList.remove('hidden');
+    const skipped = total - rejected;
+    text.innerHTML = '<i class="fa fa-times-circle text-red-500 mr-1"></i>'
+        + '<b>' + rejected + '</b> item akan ditolak'
+        + (skipped > 0 ? ' &nbsp;·&nbsp; <b>' + skipped + '</b> item dilewati (tidak diproses)' : '');
+}
+
+async function submitRejectItems() {
+    const toReject = rejectItemDecisions.filter(function(d) { return d.action === 'rejected'; });
+    if (toReject.length === 0) {
+        alert('Pilih minimal 1 item yang ingin ditolak.');
+        return;
+    }
+
+    // Validasi alasan wajib diisi per item
+    for (let idx = 0; idx < rejectItemDecisions.length; idx++) {
+        if (rejectItemDecisions[idx].action !== 'rejected') continue;
+        const val = (document.getElementById('reject-reason-' + idx) || {}).value || '';
+        if (!val.trim()) {
+            alert('Item #' + (idx + 1) + ': Alasan penolakan wajib diisi.');
+            document.getElementById('reject-reason-' + idx).focus();
+            return;
+        }
+        rejectItemDecisions[idx].catatan = val.trim();
+    }
+
+    const total   = rejectItemDecisions.length;
+    const skipped = total - toReject.length;
+    const msg     = 'Tolak ' + toReject.length + ' item'
+        + (skipped > 0 ? ', ' + skipped + ' item dilewati?' : '?');
+    if (!confirm(msg)) return;
+
+    const btn = document.getElementById('rejectSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
+
+    const formData = new FormData();
+    const token = document.querySelector('meta[name="csrf-token"]');
+    formData.append('_token', token ? token.content : '');
+    formData.append('catatan', document.getElementById('rejectCatatan').value);
+
+    // Item yang dicentang → rejected, yang tidak → approved (dengan kosong)
+    // Karena endpoint approve-items mengharuskan ada setidaknya satu keputusan,
+    // item yang "dilewati" kita kirim sebagai approved tanpa bukti
+    rejectItemDecisions.forEach(function(d, idx) {
+        const action = d.action === 'rejected' ? 'rejected' : 'approved';
+        formData.append('items[' + idx + '][action]',  action);
+        formData.append('items[' + idx + '][catatan]', d.action === 'rejected' ? (d.catatan || '') : '');
+    });
+
+    try {
+        const res    = await fetch('/admin/purchase-order/' + currentRejectPoId + '/approve-items', { method: 'POST', body: formData });
+        const result = await res.json();
+        if (result.success) {
+            window.location.href = result.redirect || window.location.href;
+        } else {
+            alert(result.message || 'Terjadi kesalahan.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-times"></i> Konfirmasi Penolakan';
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan jaringan.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-times"></i> Konfirmasi Penolakan';
+    }
 }
 
 function closeRejectModal() {
     document.getElementById('rejectModal').classList.add('hidden');
     document.getElementById('rejectModal').classList.remove('flex');
+    document.getElementById('rejectCatatan').value = '';
+    currentRejectPoId = null;
+    rejectItemDecisions = [];
 }
 
 // Close on backdrop click
 document.getElementById('detailModal').addEventListener('click',  function(e) { if (e.target === this) closeDetailModal();  });
 document.getElementById('approveModal').addEventListener('click', function(e) { if (e.target === this) closeApproveModal(); });
 document.getElementById('rejectModal').addEventListener('click',  function(e) { if (e.target === this) closeRejectModal();  });
+document.getElementById('resubmitModal').addEventListener('click',function(e) { if (e.target === this) closeResubmitModal(); });
+
+// ── RESUBMIT MODAL ────────────────────────────────────────────
+let resubmitGpsData = [];
+
+function openResubmitModal(poId, poNumber) {
+    document.getElementById('resubmitPoNumber').textContent = poNumber;
+    document.getElementById('resubmitLoading').classList.remove('hidden');
+    document.getElementById('resubmitForm').classList.add('hidden');
+    document.getElementById('resubmitModal').classList.remove('hidden');
+    document.getElementById('resubmitModal').classList.add('flex');
+
+    fetch('/admin/purchase-order/' + poId + '/resubmit', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({}),
+    })
+    .then(r => r.json())
+    .then(function(data) {
+        if (!data.success) throw new Error(data.message || 'Gagal memuat data');
+        renderResubmitForm(data);
+        document.getElementById('resubmitLoading').classList.add('hidden');
+        document.getElementById('resubmitForm').classList.remove('hidden');
+    })
+    .catch(function(err) {
+        document.getElementById('resubmitLoading').innerHTML =
+            '<div class="text-center text-red-500 py-8"><i class="fa fa-exclamation-circle text-2xl mb-2"></i><p class="text-sm">' + err.message + '</p></div>';
+    });
+}
+
+function renderResubmitForm(data) {
+    document.getElementById('resubmitPoId').value        = data.po_id;
+    document.getElementById('resubmitKendaraanId').value = data.kendaraan_id;
+    document.getElementById('resubmitTanggalBayar').value = data.tanggal_bayar;
+    document.getElementById('resubmitTanggalHabis').value = data.tanggal_habis;
+    document.getElementById('resubmitTanggalBayarInput').value = data.tanggal_bayar;
+    document.getElementById('resubmitTanggalHabisInput').value = data.tanggal_habis;
+    document.getElementById('resubmitKeterangan').value  = data.keterangan || '';
+    document.getElementById('resubmitKendaraanInfo').textContent = (data.nopol || '-') + ' — ' + (data.merk || '');
+    if (data.catatan) {
+        document.getElementById('resubmitCatatan').textContent = 'Alasan ditolak: ' + data.catatan;
+    }
+
+    // Sync tanggal ke hidden inputs on change
+    document.getElementById('resubmitTanggalBayarInput').addEventListener('change', function() {
+        document.getElementById('resubmitTanggalBayar').value = this.value;
+    });
+    document.getElementById('resubmitTanggalHabisInput').addEventListener('change', function() {
+        document.getElementById('resubmitTanggalHabis').value = this.value;
+    });
+
+    resubmitGpsData = data.gps_items || [];
+    const container = document.getElementById('resubmitItemsContainer');
+    container.innerHTML = '';
+
+    resubmitGpsData.forEach(function(item, idx) {
+        const div = document.createElement('div');
+        div.className = 'border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50/50';
+        div.innerHTML =
+            '<input type="hidden" name="gps_items[' + idx + '][gps_id]" value="' + (item.gps_id || '') + '">'
+            + '<div class="flex items-center justify-between">'
+            + '<span class="text-xs font-bold text-gray-500 uppercase">#' + (idx + 1) + ' ' + (item.nama_gps || '-') + '</span>'
+            + '</div>'
+            + '<div class="grid grid-cols-2 gap-3">'
+            + '<div><label class="text-xs font-medium text-gray-600">Type <span class="text-red-500">*</span></label>'
+            + '<input type="text" name="gps_items[' + idx + '][type]" value="' + (item.type || '') + '" required'
+            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>'
+            + '<div><label class="text-xs font-medium text-gray-600">Biaya Sewa <span class="text-red-500">*</span></label>'
+            + '<input type="number" name="gps_items[' + idx + '][biaya_sewa]" value="' + (item.biaya_sewa || 0) + '" required min="0"'
+            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>'
+            + '</div>'
+            + '<div class="grid grid-cols-3 gap-3">'
+            + '<div><label class="text-xs font-medium text-gray-600">Nama Bank</label>'
+            + '<input type="text" name="gps_items[' + idx + '][nama_bank]" value="' + (item.nama_bank || '') + '"'
+            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>'
+            + '<div><label class="text-xs font-medium text-gray-600">No. Rekening</label>'
+            + '<input type="text" name="gps_items[' + idx + '][no_rekening]" value="' + (item.no_rekening || '') + '"'
+            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>'
+            + '<div><label class="text-xs font-medium text-gray-600">Nama Pemilik</label>'
+            + '<input type="text" name="gps_items[' + idx + '][nama_pemilik]" value="' + (item.nama_pemilik || '') + '"'
+            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>'
+            + '</div>'
+            + '<div><label class="text-xs font-medium text-gray-600">Lampiran <span class="text-red-500">*</span></label>'
+            + '<input type="file" name="gps_items[' + idx + '][lampiran][]" required multiple accept=".jpg,.jpeg,.png,.pdf"'
+            + ' class="w-full mt-1 text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none"></div>';
+        container.appendChild(div);
+    });
+}
+
+function closeResubmitModal() {
+    document.getElementById('resubmitModal').classList.replace('flex', 'hidden');
+    document.getElementById('resubmitModal').classList.add('hidden');
+}
 </script>
 @endpush

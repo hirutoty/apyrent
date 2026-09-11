@@ -508,26 +508,27 @@ class PengeluaranTransferService
                 }
             }
 
-            // Coba update record Pending yang sudah ada (dibuat saat store() via PO atau langsung)
-            // Case 1: GPS dari PO flow (pembayaran_id null, persetujuan Pending)
-            // Case 2: GPS dari langsung ke Pembayaran (pembayaran_id sudah terisi)
+            // Cari GPS record yang terkait item ini via pembayaran_id + gps_id + type
+            // Record sudah dibuat saat store() dengan persetujuan='Pending' atau 'Diajukan ke Pembayaran'
             $existing = GpsKendaraan::where('kendaraan_id', $kendaraanId)
                 ->where('gps_id', $item['gps_id'] ?? null)
                 ->where('type', $item['type'] ?? null)
-                ->where(function($q) use ($pembayaran) {
-                    // Try find by pembayaran_id first (old flow)
-                    $q->where('pembayaran_id', $pembayaran->id)
-                      // Or find by null pembayaran_id with Pending status (new PO flow)
-                      ->orWhere(function($sq) {
-                          $sq->whereNull('pembayaran_id')
-                             ->where('persetujuan', 'Pending');
-                      });
-                })
+                ->where('pembayaran_id', $pembayaran->id)
+                ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
                 ->first();
+
+            // Fallback: cari by kendaraan_id tanpa pembayaran_id (alur PO lama sebelum pembayaran_id terisi)
+            if (!$existing) {
+                $existing = GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                    ->where('gps_id', $item['gps_id'] ?? null)
+                    ->where('type', $item['type'] ?? null)
+                    ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                    ->first();
+            }
 
             $updateData = [
                 'pembayaran_id' => $pembayaran->id, // Link to Pembayaran (important for PO flow)
-                'status_gps'    => $statusGps,
+                'status_gps'    => 'aktif', // Pembayaran disetujui → GPS resmi aktif
                 'tanggal_pasang'=> $tanggalBayar,
                 'tanggal_habis' => $tanggalHabis,
                 'tanggal_bayar' => $tanggalBayar,
@@ -643,57 +644,50 @@ class PengeluaranTransferService
     {
         $sourceData   = $pembayaran->source_data;
         $allGpsItems  = $sourceData['gps_items'] ?? [];
+        $recordIds    = $sourceData['gps_record_ids'] ?? [];   // index → gps_kendaraan.id
         $kendaraanId  = $sourceData['kendaraan_id'];
-        $tanggalBayar = $sourceData['tanggal_bayar'] ?? now()->toDateString();
-        $tanggalHabis = $sourceData['tanggal_habis'] ?? now()->addYear()->toDateString();
-        $statusGps    = $sourceData['status_gps'] ?? 'aktif';
         $keterangan   = $sourceData['keterangan'] ?? null;
 
-        $durasiBulan = (int) \Carbon\Carbon::parse($tanggalBayar)
-            ->diffInMonths(\Carbon\Carbon::parse($tanggalHabis));
-        $durasiBulan = max($durasiBulan, 1);
-
         foreach ($rejectedItems as $entry) {
-            $idx  = $entry['idx'];
-            $item = $allGpsItems[$idx] ?? null;
+            $idx     = $entry['idx'];
+            $item    = $allGpsItems[$idx] ?? null;
             if (!$item) continue;
 
-            $updateData = [
-                'status_gps'    => 'nonaktif',
-                'tanggal_pasang'=> $tanggalBayar,
-                'tanggal_habis' => $tanggalHabis,
-                'tanggal_bayar' => $tanggalBayar,
-                'biaya_sewa'    => (int) ($item['biaya_sewa'] ?? 0),
-                'durasi_bulan'  => $durasiBulan,
-                'status_sewa'   => 'tidak_aktif',
-                'bukti_bayar'   => null,
-                'keterangan'    => $entry['catatan'] ?? $keterangan,
-                'nama_bank'     => $item['nama_bank'] ?? null,
-                'no_rekening'   => $item['no_rekening'] ?? null,
-                'nama_pemilik'  => $item['nama_pemilik'] ?? null,
-                'persetujuan'   => 'Ditolak',
-            ];
+            // Cara 1: langsung via gps_record_ids (paling akurat)
+            $recordId = $recordIds[$idx] ?? null;
+            $existing = null;
 
-            // Coba update record Pending yang dibuat saat store()
-            $existing = GpsKendaraan::where('pembayaran_id', $pembayaran->id)
-                ->where('gps_id', $item['gps_id'] ?? null)
-                ->where('type', $item['type'] ?? null)
-                ->where(function($q) {
-                    $q->where('persetujuan', 'Pending')
-                      ->orWhereNull('persetujuan');
-                })
-                ->first();
+            if ($recordId) {
+                $existing = GpsKendaraan::where('id', $recordId)
+                    ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                    ->first();
+            }
+
+            // Cara 2: fallback via pembayaran_id + gps_id + type
+            if (!$existing) {
+                $existing = GpsKendaraan::where('pembayaran_id', $pembayaran->id)
+                    ->where('gps_id', $item['gps_id'] ?? null)
+                    ->where('type', $item['type'] ?? null)
+                    ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                    ->first();
+            }
+
+            // Cara 3: fallback via kendaraan_id + gps_id + type
+            if (!$existing) {
+                $existing = GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                    ->where('gps_id', $item['gps_id'] ?? null)
+                    ->where('type', $item['type'] ?? null)
+                    ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                    ->first();
+            }
 
             if ($existing) {
-                $existing->update($updateData);
+                $existing->update([
+                    'persetujuan' => 'Ditolak',
+                    'keterangan'  => $entry['catatan'] ?: ($existing->keterangan ?? null),
+                ]);
             } else {
-                // Fallback: buat baru jika record Pending tidak ditemukan
-                GpsKendaraan::create(array_merge($updateData, [
-                    'pembayaran_id' => $pembayaran->id,
-                    'kendaraan_id'  => $kendaraanId,
-                    'gps_id'        => $item['gps_id'] ?? null,
-                    'type'          => $item['type'] ?? null,
-                ]));
+                \Log::warning("transferGpsRejected: GPS record not found for pembayaran #{$pembayaran->id} idx:{$idx} gps_id:{$item['gps_id']} type:{$item['type']}");
             }
         }
     }
@@ -783,7 +777,7 @@ class PengeluaranTransferService
             }
 
             $updateData = [
-                'status_gps'    => $statusGps,
+                'status_gps'    => 'aktif', // Pembayaran disetujui → GPS resmi aktif
                 'tanggal_pasang'=> $tanggalBayar,
                 'tanggal_habis' => $tanggalHabis,
                 'tanggal_bayar' => $tanggalBayar,

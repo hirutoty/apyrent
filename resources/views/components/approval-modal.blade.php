@@ -230,20 +230,33 @@
                                         <div x-show="itemDecisions[idx]?.action === 'approved'">
                                             <p class="text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
                                                 <i class="fa-solid fa-cloud-arrow-up mr-1 text-green-500"></i>
-                                                Upload Bukti Bayar <span class="text-gray-400 font-normal">(opsional)</span>
+                                                Upload Bukti Bayar <span class="text-red-500">*</span>
                                             </p>
 
                                             <div x-show="!itemDecisions[idx]?.buktiFile">
                                                 <label :for="'bukti-item-' + idx"
-                                                       class="flex items-center gap-2 px-3 py-2 border border-dashed border-green-300 rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
-                                                    <i class="fa-solid fa-paperclip text-green-500 text-xs"></i>
-                                                    <span class="text-xs text-gray-500">Klik untuk pilih file (JPG, PNG, PDF, max 5MB)</span>
+                                                       class="flex items-center gap-2 px-3 py-2 border border-dashed rounded-lg cursor-pointer hover:bg-green-50 transition-colors"
+                                                       :class="itemDecisions[idx]?.action === 'approved' && !itemDecisions[idx]?.buktiFile
+                                                           ? 'border-red-400 bg-red-50/30'
+                                                           : 'border-green-300'">
+                                                    <i class="fa-solid fa-paperclip text-xs"
+                                                       :class="itemDecisions[idx]?.action === 'approved' && !itemDecisions[idx]?.buktiFile
+                                                           ? 'text-red-400' : 'text-green-500'"></i>
+                                                    <span class="text-xs"
+                                                          :class="itemDecisions[idx]?.action === 'approved' && !itemDecisions[idx]?.buktiFile
+                                                              ? 'text-red-500' : 'text-gray-500'">
+                                                        Klik untuk pilih file (JPG, PNG, PDF, max 5MB) — Wajib
+                                                    </span>
                                                 </label>
                                                 <input :id="'bukti-item-' + idx"
                                                        type="file"
                                                        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
                                                        class="hidden"
                                                        @change="handleBuktiItem($event, idx)">
+                                                <p x-show="itemDecisions[idx]?.action === 'approved' && !itemDecisions[idx]?.buktiFile"
+                                                   class="text-[10px] text-red-500 mt-0.5">
+                                                    <i class="fa-solid fa-circle-exclamation mr-0.5"></i> Bukti pembayaran wajib diupload
+                                                </p>
                                             </div>
 
                                             <div x-show="itemDecisions[idx]?.buktiFile"
@@ -533,8 +546,8 @@
                 <button
                     x-show="data?.source_type === 'gps' || data?.source_type === 'gps_perpanjang'"
                     @click="submitItemDecisions()"
-                    :disabled="submitting || decidedCount() === 0 || !allRejectedHaveCatatan()"
-                    :class="submitting || decidedCount() === 0 || !allRejectedHaveCatatan()
+                    :disabled="submitting || decidedCount() === 0 || !allRejectedHaveCatatan() || !allApprovedHaveBukti()"
+                    :class="submitting || decidedCount() === 0 || !allRejectedHaveCatatan() || !allApprovedHaveBukti()
                         ? 'opacity-50 cursor-not-allowed bg-blue-400'
                         : 'bg-blue-600 hover:bg-blue-700'"
                     class="px-5 py-2.5 text-white rounded-lg font-medium transition-colors text-sm flex items-center gap-2">
@@ -701,6 +714,12 @@ function approvalModal() {
                 .every(d => d.catatan.trim() !== '');
         },
 
+        allApprovedHaveBukti() {
+            return this.itemDecisions
+                .filter(d => d.action === 'approved')
+                .every(d => d.buktiFile !== null);
+        },
+
         // ── Submit GPS per-item ───────────────────────────────────────────────
         async submitItemDecisions() {
             if (this.decidedCount() === 0) {
@@ -709,6 +728,10 @@ function approvalModal() {
             }
             if (!this.allRejectedHaveCatatan()) {
                 alert('Semua item yang ditolak harus memiliki alasan penolakan.');
+                return;
+            }
+            if (!this.allApprovedHaveBukti()) {
+                alert('Bukti pembayaran wajib diupload untuk setiap item yang disetujui.');
                 return;
             }
 
