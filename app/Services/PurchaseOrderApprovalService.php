@@ -23,7 +23,7 @@ class PurchaseOrderApprovalService
      * Digunakan saat admin memilih item mana yang disetujui vs ditolak
      *
      * @param PurchaseOrder $po        PO yang sudah di-update status-nya
-     * @param array $approvedSourceData source_data yang hanya berisi gps_items yang approved
+     * @param array $approvedSourceData source_data yang hanya berisi gps_items/parts yang approved
      * @param array $perItemBukti       ['idx' => 'path/to/bukti'] mapping index item ke path file
      * @param string|null $catatan
      * @return Pembayaran
@@ -39,15 +39,51 @@ class PurchaseOrderApprovalService
 
         $pemohon    = $approvedSourceData['pemohon'] ?? Auth::user()->nama ?? Auth::user()->email ?? 'N/A';
         $departemen = $approvedSourceData['departemen'] ?? Auth::user()->departemen ?? 'Umum';
-        $nominal    = collect($approvedSourceData['gps_items'] ?? [])->sum(fn($i) => $i['biaya_sewa'] ?? 0);
+        
+        // Calculate nominal based on source_type
+        if ($sourceType === 'gps') {
+            $nominal = collect($approvedSourceData['gps_items'] ?? [])->sum(fn($i) => $i['biaya_sewa'] ?? 0);
+        } elseif ($sourceType === 'service_part') {
+            $nominal = collect($approvedSourceData['parts'] ?? [])->sum(fn($p) => $p['biaya'] ?? 0);
+        } else {
+            $nominal = 0;
+        }
 
         // Sematkan bukti per item ke dalam source_data
         if (!empty($perItemBukti)) {
-            foreach ($perItemBukti as $idx => $path) {
-                if (isset($approvedSourceData['gps_items'][$idx])) {
-                    $approvedSourceData['gps_items'][$idx]['bukti_bayar_admin'] = $path;
+            if ($sourceType === 'gps') {
+                foreach ($perItemBukti as $idx => $path) {
+                    if (isset($approvedSourceData['gps_items'][$idx])) {
+                        $approvedSourceData['gps_items'][$idx]['bukti_bayar_admin'] = $path;
+                    }
+                }
+            } elseif ($sourceType === 'service_part') {
+                foreach ($perItemBukti as $idx => $path) {
+                    if (isset($approvedSourceData['parts'][$idx])) {
+                        $approvedSourceData['parts'][$idx]['bukti_bayar_admin'] = $path;
+                    }
                 }
             }
+        }
+
+        // Extract bank info based on source_type (for service_part: first part's bank, for GPS: source level)
+        $namaBank = null;
+        $noRekening = null;
+        $namaPemilik = null;
+        
+        if ($sourceType === 'service_part') {
+            // Service part: bank info is per-part, take from first approved part
+            $firstPart = ($approvedSourceData['parts'] ?? [])[0] ?? null;
+            if ($firstPart) {
+                $namaBank = $firstPart['nama_bank'] ?? null;
+                $noRekening = $firstPart['no_rekening'] ?? null;
+                $namaPemilik = $firstPart['nama_rekening'] ?? $firstPart['nama_pemilik'] ?? null;
+            }
+        } else {
+            // GPS: bank info at source level
+            $namaBank = $approvedSourceData['nama_bank'] ?? null;
+            $noRekening = $approvedSourceData['no_rekening'] ?? null;
+            $namaPemilik = $approvedSourceData['nama_pemilik'] ?? $approvedSourceData['nama_rekening'] ?? null;
         }
 
         // Status: Pembayaran dibuat dengan status 'Diajukan' (bukan langsung Disetujui)
@@ -62,9 +98,9 @@ class PurchaseOrderApprovalService
             'pemohon'             => $pemohon,
             'alasan_permintaan'   => $alasanPermintaan,
             'nominal'             => $nominal,
-            'nama_bank'           => $approvedSourceData['nama_bank'] ?? null,
-            'no_rekening'         => $approvedSourceData['no_rekening'] ?? null,
-            'nama_pemilik'        => $approvedSourceData['nama_pemilik'] ?? $approvedSourceData['nama_rekening'] ?? null,
+            'nama_bank'           => $namaBank,
+            'no_rekening'         => $noRekening,
+            'nama_pemilik'        => $namaPemilik,
             'keterangan'          => $catatan ?: ($approvedSourceData['keterangan'] ?? null),
             'status'              => $status,
             'disetujui_oleh'      => Auth::user()->nama ?? Auth::user()->email,
@@ -114,6 +150,7 @@ class PurchaseOrderApprovalService
                 }
             }
         }
+        // service_part: no external records to update (parts are embedded in source_data)
 
         return $pembayaran;
     }

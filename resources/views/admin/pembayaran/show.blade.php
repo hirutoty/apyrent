@@ -286,6 +286,7 @@
                             <tr class="bg-gray-50 border-b border-gray-100">
                                 <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">#</th>
                                 <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Nama Part</th>
+                                <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Informasi Bank</th>
                                 <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Keterangan</th>
                                 <th class="text-right text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Biaya</th>
                             </tr>
@@ -295,6 +296,23 @@
                             <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                 <td class="px-4 py-3 text-xs text-gray-400">{{ $idx + 1 }}</td>
                                 <td class="px-4 py-3 text-xs font-medium text-gray-800">{{ $part->nama_part ?? '-' }}</td>
+                                <td class="px-4 py-3">
+                                    @if($part->nama_bank || $part->no_rekening || $part->nama_rekening)
+                                    <div class="flex flex-col gap-0.5 text-[11px] text-gray-500">
+                                        @if($part->nama_bank)
+                                        <span><i class="fa fa-building text-[9px] text-gray-400 mr-1"></i>{{ $part->nama_bank }}</span>
+                                        @endif
+                                        @if($part->no_rekening)
+                                        <span class="font-mono">{{ $part->no_rekening }}</span>
+                                        @endif
+                                        @if($part->nama_rekening)
+                                        <span>a/n {{ $part->nama_rekening }}</span>
+                                        @endif
+                                    </div>
+                                    @else
+                                    <span class="text-xs text-gray-400">-</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-xs text-gray-600">{{ $part->keterangan ?? '-' }}</td>
                                 <td class="px-4 py-3 text-right text-xs font-semibold text-emerald-600">
                                     Rp {{ $part->biaya ? number_format($part->biaya, 0, ',', '.') : '-' }}
@@ -304,7 +322,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="border-t-2 border-gray-200 bg-gray-50">
-                                <td colspan="3" class="px-4 py-3 text-sm font-bold text-gray-700 text-right">Total</td>
+                                <td colspan="4" class="px-4 py-3 text-sm font-bold text-gray-700 text-right">Total</td>
                                 <td class="px-4 py-3 text-right text-sm font-bold text-emerald-700">
                                     Rp {{ number_format($pembayaran->serviceParts->sum('biaya'), 0, ',', '.') }}
                                 </td>

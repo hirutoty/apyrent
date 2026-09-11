@@ -458,6 +458,70 @@ function buildDetailContent(data) {
         html += '</div></div>';
     }
 
+    if (details.type === 'service_part') {
+        const k = details.kendaraan || {};
+        html += '<div><h4 class="font-semibold text-gray-800 mb-2">Kendaraan</h4>'
+            + '<div class="bg-orange-50 rounded-lg p-3 text-sm space-y-1">'
+            + '<p><span class="text-gray-600">Nopol:</span> <b>' + (k.nopol || '-') + '</b></p>'
+            + '<p><span class="text-gray-600">Merk:</span> ' + (k.merk || '-') + '</p>'
+            + '<p><span class="text-gray-600">Tgl Service:</span> ' + (details.tanggal_service || '-') + '</p>'
+            + '<p><span class="text-gray-600">Kilometer:</span> ' + (details.kilometer || '-') + ' km</p>'
+            + (details.keluhan ? '<p><span class="text-gray-600">Keluhan:</span> ' + details.keluhan + '</p>' : '')
+            + '</div></div>';
+
+        html += '<div><h4 class="font-semibold text-gray-800 mb-2">Service Parts (' + details.items.length + ')</h4><div class="space-y-2">';
+        details.items.forEach(function(item) {
+            html += '<div class="border border-gray-200 rounded-lg p-3">'
+                + '<div class="flex items-start justify-between mb-2">'
+                + '<div><p class="font-semibold text-gray-800">' + (item.nama_part || '-') + '</p>'
+                + '<p class="text-xs text-gray-500">Kategori: ' + (item.category_nama || '-') + '</p>'
+                + (item.part_number && item.part_number !== '-' ? '<p class="text-xs text-gray-500">P/N: ' + item.part_number + '</p>' : '')
+                + (item.posisi && item.posisi !== '-' ? '<p class="text-xs text-gray-500">Posisi: ' + item.posisi + '</p>' : '')
+                + '</div>'
+                + '<p class="font-bold text-orange-600">Rp ' + Number(item.biaya || 0).toLocaleString('id-ID') + '</p></div>'
+                + '<div class="grid grid-cols-3 gap-2 text-xs text-gray-600 mb-2">'
+                + '<div><span class="text-gray-400">Bank:</span> ' + (item.nama_bank || '-') + '</div>'
+                + '<div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div>'
+                + '<div><span class="text-gray-400">A/n:</span> ' + (item.nama_rekening || '-') + '</div>'
+                + '</div>'
+                + (item.keterangan && item.keterangan !== '-' ? '<p class="text-xs text-gray-500 mt-1 pt-1 border-t border-gray-100"><i class="fa fa-comment text-gray-400 mr-1"></i>' + item.keterangan + '</p>' : '')
+                + '</div>';
+        });
+        html += '</div></div>';
+    }
+
+    if (details.type === 'service_part') {
+        const k = details.kendaraan || {};
+        html += '<div><h4 class="font-semibold text-gray-800 mb-2">Kendaraan</h4>'
+            + '<div class="bg-orange-50 rounded-lg p-3 text-sm space-y-1">'
+            + '<p><span class="text-gray-600">Nopol:</span> <b>' + (k.nopol || '-') + '</b></p>'
+            + '<p><span class="text-gray-600">Merk:</span> ' + (k.merk || '-') + '</p>'
+            + '<p><span class="text-gray-600">Tgl Service:</span> ' + (details.tanggal_service || '-') + '</p>'
+            + '<p><span class="text-gray-600">Kilometer:</span> ' + (details.kilometer || '-') + ' km</p>'
+            + (details.keluhan ? '<p><span class="text-gray-600">Keluhan:</span> ' + details.keluhan + '</p>' : '')
+            + '</div></div>';
+
+        html += '<div><h4 class="font-semibold text-gray-800 mb-2">Service Parts (' + details.items.length + ')</h4><div class="space-y-2">';
+        details.items.forEach(function(item) {
+            html += '<div class="border border-gray-200 rounded-lg p-3">'
+                + '<div class="flex items-start justify-between mb-2">'
+                + '<div><p class="font-semibold text-gray-800">' + (item.nama_part || '-') + '</p>'
+                + '<p class="text-xs text-gray-500">Kategori: ' + (item.category_nama || '-') + '</p>'
+                + (item.part_number && item.part_number !== '-' ? '<p class="text-xs text-gray-500">P/N: ' + item.part_number + '</p>' : '')
+                + (item.posisi && item.posisi !== '-' ? '<p class="text-xs text-gray-500">Posisi: ' + item.posisi + '</p>' : '')
+                + '</div>'
+                + '<p class="font-bold text-orange-600">Rp ' + Number(item.biaya || 0).toLocaleString('id-ID') + '</p></div>'
+                + '<div class="grid grid-cols-3 gap-2 text-xs text-gray-600 mb-2">'
+                + '<div><span class="text-gray-400">Bank:</span> ' + (item.nama_bank || '-') + '</div>'
+                + '<div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div>'
+                + '<div><span class="text-gray-400">A/n:</span> ' + (item.nama_rekening || '-') + '</div>'
+                + '</div>'
+                + (item.keterangan && item.keterangan !== '-' ? '<p class="text-xs text-gray-500 mt-1 pt-1 border-t border-gray-100"><i class="fa fa-comment text-gray-400 mr-1"></i>' + item.keterangan + '</p>' : '')
+                + '</div>';
+        });
+        html += '</div></div>';
+    }
+
     if (po.status !== 'Pending') {
         html += '<div class="border-t pt-4"><h4 class="font-semibold text-gray-800 mb-2">Approval Info</h4>'
             + '<div class="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">'
@@ -517,29 +581,56 @@ function openApproveModal(poId, poNumber) {
 function renderApproveItems(data) {
     const details = data.details;
     const items = details.items || [];
+    const sourceType = data.po.source_type;
     approveItemDecisions = items.map(function() { return { action: null, buktiFile: null }; });
 
     // Info kendaraan
     const k = details.kendaraan || {};
-    document.getElementById('approveKendaraanInfo').innerHTML =
-        '<div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3">'
+    let kendaraanInfo = '<div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3">'
         + '<i class="fa fa-car text-green-600"></i>'
         + '<div class="text-sm">'
         + '<span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
-        + '<span class="text-gray-500 ml-2">' + (k.merk || '') + '</span>'
-        + '<span class="ml-3 text-gray-400 text-xs">Tgl Bayar: <b>' + (details.tanggal_bayar || '-') + '</b></span>'
-        + '<span class="ml-3 text-gray-400 text-xs">Berlaku s/d: <b>' + (details.tanggal_habis || '-') + '</b></span>'
-        + '</div></div>';
+        + '<span class="text-gray-500 ml-2">' + (k.merk || '') + '</span>';
+    
+    if (sourceType === 'gps') {
+        kendaraanInfo += '<span class="ml-3 text-gray-400 text-xs">Tgl Bayar: <b>' + (details.tanggal_bayar || '-') + '</b></span>'
+            + '<span class="ml-3 text-gray-400 text-xs">Berlaku s/d: <b>' + (details.tanggal_habis || '-') + '</b></span>';
+    } else if (sourceType === 'service_part') {
+        kendaraanInfo += '<span class="ml-3 text-gray-400 text-xs">Tgl Service: <b>' + (details.tanggal_service || '-') + '</b></span>'
+            + '<span class="ml-3 text-gray-400 text-xs">KM: <b>' + (details.kilometer || '-') + '</b></span>';
+    }
+    
+    kendaraanInfo += '</div></div>';
+    document.getElementById('approveKendaraanInfo').innerHTML = kendaraanInfo;
 
     const list = document.getElementById('approveItemList');
     list.innerHTML = '';
 
     items.forEach(function(item, idx) {
-        const bankInfo = [
-            item.nama_bank    ? '<span><i class="fa fa-building text-[9px]"></i> ' + item.nama_bank + '</span>' : '',
-            item.no_rekening  ? '<span class="font-mono">' + item.no_rekening + '</span>' : '',
-            item.nama_pemilik ? '<span>a/n ' + item.nama_pemilik + '</span>' : '',
-        ].filter(Boolean).join(' ');
+        let itemName, itemSubtitle, itemBiaya, bankInfo;
+        
+        if (sourceType === 'gps') {
+            itemName = item.gps_name || '-';
+            itemSubtitle = '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + (item.type || '-') + '</span>';
+            itemBiaya = item.biaya_sewa || 0;
+            bankInfo = [
+                item.nama_bank    ? '<span><i class="fa fa-building text-[9px]"></i> ' + item.nama_bank + '</span>' : '',
+                item.no_rekening  ? '<span class="font-mono">' + item.no_rekening + '</span>' : '',
+                item.nama_pemilik ? '<span>a/n ' + item.nama_pemilik + '</span>' : '',
+            ].filter(Boolean).join(' ');
+        } else if (sourceType === 'service_part') {
+            itemName = item.nama_part || '-';
+            itemSubtitle = '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">' + (item.category_nama || '-') + '</span>';
+            if (item.part_number && item.part_number !== '-') {
+                itemSubtitle += '<span class="text-xs text-gray-400 ml-1">P/N: ' + item.part_number + '</span>';
+            }
+            itemBiaya = item.biaya || 0;
+            bankInfo = [
+                item.nama_bank     ? '<span><i class="fa fa-building text-[9px]"></i> ' + item.nama_bank + '</span>' : '',
+                item.no_rekening   ? '<span class="font-mono">' + item.no_rekening + '</span>' : '',
+                item.nama_rekening ? '<span>a/n ' + item.nama_rekening + '</span>' : '',
+            ].filter(Boolean).join(' ');
+        }
 
         const card = document.createElement('div');
         card.id = 'approve-item-card-' + idx;
@@ -556,9 +647,9 @@ function renderApproveItems(data) {
             + '<label for="item-chk-' + idx + '" class="cursor-pointer">'
             + '<div class="flex items-center gap-2 flex-wrap">'
             + '<span class="text-xs text-gray-400">#' + (idx + 1) + '</span>'
-            + '<span class="font-semibold text-gray-800 text-sm">' + (item.gps_name || '-') + '</span>'
-            + '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + (item.type || '-') + '</span>'
-            + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(item.biaya_sewa || 0) + '</span>'
+            + '<span class="font-semibold text-gray-800 text-sm">' + itemName + '</span>'
+            + itemSubtitle
+            + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(itemBiaya) + '</span>'
             + '</div>'
             + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
             + '</label>'
@@ -568,7 +659,7 @@ function renderApproveItems(data) {
             + '</div>';
         card.appendChild(row);
 
-        // Panel bukti (tersembunyi, muncul saat checked) + panel alasan (default tampil karena default = ditolak)
+        // Panel bukti (tersembunyi, muncul saat checked)
         const panel = document.createElement('div');
         panel.id = 'approve-item-panel-' + idx;
         panel.className = 'hidden px-4 pb-3 pt-1 border-t border-green-100 bg-green-50/30';

@@ -43,7 +43,7 @@ class PengeluaranTransferService
                 'asuransi_kendaraan_perpanjang' => $this->transferAsuransiPerpanjang($pembayaran, $approvalFiles),
                 'pajak'                         => $this->transferPajak($pembayaran, $approvalFiles),
                 'pajak_perpanjang'              => $this->transferPajakPerpanjang($pembayaran, $approvalFiles),
-                'service_part'                  => $this->transferServicePart($pembayaran, $approvalFiles),
+                'service_part'                  => $this->transferServicePart($pembayaran, $approvalFiles, $selectedItems ?? []),
                 'gps'                           => $this->transferGps($pembayaran, $approvalFiles, $selectedItems),
                 'gps_perpanjang'                => $this->transferGpsPerpanjang($pembayaran, $approvalFiles, $selectedItems),
                 'kir'                           => $this->transferKir($pembayaran, $approvalFiles),
@@ -245,14 +245,21 @@ class PengeluaranTransferService
      * 3. Catat cashflow (Keuangan + BukuBesar) di sini — BUKAN di store()/requestStore()
      * 4. Copy attachment dari temp storage ke final storage
      */
-    protected function transferServicePart(Pembayaran $pembayaran, array $approvalFiles): int
+    protected function transferServicePart(Pembayaran $pembayaran, array $approvalFiles, array $selectedParts = []): int
     {
         $sourceData = $pembayaran->source_data;
         $kendaraanId = $sourceData['kendaraan_id'];
         $kendaraan   = Kendaraan::find($kendaraanId);
 
-        // ── Hitung total biaya dari parts ─────────────────────────────
-        $parts       = $sourceData['parts'] ?? [];
+        // ── Filter parts: jika $selectedParts diisi, hanya proses part tersebut ──
+        $allParts = $sourceData['parts'] ?? [];
+        if (!empty($selectedParts)) {
+            $parts = array_values(array_filter($allParts, fn($p, $idx) => in_array($idx, $selectedParts), ARRAY_FILTER_USE_BOTH));
+        } else {
+            $parts = $allParts;
+        }
+
+        // ── Hitung total biaya dari parts yang diproses ───────────────
         $sumBiaya    = collect($parts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
         $totalBiaya  = filled($sourceData['total_biaya_override'] ?? null) && (int)($sourceData['total_biaya_override'] ?? 0) > 0
             ? (int)$sourceData['total_biaya_override']
@@ -303,9 +310,13 @@ class PengeluaranTransferService
         }
         unset($partData);
 
-        // ── Buat ServicePart untuk setiap part ────────────────────────
+        // ── Buat ServicePart untuk setiap part yang diproses ──────────
         $lastPartId = null;
         foreach ($parts as $idx => $partData) {
+            // $idx di sini adalah index dalam filtered $parts, bukan index asli dalam $allParts
+            // Jika ada selectedParts, cari index asli untuk ambil temp_files yang tepat
+            $originalIdx = !empty($selectedParts) ? array_search($partData, $allParts) : $idx;
+            
             $tglPasang    = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
             $intervalNilai = (int)($partData['interval_nilai'] ?? 12);
             $intervalSatuan = $partData['interval_satuan'] ?? 'bulan';
@@ -334,8 +345,8 @@ class PengeluaranTransferService
             // Copy bukti files dari temp storage ke final storage
             $buktiFiles = [];
             $tempFiles  = $sourceData['temp_files'] ?? [];
-            // Coba ambil dari temp_files per-part jika ada
-            $partTempBukti = $tempFiles['parts'][$idx]['bukti'] ?? $tempFiles['bukti'] ?? [];
+            // Coba ambil dari temp_files per-part jika ada (gunakan originalIdx)
+            $partTempBukti = $tempFiles['parts'][$originalIdx]['bukti'] ?? $tempFiles['bukti'] ?? [];
             foreach ((array)$partTempBukti as $tf) {
                 if (!empty($tf['path'])) {
                     $finalPath = $this->copyFileToPublic($tf['path'], 'service-parts', $pembayaran->id);
@@ -358,8 +369,8 @@ class PengeluaranTransferService
                 'tgl_pasang'          => $tglPasang->toDateString(),
                 'kilometer_pasang'    => (int)($partData['kilometer_pasang'] ?? $sourceData['kilometer'] ?? 0),
                 'kondisi'             => $partData['kondisi'] ?? 'Baik',
-                // Status tidak_aktif: disetujui keuangan tapi belum dipasang fisik
-                'status'              => 'tidak_aktif',
+                // Status Proses: disetujui keuangan tapi belum dipasang fisik
+                'status'              => 'Proses',
                 'interval_nilai'      => $intervalNilai,
                 'interval_satuan'     => $intervalSatuan,
                 'tanggal_limit'       => $tanggalLimit->toDateString(),

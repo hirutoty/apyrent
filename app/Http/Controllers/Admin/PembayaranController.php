@@ -1381,6 +1381,23 @@ class PembayaranController extends Controller
             }
         }
 
+        // Route based on source_type
+        $sourceType = $pembayaran->source_type;
+        
+        if (in_array($sourceType, ['gps', 'gps_perpanjang'])) {
+            return $this->approveItemsGps($request, $pembayaran, $items);
+        } elseif ($sourceType === 'service_part') {
+            return $this->approveItemsServicePart($request, $pembayaran, $items);
+        } else {
+            return back()->with('error', 'Source type tidak didukung untuk per-item approval.');
+        }
+    }
+
+    /**
+     * Handle GPS-specific per-item approval
+     */
+    private function approveItemsGps(Request $request, Pembayaran $pembayaran, array $items)
+    {
         DB::beginTransaction();
         try {
             $approvedItems  = [];
@@ -1483,7 +1500,124 @@ class PembayaranController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("approveItems failed for Pembayaran #{$pembayaran->id}: " . $e->getMessage());
+            \Log::error("approveItems GPS failed for Pembayaran #{$pembayaran->id}: " . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle service_part-specific per-item approval
+     */
+    private function approveItemsServicePart(Request $request, Pembayaran $pembayaran, array $items)
+    {
+        DB::beginTransaction();
+        try {
+            $approvedItems  = [];
+            $rejectedItems  = [];
+            $buktiDir       = public_path('gps/bukti_bayar');
+            if (!file_exists($buktiDir)) mkdir($buktiDir, 0777, true);
+
+            foreach ($items as $idx => $item) {
+                $action  = $item['action'];
+                $catatan = $item['catatan'] ?? null;
+
+                // Upload bukti per item jika ada
+                $buktiBayarPath = null;
+                if ($request->hasFile("items.{$idx}.bukti")) {
+                    $file           = $request->file("items.{$idx}.bukti");
+                    $filename       = time() . '_' . $idx . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                    $file->move($buktiDir, $filename);
+                    $buktiBayarPath = 'gps/bukti_bayar/' . $filename;
+                }
+
+                // Catat ke approval history
+                \App\Models\PembayaranApproval::create([
+                    'pembayaran_id'    => $pembayaran->id,
+                    'user_id'          => auth()->id(),
+                    'action'           => $action,
+                    'catatan'          => $catatan,
+                    'bukti_files'      => $buktiBayarPath ? [['path' => $buktiBayarPath]] : null,
+                    'attachment_files' => null,
+                ]);
+
+                if ($action === 'approved') {
+                    $approvedItems[] = [
+                        'idx'        => (int) $idx,
+                        'bukti_path' => $buktiBayarPath,
+                    ];
+                } else {
+                    $rejectedItems[] = ['idx' => (int) $idx, 'catatan' => $catatan];
+                }
+            }
+
+            $transferService = app(\App\Services\PengeluaranTransferService::class);
+
+            // Transfer item approved → service_history & service_parts
+            $targetId = null;
+            if (!empty($approvedItems)) {
+                // Extract indices only for transfer method
+                $approvedIndices = array_column($approvedItems, 'idx');
+                $targetId = $transferService->transfer($pembayaran, [], $approvedIndices);
+            }
+
+            // Tentukan status PR induk
+            $totalItems    = count($items);
+            $approvedCount = count($approvedItems);
+            $rejectedCount = count($rejectedItems);
+
+            if ($approvedCount === $totalItems) {
+                $newStatus = 'Disetujui';
+            } elseif ($rejectedCount === $totalItems) {
+                $newStatus = 'Ditolak';
+            } else {
+                $newStatus = 'Disetujui Sebagian';
+            }
+
+            $pembayaran->update([
+                'status'              => $newStatus,
+                'target_id'           => $targetId,
+                'can_edit'            => $rejectedCount > 0,
+                'disetujui_oleh'      => auth()->user()->nama ?? auth()->user()->email,
+                'tanggal_persetujuan' => now(),
+            ]);
+
+            // Simpan keputusan per item ke source_data untuk ditampilkan di UI
+            $sourceParts   = $pembayaran->source_data['parts'] ?? [];
+            $itemDecisions = [];
+            foreach ($items as $idx => $decision) {
+                $part = $sourceParts[(int) $idx] ?? [];
+                $itemDecisions[] = [
+                    'idx'        => (int) $idx,
+                    'nama_part'  => $part['nama_part'] ?? '-',
+                    'category'   => $part['category_nama'] ?? '-',
+                    'action'     => $decision['action'],
+                    'catatan'    => $decision['catatan'] ?? null,
+                ];
+            }
+            $updatedSourceData = array_merge($pembayaran->source_data ?? [], ['item_decisions' => $itemDecisions]);
+            $pembayaran->update(['source_data' => $updatedSourceData]);
+
+            // Tandai part yang ditolak di source_data dengan status_approval = 'rejected'
+            if (!empty($rejectedItems)) {
+                $sourceData = $pembayaran->source_data ?? [];
+                foreach ($rejectedItems as $rejected) {
+                    $idx = $rejected['idx'];
+                    if (isset($sourceData['parts'][$idx])) {
+                        $sourceData['parts'][$idx]['status_approval'] = 'rejected';
+                        $sourceData['parts'][$idx]['catatan_penolakan'] = $rejected['catatan'] ?? '';
+                    }
+                }
+                $pembayaran->update(['source_data' => $sourceData]);
+            }
+
+            DB::commit();
+
+            $msg = "Keputusan disimpan: {$approvedCount} part disetujui, {$rejectedCount} part ditolak. Status PR: {$newStatus}.";
+            return redirect()->route('pembayaran.index')->with('success', $msg);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("approveItems ServicePart failed for Pembayaran #{$pembayaran->id}: " . $e->getMessage());
             return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
