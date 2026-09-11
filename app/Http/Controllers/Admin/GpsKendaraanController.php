@@ -22,7 +22,19 @@ class GpsKendaraanController extends Controller
             ->where('status_sewa', 'aktif')
             ->update(['status_sewa' => 'expired']);
 
-        $query = GpsKendaraan::with(['kendaraan', 'gps', 'attachments'])->latest();
+        // Tampilkan GPS yang:
+        // - Sudah melewati PO (bukan Pending = menunggu PO approval)
+        // - Jika Ditolak: hanya tampilkan yang sudah sampai tahap Pembayaran (punya pembayaran_id)
+        //   Ditolak di PO (tidak ada pembayaran_id) → tidak ditampilkan
+        //   Ditolak di Pembayaran (ada pembayaran_id) → tampilkan sebagai informasi
+        $query = GpsKendaraan::with(['kendaraan', 'gps', 'attachments'])
+            ->whereNotNull('persetujuan')
+            ->where('persetujuan', '!=', 'Pending')
+            ->where(function ($q) {
+                $q->where('persetujuan', '!=', 'Ditolak')
+                  ->orWhereNotNull('pembayaran_id'); // Ditolak di Pembayaran → tampilkan
+            })
+            ->latest();
 
         // Server-side search
         if ($request->filled('search')) {
@@ -54,13 +66,6 @@ class GpsKendaraanController extends Controller
         $data = $query->paginate(15)->withQueryString();
 
         $setting = Setting::first();
-        // Base64 logo untuk DomPDF
-        $logoPath = $setting?->logo ? public_path($setting->logo) : public_path('images/icon.png');
-        $logoSrc  = '';
-        if (file_exists($logoPath)) {
-            $mime    = mime_content_type($logoPath) ?: 'image/png';
-            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
-        }
 
         $reminder = match ($setting->satuan_reminder) {
             'hari'    => $setting->batas_reminder,
@@ -75,8 +80,15 @@ class GpsKendaraanController extends Controller
             'reminder'       => $reminder,
             'gps'            => Gps::all(),
             'kendaraan'      => Kendaraan::all(),
-            // Semua GPS per kendaraan (tidak ter-paginate) untuk modal perpanjang
+            // Semua GPS per kendaraan untuk modal perpanjang
+            // Hanya yang aktif/disetujui/diajukan ke pembayaran (bukan Pending atau Ditolak di PO)
             'gpsPerKendaraan'=> GpsKendaraan::with('gps')
+                ->whereNotNull('persetujuan')
+                ->where('persetujuan', '!=', 'Pending')
+                ->where(function ($q) {
+                    $q->where('persetujuan', '!=', 'Ditolak')
+                      ->orWhereNotNull('pembayaran_id');
+                })
                 ->get()
                 ->groupBy('kendaraan_id')
                 ->map(fn($items) => $items->map(fn($x) => [
@@ -141,8 +153,15 @@ class GpsKendaraanController extends Controller
 
     public function store(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
+        $isResubmit = $request->filled('edit_purchase_order');
+
         // Validasi shared fields + gps_items array
-        $request->validate([
+        // Saat resubmit: lampiran tidak wajib karena lampiran lama sudah tersimpan
+        $lampiranRules = $isResubmit
+            ? ['gps_items.*.lampiran' => 'nullable|array', 'gps_items.*.lampiran.*' => 'file|max:5120']
+            : ['gps_items.*.lampiran' => 'required|array|min:1', 'gps_items.*.lampiran.*' => 'file|max:5120'];
+
+        $request->validate(array_merge([
             'kendaraan_id'                    => 'required|exists:kendaraan,id',
             'status_gps'                      => 'nullable|in:aktif,nonaktif',
             'tanggal_bayar'                   => 'required|date',
@@ -154,12 +173,10 @@ class GpsKendaraanController extends Controller
             'gps_items.*.type'                => 'required|string|max:100',
             'gps_items.*.biaya_sewa'          => 'required|integer|min:0',
             'gps_items.*.bukti_bayar'         => 'nullable|file|max:5120',
-            'gps_items.*.lampiran'            => 'required|array|min:1',
-            'gps_items.*.lampiran.*'          => 'file|max:5120',
             'gps_items.*.nama_bank'           => 'nullable|string|max:255',
             'gps_items.*.no_rekening'         => 'nullable|string|max:100',
             'gps_items.*.nama_pemilik'        => 'nullable|string|max:255',
-        ], [
+        ], $lampiranRules), [
             'kendaraan_id.required'            => 'Kendaraan wajib dipilih.',
             'tanggal_bayar.required'           => 'Tanggal bayar wajib diisi.',
             'gps_items.required'               => 'Minimal satu GPS wajib ditambahkan.',
@@ -183,16 +200,21 @@ class GpsKendaraanController extends Controller
         }
 
         // --- Cek duplikat type vs database (kendaraan yang sama) ---
-        foreach ($gpsItems as $idx => $item) {
-            $exists = GpsKendaraan::where('kendaraan_id', $kendaraanId)
-                ->whereRaw('LOWER(type) = ?', [strtolower(trim($item['type']))])
-                ->exists();
+        // Hanya cek record yang aktif (bukan yang Ditolak) supaya resubmit tidak diblokir
+        // Saat resubmit (edit_purchase_order ada), skip cek DB karena record lama dihapus di service
+        if (!$request->filled('edit_purchase_order')) {
+            foreach ($gpsItems as $idx => $item) {
+                $exists = GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                    ->whereRaw('LOWER(type) = ?', [strtolower(trim($item['type']))])
+                    ->where('persetujuan', '!=', 'Ditolak')
+                    ->exists();
 
-            if ($exists) {
-                $kendaraan = Kendaraan::find($kendaraanId);
-                $nopol = $kendaraan ? $kendaraan->nopol : 'ID ' . $kendaraanId;
-                return back()->withInput()
-                    ->with('error', 'Baris ' . ($idx + 1) . ': Kendaraan ' . $nopol . ' sudah memiliki GPS dengan type "' . $item['type'] . '".');
+                if ($exists) {
+                    $kendaraan = Kendaraan::find($kendaraanId);
+                    $nopol = $kendaraan ? $kendaraan->nopol : 'ID ' . $kendaraanId;
+                    return back()->withInput()
+                        ->with('error', 'Baris ' . ($idx + 1) . ': Kendaraan ' . $nopol . ' sudah memiliki GPS dengan type "' . $item['type'] . '".');
+                }
             }
         }
 
@@ -202,16 +224,17 @@ class GpsKendaraanController extends Controller
         
         try {
             // Check if this is a resubmit (from rejected PO)
-            if ($request->filled('edit_purchase_order')) {
+            if ($isResubmit) {
                 $poId = $request->input('edit_purchase_order');
                 $approvalService = app(\App\Services\PurchaseOrderApprovalService::class);
                 $po = \App\Models\PurchaseOrder::findOrFail($poId);
                 
-                // Resubmit: Update existing PO
+                // Resubmit: hapus record lama Ditolak, buat record Pending baru, set PO → Pending
                 $po = $approvalService->resubmit($po, $request->all(), $request);
                 
-                return back()
-                    ->with('success', 'Pengajuan GPS berhasil diajukan ulang ke Purchase Order. Menunggu approval dari Superadmin.');
+                return redirect()
+                    ->route('purchase-order.index', ['status' => 'Pending'])
+                    ->with('success', 'GPS berhasil diajukan ulang. Menunggu approval Superadmin.');
             }
             
             // Step 1: Intercept data dari form
@@ -405,7 +428,7 @@ class GpsKendaraanController extends Controller
      */
     public function detail(Request $request, $id)
     {
-        $gps   = GpsKendaraan::with(['kendaraan','gps','attachments'])->findOrFail($id);
+        $gps   = GpsKendaraan::with(['kendaraan', 'gps'])->findOrFail($id);
         $tahun = (int) $request->input('tahun', now()->year);
 
         $histories = GpsKendaraanHistory::with('gps')
@@ -426,12 +449,18 @@ class GpsKendaraanController extends Controller
             ]);
 
         $bulanLabels = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
-        $chartData   = [];
+
+        // 1 query aggregate, bukan 12 query terpisah
+        $chartRaw = GpsKendaraanHistory::where('gps_kendaraan_id', $id)
+            ->whereYear('diperpanjang_pada', $tahun)
+            ->whereNotNull('diperpanjang_pada')
+            ->selectRaw('MONTH(diperpanjang_pada) as bulan, SUM(biaya_sewa) as total')
+            ->groupBy('bulan')
+            ->pluck('total', 'bulan');
+
+        $chartData = [];
         for ($b = 1; $b <= 12; $b++) {
-            $chartData[] = (float) GpsKendaraanHistory::where('gps_kendaraan_id', $id)
-                ->whereYear('diperpanjang_pada', $tahun)
-                ->whereMonth('diperpanjang_pada', $b)
-                ->sum('biaya_sewa');
+            $chartData[] = (float) ($chartRaw[$b] ?? 0);
         }
 
         $availableYears = GpsKendaraanHistory::where('gps_kendaraan_id', $id)
@@ -455,6 +484,8 @@ class GpsKendaraanController extends Controller
                 'tanggal_habis' => $gps->tanggal_habis ? \Carbon\Carbon::parse($gps->tanggal_habis)->format('d M Y') : '-',
                 'status_gps'   => $gps->status_gps,
                 'status_sewa'  => $gps->status_sewa,
+                'persetujuan'  => $gps->persetujuan,
+                'keterangan'   => $gps->keterangan,
                 'bukti_bayar'  => $gps->bukti_bayar ? asset($gps->bukti_bayar) : null,
             ],
             'histories'       => $histories,
@@ -507,6 +538,115 @@ class GpsKendaraanController extends Controller
         )->setPaper('A4', 'landscape');
 
         return $pdf->stream('laporan-gps-kendaraan.pdf');
+    }
+
+    /**
+     * Kembalikan daftar lampiran GPS record (untuk modal ajukan ulang)
+     */
+    public function getAttachments($id)
+    {
+        $attachments = Attachment::where('relation_type', 'gps')
+            ->where('relation_id', $id)
+            ->get()
+            ->map(fn($a) => [
+                'id'        => $a->id,
+                'file_name' => $a->file_name,
+                'url'       => asset($a->file_path),
+                'file_type' => $a->file_type,
+                'file_size' => $a->file_size,
+            ]);
+
+        return response()->json([
+            'success'     => true,
+            'attachments' => $attachments,
+        ]);
+    }
+
+    /**
+     * Ajukan ulang GPS yang ditolak di Pembayaran.
+     * - Lampiran baru ditambahkan (bukan mengganti yang lama)
+     * - Status Pembayaran → Diajukan
+     * - Persetujuan GPS → Diajukan ke Pembayaran
+     */
+    public function ajukanUlang(Request $request, $id)
+    {
+        $request->validate([
+            'lampiran'   => 'nullable|array',
+            'lampiran.*' => 'file|max:5120',
+            'catatan'    => 'nullable|string|max:1000',
+        ]);
+
+        $gps = GpsKendaraan::with(['kendaraan', 'gps'])->findOrFail($id);
+
+        if ($gps->persetujuan !== 'Ditolak') {
+            return back()->with('error', 'Hanya GPS yang ditolak di pembayaran yang dapat diajukan ulang.');
+        }
+
+        if (!$gps->pembayaran_id) {
+            return back()->with('error', 'GPS ini tidak terkait dengan pembayaran.');
+        }
+
+        $pembayaran = \App\Models\Pembayaran::find($gps->pembayaran_id);
+        if (!$pembayaran) {
+            return back()->with('error', 'Data pembayaran tidak ditemukan.');
+        }
+
+        if ($pembayaran->status !== 'Ditolak') {
+            return back()->with('error', 'Pembayaran ini tidak dalam status Ditolak.');
+        }
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            // Simpan lampiran baru (ditambahkan, bukan mengganti)
+            if ($request->hasFile('lampiran')) {
+                $lampiranDir = public_path('gps/attachments');
+                if (!file_exists($lampiranDir)) mkdir($lampiranDir, 0777, true);
+
+                foreach ($request->file('lampiran') as $file) {
+                    if (!$file->isValid()) continue;
+                    $origName = $file->getClientOriginalName();
+                    $ext      = $file->getClientOriginalExtension();
+                    $fileSize = $file->getSize();
+                    $filename = time() . '_' . uniqid() . '.' . $ext;
+                    $file->move($lampiranDir, $filename);
+                    Attachment::create([
+                        'relation_type' => 'gps',
+                        'relation_id'   => $gps->id,
+                        'file_name'     => $origName,
+                        'file_path'     => 'gps/attachments/' . $filename,
+                        'file_type'     => $ext,
+                        'file_size'     => $fileSize,
+                    ]);
+                }
+            }
+
+            // Update catatan jika diisi
+            if ($request->filled('catatan')) {
+                $gps->update(['keterangan' => $request->catatan]);
+            }
+
+            // Update persetujuan GPS → Diajukan ke Pembayaran
+            $gps->update(['persetujuan' => 'Diajukan ke Pembayaran']);
+
+            // Update status Pembayaran → Diajukan
+            $pembayaran->update([
+                'status'            => 'Diajukan',
+                'can_edit'          => false,
+                'catatan'           => null,
+                'terakhir_diajukan' => now(),
+            ]);
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return redirect()
+                ->route('gps-kendaraan.index')
+                ->with('success', 'GPS berhasil diajukan ulang ke pembayaran. Menunggu approval Superadmin.');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            \Log::error('ajukanUlang GPS #' . $id . ': ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
     }
 
     public function perpanjang(Request $request, $id, \App\Services\PengeluaranInterceptorService $interceptor)

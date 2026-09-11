@@ -50,8 +50,9 @@ class PurchaseOrderApprovalService
             }
         }
 
-        // Status: kalau ada item ditolak → Disetujui Sebagian, kalau semua approved → Disetujui
-        $status = $hasRejected ? 'Disetujui Sebagian' : 'Disetujui';
+        // Status: Pembayaran dibuat dengan status 'Diajukan' (bukan langsung Disetujui)
+        // agar masih perlu approval di halaman Pembayaran
+        $status = 'Diajukan';
 
         $pembayaran = Pembayaran::create([
             'no_pr'               => $noPR,
@@ -75,6 +76,44 @@ class PurchaseOrderApprovalService
         ]);
 
         $po->update(['pembayaran_id' => $pembayaran->id]);
+
+        // Update GpsKendaraan approved items ke 'Diajukan ke Pembayaran'
+        if ($po->source_type === 'gps') {
+            $origSourceData = $po->source_data ?? [];
+            $allGpsItems    = $origSourceData['gps_items'] ?? [];
+            $approvedItems  = $approvedSourceData['gps_items'] ?? [];
+            $kendaraanId    = $origSourceData['kendaraan_id'] ?? null;
+            $recordIds      = $origSourceData['gps_record_ids'] ?? [];
+
+            // Kumpulkan gps_id+type dari approved items
+            $approvedKeys = array_map(fn($i) => ($i['gps_id'] ?? '') . '_' . ($i['type'] ?? ''), $approvedItems);
+
+            if (!empty($recordIds)) {
+                foreach ($allGpsItems as $idx => $item) {
+                    $key      = ($item['gps_id'] ?? '') . '_' . ($item['type'] ?? '');
+                    $recordId = $recordIds[$idx] ?? null;
+                    if ($recordId && in_array($key, $approvedKeys)) {
+                        \App\Models\GpsKendaraan::where('id', $recordId)
+                            ->where('persetujuan', 'Pending')
+                            ->update([
+                                'persetujuan'   => 'Diajukan ke Pembayaran',
+                                'pembayaran_id' => $pembayaran->id,
+                            ]);
+                    }
+                }
+            } elseif ($kendaraanId) {
+                foreach ($approvedItems as $item) {
+                    \App\Models\GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                        ->where('gps_id', $item['gps_id'] ?? null)
+                        ->where('type', $item['type'] ?? null)
+                        ->where('persetujuan', 'Pending')
+                        ->update([
+                            'persetujuan'   => 'Diajukan ke Pembayaran',
+                            'pembayaran_id' => $pembayaran->id,
+                        ]);
+                }
+            }
+        }
 
         return $pembayaran;
     }
@@ -109,6 +148,38 @@ class PurchaseOrderApprovalService
 
             // Link Pembayaran to PO
             $po->update(['pembayaran_id' => $pembayaran->id]);
+
+            // Update semua GpsKendaraan terkait PO ini ke 'Diajukan ke Pembayaran'
+            // sehingga record muncul di tabel gps_kendaraan dengan status tersebut
+            if ($po->source_type === 'gps') {
+                $sourceData  = $po->source_data ?? [];
+                $recordIds   = $sourceData['gps_record_ids'] ?? [];
+                $gpsItems    = $sourceData['gps_items'] ?? [];
+
+                if (!empty($recordIds)) {
+                    \App\Models\GpsKendaraan::whereIn('id', $recordIds)
+                        ->where('persetujuan', 'Pending')
+                        ->update([
+                            'persetujuan'   => 'Diajukan ke Pembayaran',
+                            'pembayaran_id' => $pembayaran->id,
+                        ]);
+                } else {
+                    // Fallback: cari by kendaraan_id + type dari gps_items
+                    $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+                    if ($kendaraanId && !empty($gpsItems)) {
+                        foreach ($gpsItems as $item) {
+                            \App\Models\GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                                ->where('gps_id', $item['gps_id'] ?? null)
+                                ->where('type', $item['type'] ?? null)
+                                ->where('persetujuan', 'Pending')
+                                ->update([
+                                    'persetujuan'   => 'Diajukan ke Pembayaran',
+                                    'pembayaran_id' => $pembayaran->id,
+                                ]);
+                        }
+                    }
+                }
+            }
 
             DB::commit();
 
@@ -193,6 +264,95 @@ class PurchaseOrderApprovalService
             // Extract total items
             $totalItems = $this->extractTotalItemsFromData($sourceType, $newData);
 
+            // Untuk GPS: hapus record Ditolak lama, buat records Pending baru
+            $newGpsRecordIds = [];
+            if ($sourceType === 'gps') {
+                $oldSourceData = $po->source_data ?? [];
+                $oldRecordIds  = $oldSourceData['gps_record_ids'] ?? [];
+
+                // Untuk GPS: ambil lampiran lama SEBELUM hapus record, lalu hapus record Ditolak
+                $oldAttachmentsByIdx = [];
+                foreach ($oldRecordIds as $idx => $oldId) {
+                    $oldAttachmentsByIdx[$idx] = \App\Models\Attachment::where('relation_type', 'gps')
+                        ->where('relation_id', $oldId)
+                        ->get();
+                }
+
+                // Hapus GPS records lama yang Ditolak terkait PO ini
+                if (!empty($oldRecordIds)) {
+                    \App\Models\GpsKendaraan::whereIn('id', $oldRecordIds)
+                        ->where('persetujuan', 'Ditolak')
+                        ->delete();
+                }
+
+                // Buat GPS records baru dengan status Pending
+                // Lampiran lama dipindahkan ke record baru (bukan dihapus)
+                $gpsItems    = $newData['gps_items'] ?? [];
+                $kendaraanId = $newData['kendaraan_id'] ?? $oldSourceData['kendaraan_id'] ?? null;
+                $tanggalBayar = $newData['tanggal_bayar'] ?? null;
+                $tanggalHabis = $newData['tanggal_habis'] ?? null;
+                $durasiBulan  = ($tanggalBayar && $tanggalHabis)
+                    ? max((int) \Carbon\Carbon::parse($tanggalBayar)->diffInMonths(\Carbon\Carbon::parse($tanggalHabis)), 1)
+                    : 12;
+
+                foreach ($gpsItems as $itemIdx => $item) {
+                    // Ambil lampiran lama yang sudah dikumpulkan sebelum record dihapus
+                    $oldAttachments = $oldAttachmentsByIdx[$itemIdx] ?? collect();
+
+                    $gpsRecord = \App\Models\GpsKendaraan::create([
+                        'pembayaran_id' => null,
+                        'kendaraan_id'  => $kendaraanId,
+                        'gps_id'        => $item['gps_id'] ?? null,
+                        'type'          => $item['type'] ?? null,
+                        'status_gps'    => 'nonaktif',
+                        'tanggal_pasang'=> $tanggalBayar,
+                        'tanggal_habis' => $tanggalHabis,
+                        'tanggal_bayar' => $tanggalBayar,
+                        'biaya_sewa'    => (int) ($item['biaya_sewa'] ?? 0),
+                        'durasi_bulan'  => $durasiBulan,
+                        'status_sewa'   => 'tidak_aktif',
+                        'bukti_bayar'   => null,
+                        'keterangan'    => $newData['keterangan'] ?? null,
+                        'nama_bank'     => $item['nama_bank'] ?? null,
+                        'no_rekening'   => $item['no_rekening'] ?? null,
+                        'nama_pemilik'  => $item['nama_pemilik'] ?? null,
+                        'persetujuan'   => 'Pending',
+                    ]);
+                    $newGpsRecordIds[] = $gpsRecord->id;
+
+                    // Pindahkan lampiran lama ke record baru (update relation_id)
+                    if ($oldAttachments->isNotEmpty()) {
+                        \App\Models\Attachment::whereIn('id', $oldAttachments->pluck('id'))
+                            ->update(['relation_id' => $gpsRecord->id]);
+                    }
+
+                    // Simpan lampiran baru yang diupload saat resubmit (ditambahkan, bukan mengganti)
+                    if ($request->hasFile("gps_items.{$itemIdx}.lampiran")) {
+                        $lampiranDir = public_path('gps/attachments');
+                        if (!file_exists($lampiranDir)) mkdir($lampiranDir, 0777, true);
+
+                        foreach ($request->file("gps_items.{$itemIdx}.lampiran") as $lampiranFile) {
+                            if (!$lampiranFile->isValid()) continue;
+                            $origName = $lampiranFile->getClientOriginalName();
+                            $ext      = $lampiranFile->getClientOriginalExtension();
+                            $fileSize = $lampiranFile->getSize();
+                            $filename = time() . '_' . uniqid() . '.' . $ext;
+                            $lampiranFile->move($lampiranDir, $filename);
+                            \App\Models\Attachment::create([
+                                'relation_type' => 'gps',
+                                'relation_id'   => $gpsRecord->id,
+                                'file_name'     => $origName,
+                                'file_path'     => 'gps/attachments/' . $filename,
+                                'file_type'     => $ext,
+                                'file_size'     => $fileSize,
+                            ]);
+                        }
+                    }
+                }
+
+                $newData['gps_record_ids'] = $newGpsRecordIds;
+            }
+
             // Update PO dengan data baru
             $po->update([
                 'source_data' => array_merge($newData, ['temp_files' => $uploadedFiles]),
@@ -253,7 +413,8 @@ class PurchaseOrderApprovalService
             'no_rekening' => $sourceData['no_rekening'] ?? null,
             'nama_pemilik' => $sourceData['nama_pemilik'] ?? $sourceData['nama_rekening'] ?? null,
             'keterangan' => $sourceData['keterangan'] ?? $sourceData['informasi'] ?? null,
-            'status' => 'Pending',
+            'status' => 'Diajukan', // PO sudah diapprove superadmin → langsung Diajukan ke Pembayaran
+            'terakhir_diajukan' => now(),
             'source_type' => $sourceType,
             'source_data' => $sourceData,
             'target_id' => null, // Will be filled after Pembayaran approved

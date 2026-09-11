@@ -63,6 +63,21 @@
                 </div>
             </div>
 
+            {{-- ── Alasan Penolakan (hanya muncul jika GPS ditolak di Pembayaran) ── --}}
+            <div id="dpRejectBox" class="hidden bg-red-50 border border-red-200 rounded-xl px-5 py-4">
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mt-0.5">
+                        <i class="fa-solid fa-circle-xmark text-red-500 text-sm"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-red-700 uppercase tracking-wide mb-1">
+                            Alasan Ditolak di Pembayaran
+                        </p>
+                        <p class="text-sm text-red-700" id="dpRejectAlasan">–</p>
+                    </div>
+                </div>
+            </div>
+
             {{-- ── Chart perpanjangan Jan-Des ── --}}
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <div class="flex items-center justify-between mb-3">
@@ -181,6 +196,8 @@ async function fetchDetailModal(type, id, tahun) {
 function renderDetailModal(type, json) {
     const { record, histories, chart, available_years } = json;
 
+    // Reset reject box setiap kali modal dibuka
+    document.getElementById('dpRejectBox')?.classList.add('hidden');
     // ── Header
     const titles = { pajak:'Pajak Kendaraan', asuransi:'Asuransi Kendaraan', gps:'GPS Kendaraan', kir:'KIR Kendaraan' };
     document.getElementById('modalDetailPajakTitle').textContent   = 'Detail ' + (titles[type] || '');
@@ -242,6 +259,15 @@ function renderDetailModal(type, json) {
             ' | GPS: ' + (record.status_gps || '–') +
             ' | Sewa: ' + (record.status_sewa || '–'));
         document.getElementById('dpCard7').classList.remove('hidden');
+
+        // ── Alasan Ditolak (hanya tampil jika persetujuan = Ditolak)
+        const rejectBox = document.getElementById('dpRejectBox');
+        if (record.persetujuan === 'Ditolak' && record.keterangan) {
+            document.getElementById('dpRejectAlasan').textContent = record.keterangan;
+            rejectBox.classList.remove('hidden');
+        } else {
+            rejectBox.classList.add('hidden');
+        }
 
     } else if (type === 'kir') {
         document.getElementById('dpBiayaLabel').textContent  = 'Biaya KIR';

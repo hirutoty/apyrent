@@ -115,33 +115,54 @@ class PurchaseOrderController extends Controller
      */
     protected function buildGpsDetails($sourceData)
     {
-        $gpsItems = $sourceData['gps_items'] ?? [];
+        $gpsItems    = $sourceData['gps_items'] ?? [];
+        $recordIds   = $sourceData['gps_record_ids'] ?? [];
         $kendaraanId = $sourceData['kendaraan_id'] ?? null;
-        $kendaraan = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
-        
+        $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+
         $items = [];
-        foreach ($gpsItems as $item) {
+        foreach ($gpsItems as $idx => $item) {
             $gps = isset($item['gps_id']) ? \App\Models\Gps::find($item['gps_id']) : null;
+
+            // Ambil lampiran dari DB berdasarkan gps_record_id
+            $recordId   = $recordIds[$idx] ?? null;
+            $lampiran   = [];
+            if ($recordId) {
+                $attachments = \App\Models\Attachment::where('relation_type', 'gps')
+                    ->where('relation_id', $recordId)
+                    ->get();
+                foreach ($attachments as $att) {
+                    $lampiran[] = [
+                        'id'        => $att->id,
+                        'file_name' => $att->file_name,          // nama asli
+                        'file_path' => asset($att->file_path),   // URL publik
+                        'file_type' => $att->file_type,
+                        'file_size' => $att->file_size,
+                    ];
+                }
+            }
+
             $items[] = [
-                'gps_name' => $gps ? $gps->nama_gps : '-',
-                'type' => $item['type'] ?? '-',
-                'biaya_sewa' => $item['biaya_sewa'] ?? 0,
-                'nama_bank' => $item['nama_bank'] ?? '-',
+                'gps_name'    => $gps ? $gps->nama_gps : '-',
+                'type'        => $item['type'] ?? '-',
+                'biaya_sewa'  => $item['biaya_sewa'] ?? 0,
+                'nama_bank'   => $item['nama_bank'] ?? '-',
                 'no_rekening' => $item['no_rekening'] ?? '-',
-                'nama_pemilik' => $item['nama_pemilik'] ?? '-',
+                'nama_pemilik'=> $item['nama_pemilik'] ?? '-',
+                'lampiran'    => $lampiran,
             ];
         }
-        
+
         return [
-            'type' => 'gps',
-            'kendaraan' => [
+            'type'         => 'gps',
+            'kendaraan'    => [
                 'nopol' => $kendaraan ? $kendaraan->nopol : '-',
-                'merk' => $kendaraan ? $kendaraan->merk : '-',
+                'merk'  => $kendaraan ? $kendaraan->merk  : '-',
             ],
             'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '-',
             'tanggal_habis' => $sourceData['tanggal_habis'] ?? '-',
-            'keterangan' => $sourceData['keterangan'] ?? '-',
-            'items' => $items,
+            'keterangan'    => $sourceData['keterangan'] ?? '-',
+            'items'         => $items,
         ];
     }
 
@@ -283,11 +304,13 @@ class PurchaseOrderController extends Controller
                     'can_edit'            => true,
                 ]);
 
-                foreach ($gpsItems as $idx => $item) {
-                    if (isset($item['gps_record_id'])) {
-                        \App\Models\GpsKendaraan::where('id', $item['gps_record_id'])
-                            ->update(['persetujuan' => 'Ditolak']);
-                    }
+                // Hapus semua record GPS Pending terkait PO ini
+                // Record IDs disimpan di source_data['gps_record_ids'], bukan di dalam tiap item
+                $recordIds = $sourceData['gps_record_ids'] ?? [];
+                if (!empty($recordIds)) {
+                    \App\Models\GpsKendaraan::whereIn('id', $recordIds)
+                        ->where('persetujuan', 'Pending')
+                        ->delete();
                 }
 
                 \DB::commit();
@@ -333,11 +356,55 @@ class PurchaseOrderController extends Controller
             ]);
             $pembayaran = $this->approvalService->approveWithItems($po, $approvedSourceData, $perItemBukti, $catatan, $hasRejected);
 
-            // Update status GpsKendaraan yang ditolak
-            foreach ($rejectedIdx as $idx) {
-                $item = $gpsItems[$idx] ?? null;
-                if ($item && isset($item['gps_record_id'])) {
-                    \App\Models\GpsKendaraan::where('id', $item['gps_record_id'])
+            // Item yang ditolak → buat PO baru terpisah dengan status Ditolak
+            // agar user dapat melihat di tab "Ditolak" dan mengajukan ulang
+            $allRecordIds     = $sourceData['gps_record_ids'] ?? [];
+            $rejectedGpsItems = array_values(
+                array_filter($gpsItems, fn($item, $idx) => in_array($idx, $rejectedIdx), ARRAY_FILTER_USE_BOTH)
+            );
+
+            if (!empty($rejectedGpsItems)) {
+                // Kumpulkan GPS record IDs untuk item yang ditolak (pertahankan urutan)
+                $rejectedRecordIds = [];
+                foreach ($rejectedIdx as $idx) {
+                    $recordId = $allRecordIds[$idx] ?? null;
+                    if ($recordId) $rejectedRecordIds[] = $recordId;
+                }
+
+                // Kumpulkan catatan penolakan per item
+                $rejectedCatatan = collect($rejectedIdx)
+                    ->map(fn($idx) => $items[$idx]['catatan'] ?? null)
+                    ->filter()
+                    ->implode('; ');
+
+                // Buat PO baru untuk item yang ditolak (status Ditolak, can_edit=true)
+                $rejectedSourceData = array_merge($sourceData, [
+                    'gps_items'      => $rejectedGpsItems,
+                    'gps_record_ids' => $rejectedRecordIds,
+                ]);
+                $nominalRejected = collect($rejectedGpsItems)->sum(fn($i) => $i['biaya_sewa'] ?? 0);
+
+                PurchaseOrder::create([
+                    'tanggal_po'          => now()->toDateString(),
+                    'vendor'              => $po->vendor,
+                    'source_type'         => $po->source_type,
+                    'source_data'         => $rejectedSourceData,
+                    'total_barang'        => count($rejectedGpsItems),
+                    'total_harga'         => $nominalRejected,
+                    'status'              => 'Ditolak',
+                    'status_po'           => 'Pending',
+                    'disetujui_oleh'      => auth()->id(),
+                    'tanggal_persetujuan' => now(),
+                    'catatan_approval'    => $catatan ?: $rejectedCatatan ?: 'Item ditolak dari PO ' . $po->po_id,
+                    'can_edit'            => true,
+                    'terakhir_diajukan'   => now(),
+                ]);
+
+                // Update GPS record yang ditolak: tandai persetujuan = Ditolak
+                // Record tetap ada di DB — tidak dihapus, supaya tidak menghalangi resubmit
+                if (!empty($rejectedRecordIds)) {
+                    \App\Models\GpsKendaraan::whereIn('id', $rejectedRecordIds)
+                        ->where('persetujuan', 'Pending')
                         ->update(['persetujuan' => 'Ditolak']);
                 }
             }
@@ -358,6 +425,54 @@ class PurchaseOrderController extends Controller
             \DB::rollBack();
             \Log::error('Error approveItems PO #' . $id . ': ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Resubmit GPS Purchase Order yang ditolak — load data lama ke modal GPS,
+     * user edit lalu submit ulang lewat GpsKendaraanController@store dengan edit_purchase_order
+     * Route ini hanya mengembalikan data PO untuk diisi ke modal di view.
+     */
+    public function resubmit(Request $request, $id)
+    {
+        try {
+            $po = PurchaseOrder::findOrFail($id);
+
+            if (!$po->isRejected()) {
+                return response()->json(['success' => false, 'message' => 'Hanya PO yang ditolak yang dapat diajukan ulang.'], 422);
+            }
+
+            if (!$po->can_edit) {
+                return response()->json(['success' => false, 'message' => 'PO ini tidak dapat diedit.'], 422);
+            }
+
+            $sourceData = $po->source_data ?? [];
+            $gpsItems   = $sourceData['gps_items'] ?? [];
+            $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+            $kendaraan  = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+
+            // Enrich items dengan nama GPS
+            $enrichedItems = array_map(function ($item) {
+                $gps = isset($item['gps_id']) ? \App\Models\Gps::find($item['gps_id']) : null;
+                return array_merge($item, ['nama_gps' => $gps ? $gps->nama_gps : '-']);
+            }, $gpsItems);
+
+            return response()->json([
+                'success'     => true,
+                'po_id'       => $po->id,
+                'po_number'   => $po->po_id,
+                'catatan'     => $po->catatan_approval,
+                'kendaraan_id'   => $kendaraanId,
+                'nopol'          => $kendaraan ? $kendaraan->nopol : '-',
+                'merk'           => $kendaraan ? $kendaraan->merk : '-',
+                'tanggal_bayar'  => $sourceData['tanggal_bayar'] ?? '',
+                'tanggal_habis'  => $sourceData['tanggal_habis'] ?? '',
+                'keterangan'     => $sourceData['keterangan'] ?? '',
+                'gps_items'      => $enrichedItems,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
