@@ -759,7 +759,13 @@ class PengeluaranTransferService
 
             // Snapshot data lama ke history SEBELUM update
             if ($existing) {
-                \App\Models\GpsKendaraanHistory::create([
+                // Ambil lampiran lama SEBELUM update untuk disalin ke history
+                $lampiranLama = \App\Models\Attachment::where('relation_type', 'gps')
+                    ->where('relation_id', $existing->id)
+                    ->get();
+
+                // Snapshot data lama → history
+                $history = \App\Models\GpsKendaraanHistory::create([
                     'gps_kendaraan_id'  => $existing->id,
                     'kendaraan_id'      => $existing->kendaraan_id,
                     'gps_id'            => $existing->gps_id,
@@ -770,10 +776,25 @@ class PengeluaranTransferService
                     'biaya_sewa'        => $existing->biaya_sewa,
                     'durasi_bulan'      => $existing->durasi_bulan,
                     'status_sewa'       => $existing->status_sewa,
-                    'bukti_bayar'       => $existing->bukti_bayar,
+                    'bukti_bayar'       => $existing->bukti_bayar, // bukti lama masuk ke history
                     'tanggal_bayar'     => $existing->tanggal_bayar ?? $tanggalBayar,
                     'diperpanjang_pada' => now(),
                 ]);
+
+                // Salin lampiran lama ke history (relation_type = 'gps_history')
+                foreach ($lampiranLama as $att) {
+                    \App\Models\Attachment::create([
+                        'relation_type' => 'gps_history',
+                        'relation_id'   => $history->id,
+                        'file_name'     => $att->file_name,
+                        'file_path'     => $att->file_path, // path sama, tidak perlu copy fisik
+                        'file_type'     => $att->file_type,
+                        'file_size'     => $att->file_size,
+                    ]);
+                }
+
+                // TIDAK menghapus lampiran dari gps_kendaraan
+                // Lampiran awal tetap ikut di GPS aktif untuk perpanjangan berikutnya
             }
 
             $updateData = [

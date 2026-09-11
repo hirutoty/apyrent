@@ -53,7 +53,7 @@ class DatabaseSeeder extends Seeder
             MemberSeeder::class,             // Tambah: standalone, tidak ada dependency
             PelangganSeeder::class,
             RentalSeeder::class,
-            KeuanganSeeder::class,
+            // KeuanganSeeder::class,
             HutangVendorSeeder::class,
             BupotSeeder::class,
             RekonsiliasiBankSeeder::class,
@@ -93,7 +93,7 @@ class DatabaseSeeder extends Seeder
             PembelianProyekSeeder::class,
             // Purchase
             RequestforQuotationSeeder::class,
-            PurchaseOrderSeeder::class,
+            // PurchaseOrderSeeder::class,
             VendorPricelistSeeder::class,
             ApprovalWorkflowSeeder::class,
             DropshippingSeeder::class,

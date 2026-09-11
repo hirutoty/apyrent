@@ -66,7 +66,8 @@ class PengeluaranInterceptorService
                 'no_rekening' => $data['no_rekening'] ?? null,
                 'nama_rekening' => $data['nama_rekening'] ?? null,
                 'informasi' => $data['informasi'] ?? null,
-                'status' => 'Pending',
+                'status' => 'Diajukan',        // Langsung Diajukan, tidak perlu klik Ajukan lagi
+                'terakhir_diajukan' => now(),
                 'source_type' => $sourceType,
                 'source_data' => $data['source_data'],
                 'target_id' => null,
@@ -453,6 +454,32 @@ class PengeluaranInterceptorService
             // Upload files (file image/bukti dari form perpanjangan)
             $uploadedFiles = $this->uploadTemporaryFiles($fakeRequest, $pembayaran->id);
             
+            // Sertakan lampiran lama dari GPS record ke source_data
+            // supaya tampil di modal approval pembayaran
+            $gpsItems = $interceptedData['source_data']['gps_items'] ?? [];
+            if (!empty($gpsItems)) {
+                foreach ($gpsItems as $idx => $item) {
+                    $gpsKendaraanId = $item['gps_kendaraan_id'] ?? null;
+                    if (!$gpsKendaraanId) continue;
+                    $lampiranLama = \App\Models\Attachment::where('relation_type', 'gps')
+                        ->where('relation_id', $gpsKendaraanId)
+                        ->get()
+                        ->map(fn($a) => [
+                            'original_name' => $a->file_name,
+                            'path'          => $a->file_path,
+                            'size'          => $a->file_size,
+                            'extension'     => $a->file_type,
+                        ])
+                        ->toArray();
+                    if (!empty($lampiranLama)) {
+                        $uploadedFiles['gps_items'][$idx]['lampiran'] = array_merge(
+                            $uploadedFiles['gps_items'][$idx]['lampiran'] ?? [],
+                            $lampiranLama
+                        );
+                    }
+                }
+            }
+
             // Update source_data
             $sourceData = $pembayaran->source_data;
             $sourceData['temp_files'] = $uploadedFiles;

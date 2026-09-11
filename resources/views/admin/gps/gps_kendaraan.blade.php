@@ -360,11 +360,21 @@
 
                                         {{-- Ajukan Ulang: hanya untuk GPS Ditolak di Pembayaran --}}
                                         @if($d->persetujuan === 'Ditolak' && $d->pembayaran_id)
-                                        <button type="button"
-                                            onclick="openAjukanUlangModal({{ $d->id }}, '{{ $d->kendaraan->nopol ?? '-' }}', '{{ $d->kendaraan->merk ?? '-' }}', '{{ $d->gps->nama_gps ?? '-' }}', '{{ $d->type }}')"
-                                            class="bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-2 rounded-lg text-xs font-medium transition inline-flex items-center gap-1">
-                                            <i class="fa-solid fa-rotate-right text-xs"></i> Ajukan Ulang
-                                        </button>
+                                            @if($d->pembayaran?->source_type === 'gps_perpanjang')
+                                            {{-- Perpanjang: ajukan ulang via pembayaran_id --}}
+                                            <button type="button"
+                                                onclick="openAjukanUlangPerpanjangModal({{ $d->pembayaran_id }}, '{{ $d->kendaraan->nopol ?? '-' }}', '{{ $d->kendaraan->merk ?? '-' }}', '{{ $d->gps->nama_gps ?? '-' }}', '{{ $d->type }}')"
+                                                class="bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-2 rounded-lg text-xs font-medium transition inline-flex items-center gap-1">
+                                                <i class="fa-solid fa-rotate-right text-xs"></i> Ajukan Ulang
+                                            </button>
+                                            @else
+                                            {{-- Tambah baru: ajukan ulang via gps_kendaraan.id --}}
+                                            <button type="button"
+                                                onclick="openAjukanUlangModal({{ $d->id }}, '{{ $d->kendaraan->nopol ?? '-' }}', '{{ $d->kendaraan->merk ?? '-' }}', '{{ $d->gps->nama_gps ?? '-' }}', '{{ $d->type }}')"
+                                                class="bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-2 rounded-lg text-xs font-medium transition inline-flex items-center gap-1">
+                                                <i class="fa-solid fa-rotate-right text-xs"></i> Ajukan Ulang
+                                            </button>
+                                            @endif
                                         @endif
 
                                         {{-- Perpanjang: hanya tampil jika sudah dalam batas reminder --}}
@@ -1265,23 +1275,52 @@
                 <div class="px-4 py-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                     <input type="hidden" name="gps_items[0][gps_kendaraan_id]" value="${gpsId}">
 
-                    <div>
-                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Biaya Sewa <span class="text-red-500">*</span></label>
-                        <input type="number" name="biaya_sewa" required min="0" max="9999999999"
-                            value="${biaya}" placeholder="0"
-                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-
                     <div class="md:col-span-2">
-                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Lampiran <span class="text-red-500">*</span></label>
-                        <input type="file" name="lampiran[]" multiple required
-                            accept="image/*,.pdf,.doc,.docx"
-                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
-                        <p class="text-[10px] text-red-500 mt-0.5">Wajib upload minimal 1 lampiran</p>
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Biaya Sewa <span class="text-red-500">*</span></label>
+                        <input type="number" name="biaya_sewa" id="perp_biaya_sewa" required min="0" max="9999999999"
+                            value="${biaya}" placeholder="0"
+                            data-gps-id="${gpsId}"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <p class="text-[10px] text-slate-400 mt-0.5">Perubahan harga otomatis tersimpan ke data GPS.</p>
                     </div>
                 </div>
             `;
             list.appendChild(card);
+
+            // Auto-update biaya_sewa di GPS record saat input berubah
+            const biayaInput = document.getElementById('perp_biaya_sewa');
+            let biayaTimer = null;
+            biayaInput.addEventListener('input', function () {
+                clearTimeout(biayaTimer);
+                const newBiaya = parseInt(this.value) || 0;
+                const inputEl  = this;
+                biayaTimer = setTimeout(function () {
+                    fetch(`/admin/gps-kendaraan/${gpsId}/update-biaya`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({ biaya_sewa: newBiaya }),
+                    })
+                    .then(r => r.json())
+                    .then(function(res) {
+                        if (res.success) {
+                            inputEl.classList.add('border-green-400');
+                            inputEl.classList.remove('border-slate-300', 'border-red-400');
+                            setTimeout(() => {
+                                inputEl.classList.remove('border-green-400');
+                                inputEl.classList.add('border-slate-300');
+                            }, 1500);
+                        }
+                    })
+                    .catch(function() {
+                        inputEl.classList.add('border-red-400');
+                        inputEl.classList.remove('border-slate-300', 'border-green-400');
+                    });
+                }, 600); // debounce 600ms
+            });
 
             show(modalPerpanjang);
         });
@@ -1451,6 +1490,49 @@
         document.getElementById('modalAjukanUlang')?.addEventListener('click', function(e) {
             if (e.target === this) closeAjukanUlangModal();
         });
+
+        // ── AJUKAN ULANG PERPANJANG MODAL ────────────────────────────────────
+        function openAjukanUlangPerpanjangModal(pembayaranId, nopol, merk, namaGps, type) {
+            const modal = document.getElementById('modalAjukanUlangPerpanjang');
+            const form  = document.getElementById('formAjukanUlangPerpanjang');
+
+            document.getElementById('ajukanUlangPerpanjangSubtitle').textContent =
+                nopol + ' — ' + merk + ' | ' + namaGps + ' (' + type + ') — Perpanjangan';
+
+            form.action = '/admin/gps-kendaraan/perpanjang/' + pembayaranId + '/ajukan-ulang';
+
+            // Load alasan penolakan dari API pembayaran
+            document.getElementById('ajukanUlangPerpanjangAlasan').textContent = 'Memuat...';
+
+            fetch('/admin/pembayaran/' + pembayaranId + '/approval-modal', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(function(data) {
+                if (!data.success) return;
+                const approvals = data.data?.pembayaran?.approvals ?? [];
+                const lastReject = approvals.find(a => a.action === 'rejected');
+                document.getElementById('ajukanUlangPerpanjangAlasan').textContent =
+                    lastReject?.catatan || data.data?.pembayaran?.catatan || 'Tidak ada catatan';
+            })
+            .catch(function() {
+                document.getElementById('ajukanUlangPerpanjangAlasan').textContent = 'Gagal memuat data';
+            });
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeAjukanUlangPerpanjangModal() {
+            const modal = document.getElementById('modalAjukanUlangPerpanjang');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.getElementById('formAjukanUlangPerpanjang').reset();
+        }
+
+        document.getElementById('modalAjukanUlangPerpanjang')?.addEventListener('click', function(e) {
+            if (e.target === this) closeAjukanUlangPerpanjangModal();
+        });
     </script>
 
 @include('admin.partials.detail-modal')
@@ -1514,6 +1596,62 @@
 
             <div class="border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
                 <button type="button" onclick="closeAjukanUlangModal()"
+                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50">
+                    Batal
+                </button>
+                <button type="submit"
+                    class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl py-2.5 transition">
+                    <i class="fa-solid fa-paper-plane"></i> Ajukan Ulang
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- MODAL: AJUKAN ULANG PERPANJANG GPS (dari Pembayaran Ditolak) --}}
+<div id="modalAjukanUlangPerpanjang" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">Ajukan Ulang Perpanjangan GPS</h3>
+                <p class="text-sm text-gray-500 mt-0.5" id="ajukanUlangPerpanjangSubtitle">–</p>
+            </div>
+            <button onclick="closeAjukanUlangPerpanjangModal()"
+                class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form id="formAjukanUlangPerpanjang" method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto">
+            @csrf
+            <div class="px-6 py-4 space-y-4">
+                <div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm">
+                    <p class="text-xs font-semibold text-red-600 mb-1"><i class="fa-solid fa-circle-xmark mr-1"></i> Alasan Penolakan Sebelumnya</p>
+                    <p class="text-red-700" id="ajukanUlangPerpanjangAlasan">–</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        <i class="fa-solid fa-plus mr-1 text-amber-500"></i> Tambah Lampiran Baru
+                        <span class="text-gray-400 font-normal">(opsional)</span>
+                    </label>
+                    <input type="file" name="lampiran[]" multiple
+                        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600
+                            file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0
+                            file:text-xs file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan <span class="text-gray-400 font-normal">(opsional)</span></label>
+                    <textarea name="catatan" rows="2"
+                        placeholder="Tambahkan keterangan jika diperlukan..."
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></textarea>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
+                <button type="button" onclick="closeAjukanUlangPerpanjangModal()"
                     class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50">
                     Batal
                 </button>
