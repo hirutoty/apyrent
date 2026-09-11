@@ -377,8 +377,8 @@
                                                 @if($role === 'superadmin')
                                                     @if(in_array($d->status, ['Pending', 'Diajukan']))
                                                         @if($d->source_type)
-                                                            @if(in_array($d->source_type, ['gps', 'gps_perpanjang']))
-                                                                {{-- GPS: pakai approval modal dengan per-item approve/reject --}}
+                                                            @if(in_array($d->source_type, ['gps', 'gps_perpanjang', 'service_part']))
+                                                                {{-- GPS/Service Part: pakai approval modal dengan per-item approve/reject --}}
                                                                 <button type="button"
                                                                     onclick="openApprovalModal({{ $d->id }})"
                                                                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors">

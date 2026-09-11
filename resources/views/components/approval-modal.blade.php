@@ -322,9 +322,176 @@
                 </div>
 
                 {{-- ============================================================
+                     SERVICE PART: TABEL PER-PART dengan Approve/Reject inline
+                ============================================================ --}}
+                <div x-show="data?.source_type === 'service_part'">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-bold text-gray-800 flex items-center gap-2 text-sm">
+                            <i class="bi bi-tools text-orange-600"></i>
+                            Service Parts — Tentukan keputusan per part
+                        </h4>
+                        {{-- Progress badge --}}
+                        <span class="text-xs px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 font-semibold"
+                              x-text="decidedCount() + ' / ' + (sourceData?.parts?.length || 0) + ' diputuskan'">
+                        </span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <template x-for="(part, idx) in sourceData?.parts || []" :key="idx">
+                            <div class="border rounded-xl overflow-hidden transition-all"
+                                 :class="{
+                                     'border-green-300 bg-green-50/30' : itemDecisions[idx]?.action === 'approved',
+                                     'border-red-300 bg-red-50/30'    : itemDecisions[idx]?.action === 'rejected',
+                                     'border-gray-200 bg-white'       : !itemDecisions[idx]?.action
+                                 }">
+
+                                {{-- Row utama --}}
+                                <div class="flex items-start gap-3 px-4 py-3">
+
+                                    {{-- Status badge kiri --}}
+                                    <div class="flex-shrink-0 mt-0.5">
+                                        <span x-show="!itemDecisions[idx]?.action"
+                                              class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                                            <i class="fa-solid fa-circle text-[6px]"></i> Pending
+                                        </span>
+                                        <span x-show="itemDecisions[idx]?.action === 'approved'"
+                                              class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                            <i class="fa-solid fa-circle-check text-[10px]"></i> Approved
+                                        </span>
+                                        <span x-show="itemDecisions[idx]?.action === 'rejected'"
+                                              class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                            <i class="fa-solid fa-circle-xmark text-[10px]"></i> Rejected
+                                        </span>
+                                    </div>
+
+                                    {{-- Info Part --}}
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="text-xs text-gray-400 font-medium" x-text="'#' + (idx + 1)"></span>
+                                            <span class="font-semibold text-gray-800 text-sm" x-text="part.nama_part"></span>
+                                            <span x-show="part.category_nama"
+                                                  class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded" x-text="part.category_nama"></span>
+                                            <span x-show="part.part_number && part.part_number !== '-'"
+                                                  class="text-[11px] text-gray-400" x-text="'P/N: ' + part.part_number"></span>
+                                            <span class="text-xs font-bold text-emerald-600 ml-auto" x-text="'Rp ' + formatNumber(part.biaya)"></span>
+                                        </div>
+
+                                        {{-- Bank info per part --}}
+                                        <div x-show="part.nama_bank || part.no_rekening || part.nama_rekening"
+                                             class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                                            <span x-show="part.nama_bank"
+                                                  class="inline-flex items-center gap-1 text-[11px] text-blue-600">
+                                                <i class="fa-solid fa-building-columns text-[9px]"></i>
+                                                <span x-text="part.nama_bank"></span>
+                                            </span>
+                                            <span x-show="part.no_rekening"
+                                                  class="text-[11px] font-mono text-gray-500" x-text="part.no_rekening"></span>
+                                            <span x-show="part.nama_rekening"
+                                                  class="text-[11px] text-gray-400" x-text="'a/n ' + part.nama_rekening"></span>
+                                        </div>
+
+                                        {{-- Keterangan part jika ada --}}
+                                        <div x-show="part.keterangan && part.keterangan !== '-'"
+                                             class="mt-1.5 text-[11px] text-gray-500 italic" x-text="part.keterangan"></div>
+                                    </div>
+
+                                    {{-- Tombol Aksi --}}
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        {{-- Approve --}}
+                                        <button type="button"
+                                                @click="setAction(idx, 'approved')"
+                                                :class="itemDecisions[idx]?.action === 'approved'
+                                                    ? 'bg-green-600 text-white border-green-600 shadow-sm'
+                                                    : 'bg-white text-green-600 border-green-300 hover:bg-green-50'"
+                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all">
+                                            <i class="fa-solid fa-check text-[10px]"></i> Approve
+                                        </button>
+                                        {{-- Reject --}}
+                                        <button type="button"
+                                                @click="setAction(idx, 'rejected')"
+                                                :class="itemDecisions[idx]?.action === 'rejected'
+                                                    ? 'bg-red-600 text-white border-red-600 shadow-sm'
+                                                    : 'bg-white text-red-500 border-red-300 hover:bg-red-50'"
+                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all">
+                                            <i class="fa-solid fa-times text-[10px]"></i> Reject
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {{-- Panel expand: Upload Bukti (approved) + Catatan (rejected) --}}
+                                <div x-show="itemDecisions[idx]?.action"
+                                     class="border-t px-4 py-3"
+                                     :class="{
+                                         'border-green-200 bg-green-50/20': itemDecisions[idx]?.action === 'approved',
+                                         'border-red-200 bg-red-50/20':     itemDecisions[idx]?.action === 'rejected'
+                                     }">
+
+                                    {{-- Upload Bukti (untuk approved) --}}
+                                    <div x-show="itemDecisions[idx]?.action === 'approved'" class="space-y-2">
+                                        <label class="block">
+                                            <span class="text-xs font-semibold text-gray-600 flex items-center gap-1 mb-1">
+                                                <i class="fa-solid fa-paperclip text-green-600"></i>
+                                                Upload Bukti Pembayaran
+                                                <span class="text-red-500">*</span>
+                                            </span>
+                                            <input type="file"
+                                                   accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.zip"
+                                                   :name="'items[' + idx + '][bukti]'"
+                                                   @change="itemDecisions[idx].buktiFile = $event.target.files[0]"
+                                                   class="w-full text-xs border border-green-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-200 file:mr-3 file:px-3 file:py-1 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-green-100 file:text-green-700 hover:file:bg-green-200">
+                                        </label>
+                                        <p class="text-[10px] text-gray-400">Format: JPG, PNG, PDF, DOC, XLS, ZIP (max 5MB). Wajib diisi untuk part yang disetujui.</p>
+                                    </div>
+
+                                    {{-- Catatan Penolakan (untuk rejected) --}}
+                                    <div x-show="itemDecisions[idx]?.action === 'rejected'" class="space-y-2">
+                                        <label class="block">
+                                            <span class="text-xs font-semibold text-gray-600 flex items-center gap-1 mb-1">
+                                                <i class="fa-solid fa-comment-dots text-red-500"></i>
+                                                Alasan Penolakan
+                                                <span class="text-red-500">*</span>
+                                            </span>
+                                            <textarea rows="2"
+                                                      :name="'items[' + idx + '][catatan]'"
+                                                      x-model="itemDecisions[idx].catatan"
+                                                      placeholder="Jelaskan alasan penolakan part ini..."
+                                                      class="w-full text-xs border border-red-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"></textarea>
+                                        </label>
+                                        <p class="text-[10px] text-gray-400">Wajib diisi untuk part yang ditolak.</p>
+                                    </div>
+
+                                    {{-- Hidden field untuk action --}}
+                                    <input type="hidden" :name="'items[' + idx + '][action]'" :value="itemDecisions[idx]?.action">
+                                </div>
+
+                            </div>
+                        </template>
+                    </div>
+
+                    {{-- Ringkasan keputusan --}}
+                    <div x-show="decidedCount() > 0"
+                         class="mt-3 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-4 text-xs">
+                        <span class="text-gray-500">Ringkasan:</span>
+                        <span x-show="approvedCount() > 0"
+                              class="inline-flex items-center gap-1 font-semibold text-green-700">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span x-text="approvedCount() + ' disetujui'"></span>
+                        </span>
+                        <span x-show="rejectedCount() > 0"
+                              class="inline-flex items-center gap-1 font-semibold text-red-600">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                            <span x-text="rejectedCount() + ' ditolak'"></span>
+                        </span>
+                        <span class="ml-auto text-gray-400 italic" x-show="approvedCount() > 0 && rejectedCount() > 0">
+                            PR akan berstatus "Disetujui Sebagian"
+                        </span>
+                    </div>
+                </div>
+
+                {{-- ============================================================
                      NON-GPS: Approval global (existing flow)
                 ============================================================ --}}
-                <div x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang'">
+                <div x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && data?.source_type !== 'service_part'">
 
                     {{-- Info tambahan non-GPS --}}
                     <div x-show="data?.source_type === 'asuransi_kendaraan'" class="bg-gray-50 rounded-xl p-4 border border-gray-200 text-sm">
@@ -542,9 +709,9 @@
                     Batal
                 </button>
 
-                {{-- GPS: Simpan Keputusan --}}
+                {{-- GPS/Service Part: Simpan Keputusan --}}
                 <button
-                    x-show="data?.source_type === 'gps' || data?.source_type === 'gps_perpanjang'"
+                    x-show="data?.source_type === 'gps' || data?.source_type === 'gps_perpanjang' || data?.source_type === 'service_part'"
                     @click="submitItemDecisions()"
                     :disabled="submitting || decidedCount() === 0 || !allRejectedHaveCatatan() || !allApprovedHaveBukti()"
                     :class="submitting || decidedCount() === 0 || !allRejectedHaveCatatan() || !allApprovedHaveBukti()
@@ -559,9 +726,9 @@
                     <span x-text="submitting ? 'Menyimpan...' : 'Simpan Keputusan'"></span>
                 </button>
 
-                {{-- Non-GPS: Approve --}}
+                {{-- Non-GPS/Non-ServicePart: Approve --}}
                 <button
-                    x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && actionType === 'approve'"
+                    x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && data?.source_type !== 'service_part' && actionType === 'approve'"
                     @click="submitApprove()"
                     :disabled="submitting || buktiFiles.length === 0"
                     :class="submitting || buktiFiles.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700'"
@@ -659,7 +826,12 @@ function approvalModal() {
 
         // ── GPS per-item helpers ──────────────────────────────────────────────
         initItemDecisions() {
-            const count = this.relatedData?.gps_items?.length || 0;
+            let count = 0;
+            if (this.data?.source_type === 'gps' || this.data?.source_type === 'gps_perpanjang') {
+                count = this.relatedData?.gps_items?.length || 0;
+            } else if (this.data?.source_type === 'service_part') {
+                count = this.sourceData?.parts?.length || 0;
+            }
             this.itemDecisions = Array.from({ length: count }, () => ({
                 action:    null,
                 catatan:   '',

@@ -247,6 +247,66 @@ class PengeluaranInterceptorService
     }
 
     /**
+     * Resubmit rejected Purchase Order dengan data baru
+     * Update existing PO record, reset status to Pending, update source_data
+     *
+     * @param int $poId
+     * @param Request $request
+     * @param string $sourceType
+     * @return \App\Models\PurchaseOrder
+     */
+    public function resubmitToPurchaseOrder(int $poId, Request $request, string $sourceType): \App\Models\PurchaseOrder
+    {
+        DB::beginTransaction();
+        
+        try {
+            $po = \App\Models\PurchaseOrder::findOrFail($poId);
+            
+            // Validation: Only rejected PO can be resubmitted
+            if ($po->status !== 'Ditolak') {
+                throw new \Exception('Hanya Purchase Order yang ditolak yang dapat diajukan ulang.');
+            }
+            
+            if (!$po->can_edit) {
+                throw new \Exception('Purchase Order ini tidak dapat diedit.');
+            }
+            
+            // Intercept new data
+            $interceptedData = $this->intercept($request, $sourceType);
+            
+            // Delete old temp files
+            $this->deleteTemporaryFiles($poId, 'purchase_order');
+            
+            // Upload new temp files
+            $uploadedFiles = $this->uploadTemporaryFiles($request, $poId, 'purchase_order');
+            
+            // Extract vendor and total items
+            $vendor = $interceptedData['source_data']['vendor'] ?? 'Vendor ' . ucfirst(str_replace('_', ' ', $sourceType));
+            $totalItems = $this->extractTotalItems($sourceType, $interceptedData['source_data']);
+            
+            // Update PO
+            $po->update([
+                'source_data' => array_merge($interceptedData['source_data'], ['temp_files' => $uploadedFiles]),
+                'vendor' => $vendor,
+                'total_barang' => $totalItems,
+                'total_harga' => (int) $interceptedData['nominal'],
+                'catatan' => $interceptedData['informasi'] ?? $interceptedData['source_data']['keterangan'] ?? null,
+                'status' => 'Pending',
+                'can_edit' => false,
+                'terakhir_diajukan' => now(),
+            ]);
+            
+            DB::commit();
+            
+            return $po;
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
      * Save data ke PurchaseOrder table (untuk tambah baru yang lewat PO)
      *
      * @param array $data Data hasil intercept
@@ -523,15 +583,18 @@ class PengeluaranInterceptorService
      * @param int $pembayaranId
      * @return bool
      */
-    public function deleteTemporaryFiles(int $pembayaranId): bool
+    public function deleteTemporaryFiles(int $entityId, string $entityType = 'pembayaran'): bool
     {
-        $tempDir = "pembayaran/temp/{$pembayaranId}";
+        $tempDir = match($entityType) {
+            'purchase_order' => "purchase_order/temp/{$entityId}",
+            default => "pembayaran/temp/{$entityId}",
+        };
         
         try {
             Storage::disk('public')->deleteDirectory($tempDir);
             return true;
         } catch (\Exception $e) {
-            \Log::error("Failed to delete temp files for pembayaran {$pembayaranId}: " . $e->getMessage());
+            \Log::error("Failed to delete temp files for {$entityType} {$entityId}: " . $e->getMessage());
             return false;
         }
     }

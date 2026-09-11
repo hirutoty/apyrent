@@ -179,26 +179,26 @@ class ServiceHistoryController extends Controller
         ]);
 
         // =======================================================================
-        // APPROVAL WORKFLOW: Intercept dan kirim ke Pembayaran (sama seperti store)
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Purchase Order (sama seperti store)
         // =======================================================================
         try {
             // Step 1: Intercept data dari form
             $interceptedData = $interceptor->intercept($request, 'service_part');
 
-            // Step 2: Save ke Pembayaran
-            $pembayaran = $interceptor->saveToPembayaran($interceptedData, 'service_part');
+            // Step 2: Save ke Purchase Order
+            $po = $interceptor->saveToPurchaseOrder($interceptedData, 'service_part');
 
             // Step 3: Upload temporary files (attachment)
-            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $pembayaran->id);
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $po->id, 'purchase_order');
 
             // Step 4: Update source_data dengan file info
-            $sourceData = $pembayaran->source_data;
+            $sourceData = $po->source_data;
             $sourceData['temp_files'] = $uploadedFiles;
-            $pembayaran->update(['source_data' => $sourceData]);
+            $po->update(['source_data' => $sourceData]);
 
             return redirect()
-                ->route('pembayaran.index', ['tab' => 'Pending'])
-                ->with('success', 'Request part berhasil dikirim. Menunggu approval dari Superadmin.');
+                ->route('purchase-order.index', ['status' => 'Pending'])
+                ->with('success', 'Request part berhasil dikirim ke Purchase Order. Menunggu approval dari Superadmin.');
 
         } catch (\Exception $e) {
             \Log::error('Error intercepting request part submission: ' . $e->getMessage());
@@ -462,7 +462,7 @@ class ServiceHistoryController extends Controller
         ]);
 
         // ===========================================================================
-        // APPROVAL WORKFLOW: Intercept dan kirim ke Pembayaran
+        // APPROVAL WORKFLOW: Intercept dan kirim ke Purchase Order
         // Skip intercept jika:
         // 1. Dari reminder (replacement part yang sudah approved)
         // 2. Dari edit existing service_history_id (update data existing)
@@ -470,35 +470,35 @@ class ServiceHistoryController extends Controller
         
         if (!$request->filled('from_reminder') && !$request->filled('service_history_id')) {
             try {
-                // Check if this is a resubmit (from rejected pembayaran)
-                if ($request->filled('edit_pembayaran')) {
-                    $pembayaranId = $request->input('edit_pembayaran');
+                // Check if this is a resubmit (from rejected PO)
+                if ($request->filled('edit_po')) {
+                    $poId = $request->input('edit_po');
                     
-                    // Resubmit: Update existing pembayaran
-                    $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'service_part');
+                    // Resubmit: Update existing PO
+                    $po = $interceptor->resubmitToPurchaseOrder($poId, $request, 'service_part');
                     
                     return redirect()
-                        ->route('pembayaran.index', ['tab' => 'Pending'])
-                        ->with('success', 'Pengajuan service part berhasil diajukan ulang. Menunggu approval dari Superadmin.');
+                        ->route('purchase-order.index', ['status' => 'Pending'])
+                        ->with('success', 'Pengajuan service part berhasil diajukan ulang. Menunggu approval di Purchase Order.');
                 }
                 
                 // Step 1: Intercept data dari form
                 $interceptedData = $interceptor->intercept($request, 'service_part');
                 
-                // Step 2: Save ke Pembayaran
-                $pembayaran = $interceptor->saveToPembayaran($interceptedData, 'service_part');
+                // Step 2: Save ke Purchase Order
+                $po = $interceptor->saveToPurchaseOrder($interceptedData, 'service_part');
                 
                 // Step 3: Upload temporary files
-                $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $pembayaran->id);
+                $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $po->id, 'purchase_order');
                 
                 // Step 4: Update source_data dengan file info
-                $sourceData = $pembayaran->source_data;
+                $sourceData = $po->source_data;
                 $sourceData['temp_files'] = $uploadedFiles;
-                $pembayaran->update(['source_data' => $sourceData]);
+                $po->update(['source_data' => $sourceData]);
                 
                 return redirect()
-                    ->route('pembayaran.index', ['tab' => 'Pending'])
-                    ->with('success', 'Pengajuan pengeluaran service part berhasil dikirim. Menunggu approval dari Superadmin.');
+                    ->route('purchase-order.index', ['status' => 'Pending'])
+                    ->with('success', 'Pengajuan service part berhasil dikirim ke Purchase Order. Menunggu approval dari Superadmin.');
                     
             } catch (\Exception $e) {
                 \Log::error('Error intercepting service part submission: ' . $e->getMessage());

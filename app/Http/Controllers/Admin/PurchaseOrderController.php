@@ -103,10 +103,54 @@ class PurchaseOrderController extends Controller
             return $this->buildGpsDetails($sourceData);
         }
         
+        if ($sourceType === 'service_part') {
+            return $this->buildServicePartDetails($sourceData);
+        }
+        
         // For other types, return raw data
         return [
             'type' => 'raw',
             'data' => $sourceData,
+        ];
+    }
+
+    /**
+     * Build Service Part-specific details
+     */
+    protected function buildServicePartDetails($sourceData)
+    {
+        $parts       = $sourceData['parts'] ?? [];
+        $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+        $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+
+        $items = [];
+        foreach ($parts as $idx => $part) {
+            $category = isset($part['category_id']) ? \App\Models\ServiceCategory::find($part['category_id']) : null;
+
+            $items[] = [
+                'nama_part'      => $part['nama_part'] ?? '-',
+                'category_nama'  => $category ? $category->nama : ($part['nama_category_baru'] ?? '-'),
+                'part_number'    => $part['part_number'] ?? '-',
+                'posisi'         => $part['posisi'] ?? '-',
+                'biaya'          => $part['biaya'] ?? 0,
+                'kondisi'        => $part['kondisi'] ?? '-',
+                'keterangan'     => $part['keterangan'] ?? '-',
+                'nama_bank'      => $part['nama_bank'] ?? '-',
+                'no_rekening'    => $part['no_rekening'] ?? '-',
+                'nama_rekening'  => $part['nama_rekening'] ?? '-',
+            ];
+        }
+
+        return [
+            'type'           => 'service_part',
+            'kendaraan'      => [
+                'nopol' => $kendaraan ? $kendaraan->nopol : '-',
+                'merk'  => $kendaraan ? $kendaraan->merk  : '-',
+            ],
+            'tanggal_service' => $sourceData['tanggal_service'] ?? '-',
+            'kilometer'       => $sourceData['kilometer'] ?? '-',
+            'keluhan'         => $sourceData['keluhan'] ?? '-',
+            'items'           => $items,
         ];
     }
 
@@ -231,7 +275,7 @@ class PurchaseOrderController extends Controller
     }
 
     /**
-     * Approve GPS Purchase Order per-item (pilih item mana yang disetujui/ditolak + bukti per item)
+     * Approve GPS/Service Part Purchase Order per-item (pilih item mana yang disetujui/ditolak + bukti per item)
      */
     public function approveItems(Request $request, $id)
     {
@@ -253,7 +297,7 @@ class PurchaseOrderController extends Controller
         }
 
         $sourceData  = $po->source_data ?? [];
-        $gpsItems    = $sourceData['gps_items'] ?? [];
+        $sourceType  = $po->source_type;
         $approvedIdx = [];
         $rejectedIdx = [];
 
@@ -294,138 +338,256 @@ class PurchaseOrderController extends Controller
             $hasApproved = !empty($approvedIdx);
             $hasRejected = !empty($rejectedIdx);
 
-            // Jika semua ditolak → reject PO
-            if (!$hasApproved) {
-                $po->update([
-                    'status'              => 'Ditolak',
-                    'disetujui_oleh'      => auth()->id(),
-                    'tanggal_persetujuan' => now(),
-                    'catatan_approval'    => $catatan ?: collect($items)->pluck('catatan')->filter()->implode('; '),
-                    'can_edit'            => true,
-                ]);
-
-                // Hapus semua record GPS Pending terkait PO ini
-                // Record IDs disimpan di source_data['gps_record_ids'], bukan di dalam tiap item
-                $recordIds = $sourceData['gps_record_ids'] ?? [];
-                if (!empty($recordIds)) {
-                    \App\Models\GpsKendaraan::whereIn('id', $recordIds)
-                        ->where('persetujuan', 'Pending')
-                        ->delete();
-                }
-
-                \DB::commit();
-                return response()->json([
-                    'success'  => true,
-                    'message'  => 'Semua item ditolak. Purchase Order ditolak.',
-                    'redirect' => route('purchase-order.index', ['status' => 'Ditolak']),
-                ]);
+            // Route based on source_type
+            if ($sourceType === 'gps') {
+                return $this->approveItemsGps($po, $sourceData, $items, $approvedIdx, $rejectedIdx, $perItemBukti, $catatan, $hasApproved, $hasRejected);
+            } elseif ($sourceType === 'service_part') {
+                return $this->approveItemsServicePart($po, $sourceData, $items, $approvedIdx, $rejectedIdx, $perItemBukti, $catatan, $hasApproved, $hasRejected);
+            } else {
+                throw new \Exception('Unsupported source_type: ' . $sourceType);
             }
-
-            // Ada item yang diapprove → proses hanya approved items
-            $approvedGpsItems = array_values(
-                array_filter($gpsItems, fn($item, $idx) => in_array($idx, $approvedIdx), ARRAY_FILTER_USE_BOTH)
-            );
-
-            $nominalApproved = collect($approvedGpsItems)->sum(fn($i) => $i['biaya_sewa'] ?? 0);
-
-            $po->update([
-                'status'              => 'Disetujui',
-                'disetujui_oleh'      => auth()->id(),
-                'tanggal_persetujuan' => now(),
-                'catatan_approval'    => $catatan,
-                'total_harga'         => $nominalApproved,
-                'total_barang'        => count($approvedGpsItems),
-            ]);
-
-            // Buat Pembayaran hanya dari approved items
-            // Simpan item_decisions lengkap (approved + rejected) untuk ditampilkan di UI
-            $allGpsItemNames = [];
-            foreach ($gpsItems as $idx => $gpsItem) {
-                $gpsModel = isset($gpsItem['gps_id']) ? \App\Models\Gps::find($gpsItem['gps_id']) : null;
-                $allGpsItemNames[$idx] = [
-                    'nama_gps' => $gpsModel->nama_gps ?? '-',
-                    'type'     => $gpsItem['type'] ?? '-',
-                    'action'   => in_array($idx, $approvedIdx) ? 'approved' : 'rejected',
-                    'catatan'  => $items[$idx]['catatan'] ?? null,
-                ];
-            }
-
-            $approvedSourceData = array_merge($sourceData, [
-                'gps_items'      => $approvedGpsItems,
-                'item_decisions' => array_values($allGpsItemNames),
-            ]);
-            $pembayaran = $this->approvalService->approveWithItems($po, $approvedSourceData, $perItemBukti, $catatan, $hasRejected);
-
-            // Item yang ditolak → buat PO baru terpisah dengan status Ditolak
-            // agar user dapat melihat di tab "Ditolak" dan mengajukan ulang
-            $allRecordIds     = $sourceData['gps_record_ids'] ?? [];
-            $rejectedGpsItems = array_values(
-                array_filter($gpsItems, fn($item, $idx) => in_array($idx, $rejectedIdx), ARRAY_FILTER_USE_BOTH)
-            );
-
-            if (!empty($rejectedGpsItems)) {
-                // Kumpulkan GPS record IDs untuk item yang ditolak (pertahankan urutan)
-                $rejectedRecordIds = [];
-                foreach ($rejectedIdx as $idx) {
-                    $recordId = $allRecordIds[$idx] ?? null;
-                    if ($recordId) $rejectedRecordIds[] = $recordId;
-                }
-
-                // Kumpulkan catatan penolakan per item
-                $rejectedCatatan = collect($rejectedIdx)
-                    ->map(fn($idx) => $items[$idx]['catatan'] ?? null)
-                    ->filter()
-                    ->implode('; ');
-
-                // Buat PO baru untuk item yang ditolak (status Ditolak, can_edit=true)
-                $rejectedSourceData = array_merge($sourceData, [
-                    'gps_items'      => $rejectedGpsItems,
-                    'gps_record_ids' => $rejectedRecordIds,
-                ]);
-                $nominalRejected = collect($rejectedGpsItems)->sum(fn($i) => $i['biaya_sewa'] ?? 0);
-
-                PurchaseOrder::create([
-                    'tanggal_po'          => now()->toDateString(),
-                    'vendor'              => $po->vendor,
-                    'source_type'         => $po->source_type,
-                    'source_data'         => $rejectedSourceData,
-                    'total_barang'        => count($rejectedGpsItems),
-                    'total_harga'         => $nominalRejected,
-                    'status'              => 'Ditolak',
-                    'status_po'           => 'Pending',
-                    'disetujui_oleh'      => auth()->id(),
-                    'tanggal_persetujuan' => now(),
-                    'catatan_approval'    => $catatan ?: $rejectedCatatan ?: 'Item ditolak dari PO ' . $po->po_id,
-                    'can_edit'            => true,
-                    'terakhir_diajukan'   => now(),
-                ]);
-
-                // Update GPS record yang ditolak: tandai persetujuan = Ditolak
-                // Record tetap ada di DB — tidak dihapus, supaya tidak menghalangi resubmit
-                if (!empty($rejectedRecordIds)) {
-                    \App\Models\GpsKendaraan::whereIn('id', $rejectedRecordIds)
-                        ->where('persetujuan', 'Pending')
-                        ->update(['persetujuan' => 'Ditolak']);
-                }
-            }
-
-            \DB::commit();
-
-            $msg = "PO {$po->po_id}: " . count($approvedIdx) . " item disetujui";
-            if ($hasRejected) $msg .= ", " . count($rejectedIdx) . " item ditolak";
-            $msg .= ". Pembayaran {$pembayaran->no_pr} otomatis dibuat.";
-
-            return response()->json([
-                'success'  => true,
-                'message'  => $msg,
-                'redirect' => route('purchase-order.index', ['status' => 'Disetujui']),
-            ]);
 
         } catch (\Exception $e) {
             \DB::rollBack();
             \Log::error('Error approveItems PO #' . $id . ': ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Handle GPS-specific approval logic
+     */
+    private function approveItemsGps($po, $sourceData, $items, $approvedIdx, $rejectedIdx, $perItemBukti, $catatan, $hasApproved, $hasRejected)
+    {
+        $gpsItems = $sourceData['gps_items'] ?? [];
+
+        // Jika semua ditolak → reject PO
+        if (!$hasApproved) {
+            $po->update([
+                'status'              => 'Ditolak',
+                'disetujui_oleh'      => auth()->id(),
+                'tanggal_persetujuan' => now(),
+                'catatan_approval'    => $catatan ?: collect($items)->pluck('catatan')->filter()->implode('; '),
+                'can_edit'            => true,
+            ]);
+
+            // Hapus semua record GPS Pending terkait PO ini
+            $recordIds = $sourceData['gps_record_ids'] ?? [];
+            if (!empty($recordIds)) {
+                \App\Models\GpsKendaraan::whereIn('id', $recordIds)
+                    ->where('persetujuan', 'Pending')
+                    ->delete();
+            }
+
+            \DB::commit();
+            return response()->json([
+                'success'  => true,
+                'message'  => 'Semua item ditolak. Purchase Order ditolak.',
+                'redirect' => route('purchase-order.index', ['status' => 'Ditolak']),
+            ]);
+        }
+
+        // Ada item yang diapprove → proses hanya approved items
+        $approvedGpsItems = array_values(
+            array_filter($gpsItems, fn($item, $idx) => in_array($idx, $approvedIdx), ARRAY_FILTER_USE_BOTH)
+        );
+
+        $nominalApproved = collect($approvedGpsItems)->sum(fn($i) => $i['biaya_sewa'] ?? 0);
+
+        $po->update([
+            'status'              => 'Disetujui',
+            'disetujui_oleh'      => auth()->id(),
+            'tanggal_persetujuan' => now(),
+            'catatan_approval'    => $catatan,
+            'total_harga'         => $nominalApproved,
+            'total_barang'        => count($approvedGpsItems),
+        ]);
+
+        // Buat Pembayaran hanya dari approved items
+        // Simpan item_decisions lengkap (approved + rejected) untuk ditampilkan di UI
+        $allGpsItemNames = [];
+        foreach ($gpsItems as $idx => $gpsItem) {
+            $gpsModel = isset($gpsItem['gps_id']) ? \App\Models\Gps::find($gpsItem['gps_id']) : null;
+            $allGpsItemNames[$idx] = [
+                'nama_gps' => $gpsModel->nama_gps ?? '-',
+                'type'     => $gpsItem['type'] ?? '-',
+                'action'   => in_array($idx, $approvedIdx) ? 'approved' : 'rejected',
+                'catatan'  => $items[$idx]['catatan'] ?? null,
+            ];
+        }
+
+        $approvedSourceData = array_merge($sourceData, [
+            'gps_items'      => $approvedGpsItems,
+            'item_decisions' => array_values($allGpsItemNames),
+        ]);
+        $pembayaran = $this->approvalService->approveWithItems($po, $approvedSourceData, $perItemBukti, $catatan, $hasRejected);
+
+        // Item yang ditolak → buat PO baru terpisah dengan status Ditolak
+        $allRecordIds     = $sourceData['gps_record_ids'] ?? [];
+        $rejectedGpsItems = array_values(
+            array_filter($gpsItems, fn($item, $idx) => in_array($idx, $rejectedIdx), ARRAY_FILTER_USE_BOTH)
+        );
+
+        if (!empty($rejectedGpsItems)) {
+            $rejectedRecordIds = [];
+            foreach ($rejectedIdx as $idx) {
+                $recordId = $allRecordIds[$idx] ?? null;
+                if ($recordId) $rejectedRecordIds[] = $recordId;
+            }
+
+            $rejectedCatatan = collect($rejectedIdx)
+                ->map(fn($idx) => $items[$idx]['catatan'] ?? null)
+                ->filter()
+                ->implode('; ');
+
+            $rejectedSourceData = array_merge($sourceData, [
+                'gps_items'      => $rejectedGpsItems,
+                'gps_record_ids' => $rejectedRecordIds,
+            ]);
+            $nominalRejected = collect($rejectedGpsItems)->sum(fn($i) => $i['biaya_sewa'] ?? 0);
+
+            PurchaseOrder::create([
+                'tanggal_po'          => now()->toDateString(),
+                'vendor'              => $po->vendor,
+                'source_type'         => $po->source_type,
+                'source_data'         => $rejectedSourceData,
+                'total_barang'        => count($rejectedGpsItems),
+                'total_harga'         => $nominalRejected,
+                'status'              => 'Ditolak',
+                'status_po'           => 'Pending',
+                'disetujui_oleh'      => auth()->id(),
+                'tanggal_persetujuan' => now(),
+                'catatan_approval'    => $catatan ?: $rejectedCatatan ?: 'Item ditolak dari PO ' . $po->po_id,
+                'can_edit'            => true,
+                'terakhir_diajukan'   => now(),
+            ]);
+
+            if (!empty($rejectedRecordIds)) {
+                \App\Models\GpsKendaraan::whereIn('id', $rejectedRecordIds)
+                    ->where('persetujuan', 'Pending')
+                    ->update(['persetujuan' => 'Ditolak']);
+            }
+        }
+
+        \DB::commit();
+
+        $msg = "PO {$po->po_id}: " . count($approvedIdx) . " item disetujui";
+        if ($hasRejected) $msg .= ", " . count($rejectedIdx) . " item ditolak";
+        $msg .= ". Pembayaran {$pembayaran->no_pr} otomatis dibuat.";
+
+        return response()->json([
+            'success'  => true,
+            'message'  => $msg,
+            'redirect' => route('purchase-order.index', ['status' => 'Disetujui']),
+        ]);
+    }
+
+    /**
+     * Handle service_part-specific approval logic
+     */
+    private function approveItemsServicePart($po, $sourceData, $items, $approvedIdx, $rejectedIdx, $perItemBukti, $catatan, $hasApproved, $hasRejected)
+    {
+        $parts = $sourceData['parts'] ?? [];
+
+        // Jika semua ditolak → reject PO
+        if (!$hasApproved) {
+            $po->update([
+                'status'              => 'Ditolak',
+                'disetujui_oleh'      => auth()->id(),
+                'tanggal_persetujuan' => now(),
+                'catatan_approval'    => $catatan ?: collect($items)->pluck('catatan')->filter()->implode('; '),
+                'can_edit'            => true,
+            ]);
+
+            \DB::commit();
+            return response()->json([
+                'success'  => true,
+                'message'  => 'Semua part ditolak. Purchase Order ditolak.',
+                'redirect' => route('purchase-order.index', ['status' => 'Ditolak']),
+            ]);
+        }
+
+        // Ada part yang diapprove → proses hanya approved parts
+        $approvedParts = array_values(
+            array_filter($parts, fn($part, $idx) => in_array($idx, $approvedIdx), ARRAY_FILTER_USE_BOTH)
+        );
+
+        $nominalApproved = collect($approvedParts)->sum(fn($p) => $p['biaya'] ?? 0);
+
+        $po->update([
+            'status'              => 'Disetujui',
+            'disetujui_oleh'      => auth()->id(),
+            'tanggal_persetujuan' => now(),
+            'catatan_approval'    => $catatan,
+            'total_harga'         => $nominalApproved,
+            'total_barang'        => count($approvedParts),
+        ]);
+
+        // Buat Pembayaran hanya dari approved parts
+        // Simpan item_decisions lengkap (approved + rejected) untuk ditampilkan di UI
+        $allPartDecisions = [];
+        foreach ($parts as $idx => $part) {
+            $allPartDecisions[$idx] = [
+                'nama_part' => $part['nama_part'] ?? '-',
+                'category'  => $part['category_nama'] ?? '-',
+                'action'    => in_array($idx, $approvedIdx) ? 'approved' : 'rejected',
+                'catatan'   => $items[$idx]['catatan'] ?? null,
+            ];
+        }
+
+        $approvedSourceData = array_merge($sourceData, [
+            'parts'          => $approvedParts,
+            'item_decisions' => array_values($allPartDecisions),
+        ]);
+        $pembayaran = $this->approvalService->approveWithItems($po, $approvedSourceData, $perItemBukti, $catatan, $hasRejected);
+
+        // Item yang ditolak → buat PO baru terpisah dengan status Ditolak
+        // agar user dapat melihat di tab "Ditolak" dan bisa resubmit
+        $rejectedParts = array_values(
+            array_filter($parts, fn($part, $idx) => in_array($idx, $rejectedIdx), ARRAY_FILTER_USE_BOTH)
+        );
+
+        if (!empty($rejectedParts)) {
+            // Kumpulkan catatan penolakan per part
+            $rejectedCatatan = collect($rejectedIdx)
+                ->map(fn($idx) => $items[$idx]['catatan'] ?? null)
+                ->filter()
+                ->implode('; ');
+
+            // Buat PO baru untuk part yang ditolak (status Ditolak, can_edit=true)
+            $rejectedSourceData = array_merge($sourceData, [
+                'parts' => $rejectedParts,
+            ]);
+            $nominalRejected = collect($rejectedParts)->sum(fn($p) => $p['biaya'] ?? 0);
+
+            PurchaseOrder::create([
+                'tanggal_po'          => now()->toDateString(),
+                'vendor'              => $po->vendor,
+                'source_type'         => $po->source_type,
+                'source_data'         => $rejectedSourceData,
+                'total_barang'        => count($rejectedParts),
+                'total_harga'         => $nominalRejected,
+                'status'              => 'Ditolak',
+                'status_po'           => 'Pending',
+                'disetujui_oleh'      => auth()->id(),
+                'tanggal_persetujuan' => now(),
+                'catatan_approval'    => $catatan ?: $rejectedCatatan ?: 'Part ditolak dari PO ' . $po->po_id,
+                'can_edit'            => true,
+                'terakhir_diajukan'   => now(),
+            ]);
+        }
+
+        \DB::commit();
+
+        $msg = "PO {$po->po_id}: " . count($approvedIdx) . " part disetujui";
+        if ($hasRejected) $msg .= ", " . count($rejectedIdx) . " part ditolak";
+        $msg .= ". Pembayaran {$pembayaran->no_pr} otomatis dibuat.";
+
+        return response()->json([
+            'success'  => true,
+            'message'  => $msg,
+            'redirect' => route('purchase-order.index', ['status' => 'Disetujui']),
+        ]);
     }
 
     /**
