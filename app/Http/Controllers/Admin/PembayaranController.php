@@ -17,6 +17,7 @@ class PembayaranController extends Controller
         $sort = $request->input('sort', 'terbaru');
         $bulan = $request->input('bulan'); // format: Y-m
         $deptFilter = $request->input('departemen'); // hanya untuk superadmin
+        $sourceFilter = $request->input('source_type', ''); // filter jenis pengeluaran
 
         $query = Pembayaran::query();
 
@@ -28,9 +29,8 @@ class PembayaranController extends Controller
                 $query->whereIn('status', ['Ditolak', 'Disetujui Sebagian']);
             } elseif (in_array($tab, ['Pending', 'Diajukan'])) {
                 $query->where('status', $tab);
-            } else {
-                $query->whereIn('status', ['Pending', 'Diajukan', 'Disetujui', 'Ditolak', 'Disetujui Sebagian']);
             }
+            // 'semua' atau nilai lain → tidak filter status (tampilkan semua)
             // Filter departemen (superadmin saja)
             if ($deptFilter) {
                 $query->where('departemen', $deptFilter);
@@ -53,6 +53,11 @@ class PembayaranController extends Controller
             if ($tab !== 'semua') {
                 $query->where('status', $tab);
             }
+        }
+
+        // Filter source_type (jenis pengeluaran)
+        if ($sourceFilter) {
+            $query->where('source_type', $sourceFilter);
         }
 
         // Filter bulan
@@ -100,6 +105,13 @@ class PembayaranController extends Controller
         $totalDiajukan  = (clone $baseQuery)->where('status', 'Diajukan')->count();
         $totalNominal   = (clone $baseQuery)->whereIn('status', ['Diajukan', 'Disetujui', 'Disetujui Sebagian'])->sum('nominal');
 
+        // Source types untuk dropdown filter
+        $sourceTypes = Pembayaran::selectRaw('source_type, count(*) as total')
+            ->whereNotNull('source_type')
+            ->where('source_type', '!=', '')
+            ->groupBy('source_type')
+            ->pluck('total', 'source_type');
+
         // Departemen label untuk auto-fill di form store
         $deptLabel = match($role) {
             'keuangan'  => 'Keuangan',
@@ -114,6 +126,7 @@ class PembayaranController extends Controller
 
         return view('admin.pembayaran.index', compact(
             'data', 'role', 'tab', 'sort', 'deptLabel', 'bulan', 'deptFilter',
+            'sourceFilter', 'sourceTypes',
             'totalPR', 'totalDisetujui', 'totalPending', 'totalDitolak', 'totalDiajukan', 'totalNominal'
         ));
     }
@@ -1469,28 +1482,48 @@ class PembayaranController extends Controller
                 $newStatus = 'Disetujui Sebagian';
             }
 
+            // Hitung nominal approved-only dan rejected-only untuk update record
+            $sourceGpsItems  = $pembayaran->source_data['gps_items'] ?? [];
+            $nominalApproved = 0;
+            $nominalRejected = 0;
+            foreach ($items as $idx => $decision) {
+                $biayaSewa = (int) ($sourceGpsItems[(int) $idx]['biaya_sewa'] ?? 0);
+                if ($decision['action'] === 'approved') {
+                    $nominalApproved += $biayaSewa;
+                } else {
+                    $nominalRejected += $biayaSewa;
+                }
+            }
+
             $pembayaran->update([
                 'status'              => $newStatus,
                 'target_id'           => $targetId,
                 'can_edit'            => $rejectedCount > 0,
                 'disetujui_oleh'      => auth()->user()->nama ?? auth()->user()->email,
                 'tanggal_persetujuan' => now(),
+                // Simpan nominal approved saja; nominal rejected akan tetap
+                // tercatat di source_data agar view bisa menampilkan keduanya
+                'nominal'             => $nominalApproved,
             ]);
 
             // Simpan keputusan per item ke source_data untuk ditampilkan di UI
-            $sourceGpsItems = $pembayaran->source_data['gps_items'] ?? [];
-            $itemDecisions  = [];
+            $itemDecisions = [];
             foreach ($items as $idx => $decision) {
-                $gpsItem = $sourceGpsItems[(int) $idx] ?? [];
+                $gpsItem  = $sourceGpsItems[(int) $idx] ?? [];
                 $gpsModel = isset($gpsItem['gps_id']) ? \App\Models\Gps::find($gpsItem['gps_id']) : null;
                 $itemDecisions[] = [
-                    'idx'      => (int) $idx,
-                    'nama_gps' => $gpsModel->nama_gps ?? '-',
-                    'type'     => $gpsItem['type'] ?? '-',
-                    'action'   => $decision['action'],
+                    'idx'        => (int) $idx,
+                    'nama_gps'   => $gpsModel->nama_gps ?? '-',
+                    'type'       => $gpsItem['type'] ?? '-',
+                    'biaya_sewa' => (int) ($gpsItem['biaya_sewa'] ?? 0),
+                    'action'     => $decision['action'],
                 ];
             }
-            $updatedSourceData = array_merge($pembayaran->source_data ?? [], ['item_decisions' => $itemDecisions]);
+            $updatedSourceData = array_merge($pembayaran->source_data ?? [], [
+                'item_decisions'   => $itemDecisions,
+                'nominal_approved' => $nominalApproved,
+                'nominal_rejected' => $nominalRejected,
+            ]);
             $pembayaran->update(['source_data' => $updatedSourceData]);
 
             DB::commit();
@@ -1581,20 +1614,38 @@ class PembayaranController extends Controller
                 'tanggal_persetujuan' => now(),
             ]);
 
-            // Simpan keputusan per item ke source_data untuk ditampilkan di UI
-            $sourceParts   = $pembayaran->source_data['parts'] ?? [];
-            $itemDecisions = [];
+            // Hitung nominal approved-only dan rejected-only
+            $sourceParts     = $pembayaran->source_data['parts'] ?? [];
+            $nominalApproved = 0;
+            $nominalRejected = 0;
+            $itemDecisions   = [];
             foreach ($items as $idx => $decision) {
-                $part = $sourceParts[(int) $idx] ?? [];
+                $part    = $sourceParts[(int) $idx] ?? [];
+                $biaya   = (int) ($part['biaya'] ?? 0);
+                if ($decision['action'] === 'approved') {
+                    $nominalApproved += $biaya;
+                } else {
+                    $nominalRejected += $biaya;
+                }
                 $itemDecisions[] = [
-                    'idx'        => (int) $idx,
-                    'nama_part'  => $part['nama_part'] ?? '-',
-                    'category'   => $part['category_nama'] ?? '-',
-                    'action'     => $decision['action'],
-                    'catatan'    => $decision['catatan'] ?? null,
+                    'idx'       => (int) $idx,
+                    'nama_part' => $part['nama_part'] ?? '-',
+                    'category'  => $part['category_nama'] ?? '-',
+                    'biaya'     => $biaya,
+                    'action'    => $decision['action'],
+                    'catatan'   => $decision['catatan'] ?? null,
                 ];
             }
-            $updatedSourceData = array_merge($pembayaran->source_data ?? [], ['item_decisions' => $itemDecisions]);
+
+            // Update nominal ke approved-only saja
+            $pembayaran->update(['nominal' => $nominalApproved]);
+
+            // Simpan keputusan + nominal terpisah ke source_data
+            $updatedSourceData = array_merge($pembayaran->source_data ?? [], [
+                'item_decisions'   => $itemDecisions,
+                'nominal_approved' => $nominalApproved,
+                'nominal_rejected' => $nominalRejected,
+            ]);
             $pembayaran->update(['source_data' => $updatedSourceData]);
 
             // Tandai part yang ditolak di source_data dengan status_approval = 'rejected'
@@ -1780,6 +1831,8 @@ class PembayaranController extends Controller
                     ->update(['persetujuan' => $status]),
                 'asuransi_kendaraan'  => \App\Models\AsuransiKendaraan::where('id', $existingId)
                     ->update(['persetujuan' => $status]),
+                'kir'                 => \App\Models\Kir::where('id', $existingId)
+                    ->update(['persetujuan' => $status]),
                 default => null,
             };
         } catch (\Exception $e) {
@@ -1943,6 +1996,12 @@ class PembayaranController extends Controller
         // Asuransi kendaraan pakai dedicated page
         if ($pembayaran->source_type === 'asuransi_kendaraan') {
             return redirect()->route('asuransi-kendaraan.ajukan-ulang', $pembayaran->id)
+                ->with('info', 'Silakan perbaiki data sesuai catatan penolakan, lalu ajukan ulang.');
+        }
+
+        // KIR pakai dedicated page
+        if ($pembayaran->source_type === 'kir') {
+            return redirect()->route('kir.ajukan-ulang', $pembayaran->id)
                 ->with('info', 'Silakan perbaiki data sesuai catatan penolakan, lalu ajukan ulang.');
         }
 

@@ -416,7 +416,7 @@
                                         @endif
 
                                         {{-- Edit --}}
-                                        <!-- <button
+                                        <button
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors"
                                             onclick="openModalEdit(
                 '{{ $item->id }}',
@@ -431,7 +431,7 @@
             )">
                                             <i class="fa fa-edit text-xs"></i>
                                             Edit
-                                        </button> -->
+                                        </button>
 
                                         {{-- Hapus --}}
                                         <form action="{{ route('pajak.destroy', $item->id) }}" method="POST"
@@ -669,9 +669,9 @@
                             Tanggal Bayar
                         </label>
 
-                        <input type="date" name="tanggal_bayar" value="{{ now()->format('Y-m-d') }}"
-                            id="edit_tanggal_bayar" readonly
-                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed">
+                        <input type="date" name="tanggal_bayar"
+                            id="edit_tanggal_bayar"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
                     <div>
@@ -1055,12 +1055,22 @@ MODAL PERPANJANG
             modalEdit.classList.remove('hidden');
             modalEdit.classList.add('flex');
         }
-        const modalPerpanjang = document.getElementById('modalPerpanjang');
 
         function syncPerpanjangPajakDates() {
             // Jatuh tempo baru sudah dihitung dari jatuh_tempo_lama saat modal dibuka
             // Fungsi ini tidak perlu melakukan apa-apa lagi
         }
+
+        function closeModalEdit() {
+            modalEdit.classList.add('hidden');
+            modalEdit.classList.remove('flex');
+        }
+
+        modalEdit.addEventListener('click', function(e) {
+            if (e.target === modalEdit) closeModalEdit();
+        });
+
+        const modalPerpanjang = document.getElementById('modalPerpanjang');
 
         const tanggalBayarInput = document.getElementById('perpanjang_tanggal_bayar');
         if (tanggalBayarInput) {

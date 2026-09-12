@@ -265,7 +265,7 @@ class GpsKendaraanController extends Controller
             $gpsRecordIds = [];
             foreach ($gpsItems as $idx => $item) {
                 $gpsRecord = GpsKendaraan::create([
-                    'pembayaran_id' => null, // Akan diisi setelah PO approved & Pembayaran created
+                    'pembayaran_id' => null,
                     'kendaraan_id'  => $kendaraanId,
                     'gps_id'        => $item['gps_id'] ?? null,
                     'type'          => $item['type'] ?? null,
@@ -273,6 +273,7 @@ class GpsKendaraanController extends Controller
                     'tanggal_pasang'=> $tanggalBayar,
                     'tanggal_habis' => $tanggalHabis,
                     'tanggal_bayar' => $tanggalBayar,
+                    'tanggal_buat'  => $tanggalBayar, // tanggal pertama dipasang — tidak berubah saat perpanjang
                     'biaya_sewa'    => (int) ($item['biaya_sewa'] ?? 0),
                     'durasi_bulan'  => $durasiBulan,
                     'status_sewa'   => 'tidak_aktif',

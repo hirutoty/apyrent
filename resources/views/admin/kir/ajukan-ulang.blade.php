@@ -1,20 +1,20 @@
 @extends('admin.layouts.app')
 
-@section('title', 'Ajukan Ulang Pajak Kendaraan')
+@section('title', 'Ajukan Ulang KIR')
 
 @section('content')
 <div class="space-y-6 p-5 max-w-3xl mx-auto">
 
     {{-- HEADER --}}
     <div class="flex items-center gap-3">
-        <a href="{{ route('pajak.index') }}"
+        <a href="{{ route('kir.index') }}"
            class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors">
             <i class="fa fa-arrow-left text-sm"></i>
         </a>
         <div>
-            <h1 class="text-xl font-bold text-gray-800">Ajukan Ulang Pajak Kendaraan</h1>
+            <h1 class="text-xl font-bold text-gray-800">Ajukan Ulang KIR</h1>
             <p class="text-sm text-gray-500 mt-0.5">
-                {{ $pajak->kendaraan->nopol ?? '-' }} — {{ $pajak->kendaraan->merk ?? '-' }}
+                {{ $kir->kendaraan->nopol ?? '-' }} — {{ $kir->kendaraan->merk ?? '-' }}
             </p>
         </div>
     </div>
@@ -65,8 +65,8 @@
             </h2>
         </div>
 
-        <form id="formAjukanUlangPage"
-              action="{{ route('pajak.store') }}"
+        <form id="formAjukanUlangKir"
+              action="{{ route('kir.store') }}"
               method="POST"
               enctype="multipart/form-data"
               class="px-6 py-6">
@@ -81,7 +81,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                 {{-- Kendaraan (bisa diganti) --}}
-                <div>
+                <div class="sm:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Kendaraan <span class="text-red-500">*</span>
                     </label>
@@ -89,101 +89,117 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         <option value="">-- Pilih Kendaraan --</option>
                         @foreach($kendaraan as $k)
-                            <option value="{{ $k->id }}" {{ old('kendaraan_id', $pajak->kendaraan_id) == $k->id ? 'selected' : '' }}>
+                            <option value="{{ $k->id }}" {{ old('kendaraan_id', $kir->kendaraan_id) == $k->id ? 'selected' : '' }}>
                                 {{ $k->nopol }} — {{ $k->merk }}
                             </option>
                         @endforeach
                     </select>
                 </div>
 
-                {{-- Jenis Pajak (bisa diganti) --}}
+                {{-- No. KTP --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Jenis Pajak <span class="text-red-500">*</span>
+                        No. KTP <span class="text-red-500">*</span>
                     </label>
-                    <select name="jenis_pajak" required
+                    <input type="text" name="no_ktp" required
+                        value="{{ old('no_ktp', $kir->no_ktp) }}"
+                        placeholder="Nomor KTP"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        <option value="">-- Pilih Jenis Pajak --</option>
-                        @foreach(['STNK Tahunan', 'STNK 5 Tahunan', 'Pajak Kendaraan Bermotor', 'BPKB', 'Lainnya'] as $jp)
-                            <option value="{{ $jp }}" {{ old('jenis_pajak', $pajak->jenis_pajak) == $jp ? 'selected' : '' }}>
-                                {{ $jp }}
-                            </option>
-                        @endforeach
-                        @if($pajak->jenis_pajak && !in_array($pajak->jenis_pajak, ['STNK Tahunan','STNK 5 Tahunan','Pajak Kendaraan Bermotor','BPKB','Lainnya']))
-                            <option value="{{ $pajak->jenis_pajak }}" selected>{{ $pajak->jenis_pajak }}</option>
-                        @endif
+                </div>
+
+                {{-- Nama KTP --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Nama (sesuai KTP) <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="nama_ktp" required
+                        value="{{ old('nama_ktp', $kir->nama_ktp) }}"
+                        placeholder="Nama sesuai KTP"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
+                {{-- Lokasi Uji --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Lokasi Uji <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="lokasi_uji" required
+                        value="{{ old('lokasi_uji', $kir->lokasi_uji) }}"
+                        placeholder="Nama / alamat lokasi uji"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
+                {{-- Penguji --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Penguji</label>
+                    <input type="text" name="penguji"
+                        value="{{ old('penguji', $kir->penguji) }}"
+                        placeholder="Nama penguji (opsional)"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
+                {{-- Status Uji --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Status Uji <span class="text-red-500">*</span>
+                    </label>
+                    <select name="status_uji" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Status --</option>
+                        <option value="uji berkala" {{ old('status_uji', $kir->status_uji) === 'uji berkala' ? 'selected' : '' }}>Uji Berkala</option>
+                        <option value="uji pertama" {{ old('status_uji', $kir->status_uji) === 'uji pertama' ? 'selected' : '' }}>Uji Pertama</option>
                     </select>
                 </div>
 
-                {{-- Nominal --}}
+                {{-- No. Uji --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Nominal <span class="text-red-500">*</span>
+                        Nomor Uji <span class="text-red-500">*</span>
                     </label>
-                    <input type="number" min="0" name="nominal" required
-                        value="{{ old('nominal', $pajak->nominal) }}"
+                    <input type="text" name="no_uji" required
+                        value="{{ old('no_uji', $kir->no_uji) }}"
+                        placeholder="Nomor uji KIR"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
-                {{-- Tgl Ketentuan Bayar --}}
+                {{-- Tanggal Ketentuan Bayar --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tgl Ketentuan Bayar</label>
-                    <input type="date" name="tanggal_bayar" id="tgl_bayar"
-                        value="{{ old('tanggal_bayar', $pajak->tanggal_bayar ? \Carbon\Carbon::parse($pajak->tanggal_bayar)->format('Y-m-d') : '') }}"
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Tgl Ketentuan Bayar <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" name="tanggal_bayar" id="tanggalBayarKir" required
+                        value="{{ old('tanggal_bayar', $kir->tanggal_bayar ? \Carbon\Carbon::parse($kir->tanggal_bayar)->format('Y-m-d') : '') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
-                {{-- Tanggal Jatuh Tempo (auto-hitung) --}}
+                {{-- Masa Berlaku (auto) --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Jatuh Tempo</label>
-                    <input type="date" id="jatuh_tempo_display" readonly
-                        value="{{ old('jatuh_tempo', $pajak->jatuh_tempo ? \Carbon\Carbon::parse($pajak->jatuh_tempo)->format('Y-m-d') : '') }}"
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Masa Berlaku</label>
+                    <input type="date" id="masaBerlakuDisplay" readonly
+                        value="{{ old('masa_berlaku', $kir->masa_berlaku ? \Carbon\Carbon::parse($kir->masa_berlaku)->format('Y-m-d') : '') }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
-                    <input type="hidden" name="jatuh_tempo" id="jatuh_tempo_hidden"
-                        value="{{ old('jatuh_tempo', $pajak->jatuh_tempo ? \Carbon\Carbon::parse($pajak->jatuh_tempo)->format('Y-m-d') : '') }}">
-                    <p class="text-xs text-gray-400 mt-1">Otomatis tgl ketentuan bayar + 1 tahun</p>
+                    <input type="hidden" name="masa_berlaku" id="masaBerlakuHidden"
+                        value="{{ old('masa_berlaku', $kir->masa_berlaku ? \Carbon\Carbon::parse($kir->masa_berlaku)->format('Y-m-d') : '') }}">
+                    <p class="text-xs text-gray-400 mt-1">Otomatis tgl bayar + 6 bulan</p>
                 </div>
 
-                {{-- Nama Pemilik --}}
+                {{-- Biaya --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik</label>
-                    <input type="text" name="nama_pemilik"
-                        value="{{ old('nama_pemilik', $pajak->nama_pemilik) }}"
-                        placeholder="Nama pemilik rekening"
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Biaya KIR <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" min="0" name="biaya" required
+                        value="{{ old('biaya', $kir->biaya) }}"
+                        placeholder="0"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-
-                {{-- Nama Bank --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bank</label>
-                    <input type="text" name="nama_bank"
-                        value="{{ old('nama_bank', $pajak->nama_bank) }}"
-                        placeholder="Contoh: BRI, BCA, Mandiri"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-
-                {{-- No Rekening --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Rekening</label>
-                    <input type="text" name="no_rekening"
-                        value="{{ old('no_rekening', $pajak->no_rekening) }}"
-                        placeholder="Nomor rekening tujuan"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-
-                {{-- Keterangan --}}
-                <div class="sm:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan</label>
-                    <textarea name="keterangan" rows="2"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan', $pajak->keterangan) }}</textarea>
                 </div>
 
                 {{-- Lampiran lama --}}
-                @if($pajak->attachments && $pajak->attachments->count() > 0)
+                @if($kir->attachments && $kir->attachments->count() > 0)
                 <div class="sm:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-2">Lampiran Sebelumnya</label>
                     <div class="space-y-1.5" id="lampiranList">
-                        @foreach($pajak->attachments as $att)
+                        @foreach($kir->attachments as $att)
                         <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"
                              id="att-row-{{ $att->id }}">
                             <a href="{{ asset($att->file_path) }}" target="_blank"
@@ -195,9 +211,8 @@
                                 <span class="text-[10px] text-gray-400">
                                     {{ $att->file_size ? round($att->file_size / 1024, 1) . ' KB' : '' }}
                                 </span>
-                                {{-- Tombol hapus lampiran: pakai AJAX agar tidak butuh nested form --}}
                                 <button type="button"
-                                    onclick="hapusLampiran({{ $att->id }}, '{{ route('pajak.attachment.destroy', $att->id) }}')"
+                                    onclick="hapusLampiranKir({{ $att->id }}, '{{ route('kir.attachment.destroy', $att->id) }}')"
                                     class="text-red-400 hover:text-red-600 text-xs p-0.5 transition-colors">
                                     <i class="fa fa-times"></i>
                                 </button>
@@ -213,25 +228,33 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Tambah Lampiran Baru <span class="text-gray-400 font-normal">(opsional)</span>
                     </label>
-                    <label for="new_attachment"
+                    <label for="new_attachment_kir"
                         class="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
                         <i class="fa-solid fa-paperclip text-lg text-gray-400 mb-0.5"></i>
                         <span class="text-xs text-gray-500">Klik untuk upload lampiran tambahan (Maks 5MB)</span>
                     </label>
-                    <input type="file" name="bukti_attachment[]" id="new_attachment" class="hidden" multiple
-                        onchange="renderNewAttachmentList(this)">
-                    <ul id="newAttachmentList" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
+                    <input type="file" name="bukti_attachment[]" id="new_attachment_kir" class="hidden" multiple
+                        onchange="renderNewAttachList(this)">
+                    <ul id="newAttachList" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
+                </div>
+
+                {{-- Info bukti bayar --}}
+                <div class="sm:col-span-2">
+                    <div class="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
+                        <i class="fa fa-circle-info mt-0.5 flex-shrink-0"></i>
+                        <span>Bukti pembayaran akan diunggah oleh Superadmin saat melakukan approval di halaman Pembayaran.</span>
+                    </div>
                 </div>
 
             </div>
 
             {{-- ACTIONS --}}
             <div class="flex gap-3 pt-6 border-t border-gray-100 mt-6">
-                <a href="{{ route('pajak.index') }}"
+                <a href="{{ route('kir.index') }}"
                    class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-center">
                     Batal
                 </a>
-                <button type="submit" id="btnAjukanUlangPage"
+                <button type="submit" id="btnAjukanUlangKir"
                     class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                     <i class="fa fa-paper-plane text-sm"></i>
                     Ajukan Ulang
@@ -242,22 +265,18 @@
 
 </div>
 
-<style>
-@keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-</style>
-
 <script>
-// Auto-hitung jatuh tempo dari tgl ketentuan bayar
-document.getElementById('tgl_bayar')?.addEventListener('change', function () {
-    const display = document.getElementById('jatuh_tempo_display');
-    const hidden  = document.getElementById('jatuh_tempo_hidden');
+// Auto-hitung masa berlaku dari tanggal bayar + 6 bulan
+document.getElementById('tanggalBayarKir')?.addEventListener('change', function () {
+    const display = document.getElementById('masaBerlakuDisplay');
+    const hidden  = document.getElementById('masaBerlakuHidden');
     if (!this.value) {
         display.value = '';
         if (hidden) hidden.value = '';
         return;
     }
     const d = new Date(this.value);
-    d.setFullYear(d.getFullYear() + 1);
+    d.setMonth(d.getMonth() + 6);
     const val = d.getFullYear() + '-'
         + String(d.getMonth() + 1).padStart(2, '0') + '-'
         + String(d.getDate()).padStart(2, '0');
@@ -265,9 +284,9 @@ document.getElementById('tgl_bayar')?.addEventListener('change', function () {
     if (hidden) hidden.value = val;
 });
 
-// Render daftar lampiran yang dipilih
-function renderNewAttachmentList(input) {
-    const list = document.getElementById('newAttachmentList');
+// Render daftar lampiran baru yang dipilih
+function renderNewAttachList(input) {
+    const list = document.getElementById('newAttachList');
     list.innerHTML = '';
     Array.from(input.files).forEach(f => {
         const li = document.createElement('li');
@@ -277,17 +296,14 @@ function renderNewAttachmentList(input) {
     });
 }
 
-// Hapus lampiran lama via AJAX (tanpa nested form agar tidak merusak submit utama)
-function hapusLampiran(attId, url) {
+// Hapus lampiran lama via AJAX
+function hapusLampiranKir(attId, url) {
     if (!confirm('Hapus lampiran ini?')) return;
-
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-    const body = new URLSearchParams({ _token: csrfToken, _method: 'DELETE' });
-
     fetch(url, {
         method: 'POST',
         headers: { 'Accept': 'application/json' },
-        body: body,
+        body: new URLSearchParams({ _token: csrfToken, _method: 'DELETE' }),
     })
     .then(function (res) {
         if (res.ok || res.redirected) {
@@ -304,8 +320,8 @@ function hapusLampiran(attId, url) {
 
 // Anti double-submit
 (function () {
-    const form = document.getElementById('formAjukanUlangPage');
-    const btn  = document.getElementById('btnAjukanUlangPage');
+    const form = document.getElementById('formAjukanUlangKir');
+    const btn  = document.getElementById('btnAjukanUlangKir');
     if (!form || !btn) return;
     form.addEventListener('submit', function () {
         btn.disabled = true;

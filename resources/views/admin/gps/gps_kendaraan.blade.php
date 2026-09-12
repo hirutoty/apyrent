@@ -196,6 +196,7 @@
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Kendaraan</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">GPS</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Type</th>
+                            <th class="px-5 py-4 text-left font-semibold text-slate-600">Tgl Buat</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Tgl Ketentuan Bayar</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Jatuh Tempo</th>
                             <th class="px-5 py-4 text-left font-semibold text-slate-600">Biaya</th>
@@ -228,6 +229,11 @@
 
                                 {{-- Type --}}
                                 <td class="px-5 py-4 text-slate-700">{{ $d->type }}</td>
+
+                                {{-- Tgl Buat (tidak berubah saat perpanjang) --}}
+                                <td class="px-5 py-4 text-slate-600">
+                                    {{ $d->tanggal_buat ? \Carbon\Carbon::parse($d->tanggal_buat)->format('d M Y') : '-' }}
+                                </td>
 
                                 {{-- Tgl Pasang --}}
                                 <td class="px-5 py-4 text-slate-600">
@@ -445,7 +451,7 @@
 
                         @empty
                             <tr>
-                                <td colspan="13" class="text-center py-12 text-slate-400">
+                                <td colspan="14" class="text-center py-12 text-slate-400">
                                     <i class="fa-solid fa-satellite-dish text-4xl mb-3 block"></i>
                                     Belum ada data GPS kendaraan
                                 </td>

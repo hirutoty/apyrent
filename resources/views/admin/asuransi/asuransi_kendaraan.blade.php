@@ -416,7 +416,8 @@
                                         @endif
 
 
-                                        <!-- <button
+                                        <!-- Tombol Edit Asuransi -->
+                                        <button
                                             onclick="openEditModal(
                                             '{{ $d->id }}',
                                             '{{ $d->kendaraan_id }}',
@@ -431,7 +432,7 @@
                                         )"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                             <i class="fa fa-edit text-xs"></i> Edit
-                                        </button> -->
+                                        </button>
                                         <form action="/admin/asuransi-kendaraan/{{ $d->id }}" method="POST"
                                             onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
                                             @csrf

@@ -218,6 +218,48 @@ class PurchaseOrderApprovalService
                 }
             }
 
+            // Update record Asuransi terkait PO ini ke 'Diajukan ke Pembayaran'
+            if ($po->source_type === 'asuransi_kendaraan') {
+                $sourceData = $po->source_data ?? [];
+                $existingId = $sourceData['existing_record_id'] ?? null;
+                if ($existingId) {
+                    \App\Models\AsuransiKendaraan::where('id', $existingId)
+                        ->where('persetujuan', 'Pending')
+                        ->update([
+                            'persetujuan'   => 'Diajukan ke Pembayaran',
+                            'pembayaran_id' => $pembayaran->id,
+                        ]);
+                }
+            }
+
+            // Update record Pajak terkait PO ini ke 'Diajukan ke Pembayaran'
+            if ($po->source_type === 'pajak') {
+                $sourceData = $po->source_data ?? [];
+                $existingId = $sourceData['existing_record_id'] ?? null;
+                if ($existingId) {
+                    \App\Models\PajakKendaraan::where('id', $existingId)
+                        ->where('persetujuan', 'Pending')
+                        ->update([
+                            'persetujuan'   => 'Diajukan ke Pembayaran',
+                            'pembayaran_id' => $pembayaran->id,
+                        ]);
+                }
+            }
+
+            // Update record KIR terkait PO ini ke 'Diajukan ke Pembayaran'
+            if ($po->source_type === 'kir') {
+                $sourceData = $po->source_data ?? [];
+                $existingId = $sourceData['existing_record_id'] ?? null;
+                if ($existingId) {
+                    \App\Models\Kir::where('id', $existingId)
+                        ->where('persetujuan', 'Pending')
+                        ->update([
+                            'persetujuan'   => 'Diajukan ke Pembayaran',
+                            'pembayaran_id' => $pembayaran->id,
+                        ]);
+                }
+            }
+
             DB::commit();
 
             return $pembayaran;
@@ -448,7 +490,7 @@ class PurchaseOrderApprovalService
             'nominal' => $po->total_harga,
             'nama_bank' => $sourceData['nama_bank'] ?? null,
             'no_rekening' => $sourceData['no_rekening'] ?? null,
-            'nama_pemilik' => $sourceData['nama_pemilik'] ?? $sourceData['nama_rekening'] ?? null,
+            'nama_pemilik' => $sourceData['nama_pemilik'] ?? $sourceData['nama_rekening'] ?? $sourceData['nama_rekening'] ?? null,
             'keterangan' => $sourceData['keterangan'] ?? $sourceData['informasi'] ?? null,
             'status' => 'Diajukan', // PO sudah diapprove superadmin → langsung Diajukan ke Pembayaran
             'terakhir_diajukan' => now(),

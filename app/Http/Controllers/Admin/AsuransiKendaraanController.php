@@ -26,12 +26,24 @@ class AsuransiKendaraanController extends Controller
             ->where('status_kendaraan', 'aktif')
             ->update(['status_kendaraan' => 'expired']);
 
+        // Tampilkan Asuransi yang:
+        // - Sudah melewati PO (bukan Pending = menunggu PO approval)
+        // - Jika Ditolak: hanya tampilkan yang sudah sampai tahap Pembayaran (punya pembayaran_id)
+        //   Ditolak di PO (tidak ada pembayaran_id) → tidak ditampilkan
+        //   Ditolak di Pembayaran (ada pembayaran_id) → tampilkan sebagai informasi
         $query = AsuransiKendaraan::with([
             'kendaraan',
             'asuransi',
             'jenisAsuransi',
             'attachments'
-        ])->latest();
+        ])
+            ->whereNotNull('persetujuan')
+            ->where('persetujuan', '!=', 'Pending')
+            ->where(function ($q) {
+                $q->where('persetujuan', '!=', 'Ditolak')
+                  ->orWhereNotNull('pembayaran_id'); // Ditolak di Pembayaran → tampilkan
+            })
+            ->latest();
 
         if ($request->filled('search')) {
             $s = $request->search;
@@ -169,7 +181,83 @@ class AsuransiKendaraanController extends Controller
             'bukti_attachment.*' => 'file|max:5120',
         ]);
 
-        // ── RESUBMIT: edit_pembayaran diisi (dari halaman Ajukan Ulang setelah ditolak) ──
+        // ── RESUBMIT PO: edit_purchase_order diisi (dari halaman Ajukan Ulang setelah PO ditolak) ──
+        if ($request->filled('edit_purchase_order')) {
+            $poId = (int) $request->input('edit_purchase_order');
+
+            try {
+                $po = \App\Models\PurchaseOrder::findOrFail($poId);
+
+                if (!in_array($po->status, ['Ditolak'])) {
+                    return redirect()
+                        ->route('asuransi-kendaraan.index')
+                        ->with('error', 'Purchase Order ini tidak dapat diajukan ulang (status: ' . $po->status . ').');
+                }
+
+                $sourceData = $po->source_data ?? [];
+                $existingId = $sourceData['existing_record_id'] ?? null;
+
+                // Update record asuransi dengan data baru
+                if ($existingId) {
+                    AsuransiKendaraan::where('id', $existingId)->update([
+                        'persetujuan'       => 'Pending',
+                        'asuransi_id'       => $request->asuransi_id,
+                        'jenis_asuransi_id' => $request->jenis_asuransi_id,
+                        'tgl_mulai'         => $request->tgl_mulai,
+                        'tgl_berakhir'      => $request->tgl_berakhir,
+                        'durasi_bulan'      => $request->durasi_bulan,
+                        'biaya'             => $request->biaya,
+                        'nama_rekening'     => $request->nama_rekening,
+                        'nama_bank'         => $request->nama_bank,
+                        'no_rekening'       => $request->no_rekening,
+                    ]);
+
+                    // Simpan lampiran baru (akumulatif — lampiran lama TIDAK dihapus)
+                    if ($request->hasFile('bukti_attachment')) {
+                        $this->simpanAttachments($request->file('bukti_attachment'), $existingId);
+                    }
+                }
+
+                // Update source_data PO dengan data baru
+                $newSourceData = array_merge($sourceData, [
+                    'kendaraan_id'      => $request->kendaraan_id,
+                    'asuransi_id'       => $request->asuransi_id,
+                    'jenis_asuransi_id' => $request->jenis_asuransi_id,
+                    'tgl_mulai'         => $request->tgl_mulai,
+                    'tgl_berakhir'      => $request->tgl_berakhir,
+                    'durasi_bulan'      => $request->durasi_bulan,
+                    'biaya'             => $request->biaya,
+                    'nama_rekening'     => $request->nama_rekening,
+                    'nama_bank'         => $request->nama_bank,
+                    'no_rekening'       => $request->no_rekening,
+                    'existing_record_id'=> $existingId,
+                ]);
+
+                $po->update([
+                    'source_data'         => $newSourceData,
+                    'total_harga'         => $request->biaya,
+                    'status'              => 'Pending',
+                    'catatan_approval'    => null,
+                    'disetujui_oleh'      => null,
+                    'tanggal_persetujuan' => null,
+                    'can_edit'            => false,
+                    'terakhir_diajukan'   => now(),
+                ]);
+
+                return redirect()
+                    ->route('purchase-order.index', ['status' => 'Pending'])
+                    ->with('success', 'Asuransi berhasil diajukan ulang ke Purchase Order. Menunggu approval Superadmin.');
+
+            } catch (\Exception $e) {
+                \Log::error('Error resubmit PO asuransi: ' . $e->getMessage());
+                return redirect()
+                    ->route('asuransi-kendaraan.ajukan-ulang', $poId)
+                    ->withInput()
+                    ->with('error', 'Terjadi kesalahan saat mengajukan ulang: ' . $e->getMessage());
+            }
+        }
+
+        // ── RESUBMIT PEMBAYARAN: edit_pembayaran diisi (dari halaman Ajukan Ulang setelah Pembayaran ditolak) ──
         if ($request->filled('edit_pembayaran')) {
             $pembayaranId = (int) $request->input('edit_pembayaran');
 
@@ -246,21 +334,21 @@ class AsuransiKendaraanController extends Controller
         // Cek duplikat: hanya blokir jika sudah ada data Pending atau Disetujui
         // (data Ditolak boleh daftar ulang)
         $exists = AsuransiKendaraan::where('kendaraan_id', $request->kendaraan_id)
-            ->whereIn('persetujuan', ['Pending', 'Disetujui'])
+            ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran', 'Disetujui'])
             ->exists();
         if ($exists) {
             return back()->with('error', 'Kendaraan ini sudah memiliki data asuransi aktif atau sedang dalam proses approval.');
         }
 
         try {
-            // Step 1: Intercept & buat Pembayaran untuk approval
-            $interceptedData = $interceptor->intercept($request, 'asuransi_kendaraan');
-            $pembayaran      = $interceptor->saveToPembayaran($interceptedData, 'asuransi_kendaraan');
+            // ===========================================================================
+            // NEW FLOW: Intercept dan kirim ke Purchase Order (bukan langsung Pembayaran)
+            // ===========================================================================
 
-            // Step 2: Simpan record ke asuransi_kendaraan dengan status tidak_aktif & Pending
-            // Bukti bayar diisi saat Superadmin approve di halaman Pembayaran
+            // Step 1: Simpan record asuransi_kendaraan dengan persetujuan=Pending
+            // (belum muncul di tabel utama sampai PO disetujui)
             $asuransi = AsuransiKendaraan::create([
-                'pembayaran_id'     => $pembayaran->id,
+                'pembayaran_id'     => null, // Diisi setelah PO disetujui & Pembayaran dibuat
                 'kendaraan_id'      => $request->kendaraan_id,
                 'asuransi_id'       => $request->asuransi_id,
                 'jenis_asuransi_id' => $request->jenis_asuransi_id,
@@ -276,19 +364,27 @@ class AsuransiKendaraanController extends Controller
                 'no_rekening'       => $request->no_rekening,
             ]);
 
-            // Step 3: Simpan lampiran
+            // Step 2: Simpan lampiran
             if ($request->hasFile('bukti_attachment')) {
                 $this->simpanAttachments($request->file('bukti_attachment'), $asuransi->id);
             }
 
-            // Step 4: Tandai existing_record_id di source_data pembayaran
-            $sourceData = $pembayaran->source_data;
+            // Step 3: Intercept & buat Purchase Order
+            $interceptedData = $interceptor->intercept($request, 'asuransi_kendaraan');
+
+            // Sematkan existing_record_id agar PO approval bisa update record yang sudah ada
+            $interceptedData['source_data']['existing_record_id'] = $asuransi->id;
+
+            $po = $interceptor->saveToPurchaseOrder($interceptedData, 'asuransi_kendaraan');
+
+            // Step 4: Update source_data PO
+            $sourceData = $po->source_data;
             $sourceData['existing_record_id'] = $asuransi->id;
-            $pembayaran->update(['source_data' => $sourceData]);
+            $po->update(['source_data' => $sourceData]);
 
             return redirect()
-                ->route('asuransi-kendaraan.index')
-                ->with('success', 'Pengajuan asuransi berhasil dikirim. Menunggu approval dari Superadmin.');
+                ->route('purchase-order.index', ['status' => 'Pending'])
+                ->with('success', 'Pengajuan asuransi berhasil dikirim ke Purchase Order. Menunggu approval dari Superadmin.');
 
         } catch (\Exception $e) {
             \Log::error('Error store asuransi kendaraan: ' . $e->getMessage());
@@ -298,35 +394,70 @@ class AsuransiKendaraanController extends Controller
 
     /**
      * Halaman ajukan ulang asuransi yang ditolak (dedicated page)
+     * Handles both: PO ditolak dan Pembayaran ditolak
      */
-    public function ajukanUlangForm($pembayaranId)
+    public function ajukanUlangForm($id)
     {
-        $pembayaran = \App\Models\Pembayaran::findOrFail($pembayaranId);
+        // Coba sebagai pembayaran_id dulu
+        $pembayaran = \App\Models\Pembayaran::find($id);
 
-        if ($pembayaran->status !== 'Ditolak') {
-            return redirect()->route('asuransi-kendaraan.index')
-                ->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
+        // Jika bukan pembayaran, cek apakah PO
+        $isPo = false;
+        $po   = null;
+        if (!$pembayaran) {
+            $po   = \App\Models\PurchaseOrder::find($id);
+            $isPo = true;
         }
 
-        $sourceData = $pembayaran->source_data ?? [];
-        $existingId = $sourceData['existing_record_id'] ?? null;
-
-        if (!$existingId) {
+        if (!$pembayaran && !$po) {
             return redirect()->route('asuransi-kendaraan.index')
-                ->with('error', 'Data asuransi tidak ditemukan.');
+                ->with('error', 'Data tidak ditemukan.');
         }
 
-        $asuransi = AsuransiKendaraan::with(['kendaraan', 'asuransi', 'jenisAsuransi', 'attachments'])
-            ->findOrFail($existingId);
+        if ($isPo) {
+            // PO ditolak
+            if ($po->status !== 'Ditolak') {
+                return redirect()->route('asuransi-kendaraan.index')
+                    ->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
+            }
+            $sourceData = $po->source_data ?? [];
+            $existingId = $sourceData['existing_record_id'] ?? null;
+            if (!$existingId) {
+                return redirect()->route('asuransi-kendaraan.index')
+                    ->with('error', 'Data asuransi tidak ditemukan.');
+            }
+            $asuransi = AsuransiKendaraan::with(['kendaraan', 'asuransi', 'jenisAsuransi', 'attachments'])
+                ->findOrFail($existingId);
+            $rejectionReason = $po->catatan_approval ?? null;
+            $editPoId        = $po->id;
+            $editPembayaranId = null;
+        } else {
+            // Pembayaran ditolak
+            if ($pembayaran->status !== 'Ditolak') {
+                return redirect()->route('asuransi-kendaraan.index')
+                    ->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
+            }
+            $sourceData = $pembayaran->source_data ?? [];
+            $existingId = $sourceData['existing_record_id'] ?? null;
+            if (!$existingId) {
+                return redirect()->route('asuransi-kendaraan.index')
+                    ->with('error', 'Data asuransi tidak ditemukan.');
+            }
+            $asuransi = AsuransiKendaraan::with(['kendaraan', 'asuransi', 'jenisAsuransi', 'attachments'])
+                ->findOrFail($existingId);
+            $rejectionReason  = $pembayaran->latestApproval?->catatan ?? null;
+            $editPoId         = null;
+            $editPembayaranId = $pembayaran->id;
+        }
 
-        $rejectionReason  = $pembayaran->latestApproval?->catatan ?? null;
-        $kendaraan        = Kendaraan::all();
-        $allAsuransi      = Asuransi::all();
-        $jenisAsuransi    = JenisAsuransi::all();
+        $kendaraan     = \App\Models\Kendaraan::all();
+        $allAsuransi   = \App\Models\Asuransi::all();
+        $jenisAsuransi = JenisAsuransi::all();
 
         return view('admin.asuransi.ajukan-ulang', compact(
             'asuransi',
-            'pembayaranId',
+            'editPoId',
+            'editPembayaranId',
             'rejectionReason',
             'kendaraan',
             'allAsuransi',

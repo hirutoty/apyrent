@@ -56,7 +56,17 @@ class KirController extends Controller
             ->where('masa_berlaku', '<', now()->toDateString())
             ->update(['status' => 'expired']);
 
-        $query = Kir::with(['kendaraan', 'attachments'])->latest();
+        // Tampilkan KIR yang:
+        // - Sudah melewati PO (bukan Pending = menunggu PO approval)
+        // - Jika Ditolak: hanya tampilkan yang sudah sampai tahap Pembayaran (punya pembayaran_id)
+        $query = Kir::with(['kendaraan', 'attachments'])
+            ->whereNotNull('persetujuan')
+            ->where('persetujuan', '!=', 'Pending')
+            ->where(function ($q) {
+                $q->where('persetujuan', '!=', 'Ditolak')
+                  ->orWhereNotNull('pembayaran_id'); // Ditolak di Pembayaran → tampilkan
+            })
+            ->latest();
 
         // Server-side search
         if ($request->filled('search')) {
@@ -189,20 +199,165 @@ class KirController extends Controller
 
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 
+        // ── RESUBMIT PO: edit_purchase_order diisi (dari halaman Ajukan Ulang setelah PO ditolak) ──
+        if ($request->filled('edit_purchase_order')) {
+            $poId = (int) $request->input('edit_purchase_order');
+
+            try {
+                $po = \App\Models\PurchaseOrder::findOrFail($poId);
+
+                if ($po->status !== 'Ditolak') {
+                    return redirect()
+                        ->route('kir.index')
+                        ->with('error', 'Purchase Order ini tidak dapat diajukan ulang (status: ' . $po->status . ').');
+                }
+
+                $sourceData = $po->source_data ?? [];
+                $existingId = $sourceData['existing_record_id'] ?? null;
+
+                // Update record KIR dengan data baru
+                if ($existingId) {
+                    Kir::where('id', $existingId)->update([
+                        'persetujuan'  => 'Pending',
+                        'kendaraan_id' => $request->kendaraan_id,
+                        'no_ktp'       => $request->no_ktp,
+                        'nama_ktp'     => $request->nama_ktp,
+                        'lokasi_uji'   => $request->lokasi_uji,
+                        'penguji'      => $request->penguji,
+                        'status_uji'   => $request->status_uji,
+                        'no_uji'       => $request->no_uji,
+                        'tanggal_bayar'=> $request->tanggal_bayar,
+                        'masa_berlaku' => $request->masa_berlaku,
+                        'biaya'        => $request->biaya,
+                    ]);
+
+                    // Simpan lampiran baru (akumulatif — lampiran lama TIDAK dihapus)
+                    if ($request->hasFile('bukti_attachment')) {
+                        $this->simpanAttachments($request->file('bukti_attachment'), $existingId);
+                    }
+                }
+
+                // Update source_data PO dengan data baru
+                $newSourceData = array_merge($sourceData, [
+                    'kendaraan_id'  => $request->kendaraan_id,
+                    'no_ktp'        => $request->no_ktp,
+                    'nama_ktp'      => $request->nama_ktp,
+                    'lokasi_uji'    => $request->lokasi_uji,
+                    'penguji'       => $request->penguji,
+                    'status_uji'    => $request->status_uji,
+                    'no_uji'        => $request->no_uji,
+                    'tanggal_bayar' => $request->tanggal_bayar,
+                    'masa_berlaku'  => $request->masa_berlaku,
+                    'biaya'         => $request->biaya,
+                    'existing_record_id' => $existingId,
+                ]);
+
+                $po->update([
+                    'source_data'         => $newSourceData,
+                    'total_harga'         => $request->biaya,
+                    'status'              => 'Pending',
+                    'catatan_approval'    => null,
+                    'disetujui_oleh'      => null,
+                    'tanggal_persetujuan' => null,
+                    'can_edit'            => false,
+                    'terakhir_diajukan'   => now(),
+                ]);
+
+                return redirect()
+                    ->route('purchase-order.index', ['status' => 'Pending'])
+                    ->with('success', 'KIR berhasil diajukan ulang ke Purchase Order. Menunggu approval Superadmin.');
+
+            } catch (\Exception $e) {
+                \Log::error('Error resubmit PO KIR: ' . $e->getMessage());
+                return redirect()
+                    ->route('kir.ajukan-ulang', $poId)
+                    ->withInput()
+                    ->with('error', 'Terjadi kesalahan saat mengajukan ulang: ' . $e->getMessage());
+            }
+        }
+
+        // ── RESUBMIT PEMBAYARAN: edit_pembayaran diisi (dari halaman Ajukan Ulang setelah Pembayaran ditolak) ──
+        if ($request->filled('edit_pembayaran')) {
+            $pembayaranId = (int) $request->input('edit_pembayaran');
+
+            try {
+                $pembayaran = \App\Models\Pembayaran::findOrFail($pembayaranId);
+
+                if (!in_array($pembayaran->status, ['Ditolak', 'Pending'])) {
+                    return redirect()
+                        ->route('kir.index')
+                        ->with('error', 'Pengajuan ini tidak dapat diajukan ulang (status: ' . $pembayaran->status . ').');
+                }
+
+                $sourceData = $pembayaran->source_data ?? [];
+                $sourceData = array_merge($sourceData, [
+                    'kendaraan_id'  => $request->kendaraan_id,
+                    'no_ktp'        => $request->no_ktp,
+                    'nama_ktp'      => $request->nama_ktp,
+                    'lokasi_uji'    => $request->lokasi_uji,
+                    'penguji'       => $request->penguji,
+                    'status_uji'    => $request->status_uji,
+                    'no_uji'        => $request->no_uji,
+                    'tanggal_bayar' => $request->tanggal_bayar,
+                    'masa_berlaku'  => $request->masa_berlaku,
+                    'biaya'         => $request->biaya,
+                ]);
+
+                $pembayaran->update([
+                    'source_data' => $sourceData,
+                    'nominal'     => $request->biaya,
+                    'status'      => 'Diajukan',
+                    'can_edit'    => false,
+                    'terakhir_diajukan' => now(),
+                ]);
+
+                $existingId = $sourceData['existing_record_id'] ?? null;
+                if ($existingId) {
+                    Kir::where('id', $existingId)->update([
+                        'persetujuan'  => 'Diajukan ke Pembayaran',
+                        'no_ktp'       => $request->no_ktp,
+                        'nama_ktp'     => $request->nama_ktp,
+                        'lokasi_uji'   => $request->lokasi_uji,
+                        'penguji'      => $request->penguji,
+                        'status_uji'   => $request->status_uji,
+                        'no_uji'       => $request->no_uji,
+                        'tanggal_bayar'=> $request->tanggal_bayar,
+                        'masa_berlaku' => $request->masa_berlaku,
+                        'biaya'        => $request->biaya,
+                    ]);
+
+                    // Simpan lampiran baru (akumulatif — lampiran lama TIDAK dihapus)
+                    if ($request->hasFile('bukti_attachment')) {
+                        $this->simpanAttachments($request->file('bukti_attachment'), $existingId);
+                    }
+                }
+
+                return redirect()
+                    ->route('kir.index')
+                    ->with('success', 'KIR berhasil diajukan ulang ke pembayaran. Menunggu approval Superadmin.');
+
+            } catch (\Exception $e) {
+                \Log::error('Error resubmit KIR: ' . $e->getMessage());
+                return redirect()
+                    ->route('kir.ajukan-ulang', $pembayaranId)
+                    ->withInput()
+                    ->with('error', 'Terjadi kesalahan saat mengajukan ulang: ' . $e->getMessage());
+            }
+        }
+
         $exists = Kir::where('kendaraan_id', $kendaraan->id)->exists();
         if ($exists) {
             return back()->with('error', 'Kendaraan ' . $kendaraan->nopol . ' sudah memiliki data KIR');
         }
 
         try {
-            // Step 1: Intercept & buat Pembayaran (untuk pencatatan approval)
-            $interceptedData = $interceptor->intercept($request, 'kir');
-            $pembayaran      = $interceptor->saveToPembayaran($interceptedData, 'kir');
+            // ===========================================================================
+            // NEW FLOW: Kirim ke Purchase Order (bukan langsung Pembayaran)
+            // ===========================================================================
 
-            // Step 2: Simpan record langsung ke kir dengan status Pending & tidak_aktif
-            // (bukti/image hanya diisi saat approval oleh keuangan)
+            // Step 1: Simpan record KIR dengan persetujuan=Pending
             $kir = Kir::create([
-                'pembayaran_id' => $pembayaran->id,
+                'pembayaran_id' => null, // Diisi setelah PO disetujui & Pembayaran dibuat
                 'kendaraan_id'  => $request->kendaraan_id,
                 'no_ktp'        => $request->no_ktp,
                 'nama_ktp'      => $request->nama_ktp,
@@ -218,24 +373,88 @@ class KirController extends Controller
                 'persetujuan'   => 'Pending',
             ]);
 
-            // Step 3: Simpan attachment langsung
+            // Step 2: Simpan attachment langsung
             if ($request->hasFile('bukti_attachment')) {
                 $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
             }
 
-            // Step 4: Tandai existing_record_id di source_data pembayaran
-            $sourceData = $pembayaran->source_data;
+            // Step 3: Intercept & buat Purchase Order
+            $interceptedData = $interceptor->intercept($request, 'kir');
+
+            // Sematkan existing_record_id agar PO approval bisa update record yang sudah ada
+            $interceptedData['source_data']['existing_record_id'] = $kir->id;
+
+            $po = $interceptor->saveToPurchaseOrder($interceptedData, 'kir');
+
+            // Step 4: Update source_data PO
+            $sourceData = $po->source_data;
             $sourceData['existing_record_id'] = $kir->id;
-            $pembayaran->update(['source_data' => $sourceData]);
+            $po->update(['source_data' => $sourceData]);
 
             return redirect()
-                ->route('kir.index')
-                ->with('success', 'Data KIR berhasil disimpan. Menunggu approval dari keuangan.');
+                ->route('purchase-order.index', ['status' => 'Pending'])
+                ->with('success', 'Data KIR berhasil dikirim ke Purchase Order. Menunggu approval dari Superadmin.');
 
         } catch (\Exception $e) {
             \Log::error('Error store KIR: ' . $e->getMessage());
             return back()->withInput()->with('error', 'Terjadi kesalahan saat menyimpan data. Silakan coba lagi.');
         }
+    }
+
+    /**
+     * Halaman ajukan ulang KIR yang ditolak (dedicated page)
+     * Handles both: PO ditolak dan Pembayaran ditolak
+     */
+    public function ajukanUlangForm($id)
+    {
+        $pembayaran = \App\Models\Pembayaran::find($id);
+        $isPo = false;
+        $po   = null;
+
+        if (!$pembayaran) {
+            $po   = \App\Models\PurchaseOrder::find($id);
+            $isPo = true;
+        }
+
+        if (!$pembayaran && !$po) {
+            return redirect()->route('kir.index')->with('error', 'Data tidak ditemukan.');
+        }
+
+        if ($isPo) {
+            if ($po->status !== 'Ditolak') {
+                return redirect()->route('kir.index')->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
+            }
+            $sourceData      = $po->source_data ?? [];
+            $existingId      = $sourceData['existing_record_id'] ?? null;
+            $kir             = $existingId ? Kir::with(['kendaraan', 'attachments'])->findOrFail($existingId) : null;
+            $rejectionReason = $po->catatan_approval ?? null;
+            $editPoId        = $po->id;
+            $editPembayaranId = null;
+        } else {
+            if ($pembayaran->status !== 'Ditolak') {
+                return redirect()->route('kir.index')->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
+            }
+            $sourceData      = $pembayaran->source_data ?? [];
+            $existingId      = $sourceData['existing_record_id'] ?? null;
+            $kir             = $existingId ? Kir::with(['kendaraan', 'attachments'])->findOrFail($existingId) : null;
+            $rejectionReason = $pembayaran->latestApproval?->catatan ?? null;
+            $editPoId        = null;
+            $editPembayaranId = $pembayaran->id;
+        }
+
+        if (!$kir) {
+            return redirect()->route('kir.index')->with('error', 'Data KIR tidak ditemukan.');
+        }
+
+        $kendaraan = Kendaraan::all();
+
+        return view('admin.kir.ajukan-ulang', compact(
+            'kir',
+            'editPoId',
+            'editPembayaranId',
+            'rejectionReason',
+            'kendaraan'
+        ));
     }
 
 

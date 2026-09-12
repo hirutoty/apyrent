@@ -2,6 +2,7 @@
 @section('title', 'Purchase Order Approval')
 @section('content')
 <div class="space-y-6 p-5">
+
     @if (session('success'))
         <div class="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
             <i class="fa fa-check-circle text-green-500"></i> {{ session('success') }}
@@ -12,134 +13,483 @@
             <i class="fa fa-exclamation-circle text-red-500"></i> {{ session('error') }}
         </div>
     @endif
+    @if (session('warning'))
+        <div class="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            <i class="fa fa-exclamation-triangle text-amber-500"></i> {{ session('warning') }}
+        </div>
+    @endif
 
+    {{-- PAGE HEADER --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800">Purchase Order Approval</h1>
+            <h1 class="text-2xl font-bold text-gray-800">Purchase Order</h1>
             <p class="text-sm text-gray-500 mt-0.5">Kelola approval purchase order dari pengeluaran kendaraan</p>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    {{-- SUMMARY CARDS --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl border border-gray-100 p-5">
+            <p class="text-sm text-gray-500">Total PO</p>
+            <h2 class="text-3xl font-bold text-indigo-600 mt-2">{{ $totalPO }}</h2>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5">
+            <p class="text-sm text-gray-500">Total Nilai (Pending + Disetujui)</p>
+            <h2 class="text-2xl font-bold text-emerald-600 mt-2">Rp {{ number_format($totalNominal, 0, ',', '.') }}</h2>
+        </div>
+    </div>
+
+    {{-- CHART --}}
+    @php
+        $sourceList = $sourceTypes->keys()->map(fn($s) => ['id' => $s, 'nama' => ucfirst(str_replace('_', ' ', $s))]);
+    @endphp
+    <x-chart-filter id="poChartFilter" defaultFilter="month" :showCustomRange="true"
+        :showCategoryFilter="true" :categories="$sourceList" />
+    <x-chart-container id="poChartContainer" layout="stacked"
+        pieTitle="Distribusi Status PO" pieId="poPieChart"
+        barTitle="Total Harga PO per Bulan" barId="poBarChart"
+        lineTitle="Trend PO" lineId="poLineChart"
+        :showStats="true" :statsData="[]" />
+
+    {{-- TABLE CARD --}}
+    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+
+        {{-- NAV TABS --}}
         <div class="border-b border-gray-200">
             <nav class="flex gap-0 -mb-px overflow-x-auto">
-                @php
-                    $tabs = [
-                        ['label' => 'Pending',   'count' => $totalPending,  'color' => 'yellow'],
-                        ['label' => 'Disetujui', 'count' => $totalApproved, 'color' => 'green'],
-                        ['label' => 'Ditolak',   'count' => $totalRejected, 'color' => 'red'],
-                    ];
-                @endphp
-                @foreach ($tabs as $tab)
-                    @php $isActive = $statusFilter === $tab['label']; @endphp
-                    <a href="{{ route('purchase-order.index', ['status' => $tab['label']]) }}"
+                @foreach ([
+                    ['label' => 'Semua',    'status' => 'semua',    'count' => $totalPO,       'color' => 'blue'],
+                    ['label' => 'Pending',  'status' => 'Pending',  'count' => $totalPending,  'color' => 'yellow'],
+                    ['label' => 'Disetujui','status' => 'Disetujui','count' => $totalApproved, 'color' => 'green'],
+                    ['label' => 'Ditolak',  'status' => 'Ditolak',  'count' => $totalRejected, 'color' => 'red'],
+                ] as $tab)
+                    @php $isActive = $statusFilter === $tab['status']; @endphp
+                    <a href="{{ route('purchase-order.index', array_merge(request()->except('status'), ['status' => $tab['status']])) }}"
                         class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
-                            {{ $isActive
-                                ? 'border-'.$tab['color'].'-600 text-'.$tab['color'].'-600 bg-'.$tab['color'].'-50/50'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
+                            {{ $isActive ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
                         <span>{{ $tab['label'] }}</span>
-                        <span class="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full
-                            {{ $isActive ? 'bg-'.$tab['color'].'-100 text-'.$tab['color'].'-700' : 'bg-gray-100 text-gray-600' }}">
-                            {{ $tab['count'] }}
-                        </span>
+                        @php $bc = match($tab['color']){'green'=>'bg-green-100 text-green-700','red'=>'bg-red-100 text-red-700','yellow'=>'bg-yellow-100 text-yellow-700','blue'=>'bg-blue-100 text-blue-700',default=>'bg-gray-100 text-gray-700'}; @endphp
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ $bc }}">{{ $tab['count'] }}</span>
                     </a>
                 @endforeach
             </nav>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="bg-gray-50 border-b border-gray-100">
-                        <th class="text-left text-xs font-semibold uppercase text-gray-500 px-4 py-3">No</th>
-                        <th class="text-left text-xs font-semibold uppercase text-gray-500 px-4 py-3">PO Number</th>
-                        <th class="text-left text-xs font-semibold uppercase text-gray-500 px-4 py-3">Source Type</th>
-                        <th class="text-left text-xs font-semibold uppercase text-gray-500 px-4 py-3">Vendor</th>
-                        <th class="text-left text-xs font-semibold uppercase text-gray-500 px-4 py-3">Total Items</th>
-                        <th class="text-left text-xs font-semibold uppercase text-gray-500 px-4 py-3">Total Harga</th>
-                        <th class="text-left text-xs font-semibold uppercase text-gray-500 px-4 py-3">Tanggal</th>
-                        <th class="text-left text-xs font-semibold uppercase text-gray-500 px-4 py-3">Status</th>
-                        <th class="text-center text-xs font-semibold uppercase text-gray-500 px-4 py-3">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($data as $po)
-                    <tr class="border-t border-gray-50 hover:bg-blue-50/50 transition-colors">
-                        <td class="px-4 py-3.5 text-gray-400">{{ $data->firstItem() + $loop->index }}</td>
-                        <td class="px-4 py-3.5">
-                            <span class="font-mono text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{{ $po->po_id }}</span>
-                        </td>
-                        <td class="px-4 py-3.5">
-                            <span class="text-sm font-medium text-gray-700">{{ ucfirst(str_replace('_', ' ', $po->source_type ?? '-')) }}</span>
-                        </td>
-                        <td class="px-4 py-3.5 text-sm text-gray-700">{{ $po->vendor ?? '-' }}</td>
-                        <td class="px-4 py-3.5 text-sm text-gray-700">{{ number_format($po->total_barang ?? 0, 0, ',', '.') }}</td>
-                        <td class="px-4 py-3.5 text-sm font-semibold text-gray-800">Rp {{ number_format($po->total_harga ?? 0, 0, ',', '.') }}</td>
-                        <td class="px-4 py-3.5 text-sm text-gray-500">{{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}</td>
-                        <td class="px-4 py-3.5">
-                            @if($po->status === 'Pending')
-                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-600">
-                                    <i class="fa fa-clock text-[8px]"></i> Pending
-                                </span>
-                            @elseif($po->status === 'Disetujui')
-                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-600">
-                                    <i class="fa fa-check text-[8px]"></i> Disetujui
-                                </span>
-                            @elseif($po->status === 'Ditolak')
-                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
-                                    <i class="fa fa-times text-[8px]"></i> Ditolak
-                                </span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3.5">
-                            <div class="flex items-center justify-center gap-2">
-                                <button onclick="viewDetail({{ $po->id }})"
-                                    class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
-                                    <i class="fa fa-eye text-xs"></i> Detail
-                                </button>
+        {{-- TOOLBAR --}}
+        <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+            <div class="flex-1 text-xs text-gray-500">
+                Menampilkan <span class="font-semibold text-gray-700">{{ $data->total() }}</span> data
+            </div>
 
-                                @if($po->status === 'Pending' && auth()->user()->role === 'superadmin')
-                                    <button onclick="openApproveModal({{ $po->id }}, '{{ $po->po_id }}')"
-                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
-                                        <i class="fa fa-check text-xs"></i> Approve
-                                    </button>
-                                    <button onclick="openRejectModal({{ $po->id }}, '{{ $po->po_id }}')"
-                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
-                                        <i class="fa fa-times text-xs"></i> Reject
-                                    </button>
-                                @endif
+            {{-- Filter Form (Jenis + Tahun) --}}
+            <form method="GET" action="{{ route('purchase-order.index') }}" class="flex flex-wrap items-center gap-2">
+                <input type="hidden" name="status" value="{{ $statusFilter }}">
+                <input type="hidden" name="sort" value="{{ $sort }}">
 
-                                @if($po->status === 'Ditolak' && $po->can_edit && $po->source_type === 'gps')
-                                    <button onclick="openResubmitModal({{ $po->id }}, '{{ $po->po_id }}')"
-                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600">
-                                        <i class="fa fa-rotate-right text-xs"></i> Ajukan Ulang
-                                    </button>
-                                @endif
+                <span class="text-xs text-gray-500 whitespace-nowrap">Jenis:</span>
+                <select name="source_type"
+                    class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400">
+                    <option value="">Semua Jenis</option>
+                    @foreach($sourceTypes->keys() as $st)
+                        <option value="{{ $st }}" {{ $sourceFilter === $st ? 'selected' : '' }}>
+                            {{ ucwords(str_replace('_', ' ', $st)) }}
+                        </option>
+                    @endforeach
+                </select>
 
-                                @if(in_array($po->status, ['Pending', 'Ditolak']))
-                                    <form action="{{ route('purchase-order.destroy', $po->id) }}" method="POST" class="inline"
-                                        onsubmit="return confirm('Yakin ingin menghapus Purchase Order ini?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700">
-                                            <i class="fa fa-trash text-xs"></i>
-                                        </button>
-                                    </form>
-                                @endif
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="9" class="px-4 py-8 text-center text-gray-400">
-                            <i class="fa fa-inbox text-3xl mb-2"></i>
-                            <p>Tidak ada Purchase Order dengan status {{ $statusFilter }}</p>
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                <span class="text-xs text-gray-500 whitespace-nowrap">Tahun:</span>
+                <select name="tahun"
+                    class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400">
+                    <option value="">Semua Tahun</option>
+                    @foreach($availableYears as $yr)
+                        <option value="{{ $yr }}" {{ ($tahunFilter ?? '') == $yr ? 'selected' : '' }}>{{ $yr }}</option>
+                    @endforeach
+                </select>
+
+                <button type="submit"
+                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
+                    <i class="fa fa-filter text-xs"></i> Filter
+                </button>
+                @if($sourceFilter || $tahunFilter)
+                    <a href="{{ route('purchase-order.index', ['status' => $statusFilter, 'sort' => $sort]) }}"
+                        class="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                        Reset
+                    </a>
+                @endif
+            </form>
+
+            {{-- Sort --}}
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 whitespace-nowrap">Urutkan:</span>
+                <a href="{{ route('purchase-order.index', array_merge(request()->except('sort'), ['sort' => 'terbaru'])) }}"
+                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+                        {{ $sort === 'terbaru' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
+                    <i class="fa fa-sort-down"></i> Terbaru
+                </a>
+                <a href="{{ route('purchase-order.index', array_merge(request()->except('sort'), ['sort' => 'terlama'])) }}"
+                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+                        {{ $sort === 'terlama' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
+                    <i class="fa fa-sort-up"></i> Terlama
+                </a>
+            </div>
         </div>
+
+        {{-- GROUPED ACCORDION BY JENIS --}}
+        @php
+            $grouped = $data->getCollection()->groupBy(function($po) {
+                return ucwords(str_replace('_', ' ', $po->source_type ?? 'Lainnya'));
+            });
+
+            $jenisConfig = [
+                'Gps'           => ['icon'=>'fa fa-satellite-dish', 'color'=>'green'],
+                'Gps Perpanjang'=> ['icon'=>'fa fa-rotate-right',   'color'=>'green'],
+                'Asuransi Kendaraan'         => ['icon'=>'fa fa-shield',      'color'=>'purple'],
+                'Asuransi Kendaraan Perpanjang' => ['icon'=>'fa fa-shield',   'color'=>'purple'],
+                'Pajak'         => ['icon'=>'fa fa-receipt',        'color'=>'blue'],
+                'Pajak Perpanjang' => ['icon'=>'fa fa-rotate-right','color'=>'blue'],
+                'Kir'           => ['icon'=>'fa fa-clipboard-check','color'=>'teal'],
+                'Kir Perpanjang'=> ['icon'=>'fa fa-rotate-right',   'color'=>'teal'],
+                'Stnk'          => ['icon'=>'fa fa-id-card',        'color'=>'indigo'],
+                'Service Part'  => ['icon'=>'fa fa-wrench',         'color'=>'orange'],
+                'Service Asuransi' => ['icon'=>'fa fa-tools',       'color'=>'orange'],
+                'Lainnya'       => ['icon'=>'fa fa-file-invoice',   'color'=>'gray'],
+            ];
+            $colorMap = [
+                'green'  => ['bg'=>'bg-green-50',  'border'=>'border-green-200',  'text'=>'text-green-700',  'hdr'=>'bg-green-50/40'],
+                'blue'   => ['bg'=>'bg-blue-50',   'border'=>'border-blue-200',   'text'=>'text-blue-700',   'hdr'=>'bg-blue-50/40'],
+                'purple' => ['bg'=>'bg-purple-50', 'border'=>'border-purple-200', 'text'=>'text-purple-700', 'hdr'=>'bg-purple-50/40'],
+                'orange' => ['bg'=>'bg-orange-50', 'border'=>'border-orange-200', 'text'=>'text-orange-700', 'hdr'=>'bg-orange-50/40'],
+                'teal'   => ['bg'=>'bg-teal-50',   'border'=>'border-teal-200',   'text'=>'text-teal-700',   'hdr'=>'bg-teal-50/40'],
+                'indigo' => ['bg'=>'bg-indigo-50', 'border'=>'border-indigo-200', 'text'=>'text-indigo-700', 'hdr'=>'bg-indigo-50/40'],
+                'gray'   => ['bg'=>'bg-gray-50',   'border'=>'border-gray-200',   'text'=>'text-gray-600',   'hdr'=>'bg-gray-50/40'],
+            ];
+        @endphp
+
+        @if($data->isEmpty())
+            <div class="text-center py-16 text-gray-400 text-sm">
+                <i class="fa fa-inbox text-4xl mb-3 block text-gray-300"></i>
+                Belum ada Purchase Order
+            </div>
+        @else
+            <div class="divide-y divide-gray-100">
+            @foreach($grouped as $jenis => $items)
+                @php
+                    $cfg = $jenisConfig[$jenis] ?? ['icon'=>'fa fa-file-invoice','color'=>'gray'];
+                    $clr = $colorMap[$cfg['color']] ?? $colorMap['gray'];
+                    $gIdx = $loop->index;
+
+                    // Hitung nominal & count per item (bukan per PO)
+                    // GPS punya gps_items di source_data — hitung tiap sub-item
+                    $totalGrp        = 0; // pending + approved (ditolak tidak masuk)
+                    $nominalApproved = 0;
+                    $nominalRejected = 0;
+                    $nominalPending  = 0;
+                    $grpPending  = 0;
+                    $grpApproved = 0;
+                    $grpRejected = 0;
+                    foreach ($items as $_po) {
+                        $_sd    = $_po->source_data ?? [];
+                        $_gpsI  = $_sd['gps_items'] ?? [];
+                        $_dec   = $_sd['item_decisions'] ?? [];
+                        if (!empty($_gpsI)) {
+                            if (!empty($_dec)) {
+                                // Sudah ada keputusan per item
+                                foreach ($_dec as $_dIdx => $_d) {
+                                    $_iNom = (int)(($_gpsI[(int)($_d['idx'] ?? $_dIdx)]['biaya_sewa'] ?? 0));
+                                    if (($_d['action'] ?? '') === 'approved') {
+                                        $grpApproved++;
+                                        $nominalApproved += $_iNom;
+                                    } else {
+                                        $grpRejected++;
+                                        $nominalRejected += $_iNom;
+                                    }
+                                }
+                                // Sisa yang belum diproses → Pending
+                                $processedIdx = array_column($_dec, 'idx');
+                                foreach ($_gpsI as $_gi => $_gitem) {
+                                    if (!in_array($_gi, $processedIdx)) {
+                                        $grpPending++;
+                                        $nominalPending += (int)($_gitem['biaya_sewa'] ?? 0);
+                                    }
+                                }
+                            } else {
+                                // Belum diproses — semua item ikut status PO
+                                $_poNom = (int)($_po->total_harga ?? 0);
+                                $cnt    = count($_gpsI);
+                                if ($_po->status === 'Pending') {
+                                    $grpPending     += $cnt;
+                                    $nominalPending += $_poNom;
+                                } elseif ($_po->status === 'Disetujui') {
+                                    $grpApproved     += $cnt;
+                                    $nominalApproved += $_poNom;
+                                } elseif ($_po->status === 'Ditolak') {
+                                    $grpRejected     += $cnt;
+                                    $nominalRejected += $_poNom;
+                                }
+                            }
+                        } else {
+                            // Non-GPS: 1 PO = 1 item
+                            $_poNom = (int)($_po->total_harga ?? 0);
+                            if ($_po->status === 'Pending') {
+                                $grpPending++;
+                                $nominalPending += $_poNom;
+                            } elseif ($_po->status === 'Disetujui') {
+                                $grpApproved++;
+                                $nominalApproved += $_poNom;
+                            } elseif ($_po->status === 'Ditolak') {
+                                $grpRejected++;
+                                $nominalRejected += $_poNom;
+                            }
+                        }
+                    }
+                    $totalGrp = $nominalApproved + $nominalPending;
+                @endphp
+
+                <div>
+                    {{-- GROUP HEADER --}}
+                    <div class="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors cursor-pointer {{ $clr['hdr'] }}"
+                        onclick="togglePoGroup({{ $gIdx }})">
+                        <i id="po-grp-chevron-{{ $gIdx }}"
+                            class="fa fa-chevron-right text-[11px] text-gray-400 transition-transform duration-200 flex-shrink-0"></i>
+                        <span class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 {{ $clr['bg'] }} border {{ $clr['border'] }}">
+                            <i class="{{ $cfg['icon'] }} {{ $clr['text'] }} text-sm"></i>
+                        </span>
+                        <span class="text-sm font-bold text-gray-800">{{ $jenis }}</span>
+                        <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{ $items->count() }} PO</span>
+
+                        {{-- Breakdown status per item --}}
+                        <span class="flex items-center gap-1">
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                                Pending: {{ $grpPending }}
+                            </span>
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                                Disetujui: {{ $grpApproved }}
+                            </span>
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                                Ditolak: {{ $grpRejected }}
+                            </span>
+                        </span>
+
+                    </div>
+
+                    {{-- GROUP BODY --}}
+                    <div id="po-grp-body-{{ $gIdx }}" class="hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="bg-gray-50/80 border-b border-gray-100">
+                                        <th class="w-6 px-2 py-2.5"></th>
+                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">PO Number</th>
+                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Vendor</th>
+                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Items</th>
+                                        <th class="text-right text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Total Harga</th>
+                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Tanggal</th>
+                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Status</th>
+                                        <th class="text-center text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($items as $poIdx => $po)
+                                    @php
+                                        $poRowId    = 'po-row-' . $gIdx . '-' . $poIdx;
+                                        $sourceData = $po->source_data ?? [];
+                                        $gpsItems   = $sourceData['gps_items'] ?? [];
+                                        $hasItems   = !empty($gpsItems);
+                                    @endphp
+                                    {{-- Baris utama --}}
+                                    <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40 hover:bg-blue-50/30 transition-colors {{ $hasItems ? 'cursor-pointer' : '' }}"
+                                        @if($hasItems) onclick="togglePoRow('{{ $poRowId }}')" @endif>
+                                        <td class="px-2 py-3 text-center">
+                                            @if($hasItems)
+                                                <i id="chv-{{ $poRowId }}" class="fa fa-chevron-right text-[10px] text-gray-300 transition-transform duration-200"></i>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg border border-indigo-100">{{ $po->po_id }}</span>
+                                        </td>
+                                        <td class="px-4 py-3 text-xs text-gray-700">{{ $po->vendor ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-xs text-gray-700 text-center">
+                                            @php
+                                                $_poDec  = $po->source_data['item_decisions'] ?? [];
+                                                $_poGpsI = $po->source_data['gps_items'] ?? [];
+                                                if (!empty($_poDec)) {
+                                                    // Ada keputusan per item — tampilkan sesuai status
+                                                    $_poItemCount = collect($_poDec)
+                                                        ->filter(fn($_d) => ($statusFilter === 'Ditolak')
+                                                            ? ($_d['action'] ?? '') !== 'approved'
+                                                            : ($_d['action'] ?? '') === 'approved')
+                                                        ->count();
+                                                } elseif (!empty($_poGpsI)) {
+                                                    $_poItemCount = count($_poGpsI);
+                                                } else {
+                                                    $_poItemCount = $po->total_barang ?? 0;
+                                                }
+                                            @endphp
+                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
+                                                <i class="fa fa-boxes text-blue-400 text-[10px]"></i>
+                                                {{ number_format($_poItemCount) }} item
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-xs font-semibold text-gray-800 text-right">
+                                            @php
+                                                $_poDec2  = $po->source_data['item_decisions'] ?? [];
+                                                $_poGpsI2 = $po->source_data['gps_items'] ?? [];
+                                                if (!empty($_poDec2) && !empty($_poGpsI2)) {
+                                                    $_poNomAppr = collect($_poGpsI2)
+                                                        ->filter(fn($g, $i) => ($_poDec2[$i]['action'] ?? '') === 'approved')
+                                                        ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                    $_poNomRej  = collect($_poGpsI2)
+                                                        ->filter(fn($g, $i) => ($_poDec2[$i]['action'] ?? '') !== 'approved')
+                                                        ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                    $_poNomShow = $statusFilter === 'Ditolak' ? $_poNomRej : $_poNomAppr;
+                                                } else {
+                                                    $_poNomShow = $po->total_harga ?? 0;
+                                                }
+                                            @endphp
+                                            <span class="{{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">
+                                                Rp {{ number_format($_poNomShow, 0, ',', '.') }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-xs text-gray-500">{{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}</td>
+                                        <td class="px-4 py-3">
+                                            @if($po->status === 'Pending')
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-700">
+                                                    <i class="fa fa-clock text-[8px]"></i> Pending
+                                                </span>
+                                            @elseif($po->status === 'Disetujui')
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-700">
+                                                    <i class="fa fa-check text-[8px]"></i> Disetujui
+                                                </span>
+                                            @elseif($po->status === 'Ditolak')
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-700">
+                                                    <i class="fa fa-times text-[8px]"></i> Ditolak
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3" onclick="event.stopPropagation()">
+                                            <div class="flex items-center justify-center gap-1.5">
+                                                <button onclick="viewDetail({{ $po->id }})"
+                                                    class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                                    <i class="fa fa-eye text-xs"></i> Detail
+                                                </button>
+                                                @if($po->status === 'Pending' && auth()->user()->role === 'superadmin')
+                                                    <button onclick="openApproveModal({{ $po->id }}, '{{ $po->po_id }}')"
+                                                        class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors">
+                                                        <i class="fa fa-check text-xs"></i> Approve
+                                                    </button>
+                                                    <button onclick="openRejectModal({{ $po->id }}, '{{ $po->po_id }}')"
+                                                        class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                                                        <i class="fa fa-times text-xs"></i> Reject
+                                                    </button>
+                                                @endif
+                                                @if($po->status === 'Ditolak' && $po->can_edit && $po->source_type === 'gps')
+                                                    <button onclick="openResubmitModal({{ $po->id }}, '{{ $po->po_id }}')"
+                                                        class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
+                                                        <i class="fa fa-rotate-right text-xs"></i> Ulang
+                                                    </button>
+                                                @endif
+                                                @if(in_array($po->status, ['Pending', 'Ditolak']))
+                                                    <form action="{{ route('purchase-order.destroy', $po->id) }}" method="POST" class="inline"
+                                                        onsubmit="return confirm('Yakin menghapus PO ini?')">
+                                                        @csrf @method('DELETE')
+                                                        <button type="submit"
+                                                            class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-gray-500 rounded-lg hover:bg-gray-600 transition-colors">
+                                                            <i class="fa fa-trash text-xs"></i>
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    {{-- Baris detail items (hidden, toggle on click) --}}
+                                    @if($hasItems)
+                                    @php
+                                        $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+                                        $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+                                        $tanggalBayar = $sourceData['tanggal_bayar'] ?? null;
+                                        $tanggalHabis = $sourceData['tanggal_habis'] ?? null;
+                                        $totalItems   = collect($gpsItems)->sum(fn($i) => $i['biaya_sewa'] ?? 0);
+                                    @endphp
+                                    <tr id="{{ $poRowId }}" class="hidden">
+                                        <td colspan="8" class="px-0 py-0">
+                                            <div class="bg-green-50/30 border-t border-green-100 px-6 py-4">
+                                                {{-- Header info --}}
+                                                <div class="flex items-center justify-between mb-3">
+                                                    <div class="flex items-center gap-2">
+                                                        <i class="fa fa-calendar-check text-green-600 text-xs"></i>
+                                                        <span class="text-[11px] font-bold text-green-700 uppercase tracking-wide">Detail — GPS Kendaraan</span>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Info kendaraan & tanggal --}}
+                                                <div class="grid grid-cols-3 gap-4 mb-3 text-xs">
+                                                    <div>
+                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                        <p class="font-semibold text-gray-800">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Bayar</p>
+                                                        <p class="text-gray-700">{{ $tanggalBayar ? \Carbon\Carbon::parse($tanggalBayar)->format('d M Y') : '-' }}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Berlaku s/d</p>
+                                                        <p class="text-gray-700">{{ $tanggalHabis ? \Carbon\Carbon::parse($tanggalHabis)->format('d M Y') : '-' }}</p>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Tabel items --}}
+                                                <div class="bg-white rounded-xl border border-green-100 overflow-hidden">
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="bg-green-50 border-b border-green-100">
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Type GPS</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Berlaku s/d</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya Sewa</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach($gpsItems as $giIdx => $gItem)
+                                                                @php
+                                                                    $gpsModel = isset($gItem['gps_id']) ? \App\Models\Gps::find($gItem['gps_id']) : null;
+                                                                @endphp
+                                                                <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
+                                                                    <td class="px-3 py-2 text-gray-400">{{ $giIdx + 1 }}</td>
+                                                                    <td class="px-3 py-2">
+                                                                        <span class="font-semibold text-gray-800">{{ $gpsModel->nama_gps ?? '-' }}</span>
+                                                                        <span class="text-gray-400 ml-1">({{ $gItem['type'] ?? '-' }})</span>
+                                                                    </td>
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $tanggalBayar ? \Carbon\Carbon::parse($tanggalBayar)->format('d M Y') : '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $tanggalHabis ? \Carbon\Carbon::parse($tanggalHabis)->format('d M Y') : '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $gItem['nama_bank'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 font-mono text-gray-600">{{ $gItem['no_rekening'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($gItem['biaya_sewa'] ?? 0, 0, ',', '.') }}</td>
+                                                                </tr>
+                                                            @endforeach
+                                                            <tr class="border-t-2 border-green-200 bg-green-50/50">
+                                                                <td colspan="6" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td class="px-3 py-2 text-right text-sm font-bold text-emerald-600">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    @endif
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+            </div>
+        @endif
 
         @if($data->hasPages())
         <div class="px-5 py-3 border-t border-gray-100">
@@ -240,14 +590,12 @@
                 <i class="fa fa-times"></i>
             </button>
         </div>
-
         <div id="rejectModalLoading" class="flex items-center justify-center py-16">
             <div class="flex flex-col items-center gap-2 text-gray-400">
                 <i class="fa fa-spinner fa-spin text-2xl"></i>
                 <p class="text-sm">Memuat data item...</p>
             </div>
         </div>
-
         <div id="rejectModalContent" class="hidden flex-1 overflow-y-auto">
             <div id="rejectKendaraanInfo" class="px-6 pt-4 pb-2"></div>
             <div class="px-6 pb-2">
@@ -279,7 +627,6 @@
                 <span id="rejectSummaryText"></span>
             </div>
         </div>
-
         <div id="rejectModalFooter" class="hidden border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
             <button type="button" onclick="closeRejectModal()"
                 class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">
@@ -305,14 +652,12 @@
                 <i class="fa fa-times"></i>
             </button>
         </div>
-
         <div id="resubmitLoading" class="flex items-center justify-center py-16">
             <div class="flex flex-col items-center gap-2 text-gray-400">
                 <i class="fa fa-spinner fa-spin text-2xl"></i>
                 <p class="text-sm">Memuat data...</p>
             </div>
         </div>
-
         <form id="resubmitForm" method="POST" enctype="multipart/form-data"
               action="{{ route('gps-kendaraan.store') }}"
               class="hidden flex-1 overflow-y-auto flex flex-col">
@@ -321,15 +666,11 @@
             <input type="hidden" name="kendaraan_id" id="resubmitKendaraanId">
             <input type="hidden" name="tanggal_bayar" id="resubmitTanggalBayar">
             <input type="hidden" name="tanggal_habis" id="resubmitTanggalHabis">
-
             <div class="flex-1 overflow-y-auto px-6 pt-4 pb-2 space-y-4">
-                {{-- Info kendaraan --}}
                 <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
                     <p class="font-semibold text-gray-800" id="resubmitKendaraanInfo">-</p>
                     <p class="text-xs text-amber-600 mt-0.5" id="resubmitCatatan"></p>
                 </div>
-
-                {{-- Tanggal --}}
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar <span class="text-red-500">*</span></label>
@@ -342,14 +683,10 @@
                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">
                     </div>
                 </div>
-
-                {{-- GPS Items --}}
                 <div>
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">GPS Items</p>
                     <div id="resubmitItemsContainer" class="space-y-3"></div>
                 </div>
-
-                {{-- Keterangan --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Keterangan</label>
                     <textarea name="keterangan" id="resubmitKeterangan" rows="2"
@@ -357,7 +694,6 @@
                         placeholder="Keterangan tambahan..."></textarea>
                 </div>
             </div>
-
             <div class="border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
                 <button type="button" onclick="closeResubmitModal()"
                     class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50">
@@ -376,184 +712,149 @@
 
 @push('scripts')
 <script>
+// ── GROUPED ACCORDION ─────────────────────────────────────────
+function togglePoGroup(idx) {
+    const body    = document.getElementById('po-grp-body-' + idx);
+    const chevron = document.getElementById('po-grp-chevron-' + idx);
+    if (!body) return;
+    const isOpen = !body.classList.contains('hidden');
+    body.classList.toggle('hidden', isOpen);
+    if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+// ── ROW EXPAND (detail items) ──────────────────────────────────
+function togglePoRow(rowId) {
+    const row     = document.getElementById(rowId);
+    const chevron = document.getElementById('chv-' + rowId);
+    if (!row) return;
+    const isOpen = !row.classList.contains('hidden');
+    row.classList.toggle('hidden', isOpen);
+    if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+// Auto-buka grup pertama saat halaman load
+document.addEventListener('DOMContentLoaded', function () {
+    // Buka semua grup jika hanya 1, atau buka grup pertama
+    const firstBody = document.getElementById('po-grp-body-0');
+    const firstChev = document.getElementById('po-grp-chevron-0');
+    if (firstBody) {
+        firstBody.classList.remove('hidden');
+        if (firstChev) firstChev.style.transform = 'rotate(90deg)';
+    }
+});
+
+// ── CHART ─────────────────────────────────────────────────────
+const chartManager = new ChartManager();
+document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('chartFilterChange', function (e) {
+        if (e.detail.filterId === 'poChartFilter') {
+            const filters = {
+                filter_type: e.detail.filterType,
+                start_date:  e.detail.startDate,
+                end_date:    e.detail.endDate,
+            };
+            if (!chartManager.hasChart('poBarChart')) {
+                initPoCharts(filters);
+            } else {
+                updatePoCharts(filters);
+            }
+        }
+    });
+});
+async function initPoCharts(filters) {
+    try {
+        await chartManager.initChartsFromAPI('purchase-order', {
+            pie: 'poPieChart', bar: 'poBarChart', line: 'poLineChart'
+        }, filters, { accentLine: true });
+    } catch (e) { console.error('Error loading PO charts:', e); }
+}
+async function updatePoCharts(filters) {
+    try {
+        const isScrollable = filters.filter_type === 'custom';
+        await chartManager.updateChartsFromAPI('purchase-order', {
+            pie: 'poPieChart', bar: 'poBarChart', line: 'poLineChart'
+        }, filters, { scrollable: isScrollable, accentLine: true }, { scrollable: isScrollable });
+    } catch (e) { console.error('Error updating PO charts:', e); }
+}
+
 // ── DETAIL MODAL ──────────────────────────────────────────────
 function viewDetail(poId) {
     const modal = document.getElementById('detailModal');
     const content = document.getElementById('detailContent');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    modal.classList.remove('hidden'); modal.classList.add('flex');
     content.innerHTML = '<div class="flex items-center justify-center py-12"><i class="fa fa-spinner fa-spin text-2xl text-gray-400"></i></div>';
     fetch('/admin/purchase-order/' + poId + '/detail')
         .then(r => r.json())
-        .then(data => {
-            content.innerHTML = data.success ? buildDetailContent(data) : '<div class="text-center text-red-600 py-8"><p>' + (data.message || 'Error') + '</p></div>';
-        })
-        .catch(err => {
-            content.innerHTML = '<div class="text-center text-red-600 py-8"><p>' + err.message + '</p></div>';
-        });
+        .then(data => { content.innerHTML = data.success ? buildDetailContent(data) : '<p class="text-red-600 text-center py-8">' + (data.message || 'Error') + '</p>'; })
+        .catch(err => { content.innerHTML = '<p class="text-red-600 text-center py-8">' + err.message + '</p>'; });
 }
-
 function buildDetailContent(data) {
-    const po = data.po;
-    const details = data.details;
-    let html = '<div class="space-y-6">'
-        + '<div class="bg-gray-50 rounded-lg p-4"><div class="grid grid-cols-2 gap-4">'
-        + '<div><p class="text-xs text-gray-500">PO Number</p><p class="font-mono font-bold text-blue-700">' + po.po_id + '</p></div>'
-        + '<div><p class="text-xs text-gray-500">Source Type</p><p class="font-semibold capitalize">' + (po.source_type || '').replace(/_/g, ' ') + '</p></div>'
+    const po = data.po, details = data.details;
+    let html = '<div class="space-y-5">'
+        + '<div class="bg-gray-50 rounded-xl p-4 grid grid-cols-2 gap-4">'
+        + '<div><p class="text-xs text-gray-500">PO Number</p><p class="font-mono font-bold text-indigo-700">' + po.po_id + '</p></div>'
+        + '<div><p class="text-xs text-gray-500">Jenis</p><p class="font-semibold capitalize">' + (po.source_type || '').replace(/_/g, ' ') + '</p></div>'
         + '<div><p class="text-xs text-gray-500">Vendor</p><p class="font-medium">' + (po.vendor || '-') + '</p></div>'
         + '<div><p class="text-xs text-gray-500">Tanggal PO</p><p class="font-medium">' + (po.tanggal_po || '-') + '</p></div>'
         + '<div><p class="text-xs text-gray-500">Total Items</p><p class="font-medium">' + po.total_barang + '</p></div>'
-        + '<div><p class="text-xs text-gray-500">Total Harga</p><p class="font-bold text-lg">Rp ' + Number(po.total_harga).toLocaleString('id-ID') + '</p></div>'
-        + '</div></div>'
+        + '<div><p class="text-xs text-gray-500">Total Harga</p><p class="font-bold text-lg text-indigo-600">Rp ' + Number(po.total_harga).toLocaleString('id-ID') + '</p></div>'
+        + '</div>'
         + '<div class="flex items-center gap-2"><span class="text-sm text-gray-600">Status:</span>' + getStatusBadge(po.status) + '</div>';
-
     if (details.type === 'gps') {
         const k = details.kendaraan || {};
         html += '<div><h4 class="font-semibold text-gray-800 mb-2">Kendaraan</h4>'
-            + '<div class="bg-blue-50 rounded-lg p-3 text-sm space-y-1">'
-            + '<p><span class="text-gray-600">Nopol:</span> <b>' + (k.nopol || '-') + '</b></p>'
-            + '<p><span class="text-gray-600">Merk:</span> ' + (k.merk || '-') + '</p>'
-            + '<p><span class="text-gray-600">Tgl Bayar:</span> ' + (details.tanggal_bayar || '-') + '</p>'
-            + '<p><span class="text-gray-600">Berlaku s/d:</span> ' + (details.tanggal_habis || '-') + '</p>'
+            + '<div class="bg-blue-50 rounded-xl p-3 text-sm space-y-1">'
+            + '<p><span class="text-gray-500">Nopol:</span> <b>' + (k.nopol || '-') + '</b></p>'
+            + '<p><span class="text-gray-500">Merk:</span> ' + (k.merk || '-') + '</p>'
+            + '<p><span class="text-gray-500">Tgl Bayar:</span> ' + (details.tanggal_bayar || '-') + '</p>'
+            + '<p><span class="text-gray-500">Berlaku s/d:</span> ' + (details.tanggal_habis || '-') + '</p>'
             + '</div></div>';
-
         html += '<div><h4 class="font-semibold text-gray-800 mb-2">GPS Items (' + details.items.length + ')</h4><div class="space-y-2">';
         details.items.forEach(function(item) {
             const lampiran = item.lampiran || [];
-            let lampiranHtml = '';
-            if (lampiran.length > 0) {
-                lampiranHtml = '<div class="mt-2 pt-2 border-t border-gray-100">'
-                    + '<p class="text-[10px] font-semibold text-gray-400 uppercase mb-1"><i class="fa fa-paperclip mr-1"></i>Lampiran (' + lampiran.length + ')</p>'
-                    + '<div class="flex flex-wrap gap-1.5">';
-                lampiran.forEach(function(att) {
-                    const ext = (att.file_type || '').toLowerCase();
-                    const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
-                    const icon = isImg ? 'fa-image' : (ext === 'pdf' ? 'fa-file-pdf' : 'fa-paperclip');
-                    const iconColor = isImg ? 'text-blue-400' : (ext === 'pdf' ? 'text-red-400' : 'text-gray-400');
-                    lampiranHtml += '<a href="' + att.file_path + '" target="_blank"'
-                        + ' class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-[11px] text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors max-w-[180px]"'
-                        + ' title="' + att.file_name + '">'
-                        + '<i class="fa ' + icon + ' ' + iconColor + ' text-[10px] flex-shrink-0"></i>'
-                        + '<span class="truncate">' + att.file_name + '</span>'
-                        + '</a>';
-                });
-                lampiranHtml += '</div></div>';
-            } else {
-                lampiranHtml = '<p class="mt-1 text-[11px] text-gray-300 italic">Tidak ada lampiran</p>';
-            }
-
-            html += '<div class="border border-gray-200 rounded-lg p-3">'
-                + '<div class="flex items-start justify-between mb-1">'
-                + '<div><p class="font-semibold text-gray-800">' + (item.gps_name || '-') + '</p>'
-                + '<p class="text-xs text-gray-500">Type: ' + (item.type || '-') + '</p></div>'
-                + '<p class="font-bold text-blue-600">Rp ' + Number(item.biaya_sewa || 0).toLocaleString('id-ID') + '</p></div>'
-                + '<div class="grid grid-cols-3 gap-2 text-xs text-gray-600">'
-                + '<div><span class="text-gray-400">Bank:</span> ' + (item.nama_bank || '-') + '</div>'
-                + '<div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div>'
-                + '<div><span class="text-gray-400">A/n:</span> ' + (item.nama_pemilik || '-') + '</div>'
-                + '</div>'
-                + lampiranHtml
-                + '</div>';
+            let lampiranHtml = lampiran.length
+                ? '<div class="mt-2 pt-2 border-t border-gray-100"><p class="text-[10px] font-semibold text-gray-400 uppercase mb-1"><i class="fa fa-paperclip mr-1"></i>Lampiran (' + lampiran.length + ')</p><div class="flex flex-wrap gap-1.5">'
+                    + lampiran.map(function(att) {
+                        const ext = (att.file_type || '').toLowerCase();
+                        const icon = ['jpg','jpeg','png'].includes(ext) ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                        return '<a href="' + att.file_path + '" target="_blank" class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-[11px] text-gray-600 hover:bg-blue-50 hover:text-blue-700 max-w-[180px]" title="' + att.file_name + '"><i class="fa ' + icon + ' text-[10px]"></i><span class="truncate">' + att.file_name + '</span></a>';
+                    }).join('') + '</div></div>'
+                : '<p class="mt-1 text-[11px] text-gray-300 italic">Tidak ada lampiran</p>';
+            html += '<div class="border border-gray-200 rounded-xl p-3">'
+                + '<div class="flex items-start justify-between mb-1"><div><p class="font-semibold text-gray-800">' + (item.gps_name || '-') + '</p><p class="text-xs text-gray-500">Type: ' + (item.type || '-') + '</p></div>'
+                + '<p class="font-bold text-indigo-600">Rp ' + Number(item.biaya_sewa || 0).toLocaleString('id-ID') + '</p></div>'
+                + '<div class="grid grid-cols-3 gap-2 text-xs text-gray-600"><div><span class="text-gray-400">Bank:</span> ' + (item.nama_bank || '-') + '</div><div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div><div><span class="text-gray-400">A/n:</span> ' + (item.nama_pemilik || '-') + '</div></div>'
+                + lampiranHtml + '</div>';
         });
         html += '</div></div>';
     }
-
-    if (details.type === 'service_part') {
-        const k = details.kendaraan || {};
-        html += '<div><h4 class="font-semibold text-gray-800 mb-2">Kendaraan</h4>'
-            + '<div class="bg-orange-50 rounded-lg p-3 text-sm space-y-1">'
-            + '<p><span class="text-gray-600">Nopol:</span> <b>' + (k.nopol || '-') + '</b></p>'
-            + '<p><span class="text-gray-600">Merk:</span> ' + (k.merk || '-') + '</p>'
-            + '<p><span class="text-gray-600">Tgl Service:</span> ' + (details.tanggal_service || '-') + '</p>'
-            + '<p><span class="text-gray-600">Kilometer:</span> ' + (details.kilometer || '-') + ' km</p>'
-            + (details.keluhan ? '<p><span class="text-gray-600">Keluhan:</span> ' + details.keluhan + '</p>' : '')
-            + '</div></div>';
-
-        html += '<div><h4 class="font-semibold text-gray-800 mb-2">Service Parts (' + details.items.length + ')</h4><div class="space-y-2">';
-        details.items.forEach(function(item) {
-            html += '<div class="border border-gray-200 rounded-lg p-3">'
-                + '<div class="flex items-start justify-between mb-2">'
-                + '<div><p class="font-semibold text-gray-800">' + (item.nama_part || '-') + '</p>'
-                + '<p class="text-xs text-gray-500">Kategori: ' + (item.category_nama || '-') + '</p>'
-                + (item.part_number && item.part_number !== '-' ? '<p class="text-xs text-gray-500">P/N: ' + item.part_number + '</p>' : '')
-                + (item.posisi && item.posisi !== '-' ? '<p class="text-xs text-gray-500">Posisi: ' + item.posisi + '</p>' : '')
-                + '</div>'
-                + '<p class="font-bold text-orange-600">Rp ' + Number(item.biaya || 0).toLocaleString('id-ID') + '</p></div>'
-                + '<div class="grid grid-cols-3 gap-2 text-xs text-gray-600 mb-2">'
-                + '<div><span class="text-gray-400">Bank:</span> ' + (item.nama_bank || '-') + '</div>'
-                + '<div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div>'
-                + '<div><span class="text-gray-400">A/n:</span> ' + (item.nama_rekening || '-') + '</div>'
-                + '</div>'
-                + (item.keterangan && item.keterangan !== '-' ? '<p class="text-xs text-gray-500 mt-1 pt-1 border-t border-gray-100"><i class="fa fa-comment text-gray-400 mr-1"></i>' + item.keterangan + '</p>' : '')
-                + '</div>';
-        });
-        html += '</div></div>';
-    }
-
-    if (details.type === 'service_part') {
-        const k = details.kendaraan || {};
-        html += '<div><h4 class="font-semibold text-gray-800 mb-2">Kendaraan</h4>'
-            + '<div class="bg-orange-50 rounded-lg p-3 text-sm space-y-1">'
-            + '<p><span class="text-gray-600">Nopol:</span> <b>' + (k.nopol || '-') + '</b></p>'
-            + '<p><span class="text-gray-600">Merk:</span> ' + (k.merk || '-') + '</p>'
-            + '<p><span class="text-gray-600">Tgl Service:</span> ' + (details.tanggal_service || '-') + '</p>'
-            + '<p><span class="text-gray-600">Kilometer:</span> ' + (details.kilometer || '-') + ' km</p>'
-            + (details.keluhan ? '<p><span class="text-gray-600">Keluhan:</span> ' + details.keluhan + '</p>' : '')
-            + '</div></div>';
-
-        html += '<div><h4 class="font-semibold text-gray-800 mb-2">Service Parts (' + details.items.length + ')</h4><div class="space-y-2">';
-        details.items.forEach(function(item) {
-            html += '<div class="border border-gray-200 rounded-lg p-3">'
-                + '<div class="flex items-start justify-between mb-2">'
-                + '<div><p class="font-semibold text-gray-800">' + (item.nama_part || '-') + '</p>'
-                + '<p class="text-xs text-gray-500">Kategori: ' + (item.category_nama || '-') + '</p>'
-                + (item.part_number && item.part_number !== '-' ? '<p class="text-xs text-gray-500">P/N: ' + item.part_number + '</p>' : '')
-                + (item.posisi && item.posisi !== '-' ? '<p class="text-xs text-gray-500">Posisi: ' + item.posisi + '</p>' : '')
-                + '</div>'
-                + '<p class="font-bold text-orange-600">Rp ' + Number(item.biaya || 0).toLocaleString('id-ID') + '</p></div>'
-                + '<div class="grid grid-cols-3 gap-2 text-xs text-gray-600 mb-2">'
-                + '<div><span class="text-gray-400">Bank:</span> ' + (item.nama_bank || '-') + '</div>'
-                + '<div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div>'
-                + '<div><span class="text-gray-400">A/n:</span> ' + (item.nama_rekening || '-') + '</div>'
-                + '</div>'
-                + (item.keterangan && item.keterangan !== '-' ? '<p class="text-xs text-gray-500 mt-1 pt-1 border-t border-gray-100"><i class="fa fa-comment text-gray-400 mr-1"></i>' + item.keterangan + '</p>' : '')
-                + '</div>';
-        });
-        html += '</div></div>';
-    }
-
     if (po.status !== 'Pending') {
-        html += '<div class="border-t pt-4"><h4 class="font-semibold text-gray-800 mb-2">Approval Info</h4>'
-            + '<div class="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">'
-            + '<p><span class="text-gray-600">Oleh:</span> ' + (po.disetujui_oleh || '-') + '</p>'
-            + '<p><span class="text-gray-600">Tanggal:</span> ' + (po.tanggal_persetujuan || '-') + '</p>'
-            + (po.catatan_approval ? '<p><span class="text-gray-600">Catatan:</span> ' + po.catatan_approval + '</p>' : '')
-            + (po.pembayaran_no_pr ? '<p><span class="text-gray-600">Pembayaran:</span> <b class="font-mono">' + po.pembayaran_no_pr + '</b></p>' : '')
+        html += '<div class="border-t pt-4"><h4 class="font-semibold text-gray-800 mb-2">Info Approval</h4>'
+            + '<div class="bg-gray-50 rounded-xl p-3 space-y-1 text-sm">'
+            + '<p><span class="text-gray-500">Oleh:</span> ' + (po.disetujui_oleh || '-') + '</p>'
+            + '<p><span class="text-gray-500">Tanggal:</span> ' + (po.tanggal_persetujuan || '-') + '</p>'
+            + (po.catatan_approval ? '<p><span class="text-gray-500">Catatan:</span> ' + po.catatan_approval + '</p>' : '')
+            + (po.pembayaran_no_pr ? '<p><span class="text-gray-500">Pembayaran:</span> <b class="font-mono">' + po.pembayaran_no_pr + '</b></p>' : '')
             + '</div></div>';
     }
-
     html += '</div>';
     return html;
 }
-
 function getStatusBadge(status) {
     const map = {
-        'Pending':   '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-600"><i class="fa fa-clock text-[8px]"></i> Pending</span>',
-        'Disetujui': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-600"><i class="fa fa-check text-[8px]"></i> Disetujui</span>',
-        'Ditolak':   '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600"><i class="fa fa-times text-[8px]"></i> Ditolak</span>',
+        'Pending':   '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700"><i class="fa fa-clock text-[8px]"></i> Pending</span>',
+        'Disetujui': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>',
+        'Ditolak':   '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>',
     };
     return map[status] || status;
 }
-
 function closeDetailModal() {
-    document.getElementById('detailModal').classList.replace('flex', 'hidden');
+    document.getElementById('detailModal').classList.replace('flex','hidden');
     document.getElementById('detailModal').classList.add('hidden');
 }
 
-// ── APPROVE MODAL (per-item GPS) ──────────────────────────────
-let currentApprovePoId = null;
-let approveItemDecisions = [];
-
+// ── APPROVE MODAL ─────────────────────────────────────────────
+let currentApprovePoId = null, approveItemDecisions = [];
 function openApproveModal(poId, poNumber) {
     currentApprovePoId = poId;
     document.getElementById('approvePoId').textContent = poNumber;
@@ -562,7 +863,6 @@ function openApproveModal(poId, poNumber) {
     document.getElementById('approveModalFooter').classList.add('hidden');
     document.getElementById('approveModal').classList.remove('hidden');
     document.getElementById('approveModal').classList.add('flex');
-
     fetch('/admin/purchase-order/' + poId + '/detail')
         .then(r => r.json())
         .then(function(data) {
@@ -573,248 +873,145 @@ function openApproveModal(poId, poNumber) {
             document.getElementById('approveModalFooter').classList.remove('hidden');
         })
         .catch(function(err) {
-            document.getElementById('approveModalLoading').innerHTML =
-                '<div class="text-center text-red-500 py-8"><i class="fa fa-exclamation-circle text-2xl mb-2"></i><p class="text-sm">' + err.message + '</p></div>';
+            document.getElementById('approveModalLoading').innerHTML = '<div class="text-center text-red-500 py-8"><p class="text-sm">' + err.message + '</p></div>';
         });
 }
-
 function renderApproveItems(data) {
-    const details = data.details;
-    const items = details.items || [];
-    const sourceType = data.po.source_type;
+    const details = data.details, items = details.items || [];
     approveItemDecisions = items.map(function() { return { action: null, buktiFile: null }; });
-
-    // Info kendaraan
     const k = details.kendaraan || {};
-    let kendaraanInfo = '<div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3">'
-        + '<i class="fa fa-car text-green-600"></i>'
-        + '<div class="text-sm">'
-        + '<span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
-        + '<span class="text-gray-500 ml-2">' + (k.merk || '') + '</span>';
-    
-    if (sourceType === 'gps') {
-        kendaraanInfo += '<span class="ml-3 text-gray-400 text-xs">Tgl Bayar: <b>' + (details.tanggal_bayar || '-') + '</b></span>'
-            + '<span class="ml-3 text-gray-400 text-xs">Berlaku s/d: <b>' + (details.tanggal_habis || '-') + '</b></span>';
-    } else if (sourceType === 'service_part') {
-        kendaraanInfo += '<span class="ml-3 text-gray-400 text-xs">Tgl Service: <b>' + (details.tanggal_service || '-') + '</b></span>'
-            + '<span class="ml-3 text-gray-400 text-xs">KM: <b>' + (details.kilometer || '-') + '</b></span>';
-    }
-    
-    kendaraanInfo += '</div></div>';
-    document.getElementById('approveKendaraanInfo').innerHTML = kendaraanInfo;
-
+    document.getElementById('approveKendaraanInfo').innerHTML =
+        '<div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3"><i class="fa fa-car text-green-600"></i>'
+        + '<div class="text-sm"><span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
+        + '<span class="text-gray-500 ml-2">' + (k.merk || '') + '</span>'
+        + '<span class="ml-3 text-gray-400 text-xs">Tgl Bayar: <b>' + (details.tanggal_bayar || '-') + '</b></span>'
+        + '<span class="ml-3 text-gray-400 text-xs">Berlaku s/d: <b>' + (details.tanggal_habis || '-') + '</b></span></div></div>';
     const list = document.getElementById('approveItemList');
     list.innerHTML = '';
-
     items.forEach(function(item, idx) {
-        let itemName, itemSubtitle, itemBiaya, bankInfo;
-        
-        if (sourceType === 'gps') {
-            itemName = item.gps_name || '-';
-            itemSubtitle = '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + (item.type || '-') + '</span>';
-            itemBiaya = item.biaya_sewa || 0;
-            bankInfo = [
-                item.nama_bank    ? '<span><i class="fa fa-building text-[9px]"></i> ' + item.nama_bank + '</span>' : '',
-                item.no_rekening  ? '<span class="font-mono">' + item.no_rekening + '</span>' : '',
-                item.nama_pemilik ? '<span>a/n ' + item.nama_pemilik + '</span>' : '',
-            ].filter(Boolean).join(' ');
-        } else if (sourceType === 'service_part') {
-            itemName = item.nama_part || '-';
-            itemSubtitle = '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">' + (item.category_nama || '-') + '</span>';
-            if (item.part_number && item.part_number !== '-') {
-                itemSubtitle += '<span class="text-xs text-gray-400 ml-1">P/N: ' + item.part_number + '</span>';
-            }
-            itemBiaya = item.biaya || 0;
-            bankInfo = [
-                item.nama_bank     ? '<span><i class="fa fa-building text-[9px]"></i> ' + item.nama_bank + '</span>' : '',
-                item.no_rekening   ? '<span class="font-mono">' + item.no_rekening + '</span>' : '',
-                item.nama_rekening ? '<span>a/n ' + item.nama_rekening + '</span>' : '',
-            ].filter(Boolean).join(' ');
-        }
-
+        const bankInfo = [
+            item.nama_bank    ? '<span><i class="fa fa-building text-[9px]"></i> ' + item.nama_bank + '</span>' : '',
+            item.no_rekening  ? '<span class="font-mono">' + item.no_rekening + '</span>' : '',
+            item.nama_pemilik ? '<span>a/n ' + item.nama_pemilik + '</span>' : '',
+        ].filter(Boolean).join(' ');
         const card = document.createElement('div');
         card.id = 'approve-item-card-' + idx;
         card.className = 'border border-red-200 rounded-xl overflow-hidden transition-all bg-red-50/10';
-
-        // Row utama
         const row = document.createElement('div');
         row.className = 'flex items-start gap-3 px-4 py-3';
-        row.innerHTML = '<div class="flex-shrink-0 pt-0.5">'
-            + '<input type="checkbox" id="item-chk-' + idx + '"'
-            + ' class="w-4 h-4 rounded text-green-600 cursor-pointer border-gray-300 focus:ring-green-400">'
-            + '</div>'
-            + '<div class="flex-1 min-w-0">'
-            + '<label for="item-chk-' + idx + '" class="cursor-pointer">'
-            + '<div class="flex items-center gap-2 flex-wrap">'
-            + '<span class="text-xs text-gray-400">#' + (idx + 1) + '</span>'
-            + '<span class="font-semibold text-gray-800 text-sm">' + itemName + '</span>'
-            + itemSubtitle
-            + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(itemBiaya) + '</span>'
-            + '</div>'
-            + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
-            + '</label>'
-            + '</div>'
-            + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center">'
-            + '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>'
-            + '</div>';
+        row.innerHTML = '<div class="flex-shrink-0 pt-0.5"><input type="checkbox" id="item-chk-' + idx + '" class="w-4 h-4 rounded text-green-600 cursor-pointer"></div>'
+            + '<div class="flex-1 min-w-0"><label for="item-chk-' + idx + '" class="cursor-pointer"><div class="flex items-center gap-2 flex-wrap">'
+            + '<span class="text-xs text-gray-400">#' + (idx+1) + '</span>'
+            + '<span class="font-semibold text-gray-800 text-sm">' + (item.gps_name || '-') + '</span>'
+            + '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + (item.type || '-') + '</span>'
+            + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(item.biaya_sewa || 0) + '</span>'
+            + '</div>' + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 text-[11px] text-gray-400">' + bankInfo + '</div>' : '') + '</label></div>'
+            + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
         card.appendChild(row);
-
-        // Panel bukti (tersembunyi, muncul saat checked)
-        const panel = document.createElement('div');
-        panel.id = 'approve-item-panel-' + idx;
-        panel.className = 'hidden px-4 pb-3 pt-1 border-t border-green-100 bg-green-50/30';
-        panel.innerHTML = '<p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">'
-            + '<i class="fa fa-paperclip mr-1 text-green-500"></i> Upload Bukti Bayar '
-            + '<span class="font-normal text-gray-400">(opsional)</span></p>'
-            + '<label for="approve-bukti-input-' + idx + '"'
-            + ' class="flex items-center gap-2 px-3 py-2 border border-dashed border-green-300 rounded-lg cursor-pointer hover:bg-green-50 bg-white">'
-            + '<i class="fa fa-paperclip text-green-400 text-xs"></i>'
-            + '<span class="text-xs text-gray-500" id="approve-bukti-label-' + idx + '">Klik untuk pilih file (JPG, PNG, PDF, max 5MB)</span>'
-            + '</label>'
-            + '<input id="approve-bukti-input-' + idx + '" type="file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" class="hidden">';
-        card.appendChild(panel);
-
-        // Panel alasan penolakan (default tampil karena default = ditolak)
         const rejectPanel = document.createElement('div');
         rejectPanel.id = 'reject-item-panel-' + idx;
         rejectPanel.className = 'px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/20';
-        rejectPanel.innerHTML = '<label class="text-[11px] font-semibold text-red-500 uppercase tracking-wide mb-1.5 block">'
-            + '<i class="fa fa-comment-dots mr-1"></i> Alasan Penolakan '
-            + '<span class="font-normal text-red-400">(opsional)</span></label>'
-            + '<textarea id="reject-catatan-' + idx + '" rows="2"'
-            + ' placeholder="Tulis alasan penolakan item ini..."'
-            + ' class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 bg-white"></textarea>';
+        rejectPanel.innerHTML = '<label class="text-[11px] font-semibold text-red-500 mb-1.5 block">Alasan Penolakan <span class="font-normal text-red-400">(opsional)</span></label>'
+            + '<textarea id="reject-catatan-' + idx + '" rows="2" placeholder="Tulis alasan penolakan item ini..." class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"></textarea>';
         card.appendChild(rejectPanel);
-
-        // Event listeners
         const chk = row.querySelector('input[type=checkbox]');
         chk.addEventListener('change', function() { toggleApproveItem(idx, this.checked); });
-        panel.querySelector('input[type=file]').addEventListener('change', function(e) { handleApproveBuktiFile(e, idx); });
-
         list.appendChild(card);
     });
-
     updateApproveSummary();
 }
-
 function toggleApproveItem(idx, checked) {
     approveItemDecisions[idx].action = checked ? 'approved' : null;
-    approveItemDecisions[idx].buktiFile = null;
     const card        = document.getElementById('approve-item-card-' + idx);
-    const buktiPanel  = document.getElementById('approve-item-panel-' + idx);
     const rejectPanel = document.getElementById('reject-item-panel-' + idx);
     const badge       = document.getElementById('approve-item-badge-' + idx);
     if (checked) {
         card.className = 'border border-green-300 rounded-xl overflow-hidden transition-all bg-green-50/20';
-        buktiPanel.classList.remove('hidden');
         rejectPanel.classList.add('hidden');
-        if (badge) badge.innerHTML = '<span class="text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-check text-[8px]"></i> Disetujui</span>';
+        badge.innerHTML = '<span class="text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-check text-[8px]"></i> Disetujui</span>';
     } else {
         card.className = 'border border-red-200 rounded-xl overflow-hidden transition-all bg-red-50/10';
-        buktiPanel.classList.add('hidden');
         rejectPanel.classList.remove('hidden');
-        document.getElementById('approve-bukti-label-' + idx).textContent = 'Klik untuk pilih file (JPG, PNG, PDF, max 5MB)';
-        if (badge) badge.innerHTML = '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
+        badge.innerHTML = '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
     }
     updateApproveSummary();
 }
-
 function approveSelectAll(select) {
     approveItemDecisions.forEach(function(d, idx) {
         const chk = document.getElementById('item-chk-' + idx);
         if (chk) { chk.checked = select; toggleApproveItem(idx, select); }
     });
 }
-
 function handleApproveBuktiFile(event, idx) {
     const file = event.target.files[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { alert('File terlalu besar. Max 5MB.'); event.target.value = ''; return; }
     approveItemDecisions[idx].buktiFile = file;
-    document.getElementById('approve-bukti-label-' + idx).textContent = '\u2713 ' + file.name;
+    document.getElementById('approve-bukti-label-' + idx).textContent = '✓ ' + file.name;
+    // Sembunyikan warning saat file sudah dipilih
+    const warn = document.getElementById('approve-bukti-warn-' + idx);
+    if (warn) { warn.classList.add('hidden'); }
+    const wrap = document.getElementById('approve-bukti-label-wrap-' + idx);
+    if (wrap) { wrap.className = 'flex items-center gap-2 px-3 py-2 border border-dashed border-green-400 bg-green-50 rounded-lg cursor-pointer'; }
 }
-
 function updateApproveSummary() {
-    const approved = approveItemDecisions.filter(function(d) { return d.action === 'approved'; }).length;
-    const total    = approveItemDecisions.length;
-    const summary  = document.getElementById('approveSummary');
-    const text     = document.getElementById('approveSummaryText');
-    if (approved > 0 || total > 0) {
+    const approved = approveItemDecisions.filter(d => d.action === 'approved').length;
+    const total = approveItemDecisions.length;
+    const summary = document.getElementById('approveSummary');
+    const text = document.getElementById('approveSummaryText');
+    if (total > 0) {
         summary.classList.remove('hidden');
         const rejected = total - approved;
-        text.innerHTML = '<i class="fa fa-check-circle text-green-500 mr-1"></i>'
-            + '<b>' + approved + '</b> item disetujui'
+        text.innerHTML = '<i class="fa fa-check-circle text-green-500 mr-1"></i><b>' + approved + '</b> item disetujui'
             + (rejected > 0 ? ', <i class="fa fa-times-circle text-red-400 ml-2 mr-1"></i><b>' + rejected + '</b> item akan ditolak' : '');
-    } else {
-        summary.classList.add('hidden');
     }
 }
-
+function allApprovedHaveBukti() {
+    let allOk = true;
+    approveItemDecisions.forEach(function(d, idx) {
+        if (d.action !== 'approved') return;
+        const warn = document.getElementById('approve-bukti-warn-' + idx);
+        const wrap = document.getElementById('approve-bukti-label-wrap-' + idx);
+        if (!d.buktiFile) {
+            allOk = false;
+            if (warn) warn.classList.remove('hidden');
+            if (wrap) wrap.className = 'flex items-center gap-2 px-3 py-2 border border-dashed border-red-400 bg-red-50/30 rounded-lg cursor-pointer';
+        }
+    });
+    return allOk;
+}
 async function submitApproveItems() {
-    const approved = approveItemDecisions.filter(function(d) { return d.action === 'approved'; });
+    const approved = approveItemDecisions.filter(d => d.action === 'approved');
     if (approved.length === 0) { alert('Pilih minimal 1 item yang ingin disetujui.'); return; }
-
-    const total    = approveItemDecisions.length;
-    const rejected = total - approved.length;
-    const msg = 'Approve ' + approved.length + ' item'
-        + (rejected > 0 ? ', tolak ' + rejected + ' item yang tidak dipilih?' : '?');
-    if (!confirm(msg)) return;
-
+    const total = approveItemDecisions.length, rejected = total - approved.length;
+    if (!confirm('Approve ' + approved.length + ' item' + (rejected > 0 ? ', tolak ' + rejected + ' item?' : '?'))) return;
     const btn = document.getElementById('approveSubmitBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
-
+    btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
     const formData = new FormData();
     const token = document.querySelector('meta[name="csrf-token"]');
     formData.append('_token', token ? token.content : '');
     formData.append('catatan', document.getElementById('approveCatatan').value);
-
-    // Kirim semua item — yang tidak dicentang otomatis jadi rejected
     approveItemDecisions.forEach(function(d, idx) {
-        const action  = d.action === 'approved' ? 'approved' : 'rejected';
-        const catatan = action === 'rejected'
-            ? (document.getElementById('reject-catatan-' + idx) || {}).value || ''
-            : '';
-        formData.append('items[' + idx + '][action]',  action);
+        const action = d.action === 'approved' ? 'approved' : 'rejected';
+        const catatan = action === 'rejected' ? ((document.getElementById('reject-catatan-' + idx) || {}).value || '') : '';
+        formData.append('items[' + idx + '][action]', action);
         formData.append('items[' + idx + '][catatan]', catatan);
-        if (action === 'approved' && d.buktiFile) {
-            formData.append('items[' + idx + '][bukti]', d.buktiFile);
-        }
+        if (action === 'approved' && d.buktiFile) formData.append('items[' + idx + '][bukti]', d.buktiFile);
     });
-
     try {
-        const res    = await fetch('/admin/purchase-order/' + currentApprovePoId + '/approve-items', { method: 'POST', body: formData });
+        const res = await fetch('/admin/purchase-order/' + currentApprovePoId + '/approve-items', { method: 'POST', body: formData });
         const result = await res.json();
-        if (result.success) {
-            window.location.href = result.redirect || window.location.href;
-        } else {
-            alert(result.message || 'Terjadi kesalahan.');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa fa-check"></i> Konfirmasi Approval';
-        }
-    } catch (e) {
-        alert('Terjadi kesalahan jaringan.');
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa fa-check"></i> Konfirmasi Approval';
-    }
+        if (result.success) { window.location.href = result.redirect || window.location.href; }
+        else { alert(result.message || 'Terjadi kesalahan.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Konfirmasi Approval'; }
+    } catch (e) { alert('Terjadi kesalahan jaringan.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Konfirmasi Approval'; }
 }
-
 function closeApproveModal() {
-    document.getElementById('approveModal').classList.add('hidden');
-    document.getElementById('approveModal').classList.remove('flex');
-    document.getElementById('approveCatatan').value = '';
-    currentApprovePoId = null;
-    approveItemDecisions = [];
-}
-
-function formatNumber(n) {
-    return Number(n).toLocaleString('id-ID');
+    document.getElementById('approveModal').classList.add('hidden'); document.getElementById('approveModal').classList.remove('flex');
+    document.getElementById('approveCatatan').value = ''; currentApprovePoId = null; approveItemDecisions = [];
 }
 
 // ── REJECT MODAL (per-item) ───────────────────────────────────
-let currentRejectPoId = null;
-let rejectItemDecisions = [];
-
+let currentRejectPoId = null, rejectItemDecisions = [];
 function openRejectModal(poId, poNumber) {
     currentRejectPoId = poId;
     document.getElementById('rejectPoId').textContent = poNumber;
@@ -823,7 +1020,6 @@ function openRejectModal(poId, poNumber) {
     document.getElementById('rejectModalFooter').classList.add('hidden');
     document.getElementById('rejectModal').classList.remove('hidden');
     document.getElementById('rejectModal').classList.add('flex');
-
     fetch('/admin/purchase-order/' + poId + '/detail')
         .then(r => r.json())
         .then(function(data) {
@@ -834,213 +1030,121 @@ function openRejectModal(poId, poNumber) {
             document.getElementById('rejectModalFooter').classList.remove('hidden');
         })
         .catch(function(err) {
-            document.getElementById('rejectModalLoading').innerHTML =
-                '<div class="text-center text-red-500 py-8"><i class="fa fa-exclamation-circle text-2xl mb-2"></i><p class="text-sm">' + err.message + '</p></div>';
+            document.getElementById('rejectModalLoading').innerHTML = '<div class="text-center text-red-500 py-8"><p class="text-sm">' + err.message + '</p></div>';
         });
 }
-
 function renderRejectItems(data) {
-    const details = data.details;
-    const items   = details.items || [];
-    // Default: semua item tercentang untuk ditolak
+    const details = data.details, items = details.items || [];
     rejectItemDecisions = items.map(function() { return { action: 'rejected', catatan: '' }; });
-
     const k = details.kendaraan || {};
     document.getElementById('rejectKendaraanInfo').innerHTML =
-        '<div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3">'
-        + '<i class="fa fa-car text-red-500"></i>'
-        + '<div class="text-sm">'
-        + '<span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
-        + '<span class="text-gray-500 ml-2">' + (k.merk || '') + '</span>'
-        + '<span class="ml-3 text-gray-400 text-xs">Tgl Bayar: <b>' + (details.tanggal_bayar || '-') + '</b></span>'
-        + '<span class="ml-3 text-gray-400 text-xs">Berlaku s/d: <b>' + (details.tanggal_habis || '-') + '</b></span>'
-        + '</div></div>';
-
+        '<div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3"><i class="fa fa-car text-red-500"></i>'
+        + '<div class="text-sm"><span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
+        + '<span class="text-gray-500 ml-2">' + (k.merk || '') + '</span></div></div>';
     const list = document.getElementById('rejectItemList');
     list.innerHTML = '';
-
     items.forEach(function(item, idx) {
-        const bankInfo = [
-            item.nama_bank    ? '<span><i class="fa fa-building text-[9px]"></i> ' + item.nama_bank + '</span>' : '',
-            item.no_rekening  ? '<span class="font-mono">' + item.no_rekening + '</span>' : '',
-            item.nama_pemilik ? '<span>a/n ' + item.nama_pemilik + '</span>' : '',
-        ].filter(Boolean).join(' ');
-
         const card = document.createElement('div');
         card.id = 'reject-item-card-' + idx;
-        // Default: tercentang → merah
         card.className = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/20';
-
         const row = document.createElement('div');
         row.className = 'flex items-start gap-3 px-4 py-3';
-        row.innerHTML = '<div class="flex-shrink-0 pt-0.5">'
-            + '<input type="checkbox" id="reject-chk-' + idx + '" checked'
-            + ' class="w-4 h-4 rounded text-red-600 cursor-pointer border-gray-300 focus:ring-red-400">'
-            + '</div>'
-            + '<div class="flex-1 min-w-0">'
-            + '<label for="reject-chk-' + idx + '" class="cursor-pointer">'
-            + '<div class="flex items-center gap-2 flex-wrap">'
-            + '<span class="text-xs text-gray-400">#' + (idx + 1) + '</span>'
+        row.innerHTML = '<div class="flex-shrink-0 pt-0.5"><input type="checkbox" id="reject-chk-' + idx + '" checked class="w-4 h-4 rounded text-red-600 cursor-pointer"></div>'
+            + '<div class="flex-1 min-w-0"><label for="reject-chk-' + idx + '" class="cursor-pointer"><div class="flex items-center gap-2 flex-wrap">'
+            + '<span class="text-xs text-gray-400">#' + (idx+1) + '</span>'
             + '<span class="font-semibold text-gray-800 text-sm">' + (item.gps_name || '-') + '</span>'
             + '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + (item.type || '-') + '</span>'
             + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(item.biaya_sewa || 0) + '</span>'
-            + '</div>'
-            + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
-            + '</label>'
-            + '</div>'
-            + '<div id="reject-item-badge-' + idx + '" class="flex-shrink-0 self-center">'
-            + '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>'
-            + '</div>';
+            + '</div></label></div>'
+            + '<div id="reject-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
         card.appendChild(row);
-
-        // Panel alasan (default tampil karena default = ditolak)
         const reasonPanel = document.createElement('div');
         reasonPanel.id = 'reject-reason-panel-' + idx;
         reasonPanel.className = 'px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/30';
-        reasonPanel.innerHTML = '<label class="text-[11px] font-semibold text-red-500 uppercase tracking-wide mb-1.5 block">'
-            + '<i class="fa fa-comment-dots mr-1"></i> Alasan Penolakan <span class="text-red-400 font-normal">(wajib)</span></label>'
-            + '<textarea id="reject-reason-' + idx + '" rows="2"'
-            + ' placeholder="Tulis alasan penolakan item ini..."'
-            + ' class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 bg-white"'
-            + ' oninput="rejectItemDecisions[' + idx + '].catatan = this.value; updateRejectSummary()"></textarea>';
+        reasonPanel.innerHTML = '<label class="text-[11px] font-semibold text-red-500 mb-1.5 block">Alasan Penolakan <span class="text-red-400 font-normal">(wajib)</span></label>'
+            + '<textarea id="reject-reason-' + idx + '" rows="2" placeholder="Tulis alasan penolakan item ini..." class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white" oninput="rejectItemDecisions[' + idx + '].catatan = this.value; updateRejectSummary()"></textarea>';
         card.appendChild(reasonPanel);
-
         const chk = row.querySelector('input[type=checkbox]');
         chk.addEventListener('change', function() { toggleRejectItem(idx, this.checked); });
-
         list.appendChild(card);
     });
-
     updateRejectSummary();
 }
-
 function toggleRejectItem(idx, checked) {
     rejectItemDecisions[idx].action = checked ? 'rejected' : 'skip';
-    const card        = document.getElementById('reject-item-card-' + idx);
+    const card = document.getElementById('reject-item-card-' + idx);
     const reasonPanel = document.getElementById('reject-reason-panel-' + idx);
-    const badge       = document.getElementById('reject-item-badge-' + idx);
+    const badge = document.getElementById('reject-item-badge-' + idx);
     if (checked) {
-        card.className  = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/20';
+        card.className = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/20';
         reasonPanel.classList.remove('hidden');
         badge.innerHTML = '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
     } else {
-        card.className  = 'border border-gray-200 rounded-xl overflow-hidden transition-all bg-gray-50/10';
+        card.className = 'border border-gray-200 rounded-xl overflow-hidden transition-all bg-gray-50/10';
         reasonPanel.classList.add('hidden');
         badge.innerHTML = '<span class="text-[10px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-minus text-[8px]"></i> Dilewati</span>';
     }
     updateRejectSummary();
 }
-
 function rejectSelectAll(select) {
     rejectItemDecisions.forEach(function(d, idx) {
         const chk = document.getElementById('reject-chk-' + idx);
         if (chk) { chk.checked = select; toggleRejectItem(idx, select); }
     });
 }
-
 function updateRejectSummary() {
-    const rejected = rejectItemDecisions.filter(function(d) { return d.action === 'rejected'; }).length;
-    const total    = rejectItemDecisions.length;
-    const summary  = document.getElementById('rejectSummary');
-    const text     = document.getElementById('rejectSummaryText');
+    const rejected = rejectItemDecisions.filter(d => d.action === 'rejected').length;
+    const total = rejectItemDecisions.length;
+    const summary = document.getElementById('rejectSummary');
+    const text = document.getElementById('rejectSummaryText');
     summary.classList.remove('hidden');
-    const skipped = total - rejected;
-    text.innerHTML = '<i class="fa fa-times-circle text-red-500 mr-1"></i>'
-        + '<b>' + rejected + '</b> item akan ditolak'
-        + (skipped > 0 ? ' &nbsp;·&nbsp; <b>' + skipped + '</b> item dilewati (tidak diproses)' : '');
+    text.innerHTML = '<i class="fa fa-times-circle text-red-500 mr-1"></i><b>' + rejected + '</b> item akan ditolak'
+        + (total - rejected > 0 ? ' &nbsp;·&nbsp; <b>' + (total - rejected) + '</b> item dilewati' : '');
 }
-
 async function submitRejectItems() {
-    const toReject = rejectItemDecisions.filter(function(d) { return d.action === 'rejected'; });
-    if (toReject.length === 0) {
-        alert('Pilih minimal 1 item yang ingin ditolak.');
-        return;
-    }
-
-    // Validasi alasan wajib diisi per item
+    const toReject = rejectItemDecisions.filter(d => d.action === 'rejected');
+    if (toReject.length === 0) { alert('Pilih minimal 1 item yang ingin ditolak.'); return; }
     for (let idx = 0; idx < rejectItemDecisions.length; idx++) {
         if (rejectItemDecisions[idx].action !== 'rejected') continue;
-        const val = (document.getElementById('reject-reason-' + idx) || {}).value || '';
-        if (!val.trim()) {
-            alert('Item #' + (idx + 1) + ': Alasan penolakan wajib diisi.');
-            document.getElementById('reject-reason-' + idx).focus();
-            return;
-        }
-        rejectItemDecisions[idx].catatan = val.trim();
+        const val = ((document.getElementById('reject-reason-' + idx) || {}).value || '').trim();
+        if (!val) { alert('Item #' + (idx + 1) + ': Alasan penolakan wajib diisi.'); document.getElementById('reject-reason-' + idx).focus(); return; }
+        rejectItemDecisions[idx].catatan = val;
     }
-
-    const total   = rejectItemDecisions.length;
-    const skipped = total - toReject.length;
-    const msg     = 'Tolak ' + toReject.length + ' item'
-        + (skipped > 0 ? ', ' + skipped + ' item dilewati?' : '?');
-    if (!confirm(msg)) return;
-
+    if (!confirm('Tolak ' + toReject.length + ' item' + (rejectItemDecisions.length - toReject.length > 0 ? ', ' + (rejectItemDecisions.length - toReject.length) + ' item dilewati?' : '?'))) return;
     const btn = document.getElementById('rejectSubmitBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
-
+    btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
     const formData = new FormData();
     const token = document.querySelector('meta[name="csrf-token"]');
     formData.append('_token', token ? token.content : '');
     formData.append('catatan', document.getElementById('rejectCatatan').value);
-
-    // Item yang dicentang → rejected, yang tidak → approved (dengan kosong)
-    // Karena endpoint approve-items mengharuskan ada setidaknya satu keputusan,
-    // item yang "dilewati" kita kirim sebagai approved tanpa bukti
     rejectItemDecisions.forEach(function(d, idx) {
         const action = d.action === 'rejected' ? 'rejected' : 'approved';
-        formData.append('items[' + idx + '][action]',  action);
+        formData.append('items[' + idx + '][action]', action);
         formData.append('items[' + idx + '][catatan]', d.action === 'rejected' ? (d.catatan || '') : '');
     });
-
     try {
-        const res    = await fetch('/admin/purchase-order/' + currentRejectPoId + '/approve-items', { method: 'POST', body: formData });
+        const res = await fetch('/admin/purchase-order/' + currentRejectPoId + '/approve-items', { method: 'POST', body: formData });
         const result = await res.json();
-        if (result.success) {
-            window.location.href = result.redirect || window.location.href;
-        } else {
-            alert(result.message || 'Terjadi kesalahan.');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa fa-times"></i> Konfirmasi Penolakan';
-        }
-    } catch (e) {
-        alert('Terjadi kesalahan jaringan.');
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa fa-times"></i> Konfirmasi Penolakan';
-    }
+        if (result.success) { window.location.href = result.redirect || window.location.href; }
+        else { alert(result.message || 'Terjadi kesalahan.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-times"></i> Konfirmasi Penolakan'; }
+    } catch (e) { alert('Terjadi kesalahan jaringan.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-times"></i> Konfirmasi Penolakan'; }
 }
-
 function closeRejectModal() {
-    document.getElementById('rejectModal').classList.add('hidden');
-    document.getElementById('rejectModal').classList.remove('flex');
-    document.getElementById('rejectCatatan').value = '';
-    currentRejectPoId = null;
-    rejectItemDecisions = [];
+    document.getElementById('rejectModal').classList.add('hidden'); document.getElementById('rejectModal').classList.remove('flex');
+    document.getElementById('rejectCatatan').value = ''; currentRejectPoId = null; rejectItemDecisions = [];
 }
-
-// Close on backdrop click
-document.getElementById('detailModal').addEventListener('click',  function(e) { if (e.target === this) closeDetailModal();  });
-document.getElementById('approveModal').addEventListener('click', function(e) { if (e.target === this) closeApproveModal(); });
-document.getElementById('rejectModal').addEventListener('click',  function(e) { if (e.target === this) closeRejectModal();  });
-document.getElementById('resubmitModal').addEventListener('click',function(e) { if (e.target === this) closeResubmitModal(); });
 
 // ── RESUBMIT MODAL ────────────────────────────────────────────
 let resubmitGpsData = [];
-
 function openResubmitModal(poId, poNumber) {
     document.getElementById('resubmitPoNumber').textContent = poNumber;
     document.getElementById('resubmitLoading').classList.remove('hidden');
     document.getElementById('resubmitForm').classList.add('hidden');
     document.getElementById('resubmitModal').classList.remove('hidden');
     document.getElementById('resubmitModal').classList.add('flex');
-
     fetch('/admin/purchase-order/' + poId + '/resubmit', {
         method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        },
+        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({}),
     })
     .then(r => r.json())
@@ -1051,73 +1155,54 @@ function openResubmitModal(poId, poNumber) {
         document.getElementById('resubmitForm').classList.remove('hidden');
     })
     .catch(function(err) {
-        document.getElementById('resubmitLoading').innerHTML =
-            '<div class="text-center text-red-500 py-8"><i class="fa fa-exclamation-circle text-2xl mb-2"></i><p class="text-sm">' + err.message + '</p></div>';
+        document.getElementById('resubmitLoading').innerHTML = '<div class="text-center text-red-500 py-8"><p class="text-sm">' + err.message + '</p></div>';
     });
 }
-
 function renderResubmitForm(data) {
-    document.getElementById('resubmitPoId').value        = data.po_id;
+    document.getElementById('resubmitPoId').value = data.po_id;
     document.getElementById('resubmitKendaraanId').value = data.kendaraan_id;
     document.getElementById('resubmitTanggalBayar').value = data.tanggal_bayar;
     document.getElementById('resubmitTanggalHabis').value = data.tanggal_habis;
     document.getElementById('resubmitTanggalBayarInput').value = data.tanggal_bayar;
     document.getElementById('resubmitTanggalHabisInput').value = data.tanggal_habis;
-    document.getElementById('resubmitKeterangan').value  = data.keterangan || '';
+    document.getElementById('resubmitKeterangan').value = data.keterangan || '';
     document.getElementById('resubmitKendaraanInfo').textContent = (data.nopol || '-') + ' — ' + (data.merk || '');
-    if (data.catatan) {
-        document.getElementById('resubmitCatatan').textContent = 'Alasan ditolak: ' + data.catatan;
-    }
-
-    // Sync tanggal ke hidden inputs on change
-    document.getElementById('resubmitTanggalBayarInput').addEventListener('change', function() {
-        document.getElementById('resubmitTanggalBayar').value = this.value;
-    });
-    document.getElementById('resubmitTanggalHabisInput').addEventListener('change', function() {
-        document.getElementById('resubmitTanggalHabis').value = this.value;
-    });
-
+    if (data.catatan) document.getElementById('resubmitCatatan').textContent = 'Alasan ditolak: ' + data.catatan;
+    document.getElementById('resubmitTanggalBayarInput').addEventListener('change', function() { document.getElementById('resubmitTanggalBayar').value = this.value; });
+    document.getElementById('resubmitTanggalHabisInput').addEventListener('change', function() { document.getElementById('resubmitTanggalHabis').value = this.value; });
     resubmitGpsData = data.gps_items || [];
     const container = document.getElementById('resubmitItemsContainer');
     container.innerHTML = '';
-
     resubmitGpsData.forEach(function(item, idx) {
         const div = document.createElement('div');
         div.className = 'border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50/50';
-        div.innerHTML =
-            '<input type="hidden" name="gps_items[' + idx + '][gps_id]" value="' + (item.gps_id || '') + '">'
-            + '<div class="flex items-center justify-between">'
-            + '<span class="text-xs font-bold text-gray-500 uppercase">#' + (idx + 1) + ' ' + (item.nama_gps || '-') + '</span>'
-            + '</div>'
+        div.innerHTML = '<input type="hidden" name="gps_items[' + idx + '][gps_id]" value="' + (item.gps_id || '') + '">'
+            + '<span class="text-xs font-bold text-gray-500 uppercase">#' + (idx+1) + ' ' + (item.nama_gps || '-') + '</span>'
             + '<div class="grid grid-cols-2 gap-3">'
-            + '<div><label class="text-xs font-medium text-gray-600">Type <span class="text-red-500">*</span></label>'
-            + '<input type="text" name="gps_items[' + idx + '][type]" value="' + (item.type || '') + '" required'
-            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>'
-            + '<div><label class="text-xs font-medium text-gray-600">Biaya Sewa <span class="text-red-500">*</span></label>'
-            + '<input type="number" name="gps_items[' + idx + '][biaya_sewa]" value="' + (item.biaya_sewa || 0) + '" required min="0"'
-            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>'
+            + '<div><label class="text-xs font-medium text-gray-600">Type *</label><input type="text" name="gps_items[' + idx + '][type]" value="' + (item.type || '') + '" required class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100"></div>'
+            + '<div><label class="text-xs font-medium text-gray-600">Biaya Sewa *</label><input type="number" name="gps_items[' + idx + '][biaya_sewa]" value="' + (item.biaya_sewa || 0) + '" required min="0" class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100"></div>'
             + '</div>'
             + '<div class="grid grid-cols-3 gap-3">'
-            + '<div><label class="text-xs font-medium text-gray-600">Nama Bank</label>'
-            + '<input type="text" name="gps_items[' + idx + '][nama_bank]" value="' + (item.nama_bank || '') + '"'
-            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>'
-            + '<div><label class="text-xs font-medium text-gray-600">No. Rekening</label>'
-            + '<input type="text" name="gps_items[' + idx + '][no_rekening]" value="' + (item.no_rekening || '') + '"'
-            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>'
-            + '<div><label class="text-xs font-medium text-gray-600">Nama Pemilik</label>'
-            + '<input type="text" name="gps_items[' + idx + '][nama_pemilik]" value="' + (item.nama_pemilik || '') + '"'
-            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>'
+            + '<div><label class="text-xs font-medium text-gray-600">Nama Bank</label><input type="text" name="gps_items[' + idx + '][nama_bank]" value="' + (item.nama_bank || '') + '" class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100"></div>'
+            + '<div><label class="text-xs font-medium text-gray-600">No. Rekening</label><input type="text" name="gps_items[' + idx + '][no_rekening]" value="' + (item.no_rekening || '') + '" class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100"></div>'
+            + '<div><label class="text-xs font-medium text-gray-600">Nama Pemilik</label><input type="text" name="gps_items[' + idx + '][nama_pemilik]" value="' + (item.nama_pemilik || '') + '" class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100"></div>'
             + '</div>'
-            + '<div><label class="text-xs font-medium text-gray-600">Lampiran <span class="text-red-500">*</span></label>'
-            + '<input type="file" name="gps_items[' + idx + '][lampiran][]" required multiple accept=".jpg,.jpeg,.png,.pdf"'
-            + ' class="w-full mt-1 text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none"></div>';
+            + '<div><label class="text-xs font-medium text-gray-600">Lampiran *</label>'
+            + '<input type="file" name="gps_items[' + idx + '][lampiran][]" required multiple accept=".jpg,.jpeg,.png,.pdf" class="w-full mt-1 text-xs border border-gray-200 rounded-lg px-3 py-1.5"></div>';
         container.appendChild(div);
     });
 }
-
 function closeResubmitModal() {
-    document.getElementById('resubmitModal').classList.replace('flex', 'hidden');
+    document.getElementById('resubmitModal').classList.replace('flex','hidden');
     document.getElementById('resubmitModal').classList.add('hidden');
 }
+
+// ── BACKDROP CLICK ────────────────────────────────────────────
+document.getElementById('detailModal')?.addEventListener('click',   function(e) { if (e.target === this) closeDetailModal(); });
+document.getElementById('approveModal')?.addEventListener('click',  function(e) { if (e.target === this) closeApproveModal(); });
+document.getElementById('rejectModal')?.addEventListener('click',   function(e) { if (e.target === this) closeRejectModal(); });
+document.getElementById('resubmitModal')?.addEventListener('click', function(e) { if (e.target === this) closeResubmitModal(); });
+
+function formatNumber(n) { return Number(n).toLocaleString('id-ID'); }
 </script>
 @endpush

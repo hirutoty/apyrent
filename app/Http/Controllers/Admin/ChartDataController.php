@@ -192,6 +192,7 @@ class ChartDataController extends Controller
             'stnk' => $this->getStnkConfig(),
             'service-history' => $this->getServiceHistoryConfig(),
             'pembayaran'      => $this->getPembayaranConfig(),
+            'purchase-order'  => $this->getPurchaseOrderConfig(),
             'kendaraan' => $this->getKendaraanConfig(),
             'kendaraan-show' => $this->getKendaraanShowConfig(),
             'asuransi-kendaraan' => $this->getAsuransiKendaraanConfig(),
@@ -257,6 +258,7 @@ class ChartDataController extends Controller
             'stnk' => \App\Models\StnkHistory::query(),
             'service-history' => \App\Models\ServiceHistory::query(),
             'pembayaran'      => \App\Models\Pembayaran::query(),
+            'purchase-order'  => \App\Models\PurchaseOrder::query(),
             'kendaraan' => \App\Models\Kendaraan::query(),
             'kendaraan-show' => \App\Models\ServiceHistory::query(),
             'asuransi-kendaraan' => \App\Models\AsuransiKendaraan::query(),
@@ -3282,4 +3284,62 @@ class ChartDataController extends Controller
         ];
     }
 
+    protected function getPurchaseOrderConfig(): array
+    {
+        return [
+            'dateColumn' => 'tanggal_po',
+            'pie' => [
+                'title'       => 'Distribusi Status PO',
+                'groupBy'     => 'status',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels'      => [],
+                'colors'      => ['#f59e0b', '#10b981', '#ef4444'],
+            ],
+            'bar' => [
+                'title'        => 'Total Harga PO per Bulan',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => ['total_harga'],
+                'aggregation'  => 'sum',
+                'dateColumn'   => 'tanggal_po',
+                'limit'        => 6,
+                'labels'       => ['Total Harga'],
+                'colors'       => ['#6366f1'],
+            ],
+            'line' => [
+                'title'       => 'Trend Purchase Order',
+                'groupBy'     => 'month',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'dateColumn'  => 'tanggal_po',
+                'limit'       => 12,
+                'label'       => 'Jumlah PO',
+                'color'       => '#8b5cf6',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total PO',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#6366f1',
+                    'iconBg' => '#e0e7ff',
+                    'icon'   => 'fa fa-file-invoice',
+                ],
+                [
+                    'label'  => 'Total Nilai',
+                    'type'   => 'sum',
+                    'column' => 'total_harga',
+                    'format' => 'currency',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+            ],
+        ];
+    }
+
 }
+
+    // Appended method — getPurchaseOrderConfig
