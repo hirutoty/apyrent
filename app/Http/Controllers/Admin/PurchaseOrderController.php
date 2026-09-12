@@ -22,37 +22,71 @@ class PurchaseOrderController extends Controller
 
     public function index(Request $request)
     {
-        // Tab filter
-        $statusFilter = $request->input('status', 'Pending');
-        
-        $query = PurchaseOrder::with(['approver', 'pembayaran'])
-            ->where('status', $statusFilter)
-            ->latest();
+        // Tab filter — 'semua' = tidak filter status
+        $statusFilter  = $request->input('status', 'Pending');
+        $sourceFilter  = $request->input('source_type', '');
+        $tahunFilter   = $request->input('tahun', '');
+        $sort          = $request->input('sort', 'terbaru');
+
+        $query = PurchaseOrder::with(['approver', 'pembayaran']);
+
+        if ($statusFilter !== 'semua') {
+            $query->where('status', $statusFilter);
+        }
+
+        if ($sourceFilter) {
+            $query->where('source_type', $sourceFilter);
+        }
+
+        if ($tahunFilter) {
+            $query->whereYear('tanggal_po', $tahunFilter);
+        }
+
+        if ($sort === 'terlama') {
+            $query->oldest();
+        } else {
+            $query->latest();
+        }
 
         $data = $query->paginate(15)->withQueryString();
 
         // Statistics
-        $statusStats = PurchaseOrder::selectRaw('status, count(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
-
         $totalPO       = PurchaseOrder::count();
         $totalApproved = PurchaseOrder::where('status', 'Disetujui')->count();
         $totalPending  = PurchaseOrder::where('status', 'Pending')->count();
         $totalRejected = PurchaseOrder::where('status', 'Ditolak')->count();
-
-        // Legacy stats (for old status_po field)
         $totalClosed   = PurchaseOrder::where('status_po', 'Closed')->count();
+        $totalNominal  = PurchaseOrder::whereIn('status', ['Disetujui', 'Pending'])->sum('total_harga');
+
+        // Source types untuk dropdown filter
+        $sourceTypes = PurchaseOrder::selectRaw('source_type, count(*) as total')
+            ->whereNotNull('source_type')
+            ->groupBy('source_type')
+            ->pluck('total', 'source_type');
+
+        // Tahun tersedia berdasarkan tanggal_po
+        $availableYears = PurchaseOrder::selectRaw('YEAR(tanggal_po) as yr')
+            ->whereNotNull('tanggal_po')
+            ->distinct()
+            ->orderBy('yr', 'desc')
+            ->pluck('yr')
+            ->filter()
+            ->values();
 
         return view('admin.purchaseo.index', compact(
             'data',
-            'statusStats',
             'statusFilter',
+            'sourceFilter',
+            'tahunFilter',
+            'availableYears',
+            'sort',
             'totalPO',
             'totalApproved',
             'totalPending',
             'totalRejected',
-            'totalClosed'
+            'totalClosed',
+            'totalNominal',
+            'sourceTypes'
         ));
     }
 
@@ -102,15 +136,160 @@ class PurchaseOrderController extends Controller
         if ($sourceType === 'gps') {
             return $this->buildGpsDetails($sourceData);
         }
-        
+
         if ($sourceType === 'service_part') {
             return $this->buildServicePartDetails($sourceData);
         }
-        
+
+        if ($sourceType === 'asuransi_kendaraan') {
+            return $this->buildAsuransiDetails($sourceData);
+        }
+
+        if ($sourceType === 'pajak') {
+            return $this->buildPajakDetails($sourceData);
+        }
+
+        if ($sourceType === 'kir') {
+            return $this->buildKirDetails($sourceData);
+        }
+
         // For other types, return raw data
         return [
             'type' => 'raw',
             'data' => $sourceData,
+        ];
+    }
+
+    /**
+     * Build Asuransi Kendaraan-specific details
+     */
+    protected function buildAsuransiDetails($sourceData)
+    {
+        $kendaraanId    = $sourceData['kendaraan_id'] ?? null;
+        $kendaraan      = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+        $asuransi       = isset($sourceData['asuransi_id']) ? \App\Models\Asuransi::find($sourceData['asuransi_id']) : null;
+        $jenisAsuransi  = isset($sourceData['jenis_asuransi_id']) ? \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id']) : null;
+
+        $existingId = $sourceData['existing_record_id'] ?? null;
+        $lampiran   = [];
+        if ($existingId) {
+            $attachments = \App\Models\Attachment::where('relation_type', 'asuransi')
+                ->where('relation_id', $existingId)
+                ->get();
+            foreach ($attachments as $att) {
+                $lampiran[] = [
+                    'id'        => $att->id,
+                    'file_name' => $att->file_name,
+                    'file_path' => asset($att->file_path),
+                    'file_type' => $att->file_type,
+                    'file_size' => $att->file_size,
+                ];
+            }
+        }
+
+        return [
+            'type'            => 'asuransi_kendaraan',
+            'kendaraan'       => [
+                'nopol' => $kendaraan?->nopol ?? '-',
+                'merk'  => $kendaraan?->merk  ?? '-',
+            ],
+            'perusahaan'      => $asuransi?->nama_asuransi ?? '-',
+            'jenis_asuransi'  => $jenisAsuransi?->nama_jenis ?? '-',
+            'tgl_mulai'       => $sourceData['tgl_mulai'] ?? '-',
+            'tgl_berakhir'    => $sourceData['tgl_berakhir'] ?? '-',
+            'durasi_bulan'    => $sourceData['durasi_bulan'] ?? '-',
+            'biaya'           => $sourceData['biaya'] ?? 0,
+            'nama_bank'       => $sourceData['nama_bank'] ?? '-',
+            'no_rekening'     => $sourceData['no_rekening'] ?? '-',
+            'nama_rekening'   => $sourceData['nama_rekening'] ?? '-',
+            'lampiran'        => $lampiran,
+        ];
+    }
+
+    /**
+     * Build Pajak Kendaraan-specific details
+     */
+    protected function buildPajakDetails($sourceData)
+    {
+        $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+        $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+
+        $existingId = $sourceData['existing_record_id'] ?? null;
+        $lampiran   = [];
+        if ($existingId) {
+            $attachments = \App\Models\Attachment::where('relation_type', 'pajak')
+                ->where('relation_id', $existingId)
+                ->get();
+            foreach ($attachments as $att) {
+                $lampiran[] = [
+                    'id'        => $att->id,
+                    'file_name' => $att->file_name,
+                    'file_path' => asset($att->file_path),
+                    'file_type' => $att->file_type,
+                    'file_size' => $att->file_size,
+                ];
+            }
+        }
+
+        return [
+            'type'          => 'pajak',
+            'kendaraan'     => [
+                'nopol' => $kendaraan?->nopol ?? '-',
+                'merk'  => $kendaraan?->merk  ?? '-',
+            ],
+            'jenis_pajak'   => $sourceData['jenis_pajak'] ?? '-',
+            'nominal'       => $sourceData['nominal'] ?? 0,
+            'jatuh_tempo'   => $sourceData['jatuh_tempo'] ?? '-',
+            'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '-',
+            'nama_bank'     => $sourceData['nama_bank'] ?? '-',
+            'no_rekening'   => $sourceData['no_rekening'] ?? '-',
+            'nama_pemilik'  => $sourceData['nama_pemilik'] ?? '-',
+            'keterangan'    => $sourceData['keterangan'] ?? '-',
+            'lampiran'      => $lampiran,
+        ];
+    }
+
+    /**
+     * Build KIR-specific details
+     */
+    protected function buildKirDetails($sourceData)
+    {
+        $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+        $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+
+        $existingId = $sourceData['existing_record_id'] ?? null;
+        $lampiran   = [];
+        if ($existingId) {
+            $attachments = \App\Models\Attachment::where('relation_type', 'kir')
+                ->where('relation_id', $existingId)
+                ->get();
+            foreach ($attachments as $att) {
+                $lampiran[] = [
+                    'id'        => $att->id,
+                    'file_name' => $att->file_name,
+                    'file_path' => asset($att->file_path),
+                    'file_type' => $att->file_type,
+                    'file_size' => $att->file_size,
+                ];
+            }
+        }
+
+        return [
+            'type'          => 'kir',
+            'kendaraan'     => [
+                'nopol' => $kendaraan?->nopol ?? '-',
+                'merk'  => $kendaraan?->merk  ?? '-',
+            ],
+            'no_uji'        => $sourceData['no_uji'] ?? '-',
+            'no_ktp'        => $sourceData['no_ktp'] ?? '-',
+            'nama_ktp'      => $sourceData['nama_ktp'] ?? '-',
+            'lokasi_uji'    => $sourceData['lokasi_uji'] ?? '-',
+            'penguji'       => $sourceData['penguji'] ?? '-',
+            'status_uji'    => $sourceData['status_uji'] ?? '-',
+            'masa_berlaku'  => $sourceData['masa_berlaku'] ?? '-',
+            'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '-',
+            'biaya'         => $sourceData['biaya'] ?? 0,
+            'lampiran'      => $lampiran,
         ];
     }
 
@@ -591,9 +770,9 @@ class PurchaseOrderController extends Controller
     }
 
     /**
-     * Resubmit GPS Purchase Order yang ditolak — load data lama ke modal GPS,
-     * user edit lalu submit ulang lewat GpsKendaraanController@store dengan edit_purchase_order
-     * Route ini hanya mengembalikan data PO untuk diisi ke modal di view.
+     * Resubmit GPS/Asuransi/Pajak/KIR Purchase Order yang ditolak
+     * Untuk GPS: load data lama ke modal
+     * Untuk Asuransi/Pajak/KIR: redirect ke dedicated ajukan-ulang page
      */
     public function resubmit(Request $request, $id)
     {
@@ -608,28 +787,70 @@ class PurchaseOrderController extends Controller
                 return response()->json(['success' => false, 'message' => 'PO ini tidak dapat diedit.'], 422);
             }
 
-            $sourceData = $po->source_data ?? [];
-            $gpsItems   = $sourceData['gps_items'] ?? [];
-            $kendaraanId = $sourceData['kendaraan_id'] ?? null;
-            $kendaraan  = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+            // Untuk Asuransi/Pajak/KIR: redirect ke dedicated form page
+            if ($po->source_type === 'asuransi_kendaraan') {
+                return response()->json([
+                    'success'  => true,
+                    'redirect' => route('asuransi-kendaraan.ajukan-ulang', $po->id),
+                ]);
+            }
 
-            // Enrich items dengan nama GPS
-            $enrichedItems = array_map(function ($item) {
+            if ($po->source_type === 'pajak') {
+                return response()->json([
+                    'success'  => true,
+                    'redirect' => route('pajak.ajukan-ulang', $po->id),
+                ]);
+            }
+
+            if ($po->source_type === 'kir') {
+                return response()->json([
+                    'success'  => true,
+                    'redirect' => route('kir.ajukan-ulang', $po->id),
+                ]);
+            }
+
+            // GPS: return data ke modal form
+            $sourceData  = $po->source_data ?? [];
+            $gpsItems    = $sourceData['gps_items'] ?? [];
+            $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+            $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+
+            // Enrich items dengan nama GPS dan lampiran existing
+            $recordIds     = $sourceData['gps_record_ids'] ?? [];
+            $enrichedItems = array_map(function ($item, $idx) use ($recordIds) {
                 $gps = isset($item['gps_id']) ? \App\Models\Gps::find($item['gps_id']) : null;
-                return array_merge($item, ['nama_gps' => $gps ? $gps->nama_gps : '-']);
-            }, $gpsItems);
+                $recordId = $recordIds[$idx] ?? null;
+                $lampiran = [];
+                if ($recordId) {
+                    $attachments = \App\Models\Attachment::where('relation_type', 'gps')
+                        ->where('relation_id', $recordId)
+                        ->get();
+                    foreach ($attachments as $att) {
+                        $lampiran[] = [
+                            'id'        => $att->id,
+                            'file_name' => $att->file_name,
+                            'url'       => asset($att->file_path),
+                        ];
+                    }
+                }
+                return array_merge($item, [
+                    'nama_gps' => $gps ? $gps->nama_gps : '-',
+                    'lampiran_existing' => $lampiran,
+                ]);
+            }, $gpsItems, array_keys($gpsItems));
 
             return response()->json([
-                'success'     => true,
-                'po_id'       => $po->id,
-                'po_number'   => $po->po_id,
-                'catatan'     => $po->catatan_approval,
+                'success'        => true,
+                'po_id'          => $po->id,
+                'po_number'      => $po->po_id,
+                'catatan'        => $po->catatan_approval,
                 'kendaraan_id'   => $kendaraanId,
                 'nopol'          => $kendaraan ? $kendaraan->nopol : '-',
                 'merk'           => $kendaraan ? $kendaraan->merk : '-',
                 'tanggal_bayar'  => $sourceData['tanggal_bayar'] ?? '',
                 'tanggal_habis'  => $sourceData['tanggal_habis'] ?? '',
                 'keterangan'     => $sourceData['keterangan'] ?? '',
+                'vendor'         => $po->vendor ?? '',
                 'gps_items'      => $enrichedItems,
             ]);
 

@@ -19,28 +19,12 @@
     </div>
 
     {{-- STAT CARDS --}}
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Total Pembayaran</p>
             <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $totalPR }}</h2>
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
-            <p class="text-sm text-gray-500">Pending</p>
-            <h2 class="text-3xl font-bold text-yellow-500 mt-2">{{ $totalPending }}</h2>
-        </div>
-        <div class="bg-white rounded-2xl border border-gray-100 p-5">
-            <p class="text-sm text-gray-500">Diajukan</p>
-            <h2 class="text-3xl font-bold text-indigo-600 mt-2">{{ $totalDiajukan }}</h2>
-        </div>
-        <div class="bg-white rounded-2xl border border-gray-100 p-5">
-            <p class="text-sm text-gray-500">Disetujui</p>
-            <h2 class="text-3xl font-bold text-green-600 mt-2">{{ $totalDisetujui }}</h2>
-        </div>
-        <div class="bg-white rounded-2xl border border-gray-100 p-5">
-            <p class="text-sm text-gray-500">Ditolak</p>
-            <h2 class="text-3xl font-bold text-red-500 mt-2">{{ $totalDitolak }}</h2>
-        </div>
-        <div class="bg-white rounded-2xl border border-gray-100 p-5 col-span-2 md:col-span-3">
             <p class="text-sm text-gray-500">Total Nominal (Diajukan + Disetujui)</p>
             <h2 class="text-2xl font-bold text-emerald-600 mt-2">Rp {{ number_format($totalNominal, 0, ',', '.') }}</h2>
         </div>
@@ -68,6 +52,7 @@
             <nav class="flex gap-0 -mb-px overflow-x-auto">
                 @if ($role === 'superadmin')
                     @foreach ([
+                        ['key'=>'semua',    'label'=>'Semua',     'icon'=>'bi bi-grid-3x3-gap','count'=>$totalPR,        'color'=>'blue'],
                         ['key'=>'Pending',   'label'=>'Pending',   'icon'=>'bi bi-hourglass-split',  'count'=>$totalPending,   'color'=>'yellow'],
                         ['key'=>'Diajukan',  'label'=>'Diajukan',  'icon'=>'bi bi-paper-plane',       'count'=>$totalDiajukan,  'color'=>'indigo'],
                         ['key'=>'Disetujui', 'label'=>'Disetujui', 'icon'=>'bi bi-check-circle-fill', 'count'=>$totalDisetujui, 'color'=>'green'],
@@ -78,7 +63,7 @@
                             class="flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors
                                 {{ $isActive ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50' }}">
                             <i class="{{ $t['icon'] }}"></i> {{ $t['label'] }}
-                            @php $bc = match($t['color']){'green'=>'bg-green-100 text-green-700','red'=>'bg-red-100 text-red-700','indigo'=>'bg-indigo-100 text-indigo-700','yellow'=>'bg-yellow-100 text-yellow-700',default=>'bg-gray-100 text-gray-700'}; @endphp
+                            @php $bc = match($t['color']){'green'=>'bg-green-100 text-green-700','red'=>'bg-red-100 text-red-700','indigo'=>'bg-indigo-100 text-indigo-700','yellow'=>'bg-yellow-100 text-yellow-700','blue'=>'bg-blue-100 text-blue-700',default=>'bg-gray-100 text-gray-700'}; @endphp
                             <span class="ml-1 text-xs font-bold px-2 py-0.5 rounded-full {{ $bc }}">{{ $t['count'] }}</span>
                         </a>
                     @endforeach
@@ -135,10 +120,18 @@
                         @endforeach
                     </select>
                 @endif
+                <select name="source_type" class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    <option value="">Semua Jenis</option>
+                    @foreach($sourceTypes->keys() as $st)
+                        <option value="{{ $st }}" {{ ($sourceFilter??'') === $st ? 'selected' : '' }}>
+                            {{ ucwords(str_replace('_', ' ', $st)) }}
+                        </option>
+                    @endforeach
+                </select>
                 <button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
                     <i class="fa fa-filter text-xs mr-1"></i> Filter
                 </button>
-                @if($bulan || $deptFilter)
+                @if($bulan || $deptFilter || $sourceFilter)
                     <a href="{{ route('pembayaran.index', ['tab'=>$tab,'sort'=>$sort]) }}"
                         class="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Reset</a>
                 @endif
@@ -192,8 +185,108 @@
                     $cfg  = $jenisConfig[$jenis] ?? ['icon'=>'bi bi-wallet2','color'=>'gray'];
                     $clr  = $colorMap[$cfg['color']] ?? $colorMap['gray'];
                     $gIdx = $loop->index;
-                    $totalGrp = $items->sum(fn($i) => $i->total_nominal ?? 0);
-                    $pendingIds = $items->where('status','Pending')->pluck('id')->values()->toArray();
+                    $pendingIds  = $items->where('status','Pending')->pluck('id')->values()->toArray();
+
+                    // Hitung nominal & count per item (bukan per PR)
+                    // GPS punya gps_items di source_data — hitung tiap sub-item
+                    // Pembayaran belanja punya relasi items
+                    $nominalApproved = 0;
+                    $nominalRejected = 0;
+                    $nominalPending  = 0;
+                    $nominalDiajukan = 0;
+                    $totalGrp    = 0;
+                    $grpPending  = 0;
+                    $grpDiajukan = 0;
+                    $grpApproved = 0;
+                    $grpRejected = 0;
+                    foreach ($items as $_pr) {
+                        $_sd       = $_pr->source_data ?? [];
+                        $_gpsI     = $_sd['gps_items'] ?? [];
+                        $_dec      = $_sd['item_decisions'] ?? [];
+                        $_relItems = $_pr->items ?? collect([]);
+
+                        if (!empty($_gpsI)) {
+                            // GPS multi-item
+                            if (!empty($_dec)) {
+                                foreach ($_dec as $_dIdx => $_d) {
+                                    $_iNom = (int)(($_gpsI[(int)($_d['idx'] ?? $_dIdx)]['biaya_sewa'] ?? 0));
+                                    if (($_d['action'] ?? '') === 'approved') {
+                                        $grpApproved++;
+                                        $nominalApproved += $_iNom;
+                                    } else {
+                                        $grpRejected++;
+                                        $nominalRejected += $_iNom;
+                                    }
+                                }
+                                // Sisa belum diproses → ikut status PR
+                                $processedIdx = array_column($_dec, 'idx');
+                                foreach ($_gpsI as $_gi => $_gitem) {
+                                    if (!in_array($_gi, $processedIdx)) {
+                                        $_iNom = (int)($_gitem['biaya_sewa'] ?? 0);
+                                        if ($_pr->status === 'Pending') {
+                                            $grpPending++;
+                                            $nominalPending += $_iNom;
+                                        } elseif ($_pr->status === 'Diajukan') {
+                                            $grpDiajukan++;
+                                            $nominalDiajukan += $_iNom;
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Belum diproses
+                                $_prNom = (int)($_pr->total_nominal ?? 0);
+                                $cnt    = count($_gpsI);
+                                if ($_pr->status === 'Pending') {
+                                    $grpPending     += $cnt;
+                                    $nominalPending += $_prNom;
+                                } elseif ($_pr->status === 'Diajukan') {
+                                    $grpDiajukan     += $cnt;
+                                    $nominalDiajukan += $_prNom;
+                                } elseif (in_array($_pr->status, ['Disetujui','Disetujui Sebagian'])) {
+                                    $grpApproved     += $cnt;
+                                    $nominalApproved += $_prNom;
+                                } elseif ($_pr->status === 'Ditolak') {
+                                    $grpRejected     += $cnt;
+                                    $nominalRejected += $_prNom;
+                                }
+                            }
+                        } elseif ($_relItems->count() > 0) {
+                            // Belanja/service — relasi items, hitung subtotal per item
+                            $_prNom  = (int)($_pr->total_nominal ?? 0);
+                            $cnt     = $_relItems->count();
+                            if ($_pr->status === 'Pending') {
+                                $grpPending     += $cnt;
+                                $nominalPending += $_prNom;
+                            } elseif ($_pr->status === 'Diajukan') {
+                                $grpDiajukan     += $cnt;
+                                $nominalDiajukan += $_prNom;
+                            } elseif (in_array($_pr->status, ['Disetujui','Disetujui Sebagian'])) {
+                                $grpApproved     += $cnt;
+                                $nominalApproved += $_prNom;
+                            } elseif ($_pr->status === 'Ditolak') {
+                                $grpRejected     += $cnt;
+                                $nominalRejected += $_prNom;
+                            }
+                        } else {
+                            // Fallback 1 PR = 1 item
+                            $_prNom = (int)($_pr->total_nominal ?? 0);
+                            if ($_pr->status === 'Pending') {
+                                $grpPending++;
+                                $nominalPending += $_prNom;
+                            } elseif ($_pr->status === 'Diajukan') {
+                                $grpDiajukan++;
+                                $nominalDiajukan += $_prNom;
+                            } elseif (in_array($_pr->status, ['Disetujui','Disetujui Sebagian'])) {
+                                $grpApproved++;
+                                $nominalApproved += $_prNom;
+                            } elseif ($_pr->status === 'Ditolak') {
+                                $grpRejected++;
+                                $nominalRejected += $_prNom;
+                            }
+                        }
+                    }
+                    // totalGrp = approved + diajukan + pending (ditolak tidak masuk)
+                    $totalGrp = $nominalApproved + $nominalDiajukan + $nominalPending;
                 @endphp
 
                 {{-- ── GROUP HEADER ── --}}
@@ -210,13 +303,21 @@
 
                         <span class="text-sm font-bold text-gray-800">{{ $jenis }}</span>
 
-                       
-
-                        @if($role === 'superadmin' && count($pendingIds) > 0)
-                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
-                                {{ count($pendingIds) }} pending
+                        {{-- Breakdown status per item --}}
+                        <span class="flex items-center gap-1">
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                                Pending: {{ $grpPending }}
                             </span>
-                        @endif
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                                Diajukan: {{ $grpDiajukan }}
+                            </span>
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                                Disetujui: {{ $grpApproved }}
+                            </span>
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                                Ditolak: {{ $grpRejected }}
+                            </span>
+                        </span>
 
                         {{-- Per-group approve/reject — sebelah kanan nama jenis --}}
                         @if($role === 'superadmin' && $tab === 'Pending' && count($pendingIds) > 0)
@@ -233,9 +334,7 @@
                                 </button>
                             </div>
                         @else
-                            <span class="ml-auto text-sm font-bold text-emerald-600 flex-shrink-0">
-                                Rp {{ number_format($totalGrp,0,',','.') }}
-                            </span>
+                            {{-- nominal tidak ditampilkan di header group --}}
                         @endif
 
                     </div>{{-- end group header --}}
@@ -296,7 +395,19 @@
                                         };
 
                                         $rowUid = 'r'.$gIdx.'i'.$di;
-                                        if ($d->items->count() > 0) {
+                                        $_dec = $d->source_data['item_decisions'] ?? [];
+                                        if (!empty($_dec)) {
+                                            // Sudah ada keputusan per item — filter sesuai tab
+                                            $itemCount = collect($_dec)
+                                                ->filter(fn($_d) => (in_array($tab ?? '', ['Ditolak']))
+                                                    ? ($_d['action'] ?? '') !== 'approved'
+                                                    : ($_d['action'] ?? '') === 'approved')
+                                                ->count();
+                                            // Tab Semua/Pending/Diajukan: tampilkan semua item
+                                            if (in_array($tab ?? '', ['semua', 'Pending', 'Diajukan'])) {
+                                                $itemCount = count($_dec);
+                                            }
+                                        } elseif ($d->items->count() > 0) {
                                             $itemCount = $d->items->count();
                                         } elseif ($d->source_type === 'gps' && !empty($d->source_data['gps_items'])) {
                                             $itemCount = count($d->source_data['gps_items']);
@@ -333,32 +444,35 @@
                                             @endif
                                         </td>
                                         <td class="px-3 py-3">
-                                            @if($isGpsPartial && !empty($d->source_data['item_decisions']))
-                                                <div class="flex flex-col gap-0.5">
-                                                    @foreach($d->source_data['item_decisions'] as $dec)
-                                                        <span class="inline-flex items-center gap-1 text-[11px]">
-                                                            @if($dec['action'] === 'approved')
-                                                                <i class="fa fa-check-circle text-green-500 text-[9px]"></i>
-                                                                <span class="text-gray-700">{{ $dec['nama_gps'] }}</span>
-                                                                <span class="text-gray-400">({{ $dec['type'] }})</span>
-                                                            @else
-                                                                <i class="fa fa-times-circle text-red-400 text-[9px]"></i>
-                                                                <span class="text-gray-400 line-through">{{ $dec['nama_gps'] }}</span>
-                                                                <span class="text-gray-300">({{ $dec['type'] }})</span>
-                                                            @endif
-                                                        </span>
-                                                    @endforeach
-                                                </div>
-                                            @else
-                                                <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
-                                                    <i class="fa fa-boxes text-blue-400 text-[10px]"></i>
-                                                    {{ $itemCount }} item{{ $itemCount > 1 ? 's' : '' }}
-                                                </span>
-                                            @endif
+                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
+                                                <i class="fa fa-boxes text-blue-400 text-[10px]"></i>
+                                                {{ $itemCount }} item{{ $itemCount > 1 ? 's' : '' }}
+                                            </span>
                                         </td>
                                         <td class="px-3 py-3 text-right">
-                                            <span class="text-xs font-semibold text-emerald-600">
-                                                Rp {{ number_format($d->total_nominal ?? 0, 0, ',', '.') }}
+                                            @php
+                                                $_decMap = collect($d->source_data['item_decisions'] ?? [])->keyBy('idx');
+                                                if (!$_decMap->isEmpty()) {
+                                                    $_nomApprRow = collect($d->source_data['gps_items'] ?? [])
+                                                        ->filter(fn($g, $i) => ($_decMap[$i]['action'] ?? '') === 'approved')
+                                                        ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                    $_nomRejRow  = collect($d->source_data['gps_items'] ?? [])
+                                                        ->filter(fn($g, $i) => ($_decMap[$i]['action'] ?? '') !== 'approved' && $_decMap->has($i))
+                                                        ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                    // Pilih nominal sesuai tab
+                                                    if (in_array($tab ?? '', ['Ditolak'])) {
+                                                        $_rowNominal = $_nomRejRow;
+                                                    } elseif (in_array($tab ?? '', ['Disetujui'])) {
+                                                        $_rowNominal = $_nomApprRow;
+                                                    } else {
+                                                        $_rowNominal = $_nomApprRow + $_nomRejRow;
+                                                    }
+                                                } else {
+                                                    $_rowNominal = $d->total_nominal ?? 0;
+                                                }
+                                            @endphp
+                                            <span class="{{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }} text-xs font-semibold">
+                                                Rp {{ number_format($_rowNominal, 0, ',', '.') }}
                                             </span>
                                         </td>
                                         <td class="px-3 py-3">
@@ -510,7 +624,6 @@
                                                         <p class="text-[10px] font-semibold text-purple-500 uppercase tracking-wider">
                                                             <i class="bi bi-wallet2 mr-1"></i> Detail — {{ $d->source_type_name }}
                                                         </p>
-                                                        <span class="text-xs font-bold text-emerald-600">Rp {{ number_format($d->nominal??0,0,',','.') }}</span>
                                                     </div>
                                                     @php $kend = isset($sd['kendaraan_id']) ? \App\Models\Kendaraan::find($sd['kendaraan_id']) : null; @endphp
                                                     @if($kend)
@@ -554,8 +667,29 @@
                                                     </div>
                                                     {{-- GPS --}}
                                                     @elseif(in_array($d->source_type, ['gps', 'gps_perpanjang']))
-                                                    @php $gpsItems = $sd['gps_items'] ?? []; @endphp
-                                                    @if(count($gpsItems) > 0)
+                                                    @php
+                                                        $gpsItems    = $sd['gps_items'] ?? [];
+                                                        $itemDecMap  = collect($sd['item_decisions'] ?? [])->keyBy('idx');
+                                                        // Filter item sesuai tab: approved → tampil di Disetujui, rejected → Ditolak
+                                                        // Jika belum ada keputusan, tampilkan semua
+                                                        if ($itemDecMap->isNotEmpty()) {
+                                                            if (in_array($tab ?? '', ['Disetujui'])) {
+                                                                $filteredGpsItems = collect($gpsItems)
+                                                                    ->filter(fn($g, $i) => ($itemDecMap[$i]['action'] ?? '') === 'approved')
+                                                                    ->all();
+                                                            } elseif (in_array($tab ?? '', ['Ditolak'])) {
+                                                                $filteredGpsItems = collect($gpsItems)
+                                                                    ->filter(fn($g, $i) => ($itemDecMap[$i]['action'] ?? '') !== 'approved' && $itemDecMap->has($i))
+                                                                    ->all();
+                                                            } else {
+                                                                $filteredGpsItems = $gpsItems; // semua (tab Semua/lainnya)
+                                                            }
+                                                        } else {
+                                                            $filteredGpsItems = $gpsItems;
+                                                        }
+                                                        $totalFiltered = collect($filteredGpsItems)->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                    @endphp
+                                                    @if(count($filteredGpsItems) > 0)
                                                     <table class="w-full text-xs">
                                                         <thead>
                                                             <tr class="bg-green-50/60 border-y border-green-100">
@@ -566,13 +700,19 @@
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
                                                                 <th class="text-right px-4 py-2 font-semibold text-gray-500">Biaya Sewa</th>
+                                                                @if($itemDecMap->isNotEmpty())
+                                                                    <th class="text-center px-4 py-2 font-semibold text-gray-500">Status</th>
+                                                                @endif
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                        @foreach($gpsItems as $gi => $gitem)
-                                                            @php $gps = isset($gitem['gps_id']) ? \App\Models\Gps::find($gitem['gps_id']) : null; @endphp
-                                                            <tr class="border-t border-gray-50 {{ $gi%2===0 ? 'bg-white' : 'bg-gray-50/40' }}">
-                                                                <td class="px-4 py-2 text-gray-400">{{ $gi+1 }}</td>
+                                                        @foreach($filteredGpsItems as $gi => $gitem)
+                                                            @php
+                                                                $gps     = isset($gitem['gps_id']) ? \App\Models\Gps::find($gitem['gps_id']) : null;
+                                                                $itemDec = $itemDecMap[$gi] ?? null;
+                                                            @endphp
+                                                            <tr class="border-t border-gray-50 {{ ($loop->index ?? 0)%2===0 ? 'bg-white' : 'bg-gray-50/40' }}">
+                                                                <td class="px-4 py-2 text-gray-400">{{ $loop->iteration }}</td>
                                                                 <td class="px-4 py-2 font-medium text-gray-700">
                                                                     @if($gps)
                                                                         <span class="font-semibold">{{ $gps->nama_gps ?? '-' }}</span>
@@ -592,12 +732,25 @@
                                                                 <td class="px-4 py-2 text-right font-semibold text-emerald-600">
                                                                     Rp {{ number_format($gitem['biaya_sewa'] ?? 0, 0, ',', '.') }}
                                                                 </td>
+                                                                @if($itemDecMap->isNotEmpty())
+                                                                    <td class="px-4 py-2 text-center">
+                                                                        @if($itemDec && $itemDec['action'] === 'approved')
+                                                                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                                                                                <i class="fa fa-check text-[8px]"></i> Disetujui
+                                                                            </span>
+                                                                        @elseif($itemDec)
+                                                                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                                                                                <i class="fa fa-times text-[8px]"></i> Ditolak
+                                                                            </span>
+                                                                        @endif
+                                                                    </td>
+                                                                @endif
                                                             </tr>
                                                         @endforeach
                                                             <tr class="border-t-2 border-gray-200 bg-gray-50">
-                                                                <td colspan="6" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
+                                                                <td colspan="{{ $itemDecMap->isNotEmpty() ? 7 : 6 }}" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
                                                                 <td class="px-4 py-2 text-right text-sm font-bold text-emerald-600">
-                                                                    Rp {{ number_format(collect($gpsItems)->sum(fn($g) => $g['biaya_sewa'] ?? 0), 0, ',', '.') }}
+                                                                    Rp {{ number_format($totalFiltered, 0, ',', '.') }}
                                                                 </td>
                                                             </tr>
                                                         </tbody>

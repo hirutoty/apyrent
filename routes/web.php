@@ -379,6 +379,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::post('kir/{id}/perpanjang', [KirController::class, 'perpanjang'])
     ->middleware('throttle:5,1')
     ->name('kir.perpanjang');
+  Route::get('/kir/ajukan-ulang/{id}', [KirController::class, 'ajukanUlangForm'])
+    ->name('kir.ajukan-ulang');
   Route::get('/kir-history', [KirHistoryController::class, 'index'])
     ->name('history.kir.index');
 

@@ -71,7 +71,12 @@
               enctype="multipart/form-data"
               class="px-6 py-6">
             @csrf
-            <input type="hidden" name="edit_pembayaran" value="{{ $pembayaranId }}">
+            {{-- Support dua mode: resubmit PO atau resubmit Pembayaran --}}
+            @if(!empty($editPoId))
+                <input type="hidden" name="edit_purchase_order" value="{{ $editPoId }}">
+            @else
+                <input type="hidden" name="edit_pembayaran" value="{{ $editPembayaranId }}">
+            @endif
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 

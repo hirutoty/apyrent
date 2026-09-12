@@ -23,7 +23,17 @@ class PajakController extends Controller
             ->where('jatuh_tempo', '<', now()->toDateString())
             ->update(['status_aktif' => 'expired']);
 
-    $query = PajakKendaraan::with(['kendaraan', 'attachments'])->latest();
+        // Tampilkan Pajak yang:
+        // - Sudah melewati PO (bukan Pending = menunggu PO approval)
+        // - Jika Ditolak: hanya tampilkan yang sudah sampai tahap Pembayaran (punya pembayaran_id)
+        $query = PajakKendaraan::with(['kendaraan', 'attachments'])
+            ->whereNotNull('persetujuan')
+            ->where('persetujuan', '!=', 'Pending')
+            ->where(function ($q) {
+                $q->where('persetujuan', '!=', 'Ditolak')
+                  ->orWhereNotNull('pembayaran_id'); // Ditolak di Pembayaran → tampilkan
+            })
+            ->latest();
 
     if ($request->filled('status') && in_array($request->status, ['sudah_bayar', 'belum_bayar'])) {
         $query->where('status', $request->status);
@@ -168,7 +178,82 @@ class PajakController extends Controller
 
         $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 
-        // ── RESUBMIT: edit_pembayaran diisi (dari halaman Ajukan Ulang setelah ditolak) ──
+        // ── RESUBMIT PO: edit_purchase_order diisi (dari halaman Ajukan Ulang setelah PO ditolak) ──
+        if ($request->filled('edit_purchase_order')) {
+            $poId = (int) $request->input('edit_purchase_order');
+
+            try {
+                $po = \App\Models\PurchaseOrder::findOrFail($poId);
+
+                if ($po->status !== 'Ditolak') {
+                    return redirect()
+                        ->route('pajak.index')
+                        ->with('error', 'Purchase Order ini tidak dapat diajukan ulang (status: ' . $po->status . ').');
+                }
+
+                $sourceData = $po->source_data ?? [];
+                $existingId = $sourceData['existing_record_id'] ?? null;
+
+                // Update record pajak dengan data baru
+                if ($existingId) {
+                    PajakKendaraan::where('id', $existingId)->update([
+                        'persetujuan'   => 'Pending',
+                        'kendaraan_id'  => $request->kendaraan_id,
+                        'jenis_pajak'   => $request->jenis_pajak,
+                        'nominal'       => $request->nominal,
+                        'jatuh_tempo'   => $request->jatuh_tempo,
+                        'tanggal_bayar' => $request->tanggal_bayar,
+                        'keterangan'    => $request->keterangan,
+                        'nama_pemilik'  => $request->nama_pemilik,
+                        'nama_bank'     => $request->nama_bank,
+                        'no_rekening'   => $request->no_rekening,
+                    ]);
+
+                    // Simpan lampiran baru (akumulatif — lampiran lama TIDAK dihapus)
+                    if ($request->hasFile('bukti_attachment')) {
+                        $this->simpanAttachments($request->file('bukti_attachment'), $existingId);
+                    }
+                }
+
+                // Update source_data PO dengan data baru
+                $newSourceData = array_merge($sourceData, [
+                    'kendaraan_id'  => $request->kendaraan_id,
+                    'jenis_pajak'   => $request->jenis_pajak,
+                    'nominal'       => $request->nominal,
+                    'jatuh_tempo'   => $request->jatuh_tempo,
+                    'tanggal_bayar' => $request->tanggal_bayar,
+                    'keterangan'    => $request->keterangan,
+                    'nama_pemilik'  => $request->nama_pemilik,
+                    'nama_bank'     => $request->nama_bank,
+                    'no_rekening'   => $request->no_rekening,
+                    'existing_record_id' => $existingId,
+                ]);
+
+                $po->update([
+                    'source_data'         => $newSourceData,
+                    'total_harga'         => $request->nominal,
+                    'status'              => 'Pending',
+                    'catatan_approval'    => null,
+                    'disetujui_oleh'      => null,
+                    'tanggal_persetujuan' => null,
+                    'can_edit'            => false,
+                    'terakhir_diajukan'   => now(),
+                ]);
+
+                return redirect()
+                    ->route('purchase-order.index', ['status' => 'Pending'])
+                    ->with('success', 'Pajak berhasil diajukan ulang ke Purchase Order. Menunggu approval Superadmin.');
+
+            } catch (\Exception $e) {
+                \Log::error('Error resubmit PO pajak: ' . $e->getMessage());
+                return redirect()
+                    ->route('pajak.ajukan-ulang', $poId)
+                    ->withInput()
+                    ->with('error', 'Terjadi kesalahan saat mengajukan ulang: ' . $e->getMessage());
+            }
+        }
+
+        // ── RESUBMIT PEMBAYARAN: edit_pembayaran diisi (dari halaman Ajukan Ulang setelah Pembayaran ditolak) ──
         if ($request->filled('edit_pembayaran')) {
             $pembayaranId = (int) $request->input('edit_pembayaran');
 
@@ -234,10 +319,7 @@ class PajakController extends Controller
         }
 
         $exists = PajakKendaraan::where('kendaraan_id', $kendaraan->id)
-            ->whereIn('persetujuan', ['Pending', 'Disetujui'])
-            ->orWhere(function($q) use ($kendaraan) {
-                $q->where('kendaraan_id', $kendaraan->id)->whereNull('persetujuan');
-            })
+            ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran', 'Disetujui'])
             ->exists();
 
         if ($exists) {
@@ -245,8 +327,14 @@ class PajakController extends Controller
         }
 
         try {
-            // Buat record pajak dengan persetujuan = Pending (seperti GPS)
+            // ===========================================================================
+            // NEW FLOW: Kirim ke Purchase Order (bukan langsung Pembayaran)
+            // ===========================================================================
+
+            // Step 1: Buat record pajak dengan persetujuan=Pending
+            // (belum muncul di tabel utama sampai PO disetujui)
             $pajak = PajakKendaraan::create([
+                'pembayaran_id' => null, // Diisi setelah PO disetujui & Pembayaran dibuat
                 'kendaraan_id'  => $request->kendaraan_id,
                 'jenis_pajak'   => $request->jenis_pajak,
                 'nominal'       => $request->nominal,
@@ -261,35 +349,30 @@ class PajakController extends Controller
                 'persetujuan'   => 'Pending',
             ]);
 
-            // Simpan lampiran jika ada
+            // Step 2: Simpan lampiran
             if ($request->hasFile('bukti_attachment')) {
                 $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id);
             }
 
-            // Kirim ke Pembayaran untuk approval
+            // Step 3: Intercept & buat Purchase Order
             $request->merge([
-                'status'       => 'belum_bayar',
-                'nama_bank'    => $request->nama_bank,
-                'no_rekening'  => $request->no_rekening,
-                'nama_rekening'=> $request->nama_pemilik,
+                'nama_rekening' => $request->nama_pemilik,
             ]);
-
             $interceptedData = $interceptor->intercept($request, 'pajak');
 
-            // Simpan existing_record_id agar saat approve bisa update record yang sudah ada
+            // Sematkan existing_record_id agar PO approval bisa update record yang sudah ada
             $interceptedData['source_data']['existing_record_id'] = $pajak->id;
 
-            $pembayaran = $interceptor->saveToPembayaran($interceptedData, 'pajak');
+            $po = $interceptor->saveToPurchaseOrder($interceptedData, 'pajak');
 
-            // Update pajak dengan pembayaran_id
-            $pajak->update(['pembayaran_id' => $pembayaran->id]);
-
-            // Update source_data pembayaran
-            $sourceData = $pembayaran->source_data;
+            // Step 4: Update source_data PO
+            $sourceData = $po->source_data;
             $sourceData['existing_record_id'] = $pajak->id;
-            $pembayaran->update(['source_data' => $sourceData]);
+            $po->update(['source_data' => $sourceData]);
 
-            return back()->with('success', 'Data pajak berhasil ditambahkan. Menunggu approval dari Superadmin.');
+            return redirect()
+                ->route('purchase-order.index', ['status' => 'Pending'])
+                ->with('success', 'Pengajuan pajak berhasil dikirim ke Purchase Order. Menunggu approval dari Superadmin.');
 
         } catch (\Exception $e) {
             \Log::error('Error creating pajak: ' . $e->getMessage());
@@ -299,30 +382,58 @@ class PajakController extends Controller
 
     /**
      * Halaman ajukan ulang pajak yang ditolak (dedicated page, bukan modal)
+     * Handles both: PO ditolak dan Pembayaran ditolak
      */
-    public function ajukanUlangForm($pembayaranId)
+    public function ajukanUlangForm($id)
     {
-        $pembayaran = \App\Models\Pembayaran::findOrFail($pembayaranId);
+        // Coba sebagai pembayaran_id dulu
+        $pembayaran = \App\Models\Pembayaran::find($id);
+        $isPo = false;
+        $po   = null;
 
-        if ($pembayaran->status !== 'Ditolak') {
-            return redirect()->route('pajak.index')->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
+        if (!$pembayaran) {
+            $po   = \App\Models\PurchaseOrder::find($id);
+            $isPo = true;
         }
 
-        $sourceData = $pembayaran->source_data ?? [];
-        $existingId = $sourceData['existing_record_id'] ?? null;
+        if (!$pembayaran && !$po) {
+            return redirect()->route('pajak.index')->with('error', 'Data tidak ditemukan.');
+        }
 
-        if (!$existingId) {
+        if ($isPo) {
+            if ($po->status !== 'Ditolak') {
+                return redirect()->route('pajak.index')->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
+            }
+            $sourceData      = $po->source_data ?? [];
+            $existingId      = $sourceData['existing_record_id'] ?? null;
+            $pajak           = $existingId ? PajakKendaraan::with(['kendaraan', 'attachments'])->findOrFail($existingId) : null;
+            $rejectionReason = $po->catatan_approval ?? null;
+            $editPoId        = $po->id;
+            $editPembayaranId = null;
+        } else {
+            if ($pembayaran->status !== 'Ditolak') {
+                return redirect()->route('pajak.index')->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
+            }
+            $sourceData      = $pembayaran->source_data ?? [];
+            $existingId      = $sourceData['existing_record_id'] ?? null;
+            $pajak           = $existingId ? PajakKendaraan::with(['kendaraan', 'attachments'])->findOrFail($existingId) : null;
+            $rejectionReason = $pembayaran->latestApproval?->catatan ?? null;
+            $editPoId        = null;
+            $editPembayaranId = $pembayaran->id;
+        }
+
+        if (!$pajak) {
             return redirect()->route('pajak.index')->with('error', 'Data pajak tidak ditemukan.');
         }
 
-        $pajak = PajakKendaraan::with(['kendaraan', 'attachments'])->findOrFail($existingId);
-
-        $rejectionReason = $pembayaran->latestApproval?->catatan ?? null;
+        $kendaraan = \App\Models\Kendaraan::all();
 
         return view('admin.pajak_kendaraan.ajukan-ulang', compact(
             'pajak',
-            'pembayaranId',
-            'rejectionReason'
+            'editPoId',
+            'editPembayaranId',
+            'rejectionReason',
+            'kendaraan'
         ));
     }
 

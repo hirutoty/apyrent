@@ -25,6 +25,7 @@ class GpsKendaraan extends Model
         'bukti_bayar',
         'tanggal_bayar',
         'keterangan',
+        'tanggal_buat',
         'nama_bank',
         'no_rekening',
         'nama_pemilik',

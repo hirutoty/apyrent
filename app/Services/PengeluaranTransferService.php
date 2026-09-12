@@ -248,7 +248,7 @@ class PengeluaranTransferService
     protected function transferServicePart(Pembayaran $pembayaran, array $approvalFiles, array $selectedParts = []): int
     {
         $sourceData = $pembayaran->source_data;
-        $kendaraanId = $sourceData['kendaraan_id'];
+        $kendaraanId = $sourceData['kendaraan_id'] ?? null;
         $kendaraan   = Kendaraan::find($kendaraanId);
 
         // ── Filter parts: jika $selectedParts diisi, hanya proses part tersebut ──
@@ -388,6 +388,27 @@ class PengeluaranTransferService
                 'persetujuan'         => 'Disetujui',
             ]);
 
+            // ── Catat cashflow PER PART (dipecah satu per satu) ──────────────
+            $categoryModel = $categoryId ? \App\Models\ServiceCategory::find($categoryId) : null;
+            $namaKategori  = $categoryModel->nama ?? $partData['nama_part'] ?? '-';
+            $nopolKendaraan = $kendaraan->nopol ?? '-';
+            $merkKendaraan  = $kendaraan->merk  ?? '-';
+
+            $this->createKeuanganRecord(
+                'SRV',
+                $part->id,
+                $biaya,
+                'Service Part: ' . $namaKategori . ' - ' . $merkKendaraan . ' ' . $nopolKendaraan
+            );
+
+            $this->createBukubesarRecord(
+                'SRV',
+                $part->id,
+                $biaya,
+                'Beban Service: ' . $namaKategori . ' - ' . $merkKendaraan . ' ' . $nopolKendaraan,
+                'Auto-posting: Service part ' . $namaKategori . ' ' . $nopolKendaraan . ' via PR #' . $pembayaran->no_pr
+            );
+
             $lastPartId = $part->id;
         }
 
@@ -419,22 +440,6 @@ class PengeluaranTransferService
             }
         }
 
-        // ── Catat cashflow — HANYA dicatat di sini (bukan di store/requestStore) ──
-        $this->createKeuanganRecord(
-            'SRV',
-            $service->id,
-            $totalBiaya,
-            'Service Kendaraan - ' . ($kendaraan->merk ?? '-') . ' ' . ($kendaraan->nopol ?? '-')
-        );
-
-        $this->createBukubesarRecord(
-            'SRV',
-            $service->id,
-            $totalBiaya,
-            'Beban Service - ' . ($kendaraan->merk ?? '-') . ' ' . ($kendaraan->nopol ?? '-'),
-            'Auto-posting: Service kendaraan ' . ($kendaraan->nopol ?? '-') . ' via PR #' . $pembayaran->no_pr
-        );
-
         return $service->id;
     }
 
@@ -451,7 +456,7 @@ class PengeluaranTransferService
     {
         $sourceData   = $pembayaran->source_data;
         $allGpsItems  = $sourceData['gps_items'] ?? [];
-        $kendaraanId  = $sourceData['kendaraan_id'];
+        $kendaraanId  = $sourceData['kendaraan_id'] ?? null;
         $tanggalBayar = $sourceData['tanggal_bayar'] ?? now()->toDateString();
         $tanggalHabis = $sourceData['tanggal_habis'] ?? now()->addYear()->toDateString();
         $statusGps    = $sourceData['status_gps'] ?? 'aktif';
@@ -608,30 +613,29 @@ class PengeluaranTransferService
                     ]);
                 }
             }
+
+            // ── Catat cashflow PER ITEM (dipecah satu per satu) ──────────────
+            $gpsModel   = \App\Models\Gps::find($item['gps_id'] ?? null);
+            $namaGps    = $gpsModel->nama_gps ?? '-';
+            $itemType   = $item['type'] ?? '-';
+            $nopol      = $kendaraan->nopol ?? '-';
+            $merk       = $kendaraan->merk  ?? '-';
+
+            $this->createKeuanganRecord(
+                'GPS',
+                $gpsRecord->id,
+                $biayaSewa,
+                'GPS ' . $namaGps . ' (' . $itemType . ') - ' . $merk . ' ' . $nopol
+            );
+
+            $this->createBukubesarRecord(
+                'GPS',
+                $gpsRecord->id,
+                $biayaSewa,
+                'Beban GPS ' . $namaGps . ' (' . $itemType . ') - ' . $merk . ' ' . $nopol,
+                'Auto-posting: GPS ' . $namaGps . ' ' . $nopol . ' via PR #' . $pembayaran->no_pr
+            );
         }
-
-        // Jika tidak ada item sama sekali (edge case), return 0
-        if (!$lastId) {
-            throw new \Exception('GPS items kosong, tidak ada data yang ditransfer.');
-        }
-
-        // Catat Keuangan & Buku Besar hanya untuk item yang diapprove
-        $this->createKeuanganRecord(
-            'GPS',
-            $lastId,
-            $totalBiaya,
-            'Pembayaran GPS kendaraan - ' . ($kendaraan->nopol ?? '-') .
-            ' (' . count($gpsItems) . ' GPS)'
-        );
-
-        $this->createBukubesarRecord(
-            'GPS',
-            $lastId,
-            $totalBiaya,
-            'Beban GPS - ' . ($kendaraan->nopol ?? '-'),
-            'Auto-posting: Pembayaran GPS kendaraan ' . ($kendaraan->nopol ?? '-') .
-            ' via PR #' . $pembayaran->no_pr
-        );
 
         // Attachments tambahan
         $this->copyAttachmentsToFinalStorage(
@@ -656,7 +660,7 @@ class PengeluaranTransferService
         $sourceData   = $pembayaran->source_data;
         $allGpsItems  = $sourceData['gps_items'] ?? [];
         $recordIds    = $sourceData['gps_record_ids'] ?? [];   // index → gps_kendaraan.id
-        $kendaraanId  = $sourceData['kendaraan_id'];
+        $kendaraanId  = $sourceData['kendaraan_id'] ?? null;
         $keterangan   = $sourceData['keterangan'] ?? null;
 
         foreach ($rejectedItems as $entry) {
@@ -787,8 +791,9 @@ class PengeluaranTransferService
                     'biaya_sewa'        => $existing->biaya_sewa,
                     'durasi_bulan'      => $existing->durasi_bulan,
                     'status_sewa'       => $existing->status_sewa,
-                    'bukti_bayar'       => $existing->bukti_bayar, // bukti lama masuk ke history
+                    'bukti_bayar'       => $existing->bukti_bayar,
                     'tanggal_bayar'     => $existing->tanggal_bayar ?? $tanggalBayar,
+                    'tanggal_buat'      => $existing->tanggal_buat, // tanggal asal pasang, tidak berubah
                     'diperpanjang_pada' => now(),
                 ]);
 
@@ -837,6 +842,34 @@ class PengeluaranTransferService
                     'keterangan'    => 'Perpanjangan GPS',
                 ]));
                 $lastId = $new->id;
+            }
+
+            // ── Catat cashflow PER ITEM perpanjangan ──────────────────────────
+            $currentRecord = $existing ?? $new ?? null;
+            if ($currentRecord) {
+                $gpsModel = \App\Models\Gps::find($item['gps_id'] ?? null);
+                $namaGps  = $gpsModel->nama_gps ?? '-';
+                $itemType = $item['type'] ?? '-';
+                $kendaraanPerp = Kendaraan::find(
+                    $sourceData['kendaraan_id'] ?? $currentRecord->kendaraan_id
+                );
+                $nopol = $kendaraanPerp->nopol ?? '-';
+                $merk  = $kendaraanPerp->merk  ?? '-';
+
+                $this->createKeuanganRecord(
+                    'GPS-PERP',
+                    $currentRecord->id,
+                    $biayaSewa,
+                    'Perpanjangan GPS ' . $namaGps . ' (' . $itemType . ') - ' . $merk . ' ' . $nopol
+                );
+
+                $this->createBukubesarRecord(
+                    'GPS-PERP',
+                    $currentRecord->id,
+                    $biayaSewa,
+                    'Beban Perpanjangan GPS ' . $namaGps . ' (' . $itemType . ') - ' . $merk . ' ' . $nopol,
+                    'Auto-posting: Perpanjangan GPS ' . $namaGps . ' ' . $nopol . ' via PR #' . $pembayaran->no_pr
+                );
             }
         }
 
