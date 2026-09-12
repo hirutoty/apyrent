@@ -237,7 +237,7 @@
 
                                 {{-- Tgl Pasang --}}
                                 <td class="px-5 py-4 text-slate-600">
-    {{ $d->tanggal_pasang ? \Carbon\Carbon::parse($d->tanggal_pasang)->format('d M Y') : '-' }}
+    {{ $d->tanggal_pasang ? \Carbon\Carbon::parse($d->tanggal_pasang)->format('d M') : '-' }}
         </td>
 
                                 {{-- Tgl Habis --}}

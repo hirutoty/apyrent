@@ -303,7 +303,8 @@
 
                         <span class="text-sm font-bold text-gray-800">{{ $jenis }}</span>
 
-                        {{-- Breakdown status per item --}}
+                        {{-- Breakdown status per item — hanya tampil di tab Semua --}}
+                        @if(($tab ?? '') === 'semua')
                         <span class="flex items-center gap-1">
                             <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
                                 Pending: {{ $grpPending }}
@@ -318,6 +319,7 @@
                                 Ditolak: {{ $grpRejected }}
                             </span>
                         </span>
+                        @endif
 
                         {{-- Per-group approve/reject — sebelah kanan nama jenis --}}
                         @if($role === 'superadmin' && $tab === 'Pending' && count($pendingIds) > 0)
@@ -395,22 +397,31 @@
                                         };
 
                                         $rowUid = 'r'.$gIdx.'i'.$di;
-                                        $_dec = $d->source_data['item_decisions'] ?? [];
-                                        if (!empty($_dec)) {
-                                            // Sudah ada keputusan per item — filter sesuai tab
-                                            $itemCount = collect($_dec)
-                                                ->filter(fn($_d) => (in_array($tab ?? '', ['Ditolak']))
-                                                    ? ($_d['action'] ?? '') !== 'approved'
-                                                    : ($_d['action'] ?? '') === 'approved')
-                                                ->count();
-                                            // Tab Semua/Pending/Diajukan: tampilkan semua item
-                                            if (in_array($tab ?? '', ['semua', 'Pending', 'Diajukan'])) {
-                                                $itemCount = count($_dec);
+                                        $_sd_items = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
+                                        $_dec = $_sd_items['item_decisions'] ?? [];
+                                        $_gpsItemsAll = $_sd_items['gps_items'] ?? [];
+
+                                        if (!empty($_gpsItemsAll)) {
+                                            // GPS: hitung dari gps_items actual sesuai tab
+                                            if (!empty($_dec)) {
+                                                $_decMapCount = collect($_dec)->keyBy('idx');
+                                                if (in_array($tab ?? '', ['Disetujui'])) {
+                                                    $itemCount = collect($_gpsItemsAll)
+                                                        ->filter(fn($g, $i) => ($_decMapCount[$i]['action'] ?? '') === 'approved')
+                                                        ->count();
+                                                } elseif (in_array($tab ?? '', ['Ditolak'])) {
+                                                    $itemCount = collect($_gpsItemsAll)
+                                                        ->filter(fn($g, $i) => ($_decMapCount[$i]['action'] ?? '') !== 'approved' && $_decMapCount->has($i))
+                                                        ->count();
+                                                } else {
+                                                    // Semua/Pending/Diajukan: total gps_items
+                                                    $itemCount = count($_gpsItemsAll);
+                                                }
+                                            } else {
+                                                $itemCount = count($_gpsItemsAll);
                                             }
                                         } elseif ($d->items->count() > 0) {
                                             $itemCount = $d->items->count();
-                                        } elseif ($d->source_type === 'gps' && !empty($d->source_data['gps_items'])) {
-                                            $itemCount = count($d->source_data['gps_items']);
                                         } else {
                                             $itemCount = 1;
                                         }
@@ -451,26 +462,51 @@
                                         </td>
                                         <td class="px-3 py-3 text-right">
                                             @php
-                                                $_decMap = collect($d->source_data['item_decisions'] ?? [])->keyBy('idx');
-                                                if (!$_decMap->isEmpty()) {
-                                                    $_nomApprRow = collect($d->source_data['gps_items'] ?? [])
-                                                        ->filter(fn($g, $i) => ($_decMap[$i]['action'] ?? '') === 'approved')
-                                                        ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
-                                                    $_nomRejRow  = collect($d->source_data['gps_items'] ?? [])
-                                                        ->filter(fn($g, $i) => ($_decMap[$i]['action'] ?? '') !== 'approved' && $_decMap->has($i))
-                                                        ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
-                                                    // Pilih nominal sesuai tab
-                                                    if (in_array($tab ?? '', ['Ditolak'])) {
-                                                        $_rowNominal = $_nomRejRow;
-                                                    } elseif (in_array($tab ?? '', ['Disetujui'])) {
-                                                        $_rowNominal = $_nomApprRow;
+                                                $_sd     = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
+                                                $_decMap = collect($_sd['item_decisions'] ?? [])->keyBy('idx');
+
+                                                if (($tab ?? '') === 'semua') {
+                                                    if (!$_decMap->isEmpty()) {
+                                                        $_nomApprRow = (int) ($_sd['nominal_approved'] ?? 0);
+                                                        $_nomRejRow  = (int) ($_sd['nominal_rejected'] ?? 0);
+                                                        if ($_nomApprRow === 0 && $_nomRejRow === 0) {
+                                                            // nominal_approved/rejected tidak ada → pakai total semua gps_items
+                                                            $_rowNominal = collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                            if ($_rowNominal == 0) $_rowNominal = (int)($d->nominal ?? 0);
+                                                        } else {
+                                                            $_rowNominal = $_nomApprRow + $_nomRejRow;
+                                                        }
                                                     } else {
-                                                        $_rowNominal = $_nomApprRow + $_nomRejRow;
+                                                        $_gpsItemsTotal = collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                        $_rowNominal = $_gpsItemsTotal > 0 ? $_gpsItemsTotal : ($d->nominal ?? 0);
                                                     }
                                                 } else {
-                                                    $_rowNominal = $d->total_nominal ?? 0;
+                                                    if (!$_decMap->isEmpty()) {
+                                                        $_nomApprRow = collect($_sd['gps_items'] ?? [])
+                                                            ->filter(fn($g, $i) => ($_decMap[$i]['action'] ?? '') === 'approved')
+                                                            ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                        $_nomRejRow  = collect($_sd['gps_items'] ?? [])
+                                                            ->filter(fn($g, $i) => ($_decMap[$i]['action'] ?? '') !== 'approved' && $_decMap->has($i))
+                                                            ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                        if (in_array($tab ?? '', ['Ditolak'])) {
+                                                            $_rowNominal = $_nomRejRow;
+                                                        } elseif (in_array($tab ?? '', ['Disetujui'])) {
+                                                            $_rowNominal = $_nomApprRow;
+                                                        } else {
+                                                            $_rowNominal = $_nomApprRow + $_nomRejRow;
+                                                        }
+                                                    } else {
+                                                        $_gpsItemsTotal = collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                        $_rowNominal = $_gpsItemsTotal > 0 ? $_gpsItemsTotal : ($d->nominal ?? 0);
+                                                    }
                                                 }
                                             @endphp
+                                            {{-- DEBUG TEMP: hapus setelah fix --}}
+                                            @if(($_rowNominal ?? 0) == 0)
+                                                <div class="text-[9px] text-gray-400 text-left">
+                                                    id:{{ $d->id }}|tab:{{ $tab }}|gpsTotal:{{ collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0) }}|nom:{{ $d->nominal }}|decmap:{{ $_decMap->count() }}
+                                                </div>
+                                            @endif
                                             <span class="{{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }} text-xs font-semibold">
                                                 Rp {{ number_format($_rowNominal, 0, ',', '.') }}
                                             </span>
@@ -729,7 +765,7 @@
                                                                 </td>
                                                                 <td class="px-4 py-2 text-gray-600">{{ $gitem['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 font-mono text-gray-600">{{ $gitem['no_rekening'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-right font-semibold text-emerald-600">
+                                                                <td class="px-4 py-2 text-right font-semibold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                     Rp {{ number_format($gitem['biaya_sewa'] ?? 0, 0, ',', '.') }}
                                                                 </td>
                                                                 @if($itemDecMap->isNotEmpty())
@@ -749,7 +785,7 @@
                                                         @endforeach
                                                             <tr class="border-t-2 border-gray-200 bg-gray-50">
                                                                 <td colspan="{{ $itemDecMap->isNotEmpty() ? 7 : 6 }}" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
-                                                                <td class="px-4 py-2 text-right text-sm font-bold text-emerald-600">
+                                                                <td class="px-4 py-2 text-right text-sm font-bold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                     Rp {{ number_format($totalFiltered, 0, ',', '.') }}
                                                                 </td>
                                                             </tr>
@@ -760,6 +796,86 @@
                                                         <div><p class="text-[10px] text-gray-400 uppercase">Alasan</p><p class="text-xs text-gray-600">{{ $d->alasan_permintaan ?: '-' }}</p></div>
                                                         <div><p class="text-[10px] text-gray-400 uppercase">Total</p><p class="text-xs font-bold text-emerald-600">Rp {{ number_format($d->nominal??0,0,',','.') }}</p></div>
                                                     </div>
+                                                    @endif
+                                                    {{-- Fallback --}}
+                                                    @elseif($d->source_type === 'service_part')
+                                                    @php
+                                                        $spParts    = $sd['parts'] ?? [];
+                                                        $spDecMap   = collect($sd['item_decisions'] ?? [])->keyBy('idx');
+                                                        if ($spDecMap->isNotEmpty()) {
+                                                            if (in_array($tab ?? '', ['Disetujui'])) {
+                                                                $filteredParts = collect($spParts)->filter(fn($p, $i) => ($spDecMap[$i]['action'] ?? '') === 'approved')->values()->all();
+                                                            } elseif (in_array($tab ?? '', ['Ditolak'])) {
+                                                                $filteredParts = collect($spParts)->filter(fn($p, $i) => ($spDecMap[$i]['action'] ?? '') !== 'approved' && $spDecMap->has($i))->values()->all();
+                                                            } else {
+                                                                $filteredParts = $spParts;
+                                                            }
+                                                        } else {
+                                                            $filteredParts = $spParts;
+                                                        }
+                                                        $spTotal = collect($filteredParts)->sum(fn($p) => $p['biaya'] ?? 0);
+                                                    @endphp
+                                                    @if(count($filteredParts) > 0)
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="bg-orange-50/60 border-y border-orange-100">
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">#</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Nama Part</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Kategori</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Kondisi</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
+                                                                <th class="text-right px-4 py-2 font-semibold text-gray-500">Biaya</th>
+                                                                @if($spDecMap->isNotEmpty())
+                                                                    <th class="text-center px-4 py-2 font-semibold text-gray-500">Status</th>
+                                                                @endif
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        @foreach($filteredParts as $spi => $spart)
+                                                            @php
+                                                                $spCat   = isset($spart['category_id']) ? \App\Models\ServiceCategory::find($spart['category_id']) : null;
+                                                                $spCatNm = $spCat ? $spCat->nama : ($spart['nama_category_baru'] ?? '-');
+                                                                $spDec   = $spDecMap[$spi] ?? null;
+                                                            @endphp
+                                                            <tr class="border-t border-gray-50 {{ ($spi%2===0)?'bg-white':'bg-gray-50/40' }}">
+                                                                <td class="px-4 py-2 text-gray-400">{{ $spi + 1 }}</td>
+                                                                <td class="px-4 py-2 font-medium text-gray-700">
+                                                                    {{ $spart['nama_part'] ?? '-' }}
+                                                                    @if(!empty($spart['part_number']) && $spart['part_number'] !== '-')
+                                                                        <span class="text-gray-400 text-[10px] font-mono ml-1">({{ $spart['part_number'] }})</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td class="px-4 py-2">
+                                                                    <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ $spCatNm }}</span>
+                                                                </td>
+                                                                <td class="px-4 py-2 text-gray-600">{{ $spart['kondisi'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-600">{{ $spart['nama_bank'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 font-mono text-gray-600">{{ $spart['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-right font-semibold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
+                                                                    Rp {{ number_format($spart['biaya'] ?? 0, 0, ',', '.') }}
+                                                                </td>
+                                                                @if($spDecMap->isNotEmpty())
+                                                                    <td class="px-4 py-2 text-center">
+                                                                        @if($spDec && $spDec['action'] === 'approved')
+                                                                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>
+                                                                        @elseif($spDec)
+                                                                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>
+                                                                        @endif
+                                                                    </td>
+                                                                @endif
+                                                            </tr>
+                                                        @endforeach
+                                                            <tr class="border-t-2 border-gray-200 bg-gray-50">
+                                                                <td colspan="{{ $spDecMap->isNotEmpty() ? 7 : 6 }}" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
+                                                                <td class="px-4 py-2 text-right text-sm font-bold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
+                                                                    Rp {{ number_format($spTotal, 0, ',', '.') }}
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                    @else
+                                                    <div class="px-4 py-3 text-xs text-gray-400 italic">Tidak ada part yang ditampilkan.</div>
                                                     @endif
                                                     {{-- Fallback --}}
                                                     @else

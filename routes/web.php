@@ -869,8 +869,11 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       Route::get('/{id}/detail', [PurchaseOrderController::class, 'detail'])->name('detail');
       Route::post('/{id}/approve', [PurchaseOrderController::class, 'approve'])->name('approve');
       Route::post('/{id}/approve-items', [PurchaseOrderController::class, 'approveItems'])->name('approve-items');
+      Route::post('/{id}/approve-simple', [PurchaseOrderController::class, 'approveSimple'])->name('approve-simple');
       Route::post('/{id}/reject', [PurchaseOrderController::class, 'reject'])->name('reject');
+      Route::post('/{id}/reject-simple', [PurchaseOrderController::class, 'rejectSimple'])->name('reject-simple');
       Route::post('/{id}/resubmit', [PurchaseOrderController::class, 'resubmit'])->name('resubmit');
+      Route::post('/{id}/resubmit-simple', [PurchaseOrderController::class, 'resubmitSimple'])->name('resubmit-simple');
       Route::put('/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('update');
       Route::delete('/{purchaseOrder}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
   });

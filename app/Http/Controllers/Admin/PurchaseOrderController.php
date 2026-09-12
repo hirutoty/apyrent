@@ -534,6 +534,105 @@ class PurchaseOrderController extends Controller
     }
 
     /**
+     * Approve simple — untuk PO non-GPS/non-service_part (pajak, asuransi, KIR, STNK, dll)
+     * Tidak ada per-item decision, langsung approve seluruh PO dan buat Pembayaran otomatis
+     */
+    public function approveSimple(Request $request, $id)
+    {
+        $po = PurchaseOrder::findOrFail($id);
+
+        if ($po->status !== 'Pending') {
+            return response()->json(['success' => false, 'message' => 'Hanya PO dengan status Pending yang dapat disetujui.'], 422);
+        }
+
+        // GPS dan service_part harus pakai approve-items (per-item decision)
+        if (in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part'])) {
+            return response()->json(['success' => false, 'message' => 'Tipe ini harus menggunakan approve per-item.'], 422);
+        }
+
+        $catatan    = $request->input('catatan', '');
+        $sourceData = $po->source_data ?? [];
+
+        try {
+            \DB::beginTransaction();
+
+            // Update PO status
+            $po->update([
+                'status'              => 'Disetujui',
+                'disetujui_oleh'      => auth()->id(),
+                'tanggal_persetujuan' => now(),
+                'catatan_approval'    => $catatan ?: null,
+                'source_data'         => $sourceData,
+            ]);
+
+            // Buat Pembayaran otomatis
+            $pembayaran = $this->approvalService->approveWithItems($po, $sourceData, [], $catatan, false);
+
+            // Link pembayaran ke PO
+            $po->update(['pembayaran_id' => $pembayaran->id]);
+
+            \DB::commit();
+
+            return response()->json([
+                'success'  => true,
+                'message'  => 'PO ' . $po->po_id . ' disetujui. Pembayaran ' . $pembayaran->no_pr . ' otomatis dibuat.',
+                'redirect' => route('purchase-order.index', ['status' => 'Disetujui']),
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Error approveSimple PO #' . $id . ': ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Reject simple — untuk PO non-GPS/non-service_part (pajak, asuransi, KIR, STNK, dll)
+     */
+    public function rejectSimple(Request $request, $id)
+    {
+        $po = PurchaseOrder::findOrFail($id);
+
+        if ($po->status !== 'Pending') {
+            return response()->json(['success' => false, 'message' => 'Hanya PO dengan status Pending yang dapat ditolak.'], 422);
+        }
+
+        if (in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part'])) {
+            return response()->json(['success' => false, 'message' => 'Tipe ini harus menggunakan reject per-item.'], 422);
+        }
+
+        $catatan = $request->input('catatan', '');
+        if (empty(trim($catatan))) {
+            return response()->json(['success' => false, 'message' => 'Alasan penolakan wajib diisi.'], 422);
+        }
+
+        try {
+            \DB::beginTransaction();
+
+            $po->update([
+                'status'              => 'Ditolak',
+                'disetujui_oleh'      => auth()->id(),
+                'tanggal_persetujuan' => now(),
+                'catatan_approval'    => $catatan,
+                'can_edit'            => true,
+            ]);
+
+            \DB::commit();
+
+            return response()->json([
+                'success'  => true,
+                'message'  => 'PO ' . $po->po_id . ' ditolak.',
+                'redirect' => route('purchase-order.index', ['status' => 'Ditolak']),
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Error rejectSimple PO #' . $id . ': ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Handle GPS-specific approval logic
      */
     private function approveItemsGps($po, $sourceData, $items, $approvedIdx, $rejectedIdx, $perItemBukti, $catatan, $hasApproved, $hasRejected)
@@ -580,6 +679,9 @@ class PurchaseOrderController extends Controller
             'catatan_approval'    => $catatan,
             'total_harga'         => $nominalApproved,
             'total_barang'        => count($approvedGpsItems),
+            'source_data'         => array_merge($sourceData, [
+                'gps_items' => $approvedGpsItems,
+            ]),
         ]);
 
         // Buat Pembayaran hanya dari approved items
@@ -700,6 +802,9 @@ class PurchaseOrderController extends Controller
             'catatan_approval'    => $catatan,
             'total_harga'         => $nominalApproved,
             'total_barang'        => count($approvedParts),
+            'source_data'         => array_merge($sourceData, [
+                'parts' => $approvedParts,
+            ]),
         ]);
 
         // Buat Pembayaran hanya dari approved parts
@@ -852,6 +957,43 @@ class PurchaseOrderController extends Controller
                 'keterangan'     => $sourceData['keterangan'] ?? '',
                 'vendor'         => $po->vendor ?? '',
                 'gps_items'      => $enrichedItems,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Resubmit simple — untuk STNK dan non-GPS yang tidak punya form edit tersendiri
+     * Reset status PO kembali ke Pending
+     */
+    public function resubmitSimple(Request $request, $id)
+    {
+        $po = PurchaseOrder::findOrFail($id);
+
+        if (!$po->isRejected()) {
+            return response()->json(['success' => false, 'message' => 'Hanya PO yang ditolak yang dapat diajukan ulang.'], 422);
+        }
+
+        if (!$po->can_edit) {
+            return response()->json(['success' => false, 'message' => 'PO ini tidak dapat diedit.'], 422);
+        }
+
+        try {
+            $po->update([
+                'status'              => 'Pending',
+                'catatan_approval'    => null,
+                'disetujui_oleh'      => null,
+                'tanggal_persetujuan' => null,
+                'can_edit'            => false,
+                'terakhir_diajukan'   => now(),
+            ]);
+
+            return response()->json([
+                'success'  => true,
+                'message'  => 'PO ' . $po->po_id . ' berhasil diajukan ulang.',
+                'redirect' => route('purchase-order.index', ['status' => 'Pending']),
             ]);
 
         } catch (\Exception $e) {
