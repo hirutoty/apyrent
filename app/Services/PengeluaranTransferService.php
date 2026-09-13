@@ -875,23 +875,6 @@ class PengeluaranTransferService
 
         if (!$lastId) throw new \Exception('GPS perpanjang items kosong.');
 
-        $kendaraan = Kendaraan::find($sourceData['kendaraan_id'] ?? GpsKendaraan::find($lastId)?->kendaraan_id);
-
-        $this->createKeuanganRecord(
-            'GPS-PERP',
-            $lastId,
-            $totalBiaya,
-            'Perpanjangan GPS kendaraan - ' . ($kendaraan->nopol ?? '-') . ' (' . count($gpsItems) . ' GPS)'
-        );
-
-        $this->createBukubesarRecord(
-            'GPS-PERP',
-            $lastId,
-            $totalBiaya,
-            'Beban Perpanjangan GPS - ' . ($kendaraan->nopol ?? '-'),
-            'Auto-posting: Perpanjangan GPS ' . ($kendaraan->nopol ?? '-') . ' via PR #' . $pembayaran->no_pr
-        );
-
         return $lastId;
     }
 

@@ -41,12 +41,18 @@ class PurchaseOrderApprovalService
         $departemen = $approvedSourceData['departemen'] ?? Auth::user()->departemen ?? 'Umum';
         
         // Calculate nominal based on source_type
-        if ($sourceType === 'gps') {
+        if ($sourceType === 'gps' || $sourceType === 'gps_perpanjang') {
             $nominal = collect($approvedSourceData['gps_items'] ?? [])->sum(fn($i) => $i['biaya_sewa'] ?? 0);
         } elseif ($sourceType === 'service_part') {
             $nominal = collect($approvedSourceData['parts'] ?? [])->sum(fn($p) => $p['biaya'] ?? 0);
+        } elseif (in_array($sourceType, ['pajak', 'pajak_perpanjang'])) {
+            $nominal = floatval($approvedSourceData['nominal'] ?? 0);
+        } elseif (in_array($sourceType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+            $nominal = floatval($approvedSourceData['premi'] ?? $approvedSourceData['biaya'] ?? 0);
+        } elseif (in_array($sourceType, ['kir', 'kir_perpanjang', 'stnk'])) {
+            $nominal = floatval($approvedSourceData['biaya'] ?? 0);
         } else {
-            $nominal = 0;
+            $nominal = floatval($approvedSourceData['nominal'] ?? $approvedSourceData['biaya'] ?? 0);
         }
 
         // Sematkan bukti per item ke dalam source_data

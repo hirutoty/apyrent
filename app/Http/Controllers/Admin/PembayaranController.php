@@ -72,7 +72,7 @@ class PembayaranController extends Controller
             $query->latest('id');
         }
 
-        $data = $query->with(['items', 'approvals'])->paginate(15)->withQueryString();
+        $data = $query->with(['items', 'approvals', 'serviceParts'])->paginate(15)->withQueryString();
 
         // Stats (scope sama dengan query utama tapi tanpa pagination)
         $baseQuery = Pembayaran::query();
@@ -1953,7 +1953,7 @@ class PembayaranController extends Controller
         $pembayaran = Pembayaran::with('latestApproval')->findOrFail($id);
         
         // Validation: Only rejected pengeluaran can be edited
-        if ($pembayaran->status !== 'Ditolak') {
+        if (!in_array($pembayaran->status, ['Ditolak', 'Disetujui Sebagian'])) {
             return back()->with('error', 'Hanya pengajuan yang ditolak yang dapat diedit.');
         }
         
