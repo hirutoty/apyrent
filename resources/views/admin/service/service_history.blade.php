@@ -362,7 +362,7 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Pengeluaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Keterangan</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Info Pembayaran</th>
-                                                    <th class="text-left px-3 py-2 font-semibold">Bukti</th>
+                                                    <th class="text-left px-3 py-2 font-semibold">Lampiran</th>
                                                     <th class="text-right px-3 py-2 font-semibold">Biaya</th>
                                                     <th class="text-center px-3 py-2 font-semibold">Aksi</th>
                                                 </tr>
@@ -418,10 +418,17 @@
                                                         </td>
                                                         <td class="px-3 py-2">
                                                             @if ($part->status === 'Limit')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700 cursor-default"
-                                                                    title="Part melewati tanggal limit, perlu diganti">
-                                                                    <i class="fa fa-exclamation-triangle text-[9px]"></i> Limit
-                                                                </span>
+                                                                <div class="flex items-center gap-1 flex-wrap">
+                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700"
+                                                                        title="Part melewati tanggal limit, perlu diganti">
+                                                                        <i class="fa fa-exclamation-triangle text-[9px]"></i> Limit
+                                                                    </span>
+                                                                    <a href="{{ route('service-history.create', ['from_part' => $part->id]) }}"
+                                                                        onclick="event.stopPropagation()"
+                                                                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 transition-colors">
+                                                                        <i class="fa fa-plus text-[9px]"></i> Ganti Baru
+                                                                    </a>
+                                                                </div>
                                                             @elseif ($part->status === 'Diganti')
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600 cursor-default">
                                                                     <i class="fa fa-history text-[9px]"></i> Diganti
@@ -607,9 +614,9 @@
                                     <div class="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
                                         @if ($d->bukti_pembayaran)
                                             <button type="button"
-                                                onclick="openSlideshow([{path:'{{ asset($d->bukti_pembayaran) }}', name:'Bukti Pembayaran'}], 0)"
+                                                onclick="openSlideshow([{path:'{{ asset($d->bukti_pembayaran) }}', name:'Lampiran'}], 0)"
                                                 class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                                                <i class="bi bi-image"></i> Bukti Pembayaran
+                                                <i class="bi bi-image"></i> Lampiran
                                             </button>
                                         @endif
                                         @if ($d->attachments->isNotEmpty())

@@ -266,6 +266,18 @@ class PurchaseOrderApprovalService
                 }
             }
 
+            // Update keterangan ServicePart lama ke 'diajukan ke pembayaran' jika ada replace_part_id
+            if ($po->source_type === 'service_part') {
+                $sourceData = $po->source_data ?? [];
+                $parts      = $sourceData['parts'] ?? [];
+                foreach ($parts as $partData) {
+                    if (!empty($partData['replace_part_id'])) {
+                        \App\Models\ServicePart::where('id', (int) $partData['replace_part_id'])
+                            ->update(['keterangan' => 'diajukan ke pembayaran']);
+                    }
+                }
+            }
+
             DB::commit();
 
             return $pembayaran;
@@ -301,6 +313,18 @@ class PurchaseOrderApprovalService
                 'catatan_approval' => $catatan,
                 'can_edit' => true, // Allow resubmit
             ]);
+
+            // Update keterangan ServicePart lama ke 'request ditolak' jika ada replace_part_id
+            if ($po->source_type === 'service_part') {
+                $sourceData = $po->source_data ?? [];
+                $parts      = $sourceData['parts'] ?? [];
+                foreach ($parts as $partData) {
+                    if (!empty($partData['replace_part_id'])) {
+                        \App\Models\ServicePart::where('id', (int) $partData['replace_part_id'])
+                            ->update(['keterangan' => 'request ditolak']);
+                    }
+                }
+            }
 
             DB::commit();
 

@@ -914,6 +914,14 @@ class PurchaseOrderController extends Controller
                 ]);
             }
 
+            // Service Part: redirect ke form create dengan edit_po param
+            if ($po->source_type === 'service_part') {
+                return response()->json([
+                    'success'  => true,
+                    'redirect' => route('service-history.create', ['edit_po' => $po->id]),
+                ]);
+            }
+
             // GPS: return data ke modal form
             $sourceData  = $po->source_data ?? [];
             $gpsItems    = $sourceData['gps_items'] ?? [];

@@ -462,26 +462,32 @@
                                         </td>
                                         <td class="px-3 py-3 text-right">
                                             @php
-                                                $_sd     = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
-                                                $_decMap = collect($_sd['item_decisions'] ?? [])->keyBy('idx');
+                                                $_sd       = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
+                                                $_decMap   = collect($_sd['item_decisions'] ?? [])->keyBy('idx');
+                                                $_srcType  = $d->source_type ?? '';
+
+                                                // Helper: hitung total item berdasarkan source_type
+                                                $_itemsTotal = match(true) {
+                                                    $_srcType === 'service_part'
+                                                        => collect($_sd['parts'] ?? [])->sum(fn($p) => $p['biaya'] ?? 0),
+                                                    in_array($_srcType, ['gps', 'gps_perpanjang'])
+                                                        => collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0),
+                                                    default => 0,
+                                                };
 
                                                 if (($tab ?? '') === 'semua') {
                                                     if (!$_decMap->isEmpty()) {
                                                         $_nomApprRow = (int) ($_sd['nominal_approved'] ?? 0);
                                                         $_nomRejRow  = (int) ($_sd['nominal_rejected'] ?? 0);
-                                                        if ($_nomApprRow === 0 && $_nomRejRow === 0) {
-                                                            // nominal_approved/rejected tidak ada → pakai total semua gps_items
-                                                            $_rowNominal = collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0);
-                                                            if ($_rowNominal == 0) $_rowNominal = (int)($d->nominal ?? 0);
-                                                        } else {
-                                                            $_rowNominal = $_nomApprRow + $_nomRejRow;
-                                                        }
+                                                        $_rowNominal = ($_nomApprRow + $_nomRejRow) > 0
+                                                            ? $_nomApprRow + $_nomRejRow
+                                                            : ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->nominal ?? 0));
                                                     } else {
-                                                        $_gpsItemsTotal = collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0);
-                                                        $_rowNominal = $_gpsItemsTotal > 0 ? $_gpsItemsTotal : ($d->nominal ?? 0);
+                                                        $_rowNominal = $_itemsTotal > 0 ? $_itemsTotal : (int)($d->nominal ?? 0);
                                                     }
                                                 } else {
-                                                    if (!$_decMap->isEmpty()) {
+                                                    if (!$_decMap->isEmpty() && in_array($_srcType, ['gps', 'gps_perpanjang'])) {
+                                                        // GPS dengan item_decisions: filter per approved/rejected
                                                         $_nomApprRow = collect($_sd['gps_items'] ?? [])
                                                             ->filter(fn($g, $i) => ($_decMap[$i]['action'] ?? '') === 'approved')
                                                             ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
@@ -496,17 +502,11 @@
                                                             $_rowNominal = $_nomApprRow + $_nomRejRow;
                                                         }
                                                     } else {
-                                                        $_gpsItemsTotal = collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0);
-                                                        $_rowNominal = $_gpsItemsTotal > 0 ? $_gpsItemsTotal : ($d->nominal ?? 0);
+                                                        // service_part, pajak, asuransi, kir, stnk, dll: pakai nominal langsung
+                                                        $_rowNominal = $_itemsTotal > 0 ? $_itemsTotal : (int)($d->nominal ?? 0);
                                                     }
                                                 }
                                             @endphp
-                                            {{-- DEBUG TEMP: hapus setelah fix --}}
-                                            @if(($_rowNominal ?? 0) == 0)
-                                                <div class="text-[9px] text-gray-400 text-left">
-                                                    id:{{ $d->id }}|tab:{{ $tab }}|gpsTotal:{{ collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0) }}|nom:{{ $d->nominal }}|decmap:{{ $_decMap->count() }}
-                                                </div>
-                                            @endif
                                             <span class="{{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }} text-xs font-semibold">
                                                 Rp {{ number_format($_rowNominal, 0, ',', '.') }}
                                             </span>
@@ -825,6 +825,7 @@
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Kondisi</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Bukti</th>
                                                                 <th class="text-right px-4 py-2 font-semibold text-gray-500">Biaya</th>
                                                                 @if($spDecMap->isNotEmpty())
                                                                     <th class="text-center px-4 py-2 font-semibold text-gray-500">Status</th>
@@ -837,6 +838,10 @@
                                                                 $spCat   = isset($spart['category_id']) ? \App\Models\ServiceCategory::find($spart['category_id']) : null;
                                                                 $spCatNm = $spCat ? $spCat->nama : ($spart['nama_category_baru'] ?? '-');
                                                                 $spDec   = $spDecMap[$spi] ?? null;
+                                                                // Ambil bukti: dari temp_files (sebelum approve) atau dari source_data parts bukti (sudah approve)
+                                                                $spTempFiles = $sd['temp_files']['parts'][$spi]['bukti'] ?? [];
+                                                                $spBuktiFinal = isset($spart['bukti']) && is_array($spart['bukti']) ? $spart['bukti'] : [];
+                                                                $spAllBukti  = !empty($spTempFiles) ? $spTempFiles : $spBuktiFinal;
                                                             @endphp
                                                             <tr class="border-t border-gray-50 {{ ($spi%2===0)?'bg-white':'bg-gray-50/40' }}">
                                                                 <td class="px-4 py-2 text-gray-400">{{ $spi + 1 }}</td>
@@ -852,6 +857,38 @@
                                                                 <td class="px-4 py-2 text-gray-600">{{ $spart['kondisi'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600">{{ $spart['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 font-mono text-gray-600">{{ $spart['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2">
+                                                                    @if(count($spAllBukti) > 0)
+                                                                        <div class="flex flex-wrap gap-1">
+                                                                            @foreach($spAllBukti as $bf)
+                                                                                @php
+                                                                                    $bPath = $bf['path'] ?? '';
+                                                                                    $bName = $bf['original_name'] ?? basename($bPath);
+                                                                                    $bExt  = strtolower($bf['extension'] ?? pathinfo($bPath, PATHINFO_EXTENSION));
+                                                                                    $bUrl  = in_array($bExt, ['jpg','jpeg','png','gif','webp'])
+                                                                                        ? asset('storage/' . $bPath)
+                                                                                        : asset('storage/' . $bPath);
+                                                                                    $isImg = in_array($bExt, ['jpg','jpeg','png','gif','webp']);
+                                                                                @endphp
+                                                                                @if($isImg)
+                                                                                    <a href="{{ $bUrl }}" target="_blank" title="{{ $bName }}">
+                                                                                        <img src="{{ $bUrl }}" alt="{{ $bName }}"
+                                                                                            class="w-10 h-10 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity">
+                                                                                    </a>
+                                                                                @else
+                                                                                    <a href="{{ $bUrl }}" target="_blank"
+                                                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 text-[10px]"
+                                                                                        title="{{ $bName }}">
+                                                                                        <i class="fa fa-file text-[9px]"></i>
+                                                                                        {{ Str::limit($bName, 15) }}
+                                                                                    </a>
+                                                                                @endif
+                                                                            @endforeach
+                                                                        </div>
+                                                                    @else
+                                                                        <span class="text-gray-300 text-[10px]">—</span>
+                                                                    @endif
+                                                                </td>
                                                                 <td class="px-4 py-2 text-right font-semibold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                     Rp {{ number_format($spart['biaya'] ?? 0, 0, ',', '.') }}
                                                                 </td>
@@ -867,7 +904,7 @@
                                                             </tr>
                                                         @endforeach
                                                             <tr class="border-t-2 border-gray-200 bg-gray-50">
-                                                                <td colspan="{{ $spDecMap->isNotEmpty() ? 7 : 6 }}" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
+                                                                <td colspan="{{ $spDecMap->isNotEmpty() ? 8 : 7 }}" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
                                                                 <td class="px-4 py-2 text-right text-sm font-bold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                     Rp {{ number_format($spTotal, 0, ',', '.') }}
                                                                 </td>

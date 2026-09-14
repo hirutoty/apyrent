@@ -46,7 +46,10 @@ class CheckServicePartLimit extends Command
 
             foreach ($partsLimit as $part) {
                 // Update status part → Limit
-                $part->update(['status' => 'Limit']);
+                $part->update([
+                    'status'     => 'Limit',
+                    'keterangan' => 'Sedang dalam batas limit',
+                ]);
 
                 Log::info('Part diupdate ke Limit', [
                     'part_id'    => $part->id,

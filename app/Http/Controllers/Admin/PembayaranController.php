@@ -1329,6 +1329,18 @@ class PembayaranController extends Controller
                     }
                 }
             }
+
+            // Untuk service_part: update keterangan part lama ke 'pembayaran ditolak' jika ada replace_part_id
+            if ($pembayaran->source_type === 'service_part') {
+                $sourceData = $pembayaran->source_data ?? [];
+                $parts      = $sourceData['parts'] ?? [];
+                foreach ($parts as $partData) {
+                    if (!empty($partData['replace_part_id'])) {
+                        \App\Models\ServicePart::where('id', (int) $partData['replace_part_id'])
+                            ->update(['keterangan' => 'pembayaran ditolak']);
+                    }
+                }
+            }
             
             DB::commit();
             

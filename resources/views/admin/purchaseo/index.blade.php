@@ -748,8 +748,8 @@
             <div id="rejectKendaraanInfo" class="px-6 pt-4 pb-2"></div>
             <div class="px-6 pb-2">
                 <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        <i class="fa fa-list-ul mr-1 text-red-500"></i> Item GPS — Centang yang ingin ditolak
+                    <p id="rejectItemListLabel" class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <i class="fa fa-list-ul mr-1 text-red-500"></i> Item — Centang yang ingin ditolak
                     </p>
                     <div class="flex gap-2">
                         <button type="button" onclick="rejectSelectAll(true)"
@@ -1352,6 +1352,14 @@ function renderRejectItems(data) {
         '<div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3"><i class="fa fa-car text-red-500"></i>'
         + '<div class="text-sm"><span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
         + '<span class="text-gray-500 ml-2">' + (k.merk || '') + '</span></div></div>';
+    // Update label sesuai source_type
+    const rejectLabel = document.getElementById('rejectItemListLabel');
+    if (rejectLabel) {
+        const labelText = (details.type === 'service_part')
+            ? 'Part — Centang yang ingin ditolak'
+            : 'Item GPS — Centang yang ingin ditolak';
+        rejectLabel.innerHTML = '<i class="fa fa-list-ul mr-1 text-red-500"></i> ' + labelText;
+    }
     const list = document.getElementById('rejectItemList');
     list.innerHTML = '';
     items.forEach(function(item, idx) {
@@ -1360,12 +1368,17 @@ function renderRejectItems(data) {
         card.className = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/20';
         const row = document.createElement('div');
         row.className = 'flex items-start gap-3 px-4 py-3';
+        // Resolve nama & badge sesuai source_type
+        const isServicePart = (details.type === 'service_part');
+        const itemName  = isServicePart ? (item.nama_part     || '-') : (item.gps_name  || '-');
+        const itemBadge = isServicePart ? (item.category_nama || '-') : (item.type      || '-');
+        const itemBiaya = isServicePart ? (item.biaya         ||  0)  : (item.biaya_sewa ||  0);
         row.innerHTML = '<div class="flex-shrink-0 pt-0.5"><input type="checkbox" id="reject-chk-' + idx + '" checked class="w-4 h-4 rounded text-red-600 cursor-pointer"></div>'
             + '<div class="flex-1 min-w-0"><label for="reject-chk-' + idx + '" class="cursor-pointer"><div class="flex items-center gap-2 flex-wrap">'
             + '<span class="text-xs text-gray-400">#' + (idx+1) + '</span>'
-            + '<span class="font-semibold text-gray-800 text-sm">' + (item.gps_name || '-') + '</span>'
-            + '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + (item.type || '-') + '</span>'
-            + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(item.biaya_sewa || 0) + '</span>'
+            + '<span class="font-semibold text-gray-800 text-sm">' + itemName + '</span>'
+            + '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + itemBadge + '</span>'
+            + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(itemBiaya) + '</span>'
             + '</div></label></div>'
             + '<div id="reject-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
         card.appendChild(row);

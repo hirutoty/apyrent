@@ -15,16 +15,30 @@
         </a>
         <div>
             <h1 class="text-xl font-bold text-gray-800">
-                {{ $prefill ? 'Selesaikan Reminder Service' : 'Tambah Service Kendaraan' }}
+                @if($prefill && ($prefill['source'] ?? '') === 'part')
+                    Ganti Part Baru
+                @elseif($prefill && ($prefill['source'] ?? '') === 'reminder')
+                    Selesaikan Reminder Service
+                @elseif($prefill && ($prefill['source'] ?? '') === 'edit_po')
+                    Ajukan Ulang Service Part
+                @else
+                    Tambah Service Kendaraan
+                @endif
             </h1>
             <p class="text-xs text-gray-500 mt-0.5">
-                {{ $prefill ? 'Form pre-filled dari reminder — perbarui data part yang diganti' : 'Isi header service lalu tambahkan part yang dipasang' }}
+                @if($prefill && ($prefill['source'] ?? '') === 'part')
+                    Form pre-filled dari part limit — lengkapi data part pengganti dan ajukan
+                @elseif($prefill && ($prefill['source'] ?? '') === 'reminder')
+                    Form pre-filled dari reminder — perbarui data part yang diganti
+                @else
+                    Isi header service lalu tambahkan part yang dipasang
+                @endif
             </p>
         </div>
     </div>
 
     {{-- PREFILL NOTICE --}}
-    @if ($prefill)
+    @if ($prefill && ($prefill['source'] ?? '') === 'reminder')
         <div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-start gap-3">
             <i class="fa fa-bell text-amber-500 mt-0.5"></i>
             <div>
@@ -36,7 +50,32 @@
                 </p>
             </div>
         </div>
-        <input type="hidden" id="prefill_reminder_id" value="{{ $prefill['reminder_id'] }}">
+        <input type="hidden" id="prefill_reminder_id" value="{{ $prefill['reminder_id'] ?? '' }}">
+        <input type="hidden" id="prefill_kendaraan_id" value="{{ $prefill['kendaraan_id'] }}">
+    @elseif ($prefill && ($prefill['source'] ?? '') === 'part')
+        <div class="bg-orange-50 border border-orange-200 rounded-xl px-5 py-4 flex items-start gap-3">
+            <i class="fa fa-rotate-right text-orange-500 mt-0.5"></i>
+            <div>
+                <p class="text-sm font-semibold text-orange-800">Ganti Part Baru — Part Sudah Limit</p>
+                <p class="text-xs text-orange-700 mt-0.5">
+                    Part <strong>{{ $prefill['part']['nama_part'] }}</strong> pada kendaraan
+                    <strong>{{ $prefill['kendaraan']->merk }} — {{ $prefill['kendaraan']->nopol }}</strong>
+                    sudah melewati limit interval. Lengkapi data part pengganti dan ajukan.
+                </p>
+            </div>
+        </div>
+        <input type="hidden" id="prefill_kendaraan_id" value="{{ $prefill['kendaraan_id'] }}">
+    @elseif ($prefill && ($prefill['source'] ?? '') === 'edit_po')
+        <div class="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3">
+            <i class="fa fa-times-circle text-red-500 mt-0.5"></i>
+            <div>
+                <p class="text-sm font-semibold text-red-800">Ajukan Ulang — Pengajuan Sebelumnya Ditolak</p>
+                @if(!empty($prefill['catatan_tolak']))
+                    <p class="text-xs text-red-700 mt-0.5">Catatan penolakan: <strong>{{ $prefill['catatan_tolak'] }}</strong></p>
+                @endif
+                <p class="text-xs text-red-600 mt-1">Perbarui data yang diperlukan lalu ajukan kembali.</p>
+            </div>
+        </div>
         <input type="hidden" id="prefill_kendaraan_id" value="{{ $prefill['kendaraan_id'] }}">
     @endif
 
@@ -44,7 +83,15 @@
         @csrf
 
         @if ($prefill)
+            @if(!empty($prefill['reminder_id']))
             <input type="hidden" name="from_reminder" value="{{ $prefill['reminder_id'] }}">
+            @endif
+            @if(($prefill['source'] ?? '') === 'part')
+            <input type="hidden" name="from_part" value="{{ $prefill['replace_part_id'] }}">
+            @endif
+            @if(($prefill['source'] ?? '') === 'edit_po')
+            <input type="hidden" name="edit_po" value="{{ $prefill['edit_po_id'] }}">
+            @endif
             @if(isset($prefill['service_history_id']))
                 <input type="hidden" name="service_history_id" value="{{ $prefill['service_history_id'] }}">
             @endif
@@ -592,14 +639,6 @@ function addPartRow(data = null) {
                 <p id="biaya-hint-${idx}" class="text-[10px] text-gray-400 mt-1 hidden"></p>
             </div>
 
-            <!-- Keterangan (full width) -->
-            <div class="md:col-span-3">
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Keterangan</label>
-                <textarea name="parts[${idx}][keterangan]" rows="2"
-                    placeholder="Catatan kondisi, alasan ganti, dll..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none">${data?.keterangan || ''}</textarea>
-            </div>
-
             <!-- Info Pembayaran (nama rekening, bank, no rekening) -->
             <div class="md:col-span-3">
                 <div class="border border-dashed border-blue-200 rounded-xl p-3 bg-blue-50/40 space-y-3">
@@ -632,10 +671,10 @@ function addPartRow(data = null) {
                 </div>
             </div>
 
-            <!-- Bukti (full width) -->
+            <!-- Lampiran (full width) -->
             <div class="md:col-span-3">
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">
-                    Bukti / Attachment <span class="text-red-400">*</span>
+                    Lampiran <span class="text-red-400">*</span>
                     <span class="text-[10px] font-normal text-gray-400 ml-1">(wajib — bisa lebih dari 1 file)</span>
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer border border-dashed border-blue-300 hover:border-blue-400 bg-gray-50 hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors group">

@@ -377,7 +377,9 @@ class PengeluaranTransferService
                 'biaya'               => $biaya,
                 'status_pengeluaran'  => $statusPengeluaran,
                 'bukti'               => !empty($buktiFiles) ? $buktiFiles : null,
-                'keterangan'          => $partData['keterangan'] ?? null,
+                'keterangan'          => !empty($partData['replace_part_id'])
+                    ? '-'
+                    : (($partData['is_request'] ?? false) ? 'Request Part' : '-'),
                 'nama_rekening'       => $partData['nama_rekening'] ?? null,
                 'nama_bank'           => $partData['nama_bank'] ?? null,
                 'no_rekening'         => $partData['no_rekening'] ?? null,
@@ -387,6 +389,18 @@ class PengeluaranTransferService
                 'approval_at'         => now(),
                 'persetujuan'         => 'Disetujui',
             ]);
+
+            // ── Tandai part lama sebagai Diganti jika ini dari Ganti Baru ────
+            if (!empty($partData['replace_part_id'])) {
+                $oldPart = \App\Models\ServicePart::find((int) $partData['replace_part_id']);
+                if ($oldPart) {
+                    $oldPart->update([
+                        'status'              => 'Diganti',
+                        'replaced_at'         => now(),
+                        'replaced_by_part_id' => $part->id,
+                    ]);
+                }
+            }
 
             // ── Catat cashflow PER PART (dipecah satu per satu) ──────────────
             $categoryModel = $categoryId ? \App\Models\ServiceCategory::find($categoryId) : null;

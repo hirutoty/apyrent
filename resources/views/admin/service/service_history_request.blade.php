@@ -475,14 +475,6 @@ function addPartRow(data = null) {
                 <p id="biaya-hint-${idx}" class="text-[10px] text-gray-400 mt-1 hidden"></p>
             </div>
 
-            <!-- Keterangan (full width) -->
-            <div class="md:col-span-3">
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Keterangan</label>
-                <textarea name="parts[${idx}][keterangan]" rows="2"
-                    placeholder="Catatan kondisi, alasan ganti, dll..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none">${data?.keterangan || ''}</textarea>
-            </div>
-
             <!-- Info Pembayaran (nama rekening, bank, no rekening) -->
             <div class="md:col-span-3">
                 <div class="border border-dashed border-blue-200 rounded-xl p-3 bg-blue-50/40 space-y-3">
@@ -515,10 +507,10 @@ function addPartRow(data = null) {
                 </div>
             </div>
 
-            <!-- Bukti (full width) -->
+            <!-- Lampiran (full width) -->
             <div class="md:col-span-3">
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">
-                    Bukti / Attachment <span class="text-red-400">*</span>
+                    Lampiran <span class="text-red-400">*</span>
                     <span class="text-[10px] font-normal text-gray-400 ml-1">(wajib — bisa lebih dari 1 file)</span>
                 </label>
                 <input type="file" name="parts[${idx}][bukti][]" multiple required accept="image/*,video/mp4,video/mov"
