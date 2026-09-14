@@ -977,7 +977,7 @@ class PengeluaranTransferService
         $sourceData = $pembayaran->source_data;
 
         // Load record pajak lama
-        $pajakLama = PajakKendaraan::findOrFail($sourceData['existing_record_id']);
+        $pajakLama = PajakKendaraan::with('attachments')->findOrFail($sourceData['existing_record_id']);
 
         // Copy bukti baru dari approval
         $buktiBaru = $this->copyBuktiToFinalStorage(
@@ -987,18 +987,34 @@ class PengeluaranTransferService
         );
 
         // Snapshot data lama ke pajak_history
-        PajakHistory::create([
+        $pajakHistory = PajakHistory::create([
             'pajak_kendaraan_id' => $pajakLama->id,
             'kendaraan_id'       => $pajakLama->kendaraan_id,
             'jenis_pajak'        => $pajakLama->jenis_pajak,
             'nominal'            => $pajakLama->nominal,
             'jatuh_tempo'        => $pajakLama->jatuh_tempo,
             'tanggal_bayar'      => $pajakLama->tanggal_bayar,
+            'tanggal_buat'       => $pajakLama->tanggal_buat,
             'status'             => $pajakLama->status,
             'keterangan'         => $pajakLama->keterangan,
             'bukti'              => $pajakLama->bukti,
+            'nama_pemilik'       => $pajakLama->nama_pemilik,
+            'nama_bank'          => $pajakLama->nama_bank,
+            'no_rekening'        => $pajakLama->no_rekening,
             'diperpanjang_pada'  => now(),
         ]);
+
+        // Copy lampiran lama ke history (path file sama, buat record baru)
+        foreach ($pajakLama->attachments as $att) {
+            \App\Models\Attachment::create([
+                'relation_type' => 'pajak_history',
+                'relation_id'   => $pajakHistory->id,
+                'file_name'     => $att->file_name,
+                'file_path'     => $att->file_path,
+                'file_type'     => $att->file_type,
+                'file_size'     => $att->file_size,
+            ]);
+        }
 
         // Update record aktif dengan data baru
         $pajakLama->update([
@@ -1051,7 +1067,7 @@ class PengeluaranTransferService
         $sourceData = $pembayaran->source_data;
 
         // Load record asuransi lama
-        $asuransiLama = AsuransiKendaraan::findOrFail($sourceData['existing_record_id']);
+        $asuransiLama = AsuransiKendaraan::with('attachments')->findOrFail($sourceData['existing_record_id']);
 
         // Copy bukti baru dari approval
         $buktiBaru = $this->copyBuktiToFinalStorage(
@@ -1061,7 +1077,7 @@ class PengeluaranTransferService
         );
 
         // Snapshot data lama ke asuransi_history
-        AsuransiHistory::create([
+        $asuransiHistory = AsuransiHistory::create([
             'asuransi_kendaraan_id' => $asuransiLama->id,
             'kendaraan_id'          => $asuransiLama->kendaraan_id,
             'asuransi_id'           => $asuransiLama->asuransi_id,
@@ -1072,8 +1088,24 @@ class PengeluaranTransferService
             'biaya'                 => $asuransiLama->biaya,
             'bukti_bayar'           => $asuransiLama->bukti_bayar,
             'tanggal_bayar'         => $asuransiLama->tanggal_bayar,
+            'tanggal_buat'          => $asuransiLama->tanggal_buat,
+            'nama_rekening'         => $asuransiLama->nama_rekening,
+            'nama_bank'             => $asuransiLama->nama_bank,
+            'no_rekening'           => $asuransiLama->no_rekening,
             'diperpanjang_pada'     => now(),
         ]);
+
+        // Copy lampiran lama ke history (path file sama, buat record baru)
+        foreach ($asuransiLama->attachments as $att) {
+            \App\Models\Attachment::create([
+                'relation_type' => 'asuransi_history',
+                'relation_id'   => $asuransiHistory->id,
+                'file_name'     => $att->file_name,
+                'file_path'     => $att->file_path,
+                'file_type'     => $att->file_type,
+                'file_size'     => $att->file_size,
+            ]);
+        }
 
         // Update record aktif dengan data baru
         $asuransiLama->update([
@@ -1129,7 +1161,7 @@ class PengeluaranTransferService
         $sourceData = $pembayaran->source_data;
 
         // Load record kir lama
-        $kirLama = Kir::findOrFail($sourceData['existing_record_id']);
+        $kirLama = Kir::with('attachments')->findOrFail($sourceData['existing_record_id']);
 
         // Copy image baru dari approval
         $imageBaru = $this->copyBuktiToFinalStorage(
@@ -1144,7 +1176,7 @@ class PengeluaranTransferService
             ->toDateString();
 
         // Snapshot data lama ke kir_history
-        KirHistory::create([
+        $kirHistory = KirHistory::create([
             'kir_id'            => $kirLama->id,
             'kendaraan_id'      => $kirLama->kendaraan_id,
             'no_uji'            => $kirLama->no_uji,
@@ -1152,8 +1184,23 @@ class PengeluaranTransferService
             'biaya'             => $kirLama->biaya,
             'image'             => $kirLama->image,
             'tanggal_bayar'     => $kirLama->tanggal_bayar,
+            'tanggal_buat'      => $kirLama->tanggal_buat,
+            'nama_bank'         => $kirLama->nama_bank,
+            'no_rekening'       => $kirLama->no_rekening,
             'diperpanjang_pada' => now(),
         ]);
+
+        // Copy lampiran lama ke history (path file sama, buat record baru)
+        foreach ($kirLama->attachments as $att) {
+            \App\Models\Attachment::create([
+                'relation_type' => 'kir_history',
+                'relation_id'   => $kirHistory->id,
+                'file_name'     => $att->file_name,
+                'file_path'     => $att->file_path,
+                'file_type'     => $att->file_type,
+                'file_size'     => $att->file_size,
+            ]);
+        }
 
         // Update record aktif dengan data baru
         $kirLama->update([

@@ -19,12 +19,16 @@ class KirHistory extends Model
         'biaya',
         'image',
         'tanggal_bayar',
+        'tanggal_buat',
+        'nama_bank',
+        'no_rekening',
         'diperpanjang_pada',
     ];
 
     protected $casts = [
         'masa_berlaku'      => 'date',
         'tanggal_bayar'     => 'date',
+        'tanggal_buat'      => 'date',
         'diperpanjang_pada' => 'datetime',
     ];
 

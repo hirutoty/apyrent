@@ -16,16 +16,21 @@ class PajakHistory extends Model
         'nominal',
         'jatuh_tempo',
         'tanggal_bayar',
+        'tanggal_buat',
         'status',
         'keterangan',
         'bukti',
-        'diperpanjang_pada'
+        'nama_pemilik',
+        'nama_bank',
+        'no_rekening',
+        'diperpanjang_pada',
     ];
 
     protected $casts = [
-        'jatuh_tempo'=>'date',
-        'tanggal_bayar'=>'date',
-        'diperpanjang_pada'=>'datetime'
+        'jatuh_tempo'       => 'date',
+        'tanggal_bayar'     => 'date',
+        'tanggal_buat'      => 'date',
+        'diperpanjang_pada' => 'datetime',
     ];
 
     public function kendaraan()

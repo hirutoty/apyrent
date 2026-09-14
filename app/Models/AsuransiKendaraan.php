@@ -22,6 +22,7 @@ class AsuransiKendaraan extends Model
         'biaya',
         'bukti_bayar',
         'tanggal_bayar',
+        'tanggal_buat',
         'pembayaran_id',
         'persetujuan',
         'nama_rekening',
