@@ -328,63 +328,24 @@ class GpsKendaraanController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'kendaraan_id'  => 'required|exists:kendaraan,id',
-            'gps_id'        => 'required|exists:gps,id',
-            'type'          => 'required',
-            'status_gps'    => 'required',
-            'tanggal_pasang' => 'required|date',
-            'tanggal_habis' => 'required|date',
-            'biaya_sewa'    => 'required|integer',
-            'durasi_bulan'  => 'required|integer',
-            'bukti_bayar' => 'nullable|file|max:5120',
-            'bukti_attachment'   => 'nullable|array',
-            'bukti_attachment.*' => 'file|max:5120',
+            'biaya_sewa'    => 'required|integer|min:0',
+            'tanggal_bayar' => 'required|date',
+            'nama_bank'     => 'nullable|string|max:255',
+            'no_rekening'   => 'nullable|string|max:100',
+            'nama_pemilik'  => 'nullable|string|max:255',
         ]);
 
-        $exists = GpsKendaraan::where('kendaraan_id', $request->kendaraan_id)
-            ->where('type', $request->type)
-            ->where('id', '!=', $id)
-            ->exists();
-
-        if ($exists) {
-            return back()->with('error', 'Kendaraan ini sudah memiliki GPS dengan tipe yang sama');
-        }
-
-        $data   = GpsKendaraan::findOrFail($id);
-        $status = now()->lte($request->tanggal_habis) ? 'aktif' : 'expired';
-
-        // Upload bukti bayar baru, hapus yang lama
-        $buktiPath = $data->bukti_bayar;
-        if ($request->hasFile('bukti_bayar')) {
-            if ($buktiPath && file_exists(public_path($buktiPath))) {
-                unlink(public_path($buktiPath));
-            }
-
-            $file = $request->file('bukti_bayar');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('gps/bukti_bayar'), $filename);
-
-            $buktiPath = 'gps/bukti_bayar/' . $filename;
-        }
+        $data = GpsKendaraan::findOrFail($id);
 
         $data->update([
-            'kendaraan_id'  => $request->kendaraan_id,
-            'gps_id'        => $request->gps_id,
-            'type'          => $request->type,
-            'status_gps'    => $request->status_gps,
-            'tanggal_pasang' => $request->tanggal_pasang,
-            'tanggal_habis' => $request->tanggal_habis,
             'biaya_sewa'    => $request->biaya_sewa,
-            'durasi_bulan'  => $request->durasi_bulan,
-            'status_sewa'   => $status,
-            'bukti_bayar'   => $buktiPath,
+            'tanggal_bayar' => $request->tanggal_bayar,
+            'nama_bank'     => $request->nama_bank,
+            'no_rekening'   => $request->no_rekening,
+            'nama_pemilik'  => $request->nama_pemilik,
         ]);
 
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $data->id);
-        }
-
-        return back()->with('success', 'Data GPS kendaraan berhasil diupdate');
+        return response()->json(['success' => true]);
     }
 
     public function destroy($id)

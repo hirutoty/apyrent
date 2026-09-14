@@ -119,43 +119,10 @@ class PurchaseOrderApprovalService
 
         $po->update(['pembayaran_id' => $pembayaran->id]);
 
-        // Update GpsKendaraan approved items ke 'Diajukan ke Pembayaran'
-        if ($po->source_type === 'gps') {
-            $origSourceData = $po->source_data ?? [];
-            $allGpsItems    = $origSourceData['gps_items'] ?? [];
-            $approvedItems  = $approvedSourceData['gps_items'] ?? [];
-            $kendaraanId    = $origSourceData['kendaraan_id'] ?? null;
-            $recordIds      = $origSourceData['gps_record_ids'] ?? [];
+        // Update linked records (GPS / pajak / asuransi_kendaraan / kir)
+        // For GPS via approveWithItems, pass approvedSourceData so only approved items are updated
+        $this->updateLinkedRecord($po, $pembayaran, $approvedSourceData);
 
-            // Kumpulkan gps_id+type dari approved items
-            $approvedKeys = array_map(fn($i) => ($i['gps_id'] ?? '') . '_' . ($i['type'] ?? ''), $approvedItems);
-
-            if (!empty($recordIds)) {
-                foreach ($allGpsItems as $idx => $item) {
-                    $key      = ($item['gps_id'] ?? '') . '_' . ($item['type'] ?? '');
-                    $recordId = $recordIds[$idx] ?? null;
-                    if ($recordId && in_array($key, $approvedKeys)) {
-                        \App\Models\GpsKendaraan::where('id', $recordId)
-                            ->where('persetujuan', 'Pending')
-                            ->update([
-                                'persetujuan'   => 'Diajukan ke Pembayaran',
-                                'pembayaran_id' => $pembayaran->id,
-                            ]);
-                    }
-                }
-            } elseif ($kendaraanId) {
-                foreach ($approvedItems as $item) {
-                    \App\Models\GpsKendaraan::where('kendaraan_id', $kendaraanId)
-                        ->where('gps_id', $item['gps_id'] ?? null)
-                        ->where('type', $item['type'] ?? null)
-                        ->where('persetujuan', 'Pending')
-                        ->update([
-                            'persetujuan'   => 'Diajukan ke Pembayaran',
-                            'pembayaran_id' => $pembayaran->id,
-                        ]);
-                }
-            }
-        }
         // service_part: no external records to update (parts are embedded in source_data)
 
         return $pembayaran;
@@ -192,79 +159,8 @@ class PurchaseOrderApprovalService
             // Link Pembayaran to PO
             $po->update(['pembayaran_id' => $pembayaran->id]);
 
-            // Update semua GpsKendaraan terkait PO ini ke 'Diajukan ke Pembayaran'
-            // sehingga record muncul di tabel gps_kendaraan dengan status tersebut
-            if ($po->source_type === 'gps') {
-                $sourceData  = $po->source_data ?? [];
-                $recordIds   = $sourceData['gps_record_ids'] ?? [];
-                $gpsItems    = $sourceData['gps_items'] ?? [];
-
-                if (!empty($recordIds)) {
-                    \App\Models\GpsKendaraan::whereIn('id', $recordIds)
-                        ->where('persetujuan', 'Pending')
-                        ->update([
-                            'persetujuan'   => 'Diajukan ke Pembayaran',
-                            'pembayaran_id' => $pembayaran->id,
-                        ]);
-                } else {
-                    // Fallback: cari by kendaraan_id + type dari gps_items
-                    $kendaraanId = $sourceData['kendaraan_id'] ?? null;
-                    if ($kendaraanId && !empty($gpsItems)) {
-                        foreach ($gpsItems as $item) {
-                            \App\Models\GpsKendaraan::where('kendaraan_id', $kendaraanId)
-                                ->where('gps_id', $item['gps_id'] ?? null)
-                                ->where('type', $item['type'] ?? null)
-                                ->where('persetujuan', 'Pending')
-                                ->update([
-                                    'persetujuan'   => 'Diajukan ke Pembayaran',
-                                    'pembayaran_id' => $pembayaran->id,
-                                ]);
-                        }
-                    }
-                }
-            }
-
-            // Update record Asuransi terkait PO ini ke 'Diajukan ke Pembayaran'
-            if ($po->source_type === 'asuransi_kendaraan') {
-                $sourceData = $po->source_data ?? [];
-                $existingId = $sourceData['existing_record_id'] ?? null;
-                if ($existingId) {
-                    \App\Models\AsuransiKendaraan::where('id', $existingId)
-                        ->where('persetujuan', 'Pending')
-                        ->update([
-                            'persetujuan'   => 'Diajukan ke Pembayaran',
-                            'pembayaran_id' => $pembayaran->id,
-                        ]);
-                }
-            }
-
-            // Update record Pajak terkait PO ini ke 'Diajukan ke Pembayaran'
-            if ($po->source_type === 'pajak') {
-                $sourceData = $po->source_data ?? [];
-                $existingId = $sourceData['existing_record_id'] ?? null;
-                if ($existingId) {
-                    \App\Models\PajakKendaraan::where('id', $existingId)
-                        ->where('persetujuan', 'Pending')
-                        ->update([
-                            'persetujuan'   => 'Diajukan ke Pembayaran',
-                            'pembayaran_id' => $pembayaran->id,
-                        ]);
-                }
-            }
-
-            // Update record KIR terkait PO ini ke 'Diajukan ke Pembayaran'
-            if ($po->source_type === 'kir') {
-                $sourceData = $po->source_data ?? [];
-                $existingId = $sourceData['existing_record_id'] ?? null;
-                if ($existingId) {
-                    \App\Models\Kir::where('id', $existingId)
-                        ->where('persetujuan', 'Pending')
-                        ->update([
-                            'persetujuan'   => 'Diajukan ke Pembayaran',
-                            'pembayaran_id' => $pembayaran->id,
-                        ]);
-                }
-            }
+            // Update semua linked records (GPS / pajak / asuransi_kendaraan / kir)
+            $this->updateLinkedRecord($po, $pembayaran);
 
             DB::commit();
 
@@ -600,5 +496,111 @@ class PurchaseOrderApprovalService
         if (Storage::disk('public')->exists($tempDir)) {
             Storage::disk('public')->deleteDirectory($tempDir);
         }
+    }
+
+    /**
+     * Update linked record (PajakKendaraan / AsuransiKendaraan / Kir / GpsKendaraan)
+     * setelah PO disetujui — ubah persetujuan ke 'Diajukan ke Pembayaran' dan simpan pembayaran_id.
+     *
+     * @param PurchaseOrder $po
+     * @param Pembayaran    $pembayaran
+     * @param array|null    $overrideSourceData  Jika diberikan, digunakan sebagai source_data
+     *                                            (berguna untuk partial-approve GPS di approveWithItems).
+     */
+    protected function updateLinkedRecord(PurchaseOrder $po, Pembayaran $pembayaran, ?array $overrideSourceData = null): void
+    {
+        $sourceType = $po->source_type;
+        $sourceData = $po->source_data ?? [];
+
+        // ── GPS ────────────────────────────────────────────────────────────────
+        if (in_array($sourceType, ['gps', 'gps_perpanjang'])) {
+            // Saat approveWithItems: $overrideSourceData berisi hanya item yang disetujui
+            $approvedItems = $overrideSourceData !== null
+                ? ($overrideSourceData['gps_items'] ?? [])
+                : ($sourceData['gps_items'] ?? []);
+
+            $allGpsItems = $sourceData['gps_items'] ?? [];
+            $recordIds   = $sourceData['gps_record_ids'] ?? [];
+            $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+
+            if (!empty($recordIds)) {
+                // Kumpulkan gps_id+type dari approved items untuk filter
+                $approvedKeys = array_map(
+                    fn($i) => ($i['gps_id'] ?? '') . '_' . ($i['type'] ?? ''),
+                    $approvedItems
+                );
+
+                foreach ($allGpsItems as $idx => $item) {
+                    $key      = ($item['gps_id'] ?? '') . '_' . ($item['type'] ?? '');
+                    $recordId = $recordIds[$idx] ?? null;
+                    // Jika tidak ada override (approve() full), update semua; jika ada override, filter
+                    if ($recordId && ($overrideSourceData === null || in_array($key, $approvedKeys))) {
+                        \App\Models\GpsKendaraan::where('id', $recordId)
+                            ->where('persetujuan', 'Pending')
+                            ->update([
+                                'persetujuan'   => 'Diajukan ke Pembayaran',
+                                'pembayaran_id' => $pembayaran->id,
+                            ]);
+                    }
+                }
+            } elseif ($kendaraanId && !empty($approvedItems)) {
+                // Fallback: cari by kendaraan_id + gps_id + type
+                foreach ($approvedItems as $item) {
+                    \App\Models\GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                        ->where('gps_id', $item['gps_id'] ?? null)
+                        ->where('type', $item['type'] ?? null)
+                        ->where('persetujuan', 'Pending')
+                        ->update([
+                            'persetujuan'   => 'Diajukan ke Pembayaran',
+                            'pembayaran_id' => $pembayaran->id,
+                        ]);
+                }
+            }
+            return;
+        }
+
+        // ── PAJAK ──────────────────────────────────────────────────────────────
+        if (in_array($sourceType, ['pajak', 'pajak_perpanjang'])) {
+            $existingId = $sourceData['existing_record_id'] ?? null;
+            if ($existingId) {
+                \App\Models\PajakKendaraan::where('id', $existingId)
+                    ->where('persetujuan', 'Pending')
+                    ->update([
+                        'persetujuan'   => 'Diajukan ke Pembayaran',
+                        'pembayaran_id' => $pembayaran->id,
+                    ]);
+            }
+            return;
+        }
+
+        // ── ASURANSI KENDARAAN ─────────────────────────────────────────────────
+        if (in_array($sourceType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+            $existingId = $sourceData['existing_record_id'] ?? null;
+            if ($existingId) {
+                \App\Models\AsuransiKendaraan::where('id', $existingId)
+                    ->where('persetujuan', 'Pending')
+                    ->update([
+                        'persetujuan'   => 'Diajukan ke Pembayaran',
+                        'pembayaran_id' => $pembayaran->id,
+                    ]);
+            }
+            return;
+        }
+
+        // ── KIR ────────────────────────────────────────────────────────────────
+        if (in_array($sourceType, ['kir', 'kir_perpanjang'])) {
+            $existingId = $sourceData['existing_record_id'] ?? null;
+            if ($existingId) {
+                \App\Models\Kir::where('id', $existingId)
+                    ->where('persetujuan', 'Pending')
+                    ->update([
+                        'persetujuan'   => 'Diajukan ke Pembayaran',
+                        'pembayaran_id' => $pembayaran->id,
+                    ]);
+            }
+            return;
+        }
+
+        // Tipe lain (stnk, service_part, dll) tidak punya linked record eksternal — tidak ada aksi
     }
 }

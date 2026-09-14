@@ -965,6 +965,180 @@ class PurchaseOrderController extends Controller
     }
 
     /**
+     * Resubmit Modal — load data pajak/asuransi_kendaraan/kir ke JSON untuk modal inline
+     */
+    public function resubmitModal(Request $request, $id)
+    {
+        try {
+            $po = PurchaseOrder::findOrFail($id);
+
+            if (!$po->isRejected()) {
+                return response()->json(['success' => false, 'message' => 'Hanya PO yang ditolak yang dapat diajukan ulang.'], 422);
+            }
+
+            if (!$po->can_edit) {
+                return response()->json(['success' => false, 'message' => 'PO ini tidak dapat diedit.'], 422);
+            }
+
+            $allowed = ['pajak', 'asuransi_kendaraan', 'kir'];
+            if (!in_array($po->source_type, $allowed)) {
+                return response()->json(['success' => false, 'message' => 'Tipe PO tidak didukung oleh modal ini.'], 422);
+            }
+
+            $sourceData  = $po->source_data ?? [];
+            $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+            $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+
+            $base = [
+                'success'       => true,
+                'po_id'         => $po->id,
+                'po_number'     => $po->po_id,
+                'source_type'   => $po->source_type,
+                'catatan'       => $po->catatan_approval,
+                'nopol'         => $kendaraan ? $kendaraan->nopol : '-',
+                'merk'          => $kendaraan ? $kendaraan->merk  : '-',
+                'kendaraan_id'  => $kendaraanId,
+            ];
+
+            if ($po->source_type === 'pajak') {
+                return response()->json(array_merge($base, [
+                    'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '',
+                    'nominal'       => $sourceData['nominal']       ?? '',
+                    'jatuh_tempo'   => $sourceData['jatuh_tempo']   ?? '',
+                    'nama_bank'     => $sourceData['nama_bank']     ?? '',
+                    'no_rekening'   => $sourceData['no_rekening']   ?? '',
+                    'keterangan'    => $sourceData['keterangan']    ?? '',
+                ]));
+            }
+
+            if ($po->source_type === 'asuransi_kendaraan') {
+                return response()->json(array_merge($base, [
+                    'tgl_mulai'     => $sourceData['tgl_mulai']     ?? '',
+                    'tgl_berakhir'  => $sourceData['tgl_berakhir']  ?? '',
+                    'durasi_bulan'  => $sourceData['durasi_bulan']  ?? '',
+                    'biaya'         => $sourceData['biaya']         ?? '',
+                    'nama_bank'     => $sourceData['nama_bank']     ?? '',
+                    'no_rekening'   => $sourceData['no_rekening']   ?? '',
+                    'nama_rekening' => $sourceData['nama_rekening'] ?? '',
+                ]));
+            }
+
+            // kir
+            return response()->json(array_merge($base, [
+                'no_uji'        => $sourceData['no_uji']        ?? '',
+                'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '',
+                'masa_berlaku'  => $sourceData['masa_berlaku']  ?? '',
+                'biaya'         => $sourceData['biaya']         ?? '',
+                'nama_bank'     => $sourceData['nama_bank']     ?? '',
+                'no_rekening'   => $sourceData['no_rekening']   ?? '',
+            ]));
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Resubmit Update — terima data dari modal, update source_data, kembalikan ke Pending
+     */
+    public function resubmitUpdate(Request $request, $id)
+    {
+        try {
+            $po = PurchaseOrder::findOrFail($id);
+
+            if (!$po->isRejected()) {
+                return response()->json(['success' => false, 'message' => 'Hanya PO yang ditolak yang dapat diajukan ulang.'], 422);
+            }
+
+            if (!$po->can_edit) {
+                return response()->json(['success' => false, 'message' => 'PO ini tidak dapat diedit.'], 422);
+            }
+
+            $allowed = ['pajak', 'asuransi_kendaraan', 'kir'];
+            if (!in_array($po->source_type, $allowed)) {
+                return response()->json(['success' => false, 'message' => 'Tipe PO tidak didukung.'], 422);
+            }
+
+            $sourceData = $po->source_data ?? [];
+
+            if ($po->source_type === 'pajak') {
+                $request->validate([
+                    'tanggal_bayar' => 'required|date',
+                    'nominal'       => 'required|numeric|min:0',
+                ]);
+                $sourceData = array_merge($sourceData, [
+                    'tanggal_bayar' => $request->tanggal_bayar,
+                    'nominal'       => $request->nominal,
+                    'jatuh_tempo'   => $request->jatuh_tempo   ?? $sourceData['jatuh_tempo']   ?? null,
+                    'nama_bank'     => $request->nama_bank     ?? $sourceData['nama_bank']     ?? null,
+                    'no_rekening'   => $request->no_rekening   ?? $sourceData['no_rekening']   ?? null,
+                    'keterangan'    => $request->keterangan    ?? $sourceData['keterangan']    ?? null,
+                ]);
+            } elseif ($po->source_type === 'asuransi_kendaraan') {
+                $request->validate([
+                    'tgl_mulai'    => 'required|date',
+                    'tgl_berakhir' => 'required|date|after_or_equal:tgl_mulai',
+                    'biaya'        => 'required|numeric|min:0',
+                ]);
+                $sourceData = array_merge($sourceData, [
+                    'tgl_mulai'     => $request->tgl_mulai,
+                    'tgl_berakhir'  => $request->tgl_berakhir,
+                    'durasi_bulan'  => $request->durasi_bulan  ?? $sourceData['durasi_bulan']  ?? null,
+                    'biaya'         => $request->biaya,
+                    'nama_bank'     => $request->nama_bank     ?? $sourceData['nama_bank']     ?? null,
+                    'no_rekening'   => $request->no_rekening   ?? $sourceData['no_rekening']   ?? null,
+                    'nama_rekening' => $request->nama_rekening ?? $sourceData['nama_rekening'] ?? null,
+                ]);
+            } else {
+                // kir
+                $request->validate([
+                    'tanggal_bayar' => 'required|date',
+                    'masa_berlaku'  => 'required|date',
+                    'biaya'         => 'required|numeric|min:0',
+                ]);
+                $sourceData = array_merge($sourceData, [
+                    'no_uji'        => $request->no_uji        ?? $sourceData['no_uji']        ?? null,
+                    'tanggal_bayar' => $request->tanggal_bayar,
+                    'masa_berlaku'  => $request->masa_berlaku,
+                    'biaya'         => $request->biaya,
+                    'nama_bank'     => $request->nama_bank     ?? $sourceData['nama_bank']     ?? null,
+                    'no_rekening'   => $request->no_rekening   ?? $sourceData['no_rekening']   ?? null,
+                ]);
+            }
+
+            // Hitung ulang total_harga dari source_data yang baru
+            $totalHarga = match ($po->source_type) {
+                'pajak'              => $sourceData['nominal'] ?? $po->total_harga,
+                'asuransi_kendaraan' => $sourceData['biaya']   ?? $po->total_harga,
+                'kir'                => $sourceData['biaya']   ?? $po->total_harga,
+                default              => $po->total_harga,
+            };
+
+            $po->update([
+                'source_data'         => $sourceData,
+                'total_harga'         => $totalHarga,
+                'status'              => 'Pending',
+                'catatan_approval'    => null,
+                'disetujui_oleh'      => null,
+                'tanggal_persetujuan' => null,
+                'can_edit'            => false,
+                'terakhir_diajukan'   => now(),
+            ]);
+
+            return response()->json([
+                'success'  => true,
+                'message'  => 'PO ' . $po->po_id . ' berhasil diajukan ulang.',
+                'redirect' => route('purchase-order.index', ['status' => 'Pending']),
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => implode(' ', array_merge(...array_values($e->errors())))], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Resubmit simple — untuk STNK dan non-GPS yang tidak punya form edit tersendiri
      * Reset status PO kembali ke Pending
      */

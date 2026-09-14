@@ -161,6 +161,8 @@ class KirController extends Controller
 
     public function store(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
+        $isResubmit = $request->filled('edit_purchase_order') || $request->filled('edit_pembayaran');
+
         // Backend fallback: hitung masa_berlaku dari tanggal_bayar + 6 bulan
         // (jika field kosong karena JS tidak berjalan)
         if (empty($request->masa_berlaku) && $request->filled('tanggal_bayar')) {
@@ -171,16 +173,16 @@ class KirController extends Controller
 
         $request->validate([
             'kendaraan_id'       => 'required|exists:kendaraan,id',
-            'no_ktp'             => 'required|string|max:255',
-            'nama_ktp'           => 'required|string|max:255',
-            'lokasi_uji'         => 'required|string|max:255',
+            'no_ktp'             => $isResubmit ? 'nullable|string|max:255' : 'required|string|max:255',
+            'nama_ktp'           => $isResubmit ? 'nullable|string|max:255' : 'required|string|max:255',
+            'lokasi_uji'         => $isResubmit ? 'nullable|string|max:255' : 'required|string|max:255',
             'penguji'            => 'nullable|string|max:255',
-            'status_uji'         => 'required|in:uji berkala,uji pertama',
-            'no_uji'             => 'required|string|max:255',
-            'tanggal_bayar'      => 'required|date',
-            'masa_berlaku'       => 'required|date',
-            'biaya'              => 'required|numeric|min:0',
-            'bukti_attachment'   => 'required|array|min:1',
+            'status_uji'         => $isResubmit ? 'nullable|in:uji berkala,uji pertama' : 'required|in:uji berkala,uji pertama',
+            'no_uji'             => $isResubmit ? 'nullable|string|max:255' : 'required|string|max:255',
+            'tanggal_bayar'      => $isResubmit ? 'nullable|date' : 'required|date',
+            'masa_berlaku'       => $isResubmit ? 'nullable|date' : 'required|date',
+            'biaya'              => $isResubmit ? 'nullable|numeric|min:0' : 'required|numeric|min:0',
+            'bukti_attachment'   => $isResubmit ? 'nullable|array' : 'required|array|min:1',
             'bukti_attachment.*' => 'file|max:5120',
         ], [
             'kendaraan_id.required'  => 'Kendaraan wajib dipilih',
@@ -215,40 +217,15 @@ class KirController extends Controller
                 $sourceData = $po->source_data ?? [];
                 $existingId = $sourceData['existing_record_id'] ?? null;
 
-                // Update record KIR dengan data baru
+                // Update record KIR — hanya reset persetujuan, data lain tetap
                 if ($existingId) {
                     Kir::where('id', $existingId)->update([
-                        'persetujuan'  => 'Pending',
-                        'kendaraan_id' => $request->kendaraan_id,
-                        'no_ktp'       => $request->no_ktp,
-                        'nama_ktp'     => $request->nama_ktp,
-                        'lokasi_uji'   => $request->lokasi_uji,
-                        'penguji'      => $request->penguji,
-                        'status_uji'   => $request->status_uji,
-                        'no_uji'       => $request->no_uji,
-                        'tanggal_bayar'=> $request->tanggal_bayar,
-                        'masa_berlaku' => $request->masa_berlaku,
-                        'biaya'        => $request->biaya,
+                        'persetujuan' => 'Pending',
                     ]);
-
-                    // Simpan lampiran baru (akumulatif — lampiran lama TIDAK dihapus)
-                    if ($request->hasFile('bukti_attachment')) {
-                        $this->simpanAttachments($request->file('bukti_attachment'), $existingId);
-                    }
                 }
 
-                // Update source_data PO dengan data baru
+                // Update source_data PO — tanpa perubahan data
                 $newSourceData = array_merge($sourceData, [
-                    'kendaraan_id'  => $request->kendaraan_id,
-                    'no_ktp'        => $request->no_ktp,
-                    'nama_ktp'      => $request->nama_ktp,
-                    'lokasi_uji'    => $request->lokasi_uji,
-                    'penguji'       => $request->penguji,
-                    'status_uji'    => $request->status_uji,
-                    'no_uji'        => $request->no_uji,
-                    'tanggal_bayar' => $request->tanggal_bayar,
-                    'masa_berlaku'  => $request->masa_berlaku,
-                    'biaya'         => $request->biaya,
                     'existing_record_id' => $existingId,
                 ]);
 
@@ -290,47 +267,22 @@ class KirController extends Controller
                 }
 
                 $sourceData = $pembayaran->source_data ?? [];
-                $sourceData = array_merge($sourceData, [
-                    'kendaraan_id'  => $request->kendaraan_id,
-                    'no_ktp'        => $request->no_ktp,
-                    'nama_ktp'      => $request->nama_ktp,
-                    'lokasi_uji'    => $request->lokasi_uji,
-                    'penguji'       => $request->penguji,
-                    'status_uji'    => $request->status_uji,
-                    'no_uji'        => $request->no_uji,
-                    'tanggal_bayar' => $request->tanggal_bayar,
-                    'masa_berlaku'  => $request->masa_berlaku,
-                    'biaya'         => $request->biaya,
-                ]);
 
                 $pembayaran->update([
-                    'source_data' => $sourceData,
-                    'nominal'     => $request->biaya,
-                    'status'      => 'Diajukan',
-                    'can_edit'    => false,
+                    'source_data'       => $sourceData,
+                    'status'            => 'Diajukan',
+                    'can_edit'          => false,
                     'terakhir_diajukan' => now(),
                 ]);
 
                 $existingId = $sourceData['existing_record_id'] ?? null;
                 if ($existingId) {
                     Kir::where('id', $existingId)->update([
-                        'persetujuan'  => 'Diajukan ke Pembayaran',
-                        'no_ktp'       => $request->no_ktp,
-                        'nama_ktp'     => $request->nama_ktp,
-                        'lokasi_uji'   => $request->lokasi_uji,
-                        'penguji'      => $request->penguji,
-                        'status_uji'   => $request->status_uji,
-                        'no_uji'       => $request->no_uji,
-                        'tanggal_bayar'=> $request->tanggal_bayar,
-                        'masa_berlaku' => $request->masa_berlaku,
-                        'biaya'        => $request->biaya,
+                        'persetujuan' => 'Diajukan ke Pembayaran',
                     ]);
-
-                    // Simpan lampiran baru (akumulatif — lampiran lama TIDAK dihapus)
-                    if ($request->hasFile('bukti_attachment')) {
-                        $this->simpanAttachments($request->file('bukti_attachment'), $existingId);
-                    }
                 }
+
+                // Lampiran tidak diupload di sini; upload hanya oleh superadmin saat approve
 
                 return redirect()
                     ->route('kir.index')
@@ -357,7 +309,7 @@ class KirController extends Controller
 
             // Step 1: Simpan record KIR dengan persetujuan=Pending
             $kir = Kir::create([
-                'pembayaran_id' => null, // Diisi setelah PO disetujui & Pembayaran dibuat
+                'pembayaran_id' => null,
                 'kendaraan_id'  => $request->kendaraan_id,
                 'no_ktp'        => $request->no_ktp,
                 'nama_ktp'      => $request->nama_ktp,
@@ -368,6 +320,7 @@ class KirController extends Controller
                 'masa_berlaku'  => $request->masa_berlaku,
                 'biaya'         => $request->biaya,
                 'tanggal_bayar' => $request->tanggal_bayar,
+                'tanggal_buat'  => $request->tanggal_bayar,
                 'image'         => null,
                 'status'        => 'tidak_aktif',
                 'persetujuan'   => 'Pending',
@@ -392,8 +345,8 @@ class KirController extends Controller
             $po->update(['source_data' => $sourceData]);
 
             return redirect()
-                ->route('purchase-order.index', ['status' => 'Pending'])
-                ->with('success', 'Data KIR berhasil dikirim ke Purchase Order. Menunggu approval dari Superadmin.');
+                ->route('kir.index')
+                ->with('success', 'Data KIR berhasil dikirim. Menunggu approval dari Superadmin.');
 
         } catch (\Exception $e) {
             \Log::error('Error store KIR: ' . $e->getMessage());
@@ -405,6 +358,107 @@ class KirController extends Controller
      * Halaman ajukan ulang KIR yang ditolak (dedicated page)
      * Handles both: PO ditolak dan Pembayaran ditolak
      */
+    /**
+     * AJAX: Load data KIR untuk pre-fill modal Ajukan Ulang
+     */
+    public function resubmitData($id)
+    {
+        try {
+            $kir = Kir::with(['kendaraan', 'attachments'])->findOrFail($id);
+
+            if ($kir->persetujuan !== 'Ditolak' || !$kir->pembayaran_id) {
+                return response()->json(['success' => false, 'message' => 'Record ini tidak dapat diajukan ulang.'], 422);
+            }
+
+            $pembayaran = \App\Models\Pembayaran::find($kir->pembayaran_id);
+            $catatan    = $pembayaran?->catatan ?? $pembayaran?->keterangan ?? null;
+
+            return response()->json([
+                'success'       => true,
+                'id'            => $kir->id,
+                'pembayaran_id' => $kir->pembayaran_id,
+                'kendaraan'     => ($kir->kendaraan->nopol ?? '-') . ' — ' . ($kir->kendaraan->merk ?? ''),
+                'no_uji'        => $kir->no_uji,
+                'tanggal_bayar' => $kir->tanggal_bayar,
+                'masa_berlaku'  => $kir->masa_berlaku,
+                'biaya'         => $kir->biaya,
+                'lokasi_uji'    => $kir->lokasi_uji,
+                'penguji'       => $kir->penguji,
+                'nama_bank'     => $kir->nama_bank     ?? null,
+                'no_rekening'   => $kir->no_rekening   ?? null,
+                'catatan_penolakan' => $catatan,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * AJAX: Submit Ajukan Ulang KIR dari modal
+     */
+    public function resubmitSubmit(Request $request, $id)
+    {
+        try {
+            $kir = Kir::findOrFail($id);
+
+            if ($kir->persetujuan !== 'Ditolak' || !$kir->pembayaran_id) {
+                return response()->json(['success' => false, 'message' => 'Record ini tidak dapat diajukan ulang.'], 422);
+            }
+
+            $request->validate([
+                'tanggal_bayar' => 'required|date',
+                'masa_berlaku'  => 'required|date',
+                'biaya'         => 'required|numeric|min:0',
+            ]);
+
+            // Update record KIR
+            $kir->update([
+                'no_uji'        => $request->no_uji        ?? $kir->no_uji,
+                'tanggal_bayar' => $request->tanggal_bayar,
+                'masa_berlaku'  => $request->masa_berlaku,
+                'biaya'         => $request->biaya,
+                'lokasi_uji'    => $request->lokasi_uji    ?? $kir->lokasi_uji,
+                'penguji'       => $request->penguji       ?? $kir->penguji,
+                'persetujuan'   => 'Diajukan ke Pembayaran',
+            ]);
+
+            // Simpan lampiran baru (akumulatif)
+            if ($request->hasFile('lampiran')) {
+                $this->simpanAttachments($request->file('lampiran'), $kir->id);
+            }
+
+            // Reset Pembayaran ke Diajukan
+            $pembayaran = \App\Models\Pembayaran::find($kir->pembayaran_id);
+            if ($pembayaran) {
+                $sourceData = $pembayaran->source_data ?? [];
+                $sourceData = array_merge($sourceData, [
+                    'no_uji'        => $request->no_uji        ?? $kir->no_uji,
+                    'tanggal_bayar' => $request->tanggal_bayar,
+                    'masa_berlaku'  => $request->masa_berlaku,
+                    'biaya'         => $request->biaya,
+                    'lokasi_uji'    => $request->lokasi_uji    ?? $kir->lokasi_uji,
+                    'penguji'       => $request->penguji       ?? $kir->penguji,
+                ]);
+                $pembayaran->update([
+                    'source_data'       => $sourceData,
+                    'nominal'           => $request->biaya,
+                    'status'            => 'Diajukan',
+                    'can_edit'          => false,
+                    'terakhir_diajukan' => now(),
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'KIR berhasil diajukan ulang. Menunggu approval.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => implode(' ', array_merge(...array_values($e->errors())))], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function ajukanUlangForm($id)
     {
         $pembayaran = \App\Models\Pembayaran::find($id);
@@ -480,68 +534,17 @@ class KirController extends Controller
     {
         $kir = Kir::findOrFail($id);
 
-        // Backend fallback: hitung masa_berlaku dari tanggal_bayar + 6 bulan
-        if (empty($request->masa_berlaku) && $request->filled('tanggal_bayar')) {
-            $request->merge([
-                'masa_berlaku' => Carbon::parse($request->tanggal_bayar)->addMonths(6)->format('Y-m-d'),
-            ]);
-        }
-
         $request->validate([
-            'kendaraan_id' => 'required|exists:kendaraan,id',
-            'no_ktp'       => 'required|string|max:255',
-            'nama_ktp'     => 'required|string|max:255',
-            'lokasi_uji'   => 'required|string|max:255',
-            'penguji'      => 'nullable|string|max:255',
-            'status_uji'   => 'required|in:uji berkala,uji pertama',
-            'no_uji'       => 'required',
-            'masa_berlaku' => 'required|date',
-            'biaya' => 'required|numeric|min:0',
-            'image' => 'nullable|file|max:5120',
-            'bukti_attachment'   => 'nullable|array',
-            'bukti_attachment.*' => 'file|max:5120',
+            'biaya'       => 'required|numeric|min:0',
+            'nama_bank'   => 'nullable|string|max:255',
+            'no_rekening' => 'nullable|string|max:100',
         ]);
 
-        $kendaraan = \App\Models\Kendaraan::findOrFail($request->kendaraan_id);
-
-        // 🔥 CEK DUPLIKAT (EXCLUDE DATA SENDIRI)
-        $exists = Kir::where('id', '!=', $id)
-            ->whereHas('kendaraan', function ($q) use ($kendaraan) {
-                $q->where('nopol', $kendaraan->nopol);
-            })
-            ->exists();
-
-        if ($exists) {
-            return back()->with('error', 'Kendaraan dengan nopol ini sudah memiliki data KIR');
-        }
-
-        $data = $request->except(['bukti_attachment', '_token', '_method']); // ✅ jangan ikut masuk mass-assign
-
-        if ($request->hasFile('image')) {
-
-            // hapus file lama
-            if ($kir->image && file_exists(public_path($kir->image))) {
-                unlink(public_path($kir->image));
-            }
-
-            $file = $request->file('image');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $destination = public_path('kir/dokumen');
-
-            if (!file_exists($destination)) {
-                mkdir($destination, 0777, true);
-            }
-
-            $file->move($destination, $filename);
-
-            $data['image'] = 'kir/dokumen/' . $filename;
-        }
-
-        $kir->update($data);
-
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
-        }
+        $kir->update([
+            'biaya'       => $request->biaya,
+            'nama_bank'   => $request->nama_bank,
+            'no_rekening' => $request->no_rekening,
+        ]);
 
         return back()->with('success', 'Data KIR berhasil diupdate');
     }
@@ -684,16 +687,16 @@ class KirController extends Controller
     public function perpanjang(Request $request, $id, \App\Services\PengeluaranInterceptorService $interceptor)
     {
         $request->validate([
-            'no_uji'         => 'required',
-            'biaya'          => 'required|numeric|min:0',
-            'tanggal_bayar'  => 'nullable|date',
-            'image'          => 'nullable|file|max:5120',
-            'bukti_attachment'   => 'required|array|min:1',
+            'no_uji'             => 'required',
+            'biaya'              => 'required|numeric|min:0',
+            'tanggal_bayar'      => 'nullable|date',
+            'image'              => 'nullable|file|max:5120',
+            'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
-            'nama_bank'      => 'nullable|string|max:255',
-            'no_rekening'    => 'nullable|string|max:100',
-            'nama_rekening'  => 'nullable|string|max:255',
-            'informasi'      => 'nullable|string',
+            'nama_bank'          => 'nullable|string|max:255',
+            'no_rekening'        => 'nullable|string|max:100',
+            'nama_rekening'      => 'nullable|string|max:255',
+            'informasi'          => 'nullable|string',
         ]);
 
         $kir = Kir::findOrFail($id);
@@ -711,7 +714,7 @@ class KirController extends Controller
             $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'kir', $kir);
             
             return redirect()
-                ->route('pembayaran.index', ['tab' => 'Pending'])
+                ->route('kir.index')
                 ->with('success', 'Pengajuan perpanjangan KIR berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {

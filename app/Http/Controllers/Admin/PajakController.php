@@ -162,17 +162,19 @@ class PajakController extends Controller
 
     public function store(Request $request, \App\Services\PengeluaranInterceptorService $interceptor)
     {
+        $isResubmit = $request->filled('edit_purchase_order') || $request->filled('edit_pembayaran');
+
         $request->validate([
             'kendaraan_id'       => 'required|exists:kendaraan,id',
-            'jenis_pajak'        => 'required',
-            'nominal'            => 'required|numeric',
+            'jenis_pajak'        => $isResubmit ? 'nullable' : 'required',
+            'nominal'            => $isResubmit ? 'nullable|numeric' : 'required|numeric',
             'jatuh_tempo'        => 'nullable|date',
             'tanggal_bayar'      => 'nullable|date',
             'keterangan'         => 'nullable',
             'nama_pemilik'       => 'nullable|string|max:255',
             'nama_bank'          => 'nullable|string|max:255',
             'no_rekening'        => 'nullable|string|max:100',
-            'bukti_attachment'   => 'required|array|min:1',
+            'bukti_attachment'   => $isResubmit ? 'nullable|array' : 'required|array|min:1',
             'bukti_attachment.*' => 'file|max:5120',
         ]);
 
@@ -194,38 +196,17 @@ class PajakController extends Controller
                 $sourceData = $po->source_data ?? [];
                 $existingId = $sourceData['existing_record_id'] ?? null;
 
-                // Update record pajak dengan data baru
+                // Update record pajak — hanya keterangan, data lain tetap
                 if ($existingId) {
                     PajakKendaraan::where('id', $existingId)->update([
-                        'persetujuan'   => 'Pending',
-                        'kendaraan_id'  => $request->kendaraan_id,
-                        'jenis_pajak'   => $request->jenis_pajak,
-                        'nominal'       => $request->nominal,
-                        'jatuh_tempo'   => $request->jatuh_tempo,
-                        'tanggal_bayar' => $request->tanggal_bayar,
-                        'keterangan'    => $request->keterangan,
-                        'nama_pemilik'  => $request->nama_pemilik,
-                        'nama_bank'     => $request->nama_bank,
-                        'no_rekening'   => $request->no_rekening,
+                        'persetujuan' => 'Pending',
+                        'keterangan'  => $request->keterangan ?? null,
                     ]);
-
-                    // Simpan lampiran baru (akumulatif — lampiran lama TIDAK dihapus)
-                    if ($request->hasFile('bukti_attachment')) {
-                        $this->simpanAttachments($request->file('bukti_attachment'), $existingId);
-                    }
                 }
 
-                // Update source_data PO dengan data baru
+                // Update source_data PO — hanya keterangan
                 $newSourceData = array_merge($sourceData, [
-                    'kendaraan_id'  => $request->kendaraan_id,
-                    'jenis_pajak'   => $request->jenis_pajak,
-                    'nominal'       => $request->nominal,
-                    'jatuh_tempo'   => $request->jatuh_tempo,
-                    'tanggal_bayar' => $request->tanggal_bayar,
-                    'keterangan'    => $request->keterangan,
-                    'nama_pemilik'  => $request->nama_pemilik,
-                    'nama_bank'     => $request->nama_bank,
-                    'no_rekening'   => $request->no_rekening,
+                    'keterangan'         => $request->keterangan ?? null,
                     'existing_record_id' => $existingId,
                 ]);
 
@@ -269,26 +250,14 @@ class PajakController extends Controller
                         ->with('error', 'Pengajuan ini tidak dapat diajukan ulang (status: ' . $pembayaran->status . ').');
                 }
 
-                // Gabungkan source_data lama dengan data baru dari form
+                // Gabungkan source_data lama — hanya update keterangan
                 $sourceData = $pembayaran->source_data ?? [];
                 $sourceData = array_merge($sourceData, [
-                    'kendaraan_id'  => $request->kendaraan_id,
-                    'jenis_pajak'   => $request->jenis_pajak,
-                    'nominal'       => $request->nominal,
-                    'jatuh_tempo'   => $request->jatuh_tempo,
-                    'tanggal_bayar' => $request->tanggal_bayar,
-                    'keterangan'    => $request->keterangan,
-                    'nama_pemilik'  => $request->nama_pemilik,
-                    'nama_bank'     => $request->nama_bank,
-                    'no_rekening'   => $request->no_rekening,
-                    'status'        => 'belum_bayar',
+                    'keterangan' => $request->keterangan ?? ($sourceData['keterangan'] ?? null),
                 ]);
 
                 $pembayaran->update([
                     'source_data' => $sourceData,
-                    'nominal'     => $request->nominal,
-                    'nama_bank'   => $request->nama_bank,
-                    'no_rekening' => $request->no_rekening,
                     'status'      => 'Pending',
                     'can_edit'    => false,
                 ]);
@@ -297,12 +266,10 @@ class PajakController extends Controller
                 $existingId = $sourceData['existing_record_id'] ?? null;
                 if ($existingId) {
                     PajakKendaraan::where('id', $existingId)
-                        ->update(['persetujuan' => 'Pending']);
-                }
-
-                // Simpan lampiran baru jika ada
-                if ($request->hasFile('bukti_attachment') && $existingId) {
-                    $this->simpanAttachments($request->file('bukti_attachment'), $existingId);
+                        ->update([
+                            'persetujuan' => 'Pending',
+                            'keterangan'  => $request->keterangan ?? null,
+                        ]);
                 }
 
                 return redirect()
@@ -334,12 +301,13 @@ class PajakController extends Controller
             // Step 1: Buat record pajak dengan persetujuan=Pending
             // (belum muncul di tabel utama sampai PO disetujui)
             $pajak = PajakKendaraan::create([
-                'pembayaran_id' => null, // Diisi setelah PO disetujui & Pembayaran dibuat
+                'pembayaran_id' => null,
                 'kendaraan_id'  => $request->kendaraan_id,
                 'jenis_pajak'   => $request->jenis_pajak,
                 'nominal'       => $request->nominal,
                 'jatuh_tempo'   => $request->jatuh_tempo,
                 'tanggal_bayar' => $request->tanggal_bayar,
+                'tanggal_buat'  => $request->tanggal_bayar,
                 'status'        => 'belum_bayar',
                 'status_aktif'  => 'tidak_aktif',
                 'keterangan'    => $request->keterangan,
@@ -371,8 +339,8 @@ class PajakController extends Controller
             $po->update(['source_data' => $sourceData]);
 
             return redirect()
-                ->route('purchase-order.index', ['status' => 'Pending'])
-                ->with('success', 'Pengajuan pajak berhasil dikirim ke Purchase Order. Menunggu approval dari Superadmin.');
+                ->route('pajak.index')
+                ->with('success', 'Pengajuan pajak berhasil dikirim. Menunggu approval dari Superadmin.');
 
         } catch (\Exception $e) {
             \Log::error('Error creating pajak: ' . $e->getMessage());
@@ -384,6 +352,110 @@ class PajakController extends Controller
      * Halaman ajukan ulang pajak yang ditolak (dedicated page, bukan modal)
      * Handles both: PO ditolak dan Pembayaran ditolak
      */
+    /**
+     * AJAX: Load data pajak untuk pre-fill modal Ajukan Ulang
+     */
+    public function resubmitData($id)
+    {
+        try {
+            $pajak = PajakKendaraan::with(['kendaraan', 'attachments'])->findOrFail($id);
+
+            if ($pajak->persetujuan !== 'Ditolak' || !$pajak->pembayaran_id) {
+                return response()->json(['success' => false, 'message' => 'Record ini tidak dapat diajukan ulang.'], 422);
+            }
+
+            $pembayaran = \App\Models\Pembayaran::find($pajak->pembayaran_id);
+            $catatan    = $pembayaran?->catatan ?? $pembayaran?->keterangan ?? null;
+
+            return response()->json([
+                'success'       => true,
+                'id'            => $pajak->id,
+                'pembayaran_id' => $pajak->pembayaran_id,
+                'kendaraan'     => ($pajak->kendaraan->nopol ?? '-') . ' — ' . ($pajak->kendaraan->merk ?? ''),
+                'jenis_pajak'   => $pajak->jenis_pajak,
+                'nominal'       => $pajak->nominal,
+                'tanggal_bayar' => $pajak->tanggal_bayar,
+                'jatuh_tempo'   => $pajak->jatuh_tempo,
+                'nama_bank'     => $pajak->nama_bank,
+                'no_rekening'   => $pajak->no_rekening,
+                'nama_pemilik'  => $pajak->nama_pemilik,
+                'keterangan'    => $pajak->keterangan,
+                'catatan_penolakan' => $catatan,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * AJAX: Submit Ajukan Ulang pajak dari modal
+     */
+    public function resubmitSubmit(Request $request, $id)
+    {
+        try {
+            $pajak = PajakKendaraan::findOrFail($id);
+
+            if ($pajak->persetujuan !== 'Ditolak' || !$pajak->pembayaran_id) {
+                return response()->json(['success' => false, 'message' => 'Record ini tidak dapat diajukan ulang.'], 422);
+            }
+
+            $request->validate([
+                'nominal'       => 'required|numeric|min:0',
+                'tanggal_bayar' => 'required|date',
+            ]);
+
+            // Update record pajak
+            $pajak->update([
+                'nominal'       => $request->nominal,
+                'tanggal_bayar' => $request->tanggal_bayar,
+                'jatuh_tempo'   => $request->jatuh_tempo   ?? $pajak->jatuh_tempo,
+                'nama_bank'     => $request->nama_bank     ?? $pajak->nama_bank,
+                'no_rekening'   => $request->no_rekening   ?? $pajak->no_rekening,
+                'nama_pemilik'  => $request->nama_pemilik  ?? $pajak->nama_pemilik,
+                'keterangan'    => $request->keterangan    ?? $pajak->keterangan,
+                'persetujuan'   => 'Diajukan ke Pembayaran',
+            ]);
+
+            // Simpan lampiran baru (akumulatif)
+            if ($request->hasFile('lampiran') && $request->file('lampiran')) {
+                $this->simpanAttachments($request->file('lampiran'), $pajak->id);
+            }
+
+            // Reset Pembayaran ke Diajukan
+            $pembayaran = \App\Models\Pembayaran::find($pajak->pembayaran_id);
+            if ($pembayaran) {
+                $sourceData = $pembayaran->source_data ?? [];
+                $sourceData = array_merge($sourceData, [
+                    'nominal'       => $request->nominal,
+                    'tanggal_bayar' => $request->tanggal_bayar,
+                    'jatuh_tempo'   => $request->jatuh_tempo   ?? $pajak->jatuh_tempo,
+                    'nama_bank'     => $request->nama_bank     ?? $pajak->nama_bank,
+                    'no_rekening'   => $request->no_rekening   ?? $pajak->no_rekening,
+                    'nama_pemilik'  => $request->nama_pemilik  ?? $pajak->nama_pemilik,
+                    'keterangan'    => $request->keterangan    ?? $pajak->keterangan,
+                ]);
+                $pembayaran->update([
+                    'source_data'       => $sourceData,
+                    'nominal'           => $request->nominal,
+                    'nama_bank'         => $request->nama_bank     ?? $pembayaran->nama_bank,
+                    'no_rekening'       => $request->no_rekening   ?? $pembayaran->no_rekening,
+                    'status'            => 'Diajukan',
+                    'can_edit'          => false,
+                    'terakhir_diajukan' => now(),
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pajak berhasil diajukan ulang. Menunggu approval.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => implode(' ', array_merge(...array_values($e->errors())))], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function ajukanUlangForm($id)
     {
         // Coba sebagai pembayaran_id dulu
@@ -444,7 +516,7 @@ class PajakController extends Controller
             'tanggal_bayar'  => 'nullable|date',
             'keterangan'     => 'nullable',
             'bukti'          => 'nullable|file|max:5120',
-            'bukti_attachment' => 'required|array|min:1',
+            'bukti_attachment'   => 'nullable|array',
             'bukti_attachment.*' => 'file|max:5120',
             'nama_bank'      => 'nullable|string|max:255',
             'no_rekening'    => 'nullable|string|max:100',
@@ -467,7 +539,7 @@ class PajakController extends Controller
             $pembayaran = $interceptor->perpanjangViaPembayaran($request, 'pajak', $pajak);
             
             return redirect()
-                ->route('pembayaran.index', ['tab' => 'Pending'])
+                ->route('pajak.index')
                 ->with('success', 'Pengajuan perpanjangan pajak berhasil dikirim. Menunggu approval dari Superadmin.');
                 
         } catch (\Exception $e) {
@@ -481,59 +553,23 @@ class PajakController extends Controller
 
     public function update(Request $request, $id)
     {
-        $request->validate([
-            'kendaraan_id' => 'required|exists:kendaraan,id',
-            'jenis_pajak' => 'required',
-            'nominal' => 'required|numeric',
-            'jatuh_tempo' => 'required|date',
-            'tanggal_bayar' => 'nullable|date',
-            'status' => 'required',
-            'keterangan' => 'nullable',
-            'bukti' => 'nullable|file|max:5120',
-            'bukti_attachment' => 'nullable|array',
-            'bukti_attachment.*' => 'file|max:5120',
-        ]);
-
         $pajak = PajakKendaraan::findOrFail($id);
-        $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 
-        $exists = PajakKendaraan::whereHas('kendaraan', function ($q) use ($kendaraan) {
-            $q->where('nopol', $kendaraan->nopol);
-        })
-            ->where('id', '!=', $id)
-            ->exists();
-
-        if ($exists) {
-            return back()->with('error', 'Nopol ini sudah memiliki data pajak');
-        }
-
-        $bukti = $pajak->bukti;
-
-        if ($request->hasFile('bukti')) {
-            if ($bukti && file_exists(public_path($bukti))) {
-                unlink(public_path($bukti));
-            }
-
-            $file = $request->file('bukti');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('pajak/bukti'), $filename);
-            $bukti = 'pajak/bukti/' . $filename;
-        }
+        $request->validate([
+            'nominal'      => 'required|numeric|min:0',
+            'nama_pemilik' => 'nullable|string|max:255',
+            'nama_bank'    => 'nullable|string|max:255',
+            'no_rekening'  => 'nullable|string|max:100',
+            'keterangan'   => 'nullable|string',
+        ]);
 
         $pajak->update([
-            'kendaraan_id' => $request->kendaraan_id,
-            'jenis_pajak' => $request->jenis_pajak,
-            'nominal' => $request->nominal,
-            'jatuh_tempo' => $request->jatuh_tempo,
-            'tanggal_bayar' => $request->tanggal_bayar,
-            'status' => $request->status,
-            'keterangan' => $request->keterangan,
-            'bukti' => $bukti,
+            'nominal'      => $request->nominal,
+            'nama_pemilik' => $request->nama_pemilik,
+            'nama_bank'    => $request->nama_bank,
+            'no_rekening'  => $request->no_rekening,
+            'keterangan'   => $request->keterangan,
         ]);
-
-        if ($request->hasFile('bukti_attachment')) {
-            $this->simpanAttachments($request->file('bukti_attachment'), $pajak->id);
-        }
 
         return back()->with('success', 'Data pajak berhasil diupdate');
     }

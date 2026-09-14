@@ -23,9 +23,12 @@ class Kir extends Model
         'biaya',
         'image',
         'tanggal_bayar',
+        'tanggal_buat',
         'pembayaran_id',
         'persetujuan',
         'status',
+        'nama_bank',
+        'no_rekening',
     ];
 
     /**
