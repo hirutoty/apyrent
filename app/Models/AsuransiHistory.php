@@ -23,12 +23,17 @@ class AsuransiHistory extends Model
             'status_kendaraan',
             'diperpanjang_pada',
             'tanggal_bayar',
+            'tanggal_buat',
+            'nama_rekening',
+            'nama_bank',
+            'no_rekening',
         ];
 
         protected $casts = [
             'tgl_mulai'         => 'date',
             'tgl_berakhir'      => 'date',
             'tanggal_bayar'     => 'date',
+            'tanggal_buat'      => 'date',
             'diperpanjang_pada' => 'datetime',
         ];
 

@@ -575,7 +575,15 @@
                                                             </button>
                                                         @endif
                                                     @elseif($d->status === 'Ditolak' && $d->source_type && $d->can_edit)
-                                                        <a href="{{ route('pembayaran.edit-rejected', $d->id) }}"
+                                                        @php
+                                                            $resubmitRoute = match($d->source_type) {
+                                                                'pajak'              => route('pajak.index', ['highlight_pembayaran' => $d->id]),
+                                                                'asuransi_kendaraan' => route('asuransi-kendaraan.index', ['highlight_pembayaran' => $d->id]),
+                                                                'kir'                => route('kir.index', ['highlight_pembayaran' => $d->id]),
+                                                                default              => route('pembayaran.edit-rejected', $d->id),
+                                                            };
+                                                        @endphp
+                                                        <a href="{{ $resubmitRoute }}"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
                                                             <i class="fa fa-edit text-[10px]"></i> Edit & Ajukan Ulang
                                                         </a>

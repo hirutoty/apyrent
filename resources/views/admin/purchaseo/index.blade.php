@@ -439,8 +439,8 @@
                                                             <i class="fa fa-rotate-right text-xs"></i> Ulang
                                                         </button>
                                                     @else
-                                                        {{-- Pajak, Asuransi, KIR: redirect ke form edit --}}
-                                                        <button onclick="resubmitViaPO({{ $po->id }})"
+                                                        {{-- Pajak, Asuransi, KIR: modal inline --}}
+                                                        <button onclick="openResubmitSimpleModal({{ $po->id }}, '{{ $po->po_id }}', '{{ $po->source_type }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
                                                             <i class="fa fa-rotate-right text-xs"></i> Ulang
                                                         </button>
@@ -819,18 +819,6 @@
                     <p class="font-semibold text-gray-800" id="resubmitKendaraanInfo">-</p>
                     <p class="text-xs text-amber-600 mt-0.5" id="resubmitCatatan"></p>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar <span class="text-red-500">*</span></label>
-                        <input type="date" id="resubmitTanggalBayarInput" name="tanggal_bayar_display"
-                               class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Habis <span class="text-red-500">*</span></label>
-                        <input type="date" id="resubmitTanggalHabisInput" name="tanggal_habis_display"
-                               class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">
-                    </div>
-                </div>
                 <div>
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">GPS Items</p>
                     <div id="resubmitItemsContainer" class="space-y-3"></div>
@@ -857,6 +845,54 @@
 </div>
 
 @endsection
+
+{{-- MODAL RESUBMIT PAJAK / ASURANSI_KENDARAAN / KIR --}}
+<div id="resubmitSimpleModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800" id="resubmitSimpleTitle">Ajukan Ulang</h3>
+                <p class="text-sm text-gray-500 mt-0.5">PO: <span id="resubmitSimplePoNumber" class="font-mono font-semibold text-amber-600"></span></p>
+            </div>
+            <button onclick="closeResubmitSimpleModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+
+        {{-- Loading state --}}
+        <div id="resubmitSimpleLoading" class="flex items-center justify-center py-16">
+            <div class="flex flex-col items-center gap-2 text-gray-400">
+                <i class="fa fa-spinner fa-spin text-2xl"></i>
+                <p class="text-sm">Memuat data...</p>
+            </div>
+        </div>
+
+        {{-- Form area (rendered dynamically) --}}
+        <div id="resubmitSimpleBody" class="hidden flex-1 overflow-y-auto flex flex-col">
+            {{-- Info kendaraan + alasan ditolak --}}
+            <div class="px-6 pt-4 pb-2 space-y-4">
+                <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
+                    <p class="font-semibold text-gray-800" id="resubmitSimpleKendaraan">-</p>
+                    <p class="text-xs text-amber-700 mt-0.5" id="resubmitSimpleCatatan"></p>
+                </div>
+            </div>
+
+            {{-- Field container — diisi JS --}}
+            <div id="resubmitSimpleFields" class="flex-1 overflow-y-auto px-6 pb-2 space-y-3"></div>
+
+            <div class="border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
+                <button type="button" onclick="closeResubmitSimpleModal()"
+                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">
+                    Batal
+                </button>
+                <button type="button" id="resubmitSimpleSubmitBtn" onclick="submitResubmitSimple()"
+                    class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl py-2.5 transition-colors">
+                    <i class="fa fa-rotate-right"></i> Ajukan Ulang
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {{-- MODAL: APPROVE SIMPLE (non-GPS) --}}
 <div id="approveSimpleModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4" style="backdrop-filter:blur(2px)">
@@ -1483,36 +1519,36 @@ function openResubmitModal(poId, poNumber) {
     });
 }
 function renderResubmitForm(data) {
-    document.getElementById('resubmitPoId').value = data.po_id;
+    document.getElementById('resubmitPoId').value        = data.po_id;
     document.getElementById('resubmitKendaraanId').value = data.kendaraan_id;
+    // Set hidden values langsung dari data — tidak perlu sync dari visible input
     document.getElementById('resubmitTanggalBayar').value = data.tanggal_bayar;
-    document.getElementById('resubmitTanggalHabis').value = data.tanggal_habis;
-    document.getElementById('resubmitTanggalBayarInput').value = data.tanggal_bayar;
-    document.getElementById('resubmitTanggalHabisInput').value = data.tanggal_habis;
-    document.getElementById('resubmitKeterangan').value = data.keterangan || '';
+    document.getElementById('resubmitTanggalHabis').value  = data.tanggal_habis;
+    document.getElementById('resubmitKeterangan').value    = data.keterangan || '';
     document.getElementById('resubmitKendaraanInfo').textContent = (data.nopol || '-') + ' — ' + (data.merk || '');
     if (data.catatan) document.getElementById('resubmitCatatan').textContent = 'Alasan ditolak: ' + data.catatan;
-    document.getElementById('resubmitTanggalBayarInput').addEventListener('change', function() { document.getElementById('resubmitTanggalBayar').value = this.value; });
-    document.getElementById('resubmitTanggalHabisInput').addEventListener('change', function() { document.getElementById('resubmitTanggalHabis').value = this.value; });
     resubmitGpsData = data.gps_items || [];
     const container = document.getElementById('resubmitItemsContainer');
     container.innerHTML = '';
     resubmitGpsData.forEach(function(item, idx) {
         const div = document.createElement('div');
-        div.className = 'border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50/50';
-        div.innerHTML = '<input type="hidden" name="gps_items[' + idx + '][gps_id]" value="' + (item.gps_id || '') + '">'
-            + '<span class="text-xs font-bold text-gray-500 uppercase">#' + (idx+1) + ' ' + (item.nama_gps || '-') + '</span>'
-            + '<div class="grid grid-cols-2 gap-3">'
-            + '<div><label class="text-xs font-medium text-gray-600">Type *</label><input type="text" name="gps_items[' + idx + '][type]" value="' + (item.type || '') + '" required class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100"></div>'
-            + '<div><label class="text-xs font-medium text-gray-600">Biaya Sewa *</label><input type="number" name="gps_items[' + idx + '][biaya_sewa]" value="' + (item.biaya_sewa || 0) + '" required min="0" class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100"></div>'
+        div.className = 'border border-gray-200 rounded-xl p-4 space-y-2 bg-gray-50/50';
+        // Hidden inputs untuk field yang tidak diubah user
+        div.innerHTML = '<input type="hidden" name="gps_items[' + idx + '][gps_id]"      value="' + (item.gps_id      || '') + '">'
+            + '<input type="hidden" name="gps_items[' + idx + '][type]"       value="' + (item.type       || '') + '">'
+            + '<input type="hidden" name="gps_items[' + idx + '][nama_bank]"  value="' + (item.nama_bank  || '') + '">'
+            + '<input type="hidden" name="gps_items[' + idx + '][no_rekening]" value="' + (item.no_rekening || '') + '">'
+            + '<input type="hidden" name="gps_items[' + idx + '][nama_pemilik]" value="' + (item.nama_pemilik || '') + '">'
+            // Label nama GPS
+            + '<div class="flex items-center gap-2">'
+            + '<span class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold flex items-center justify-center">' + (idx + 1) + '</span>'
+            + '<span class="text-xs font-semibold text-gray-700">' + (item.nama_gps || '-') + '</span>'
+            + '<span class="font-mono text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded">' + (item.type || '') + '</span>'
             + '</div>'
-            + '<div class="grid grid-cols-3 gap-3">'
-            + '<div><label class="text-xs font-medium text-gray-600">Nama Bank</label><input type="text" name="gps_items[' + idx + '][nama_bank]" value="' + (item.nama_bank || '') + '" class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100"></div>'
-            + '<div><label class="text-xs font-medium text-gray-600">No. Rekening</label><input type="text" name="gps_items[' + idx + '][no_rekening]" value="' + (item.no_rekening || '') + '" class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100"></div>'
-            + '<div><label class="text-xs font-medium text-gray-600">Nama Pemilik</label><input type="text" name="gps_items[' + idx + '][nama_pemilik]" value="' + (item.nama_pemilik || '') + '" class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100"></div>'
-            + '</div>'
-            + '<div><label class="text-xs font-medium text-gray-600">Lampiran *</label>'
-            + '<input type="file" name="gps_items[' + idx + '][lampiran][]" multiple accept=".jpg,.jpeg,.png,.pdf" class="w-full mt-1 text-xs border border-gray-200 rounded-lg px-3 py-1.5"></div>';
+            // Hanya Biaya Sewa yang visible
+            + '<div><label class="text-xs font-semibold text-gray-600">Biaya Sewa <span class="text-red-500">*</span></label>'
+            + '<input type="number" name="gps_items[' + idx + '][biaya_sewa]" value="' + (item.biaya_sewa || 0) + '" required min="0"'
+            + ' class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400"></div>';
         container.appendChild(div);
     });
 }
@@ -1543,6 +1579,189 @@ async function resubmitViaPO(poId) {
         }
     } catch (e) { alert('Terjadi kesalahan jaringan.'); }
 }
+
+// ── RESUBMIT SIMPLE MODAL (pajak / asuransi_kendaraan / kir) ─────
+let _resubmitSimplePoId   = null;
+let _resubmitSimpleType   = null;
+
+const _resubmitSimpleTitles = {
+    pajak:              'Ajukan Ulang — Pajak Kendaraan',
+    asuransi_kendaraan: 'Ajukan Ulang — Asuransi Kendaraan',
+    kir:                'Ajukan Ulang — KIR',
+};
+
+function openResubmitSimpleModal(poId, poNumber, sourceType) {
+    _resubmitSimplePoId = poId;
+    _resubmitSimpleType = sourceType;
+
+    document.getElementById('resubmitSimplePoNumber').textContent = poNumber;
+    document.getElementById('resubmitSimpleTitle').textContent = _resubmitSimpleTitles[sourceType] || 'Ajukan Ulang';
+    document.getElementById('resubmitSimpleLoading').classList.remove('hidden');
+    document.getElementById('resubmitSimpleBody').classList.add('hidden');
+    document.getElementById('resubmitSimpleModal').classList.remove('hidden');
+    document.getElementById('resubmitSimpleModal').classList.add('flex');
+
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    fetch('/admin/purchase-order/' + poId + '/resubmit-modal', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({}),
+    })
+    .then(r => r.json())
+    .then(function(data) {
+        if (!data.success) throw new Error(data.message || 'Gagal memuat data');
+        renderResubmitSimpleForm(data);
+        document.getElementById('resubmitSimpleLoading').classList.add('hidden');
+        document.getElementById('resubmitSimpleBody').classList.remove('hidden');
+    })
+    .catch(function(err) {
+        document.getElementById('resubmitSimpleLoading').innerHTML =
+            '<div class="text-center text-red-500 py-8 px-6"><i class="fa fa-exclamation-triangle text-xl mb-2"></i><p class="text-sm">' + err.message + '</p></div>';
+    });
+}
+
+function renderResubmitSimpleForm(data) {
+    document.getElementById('resubmitSimpleKendaraan').textContent = (data.nopol || '-') + ' — ' + (data.merk || '');
+    const catatanEl = document.getElementById('resubmitSimpleCatatan');
+    catatanEl.textContent = data.catatan ? 'Alasan ditolak: ' + data.catatan : '';
+
+    const container = document.getElementById('resubmitSimpleFields');
+    container.innerHTML = '';
+
+    function makeField(label, id, type, value, required, extra) {
+        required = required ? '<span class="text-red-500">*</span>' : '';
+        extra = extra || '';
+        return '<div>'
+            + '<label class="block text-xs font-semibold text-gray-600 mb-1">' + label + ' ' + required + '</label>'
+            + '<input type="' + type + '" id="rsf_' + id + '" value="' + (value || '') + '" ' + extra
+            + ' class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">'
+            + '</div>';
+    }
+
+    let html = '';
+    if (data.source_type === 'pajak') {
+        html += '<div class="grid grid-cols-2 gap-3">';
+        html += makeField('Tanggal Bayar', 'tanggal_bayar', 'date', data.tanggal_bayar, true);
+        html += makeField('Nominal (Rp)', 'nominal', 'number', data.nominal, true, 'min="0"');
+        html += '</div>';
+        html += '<div class="grid grid-cols-2 gap-3">';
+        html += makeField('Jatuh Tempo', 'jatuh_tempo', 'date', data.jatuh_tempo, false);
+        html += makeField('No. Rekening', 'no_rekening', 'text', data.no_rekening, false);
+        html += '</div>';
+        html += makeField('Nama Bank', 'nama_bank', 'text', data.nama_bank, false);
+        html += makeField('Keterangan', 'keterangan', 'text', data.keterangan, false);
+
+    } else if (data.source_type === 'asuransi_kendaraan') {
+        html += '<div class="grid grid-cols-2 gap-3">';
+        html += makeField('Tgl Mulai', 'tgl_mulai', 'date', data.tgl_mulai, true);
+        html += makeField('Tgl Berakhir', 'tgl_berakhir', 'date', data.tgl_berakhir, true);
+        html += '</div>';
+        html += '<div class="grid grid-cols-2 gap-3">';
+        html += makeField('Durasi (bulan)', 'durasi_bulan', 'number', data.durasi_bulan, false, 'min="0"');
+        html += makeField('Biaya (Rp)', 'biaya', 'number', data.biaya, true, 'min="0"');
+        html += '</div>';
+        html += makeField('Nama Bank', 'nama_bank', 'text', data.nama_bank, false);
+        html += '<div class="grid grid-cols-2 gap-3">';
+        html += makeField('No. Rekening', 'no_rekening', 'text', data.no_rekening, false);
+        html += makeField('Nama Pemilik Rekening', 'nama_rekening', 'text', data.nama_rekening, false);
+        html += '</div>';
+
+    } else {
+        // kir
+        html += '<div class="grid grid-cols-2 gap-3">';
+        html += makeField('No. Uji', 'no_uji', 'text', data.no_uji, false);
+        html += makeField('Tanggal Bayar', 'tanggal_bayar', 'date', data.tanggal_bayar, true);
+        html += '</div>';
+        html += '<div class="grid grid-cols-2 gap-3">';
+        html += makeField('Masa Berlaku s/d', 'masa_berlaku', 'date', data.masa_berlaku, true);
+        html += makeField('Biaya (Rp)', 'biaya', 'number', data.biaya, true, 'min="0"');
+        html += '</div>';
+        html += makeField('Nama Bank', 'nama_bank', 'text', data.nama_bank, false);
+        html += makeField('No. Rekening', 'no_rekening', 'text', data.no_rekening, false);
+    }
+
+    container.innerHTML = html;
+}
+
+function closeResubmitSimpleModal() {
+    document.getElementById('resubmitSimpleModal').classList.replace('flex', 'hidden');
+    document.getElementById('resubmitSimpleModal').classList.add('hidden');
+    _resubmitSimplePoId = null;
+    _resubmitSimpleType = null;
+}
+
+async function submitResubmitSimple() {
+    if (!_resubmitSimplePoId) return;
+
+    const btn   = document.getElementById('resubmitSimpleSubmitBtn');
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    function getVal(id) {
+        const el = document.getElementById('rsf_' + id);
+        return el ? el.value : '';
+    }
+
+    let payload = {};
+    if (_resubmitSimpleType === 'pajak') {
+        payload = {
+            tanggal_bayar : getVal('tanggal_bayar'),
+            nominal       : getVal('nominal'),
+            jatuh_tempo   : getVal('jatuh_tempo'),
+            nama_bank     : getVal('nama_bank'),
+            no_rekening   : getVal('no_rekening'),
+            keterangan    : getVal('keterangan'),
+        };
+        if (!payload.tanggal_bayar || !payload.nominal) { alert('Tanggal Bayar dan Nominal wajib diisi.'); return; }
+    } else if (_resubmitSimpleType === 'asuransi_kendaraan') {
+        payload = {
+            tgl_mulai     : getVal('tgl_mulai'),
+            tgl_berakhir  : getVal('tgl_berakhir'),
+            durasi_bulan  : getVal('durasi_bulan'),
+            biaya         : getVal('biaya'),
+            nama_bank     : getVal('nama_bank'),
+            no_rekening   : getVal('no_rekening'),
+            nama_rekening : getVal('nama_rekening'),
+        };
+        if (!payload.tgl_mulai || !payload.tgl_berakhir || !payload.biaya) { alert('Tgl Mulai, Tgl Berakhir, dan Biaya wajib diisi.'); return; }
+    } else {
+        // kir
+        payload = {
+            no_uji        : getVal('no_uji'),
+            tanggal_bayar : getVal('tanggal_bayar'),
+            masa_berlaku  : getVal('masa_berlaku'),
+            biaya         : getVal('biaya'),
+            nama_bank     : getVal('nama_bank'),
+            no_rekening   : getVal('no_rekening'),
+        };
+        if (!payload.tanggal_bayar || !payload.masa_berlaku || !payload.biaya) { alert('Tanggal Bayar, Masa Berlaku, dan Biaya wajib diisi.'); return; }
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Menyimpan...';
+
+    try {
+        const res = await fetch('/admin/purchase-order/' + _resubmitSimplePoId + '/resubmit-update', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const result = await res.json();
+        if (result.success) {
+            closeResubmitSimpleModal();
+            window.location.href = result.redirect || window.location.href;
+        } else {
+            alert(result.message || 'Terjadi kesalahan.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-rotate-right"></i> Ajukan Ulang';
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan jaringan.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-rotate-right"></i> Ajukan Ulang';
+    }
+}
+
+document.getElementById('resubmitSimpleModal')?.addEventListener('click', function(e) { if (e.target === this) closeResubmitSimpleModal(); });
 
 // ── RESUBMIT SIMPLE (STNK → reset ke Pending langsung) ───────
 async function resubmitSimple(poId, poNumber) {

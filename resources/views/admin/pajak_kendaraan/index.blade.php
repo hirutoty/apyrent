@@ -212,6 +212,7 @@
                                 Jenis Pajak</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Nominal</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl Dibuat</th>
                                 <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl Ketentuan
                                     Bayar</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
@@ -268,8 +269,12 @@
                                     </span>
                                 </td>
 
+                                <td class="px-4 py-3.5 text-xs text-gray-600">
+                                    {{ $item->tanggal_buat ? \Carbon\Carbon::parse($item->tanggal_buat)->translatedFormat('j F Y') : '-' }}
+                                </td>
+
                                 <td class="px-4 py-3.5 text-sm text-gray-500">
-                                    {{ $item->tanggal_bayar ? \Carbon\Carbon::parse($item->tanggal_bayar)->translatedFormat('j F Y') : '-' }}
+                                    {{ $item->tanggal_bayar ? \Carbon\Carbon::parse($item->tanggal_bayar)->translatedFormat('j F') : '-' }}
                                 </td>
 
                                 <td class="px-4 py-3.5">
@@ -317,13 +322,7 @@
                                             <i class="fa fa-circle text-[10px]"></i> Tidak Aktif
                                         </span>
                                     @endif
-                                    <div class="mt-1">
-                                        @if ($item->status == 'sudah_bayar')
-                                            <span class="text-[10px] text-green-600 font-medium">Lunas</span>
-                                        @else
-                                            <span class="text-[10px] text-red-500 font-medium">Belum Lunas</span>
-                                        @endif
-                                    </div>
+                                    
                                 </td>
                                 <td class="px-4 py-3.5">
                                     @if ($item->bukti)
@@ -369,29 +368,42 @@
                                     {{ $item->keterangan ?? '-' }}</td>
 
                                 <td class="px-4 py-3.5 text-center">
-                                    @php
-                                        $p = $item->persetujuan;
-                                        $pClass = match($p) {
-                                            'Disetujui' => 'bg-green-100 text-green-700',
-                                            'Ditolak'   => 'bg-red-100 text-red-600',
-                                            'Pending'   => 'bg-yellow-100 text-yellow-700',
-                                            default     => 'bg-gray-100 text-gray-500',
-                                        };
-                                        $pIcon = match($p) {
-                                            'Disetujui' => 'fa-circle-check',
-                                            'Ditolak'   => 'fa-circle-xmark',
-                                            'Pending'   => 'fa-hourglass-half',
-                                            default     => 'fa-circle',
-                                        };
-                                    @endphp
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold {{ $pClass }}">
-                                        <i class="fa {{ $pIcon }} text-[10px]"></i>
-                                        {{ $p ?? 'Tidak Ada' }}
-                                    </span>
+                                    @if($item->persetujuan === 'Disetujui')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                            <i class="fa-solid fa-circle-check text-[10px]"></i> Disetujui
+                                        </span>
+                                    @elseif($item->persetujuan === 'Diajukan ke Pembayaran')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                                            <i class="fa-solid fa-paper-plane text-[10px]"></i> Diajukan ke Pembayaran
+                                        </span>
+                                    @elseif($item->persetujuan === 'Ditolak')
+                                        <div class="flex flex-col gap-1">
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 w-fit mx-auto">
+                                                <i class="fa-solid fa-circle-xmark text-[10px]"></i> Ditolak di Pembayaran
+                                            </span>
+                                        </div>
+                                    @elseif($item->persetujuan === 'Pending')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+                                            <i class="fa-solid fa-clock text-[10px]"></i> Pending
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400 text-xs">-</span>
+                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1.5">
+
+                                        {{-- Ajukan Ulang: tampil jika persetujuan Ditolak --}}
+                                        @if($item->persetujuan === 'Ditolak' && $item->pembayaran_id)
+                                        <button type="button"
+                                            onclick="openPajakResubmitModal({{ $item->id }})"
+                                            id="row-pajak-{{ $item->id }}"
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
+                                            <i class="fa fa-rotate-right text-xs"></i>
+                                            Ajukan Ulang
+                                        </button>
+                                        @endif
 
                                         {{-- Perpanjangan: hanya tampil jika sudah dalam batas reminder --}}
                                         @if ($selisihHari <= $reminder)
@@ -408,7 +420,10 @@
                 '{{ $item->tanggal_bayar ? \Carbon\Carbon::parse($item->tanggal_bayar)->format('Y-m-d') : '' }}',
                 '{{ $item->status }}',
                 '{{ addslashes($item->keterangan) }}',
-                '{{ $item->bukti }}'
+                '{{ $item->bukti }}',
+                '{{ addslashes($item->nama_pemilik ?? '') }}',
+                '{{ addslashes($item->nama_bank ?? '') }}',
+                '{{ addslashes($item->no_rekening ?? '') }}'
             )">
                                             <i class="fa fa-rotate-right text-xs"></i>
                                             Perpanjang
@@ -427,7 +442,10 @@
                 '{{ $item->tanggal_bayar }}',
                 '{{ $item->status }}',
                 '{{ addslashes($item->keterangan) }}',
-                '{{ $item->bukti }}'
+                '',
+                '{{ addslashes($item->nama_pemilik ?? '') }}',
+                '{{ addslashes($item->nama_bank ?? '') }}',
+                '{{ addslashes($item->no_rekening ?? '') }}'
             )">
                                             <i class="fa fa-edit text-xs"></i>
                                             Edit
@@ -459,7 +477,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="px-5 py-12 text-center">
+                                <td colspan="11" class="px-5 py-12 text-center">
                                     <div class="flex flex-col items-center gap-3">
                                         <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                             <i class="fa fa-file-invoice-dollar text-2xl text-gray-300"></i>
@@ -630,124 +648,47 @@
                 </button>
             </div>
 
-            <form id="formEdit" method="POST" enctype="multipart/form-data" class="px-6 py-5">
+            <form id="formEdit" method="POST" class="px-6 py-5">
                 @csrf
                 @method('PUT')
+                {{-- Hidden fields — nilai tidak berubah, dikirim agar controller tidak error --}}
+                <input type="hidden" name="kendaraan_id"  id="edit_kendaraan_id">
+                <input type="hidden" name="jenis_pajak"   id="edit_jenis_pajak">
+                <input type="hidden" name="jatuh_tempo"   id="edit_jatuh_tempo">
+                <input type="hidden" name="tanggal_bayar" id="edit_tanggal_bayar">
+                <input type="hidden" name="status"        id="edit_status">
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kendaraan</label>
-                        <select name="kendaraan_id" id="edit_kendaraan_id"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                            @foreach ($kendaraan as $k)
-                                <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }}>{{ $k->nopol }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jenis Pajak</label>
-                        <input type="text" name="jenis_pajak" id="edit_jenis_pajak"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jenis_pajak') }}">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal</label>
-                        <input type="number" min="0" name="nominal" id="edit_nominal"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jatuh Tempo</label>
-                        <input type="date" name="jatuh_tempo" id="edit_jatuh_tempo"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('jatuh_tempo') }}">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">
-                            Tanggal Bayar
-                        </label>
-
-                        <input type="date" name="tanggal_bayar"
-                            id="edit_tanggal_bayar"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
-                        <select name="status" id="edit_status"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                            <option value="belum_bayar" {{ old('status') == 'belum_bayar' ? 'selected' : '' }}>Belum Lunas</option>
-                            <option value="sudah_bayar" {{ old('status') == 'sudah_bayar' ? 'selected' : '' }}>Lunas</option>
-                        </select>
-                    </div>
-
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                            Bukti Pembayaran
-                        </label>
-
-                        {{-- Preview --}}
-                        <div id="previewWrapEdit" class="hidden mb-3 relative">
-
-                            {{-- Preview Gambar --}}
-                            <img id="previewImgEdit" src=""
-                                class="hidden h-40 w-full rounded-xl border border-gray-200 object-cover cursor-pointer"
-                                onclick="window.open(this.src,'_blank')">
-
-                            {{-- Preview File --}}
-                            <a id="previewFileEdit" href="#" target="_blank"
-                                class="hidden flex items-center gap-3 p-4 border border-gray-200 rounded-xl bg-gray-50 hover:bg-gray-100">
-
-                                <i class="fa-solid fa-file text-2xl text-red-500"></i>
-
-                                <div>
-                                    <div class="font-medium text-sm text-gray-700" id="previewFileNameEdit">
-                                        File Bukti Pembayaran
-                                    </div>
-                                    <div class="text-xs text-gray-500">
-
-                                    </div>
-                                </div>
-                            </a>
-
-                            <button type="button" onclick="hapusPreviewEdit()"
-                                class="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs flex items-center justify-center">
-                                <i class="fa-solid fa-xmark text-[10px]"></i>
-                            </button>
-                        </div>
-
-                        {{-- Upload Area --}}
-                        <label for="edit_bukti"
-                            class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
-
-                            <i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-400 mb-1"></i>
-
-                            <span class="text-xs text-gray-500">
-                                Klik untuk upload bukti pembayaran
-                            </span>
-
-                            <span class="text-xs text-gray-400">
-                                (Maks 5MB, kosongkan jika tidak ingin mengubah bukti lama)
-                            </span>
-                        </label>
-
-                        <input type="file" name="bukti" id="edit_bukti" class="hidden"
-                            onchange="previewBuktiEdit(this)">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nominal <span class="text-red-500">*</span></label>
+                        <input type="number" min="0" name="nominal" id="edit_nominal" required
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
-
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik Rekening</label>
+                        <input type="text" name="nama_pemilik" id="edit_nama_pemilik"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bank</label>
+                        <input type="text" name="nama_bank" id="edit_nama_bank"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Rekening</label>
+                        <input type="text" name="no_rekening" id="edit_no_rekening"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan</label>
                         <textarea name="keterangan" id="edit_keterangan" rows="3"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"></textarea>
                     </div>
-
                 </div>
 
-                <div class="flex gap-3 pt-2">
+                <div class="flex gap-3 pt-4">
                     <button type="button" onclick="closeModalEdit()"
-                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl odd:bg-white even:bg-gray-100 hover:bg-blue-50/50 transition-colors">
+                        class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
@@ -868,29 +809,31 @@ MODAL PERPANJANG
                     </div>
 
                     <div class="sm:col-span-2">
+                        <div class="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
+                            <i class="fa fa-circle-info mt-0.5 flex-shrink-0"></i>
+                            <span>Bukti pembayaran akan diunggah oleh Superadmin saat melakukan approval di halaman Pembayaran.</span>
+                        </div>
+                    </div>
 
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">
-                            Bukti Pembayaran Baru
-                        </label>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Pemilik Rekening</label>
+                        <input type="text" name="nama_rekening" id="perpanjang_nama_rekening"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                            placeholder="Nama pemilik rekening">
+                    </div>
 
-                        <input id="perpanjang_bukti" type="file" name="bukti" required class="w-full border rounded-lg px-3 py-2">
-
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Bank</label>
+                        <input type="text" name="nama_bank" id="perpanjang_nama_bank"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                            placeholder="Contoh: BRI, BCA, Mandiri">
                     </div>
 
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">
-                            Lampiran <span class="text-red-500">*</span>
-                        </label>
-
-                        <input id="perpanjang_bukti_attachment" type="file" name="bukti_attachment[]" multiple required
-                            class="w-full border rounded-lg px-3 py-2"
-                            onchange="renderListAttachment(this, 'listAttachmentPerpanjang')">
-
-                        <ul id="listAttachmentPerpanjang" class="mt-2 space-y-1 text-xs text-gray-600"></ul>
-                        <p class="text-xs text-red-500 mt-1 flex items-center gap-1">
-                            <i class="fa fa-circle-exclamation text-[10px]"></i>
-                            Wajib upload minimal 1 lampiran
-                        </p>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">No. Rekening</label>
+                        <input type="text" name="no_rekening" id="perpanjang_no_rekening"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                            placeholder="Nomor rekening tujuan">
                     </div>
 
                     <div class="sm:col-span-2">
@@ -1038,19 +981,18 @@ MODAL PERPANJANG
         const modalEdit = document.getElementById('modalEdit');
 
         function openModalEdit(id, kendaraan_id, jenis_pajak, nominal, jatuh_tempo, tanggal_bayar, status, keterangan,
-            bukti) {
+            bukti, nama_pemilik, nama_bank, no_rekening) {
             document.getElementById('formEdit').action = `/admin/pajak/${id}`;
-            document.getElementById('edit_kendaraan_id').value = kendaraan_id;
-            document.getElementById('edit_jenis_pajak').value = jenis_pajak;
-            document.getElementById('edit_nominal').value = nominal;
-            document.getElementById('edit_jatuh_tempo').value = formatDate(jatuh_tempo);
+            document.getElementById('edit_kendaraan_id').value  = kendaraan_id;
+            document.getElementById('edit_jenis_pajak').value   = jenis_pajak;
+            document.getElementById('edit_nominal').value       = nominal;
+            document.getElementById('edit_jatuh_tempo').value   = formatDate(jatuh_tempo);
             document.getElementById('edit_tanggal_bayar').value = formatDate(tanggal_bayar);
-            document.getElementById('edit_status').value = status;
-            document.getElementById('edit_keterangan').value = keterangan;
-
-            // reset input file & tampilkan preview bukti lama (kalau ada)
-            document.getElementById('edit_bukti').value = '';
-            tampilkanPreviewBuktiLama(bukti);
+            document.getElementById('edit_status').value        = status;
+            document.getElementById('edit_keterangan').value    = keterangan;
+            document.getElementById('edit_nama_pemilik').value  = nama_pemilik || '';
+            document.getElementById('edit_nama_bank').value     = nama_bank    || '';
+            document.getElementById('edit_no_rekening').value   = no_rekening  || '';
 
             modalEdit.classList.remove('hidden');
             modalEdit.classList.add('flex');
@@ -1088,7 +1030,10 @@ MODAL PERPANJANG
             tanggalBayar,
             status,
             keterangan,
-            bukti
+            bukti,
+            namaPemilik,
+            namaBank,
+            noRekening
         ) {
             document.getElementById('formPerpanjang').action =
                 `/admin/pajak/${id}/perpanjang`;
@@ -1100,6 +1045,11 @@ MODAL PERPANJANG
             document.getElementById('perpanjang_jenis').value    = jenis;
             document.getElementById('perpanjang_nominal').value  = nominal;
             document.getElementById('perpanjang_keterangan').value = keterangan;
+
+            // Pre-fill info bank dari data lama
+            document.getElementById('perpanjang_nama_rekening').value = namaPemilik || '';
+            document.getElementById('perpanjang_nama_bank').value     = namaBank    || '';
+            document.getElementById('perpanjang_no_rekening').value   = noRekening  || '';
 
             // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)
             document.getElementById('_perpanjang_id').value           = id;
@@ -1606,4 +1556,159 @@ MODAL PERPANJANG
 
 @include('admin.partials.detail-modal')
 
+{{-- MODAL AJUKAN ULANG PAJAK (via AJAX) --}}
+<div id="modalPajakResubmit" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h3 class="text-base font-bold text-gray-800">Ajukan Ulang — Pajak Kendaraan</h3>
+                <p class="text-xs text-gray-500 mt-0.5" id="pajakResubmitKendaraan">-</p>
+            </div>
+            <button onclick="closePajakResubmitModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div id="pajakResubmitLoading" class="flex items-center justify-center py-12">
+            <div class="flex flex-col items-center gap-2 text-gray-400">
+                <i class="fa fa-spinner fa-spin text-2xl"></i>
+                <p class="text-sm">Memuat data...</p>
+            </div>
+        </div>
+        <div id="pajakResubmitBody" class="hidden flex-1 overflow-y-auto flex flex-col">
+            <div class="px-6 pt-4 pb-2">
+                <div id="pajakResubmitCatatan" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 mb-3"></div>
+            </div>
+            <div class="flex-1 overflow-y-auto px-6 pb-2 space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Nominal (Rp) <span class="text-red-500">*</span></label>
+                        <input type="number" id="pr_nominal" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar <span class="text-red-500">*</span></label>
+                        <input type="date" id="pr_tanggal_bayar" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Keterangan</label>
+                    <input type="text" id="pr_keterangan" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">
+                </div>
+            </div>
+            <div class="border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
+                <button type="button" onclick="closePajakResubmitModal()"
+                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">
+                    Batal
+                </button>
+                <button type="button" id="pajakResubmitSubmitBtn" onclick="submitPajakResubmit()"
+                    class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl py-2.5 transition-colors">
+                    <i class="fa fa-rotate-right"></i> Ajukan Ulang
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
+
+@push('scripts')
+<script>
+// ── MODAL AJUKAN ULANG PAJAK ──────────────────────────────────
+let _pajakResubmitId = null;
+
+function openPajakResubmitModal(id) {
+    _pajakResubmitId = id;
+    document.getElementById('pajakResubmitLoading').classList.remove('hidden');
+    document.getElementById('pajakResubmitBody').classList.add('hidden');
+    document.getElementById('modalPajakResubmit').classList.remove('hidden');
+    document.getElementById('modalPajakResubmit').classList.add('flex');
+
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    fetch('/admin/pajak/' + id + '/resubmit-data', {
+        headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(function(data) {
+        if (!data.success) throw new Error(data.message || 'Gagal memuat data');
+        document.getElementById('pajakResubmitKendaraan').textContent = data.kendaraan || '-';
+        const catatanEl = document.getElementById('pajakResubmitCatatan');
+        if (data.catatan_penolakan) {
+            catatanEl.textContent = 'Alasan penolakan: ' + data.catatan_penolakan;
+            catatanEl.classList.remove('hidden');
+        } else {
+            catatanEl.classList.add('hidden');
+        }
+        document.getElementById('pr_nominal').value       = data.nominal       || '';
+        document.getElementById('pr_tanggal_bayar').value = new Date().toISOString().split('T')[0];
+        document.getElementById('pr_keterangan').value    = data.keterangan    || '';
+        document.getElementById('pajakResubmitLoading').classList.add('hidden');
+        document.getElementById('pajakResubmitBody').classList.remove('hidden');
+    })
+    .catch(function(err) {
+        document.getElementById('pajakResubmitLoading').innerHTML =
+            '<div class="text-center text-red-500 py-8 px-6"><i class="fa fa-exclamation-triangle text-xl mb-2"></i><p class="text-sm">' + err.message + '</p></div>';
+    });
+}
+
+function closePajakResubmitModal() {
+    document.getElementById('modalPajakResubmit').classList.replace('flex','hidden');
+    document.getElementById('modalPajakResubmit').classList.add('hidden');
+    _pajakResubmitId = null;
+}
+
+async function submitPajakResubmit() {
+    if (!_pajakResubmitId) return;
+    const btn   = document.getElementById('pajakResubmitSubmitBtn');
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const nominal = document.getElementById('pr_nominal').value;
+    const tglBayar = document.getElementById('pr_tanggal_bayar').value;
+    if (!nominal || !tglBayar) { alert('Nominal dan Tanggal Bayar wajib diisi.'); return; }
+
+    const formData = new FormData();
+    formData.append('_token',        token);
+    formData.append('nominal',       nominal);
+    formData.append('tanggal_bayar', tglBayar);
+    formData.append('keterangan',    document.getElementById('pr_keterangan').value);
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Menyimpan...';
+    try {
+        const res    = await fetch('/admin/pajak/' + _pajakResubmitId + '/resubmit-submit', { method: 'POST', body: formData });
+        const result = await res.json();
+        if (result.success) {
+            closePajakResubmitModal();
+            window.location.reload();
+        } else {
+            alert(result.message || 'Terjadi kesalahan.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-rotate-right"></i> Ajukan Ulang';
+        }
+    } catch(e) {
+        alert('Terjadi kesalahan jaringan.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-rotate-right"></i> Ajukan Ulang';
+    }
+}
+
+document.getElementById('modalPajakResubmit')?.addEventListener('click', function(e) {
+    if (e.target === this) closePajakResubmitModal();
+});
+
+// ── HIGHLIGHT baris dari ?highlight_pembayaran ─────────────────
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const hpId = params.get('highlight_pembayaran');
+    if (!hpId) return;
+    // Cari baris dengan data-pembayaran-id atau tombol yang punya id row-pajak-*
+    document.querySelectorAll('tr').forEach(function(tr) {
+        if (tr.querySelector('[id^="row-pajak-"]')) {
+            const btn = tr.querySelector('[id^="row-pajak-"]');
+            // Scroll ke baris ini dan highlight
+            tr.classList.add('ring-2', 'ring-amber-400', 'ring-inset');
+            setTimeout(function() {
+                tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        }
+    });
+})();
+</script>
+@endpush

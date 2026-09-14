@@ -17,6 +17,7 @@ class PajakKendaraan extends Model
         'nominal',
         'jatuh_tempo',
         'tanggal_bayar',
+        'tanggal_buat',
         'status',
         'status_aktif',
         'keterangan',
