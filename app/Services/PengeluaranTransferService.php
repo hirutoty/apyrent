@@ -87,7 +87,8 @@ class PengeluaranTransferService
         if (!empty($sourceData['existing_record_id'])) {
             $existing = AsuransiKendaraan::where('id', $sourceData['existing_record_id'])
                 ->where(function ($q) {
-                    $q->where('persetujuan', 'Pending')->orWhereNull('persetujuan');
+                    $q->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                      ->orWhereNull('persetujuan');
                 })
                 ->first();
         }
@@ -96,7 +97,8 @@ class PengeluaranTransferService
         if (!$existing) {
             $existing = AsuransiKendaraan::where('pembayaran_id', $pembayaran->id)
                 ->where(function ($q) {
-                    $q->where('persetujuan', 'Pending')->orWhereNull('persetujuan');
+                    $q->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                      ->orWhereNull('persetujuan');
                 })
                 ->first();
         }
@@ -378,7 +380,9 @@ class PengeluaranTransferService
                 'biaya'               => $biaya,
                 'status_pengeluaran'  => $statusPengeluaran,
                 'bukti'               => !empty($buktiFiles) ? $buktiFiles : null,
-                'keterangan'          => $partData['keterangan'] ?? null,
+                'keterangan'          => !empty($partData['replace_part_id'])
+                    ? '-'
+                    : (($partData['is_request'] ?? false) ? 'Request Part' : '-'),
                 'nama_rekening'       => $partData['nama_rekening'] ?? null,
                 'nama_bank'           => $partData['nama_bank'] ?? null,
                 'no_rekening'         => $partData['no_rekening'] ?? null,
@@ -388,6 +392,18 @@ class PengeluaranTransferService
                 'approval_at'         => now(),
                 'persetujuan'         => 'Disetujui',
             ]);
+
+            // ── Tandai part lama sebagai Diganti jika ini dari Ganti Baru ────
+            if (!empty($partData['replace_part_id'])) {
+                $oldPart = \App\Models\ServicePart::find((int) $partData['replace_part_id']);
+                if ($oldPart) {
+                    $oldPart->update([
+                        'status'              => 'Diganti',
+                        'replaced_at'         => now(),
+                        'replaced_by_part_id' => $part->id,
+                    ]);
+                }
+            }
 
             // ── Catat cashflow PER PART (dipecah satu per satu) ──────────────
             $categoryModel = $categoryId ? \App\Models\ServiceCategory::find($categoryId) : null;
@@ -943,7 +959,8 @@ class PengeluaranTransferService
                     ->where('gps_id', $item['gps_id'] ?? null)
                     ->where('type', $item['type'] ?? null)
                     ->where(function($q) {
-                        $q->where('persetujuan', 'Pending')->orWhereNull('persetujuan');
+                        $q->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                          ->orWhereNull('persetujuan');
                     })
                     ->first();
             }
@@ -1075,7 +1092,8 @@ class PengeluaranTransferService
         if (!empty($sourceData['existing_record_id'])) {
             $existing = Kir::where('id', $sourceData['existing_record_id'])
                 ->where(function ($q) {
-                    $q->where('persetujuan', 'Pending')->orWhereNull('persetujuan');
+                    $q->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                      ->orWhereNull('persetujuan');
                 })
                 ->first();
         }
@@ -1084,7 +1102,8 @@ class PengeluaranTransferService
         if (!$existing) {
             $existing = Kir::where('pembayaran_id', $pembayaran->id)
                 ->where(function ($q) {
-                    $q->where('persetujuan', 'Pending')->orWhereNull('persetujuan');
+                    $q->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                      ->orWhereNull('persetujuan');
                 })
                 ->first();
         }
@@ -1473,18 +1492,26 @@ class PengeluaranTransferService
             'service-asuransi',
             $pembayaran->id
         );
+
+        // Resolve nama_asuransi: bisa string langsung atau lookup dari asuransi_id (fallback)
+        $namaAsuransi = $sourceData['nama_asuransi'] ?? null;
+        if (!$namaAsuransi && !empty($sourceData['asuransi_id'])) {
+            $asuransiModel = \App\Models\Asuransi::find($sourceData['asuransi_id']);
+            $namaAsuransi  = $asuransiModel?->nama_asuransi;
+        }
         
         $serviceAsuransi = ServiceAsuransi::create([
             'kendaraan_id'      => $sourceData['kendaraan_id'],
-            'service_history_id'=> $sourceData['service_history_id'] ?? null,
-            'asuransi_id'       => $sourceData['asuransi_id'],
-            'jenis_asuransi_id' => $sourceData['jenis_asuransi_id'],
-            'no_polis'          => $sourceData['no_polis'] ?? null,
-            'tanggal_klaim'     => $sourceData['tanggal_klaim'] ?? now(),
-            'biaya'             => $sourceData['biaya'],
-            'status'            => $sourceData['status'] ?? 'Disetujui',
+            'nama_asuransi'     => $namaAsuransi,
+            'jenis_asuransi_id' => $sourceData['jenis_asuransi_id'] ?? null,
+            'tanggal_service'   => $sourceData['tanggal_service'] ?? now()->toDateString(),
+            'periode_mulai'     => $sourceData['periode_mulai'] ?? null,
+            'periode_selesai'   => $sourceData['periode_selesai'] ?? null,
+            'kilometer'         => $sourceData['kilometer'] ?? 0,
+            'biaya'             => $sourceData['biaya'] ?? 0,
+            'status'            => 'bermasalah',
             'keterangan'        => $sourceData['keterangan'] ?? null,
-            'bukti'             => $bukti,
+            'bukti'             => $bukti ? [$bukti] : null,
         ]);
         
         // Copy attachments

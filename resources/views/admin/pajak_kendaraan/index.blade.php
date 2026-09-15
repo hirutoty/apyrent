@@ -743,27 +743,12 @@ MODAL PERPANJANG
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">
-                            Kendaraan
-                        </label>
-
-                        <div
-                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 text-sm text-gray-700 cursor-not-allowed select-none">
-                            <span id="perpanjang_kendaraan_text">-</span>
-                        </div>
-
-                        <input type="hidden" name="kendaraan_id" id="perpanjang_kendaraan">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">
-                            Jenis Pajak
-                        </label>
-
-                        <input id="perpanjang_jenis" type="text" name="jenis_pajak"
-                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed" readonly value="{{ old('jenis_pajak') }}">
-                    </div>
+                    {{-- Kendaraan hidden — tidak ditampilkan --}}
+                    <input type="hidden" name="kendaraan_id" id="perpanjang_kendaraan">
+                    {{-- Jenis pajak hidden — tidak ditampilkan --}}
+                    <input type="hidden" name="jenis_pajak" id="perpanjang_jenis_hidden">
+                    {{-- Status hidden --}}
+                    <input type="hidden" name="status" value="sudah_bayar">
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">
@@ -795,19 +780,6 @@ MODAL PERPANJANG
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">
-                            Status
-                        </label>
-
-                        <div
-                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 text-sm text-gray-700 cursor-not-allowed select-none">
-                            Lunas
-                        </div>
-
-                        <input type="hidden" name="status" value="sudah_bayar">
-                    </div>
-
                     <div class="sm:col-span-2">
                         <div class="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
                             <i class="fa fa-circle-info mt-0.5 flex-shrink-0"></i>
@@ -834,16 +806,6 @@ MODAL PERPANJANG
                         <input type="text" name="no_rekening" id="perpanjang_no_rekening"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                             placeholder="Nomor rekening tujuan">
-                    </div>
-
-                    <div class="sm:col-span-2">
-
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">
-                            Keterangan
-                        </label>
-
-                        <textarea id="perpanjang_keterangan" name="keterangan" rows="3" class="w-full border rounded-lg px-3 py-2">{{ old('keterangan') }}</textarea>
-
                     </div>
 
                 </div>
@@ -1039,12 +1001,9 @@ MODAL PERPANJANG
                 `/admin/pajak/${id}/perpanjang`;
 
             document.getElementById('perpanjang_kendaraan').value = kendaraan_id;
-            document.getElementById('perpanjang_kendaraan_text').innerText =
-                `${nopol} - ${merk}`;
 
-            document.getElementById('perpanjang_jenis').value    = jenis;
+            document.getElementById('perpanjang_jenis_hidden').value = jenis;
             document.getElementById('perpanjang_nominal').value  = nominal;
-            document.getElementById('perpanjang_keterangan').value = keterangan;
 
             // Pre-fill info bank dari data lama
             document.getElementById('perpanjang_nama_rekening').value = namaPemilik || '';

@@ -21,7 +21,18 @@ class PengeluaranInterceptorService
     {
         // Extract semua data dari request
         $data = $request->except(['_token', '_method', 'bukti', 'bukti_attachment', 'attachment', 'attachments']);
-        
+
+        // Jika dari Ganti Baru (from_part), inject replace_part_id ke setiap part di source_data
+        if ($request->filled('from_part') && $sourceType === 'service_part') {
+            $replacePartId = (int) $request->input('from_part');
+            if (!empty($data['parts']) && is_array($data['parts'])) {
+                foreach ($data['parts'] as &$partData) {
+                    $partData['replace_part_id'] = $replacePartId;
+                }
+                unset($partData);
+            }
+        }
+
         // Get user info
         $user = Auth::user();
         
@@ -292,6 +303,7 @@ class PengeluaranInterceptorService
                 'total_barang' => $totalItems,
                 'total_harga' => (int) $interceptedData['nominal'],
                 'catatan' => $interceptedData['informasi'] ?? $interceptedData['source_data']['keterangan'] ?? null,
+                'keterangan' => $interceptedData['source_data']['keterangan'] ?? null,
                 'status' => 'Pending',
                 'can_edit' => false,
                 'terakhir_diajukan' => now(),
@@ -334,6 +346,7 @@ class PengeluaranInterceptorService
                 'total_harga' => (int) $data['nominal'],
                 'status_po' => 'Pending', // Legacy field, not used in new flow
                 'catatan' => $data['informasi'] ?? $data['source_data']['keterangan'] ?? null,
+                'keterangan' => $data['source_data']['keterangan'] ?? null,
                 // Approval workflow fields
                 'source_type' => $sourceType,
                 'source_data' => $data['source_data'],
@@ -435,6 +448,29 @@ class PengeluaranInterceptorService
             }
         }
         
+        // Upload parts per-item bukti (service_part multi-item form)
+        $partFiles = $request->file('parts');
+        if (is_array($partFiles)) {
+            foreach ($partFiles as $idx => $part) {
+                if (empty($part['bukti']) || !is_array($part['bukti'])) continue;
+                foreach ($part['bukti'] as $bi => $buktiFile) {
+                    if (!$buktiFile || !$buktiFile->isValid()) continue;
+                    $originalName = $buktiFile->getClientOriginalName();
+                    $extension    = $buktiFile->getClientOriginalExtension();
+                    $storedName   = "{$timestamp}_{$idx}_{$bi}_{$originalName}";
+                    $path = $buktiFile->storeAs($tempDir . '/parts/' . $idx . '/bukti', $storedName, 'public');
+                    $uploadedFiles['parts'][$idx]['bukti'][] = [
+                        'original_name' => $originalName,
+                        'stored_name'   => $storedName,
+                        'path'          => $path,
+                        'full_path'     => storage_path('app/public/' . $path),
+                        'size'          => $buktiFile->getSize(),
+                        'extension'     => $extension,
+                    ];
+                }
+            }
+        }
+
         // Upload gps_items per-item lampiran (GPS multi-item form)
         $gpsItemFiles = $request->file('gps_items');
         if (is_array($gpsItemFiles)) {

@@ -148,6 +148,31 @@
                 </div>
             </div>
 
+            {{-- Lampiran --}}
+            @php
+                $_showTempFiles = ($pembayaran->source_data['temp_files'] ?? []);
+                $_hasLampiran   = !empty($_showTempFiles['bukti'])
+                    || !empty($_showTempFiles['attachments'])
+                    || !empty($_showTempFiles['parts'])
+                    || !empty($_showTempFiles['gps_items']);
+            @endphp
+            @if($_hasLampiran)
+            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div class="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                        <i class="fa fa-paperclip text-blue-600 text-xs"></i>
+                    </span>
+                    <h2 class="text-sm font-bold text-gray-800">Lampiran</h2>
+                </div>
+                <div class="p-5">
+                    @include('admin.partials._lampiran_files', [
+                        'tempFiles' => $_showTempFiles,
+                        'compact'   => false,
+                    ])
+                </div>
+            </div>
+            @endif
+
             {{-- Tipe Service: Info Service --}}
             @if($pembayaran->tipe_pembayaran === 'service' || $pembayaran->kendaraan_id)
             <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">

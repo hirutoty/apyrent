@@ -297,9 +297,11 @@ class KirController extends Controller
             }
         }
 
-        $exists = Kir::where('kendaraan_id', $kendaraan->id)->exists();
+        $exists = Kir::where('kendaraan_id', $kendaraan->id)
+            ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran', 'Disetujui'])
+            ->exists();
         if ($exists) {
-            return back()->with('error', 'Kendaraan ' . $kendaraan->nopol . ' sudah memiliki data KIR');
+            return back()->with('error', 'Kendaraan ' . $kendaraan->nopol . ' sudah memiliki data KIR aktif atau sedang dalam proses approval.');
         }
 
         try {
@@ -324,6 +326,9 @@ class KirController extends Controller
                 'image'         => null,
                 'status'        => 'tidak_aktif',
                 'persetujuan'   => 'Pending',
+                'nama_rekening' => $request->nama_rekening,
+                'nama_bank'     => $request->nama_bank,
+                'no_rekening'   => $request->no_rekening,
             ]);
 
             // Step 2: Simpan attachment langsung
@@ -541,9 +546,10 @@ class KirController extends Controller
         ]);
 
         $kir->update([
-            'biaya'       => $request->biaya,
-            'nama_bank'   => $request->nama_bank,
-            'no_rekening' => $request->no_rekening,
+            'biaya'         => $request->biaya,
+            'nama_rekening' => $request->nama_rekening,
+            'nama_bank'     => $request->nama_bank,
+            'no_rekening'   => $request->no_rekening,
         ]);
 
         return back()->with('success', 'Data KIR berhasil diupdate');

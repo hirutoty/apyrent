@@ -22,6 +22,7 @@ class PurchaseOrder extends Model
         'tanggal_kirim',
         'tanggal_terima',
         'catatan',
+        'keterangan',
         // Approval workflow fields
         'source_type',
         'source_data',

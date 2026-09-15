@@ -10,6 +10,7 @@ use App\Services\PengeluaranInterceptorService;
 use App\Services\PurchaseOrderApprovalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class PurchaseOrderController extends Controller
 {
@@ -113,10 +114,12 @@ class PurchaseOrderController extends Controller
                     'tanggal_po' => $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-',
                     'status' => $po->status,
                     'catatan' => $po->catatan,
+                    'keterangan' => $po->keterangan,
                     'catatan_approval' => $po->catatan_approval,
                     'disetujui_oleh' => $po->approver ? $po->approver->nama : null,
                     'tanggal_persetujuan' => $po->tanggal_persetujuan ? $po->tanggal_persetujuan->format('d M Y H:i') : null,
                     'pembayaran_no_pr' => $po->pembayaran ? $po->pembayaran->no_pr : null,
+                    'temp_files' => $sourceData['temp_files'] ?? [],
                 ],
                 'details' => $details,
             ]);
@@ -302,9 +305,26 @@ class PurchaseOrderController extends Controller
         $kendaraanId = $sourceData['kendaraan_id'] ?? null;
         $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
 
+        // Ambil lampiran per-part dari temp_files yang disimpan saat upload
+        $tempFiles = $sourceData['temp_files'] ?? [];
+        $tempParts = $tempFiles['parts'] ?? [];
+
         $items = [];
         foreach ($parts as $idx => $part) {
             $category = isset($part['category_id']) ? \App\Models\ServiceCategory::find($part['category_id']) : null;
+
+            // Ambil lampiran untuk part ini dari temp_files
+            $lampiranFiles = $tempParts[$idx]['bukti'] ?? [];
+            $lampiran = [];
+            foreach ($lampiranFiles as $file) {
+                $ext = strtolower($file['extension'] ?? '');
+                $lampiran[] = [
+                    'file_name' => $file['original_name'],
+                    'file_path' => Storage::disk('public')->url($file['path']),
+                    'file_type' => $ext,
+                    'file_size' => $file['size'] ?? 0,
+                ];
+            }
 
             $items[] = [
                 'nama_part'      => $part['nama_part'] ?? '-',
@@ -317,6 +337,7 @@ class PurchaseOrderController extends Controller
                 'nama_bank'      => $part['nama_bank'] ?? '-',
                 'no_rekening'    => $part['no_rekening'] ?? '-',
                 'nama_rekening'  => $part['nama_rekening'] ?? '-',
+                'lampiran'       => $lampiran,
             ];
         }
 
@@ -888,7 +909,8 @@ class PurchaseOrderController extends Controller
                 return response()->json(['success' => false, 'message' => 'Hanya PO yang ditolak yang dapat diajukan ulang.'], 422);
             }
 
-            if (!$po->can_edit) {
+            // service_part punya form standalone — tidak bergantung can_edit
+            if (!$po->can_edit && $po->source_type !== 'service_part') {
                 return response()->json(['success' => false, 'message' => 'PO ini tidak dapat diedit.'], 422);
             }
 
@@ -911,6 +933,14 @@ class PurchaseOrderController extends Controller
                 return response()->json([
                     'success'  => true,
                     'redirect' => route('kir.ajukan-ulang', $po->id),
+                ]);
+            }
+
+            // Service Part: redirect ke form create dengan edit_po param
+            if ($po->source_type === 'service_part') {
+                return response()->json([
+                    'success'  => true,
+                    'redirect' => route('service-history.create', ['edit_po' => $po->id]),
                 ]);
             }
 
@@ -980,7 +1010,7 @@ class PurchaseOrderController extends Controller
                 return response()->json(['success' => false, 'message' => 'PO ini tidak dapat diedit.'], 422);
             }
 
-            $allowed = ['pajak', 'asuransi_kendaraan', 'kir'];
+            $allowed = ['pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'kir', 'kir_perpanjang'];
             if (!in_array($po->source_type, $allowed)) {
                 return response()->json(['success' => false, 'message' => 'Tipe PO tidak didukung oleh modal ini.'], 422);
             }
@@ -1000,18 +1030,16 @@ class PurchaseOrderController extends Controller
                 'kendaraan_id'  => $kendaraanId,
             ];
 
-            if ($po->source_type === 'pajak') {
+            if (in_array($po->source_type, ['pajak', 'pajak_perpanjang'])) {
                 return response()->json(array_merge($base, [
-                    'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '',
-                    'nominal'       => $sourceData['nominal']       ?? '',
-                    'jatuh_tempo'   => $sourceData['jatuh_tempo']   ?? '',
-                    'nama_bank'     => $sourceData['nama_bank']     ?? '',
-                    'no_rekening'   => $sourceData['no_rekening']   ?? '',
-                    'keterangan'    => $sourceData['keterangan']    ?? '',
+                    'nominal'       => $sourceData['nominal']      ?? '',
+                    'nama_pemilik'  => $sourceData['nama_pemilik'] ?? '',
+                    'nama_bank'     => $sourceData['nama_bank']    ?? '',
+                    'no_rekening'   => $sourceData['no_rekening']  ?? '',
                 ]));
             }
 
-            if ($po->source_type === 'asuransi_kendaraan') {
+            if (in_array($po->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
                 return response()->json(array_merge($base, [
                     'tgl_mulai'     => $sourceData['tgl_mulai']     ?? '',
                     'tgl_berakhir'  => $sourceData['tgl_berakhir']  ?? '',
@@ -1023,7 +1051,7 @@ class PurchaseOrderController extends Controller
                 ]));
             }
 
-            // kir
+            // kir / kir_perpanjang
             return response()->json(array_merge($base, [
                 'no_uji'        => $sourceData['no_uji']        ?? '',
                 'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '',
@@ -1054,27 +1082,24 @@ class PurchaseOrderController extends Controller
                 return response()->json(['success' => false, 'message' => 'PO ini tidak dapat diedit.'], 422);
             }
 
-            $allowed = ['pajak', 'asuransi_kendaraan', 'kir'];
+            $allowed = ['pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'kir', 'kir_perpanjang'];
             if (!in_array($po->source_type, $allowed)) {
                 return response()->json(['success' => false, 'message' => 'Tipe PO tidak didukung.'], 422);
             }
 
             $sourceData = $po->source_data ?? [];
 
-            if ($po->source_type === 'pajak') {
+            if (in_array($po->source_type, ['pajak', 'pajak_perpanjang'])) {
                 $request->validate([
-                    'tanggal_bayar' => 'required|date',
-                    'nominal'       => 'required|numeric|min:0',
+                    'nominal' => 'required|numeric|min:0',
                 ]);
                 $sourceData = array_merge($sourceData, [
-                    'tanggal_bayar' => $request->tanggal_bayar,
-                    'nominal'       => $request->nominal,
-                    'jatuh_tempo'   => $request->jatuh_tempo   ?? $sourceData['jatuh_tempo']   ?? null,
-                    'nama_bank'     => $request->nama_bank     ?? $sourceData['nama_bank']     ?? null,
-                    'no_rekening'   => $request->no_rekening   ?? $sourceData['no_rekening']   ?? null,
-                    'keterangan'    => $request->keterangan    ?? $sourceData['keterangan']    ?? null,
+                    'nominal'      => $request->nominal,
+                    'nama_pemilik' => $request->nama_pemilik ?? $sourceData['nama_pemilik'] ?? null,
+                    'nama_bank'    => $request->nama_bank    ?? $sourceData['nama_bank']    ?? null,
+                    'no_rekening'  => $request->no_rekening  ?? $sourceData['no_rekening']  ?? null,
                 ]);
-            } elseif ($po->source_type === 'asuransi_kendaraan') {
+            } elseif (in_array($po->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
                 $request->validate([
                     'tgl_mulai'    => 'required|date',
                     'tgl_berakhir' => 'required|date|after_or_equal:tgl_mulai',
@@ -1090,7 +1115,7 @@ class PurchaseOrderController extends Controller
                     'nama_rekening' => $request->nama_rekening ?? $sourceData['nama_rekening'] ?? null,
                 ]);
             } else {
-                // kir
+                // kir / kir_perpanjang
                 $request->validate([
                     'tanggal_bayar' => 'required|date',
                     'masa_berlaku'  => 'required|date',
@@ -1108,10 +1133,10 @@ class PurchaseOrderController extends Controller
 
             // Hitung ulang total_harga dari source_data yang baru
             $totalHarga = match ($po->source_type) {
-                'pajak'              => $sourceData['nominal'] ?? $po->total_harga,
-                'asuransi_kendaraan' => $sourceData['biaya']   ?? $po->total_harga,
-                'kir'                => $sourceData['biaya']   ?? $po->total_harga,
-                default              => $po->total_harga,
+                'pajak', 'pajak_perpanjang'                                     => $sourceData['nominal'] ?? $po->total_harga,
+                'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'           => $sourceData['biaya']   ?? $po->total_harga,
+                'kir', 'kir_perpanjang'                                         => $sourceData['biaya']   ?? $po->total_harga,
+                default                                                         => $po->total_harga,
             };
 
             $po->update([

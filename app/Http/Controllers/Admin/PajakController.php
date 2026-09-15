@@ -199,14 +199,14 @@ class PajakController extends Controller
                 // Update record pajak — hanya keterangan, data lain tetap
                 if ($existingId) {
                     PajakKendaraan::where('id', $existingId)->update([
-                        'persetujuan' => 'Pending',
-                        'keterangan'  => $request->keterangan ?? null,
+                        'persetujuan'  => 'Pending',
+                        'nama_pemilik' => $request->nama_pemilik ?? null,
                     ]);
                 }
 
-                // Update source_data PO — hanya keterangan
+                // Update source_data PO — hanya nama_pemilik
                 $newSourceData = array_merge($sourceData, [
-                    'keterangan'         => $request->keterangan ?? null,
+                    'nama_pemilik'       => $request->nama_pemilik ?? null,
                     'existing_record_id' => $existingId,
                 ]);
 
@@ -250,10 +250,10 @@ class PajakController extends Controller
                         ->with('error', 'Pengajuan ini tidak dapat diajukan ulang (status: ' . $pembayaran->status . ').');
                 }
 
-                // Gabungkan source_data lama — hanya update keterangan
+                // Gabungkan source_data lama — hanya update nama_pemilik
                 $sourceData = $pembayaran->source_data ?? [];
                 $sourceData = array_merge($sourceData, [
-                    'keterangan' => $request->keterangan ?? ($sourceData['keterangan'] ?? null),
+                    'nama_pemilik' => $request->nama_pemilik ?? ($sourceData['nama_pemilik'] ?? null),
                 ]);
 
                 $pembayaran->update([
@@ -267,8 +267,8 @@ class PajakController extends Controller
                 if ($existingId) {
                     PajakKendaraan::where('id', $existingId)
                         ->update([
-                            'persetujuan' => 'Pending',
-                            'keterangan'  => $request->keterangan ?? null,
+                            'persetujuan'  => 'Pending',
+                            'nama_pemilik' => $request->nama_pemilik ?? null,
                         ]);
                 }
 
@@ -325,6 +325,7 @@ class PajakController extends Controller
             // Step 3: Intercept & buat Purchase Order
             $request->merge([
                 'nama_rekening' => $request->nama_pemilik,
+                'keterangan'    => 'tambah-pajak-' . ($kendaraan->merk ?? '') . '-' . ($kendaraan->nopol ?? ''),
             ]);
             $interceptedData = $interceptor->intercept($request, 'pajak');
 

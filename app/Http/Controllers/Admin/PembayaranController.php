@@ -1180,8 +1180,9 @@ class PembayaranController extends Controller
                     
                 case 'service_asuransi':
                     $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
-                    $data['asuransi'] = \App\Models\Asuransi::find($sourceData['asuransi_id']);
-                    $data['jenis_asuransi'] = \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id']);
+                    // service_asuransi menyimpan nama_asuransi (string), bukan asuransi_id
+                    $data['nama_asuransi'] = $sourceData['nama_asuransi'] ?? null;
+                    $data['jenis_asuransi'] = \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id'] ?? null);
                     break;
             }
         } catch (\Exception $e) {
@@ -1326,6 +1327,18 @@ class PembayaranController extends Controller
                                 'persetujuan' => 'Ditolak',
                                 'keterangan'  => $request->catatan,
                             ]);
+                    }
+                }
+            }
+
+            // Untuk service_part: update keterangan part lama ke 'pembayaran ditolak' jika ada replace_part_id
+            if ($pembayaran->source_type === 'service_part') {
+                $sourceData = $pembayaran->source_data ?? [];
+                $parts      = $sourceData['parts'] ?? [];
+                foreach ($parts as $partData) {
+                    if (!empty($partData['replace_part_id'])) {
+                        \App\Models\ServicePart::where('id', (int) $partData['replace_part_id'])
+                            ->update(['keterangan' => 'pembayaran ditolak']);
                     }
                 }
             }
@@ -1656,6 +1669,18 @@ class PembayaranController extends Controller
                     if (isset($sourceData['parts'][$idx])) {
                         $sourceData['parts'][$idx]['status_approval'] = 'rejected';
                         $sourceData['parts'][$idx]['catatan_penolakan'] = $rejected['catatan'] ?? '';
+                    }
+                }
+                $pembayaran->update(['source_data' => $sourceData]);
+            }
+
+            // Simpan bukti_bayar_admin per part ke source_data
+            $buktiToSave = array_filter(array_column($approvedItems, 'bukti_path', 'idx'));
+            if (!empty($buktiToSave)) {
+                $sourceData = $pembayaran->fresh()->source_data ?? [];
+                foreach ($buktiToSave as $idx => $buktiPath) {
+                    if (isset($sourceData['parts'][$idx])) {
+                        $sourceData['parts'][$idx]['bukti_bayar_admin'] = $buktiPath;
                     }
                 }
                 $pembayaran->update(['source_data' => $sourceData]);

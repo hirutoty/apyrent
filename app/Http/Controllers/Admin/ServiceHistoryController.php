@@ -99,6 +99,7 @@ class ServiceHistoryController extends Controller
                 $serviceHistory = $part->serviceHistory;
                 
                 $prefill = [
+                    'source'            => 'reminder',
                     'reminder_id'       => $reminder->id,
                     'kendaraan_id'      => $reminder->kendaraan_id,
                     'kendaraan'         => $reminder->kendaraan,
@@ -119,6 +120,106 @@ class ServiceHistoryController extends Controller
                         'biaya'           => $part->biaya,
                         'kondisi'         => $part->kondisi,
                     ],
+                ];
+            }
+        }
+
+        if ($request->from_part) {
+            $oldPart = ServicePart::with(['category', 'serviceHistory', 'kendaraan'])->find($request->from_part);
+            if ($oldPart) {
+                $kendaraanPart = $oldPart->kendaraan;
+                $prefill = [
+                    'source'          => 'part',
+                    'replace_part_id' => $oldPart->id,
+                    'kendaraan_id'    => $oldPart->kendaraan_id,
+                    'kendaraan'       => $kendaraanPart,
+                    'tanggal_service' => now()->format('Y-m-d'),
+                    'kilometer'       => $kendaraanPart?->kilometer_sekarang ?? $oldPart->kilometer_pasang,
+                    'keluhan'         => null,
+                    'status'          => 'proses',
+                    'part'            => [
+                        'service_part_id' => $oldPart->id,
+                        'nama_part'       => $oldPart->nama_part,
+                        'part_number'     => $oldPart->part_number,
+                        'posisi'          => $oldPart->posisi,
+                        'category_id'     => $oldPart->category_id,
+                        'category_nama'   => $oldPart->category?->nama,
+                        'interval_nilai'  => $oldPart->interval_nilai,
+                        'interval_satuan' => $oldPart->interval_satuan,
+                        'biaya'           => $oldPart->biaya,
+                        'kondisi'         => $oldPart->kondisi,
+                    ],
+                ];
+            }
+        }
+
+        if ($request->edit_po) {
+            $po = \App\Models\PurchaseOrder::find($request->edit_po);
+            if ($po && $po->isRejected() && $po->source_type === 'service_part') {
+                $sourceData    = $po->source_data ?? [];
+                $kendaraanId   = $sourceData['kendaraan_id'] ?? null;
+                $kendaraanPO   = $kendaraanId ? Kendaraan::find($kendaraanId) : null;
+                $firstPart     = ($sourceData['parts'] ?? [])[0] ?? null;
+                $prefill = [
+                    'source'          => 'edit_po',
+                    'edit_po_id'      => $po->id,
+                    'kendaraan_id'    => $kendaraanId,
+                    'kendaraan'       => $kendaraanPO,
+                    'tanggal_service' => $sourceData['tanggal_service'] ?? now()->format('Y-m-d'),
+                    'kilometer'       => $sourceData['kilometer'] ?? null,
+                    'keluhan'         => $sourceData['keluhan'] ?? null,
+                    'status'          => 'proses',
+                    'catatan_tolak'   => $po->catatan_approval,
+                    'part'            => $firstPart ? [
+                        'service_part_id' => $firstPart['service_part_id'] ?? null,
+                        'nama_part'       => $firstPart['nama_part'] ?? '',
+                        'part_number'     => $firstPart['part_number'] ?? null,
+                        'posisi'          => $firstPart['posisi'] ?? null,
+                        'category_id'     => $firstPart['category_id'] ?? null,
+                        'category_nama'   => $firstPart['category_nama'] ?? null,
+                        'interval_nilai'  => $firstPart['interval_nilai'] ?? 12,
+                        'interval_satuan' => $firstPart['interval_satuan'] ?? 'bulan',
+                        'biaya'           => $firstPart['biaya'] ?? 0,
+                        'kondisi'         => $firstPart['kondisi'] ?? 'Baik',
+                    ] : null,
+                    'all_parts'       => $sourceData['parts'] ?? [],
+                ];
+            }
+        }
+
+        // ── Ajukan Ulang dari Pembayaran yang Ditolak ──────────────────────────
+        if ($request->filled('edit_pembayaran')) {
+            $pembayaran = \App\Models\Pembayaran::find($request->edit_pembayaran);
+            if ($pembayaran && in_array($pembayaran->status, ['Ditolak', 'Disetujui Sebagian']) && $pembayaran->source_type === 'service_part') {
+                $sourceData    = $pembayaran->source_data ?? [];
+                $kendaraanId   = $sourceData['kendaraan_id'] ?? null;
+                $kendaraanPmb  = $kendaraanId ? Kendaraan::find($kendaraanId) : null;
+                $allParts      = $sourceData['parts'] ?? [];
+                $firstPart     = $allParts[0] ?? null;
+
+                $prefill = [
+                    'source'          => 'edit_pembayaran',
+                    'edit_pembayaran_id' => $pembayaran->id,
+                    'kendaraan_id'    => $kendaraanId,
+                    'kendaraan'       => $kendaraanPmb,
+                    'tanggal_service' => $sourceData['tanggal_service'] ?? now()->format('Y-m-d'),
+                    'kilometer'       => $sourceData['kilometer'] ?? null,
+                    'keluhan'         => $sourceData['keluhan'] ?? null,
+                    'status'          => 'proses',
+                    'catatan_tolak'   => $pembayaran->catatan ?? $request->rejection_reason ?? null,
+                    'part'            => $firstPart ? [
+                        'service_part_id' => $firstPart['service_part_id'] ?? null,
+                        'nama_part'       => $firstPart['nama_part'] ?? '',
+                        'part_number'     => $firstPart['part_number'] ?? null,
+                        'posisi'          => $firstPart['posisi'] ?? null,
+                        'category_id'     => $firstPart['category_id'] ?? null,
+                        'category_nama'   => $firstPart['category_nama'] ?? null,
+                        'interval_nilai'  => $firstPart['interval_nilai'] ?? 12,
+                        'interval_satuan' => $firstPart['interval_satuan'] ?? 'bulan',
+                        'biaya'           => $firstPart['biaya'] ?? 0,
+                        'kondisi'         => $firstPart['kondisi'] ?? 'Baik',
+                    ] : null,
+                    'all_parts'       => $allParts,
                 ];
             }
         }
@@ -207,6 +308,17 @@ class ServiceHistoryController extends Controller
                     return redirect()
                         ->route('purchase-order.index', ['status' => 'Pending'])
                         ->with('success', 'Pengajuan service part berhasil diajukan ulang. Menunggu approval di Purchase Order.');
+                }
+
+                // Check if this is a resubmit (from rejected Pembayaran)
+                if ($request->filled('edit_pembayaran')) {
+                    $pembayaranId = (int) $request->input('edit_pembayaran');
+
+                    $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'service_part');
+
+                    return redirect()
+                        ->route('pembayaran.index', ['tab' => 'Diajukan'])
+                        ->with('success', 'Pengajuan service part berhasil diajukan ulang. Menunggu approval.');
                 }
                 
                 // Step 1: Intercept data dari form
@@ -383,7 +495,7 @@ class ServiceHistoryController extends Controller
                         'biaya'               => (int)($partData['biaya'] ?? 0),
                         'status_pengeluaran'  => $partStatuses[$idx] ?? 'stabil',
                         'bukti'               => !empty($buktiFiles) ? json_encode($buktiFiles) : null,
-                        'keterangan'          => $partData['keterangan'] ?? null,
+                        'keterangan'          => '-',
                         'nama_rekening'       => $partData['nama_rekening'] ?? null,
                         'nama_bank'           => $partData['nama_bank'] ?? null,
                         'no_rekening'         => $partData['no_rekening'] ?? null,

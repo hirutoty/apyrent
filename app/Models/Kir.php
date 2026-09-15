@@ -29,6 +29,7 @@ class Kir extends Model
         'status',
         'nama_bank',
         'no_rekening',
+        'nama_rekening',
     ];
 
     /**

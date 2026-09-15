@@ -112,9 +112,9 @@
                         class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keluhan', $prefill['keluhan'] ?? '') }}</textarea>
                 </div>
 
-                {{-- Bukti Pembayaran --}}
+                {{-- Lampiran --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bukti Pembayaran</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Lampiran</label>
                     <input type="file" name="bukti_pembayaran"
                         class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                 </div>
