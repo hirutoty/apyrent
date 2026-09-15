@@ -44,6 +44,7 @@ class PengeluaranTransferService
                 'pajak'                         => $this->transferPajak($pembayaran, $approvalFiles),
                 'pajak_perpanjang'              => $this->transferPajakPerpanjang($pembayaran, $approvalFiles),
                 'service_part'                  => $this->transferServicePart($pembayaran, $approvalFiles, $selectedItems ?? []),
+                'service_incident'              => $this->transferServiceIncident($pembayaran, $approvalFiles, $selectedItems ?? []),
                 'gps'                           => $this->transferGps($pembayaran, $approvalFiles, $selectedItems),
                 'gps_perpanjang'                => $this->transferGpsPerpanjang($pembayaran, $approvalFiles, $selectedItems),
                 'kir'                           => $this->transferKir($pembayaran, $approvalFiles),
@@ -441,6 +442,181 @@ class PengeluaranTransferService
         }
 
         return $service->id;
+    }
+
+    /**
+     * Transfer Service Incident — dijalankan saat superadmin approve PO service_incident.
+     *
+     * Alur:
+     * 1. Buat record ServiceIncident baru
+     * 2. Buat ServiceIncidentPart per parts yang diapprove:
+     *    - status       = 'Terpasang'  (langsung terpasang setelah disetujui)
+     *    - persetujuan  = 'Disetujui'
+     * 3. Catat cashflow Keuangan + BukuBesar per part
+     * 4. Copy temp files ke final storage
+     *
+     * Tidak ada cek is_over_limit / status_pengeluaran — incident is incident.
+     */
+    protected function transferServiceIncident(Pembayaran $pembayaran, array $approvalFiles, array $selectedParts = []): int
+    {
+        $sourceData  = $pembayaran->source_data;
+        $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+        $kendaraan   = Kendaraan::find($kendaraanId);
+
+        // ── Filter parts ──────────────────────────────────────────────
+        $allParts = $sourceData['parts'] ?? [];
+        if (!empty($selectedParts)) {
+            $parts = array_values(array_filter($allParts, fn($p, $idx) => in_array($idx, $selectedParts), ARRAY_FILTER_USE_BOTH));
+        } else {
+            $parts = $allParts;
+        }
+
+        // ── Hitung total biaya dari parts yang diproses ───────────────
+        $sumBiaya   = collect($parts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
+        $totalBiaya = filled($sourceData['total_biaya_override'] ?? null) && (int)($sourceData['total_biaya_override'] ?? 0) > 0
+            ? (int)$sourceData['total_biaya_override']
+            : $sumBiaya;
+        $totalBiaya = max($totalBiaya, $sumBiaya > 0 ? $sumBiaya : 0);
+
+        // ── Resolve kategori baru (inline category) ───────────────────
+        foreach ($parts as &$partData) {
+            if (!empty($partData['nama_category_baru'])) {
+                $cat = \App\Models\ServiceCategory::firstOrCreate(
+                    ['nama' => trim($partData['nama_category_baru'])]
+                );
+                $partData['category_id'] = $cat->id;
+            }
+        }
+        unset($partData);
+
+        // ── Buat ServiceIncident header ───────────────────────────────
+        $incident = \App\Models\ServiceIncident::create([
+            'kendaraan_id'    => $kendaraanId,
+            'keluhan'         => $sourceData['keluhan'] ?? null,
+            'kilometer'       => $sourceData['kilometer'] ?? 0,
+            'total_biaya'     => $totalBiaya,
+            'status'          => 'selesai',
+            'tanggal_service' => $sourceData['tanggal_service'] ?? now()->toDateString(),
+            'status_approval' => 'approved',
+            'approval_by'     => auth()->id(),
+            'approval_at'     => now(),
+            'pembayaran_id'   => $pembayaran->id,
+        ]);
+
+        // ── Buat ServiceIncidentPart per part yang diapprove ──────────
+        $lastPartId = null;
+        foreach ($parts as $idx => $partData) {
+            $originalIdx = !empty($selectedParts) ? array_search($partData, $allParts) : $idx;
+
+            $tglPasang      = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
+            $intervalNilai  = (int)($partData['interval_nilai'] ?? 12);
+            $intervalSatuan = $partData['interval_satuan'] ?? 'bulan';
+            $biaya          = (int)($partData['biaya'] ?? 0);
+            $categoryId     = $partData['category_id'] ?? null;
+
+            $tanggalLimit = match ($intervalSatuan) {
+                'hari'   => (clone $tglPasang)->addDays($intervalNilai),
+                'minggu' => (clone $tglPasang)->addWeeks($intervalNilai),
+                'tahun'  => (clone $tglPasang)->addYears($intervalNilai),
+                default  => (clone $tglPasang)->addMonths($intervalNilai),
+            };
+
+            // ── Copy bukti files dari temp storage ke final storage ────
+            $buktiFiles = [];
+            $tempFiles  = $sourceData['temp_files'] ?? [];
+            $partTempBukti = $tempFiles['parts'][$originalIdx]['bukti'] ?? $tempFiles['bukti'] ?? [];
+            foreach ((array)$partTempBukti as $tf) {
+                if (!empty($tf['path'])) {
+                    try {
+                        $finalPath = $this->copyFileToPublic($tf['path'], 'service-incident-parts', $pembayaran->id);
+                        $buktiFiles[] = [
+                            'path' => $finalPath,
+                            'name' => $tf['original_name'] ?? basename($tf['path']),
+                            'type' => $tf['extension'] ?? pathinfo($tf['path'], PATHINFO_EXTENSION),
+                        ];
+                    } catch (\Exception $e) {
+                        \Log::warning("Gagal copy bukti service incident part idx={$originalIdx}: " . $e->getMessage());
+                    }
+                }
+            }
+
+            $part = \App\Models\ServiceIncidentPart::create([
+                'service_incident_id' => $incident->id,
+                'kendaraan_id'        => $kendaraanId,
+                'category_id'         => $categoryId,
+                'nama_part'           => $partData['nama_part'],
+                'part_number'         => $partData['part_number'] ?? null,
+                'serial_number'       => $partData['serial_number'] ?? null,
+                'posisi'              => $partData['posisi'] ?? null,
+                'tgl_pasang'          => $tglPasang->toDateString(),
+                'kilometer_pasang'    => (int)($partData['kilometer_pasang'] ?? $sourceData['kilometer'] ?? 0),
+                'kondisi'             => $partData['kondisi'] ?? 'Baik',
+                'status'              => 'Terpasang',
+                'interval_nilai'      => $intervalNilai,
+                'interval_satuan'     => $intervalSatuan,
+                'tanggal_limit'       => $tanggalLimit->toDateString(),
+                'biaya'               => $biaya,
+                'bukti'               => !empty($buktiFiles) ? $buktiFiles : null,
+                'keterangan'          => $partData['keterangan'] ?? null,
+                'persetujuan'         => 'Disetujui',
+                'supplier_id'         => $partData['supplier_id'] ?? null,
+                'nama_rekening'       => $partData['nama_rekening'] ?? null,
+                'nama_bank'           => $partData['nama_bank'] ?? null,
+                'no_rekening'         => $partData['no_rekening'] ?? null,
+            ]);
+
+            // ── Catat cashflow per part ───────────────────────────────
+            $categoryModel  = $categoryId ? \App\Models\ServiceCategory::find($categoryId) : null;
+            $namaKategori   = $categoryModel->nama ?? $partData['nama_part'] ?? '-';
+            $nopolKendaraan = $kendaraan->nopol ?? '-';
+            $merkKendaraan  = $kendaraan->merk  ?? '-';
+
+            $this->createKeuanganRecord(
+                'INC',
+                $part->id,
+                $biaya,
+                'Service Incident: ' . $namaKategori . ' - ' . $merkKendaraan . ' ' . $nopolKendaraan
+            );
+
+            $this->createBukubesarRecord(
+                'INC',
+                $part->id,
+                $biaya,
+                'Beban Service Incident: ' . $namaKategori . ' - ' . $merkKendaraan . ' ' . $nopolKendaraan,
+                'Auto-posting: Service incident ' . $namaKategori . ' ' . $nopolKendaraan . ' via PO #' . $pembayaran->po_id
+            );
+
+            $lastPartId = $part->id;
+        }
+
+        // ── Copy lampiran dari temp storage ───────────────────────────
+        $this->copyAttachmentsToFinalStorage(
+            $approvalFiles['attachments'] ?? [],
+            'service-incident/attachments',
+            'service_incident',
+            $incident->id,
+            $pembayaran->id
+        );
+
+        $tempAttachments = ($sourceData['temp_files'] ?? [])['attachments'] ?? [];
+        foreach ($tempAttachments as $tf) {
+            if (empty($tf['path'])) continue;
+            try {
+                $finalPath = $this->copyFileToPublic($tf['path'], 'service-incident/attachments', $pembayaran->id);
+                \App\Models\Attachment::create([
+                    'relation_type' => 'service_incident',
+                    'relation_id'   => $incident->id,
+                    'file_name'     => $tf['original_name'] ?? basename($tf['path']),
+                    'file_path'     => $finalPath,
+                    'file_type'     => $tf['extension'] ?? pathinfo($tf['path'], PATHINFO_EXTENSION),
+                    'file_size'     => $tf['size'] ?? null,
+                ]);
+            } catch (\Exception $e) {
+                \Log::warning("Gagal copy attachment service incident: " . $e->getMessage());
+            }
+        }
+
+        return $incident->id;
     }
 
     /**

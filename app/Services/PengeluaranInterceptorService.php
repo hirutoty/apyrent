@@ -98,6 +98,7 @@ class PengeluaranInterceptorService
             'pajak'                          => 'PJK',
             'pajak_perpanjang'               => 'PJP',
             'service_part'                   => 'SVC',
+            'service_incident'               => 'SIN',
             'gps'                            => 'GPS',
             'gps_perpanjang'                 => 'GPP',
             'kir'                            => 'KIR',
@@ -357,7 +358,8 @@ class PengeluaranInterceptorService
     {
         return match($sourceType) {
             'gps' => count($data['gps_items'] ?? []),
-            'service_part' => count($data['parts'] ?? []),
+            'service_part'     => count($data['parts'] ?? []),
+            'service_incident' => count($data['parts'] ?? []),
             default => 1,
         };
     }
