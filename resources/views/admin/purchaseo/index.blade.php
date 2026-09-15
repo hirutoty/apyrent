@@ -283,6 +283,8 @@
                                         <th class="w-6 px-2 py-2.5"></th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">PO Number</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Vendor</th>
+                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Keterangan</th>
+                                        <th class="text-center text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Lampiran</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Total Harga</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Tanggal</th>
@@ -330,6 +332,19 @@
                                             <span class="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg border border-indigo-100">{{ $po->po_id }}</span>
                                         </td>
                                         <td class="px-4 py-3 text-xs text-gray-700">{{ $po->vendor ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-xs text-gray-500 max-w-[160px]">
+                                            @if($po->keterangan)
+                                                <span title="{{ $po->keterangan }}">{{ \Illuminate\Support\Str::limit($po->keterangan, 40) }}</span>
+                                            @else
+                                                <span class="text-gray-300">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3 text-center">
+                                            @include('admin.partials._lampiran_files', [
+                                                'tempFiles' => ($po->source_data['temp_files'] ?? []),
+                                                'compact'   => true,
+                                            ])
+                                        </td>
                                         <td class="px-4 py-3 text-xs text-gray-700 text-center">
                                             @php
                                                 $_poDec  = $po->source_data['item_decisions'] ?? [];
@@ -426,7 +441,7 @@
                                                         </button>
                                                     @endif
                                                 @endif
-                                                @if($po->status === 'Ditolak' && $po->can_edit)
+                                                @if($po->status === 'Ditolak' && ($po->can_edit || $po->source_type === 'service_part'))
                                                     @if(in_array($po->source_type, ['gps', 'gps_perpanjang']))
                                                         <button onclick="openResubmitModal({{ $po->id }}, '{{ $po->po_id }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
@@ -438,8 +453,14 @@
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
                                                             <i class="fa fa-rotate-right text-xs"></i> Ulang
                                                         </button>
+                                                    @elseif($po->source_type === 'service_part')
+                                                        {{-- Service Part: redirect ke form create dengan semua parts pre-filled --}}
+                                                        <button onclick="resubmitViaPO({{ $po->id }})"
+                                                            class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
+                                                            <i class="fa fa-rotate-right text-xs"></i> Ulang
+                                                        </button>
                                                     @else
-                                                        {{-- Pajak, Asuransi, KIR: modal inline --}}
+                                                        {{-- Pajak, Asuransi, KIR & _perpanjang: modal inline --}}
                                                         <button onclick="openResubmitSimpleModal({{ $po->id }}, '{{ $po->po_id }}', '{{ $po->source_type }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
                                                             <i class="fa fa-rotate-right text-xs"></i> Ulang
@@ -495,7 +516,7 @@
                                         }
                                     @endphp
                                     <tr id="{{ $poRowId }}" class="hidden">
-                                        <td colspan="8" class="px-0 py-0">
+                                        <td colspan="10" class="px-0 py-0">
                                             @if($isServicePart)
                                             {{-- ── SERVICE PART EXPAND ── --}}
                                             <div class="bg-orange-50/30 border-t border-orange-100 px-6 py-4">
@@ -529,6 +550,7 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kondisi</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                             </tr>
                                                         </thead>
@@ -552,11 +574,32 @@
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['kondisi'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['nama_bank'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 font-mono text-gray-600">{{ $part['no_rekening'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-center">
+                                                                        @php
+                                                                            $partLampiran = $sourceData['temp_files']['parts'][$pIdx]['bukti'] ?? [];
+                                                                        @endphp
+                                                                        @if(!empty($partLampiran))
+                                                                            <div class="flex flex-col gap-0.5">
+                                                                            @foreach($partLampiran as $pf)
+                                                                                @php
+                                                                                    $pfUrl = isset($pf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($pf['path']) : null;
+                                                                                @endphp
+                                                                                @if($pfUrl)
+                                                                                    <a href="{{ $pfUrl }}" target="_blank"
+                                                                                        class="text-[11px] text-blue-600 hover:underline truncate max-w-[120px]"
+                                                                                        title="{{ $pf['original_name'] ?? '' }}">{{ $pf['original_name'] ?? 'file' }}</a>
+                                                                                @endif
+                                                                            @endforeach
+                                                                            </div>
+                                                                        @else
+                                                                            <span class="text-gray-300 text-[10px]">—</span>
+                                                                        @endif
+                                                                    </td>
                                                                     <td class="px-3 py-2 text-right font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($part['biaya'] ?? 0, 0, ',', '.') }}</td>
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-orange-200 bg-orange-50/50">
-                                                                <td colspan="6" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="7" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -596,6 +639,7 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Berlaku s/d</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya Sewa</th>
                                                             </tr>
                                                         </thead>
@@ -614,11 +658,32 @@
                                                                     <td class="px-3 py-2 text-gray-600">{{ $tanggalHabis ? \Carbon\Carbon::parse($tanggalHabis)->format('d M Y') : '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $gItem['nama_bank'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 font-mono text-gray-600">{{ $gItem['no_rekening'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-center">
+                                                                        @php
+                                                                            $gpsLampiran = $sourceData['temp_files']['gps_items'][$giIdx]['lampiran'] ?? [];
+                                                                        @endphp
+                                                                        @if(!empty($gpsLampiran))
+                                                                            <div class="flex flex-col gap-0.5">
+                                                                            @foreach($gpsLampiran as $gf)
+                                                                                @php
+                                                                                    $gfUrl  = isset($gf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($gf['path']) : null;
+                                                                                @endphp
+                                                                                @if($gfUrl)
+                                                                                    <a href="{{ $gfUrl }}" target="_blank"
+                                                                                        class="text-[11px] text-blue-600 hover:underline truncate max-w-[120px]"
+                                                                                        title="{{ $gf['original_name'] ?? '' }}">{{ $gf['original_name'] ?? 'file' }}</a>
+                                                                                @endif
+                                                                            @endforeach
+                                                                            </div>
+                                                                        @else
+                                                                            <span class="text-gray-300 text-[10px]">—</span>
+                                                                        @endif
+                                                                    </td>
                                                                     <td class="px-3 py-2 text-right font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($gItem['biaya_sewa'] ?? 0, 0, ',', '.') }}</td>
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-green-200 bg-green-50/50">
-                                                                <td colspan="6" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="7" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -1063,6 +1128,7 @@ function buildDetailContent(data) {
         + '<div><p class="text-xs text-gray-500">Total Items</p><p class="font-medium">' + po.total_barang + '</p></div>'
         + '<div><p class="text-xs text-gray-500">Total Harga</p><p class="font-bold text-lg text-indigo-600">Rp ' + Number(po.total_harga).toLocaleString('id-ID') + '</p></div>'
         + '</div>'
+        + (po.keterangan ? '<div class="mt-3 px-4 py-2.5 bg-gray-50 rounded-xl border border-gray-100"><p class="text-xs text-gray-400 mb-0.5">Keterangan</p><p class="text-sm text-gray-700">' + po.keterangan + '</p></div>' : '')
         + '<div class="flex items-center gap-2"><span class="text-sm text-gray-600">Status:</span>' + getStatusBadge(po.status) + '</div>';
     if (details.type === 'gps') {
         const k = details.kendaraan || {};
@@ -1123,12 +1189,59 @@ function buildDetailContent(data) {
                 + '<div><span class="text-gray-400">A/n:</span> ' + (item.nama_rekening || '-') + '</div>'
                 + '</div>'
                 + (item.keterangan && item.keterangan !== '-' ? '<p class="mt-1.5 text-[10px] text-gray-400 italic border-t border-orange-100 pt-1">' + item.keterangan + '</p>' : '')
+                + (function() {
+                    const lamps = item.lampiran || [];
+                    if (!lamps.length) return '<p class="mt-1.5 text-[10px] text-gray-300 italic border-t border-orange-100 pt-1"><i class="fa fa-paperclip mr-1"></i>Tidak ada lampiran</p>';
+                    return '<div class="mt-2 pt-2 border-t border-orange-100">'
+                        + '<p class="text-[10px] font-semibold text-gray-400 uppercase mb-1"><i class="fa fa-paperclip mr-1"></i>Lampiran (' + lamps.length + ')</p>'
+                        + '<div class="flex flex-wrap gap-1.5">'
+                        + lamps.map(function(f) {
+                            const ext = (f.file_type || '').toLowerCase();
+                            const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
+                            const icon = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : (['mp4','mov'].includes(ext) ? 'fa-file-video text-purple-400' : 'fa-paperclip text-gray-400'));
+                            return '<a href="' + f.file_path + '" target="_blank" class="inline-flex items-center gap-1 px-2 py-1 bg-white border border-orange-200 rounded-lg text-[11px] text-gray-600 hover:bg-orange-50 hover:text-orange-700 max-w-[180px]" title="' + f.file_name + '">'
+                                + '<i class="fa ' + icon + ' text-[10px]"></i>'
+                                + '<span class="truncate">' + f.file_name + '</span>'
+                                + '</a>';
+                        }).join('')
+                        + '</div></div>';
+                })()
                 + '</div>';
         });
         html += '</div>'
             + '<div class="mt-2 flex justify-end"><p class="text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5">Total: Rp ' + totalBiaya.toLocaleString('id-ID') + '</p></div>'
             + '</div>';
     }
+    // ── LAMPIRAN (temp_files) ─────────────────────────────────
+    var tempFiles = po.temp_files || {};
+    var allLampiran = [].concat(tempFiles.bukti || [], tempFiles.attachments || []);
+    if (tempFiles.parts) { Object.values(tempFiles.parts).forEach(function(p) { allLampiran = allLampiran.concat(p.bukti || []); }); }
+    if (tempFiles.gps_items) { Object.values(tempFiles.gps_items).forEach(function(g) { allLampiran = allLampiran.concat(g.lampiran || []); }); }
+    if (allLampiran.length > 0) {
+        html += '<div><h4 class="font-semibold text-gray-800 mb-2 flex items-center gap-2"><i class="fa fa-paperclip text-blue-500 text-sm"></i> Lampiran (' + allLampiran.length + ')</h4>'
+            + '<div class="flex flex-wrap gap-2">';
+        allLampiran.forEach(function(f) {
+            var name = f.original_name || f.stored_name || 'file';
+            var ext  = (f.extension || '').toLowerCase();
+            var path = f.path || null;
+            var url  = path ? '/storage/' + path : null;
+            var isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
+            var icon  = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : (['mp4','mov'].includes(ext) ? 'fa-file-video text-purple-400' : 'fa-paperclip text-gray-400'));
+            var size  = f.size ? Math.round(f.size / 1024) + ' KB' : '';
+            if (url) {
+                html += '<a href="' + url + '" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors max-w-[200px]" title="' + name + '">'
+                    + '<i class="fa ' + icon + ' text-[11px] flex-shrink-0"></i>'
+                    + '<span class="truncate">' + name + '</span>'
+                    + (size ? '<span class="text-gray-400 text-[10px] flex-shrink-0">' + size + '</span>' : '')
+                    + '</a>';
+            } else {
+                html += '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-500 max-w-[200px]" title="' + name + '">'
+                    + '<i class="fa ' + icon + ' text-[11px] flex-shrink-0"></i><span class="truncate">' + name + '</span></span>';
+            }
+        });
+        html += '</div></div>';
+    }
+
     if (po.status !== 'Pending') {
         html += '<div class="border-t pt-4"><h4 class="font-semibold text-gray-800 mb-2">Info Approval</h4>'
             + '<div class="bg-gray-50 rounded-xl p-3 space-y-1 text-sm">'
@@ -1585,9 +1698,12 @@ let _resubmitSimplePoId   = null;
 let _resubmitSimpleType   = null;
 
 const _resubmitSimpleTitles = {
-    pajak:              'Ajukan Ulang — Pajak Kendaraan',
-    asuransi_kendaraan: 'Ajukan Ulang — Asuransi Kendaraan',
-    kir:                'Ajukan Ulang — KIR',
+    pajak:                          'Ajukan Ulang — Pajak Kendaraan',
+    pajak_perpanjang:               'Ajukan Ulang — Perpanjangan Pajak',
+    asuransi_kendaraan:             'Ajukan Ulang — Asuransi Kendaraan',
+    asuransi_kendaraan_perpanjang:  'Ajukan Ulang — Perpanjangan Asuransi',
+    kir:                            'Ajukan Ulang — KIR',
+    kir_perpanjang:                 'Ajukan Ulang — Perpanjangan KIR',
 };
 
 function openResubmitSimpleModal(poId, poNumber, sourceType) {
@@ -1639,19 +1755,15 @@ function renderResubmitSimpleForm(data) {
     }
 
     let html = '';
-    if (data.source_type === 'pajak') {
-        html += '<div class="grid grid-cols-2 gap-3">';
-        html += makeField('Tanggal Bayar', 'tanggal_bayar', 'date', data.tanggal_bayar, true);
+    if (['pajak', 'pajak_perpanjang'].includes(data.source_type)) {
         html += makeField('Nominal (Rp)', 'nominal', 'number', data.nominal, true, 'min="0"');
-        html += '</div>';
+        html += makeField('Nama Pemilik', 'nama_pemilik', 'text', data.nama_pemilik, false);
         html += '<div class="grid grid-cols-2 gap-3">';
-        html += makeField('Jatuh Tempo', 'jatuh_tempo', 'date', data.jatuh_tempo, false);
+        html += makeField('Nama Bank', 'nama_bank', 'text', data.nama_bank, false);
         html += makeField('No. Rekening', 'no_rekening', 'text', data.no_rekening, false);
         html += '</div>';
-        html += makeField('Nama Bank', 'nama_bank', 'text', data.nama_bank, false);
-        html += makeField('Keterangan', 'keterangan', 'text', data.keterangan, false);
 
-    } else if (data.source_type === 'asuransi_kendaraan') {
+    } else if (['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'].includes(data.source_type)) {
         html += '<div class="grid grid-cols-2 gap-3">';
         html += makeField('Tgl Mulai', 'tgl_mulai', 'date', data.tgl_mulai, true);
         html += makeField('Tgl Berakhir', 'tgl_berakhir', 'date', data.tgl_berakhir, true);
@@ -1667,7 +1779,7 @@ function renderResubmitSimpleForm(data) {
         html += '</div>';
 
     } else {
-        // kir
+        // kir / kir_perpanjang
         html += '<div class="grid grid-cols-2 gap-3">';
         html += makeField('No. Uji', 'no_uji', 'text', data.no_uji, false);
         html += makeField('Tanggal Bayar', 'tanggal_bayar', 'date', data.tanggal_bayar, true);
@@ -1702,17 +1814,15 @@ async function submitResubmitSimple() {
     }
 
     let payload = {};
-    if (_resubmitSimpleType === 'pajak') {
+    if (['pajak', 'pajak_perpanjang'].includes(_resubmitSimpleType)) {
         payload = {
-            tanggal_bayar : getVal('tanggal_bayar'),
             nominal       : getVal('nominal'),
-            jatuh_tempo   : getVal('jatuh_tempo'),
+            nama_pemilik  : getVal('nama_pemilik'),
             nama_bank     : getVal('nama_bank'),
             no_rekening   : getVal('no_rekening'),
-            keterangan    : getVal('keterangan'),
         };
-        if (!payload.tanggal_bayar || !payload.nominal) { alert('Tanggal Bayar dan Nominal wajib diisi.'); return; }
-    } else if (_resubmitSimpleType === 'asuransi_kendaraan') {
+        if (!payload.nominal) { alert('Nominal wajib diisi.'); return; }
+    } else if (['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'].includes(_resubmitSimpleType)) {
         payload = {
             tgl_mulai     : getVal('tgl_mulai'),
             tgl_berakhir  : getVal('tgl_berakhir'),
@@ -1724,7 +1834,7 @@ async function submitResubmitSimple() {
         };
         if (!payload.tgl_mulai || !payload.tgl_berakhir || !payload.biaya) { alert('Tgl Mulai, Tgl Berakhir, dan Biaya wajib diisi.'); return; }
     } else {
-        // kir
+        // kir / kir_perpanjang
         payload = {
             no_uji        : getVal('no_uji'),
             tanggal_bayar : getVal('tanggal_bayar'),

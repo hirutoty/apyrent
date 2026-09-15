@@ -302,6 +302,7 @@ class PengeluaranInterceptorService
                 'total_barang' => $totalItems,
                 'total_harga' => (int) $interceptedData['nominal'],
                 'catatan' => $interceptedData['informasi'] ?? $interceptedData['source_data']['keterangan'] ?? null,
+                'keterangan' => $interceptedData['source_data']['keterangan'] ?? null,
                 'status' => 'Pending',
                 'can_edit' => false,
                 'terakhir_diajukan' => now(),
@@ -344,6 +345,7 @@ class PengeluaranInterceptorService
                 'total_harga' => (int) $data['nominal'],
                 'status_po' => 'Pending', // Legacy field, not used in new flow
                 'catatan' => $data['informasi'] ?? $data['source_data']['keterangan'] ?? null,
+                'keterangan' => $data['source_data']['keterangan'] ?? null,
                 // Approval workflow fields
                 'source_type' => $sourceType,
                 'source_data' => $data['source_data'],

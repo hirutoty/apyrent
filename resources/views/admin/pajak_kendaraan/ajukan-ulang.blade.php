@@ -41,7 +41,7 @@
     {{-- INFO BOX --}}
     <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 flex items-start gap-3 text-sm text-blue-700">
         <i class="fa fa-circle-info mt-0.5 flex-shrink-0"></i>
-        <span>Data akan diajukan kembali tanpa perubahan. Isi keterangan jika ada catatan untuk reviewer.</span>
+        <span>Data akan diajukan kembali. Perbarui nama pemilik jika diperlukan. Jatuh tempo dan tanggal bayar dihitung otomatis.</span>
     </div>
 
     {{-- INFO KENDARAAN (readonly) --}}
@@ -95,11 +95,12 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Keterangan <span class="text-gray-400 font-normal">(opsional)</span>
+                        Nama Pemilik <span class="text-gray-400 font-normal">(opsional)</span>
                     </label>
-                    <textarea name="keterangan" rows="4"
-                        placeholder="Catatan atau penjelasan untuk reviewer..."
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 resize-none">{{ old('keterangan', $pajak->keterangan) }}</textarea>
+                    <input type="text" name="nama_pemilik"
+                        placeholder="Nama pemilik kendaraan/rekening"
+                        value="{{ old('nama_pemilik', $pajak->nama_pemilik) }}"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">
                 </div>
             </div>
 

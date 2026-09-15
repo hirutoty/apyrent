@@ -509,6 +509,14 @@ function addPartRow(data = null) {
 
             <!-- Lampiran (full width) -->
             <div class="md:col-span-3">
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Keterangan</label>
+                <textarea name="parts[${idx}][keterangan]" rows="2"
+                    placeholder="Keterangan tambahan untuk part ini (opsional)..."
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none">${data?.keterangan || ''}</textarea>
+            </div>
+
+            <!-- Lampiran (full width) -->
+            <div class="md:col-span-3">
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">
                     Lampiran <span class="text-red-400">*</span>
                     <span class="text-[10px] font-normal text-gray-400 ml-1">(wajib — bisa lebih dari 1 file)</span>

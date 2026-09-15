@@ -447,7 +447,8 @@
                                             '{{ $d->biaya }}',
                                             '{{ addslashes($d->nama_rekening ?? '') }}',
                                             '{{ addslashes($d->nama_bank ?? '') }}',
-                                            '{{ addslashes($d->no_rekening ?? '') }}'
+                                            '{{ addslashes($d->no_rekening ?? '') }}',
+                                            '{{ addslashes($d->bukti_bayar ?? '') }}'
                                         )"
                                             class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                             <i class="fa fa-edit text-xs"></i> Edit
@@ -1088,7 +1089,8 @@
             biaya,
             namaRekening,
             namaBank,
-            noRekening
+            noRekening,
+            bukti_bayar
         ) {
             var m = document.getElementById('modalEdit');
             m.classList.remove('hidden');
@@ -1106,7 +1108,6 @@
             document.getElementById('edit_nama_bank').value         = namaBank      || '';
             document.getElementById('edit_no_rekening').value       = noRekening    || '';
             document.getElementById('edit_nama_rekening').value     = namaRekening  || '';
-        }
 
             // Hitung tgl_berakhir = tgl_mulai + 1 tahun (tampil disabled, kirim via hidden)
             if (tgl_mulai) {

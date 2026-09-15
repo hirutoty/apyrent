@@ -353,9 +353,13 @@
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Departemen</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Pemohon</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Keterangan</th>
+                                        <th class="text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Lampiran</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Nominal</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Status</th>
+                                        @if(in_array($tab ?? 'semua', ['semua', 'Disetujui']))
+                                        <th class="text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Bukti Bayar</th>
+                                        @endif
                                         <th class="text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Aksi</th>
                                     </tr>
                                 </thead>
@@ -454,6 +458,12 @@
                                                 <span class="text-xs text-gray-300">—</span>
                                             @endif
                                         </td>
+                                        <td class="px-3 py-3 text-center">
+                                            @include('admin.partials._lampiran_files', [
+                                                'tempFiles' => (is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []))['temp_files'] ?? [],
+                                                'compact'   => true,
+                                            ])
+                                        </td>
                                         <td class="px-3 py-3">
                                             <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
                                                 <i class="fa fa-boxes text-blue-400 text-[10px]"></i>
@@ -474,6 +484,11 @@
                                                         => collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0),
                                                     default => 0,
                                                 };
+
+                                                // Fallback ke total_nominal accessor jika _itemsTotal masih 0
+                                                if ($_itemsTotal == 0) {
+                                                    $_itemsTotal = (int)($d->total_nominal ?? 0);
+                                                }
 
                                                 if (($tab ?? '') === 'semua') {
                                                     if (!$_decMap->isEmpty()) {
@@ -501,9 +516,13 @@
                                                         } else {
                                                             $_rowNominal = $_nomApprRow + $_nomRejRow;
                                                         }
+                                                        // Fallback: item_decisions mungkin tidak punya key 'idx' (data lama)
+                                                        if ($_rowNominal == 0) {
+                                                            $_rowNominal = $_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0);
+                                                        }
                                                     } else {
                                                         // service_part, pajak, asuransi, kir, stnk, dll: pakai nominal langsung
-                                                        $_rowNominal = $_itemsTotal > 0 ? $_itemsTotal : (int)($d->nominal ?? 0);
+                                                        $_rowNominal = $_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0);
                                                     }
                                                 }
                                             @endphp
@@ -516,6 +535,47 @@
                                                 <i class="fa {{ $statusIcon }} text-[8px]"></i> {{ $statusLabel }}
                                             </span>
                                         </td>
+                                        @if(in_array($tab ?? 'semua', ['semua', 'Disetujui']))
+                                        <td class="px-3 py-3 text-center" onclick="event.stopPropagation()">
+                                            @php
+                                                $buktiBayar = null;
+                                                $latestAppr = $d->approvals->where('action', 'approved')->first();
+                                                if ($latestAppr && !empty($latestAppr->bukti_files)) {
+                                                    $buktiBayar = is_array($latestAppr->bukti_files)
+                                                        ? $latestAppr->bukti_files
+                                                        : json_decode($latestAppr->bukti_files, true);
+                                                }
+                                            @endphp
+                                            @if(!empty($buktiBayar))
+                                                <div class="flex flex-wrap gap-1 justify-center">
+                                                    @foreach($buktiBayar as $bf)
+                                                        @php
+                                                            $bfExt = strtolower($bf['extension'] ?? '');
+                                                            $bfUrl = isset($bf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($bf['path']) : null;
+                                                            $bfIcon = in_array($bfExt, ['jpg','jpeg','png','gif','webp'])
+                                                                ? 'fa-image text-blue-400'
+                                                                : ($bfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                        @endphp
+                                                        @if($bfUrl)
+                                                            <a href="{{ $bfUrl }}" target="_blank"
+                                                                title="{{ $bf['original_name'] ?? 'bukti' }}"
+                                                                class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
+                                                                <i class="fa {{ $bfIcon }} text-[9px]"></i>
+                                                                <span class="max-w-[80px] truncate">{{ $bf['original_name'] ?? 'Lihat' }}</span>
+                                                            </a>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            @elseif($d->bukti_pembayaran)
+                                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($d->bukti_pembayaran) }}" target="_blank"
+                                                    class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
+                                                    <i class="fa fa-file text-[9px]"></i> Lihat
+                                                </a>
+                                            @else
+                                                <span class="text-gray-300 text-xs">—</span>
+                                            @endif
+                                        </td>
+                                        @endif
                                         <td class="px-3 py-3" onclick="event.stopPropagation()">
                                             <div class="flex items-center justify-center gap-1 flex-wrap">
 
@@ -625,7 +685,7 @@
 
                                     {{-- ROW EXPAND --}}
                                     <tr id="rowexpand-{{ $rowUid }}" class="hidden bg-blue-50/20">
-                                        <td colspan="10" class="px-6 pb-4 pt-1">
+                                        <td colspan="{{ in_array($tab ?? 'semua', ['semua', 'Disetujui']) ? 11 : 10 }}" class="px-6 pb-4 pt-1">
                                             @php $sd = $d->source_data ?? []; @endphp
                                             <div class="rounded-xl border border-blue-100 bg-white overflow-hidden shadow-sm">
 
@@ -833,6 +893,7 @@
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Kondisi</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Lampiran</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bukti</th>
                                                                 <th class="text-right px-4 py-2 font-semibold text-gray-500">Biaya</th>
                                                                 @if($spDecMap->isNotEmpty())
@@ -846,10 +907,12 @@
                                                                 $spCat   = isset($spart['category_id']) ? \App\Models\ServiceCategory::find($spart['category_id']) : null;
                                                                 $spCatNm = $spCat ? $spCat->nama : ($spart['nama_category_baru'] ?? '-');
                                                                 $spDec   = $spDecMap[$spi] ?? null;
-                                                                // Ambil bukti: dari temp_files (sebelum approve) atau dari source_data parts bukti (sudah approve)
-                                                                $spTempFiles = $sd['temp_files']['parts'][$spi]['bukti'] ?? [];
-                                                                $spBuktiFinal = isset($spart['bukti']) && is_array($spart['bukti']) ? $spart['bukti'] : [];
-                                                                $spAllBukti  = !empty($spTempFiles) ? $spTempFiles : $spBuktiFinal;
+                                                                // Lampiran: file dari input part (temp_files)
+                                                                $spLampiran = $sd['temp_files']['parts'][$spi]['bukti'] ?? [];
+                                                                // Bukti: file yang diupload saat approve di halaman pembayaran
+                                                                $spBukti = isset($spart['bukti_bayar_admin']) && $spart['bukti_bayar_admin']
+                                                                    ? [$spart['bukti_bayar_admin']]
+                                                                    : [];
                                                             @endphp
                                                             <tr class="border-t border-gray-50 {{ ($spi%2===0)?'bg-white':'bg-gray-50/40' }}">
                                                                 <td class="px-4 py-2 text-gray-400">{{ $spi + 1 }}</td>
@@ -865,38 +928,64 @@
                                                                 <td class="px-4 py-2 text-gray-600">{{ $spart['kondisi'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600">{{ $spart['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 font-mono text-gray-600">{{ $spart['no_rekening'] ?? '-' }}</td>
+
+                                                                {{-- Kolom LAMPIRAN: dari input part (temp_files) --}}
                                                                 <td class="px-4 py-2">
-                                                                    @if(count($spAllBukti) > 0)
-                                                                        <div class="flex flex-wrap gap-1">
-                                                                            @foreach($spAllBukti as $bf)
+                                                                    @if(count($spLampiran) > 0)
+                                                                        <div class="flex flex-col gap-1">
+                                                                            @foreach($spLampiran as $bf)
                                                                                 @php
                                                                                     $bPath = $bf['path'] ?? '';
                                                                                     $bName = $bf['original_name'] ?? basename($bPath);
-                                                                                    $bExt  = strtolower($bf['extension'] ?? pathinfo($bPath, PATHINFO_EXTENSION));
-                                                                                    $bUrl  = in_array($bExt, ['jpg','jpeg','png','gif','webp'])
-                                                                                        ? asset('storage/' . $bPath)
-                                                                                        : asset('storage/' . $bPath);
-                                                                                    $isImg = in_array($bExt, ['jpg','jpeg','png','gif','webp']);
+                                                                                    $bUrl  = asset('storage/' . $bPath);
                                                                                 @endphp
-                                                                                @if($isImg)
-                                                                                    <a href="{{ $bUrl }}" target="_blank" title="{{ $bName }}">
-                                                                                        <img src="{{ $bUrl }}" alt="{{ $bName }}"
-                                                                                            class="w-10 h-10 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity">
-                                                                                    </a>
-                                                                                @else
-                                                                                    <a href="{{ $bUrl }}" target="_blank"
-                                                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 text-[10px]"
-                                                                                        title="{{ $bName }}">
-                                                                                        <i class="fa fa-file text-[9px]"></i>
-                                                                                        {{ Str::limit($bName, 15) }}
-                                                                                    </a>
-                                                                                @endif
+                                                                                <a href="{{ $bUrl }}" target="_blank"
+                                                                                    class="text-blue-500 hover:text-blue-700 hover:underline text-[11px] truncate max-w-[150px]"
+                                                                                    title="{{ $bName }}">{{ $bName }}</a>
                                                                             @endforeach
                                                                         </div>
                                                                     @else
                                                                         <span class="text-gray-300 text-[10px]">—</span>
                                                                     @endif
                                                                 </td>
+
+                                                                {{-- Kolom BUKTI: diupload saat approve di halaman pembayaran --}}
+                                                                <td class="px-4 py-2">
+                                                                    @if(!empty($spBukti))
+                                                                        @php
+                                                                            $buktiVal = $spBukti[0];
+                                                                            // bukti_bayar_admin bisa berupa path string atau array
+                                                                            if (is_array($buktiVal)) {
+                                                                                $bPath = $buktiVal['path'] ?? '';
+                                                                                $bName = $buktiVal['original_name'] ?? basename($bPath);
+                                                                                $bExt  = strtolower($buktiVal['extension'] ?? pathinfo($bPath, PATHINFO_EXTENSION));
+                                                                                $bUrl  = asset('storage/' . $bPath);
+                                                                            } else {
+                                                                                $bPath = $buktiVal;
+                                                                                $bName = basename($bPath);
+                                                                                $bExt  = strtolower(pathinfo($bPath, PATHINFO_EXTENSION));
+                                                                                $bUrl  = asset($bPath);
+                                                                            }
+                                                                            $isImg = in_array($bExt, ['jpg','jpeg','png','gif','webp']);
+                                                                        @endphp
+                                                                        @if($isImg)
+                                                                            <a href="{{ $bUrl }}" target="_blank" title="{{ $bName }}">
+                                                                                <img src="{{ $bUrl }}" alt="{{ $bName }}"
+                                                                                    class="w-10 h-10 object-cover rounded border border-green-200 hover:opacity-80 transition-opacity">
+                                                                            </a>
+                                                                        @else
+                                                                            <a href="{{ $bUrl }}" target="_blank"
+                                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 text-[10px]"
+                                                                                title="{{ $bName }}">
+                                                                                <i class="fa fa-file-alt text-[9px]"></i>
+                                                                                {{ Str::limit($bName, 15) }}
+                                                                            </a>
+                                                                        @endif
+                                                                    @else
+                                                                        <span class="text-gray-300 text-[10px]">—</span>
+                                                                    @endif
+                                                                </td>
+
                                                                 <td class="px-4 py-2 text-right font-semibold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                     Rp {{ number_format($spart['biaya'] ?? 0, 0, ',', '.') }}
                                                                 </td>
@@ -912,7 +1001,7 @@
                                                             </tr>
                                                         @endforeach
                                                             <tr class="border-t-2 border-gray-200 bg-gray-50">
-                                                                <td colspan="{{ $spDecMap->isNotEmpty() ? 8 : 7 }}" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
+                                                                <td colspan="{{ $spDecMap->isNotEmpty() ? 9 : 8 }}" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
                                                                 <td class="px-4 py-2 text-right text-sm font-bold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                     Rp {{ number_format($spTotal, 0, ',', '.') }}
                                                                 </td>

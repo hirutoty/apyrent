@@ -168,6 +168,13 @@ class AsuransiKendaraanController extends Controller
     {
         $isResubmit = $request->filled('edit_purchase_order') || $request->filled('edit_pembayaran');
 
+        // Fallback: hitung tgl_berakhir dari tgl_mulai + 1 tahun jika kosong (JS mungkin belum jalan)
+        if (!$request->filled('tgl_berakhir') && $request->filled('tgl_mulai')) {
+            $request->merge([
+                'tgl_berakhir' => \Carbon\Carbon::parse($request->tgl_mulai)->addYear()->toDateString(),
+            ]);
+        }
+
         $request->validate([
             'kendaraan_id'       => 'required|exists:kendaraan,id',
             'asuransi_id'        => $isResubmit ? 'nullable|exists:asuransi,id' : 'required|exists:asuransi,id',

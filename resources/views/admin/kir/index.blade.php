@@ -191,8 +191,10 @@
                             <td class="px-4 py-3.5">
                                 @if($item->image)
                                     <a href="{{ asset($item->image) }}" target="_blank"
-                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-600 hover:bg-amber-100 transition">
-                                        <i class="fa fa-image text-[9px]"></i> Lihat
+                                        class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 underline max-w-[150px] truncate"
+                                        title="{{ basename($item->image) }}">
+                                        <i class="fa fa-file text-[9px] flex-shrink-0"></i>
+                                        {{ basename($item->image) }}
                                     </a>
                                 @else
                                     <span class="text-gray-400 text-xs">-</span>
@@ -285,7 +287,7 @@
 
                                     {{-- Edit --}}
                                     <button type="button"
-                                        onclick="openModalEdit({{ $item->id }}, {{ $item->kendaraan_id }}, '{{ addslashes($item->no_ktp) }}', '{{ addslashes($item->nama_ktp) }}', '{{ addslashes($item->lokasi_uji) }}', '{{ addslashes($item->penguji) }}', '{{ $item->status_uji }}', '{{ addslashes($item->no_uji) }}', '{{ $item->masa_berlaku ? \Carbon\Carbon::parse($item->masa_berlaku)->format('Y-m-d') : '' }}', '{{ $item->biaya }}', '{{ $item->tanggal_bayar ? \Carbon\Carbon::parse($item->tanggal_bayar)->format('Y-m-d') : '' }}', '{{ addslashes($item->nama_bank ?? '') }}', '{{ addslashes($item->no_rekening ?? '') }}')"
+                                        onclick="openModalEdit({{ $item->id }}, {{ $item->kendaraan_id }}, '{{ addslashes($item->no_ktp) }}', '{{ addslashes($item->nama_ktp) }}', '{{ addslashes($item->lokasi_uji) }}', '{{ addslashes($item->penguji) }}', '{{ $item->status_uji }}', '{{ addslashes($item->no_uji) }}', '{{ $item->masa_berlaku ? \Carbon\Carbon::parse($item->masa_berlaku)->format('Y-m-d') : '' }}', '{{ $item->biaya }}', '{{ $item->tanggal_bayar ? \Carbon\Carbon::parse($item->tanggal_bayar)->format('Y-m-d') : '' }}', '{{ addslashes($item->nama_bank ?? '') }}', '{{ addslashes($item->no_rekening ?? '') }}', '{{ addslashes($item->nama_rekening ?? '') }}')"
                                         class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors">
                                         <i class="fa fa-edit text-xs"></i>
                                         Edit
@@ -411,6 +413,58 @@
                         value="{{ old('tanggal_bayar', now()->format('Y-m-d')) }}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
+
+                {{-- ── Info Bank ──────────────────────────────────────────────── --}}
+                <div class="sm:col-span-2">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="h-px flex-1 bg-gray-100"></div>
+                        <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                            <i class="fa-solid fa-building-columns text-[9px]"></i> Info Bank Tujuan
+                        </span>
+                        <div class="h-px flex-1 bg-gray-100"></div>
+                    </div>
+                </div>
+
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik Rekening</label>
+                    <input type="text" name="nama_rekening" placeholder="Nama pemilik rekening"
+                        value="{{ old('nama_rekening') }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bank</label>
+                    <select name="nama_bank"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <option value="">-- Pilih Bank --</option>
+                        <optgroup label="Bank Persero">
+                            <option value="Bank Rakyat Indonesia" {{ old('nama_bank') == 'Bank Rakyat Indonesia' ? 'selected' : '' }}>Bank Rakyat Indonesia (002)</option>
+                            <option value="Bank Mandiri" {{ old('nama_bank') == 'Bank Mandiri' ? 'selected' : '' }}>Bank Mandiri (008)</option>
+                            <option value="Bank Negara Indonesia" {{ old('nama_bank') == 'Bank Negara Indonesia' ? 'selected' : '' }}>Bank Negara Indonesia (009)</option>
+                            <option value="Bank Tabungan Negara" {{ old('nama_bank') == 'Bank Tabungan Negara' ? 'selected' : '' }}>Bank Tabungan Negara (200)</option>
+                        </optgroup>
+                        <optgroup label="Bank Swasta">
+                            <option value="Bank Central Asia" {{ old('nama_bank') == 'Bank Central Asia' ? 'selected' : '' }}>Bank Central Asia (014)</option>
+                            <option value="Bank Danamon Indonesia" {{ old('nama_bank') == 'Bank Danamon Indonesia' ? 'selected' : '' }}>Bank Danamon Indonesia (011)</option>
+                            <option value="Bank CIMB Niaga" {{ old('nama_bank') == 'Bank CIMB Niaga' ? 'selected' : '' }}>Bank CIMB Niaga (022)</option>
+                            <option value="Bank Mega" {{ old('nama_bank') == 'Bank Mega' ? 'selected' : '' }}>Bank Mega (426)</option>
+                            <option value="Bank Jago" {{ old('nama_bank') == 'Bank Jago' ? 'selected' : '' }}>Bank Jago (542)</option>
+                            <option value="SeaBank Indonesia" {{ old('nama_bank') == 'SeaBank Indonesia' ? 'selected' : '' }}>SeaBank Indonesia (535)</option>
+                        </optgroup>
+                        <optgroup label="Bank Syariah">
+                            <option value="Bank Syariah Indonesia" {{ old('nama_bank') == 'Bank Syariah Indonesia' ? 'selected' : '' }}>Bank Syariah Indonesia (451)</option>
+                            <option value="Bank Muamalat Indonesia" {{ old('nama_bank') == 'Bank Muamalat Indonesia' ? 'selected' : '' }}>Bank Muamalat Indonesia (147)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Rekening</label>
+                    <input type="text" name="no_rekening" placeholder="Contoh: 1234567890"
+                        value="{{ old('no_rekening') }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+
                 <div class="sm:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Lampiran <span class="text-red-500">*</span>
@@ -475,6 +529,11 @@
                 <div class="sm:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya <span class="text-red-500">*</span></label>
                     <input type="number" min="0" name="biaya" id="edit_biaya" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik Rekening</label>
+                    <input type="text" name="nama_rekening" id="edit_nama_rekening" placeholder="Nama pemilik rekening"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
@@ -656,7 +715,7 @@ modalTambah.addEventListener('click', e => { if (e.target === modalTambah) close
 
 // ── MODAL EDIT ────────────────────────────────────────────
 const modalEdit = document.getElementById('modalEdit');
-function openModalEdit(id, kendaraanId, noKtp, namaKtp, lokasiUji, penguji, statusUji, noUji, masaBerlaku, biaya, tanggalBayar, namaBank, noRekening) {
+function openModalEdit(id, kendaraanId, noKtp, namaKtp, lokasiUji, penguji, statusUji, noUji, masaBerlaku, biaya, tanggalBayar, namaBank, noRekening, namaRekening) {
     document.getElementById('formEdit').action = `/admin/kir/${id}`;
     document.getElementById('edit_kendaraan_id').value  = kendaraanId;
     document.getElementById('edit_no_ktp').value        = noKtp;
@@ -668,10 +727,13 @@ function openModalEdit(id, kendaraanId, noKtp, namaKtp, lokasiUji, penguji, stat
     document.getElementById('edit_masa_berlaku').value  = masaBerlaku;
     document.getElementById('edit_biaya').value         = biaya;
     document.getElementById('edit_tanggal_bayar').value = tanggalBayar;
-    document.getElementById('edit_nama_bank').value     = namaBank   || '';
-    document.getElementById('edit_no_rekening').value   = noRekening || '';
+    document.getElementById('edit_nama_rekening').value = namaRekening || '';
+    document.getElementById('edit_nama_bank').value     = namaBank     || '';
+    document.getElementById('edit_no_rekening').value   = noRekening   || '';
     modalEdit.classList.remove('hidden'); modalEdit.classList.add('flex');
 }
+function closeModalEdit() { modalEdit.classList.add('hidden'); modalEdit.classList.remove('flex'); }
+modalEdit.addEventListener('click', e => { if (e.target === modalEdit) closeModalEdit(); });
 
 // ── MODAL PERPANJANG ──────────────────────────────────────
 const modalPerpanjang = document.getElementById('modalPerpanjang');

@@ -1180,8 +1180,9 @@ class PembayaranController extends Controller
                     
                 case 'service_asuransi':
                     $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
-                    $data['asuransi'] = \App\Models\Asuransi::find($sourceData['asuransi_id']);
-                    $data['jenis_asuransi'] = \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id']);
+                    // service_asuransi menyimpan nama_asuransi (string), bukan asuransi_id
+                    $data['nama_asuransi'] = $sourceData['nama_asuransi'] ?? null;
+                    $data['jenis_asuransi'] = \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id'] ?? null);
                     break;
             }
         } catch (\Exception $e) {
@@ -1668,6 +1669,18 @@ class PembayaranController extends Controller
                     if (isset($sourceData['parts'][$idx])) {
                         $sourceData['parts'][$idx]['status_approval'] = 'rejected';
                         $sourceData['parts'][$idx]['catatan_penolakan'] = $rejected['catatan'] ?? '';
+                    }
+                }
+                $pembayaran->update(['source_data' => $sourceData]);
+            }
+
+            // Simpan bukti_bayar_admin per part ke source_data
+            $buktiToSave = array_filter(array_column($approvedItems, 'bukti_path', 'idx'));
+            if (!empty($buktiToSave)) {
+                $sourceData = $pembayaran->fresh()->source_data ?? [];
+                foreach ($buktiToSave as $idx => $buktiPath) {
+                    if (isset($sourceData['parts'][$idx])) {
+                        $sourceData['parts'][$idx]['bukti_bayar_admin'] = $buktiPath;
                     }
                 }
                 $pembayaran->update(['source_data' => $sourceData]);

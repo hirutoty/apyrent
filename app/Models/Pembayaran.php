@@ -121,7 +121,38 @@ class Pembayaran extends Model
             if ($this->serviceParts && $this->serviceParts->isNotEmpty()) {
                 return $this->serviceParts->sum('biaya');
             }
-            return $this->attributes['nominal'] ?? 0;
+
+            $nominal = (float) ($this->attributes['nominal'] ?? 0);
+
+            // Jika nominal = 0 dan ada source_data, hitung dari source_data
+            // (handle data lama GPS/pajak/asuransi yang nominal-nya belum tersimpan)
+            if ($nominal == 0 && !empty($this->attributes['source_data'])) {
+                $sourceData = is_string($this->attributes['source_data'])
+                    ? json_decode($this->attributes['source_data'], true)
+                    : $this->source_data;
+
+                $sourceType = $this->source_type;
+
+                if (in_array($sourceType, ['gps', 'gps_perpanjang'])) {
+                    $gpsItems = $sourceData['gps_items'] ?? [];
+                    if (!empty($gpsItems)) {
+                        return collect($gpsItems)->sum(fn($i) => (float) ($i['biaya_sewa'] ?? 0));
+                    }
+                } elseif ($sourceType === 'service_part') {
+                    $parts = $sourceData['parts'] ?? [];
+                    if (!empty($parts)) {
+                        return collect($parts)->sum(fn($p) => (float) ($p['biaya'] ?? 0));
+                    }
+                } elseif (in_array($sourceType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                    return (float) ($sourceData['premi'] ?? $sourceData['biaya'] ?? 0);
+                } elseif (in_array($sourceType, ['pajak', 'pajak_perpanjang'])) {
+                    return (float) ($sourceData['nominal'] ?? 0);
+                } elseif (in_array($sourceType, ['kir', 'kir_perpanjang', 'stnk'])) {
+                    return (float) ($sourceData['biaya'] ?? 0);
+                }
+            }
+
+            return $nominal;
         }
 
         if ($this->items && $this->items->isNotEmpty()) {
