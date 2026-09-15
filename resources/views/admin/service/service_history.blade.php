@@ -21,10 +21,6 @@
             <p class="text-sm text-gray-500 mt-0.5">Riwayat Service & Tracking Part Terpasang</p>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('service-history.request.create') }}"
-                class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
-                <i class="fa fa-paper-plane text-sm"></i> Request Part
-            </a>
             <a href="{{ route('service-history.create') }}"
                 class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors duration-150">
                 <i class="fa fa-plus text-sm"></i> Tambah Service
@@ -39,6 +35,7 @@
                 $navItems = [
                     ['label' => 'Service History',  'url' => '/admin/service-history',    'icon' => 'bi bi-clock-history', 'role' => null],
                     ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check', 'role' => null],
+                    ['label' => 'Service Incident', 'url' => '/admin/service-incident',   'icon' => 'bi bi-exclamation-triangle-fill', 'role' => null],
                     ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill', 'role' => null],
                     ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill', 'role' => 'superadmin'],
                 ];

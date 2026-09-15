@@ -33,6 +33,7 @@
                     $navItems = [
                         ['label' => 'Service History',  'url' => '/admin/service-history',    'icon' => 'bi bi-clock-history'],
                         ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check'],
+                        ['label' => 'Service Incident', 'url' => '/admin/service-incident',   'icon' => 'bi bi-exclamation-triangle-fill'],
                         ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill'],
                         ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill'],
                     ];
@@ -47,6 +48,20 @@
                 @endforeach
             </nav>
         </div>
+
+        {{-- CHART FILTER --}}
+        <x-chart-filter id="serviceAsuransiChartFilter" defaultFilter="month" :showCustomRange="true"
+            :showCategoryFilter="false" :categories="collect()" />
+
+        {{-- CHART CONTAINER --}}
+        <x-chart-container
+            id="serviceAsuransiChartContainer"
+            layout="stacked"
+            pieTitle="Biaya per Status" pieId="serviceAsuransiPieChart"
+            barTitle="Biaya Service Asuransi per Periode" barId="serviceAsuransiBarChart"
+            lineTitle="Trend Biaya Service Asuransi" lineId="serviceAsuransiLineChart"
+            :showStats="true" :statsData="[]"
+        />
 
         {{-- SUMMARY CARDS --}}
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -1307,6 +1322,55 @@
     document.getElementById('modalStatus').addEventListener('click', function(e) {
         if (e.target === this) closeStatusModal();
     });
+    </script>
+
+    <script>
+    // ========================================
+    // CHART INITIALIZATION — Service Asuransi
+    // ========================================
+    const chartManager = new ChartManager();
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initServiceAsuransiCharts({ filter_type: 'month' });
+
+        document.addEventListener('chartFilterChange', function(e) {
+            if (e.detail.filterId === 'serviceAsuransiChartFilter') {
+                const filters = {
+                    filter_type: e.detail.filterType,
+                    start_date:  e.detail.startDate,
+                    end_date:    e.detail.endDate,
+                };
+                updateServiceAsuransiCharts(filters);
+            }
+        });
+    });
+
+    async function initServiceAsuransiCharts(filters) {
+        try {
+            await chartManager.initChartsFromAPI('service-asuransi', {
+                pie:  'serviceAsuransiPieChart',
+                bar:  'serviceAsuransiBarChart',
+                line: 'serviceAsuransiLineChart',
+            }, filters, { accentLine: true });
+        } catch (error) {
+            console.error('Error loading service asuransi charts:', error);
+        }
+    }
+
+    async function updateServiceAsuransiCharts(filters) {
+        try {
+            const isScrollable = filters.filter_type === 'custom';
+            await chartManager.updateChartsFromAPI('service-asuransi', {
+                pie:  'serviceAsuransiPieChart',
+                bar:  'serviceAsuransiBarChart',
+                line: 'serviceAsuransiLineChart',
+            }, filters,
+            { scrollable: isScrollable, accentLine: true },
+            { scrollable: isScrollable });
+        } catch (error) {
+            console.error('Error updating service asuransi charts:', error);
+        }
+    }
     </script>
 
 @endsection
