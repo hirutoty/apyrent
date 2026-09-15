@@ -152,6 +152,7 @@
                 'Stnk'          => ['icon'=>'fa fa-id-card',        'color'=>'indigo'],
                 'Service Part'  => ['icon'=>'fa fa-wrench',         'color'=>'orange'],
                 'Service Asuransi' => ['icon'=>'fa fa-tools',       'color'=>'orange'],
+                'Service Incident' => ['icon'=>'fa fa-exclamation-triangle', 'color'=>'red'],
                 'Lainnya'       => ['icon'=>'fa fa-file-invoice',   'color'=>'gray'],
             ];
             $colorMap = [
@@ -162,6 +163,7 @@
                 'teal'   => ['bg'=>'bg-teal-50',   'border'=>'border-teal-200',   'text'=>'text-teal-700',   'hdr'=>'bg-teal-50/40'],
                 'indigo' => ['bg'=>'bg-indigo-50', 'border'=>'border-indigo-200', 'text'=>'text-indigo-700', 'hdr'=>'bg-indigo-50/40'],
                 'gray'   => ['bg'=>'bg-gray-50',   'border'=>'border-gray-200',   'text'=>'text-gray-600',   'hdr'=>'bg-gray-50/40'],
+                'red'    => ['bg'=>'bg-red-50',    'border'=>'border-red-200',    'text'=>'text-red-700',    'hdr'=>'bg-red-50/40'],
             ];
         @endphp
 
@@ -316,7 +318,7 @@
                                             $gpsItems = $allGpsItems;
                                         }
 
-                                        $hasItems = !empty($allGpsItems) || ($po->source_type === 'service_part' && !empty($sourceData['parts']));
+                                        $hasItems = !empty($allGpsItems) || (in_array($po->source_type, ['service_part', 'service_incident']) && !empty($sourceData['parts']));
                                     @endphp
                                     {{-- Baris utama --}}
                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40 hover:bg-blue-50/30 transition-colors {{ $hasItems ? 'cursor-pointer' : '' }}"
@@ -395,8 +397,8 @@
                                                     <i class="fa fa-eye text-xs"></i> Detail
                                                 </button>
                                                 @if($po->status === 'Pending' && auth()->user()->role === 'superadmin')
-                                                    @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part']))
-                                                        {{-- GPS / Service Part: per-item approval modal --}}
+                                                    @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident']))
+                                                        {{-- GPS / Service Part / Service Incident: per-item approval modal --}}
                                                         <button onclick="openApproveModal({{ $po->id }}, '{{ $po->po_id }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors">
                                                             <i class="fa fa-check text-xs"></i> Approve
@@ -414,7 +416,7 @@
                                                             <i class="fa fa-check text-xs"></i> Approve
                                                         </button>
                                                     @endif
-                                                    @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part']))
+                                                    @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident']))
                                                         <button onclick="openRejectModal({{ $po->id }}, '{{ $po->po_id }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
                                                             <i class="fa fa-times text-xs"></i> Reject
@@ -465,9 +467,10 @@
                                     @php
                                         $kendaraanId  = $sourceData['kendaraan_id'] ?? null;
                                         $kendaraan    = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
-                                        $isServicePart = $po->source_type === 'service_part';
+                                        $isServicePart     = $po->source_type === 'service_part';
+                                        $isServiceIncident = $po->source_type === 'service_incident';
 
-                                        if ($isServicePart) {
+                                        if ($isServicePart || $isServiceIncident) {
                                             $allParts    = $sourceData['parts'] ?? [];
                                             $partDecMap  = collect($sourceData['item_decisions'] ?? [])->keyBy('idx');
 
@@ -496,12 +499,15 @@
                                     @endphp
                                     <tr id="{{ $poRowId }}" class="hidden">
                                         <td colspan="8" class="px-0 py-0">
-                                            @if($isServicePart)
-                                            {{-- ── SERVICE PART EXPAND ── --}}
-                                            <div class="bg-orange-50/30 border-t border-orange-100 px-6 py-4">
+                                            @if($isServicePart || $isServiceIncident)
+                                            {{-- ── SERVICE PART / SERVICE INCIDENT EXPAND ── --}}
+                                            @php $expandColor = $isServiceIncident ? 'red' : 'orange'; @endphp
+                                            <div class="bg-{{ $expandColor }}-50/30 border-t border-{{ $expandColor }}-100 px-6 py-4">
                                                 <div class="flex items-center gap-2 mb-3">
-                                                    <i class="fa fa-tools text-orange-600 text-xs"></i>
-                                                    <span class="text-[11px] font-bold text-orange-700 uppercase tracking-wide">Detail — Service Part</span>
+                                                    <i class="{{ $isServiceIncident ? 'fa fa-exclamation-triangle' : 'fa fa-tools' }} text-{{ $expandColor }}-600 text-xs"></i>
+                                                    <span class="text-[11px] font-bold text-{{ $expandColor }}-700 uppercase tracking-wide">
+                                                        Detail — {{ $isServiceIncident ? 'Service Incident' : 'Service Part' }}
+                                                    </span>
                                                 </div>
                                                 {{-- Info kendaraan & service --}}
                                                 <div class="grid grid-cols-3 gap-4 mb-3 text-xs">
@@ -519,14 +525,17 @@
                                                     </div>
                                                 </div>
                                                 {{-- Tabel parts --}}
-                                                <div class="bg-white rounded-xl border border-orange-100 overflow-hidden">
+                                                <div class="bg-white rounded-xl border border-{{ $expandColor }}-100 overflow-hidden">
                                                     <table class="w-full text-xs">
                                                         <thead>
-                                                            <tr class="bg-orange-50 border-b border-orange-100">
+                                                            <tr class="bg-{{ $expandColor }}-50 border-b border-{{ $expandColor }}-100">
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Part</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kategori</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kondisi</th>
+                                                                @if($isServiceIncident)
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Supplier</th>
+                                                                @endif
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
@@ -537,6 +546,7 @@
                                                                 @php
                                                                     $category = isset($part['category_id']) ? \App\Models\ServiceCategory::find($part['category_id']) : null;
                                                                     $catNama  = $category ? $category->nama : ($part['nama_category_baru'] ?? '-');
+                                                                    $supplier = isset($part['supplier_id']) ? \App\Models\Supplier::find($part['supplier_id']) : null;
                                                                 @endphp
                                                                 <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                     <td class="px-3 py-2 text-gray-400">{{ $pIdx + 1 }}</td>
@@ -547,16 +557,19 @@
                                                                         @endif
                                                                     </td>
                                                                     <td class="px-3 py-2">
-                                                                        <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ $catNama }}</span>
+                                                                        <span class="bg-{{ $expandColor }}-100 text-{{ $expandColor }}-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ $catNama }}</span>
                                                                     </td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['kondisi'] ?? '-' }}</td>
+                                                                    @if($isServiceIncident)
+                                                                        <td class="px-3 py-2 text-gray-600">{{ $supplier?->nama_supplier ?? '-' }}</td>
+                                                                    @endif
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['nama_bank'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 font-mono text-gray-600">{{ $part['no_rekening'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-right font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($part['biaya'] ?? 0, 0, ',', '.') }}</td>
                                                                 </tr>
                                                             @endforeach
-                                                            <tr class="border-t-2 border-orange-200 bg-orange-50/50">
-                                                                <td colspan="6" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                            <tr class="border-t-2 border-{{ $expandColor }}-200 bg-{{ $expandColor }}-50/50">
+                                                                <td colspan="{{ $isServiceIncident ? 7 : 6 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>

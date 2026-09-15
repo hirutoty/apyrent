@@ -190,8 +190,10 @@ class ChartDataController extends Controller
             'kir' => $this->getKirConfig(),
             'pajak-kendaraan' => $this->getPajakKendaraanConfig(),
             'stnk' => $this->getStnkConfig(),
-            'service-history' => $this->getServiceHistoryConfig(),
-            'pembayaran'      => $this->getPembayaranConfig(),
+            'service-history'   => $this->getServiceHistoryConfig(),
+            'service-asuransi'  => $this->getServiceAsuransiConfig(),
+            'service-incident'  => $this->getServiceIncidentConfig(),
+            'pembayaran'        => $this->getPembayaranConfig(),
             'purchase-order'  => $this->getPurchaseOrderConfig(),
             'kendaraan' => $this->getKendaraanConfig(),
             'kendaraan-show' => $this->getKendaraanShowConfig(),
@@ -256,8 +258,10 @@ class ChartDataController extends Controller
             'kir' => \App\Models\Kir::query(),
             'pajak-kendaraan' => \App\Models\PajakKendaraan::query(),
             'stnk' => \App\Models\StnkHistory::query(),
-            'service-history' => \App\Models\ServiceHistory::query(),
-            'pembayaran'      => \App\Models\Pembayaran::query(),
+            'service-history'  => \App\Models\ServiceHistory::query(),
+            'service-asuransi' => \App\Models\ServiceAsuransi::query(),
+            'service-incident' => \App\Models\ServiceIncident::query(),
+            'pembayaran'       => \App\Models\Pembayaran::query(),
             'purchase-order'  => \App\Models\PurchaseOrder::query(),
             'kendaraan' => \App\Models\Kendaraan::query(),
             'kendaraan-show' => \App\Models\ServiceHistory::query(),
@@ -3335,6 +3339,181 @@ class ChartDataController extends Controller
                     'color'  => '#10b981',
                     'iconBg' => '#d1fae5',
                     'icon'   => 'fa fa-money-bill-wave',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Service Asuransi page
+     */
+    protected function getServiceAsuransiConfig(): array
+    {
+        return [
+            'dateColumn' => 'tanggal_service',
+            'pie' => [
+                'title'       => 'Biaya per Status',
+                'groupBy'     => 'status',
+                'valueColumn' => 'biaya',
+                'aggregation' => 'sum',
+                'labels'      => [
+                    'bermasalah' => 'Bermasalah',
+                    'selesai'    => 'Selesai',
+                ],
+                'colors' => ['#ef4444', '#10b981'],
+            ],
+            'bar' => [
+                'title'        => 'Biaya Service Asuransi per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => [
+                    'biaya',
+                    ['where' => ['status' => 'selesai'],    'column' => 'biaya', 'label' => 'Selesai'],
+                    ['where' => ['status' => 'bermasalah'], 'column' => 'biaya', 'label' => 'Bermasalah'],
+                ],
+                'aggregation' => 'sum',
+                'dateColumn'  => 'tanggal_service',
+                'limit'       => 6,
+                'labels'      => ['Total Biaya', 'Selesai', 'Bermasalah'],
+                'colors'      => ['#3b82f6', '#10b981', '#ef4444'],
+            ],
+            'line' => [
+                'title'       => 'Trend Biaya Service Asuransi',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'biaya',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'tanggal_service',
+                'limit'       => 12,
+                'label'       => 'Biaya',
+                'color'       => '#3b82f6',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Service',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#4f6ef7',
+                    'iconBg' => '#eef1ff',
+                    'icon'   => 'fa fa-shield-halved',
+                ],
+                [
+                    'label'  => 'Total Biaya',
+                    'type'   => 'sum',
+                    'column' => 'biaya',
+                    'format' => 'currency',
+                    'color'  => '#3b82f6',
+                    'iconBg' => '#dbeafe',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'  => 'Bermasalah',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'bermasalah'],
+                    'format' => 'number',
+                    'color'  => '#ef4444',
+                    'iconBg' => '#fee2e2',
+                    'icon'   => 'fa fa-exclamation-triangle',
+                ],
+                [
+                    'label'  => 'Selesai',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'selesai'],
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-check-circle',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Service Incident page
+     */
+    protected function getServiceIncidentConfig(): array
+    {
+        return [
+            'dateColumn' => 'tanggal_service',
+            'pie' => [
+                'title'       => 'Biaya per Status',
+                'groupBy'     => 'status',
+                'valueColumn' => 'total_biaya',
+                'aggregation' => 'sum',
+                'labels'      => [
+                    'proses'  => 'Proses',
+                    'selesai' => 'Selesai',
+                ],
+                'colors' => ['#f59e0b', '#10b981'],
+            ],
+            'bar' => [
+                'title'        => 'Biaya Service Incident per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => true,
+                'valueColumns' => [
+                    'total_biaya',
+                    ['where' => ['status' => 'selesai'], 'column' => 'total_biaya', 'label' => 'Selesai'],
+                    ['where' => ['status' => 'proses'],  'column' => 'total_biaya', 'label' => 'Proses'],
+                ],
+                'aggregation' => 'sum',
+                'dateColumn'  => 'tanggal_service',
+                'limit'       => 6,
+                'labels'      => ['Total Biaya', 'Selesai', 'Proses'],
+                'colors'      => ['#f97316', '#10b981', '#f59e0b'],
+            ],
+            'line' => [
+                'title'       => 'Trend Biaya Service Incident',
+                'groupBy'     => 'month',
+                'autoDaily'   => true,
+                'valueColumn' => 'total_biaya',
+                'aggregation' => 'sum',
+                'dateColumn'  => 'tanggal_service',
+                'limit'       => 12,
+                'label'       => 'Biaya',
+                'color'       => '#f97316',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Incident',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#f97316',
+                    'iconBg' => '#ffedd5',
+                    'icon'   => 'fa fa-exclamation-triangle',
+                ],
+                [
+                    'label'  => 'Total Biaya',
+                    'type'   => 'sum',
+                    'column' => 'total_biaya',
+                    'format' => 'currency',
+                    'color'  => '#ef4444',
+                    'iconBg' => '#fee2e2',
+                    'icon'   => 'fa fa-money-bill-wave',
+                ],
+                [
+                    'label'       => 'Incident Bulan Ini',
+                    'type'        => 'count',
+                    'column'      => 'id',
+                    'format'      => 'number',
+                    'color'       => '#f59e0b',
+                    'iconBg'      => '#fef3c7',
+                    'icon'        => 'fa fa-calendar-check',
+                    'dateColumn'  => 'tanggal_service',
+                    'dateFilter'  => 'current_month',
+                ],
+                [
+                    'label'  => 'Selesai',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'selesai'],
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'fa fa-check-circle',
                 ],
             ],
         ];

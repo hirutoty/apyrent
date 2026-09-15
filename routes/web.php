@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\ServiceHistoryController;
 use App\Http\Controllers\Admin\ServiceDetailController;
 use App\Http\Controllers\Admin\ServiceAsuransiController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
+use App\Http\Controllers\Admin\ServiceIncidentController;
 use App\Http\Controllers\Admin\ReminderServiceController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\UserController;
@@ -564,15 +565,6 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get('service-history/kendaraan/{id}/data', [ServiceHistoryController::class, 'getKendaraanData'])
       ->name('service-history.kendaraan-data');
 
-  // Request Part routes
-  Route::get('service-history/request/create', [ServiceHistoryController::class, 'requestCreate'])
-      ->name('service-history.request.create');
-  Route::post('service-history/request', [ServiceHistoryController::class, 'requestStore'])
-      ->name('service-history.request.store');
-  Route::get('service-history/{id}/edit-request', [ServiceHistoryController::class, 'editRequest'])
-      ->name('service-history.request.edit');
-  Route::put('service-history/{id}/edit-request', [ServiceHistoryController::class, 'updateRequest'])
-      ->name('service-history.request.update');
   Route::post('service-history/{id}/approve', [ServiceHistoryController::class, 'approve'])
       ->name('service-history.approve');
   Route::post('service-history/{id}/reject', [ServiceHistoryController::class, 'reject'])
@@ -610,6 +602,27 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::resource('reminder-service', ReminderServiceController::class);
   Route::put('reminder-service/{id}/status', [ReminderServiceController::class, 'updateStatus'])
       ->name('reminder-service.update-status');
+
+  // ── SERVICE INCIDENT ──────────────────────────────────────────────────────
+  Route::get('service-incident/create', [ServiceIncidentController::class, 'create'])
+      ->name('service-incident.create');
+  Route::delete('service-incident-parts/{id}/bukti', [ServiceIncidentController::class, 'deletePartBukti'])
+      ->name('service-incident-parts.bukti.delete');
+  Route::put('service-incident-parts/{id}/status', [ServiceIncidentController::class, 'updatePartStatus'])
+      ->name('service-incident-parts.update-status');
+  Route::post('service-incident/{id}/terpasang', [ServiceIncidentController::class, 'terpasang'])
+      ->name('service-incident.terpasang');
+  Route::delete('service-incident/attachment/{id}', [ServiceIncidentController::class, 'destroyAttachment'])
+      ->name('service-incident.attachment.destroy');
+  Route::middleware(['role:superadmin'])->group(function () {
+      Route::post('service-incident-parts/{id}/approve', [ServiceIncidentController::class, 'approvePart'])
+          ->name('service-incident-parts.approve');
+      Route::post('service-incident-parts/{id}/reject', [ServiceIncidentController::class, 'rejectPart'])
+          ->name('service-incident-parts.reject');
+  });
+  Route::resource('service-incident', ServiceIncidentController::class)->except(['edit', 'show']);
+  Route::put('service-incident/{id}/status', [ServiceIncidentController::class, 'updateStatus'])
+      ->name('service-incident.update-status');
 
   // Service Categories CRUD + Limit Rules
   // Service Categories - Superadmin Only
