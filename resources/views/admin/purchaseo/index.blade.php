@@ -286,7 +286,6 @@
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">PO Number</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Vendor</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Keterangan</th>
-                                        <th class="text-center text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Lampiran</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Total Harga</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Tanggal</th>
@@ -320,7 +319,9 @@
                                             $gpsItems = $allGpsItems;
                                         }
 
-                                        $hasItems = !empty($allGpsItems) || (in_array($po->source_type, ['service_part', 'service_incident']) && !empty($sourceData['parts']));
+                                        $hasItems = !empty($allGpsItems)
+                                            || (in_array($po->source_type, ['service_part', 'service_incident']) && !empty($sourceData['parts']))
+                                            || in_array($po->source_type, ['pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'kir', 'kir_perpanjang', 'stnk']);
                                     @endphp
                                     {{-- Baris utama --}}
                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40 hover:bg-blue-50/30 transition-colors {{ $hasItems ? 'cursor-pointer' : '' }}"
@@ -340,12 +341,6 @@
                                             @else
                                                 <span class="text-gray-300">—</span>
                                             @endif
-                                        </td>
-                                        <td class="px-4 py-3 text-center">
-                                            @include('admin.partials._lampiran_files', [
-                                                'tempFiles' => ($po->source_data['temp_files'] ?? []),
-                                                'compact'   => true,
-                                            ])
                                         </td>
                                         <td class="px-4 py-3 text-xs text-gray-700 text-center">
                                             @php
@@ -519,7 +514,7 @@
                                         }
                                     @endphp
                                     <tr id="{{ $poRowId }}" class="hidden">
-                                        <td colspan="8" class="px-0 py-0">
+                                        <td colspan="9" class="px-0 py-0">
                                             @if($isServicePart || $isServiceIncident)
                                             {{-- ── SERVICE PART / SERVICE INCIDENT EXPAND ── --}}
                                             @php $expandColor = $isServiceIncident ? 'red' : 'orange'; @endphp
@@ -619,7 +614,7 @@
                                                     </table>
                                                 </div>
                                             </div>
-                                            @else
+                                            @elseif(!empty($allGpsItems))
                                             {{-- ── GPS EXPAND ── --}}
                                             <div class="bg-green-50/30 border-t border-green-100 px-6 py-4">
                                                 <div class="flex items-center justify-between mb-3">
@@ -704,9 +699,64 @@
                                                 </div>
                                             </div>
                                             @endif
+                                            @if(in_array($po->source_type, ['pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'kir', 'kir_perpanjang', 'stnk']))
+                                            {{-- ── LAMPIRAN PAJAK / ASURANSI / KIR ── --}}
+                                            @php
+                                                // Ambil dari temp_files (PO baru)
+                                                $lampiranFiles = $sourceData['temp_files']['attachments'] ?? [];
+
+                                                // Fallback: ambil dari tabel attachments DB (PO lama)
+                                                if (empty($lampiranFiles)) {
+                                                    $existingRecordId = $sourceData['existing_record_id'] ?? null;
+                                                    $relType = match($po->source_type) {
+                                                        'pajak', 'pajak_perpanjang'                                   => 'pajak',
+                                                        'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'         => 'asuransi',
+                                                        'kir', 'kir_perpanjang'                                       => 'kir',
+                                                        default                                                       => null,
+                                                    };
+                                                    if ($existingRecordId && $relType) {
+                                                        $dbAttachments = \App\Models\Attachment::where('relation_type', $relType)
+                                                            ->where('relation_id', $existingRecordId)
+                                                            ->get();
+                                                        foreach ($dbAttachments as $att) {
+                                                            $lampiranFiles[] = [
+                                                                'original_name' => $att->file_name,
+                                                                'path'          => null,
+                                                                'public_url'    => asset($att->file_path),
+                                                            ];
+                                                        }
+                                                    }
+                                                }
+                                            @endphp
+                                            <div class="bg-blue-50/30 border-t border-blue-100 px-6 py-4">
+                                                <div class="flex items-center gap-2 mb-3">
+                                                    <i class="fa fa-paperclip text-blue-600 text-xs"></i>
+                                                    <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wide">Lampiran</span>
+                                                </div>
+                                                @if(!empty($lampiranFiles))
+                                                    <div class="flex flex-wrap gap-2">
+                                                        @foreach($lampiranFiles as $lf)
+                                                            @php
+                                                                $lfUrl = $lf['public_url']
+                                                                    ?? (isset($lf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($lf['path']) : null);
+                                                            @endphp
+                                                            @if($lfUrl)
+                                                                <a href="{{ $lfUrl }}" target="_blank"
+                                                                    class="text-xs text-blue-600 hover:underline truncate max-w-[200px]"
+                                                                    title="{{ $lf['original_name'] ?? '' }}">
+                                                                    {{ $lf['original_name'] ?? 'file' }}
+                                                                </a>
+                                                            @endif
+                                                        @endforeach
+                                                    </div>
+                                                @else
+                                                    <p class="text-xs text-gray-400 italic">Tidak ada lampiran</p>
+                                                @endif
+                                            </div>
+                                            @endif
                                         </td>
                                     </tr>
-                                    @endif
+                                    @endif {{-- end hasItems --}}
                                 @endforeach
                                 </tbody>
                             </table>

@@ -310,7 +310,7 @@ class PajakController extends Controller
                 'tanggal_buat'  => $request->tanggal_bayar,
                 'status'        => 'belum_bayar',
                 'status_aktif'  => 'tidak_aktif',
-                'keterangan'    => $request->keterangan,
+                'keterangan'    => 'tambah-pajak-' . ($kendaraan->merk ?? '') . '-' . ($kendaraan->nopol ?? ''),
                 'nama_pemilik'  => $request->nama_pemilik,
                 'nama_bank'     => $request->nama_bank,
                 'no_rekening'   => $request->no_rekening,
@@ -334,9 +334,16 @@ class PajakController extends Controller
 
             $po = $interceptor->saveToPurchaseOrder($interceptedData, 'pajak');
 
-            // Step 4: Update source_data PO
+            // Step 4: Update source_data PO — sematkan existing_record_id + temp files lampiran
             $sourceData = $po->source_data;
             $sourceData['existing_record_id'] = $pajak->id;
+
+            // Upload lampiran ke temp storage PO agar tampil di expand row index PO
+            $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $po->id, 'purchase_order');
+            if (!empty($uploadedFiles)) {
+                $sourceData['temp_files'] = $uploadedFiles;
+            }
+
             $po->update(['source_data' => $sourceData]);
 
             return redirect()
@@ -521,7 +528,7 @@ class PajakController extends Controller
             'bukti_attachment.*' => 'file|max:5120',
             'nama_bank'      => 'nullable|string|max:255',
             'no_rekening'    => 'nullable|string|max:100',
-            'nama_rekening'  => 'nullable|string|max:255',
+            'nama_pemilik'   => 'nullable|string|max:255',
             'informasi'      => 'nullable|string',
         ]);
 

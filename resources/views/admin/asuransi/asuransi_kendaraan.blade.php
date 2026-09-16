@@ -714,12 +714,12 @@
     {{-- ======================================
     MODAL EDIT
 ====================================== --}}
-    <div id="modalEdit" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4"
+    <div id="modalEdit" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30"
         style="backdrop-filter:blur(2px)">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
             style="animation:slideUp .2s ease">
 
-            <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+            <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
                 <div>
                     <h2 class="text-base font-bold text-gray-800">Edit Asuransi Kendaraan</h2>
                     <p class="text-xs text-gray-500 mt-0.5">Perbarui data asuransi kendaraan</p>
@@ -730,11 +730,10 @@
                 </button>
             </div>
 
-            <form id="formEdit" method="POST"
-                class="px-6 py-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form id="formEdit" method="POST" class="px-6 py-5">
                 @csrf
                 @method('PUT')
-                {{-- Hidden fields — nilai tidak berubah --}}
+                {{-- Hidden fields — nilai tidak berubah, dikirim agar controller tidak error --}}
                 <input type="hidden" name="kendaraan_id"      id="edit_kendaraan_id">
                 <input type="hidden" name="asuransi_id"       id="edit_asuransi_id">
                 <input type="hidden" name="jenis_asuransi_id" id="edit_jenis_asuransi_id">
@@ -743,40 +742,37 @@
                 <input type="hidden" name="durasi_bulan"      id="edit_durasi_bulan" value="12">
                 <input type="hidden" name="status_kendaraan"  id="edit_status_kendaraan">
 
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Biaya Asuransi <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number" min="0" id="edit_biaya" name="biaya" required
-                        class="w-full border border-gray-200 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya Asuransi <span class="text-red-500">*</span></label>
+                        <input type="number" min="0" name="biaya" id="edit_biaya" required
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik Rekening</label>
+                        <input type="text" name="nama_rekening" id="edit_nama_rekening"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bank</label>
+                        <input type="text" name="nama_bank" id="edit_nama_bank"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Rekening</label>
+                        <input type="text" name="no_rekening" id="edit_no_rekening"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bank</label>
-                    <input type="text" name="nama_bank" id="edit_nama_bank"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Rekening</label>
-                    <input type="text" name="no_rekening" id="edit_no_rekening"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik Rekening</label>
-                    <input type="text" name="nama_rekening" id="edit_nama_rekening"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-
-                <div class="md:col-span-2 flex gap-3 pt-1">
+                <div class="flex gap-3 pt-4">
                     <button type="button" onclick="closeModalEdit()"
                         class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-blue-50/50 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
-                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
-                        <i class="fa fa-save text-sm"></i> Update
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
+                        <i class="fa fa-save text-sm"></i> Update Data
                     </button>
                 </div>
     {{-- MODAL PERPANJANG --}}
@@ -810,48 +806,32 @@
                 <input type="hidden" name="_perpanjang_biaya"           id="_perpanjang_biaya_ctx"       value="{{ old('_perpanjang_biaya') }}">
                 <input type="hidden" name="_perpanjang_tgl_berakhir_lama" id="_perpanjang_tgl_berakhir_lama" value="{{ old('_perpanjang_tgl_berakhir_lama') }}">
 
-                {{-- Kendaraan (readonly) --}}
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Kendaraan</label>
-                    <div class="w-full border rounded-lg px-3 py-2 bg-gray-100 text-sm text-gray-700 cursor-not-allowed">
-                        <span id="perpanjang_kendaraan_text">-</span>
+                {{-- Hidden for submission --}}
+                <input type="hidden" name="asuransi_id" id="hidden_asuransi_id">
+                <input type="hidden" name="jenis_asuransi_id" id="hidden_jenis_asuransi_id">
+                {{-- tgl_mulai & durasi hidden --}}
+                <input type="hidden" name="tgl_mulai" id="perpanjang_tgl_mulai" value="">
+                <input type="hidden" name="durasi_bulan" id="perpanjang_durasi" value="12">
+
+                {{-- Info kendaraan & asuransi badge (sama dengan GPS/Pajak) --}}
+                <div class="md:col-span-2 flex items-center gap-3 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-xl">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-car text-indigo-600 text-sm"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-slate-800" id="perpanjang_kendaraan_text">-</p>
+                        <p class="text-xs text-slate-500" id="perpanjang_asuransi_label">-</p>
                     </div>
                 </div>
 
-                {{-- Asuransi --}}
+                {{-- Tanggal Bayar --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">
-                        Perusahaan Asuransi <span class="text-red-500">*</span>
-                    </label>
-
-                    <input type="hidden" name="asuransi_id" id="hidden_asuransi_id">
-
-                    <select id="perpanjang_asuransi_id" disabled
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed">
-
-                        @foreach ($asuransi as $a)
-                            <option value="{{ $a->id }}">{{ $a->nama_asuransi }}</option>
-                        @endforeach
-
-                    </select>
-                </div>
-
-                {{-- Jenis Asuransi --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">
-                        Jenis Asuransi <span class="text-red-500">*</span>
-                    </label>
-
-                    <input type="hidden" name="jenis_asuransi_id" id="hidden_jenis_asuransi_id">
-
-                    <select id="perpanjang_jenis_id" disabled
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed">
-
-                        @foreach ($jenisAsuransi as $item)
-                            <option value="{{ $item->id }}">{{ $item->nama_jenis }}</option>
-                        @endforeach
-
-                    </select>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar <span class="text-red-500">*</span></label>
+                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar" value="{{ old('tanggal_bayar') }}"
+                        required
+                        onchange="syncTanggalMulaiDariBayar()"
+                        oninput="syncTanggalMulaiDariBayar()"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
 
                 {{-- Tgl Berakhir Baru: lama +1 tahun, disabled --}}
@@ -860,23 +840,11 @@
                     <input type="date" id="perpanjang_tgl_berakhir_display" disabled
                         class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 cursor-not-allowed">
                     <input type="hidden" name="tgl_berakhir" id="perpanjang_tgl_berakhir">
-                    {{-- tgl_mulai & durasi hidden --}}
-                    <input type="hidden" name="tgl_mulai" id="perpanjang_tgl_mulai" value="">
-                    <input type="hidden" name="durasi_bulan" id="perpanjang_durasi" value="12">
                     <p class="text-xs text-gray-400 mt-1">Otomatis tanggal berakhir lama + 1 tahun</p>
                 </div>
 
-                {{-- Tanggal Bayar --}}
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar</label>
-                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar" value="{{ old('tanggal_bayar') }}"
-                        onchange="syncTanggalMulaiDariBayar()"
-                        oninput="syncTanggalMulaiDariBayar()"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                </div>
-
                 {{-- Biaya --}}
-                <div>
+                <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Biaya Baru <span
                             class="text-red-500">*</span></label>
                     <div class="relative">
@@ -910,7 +878,7 @@
 
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Pemilik Rekening</label>
-                    <input type="text" name="nama_rekening" id="perpanjang_nama_rekening"
+                    <input type="text" name="nama_pemilik" id="perpanjang_nama_pemilik"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                         placeholder="Nama pemilik rekening">
                 </div>
@@ -1108,48 +1076,12 @@
             document.getElementById('edit_nama_bank').value         = namaBank      || '';
             document.getElementById('edit_no_rekening').value       = noRekening    || '';
             document.getElementById('edit_nama_rekening').value     = namaRekening  || '';
-
-            // Hitung tgl_berakhir = tgl_mulai + 1 tahun (tampil disabled, kirim via hidden)
-            if (tgl_mulai) {
-                const d = new Date(tgl_mulai);
-                d.setFullYear(d.getFullYear() + 1);
-                const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                document.getElementById('edit_tgl_berakhir_display').value = val;
-                document.getElementById('edit_tgl_berakhir').value = val;
-            }
-
-            // preview bukti lama
-            const wrap = document.getElementById('previewWrapEdit');
-            const img = document.getElementById('previewImgEdit');
-            const fileBox = document.getElementById('previewFileEdit');
-            const fileName = document.getElementById('fileNameEdit');
-
-            if (bukti_bayar) {
-                wrap.classList.remove('hidden');
-                const ext = bukti_bayar.split('.').pop().toLowerCase();
-                if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-                    img.classList.remove('hidden');
-                    img.src = '/' + bukti_bayar;
-                    fileBox.classList.add('hidden');
-                } else {
-                    img.classList.add('hidden');
-                    fileBox.classList.remove('hidden');
-                    fileName.textContent = bukti_bayar.split('/').pop();
-                }
-            } else {
-                wrap.classList.add('hidden');
-                img.classList.add('hidden');
-                fileBox.classList.add('hidden');
-                img.src = '';
-            }
         }
 
         function closeModalEdit() {
             var m = document.getElementById('modalEdit');
             m.classList.add('hidden');
             m.classList.remove('flex');
-            document.getElementById('listAttachmentEdit').innerHTML = '';
-            document.getElementById('edit_bukti_attachment').value = '';
         }
 
         document.getElementById('modalEdit').addEventListener('click', function(e) {
@@ -1169,22 +1101,32 @@
             document.getElementById('formPerpanjang').action =
                 '/admin/asuransi-kendaraan/' + id + '/perpanjang';
 
-            document.getElementById('perpanjang_kendaraan_text').innerText =
-                nopol + ' - ' + merk;
-
+            // Populate badge kendaraan & asuransi
+            document.getElementById('perpanjang_kendaraan_text').innerText = `${merk} — ${nopol}`;
+            
+            // Get nama asuransi & jenis dari select options
+            const asuransiSelect = document.getElementById('perpanjang_asuransi_id');
+            const jenisSelect = document.getElementById('perpanjang_jenis_id');
+            const namaAsuransi = asuransiSelect.options[asuransiSelect.selectedIndex]?.text || '-';
+            const namaJenis = jenisSelect.options[jenisSelect.selectedIndex]?.text || '-';
+            
             // Hidden input yang akan dikirim ke server
             document.getElementById('hidden_asuransi_id').value = asuransi_id;
             document.getElementById('hidden_jenis_asuransi_id').value = jenis_id;
 
             document.getElementById('perpanjang_asuransi_id').value = asuransi_id;
             document.getElementById('perpanjang_jenis_id').value = jenis_id;
+            
+            // Update label asuransi setelah select di-set
+            document.getElementById('perpanjang_asuransi_label').innerText = 
+                `${document.getElementById('perpanjang_asuransi_id').options[document.getElementById('perpanjang_asuransi_id').selectedIndex]?.text || ''} — ${document.getElementById('perpanjang_jenis_id').options[document.getElementById('perpanjang_jenis_id').selectedIndex]?.text || ''}`;
 
             document.getElementById('perpanjang_biaya').value = biaya;
 
             // Pre-fill info bank dari data lama
             document.getElementById('perpanjang_nama_bank').value     = namaBank      || '';
             document.getElementById('perpanjang_no_rekening').value   = noRekening    || '';
-            document.getElementById('perpanjang_nama_rekening').value = namaRekening  || '';
+            document.getElementById('perpanjang_nama_pemilik').value = namaRekening  || '';
 
             // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)
             document.getElementById('_perpanjang_id').value                  = id;
@@ -1327,62 +1269,7 @@
             document.getElementById('tgl_berakhir').value = val;
         }
 
-        // Hitung tgl_berakhir = tgl_mulai + 1 tahun (modal edit)
-        function hitungTglBerakhirEdit() {
-            const mulai = document.getElementById('edit_tgl_mulai').value;
-            if (!mulai) return;
-            const d = new Date(mulai);
-            d.setFullYear(d.getFullYear() + 1);
-            const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-            document.getElementById('edit_tgl_berakhir_display').value = val;
-            document.getElementById('edit_tgl_berakhir').value = val;
-        }
-
         document.getElementById('tgl_mulai').addEventListener('change', hitungTglBerakhirTambah);
-        document.getElementById('edit_tgl_mulai').addEventListener('change', hitungTglBerakhirEdit);
-
-        function previewBuktiEdit(input) {
-
-            const file = input.files[0];
-            if (!file) return;
-
-            const wrap = document.getElementById('previewWrapEdit');
-            const img = document.getElementById('previewImgEdit');
-            const fileBox = document.getElementById('previewFileEdit');
-            const fileName = document.getElementById('fileNameEdit');
-
-            wrap.classList.remove('hidden');
-
-            const ext = file.name.split('.').pop().toLowerCase();
-
-            if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-
-                img.classList.remove('hidden');
-                fileBox.classList.add('hidden');
-
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-
-            } else {
-
-                img.classList.add('hidden');
-                fileBox.classList.remove('hidden');
-                fileName.textContent = file.name;
-            }
-        }
-
-        function hapusPreviewEdit() {
-
-            document.getElementById('edit_bukti_bayar').value = '';
-
-            document.getElementById('previewWrapEdit').classList.add('hidden');
-            document.getElementById('previewImgEdit').classList.add('hidden');
-            document.getElementById('previewFileEdit').classList.add('hidden');
-            document.getElementById('previewImgEdit').src = '';
-        }
 
         function previewBuktiAsuransi(input) {
 

@@ -587,12 +587,6 @@
                     </div>
 
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keterangan</label>
-                        <textarea name="keterangan" rows="3" placeholder="Tambahkan keterangan..."
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keterangan') }}</textarea>
-                    </div>
-
-                    <div class="sm:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                             Lampiran <span class="text-red-500">*</span>
                         </label>
@@ -741,43 +735,51 @@ MODAL PERPANJANG
                 <input type="hidden" name="_perpanjang_jenis"      id="_perpanjang_jenis"      value="{{ old('_perpanjang_jenis') }}">
                 <input type="hidden" name="_perpanjang_jatuh_tempo" id="_perpanjang_jatuh_tempo" value="{{ old('_perpanjang_jatuh_tempo') }}">
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {{-- Kendaraan hidden — tidak ditampilkan --}}
+                <input type="hidden" name="kendaraan_id" id="perpanjang_kendaraan">
+                {{-- Jenis pajak hidden — tidak ditampilkan --}}
+                <input type="hidden" name="jenis_pajak" id="perpanjang_jenis_hidden">
+                {{-- Status hidden --}}
+                <input type="hidden" name="status" value="sudah_bayar">
 
-                    {{-- Kendaraan hidden — tidak ditampilkan --}}
-                    <input type="hidden" name="kendaraan_id" id="perpanjang_kendaraan">
-                    {{-- Jenis pajak hidden — tidak ditampilkan --}}
-                    <input type="hidden" name="jenis_pajak" id="perpanjang_jenis_hidden">
-                    {{-- Status hidden --}}
-                    <input type="hidden" name="status" value="sudah_bayar">
+                {{-- Info kendaraan & jenis pajak (badge read-only) --}}
+                <div class="flex items-center gap-3 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-xl mb-5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-car text-indigo-600 text-sm"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-slate-800" id="perpanjang_kendaraan_label">-</p>
+                        <p class="text-xs text-slate-500" id="perpanjang_jenis_label">-</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">
-                            Nominal Baru
+                            Tanggal Bayar <span class="text-red-500">*</span>
                         </label>
-
-                        <input id="perpanjang_nominal" type="number" min="0" name="nominal"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
+                        <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar" required
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">
                             Jatuh Tempo Baru
                         </label>
-
                         {{-- Tampil disabled (tidak bisa diubah), value dikirim via hidden --}}
                         <input id="perpanjang_jatuh_tempo_display" type="date"
-                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed" disabled>
+                            class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed text-gray-600" disabled>
                         <input type="hidden" name="jatuh_tempo" id="perpanjang_jatuh_tempo">
                         <p class="text-xs text-gray-400 mt-1">Otomatis jatuh tempo lama + 1 tahun</p>
                     </div>
 
-                    <div>
+                    <div class="sm:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1">
-                            Tanggal Bayar
+                            Nominal Baru <span class="text-red-500">*</span>
                         </label>
-
-                        <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        <input id="perpanjang_nominal" type="number" min="0" name="nominal" required
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" value="{{ old('nominal') }}">
                     </div>
 
                     <div class="sm:col-span-2">
@@ -788,24 +790,24 @@ MODAL PERPANJANG
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Pemilik Rekening</label>
-                        <input type="text" name="nama_rekening" id="perpanjang_nama_rekening"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                            placeholder="Nama pemilik rekening">
-                    </div>
-
-                    <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Bank</label>
                         <input type="text" name="nama_bank" id="perpanjang_nama_bank"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                             placeholder="Contoh: BRI, BCA, Mandiri">
                     </div>
 
-                    <div class="sm:col-span-2">
+                    <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">No. Rekening</label>
                         <input type="text" name="no_rekening" id="perpanjang_no_rekening"
                             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                             placeholder="Nomor rekening tujuan">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Pemilik Rekening</label>
+                        <input type="text" name="nama_pemilik" id="perpanjang_nama_pemilik"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                            placeholder="Nama pemilik rekening">
                     </div>
 
                 </div>
@@ -1002,11 +1004,15 @@ MODAL PERPANJANG
 
             document.getElementById('perpanjang_kendaraan').value = kendaraan_id;
 
+            // Populate badge kendaraan & jenis pajak (read-only)
+            document.getElementById('perpanjang_kendaraan_label').textContent = `${merk} — ${nopol}`;
+            document.getElementById('perpanjang_jenis_label').textContent = `Jenis: ${jenis}`;
+
             document.getElementById('perpanjang_jenis_hidden').value = jenis;
             document.getElementById('perpanjang_nominal').value  = nominal;
 
             // Pre-fill info bank dari data lama
-            document.getElementById('perpanjang_nama_rekening').value = namaPemilik || '';
+            document.getElementById('perpanjang_nama_pemilik').value = namaPemilik || '';
             document.getElementById('perpanjang_nama_bank').value     = namaBank    || '';
             document.getElementById('perpanjang_no_rekening').value   = noRekening  || '';
 

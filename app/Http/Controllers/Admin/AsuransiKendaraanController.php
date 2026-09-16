@@ -722,7 +722,7 @@ class AsuransiKendaraanController extends Controller
             'bukti_attachment.*' => 'file|max:5120',
             'nama_bank'          => 'nullable|string|max:255',
             'no_rekening'        => 'nullable|string|max:100',
-            'nama_rekening'      => 'nullable|string|max:255',
+            'nama_pemilik'       => 'nullable|string|max:255',
             'informasi'          => 'nullable|string',
         ]);
 
