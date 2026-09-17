@@ -506,7 +506,7 @@
                                                     <thead>
                                                         <tr class="bg-slate-100 text-gray-500">
                                                             <th class="text-left px-3 py-2 font-semibold w-8">No</th>
-                                                            <th class="text-left px-3 py-2 font-semibold">Nama Kejadian</th>
+                                                            <th class="text-left px-3 py-2 font-semibold">Kejadian</th>
                                                             <th class="text-right px-3 py-2 font-semibold">Biaya</th>
                                                             <th class="text-left px-3 py-2 font-semibold">Lampiran</th>
                                                         </tr>
@@ -1007,7 +1007,7 @@
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Kejadian <span class="text-red-400">*</span></label>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Kejadian <span class="text-red-400">*</span></label>
                     <input type="text" name="kejadians[${idx}][nama_kejadian]" required
                         placeholder="cth: Ganti Kaca Depan"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
@@ -1584,7 +1584,7 @@ function renderSaAuKejadian(container, idx, kej) {
         </div>
         <div class="grid grid-cols-2 gap-3">
             <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Kejadian <span class="text-red-400">*</span></label>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Kejadian <span class="text-red-400">*</span></label>
                 <input type="text" name="kejadians[${idx}][nama_kejadian]" required value="${(kej.nama_kejadian||'').replace(/"/g,'&quot;')}"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
             </div>

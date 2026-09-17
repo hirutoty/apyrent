@@ -1473,7 +1473,7 @@ function renderApproveItems(data) {
         let itemTitle, itemSubtitle, itemNominal, bankInfo = '';
 
         if (isServiceAsuransi) {
-            // Kejadian asuransi: tampilkan nama kejadian + lampiran
+            // Kejadian asuransi: tampilkan Kejadian + lampiran
             itemTitle    = item.nama_kejadian || '-';
             itemSubtitle = '';
             itemNominal  = item.biaya || 0;
@@ -1543,7 +1543,7 @@ function renderApproveItems(data) {
             + '</div>'
             + (isServiceAsuransi && itemSubtitle ? itemSubtitle : '')
             + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
-            + ((isServicePart || isServiceIncident) && (item.keterangan_limit || item.keterangan) && (item.keterangan_limit || item.keterangan) !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + (item.keterangan_limit || item.keterangan) + '</p>' : '')
+            + (isServicePart && (item.keterangan_limit || item.keterangan) && (item.keterangan_limit || item.keterangan) !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + (item.keterangan_limit || item.keterangan) + '</p>' : '')
             + '</label></div>'
             + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
 
@@ -2178,7 +2178,7 @@ function renderRsaKejadian(container, idx, kej) {
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Kejadian <span class="text-red-400">*</span></label>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Kejadian <span class="text-red-400">*</span></label>
                 <input type="text" name="kejadians[${idx}][nama_kejadian]" required
                     value="${(kej.nama_kejadian || '').replace(/"/g, '&quot;')}"
                     placeholder="cth: Ganti Kaca Depan"

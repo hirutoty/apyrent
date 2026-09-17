@@ -371,31 +371,10 @@ class PengeluaranTransferService
             // $idx di sini adalah index dalam filtered $parts, bukan index asli dalam $allParts
             // Jika ada selectedParts, cari index asli untuk ambil temp_files yang tepat
             $originalIdx = !empty($selectedParts) ? array_search($partData, $allParts) : $idx;
-            
-            $tglPasang    = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
-            $intervalNilai = (int)($partData['interval_nilai'] ?? 12);
-            $intervalSatuan = $partData['interval_satuan'] ?? 'bulan';
 
-            $tanggalLimit = match ($intervalSatuan) {
-                'hari'   => (clone $tglPasang)->addDays($intervalNilai),
-                'minggu' => (clone $tglPasang)->addWeeks($intervalNilai),
-                'tahun'  => (clone $tglPasang)->addYears($intervalNilai),
-                default  => (clone $tglPasang)->addMonths($intervalNilai),
-            };
-
-            // Hitung status_pengeluaran
-            $statusPengeluaran = 'stabil';
-            $categoryId = $partData['category_id'] ?? null;
+            $tglPasang  = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
             $biaya      = (int)($partData['biaya'] ?? 0);
-            if ($categoryId && $biaya > 0) {
-                $limit = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $kendaraanId)
-                    ->where('category_id', $categoryId)
-                    ->whereNotNull('limit_price')
-                    ->first();
-                if ($limit && $biaya > $limit->limit_price) {
-                    $statusPengeluaran = 'overservice';
-                }
-            }
+            $categoryId = $partData['category_id'] ?? null;
 
             // Copy bukti files dari temp storage ke final storage
             $buktiFiles = [];
@@ -511,17 +490,16 @@ class PengeluaranTransferService
     }
 
     /**
-     * Transfer Service Incident — dijalankan saat superadmin approve PO service_incident.
+     * Transfer Service Incident — dijalankan saat Pembayaran service_incident diapprove.
      *
      * Alur:
-     * 1. Buat record ServiceIncident baru
-     * 2. Buat ServiceIncidentPart per parts yang diapprove:
-     *    - status       = 'Terpasang'  (langsung terpasang setelah disetujui)
+     * 1. Gunakan record ServiceIncident yang sudah ada (dibuat saat store()),
+     *    update status + approval fields. Jika tidak ada (fallback), buat baru.
+     * 2. Hapus ServiceIncidentPart lama lalu buat ulang per parts yang diapprove:
+     *    - status       = 'tidak_aktif' (menunggu ditandai Terpasang)
      *    - persetujuan  = 'Disetujui'
      * 3. Catat cashflow Keuangan + BukuBesar per part
      * 4. Copy temp files ke final storage
-     *
-     * Tidak ada cek is_over_limit / status_pengeluaran — incident is incident.
      */
     protected function transferServiceIncident(Pembayaran $pembayaran, array $approvalFiles, array $selectedParts = []): int
     {
@@ -555,24 +533,48 @@ class PengeluaranTransferService
         }
         unset($partData);
 
-        // ── Buat ServiceIncident header ───────────────────────────────
-        $incident = \App\Models\ServiceIncident::create([
-            'kendaraan_id'    => $kendaraanId,
-            'keluhan'         => $sourceData['keluhan'] ?? null,
-            'kilometer'       => $sourceData['kilometer'] ?? 0,
-            'total_biaya'     => $totalBiaya,
-            'status'          => 'tidak_aktif',
-            'tanggal_service' => $sourceData['tanggal_service'] ?? now()->toDateString(),
-            'status_approval' => 'approved',
-            'approval_by'     => auth()->id(),
-            'approval_at'     => now(),
-            'pembayaran_id'   => $pembayaran->id,
-        ]);
+        // ── Cari ServiceIncident yang sudah ada (dibuat saat store()) ─
+        $incidentId = $sourceData['service_incident_id'] ?? null;
+        $incident   = $incidentId ? \App\Models\ServiceIncident::find($incidentId) : null;
+
+        if ($incident) {
+            // Update record existing
+            $incident->update([
+                'total_biaya'     => $totalBiaya,
+                'status'          => 'tidak_aktif',
+                'status_approval' => 'approved',
+                'approval_by'     => auth()->id(),
+                'approval_at'     => now(),
+                'pembayaran_id'   => $pembayaran->id,
+                'persetujuan'     => 'Disetujui',
+            ]);
+
+            // Hapus parts lama sebelum insert ulang
+            $incident->parts()->delete();
+        } else {
+            // Fallback: buat record baru jika tidak ditemukan
+            \Log::warning("transferServiceIncident: service_incident_id tidak ditemukan di source_data Pembayaran #{$pembayaran->id}, membuat record baru.");
+            $incident = \App\Models\ServiceIncident::create([
+                'kendaraan_id'    => $kendaraanId,
+                'keluhan'         => $sourceData['keluhan'] ?? null,
+                'kilometer'       => $sourceData['kilometer'] ?? 0,
+                'total_biaya'     => $totalBiaya,
+                'status'          => 'tidak_aktif',
+                'tanggal_service' => $sourceData['tanggal_service'] ?? now()->toDateString(),
+                'status_approval' => 'approved',
+                'approval_by'     => auth()->id(),
+                'approval_at'     => now(),
+                'pembayaran_id'   => $pembayaran->id,
+                'persetujuan'     => 'Disetujui',
+            ]);
+        }
 
         // ── Buat ServiceIncidentPart per part yang diapprove ──────────
         $lastPartId = null;
         foreach ($parts as $idx => $partData) {
-            $originalIdx = !empty($selectedParts) ? array_search($partData, $allParts) : $idx;
+            // Untuk temp files, kita perlu original index di allParts
+            // selectedParts berisi index original dari allParts
+            $originalIdx = !empty($selectedParts) ? ($selectedParts[$idx] ?? $idx) : $idx;
 
             $tglPasang      = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
             $intervalNilai  = (int)($partData['interval_nilai'] ?? 12);
@@ -616,14 +618,14 @@ class PengeluaranTransferService
                 'posisi'              => $partData['posisi'] ?? null,
                 'tgl_pasang'          => $tglPasang->toDateString(),
                 'kilometer_pasang'    => (int)($partData['kilometer_pasang'] ?? $sourceData['kilometer'] ?? 0),
-                'kondisi'         => $partData['kondisi'] ?? 'Perlu Ganti',
-                'status'          => 'tidak_aktif',
-                'interval_nilai'  => $intervalNilai,
-                'interval_satuan' => $intervalSatuan,
-                'tanggal_limit'   => $tanggalLimit->toDateString(),
-                'biaya'           => $biaya,
-                'bukti'           => !empty($buktiFiles) ? $buktiFiles : null,
-                'keterangan_limit'    => $partData['keterangan_limit'] ?? $partData['keterangan'] ?? null,
+                'kondisi'             => $partData['kondisi'] ?? 'Perlu Ganti',
+                'status'              => 'tidak_aktif',
+                'interval_nilai'      => null,
+                'interval_satuan'     => null,
+                'tanggal_limit'       => null,
+                'biaya'               => $biaya,
+                'bukti'               => !empty($buktiFiles) ? $buktiFiles : null,
+                'keterangan_limit'    => null,
                 'persetujuan'         => 'Disetujui',
                 'supplier_id'         => $partData['supplier_id'] ?? null,
                 'nama_rekening'       => $partData['nama_rekening'] ?? null,
