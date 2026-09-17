@@ -45,9 +45,10 @@ class CheckServicePartLimit extends Command
             $newReminderParts = [];
 
             foreach ($partsLimit as $part) {
-                // Update status part → Limit
+                // Update status part → Limit, kondisi → Rusak (otomatis)
                 $part->update([
-                    'status'     => 'Limit',
+                    'status'   => 'Limit',
+                    'kondisi'  => 'Rusak',
                     'keterangan' => 'Sedang dalam batas limit',
                 ]);
 

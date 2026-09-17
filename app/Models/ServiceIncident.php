@@ -14,6 +14,7 @@ class ServiceIncident extends Model
     protected $fillable = [
         'kendaraan_id',
         'keluhan',
+        'keterangan',
         'kilometer',
         'total_biaya',
         'status',
@@ -23,6 +24,8 @@ class ServiceIncident extends Model
         'approval_by',
         'approval_at',
         'pembayaran_id',
+        'purchase_order_id',
+        'persetujuan',
     ];
 
     protected $casts = [
@@ -52,6 +55,11 @@ class ServiceIncident extends Model
 
     public function pembayaran()
     {
-        return $this->belongsTo(\App\Models\PurchaseOrder::class, 'pembayaran_id');
+        return $this->belongsTo(\App\Models\Pembayaran::class, 'pembayaran_id');
+    }
+
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(\App\Models\PurchaseOrder::class, 'purchase_order_id');
     }
 }

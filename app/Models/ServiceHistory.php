@@ -29,6 +29,7 @@ class ServiceHistory extends Model
         'approval_at',
         'is_request',
         'persetujuan',
+        'pembayaran_id',
     ];
 
     protected $casts = [
@@ -68,5 +69,13 @@ class ServiceHistory extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approval_by');
+    }
+
+    /**
+     * Relasi ke pembayaran yang menghasilkan service history ini (via PO approval)
+     */
+    public function pembayaran()
+    {
+        return $this->belongsTo(\App\Models\Pembayaran::class, 'pembayaran_id');
     }
 }

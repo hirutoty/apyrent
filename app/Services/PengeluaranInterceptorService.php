@@ -33,6 +33,40 @@ class PengeluaranInterceptorService
             }
         }
 
+        // Inject keterangan_limit, kondisi, dan status otomatis untuk service_part
+        // karena ketiga field tersebut sudah dihapus dari form dan di-generate server-side
+        if ($sourceType === 'service_part' && !empty($data['parts']) && is_array($data['parts'])) {
+            $kendaraanId = (int) ($data['kendaraan_id'] ?? 0);
+            $kmInput     = (int) ($data['kilometer'] ?? 0);
+
+            // Pre-load limit rules sekali
+            $limitRules = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $kendaraanId)
+                ->get()
+                ->keyBy('category_id');
+
+            foreach ($data['parts'] as &$partData) {
+                // Status — selalu Proses saat diajukan
+                $partData['status'] = 'Proses';
+
+                // Kondisi — Perlu Ganti saat baru diinput
+                $partData['kondisi'] = 'Perlu Ganti';
+
+                // Keterangan limit otomatis
+                $categoryId = $partData['category_id'] ?? null;
+                $limitRule  = ($categoryId && isset($limitRules[$categoryId]))
+                    ? $limitRules[$categoryId]
+                    : null;
+
+                $partData['keterangan_limit'] = $this->buildKeteranganLimitForIntercept(
+                    $partData,
+                    $kmInput,
+                    $limitRule,
+                    $data['tanggal_service'] ?? null
+                );
+            }
+            unset($partData);
+        }
+
         // Get user info
         $user = Auth::user();
         
@@ -51,6 +85,74 @@ class PengeluaranInterceptorService
         ];
         
         return $formattedData;
+    }
+
+    /**
+     * Generate keterangan_limit otomatis untuk source_data PO/Pembayaran.
+     * Sama logikanya dengan ServiceHistoryController::generateKeteranganLimit()
+     * tapi sebagai method standalone di service ini.
+     */
+    private function buildKeteranganLimitForIntercept(array $partData, int $kmInput, ?\App\Models\ServiceCategoryLimit $limitRule, ?string $tanggalServis = null): string
+    {
+        if (!$limitRule) {
+            return '-';
+        }
+
+        $biaya          = (int) ($partData['biaya'] ?? 0);
+        $tglPasang      = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
+        $intervalNilai  = (int) ($partData['interval_nilai'] ?? 0);
+        $intervalSatuan = $partData['interval_satuan'] ?? 'bulan';
+        $kmPasang       = (int) ($partData['kilometer_pasang'] ?? $kmInput);
+
+        // Hitung tanggal limit
+        $tglLimit = match ($intervalSatuan) {
+            'hari'   => (clone $tglPasang)->addDays($intervalNilai),
+            'minggu' => (clone $tglPasang)->addWeeks($intervalNilai),
+            'tahun'  => (clone $tglPasang)->addYears($intervalNilai),
+            default  => (clone $tglPasang)->addMonths($intervalNilai),
+        };
+        // Bandingkan dengan tanggal servis yang diinput (bukan hari ini)
+        $refTanggal = \Carbon\Carbon::parse($tanggalServis ?? now())->startOfDay();
+
+        $hargaLimit  = $limitRule->limit_price;
+        $kmLimit     = $limitRule->limit_km;
+        $intervalAda = $intervalNilai > 0;
+
+        $biayaLewat  = $hargaLimit && $biaya > $hargaLimit;
+        $biayaSama   = $hargaLimit && $biaya === $hargaLimit;
+        $biayaAman   = !$hargaLimit || $biaya < $hargaLimit;
+
+        $waktuLewat  = $intervalAda && $tglLimit->lt($refTanggal);
+        $waktuSama   = $intervalAda && $tglLimit->eq($refTanggal);
+        $waktuAman   = !$intervalAda || $tglLimit->gt($refTanggal);
+
+        $kmAda      = $kmLimit && $kmLimit > 0;
+        $kmSama     = $kmAda && $kmInput === $kmPasang + $kmLimit;
+        $kmLewat    = $kmAda && $kmInput > $kmPasang + $kmLimit;
+        $kmAman     = !$kmAda || $kmInput < $kmPasang + $kmLimit;
+
+        $adaLimit   = $hargaLimit || $intervalAda || $kmAda;
+        if (!$adaLimit || ($biayaAman && $waktuAman && $kmAman)) {
+            return '-';
+        }
+
+        $parts = [];
+        if ($biayaSama)       { $parts['biaya'] = 'mencapai batas limit biaya'; }
+        elseif ($biayaLewat)  { $parts['biaya'] = 'sudah melebihi limit biaya'; }
+        if ($waktuSama)       { $parts['waktu'] = 'mencapai batas limit jangka waktu'; }
+        elseif ($waktuLewat)  { $parts['waktu'] = 'sudah melebihi batas waktu'; }
+        if ($kmSama)          { $parts['km'] = 'mencapai batas limit KM'; }
+        elseif ($kmLewat)     { $parts['km'] = 'sudah melebihi batas limit KM'; }
+
+        $belumParts = [];
+        if ($hargaLimit && $biayaAman && !isset($parts['biaya']))   { $belumParts[] = 'belum mencapai limit biaya'; }
+        if ($intervalAda && $waktuAman && !isset($parts['waktu']))   { $belumParts[] = 'belum mencapai limit jangka waktu'; }
+        if ($kmAda && $kmAman && !isset($parts['km']))               { $belumParts[] = 'belum mencapai limit KM'; }
+
+        $kalimat = array_merge(array_values($parts), $belumParts);
+        if (empty($kalimat)) { return '-'; }
+
+        return ucfirst(implode(', ', $kalimat));
     }
 
     /**
@@ -228,23 +330,30 @@ class PengeluaranInterceptorService
             
             // Intercept new data
             $interceptedData = $this->intercept($request, $sourceType);
-            
-            // Delete old temp files
-            $this->deleteTemporaryFiles($pembayaranId);
-            
-            // Upload new temp files
-            $uploadedFiles = $this->uploadTemporaryFiles($request, $pembayaranId);
-            
+
+            // Upload new temp files (jika ada)
+            $newUploadedFiles = $this->uploadTemporaryFiles($request, $pembayaranId);
+
+            // Ambil temp_files lama
+            $oldTempFiles = $pembayaran->source_data['temp_files'] ?? [];
+
+            // Merge: per part, pakai baru kalau ada; pertahankan lama kalau tidak
+            $mergedTempFiles = $this->mergeTemporaryFiles($oldTempFiles, $newUploadedFiles, $interceptedData['source_data']['parts'] ?? []);
+
+            // Hapus file lama HANYA yang sudah diganti
+            $this->deleteReplacedTempFiles($oldTempFiles, $newUploadedFiles);
+
             // Update pembayaran
             $pembayaran->update([
-                'source_data' => array_merge($interceptedData['source_data'], ['temp_files' => $uploadedFiles]),
+                'source_data' => array_merge($interceptedData['source_data'], ['temp_files' => $mergedTempFiles]),
                 'alasan_permintaan' => $interceptedData['alasan_permintaan'],
                 'nominal' => $interceptedData['nominal'],
                 'nama_bank' => $interceptedData['nama_bank'] ?? null,
                 'no_rekening' => $interceptedData['no_rekening'] ?? null,
                 'nama_rekening' => $interceptedData['nama_rekening'] ?? null,
                 'informasi' => $interceptedData['informasi'] ?? null,
-                'status' => 'Pending',
+                'status' => 'Diajukan',
+                'terakhir_diajukan' => now(),
                 'can_edit' => false,
             ]);
             
@@ -285,20 +394,26 @@ class PengeluaranInterceptorService
             
             // Intercept new data
             $interceptedData = $this->intercept($request, $sourceType);
-            
-            // Delete old temp files
-            $this->deleteTemporaryFiles($poId, 'purchase_order');
-            
-            // Upload new temp files
-            $uploadedFiles = $this->uploadTemporaryFiles($request, $poId, 'purchase_order');
-            
+
+            // Upload new temp files (jika ada)
+            $newUploadedFiles = $this->uploadTemporaryFiles($request, $poId, 'purchase_order');
+
+            // Ambil temp_files lama dari PO yang ditolak
+            $oldTempFiles = $po->source_data['temp_files'] ?? [];
+
+            // Merge: per part, kalau user upload baru → pakai baru; kalau tidak → pakai lama
+            $mergedTempFiles = $this->mergeTemporaryFiles($oldTempFiles, $newUploadedFiles, $interceptedData['source_data']['parts'] ?? []);
+
+            // Hapus file lama HANYA yang sudah diganti dengan file baru
+            $this->deleteReplacedTempFiles($oldTempFiles, $newUploadedFiles, 'purchase_order');
+
             // Extract vendor and total items
             $vendor = $interceptedData['source_data']['vendor'] ?? 'Vendor ' . ucfirst(str_replace('_', ' ', $sourceType));
             $totalItems = $this->extractTotalItems($sourceType, $interceptedData['source_data']);
             
             // Update PO
             $po->update([
-                'source_data' => array_merge($interceptedData['source_data'], ['temp_files' => $uploadedFiles]),
+                'source_data' => array_merge($interceptedData['source_data'], ['temp_files' => $mergedTempFiles]),
                 'vendor' => $vendor,
                 'total_barang' => $totalItems,
                 'total_harga' => (int) $interceptedData['nominal'],
@@ -634,6 +749,84 @@ class PengeluaranInterceptorService
         } catch (\Exception $e) {
             \Log::error("Failed to delete temp files for {$entityType} {$entityId}: " . $e->getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Merge temp files lama dengan yang baru.
+     * - Level bukti/attachments: kalau ada baru → pakai baru, kalau tidak → pakai lama
+     * - Level parts[idx][bukti]: per-part, kalau user upload baru → pakai baru, kalau tidak → pakai lama
+     */
+    private function mergeTemporaryFiles(array $oldFiles, array $newFiles, array $parts = []): array
+    {
+        $merged = $oldFiles; // mulai dari lama
+
+        // Override bukti & attachments kalau ada yang baru
+        if (!empty($newFiles['bukti'])) {
+            $merged['bukti'] = $newFiles['bukti'];
+        }
+        if (!empty($newFiles['attachments'])) {
+            $merged['attachments'] = $newFiles['attachments'];
+        }
+
+        // Per-part bukti: override per index kalau ada file baru untuk index itu
+        if (!empty($newFiles['parts'])) {
+            foreach ($newFiles['parts'] as $idx => $partFiles) {
+                if (!empty($partFiles['bukti'])) {
+                    // User upload file baru untuk part ini → ganti
+                    $merged['parts'][$idx]['bukti'] = $partFiles['bukti'];
+                }
+                // Kalau tidak ada file baru untuk part ini, data lama ($merged['parts'][$idx]) tetap dipertahankan
+            }
+        }
+
+        // GPS items
+        if (!empty($newFiles['gps_items'])) {
+            foreach ($newFiles['gps_items'] as $idx => $gpsFiles) {
+                if (!empty($gpsFiles['lampiran'])) {
+                    $merged['gps_items'][$idx]['lampiran'] = $gpsFiles['lampiran'];
+                }
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Hapus hanya file lama yang sudah diganti dengan file baru.
+     * File lama yang tidak diganti TIDAK dihapus.
+     */
+    private function deleteReplacedTempFiles(array $oldFiles, array $newFiles, string $entityType = 'pembayaran'): void
+    {
+        // Hapus bukti lama kalau ada bukti baru
+        if (!empty($newFiles['bukti']) && !empty($oldFiles['bukti'])) {
+            foreach ($oldFiles['bukti'] as $f) {
+                if (!empty($f['path'])) {
+                    Storage::disk('public')->delete($f['path']);
+                }
+            }
+        }
+
+        // Hapus attachments lama kalau ada baru
+        if (!empty($newFiles['attachments']) && !empty($oldFiles['attachments'])) {
+            foreach ($oldFiles['attachments'] as $f) {
+                if (!empty($f['path'])) {
+                    Storage::disk('public')->delete($f['path']);
+                }
+            }
+        }
+
+        // Hapus per-part bukti lama kalau ada yang baru per index
+        if (!empty($newFiles['parts'])) {
+            foreach ($newFiles['parts'] as $idx => $partNew) {
+                if (!empty($partNew['bukti']) && !empty($oldFiles['parts'][$idx]['bukti'])) {
+                    foreach ($oldFiles['parts'][$idx]['bukti'] as $f) {
+                        if (!empty($f['path'])) {
+                            Storage::disk('public')->delete($f['path']);
+                        }
+                    }
+                }
+            }
         }
     }
 }

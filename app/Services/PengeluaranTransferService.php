@@ -270,6 +270,57 @@ class PengeluaranTransferService
         $totalBiaya  = max($totalBiaya, $sumBiaya > 0 ? $sumBiaya : 0);
 
         // ── Cari atau buat ServiceHistory ─────────────────────────────
+        // Jika sudah ada draft (tidak_aktif) dari approve PO → hanya aktifkan, jangan buat baru
+        $draftByPembayaran = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
+
+        if ($draftByPembayaran) {
+            // Draft sudah ada: aktifkan status → aktif
+            $draftByPembayaran->update([
+                'status'      => 'aktif',
+                'approval_by' => auth()->id(),
+                'approval_at' => now(),
+            ]);
+
+            // Kumpulkan bukti bayar: dari approvalFiles atau fallback ke PembayaranApproval
+            $buktiBayarFiles = $approvalFiles['bukti'] ?? [];
+            if (empty($buktiBayarFiles)) {
+                $approval = \App\Models\PembayaranApproval::where('pembayaran_id', $pembayaran->id)
+                    ->where('action', 'approved')
+                    ->latest()
+                    ->first();
+                if ($approval && !empty($approval->bukti_files)) {
+                    $buktiBayarFiles = is_array($approval->bukti_files)
+                        ? $approval->bukti_files
+                        : json_decode($approval->bukti_files, true) ?? [];
+                }
+            }
+
+            if (!empty($buktiBayarFiles)) {
+                $buktiForPart = array_map(fn($f) => [
+                    'path'          => $f['path'] ?? ($f['stored_name'] ?? basename($f['full_path'] ?? '')),
+                    'original_name' => $f['original_name'] ?? basename($f['path'] ?? ''),
+                    'name'          => $f['original_name'] ?? basename($f['path'] ?? ''),
+                    'type'          => $f['extension'] ?? pathinfo($f['path'] ?? '', PATHINFO_EXTENSION),
+                ], $buktiBayarFiles);
+
+                $draftByPembayaran->parts()
+                    ->whereIn('status', ['tidak_aktif', 'aktif'])
+                    ->each(function ($part) use ($buktiForPart) {
+                        $part->update(['bukti_pembayaran' => $buktiForPart]);
+                    });
+            }
+
+            // Update persetujuan: Diajukan ke Pembayaran → Disetujui, dan status → aktif
+            $draftByPembayaran->parts()
+                ->whereIn('status', ['tidak_aktif'])
+                ->update([
+                    'status'      => 'aktif',
+                    'persetujuan' => 'Disetujui',
+                ]);
+
+            return $draftByPembayaran->id;
+        }
+
         $existing = \App\Models\ServiceHistory::where('kendaraan_id', $kendaraanId)
             ->latest()
             ->first();
@@ -280,6 +331,7 @@ class PengeluaranTransferService
                 'kilometer'       => $sourceData['kilometer'] ?? $existing->kilometer,
                 'total_biaya'     => $existing->total_biaya + $totalBiaya,
                 'tanggal_service' => $sourceData['tanggal_service'] ?? $existing->tanggal_service,
+                'status'          => 'tidak_aktif',
                 'status_approval' => 'approved',
                 'persetujuan'     => 'Disetujui',
                 'approval_by'     => auth()->id(),
@@ -292,7 +344,7 @@ class PengeluaranTransferService
                 'keluhan'         => $sourceData['keluhan'] ?? null,
                 'kilometer'       => $sourceData['kilometer'] ?? 0,
                 'total_biaya'     => $totalBiaya,
-                'status'          => 'proses',
+                'status'          => 'tidak_aktif',
                 'tanggal_service' => $sourceData['tanggal_service'] ?? now()->toDateString(),
                 'status_approval' => 'approved',
                 'persetujuan'     => 'Disetujui',
@@ -371,18 +423,16 @@ class PengeluaranTransferService
                 'posisi'              => $partData['posisi'] ?? null,
                 'tgl_pasang'          => $tglPasang->toDateString(),
                 'kilometer_pasang'    => (int)($partData['kilometer_pasang'] ?? $sourceData['kilometer'] ?? 0),
-                'kondisi'             => $partData['kondisi'] ?? 'Baik',
-                // Status Proses: disetujui keuangan tapi belum dipasang fisik
-                'status'              => 'Proses',
+                'kondisi'             => $partData['kondisi'] ?? 'Perlu Ganti',
+                // Status tidak_aktif: disetujui keuangan tapi belum dipasang fisik
+                'status'              => 'tidak_aktif',
                 'interval_nilai'      => $intervalNilai,
                 'interval_satuan'     => $intervalSatuan,
                 'tanggal_limit'       => $tanggalLimit->toDateString(),
                 'biaya'               => $biaya,
                 'status_pengeluaran'  => $statusPengeluaran,
                 'bukti'               => !empty($buktiFiles) ? $buktiFiles : null,
-                'keterangan'          => !empty($partData['replace_part_id'])
-                    ? '-'
-                    : (($partData['is_request'] ?? false) ? 'Request Part' : '-'),
+                'keterangan_limit'    => $partData['keterangan_limit'] ?? $partData['keterangan'] ?? null,
                 'nama_rekening'       => $partData['nama_rekening'] ?? null,
                 'nama_bank'           => $partData['nama_bank'] ?? null,
                 'no_rekening'         => $partData['no_rekening'] ?? null,
@@ -511,7 +561,7 @@ class PengeluaranTransferService
             'keluhan'         => $sourceData['keluhan'] ?? null,
             'kilometer'       => $sourceData['kilometer'] ?? 0,
             'total_biaya'     => $totalBiaya,
-            'status'          => 'selesai',
+            'status'          => 'tidak_aktif',
             'tanggal_service' => $sourceData['tanggal_service'] ?? now()->toDateString(),
             'status_approval' => 'approved',
             'approval_by'     => auth()->id(),
@@ -566,14 +616,14 @@ class PengeluaranTransferService
                 'posisi'              => $partData['posisi'] ?? null,
                 'tgl_pasang'          => $tglPasang->toDateString(),
                 'kilometer_pasang'    => (int)($partData['kilometer_pasang'] ?? $sourceData['kilometer'] ?? 0),
-                'kondisi'             => $partData['kondisi'] ?? 'Baik',
-                'status'              => 'Terpasang',
-                'interval_nilai'      => $intervalNilai,
-                'interval_satuan'     => $intervalSatuan,
-                'tanggal_limit'       => $tanggalLimit->toDateString(),
-                'biaya'               => $biaya,
-                'bukti'               => !empty($buktiFiles) ? $buktiFiles : null,
-                'keterangan'          => $partData['keterangan'] ?? null,
+                'kondisi'         => $partData['kondisi'] ?? 'Perlu Ganti',
+                'status'          => 'tidak_aktif',
+                'interval_nilai'  => $intervalNilai,
+                'interval_satuan' => $intervalSatuan,
+                'tanggal_limit'   => $tanggalLimit->toDateString(),
+                'biaya'           => $biaya,
+                'bukti'           => !empty($buktiFiles) ? $buktiFiles : null,
+                'keterangan_limit'    => $partData['keterangan_limit'] ?? $partData['keterangan'] ?? null,
                 'persetujuan'         => 'Disetujui',
                 'supplier_id'         => $partData['supplier_id'] ?? null,
                 'nama_rekening'       => $partData['nama_rekening'] ?? null,
@@ -1486,20 +1536,21 @@ class PengeluaranTransferService
     protected function transferServiceAsuransi(Pembayaran $pembayaran, array $approvalFiles): int
     {
         $sourceData = $pembayaran->source_data;
-        
+
+        // Resolve nama_asuransi
+        $namaAsuransi = $sourceData['nama_asuransi'] ?? null;
+        if (!$namaAsuransi && !empty($sourceData['asuransi_id'])) {
+            $asuransiModel = \App\Models\Asuransi::find($sourceData['asuransi_id']);
+            $namaAsuransi  = $asuransiModel?->nama_asuransi;
+        }
+
+        // Buat bukti dari file yang diupload saat approval (jika ada)
         $bukti = $this->copyBuktiToFinalStorage(
             $approvalFiles['bukti'][0] ?? null,
             'service-asuransi',
             $pembayaran->id
         );
 
-        // Resolve nama_asuransi: bisa string langsung atau lookup dari asuransi_id (fallback)
-        $namaAsuransi = $sourceData['nama_asuransi'] ?? null;
-        if (!$namaAsuransi && !empty($sourceData['asuransi_id'])) {
-            $asuransiModel = \App\Models\Asuransi::find($sourceData['asuransi_id']);
-            $namaAsuransi  = $asuransiModel?->nama_asuransi;
-        }
-        
         $serviceAsuransi = ServiceAsuransi::create([
             'kendaraan_id'      => $sourceData['kendaraan_id'],
             'nama_asuransi'     => $namaAsuransi,
@@ -1509,12 +1560,42 @@ class PengeluaranTransferService
             'periode_selesai'   => $sourceData['periode_selesai'] ?? null,
             'kilometer'         => $sourceData['kilometer'] ?? 0,
             'biaya'             => $sourceData['biaya'] ?? 0,
-            'status'            => 'bermasalah',
+            'status'            => 'tidak_aktif',
             'keterangan'        => $sourceData['keterangan'] ?? null,
             'bukti'             => $bukti ? [$bukti] : null,
+            'pembayaran_id'     => $pembayaran->id,
         ]);
-        
-        // Copy attachments
+
+        // Buat ServiceAsuransiKejadian per item dari source_data
+        $kejadians = $sourceData['kejadians'] ?? [];
+        foreach ($kejadians as $kej) {
+            $lampiranFinal = [];
+            foreach ($kej['lampiran'] ?? [] as $tf) {
+                if (empty($tf['path'])) continue;
+                try {
+                    $finalPath = $this->copyFileToPublic(
+                        $tf['path'],
+                        'service-asuransi-kejadian/' . $serviceAsuransi->id,
+                        $pembayaran->id
+                    );
+                    $lampiranFinal[] = [
+                        'path' => $finalPath,
+                        'name' => $tf['original_name'] ?? basename($tf['path']),
+                    ];
+                } catch (\Exception $e) {
+                    \Log::warning("Gagal copy lampiran kejadian service asuransi: " . $e->getMessage());
+                }
+            }
+
+            \App\Models\ServiceAsuransiKejadian::create([
+                'service_asuransi_id' => $serviceAsuransi->id,
+                'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
+                'biaya'               => (int) ($kej['biaya'] ?? 0),
+                'lampiran'            => !empty($lampiranFinal) ? $lampiranFinal : null,
+            ]);
+        }
+
+        // Copy attachments tambahan (jika ada dari approval)
         $this->copyAttachmentsToFinalStorage(
             $approvalFiles['attachments'] ?? [],
             'service-asuransi-attachment',
@@ -1522,7 +1603,7 @@ class PengeluaranTransferService
             $serviceAsuransi->id,
             $pembayaran->id
         );
-        
+
         return $serviceAsuransi->id;
     }
 

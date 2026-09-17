@@ -16,11 +16,13 @@ class ServiceCategoryLimit extends Model
         'category_id',
         'limit_nilai',
         'limit_satuan',
+        'limit_km',
         'limit_price',
     ];
 
     protected $casts = [
         'limit_nilai'  => 'integer',
+        'limit_km'     => 'integer',
         'limit_price'  => 'integer',
     ];
 

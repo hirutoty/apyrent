@@ -486,10 +486,10 @@ function addPartRow(data = null) {
                 </div>
             </div>
 
-            <!-- Keterangan -->
+            <!-- Keterangan Limit -->
             <div class="md:col-span-3">
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Keterangan</label>
-                <textarea name="parts[${idx}][keterangan]" rows="2"
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Keterangan Limit</label>
+                <textarea name="parts[${idx}][keterangan_limit]" rows="2"
                     placeholder="Catatan kondisi, penyebab kerusakan, dll..."
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 resize-none"></textarea>
             </div>
