@@ -402,6 +402,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('service-history.pdf');
   Route::post('/service-history/{id}/terpasang', [ServiceHistoryController::class, 'terpasang'])
     ->name('service-history.terpasang');
+  Route::post('/service-history/{id}/terpasang-aktif', [ServiceHistoryController::class, 'terpasangAktif'])
+    ->name('service-history.terpasang-aktif');
   Route::delete('/admin/history/kir/{id}', [KirHistoryController::class, 'destroy'])
     ->name('history.kir.destroy');
 
@@ -591,12 +593,18 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   // Service Asuransi
   Route::resource('service-asuransi', ServiceAsuransiController::class);
+  Route::get('service-asuransi/kendaraan/{id}/data', [ServiceAsuransiController::class, 'getKendaraanData'])
+      ->name('service-asuransi.kendaraan-data');
   Route::delete('service-asuransi/{id}/bukti', [ServiceAsuransiController::class, 'deleteBukti'])
       ->name('service-asuransi.bukti.delete');
   Route::delete('service-asuransi/{id}/attachment', [ServiceAsuransiController::class, 'deleteAttachment'])
       ->name('service-asuransi.attachment.delete');
   Route::put('service-asuransi/{id}/status', [ServiceAsuransiController::class, 'updateStatus'])
-      ->name('service-asuransi.update-status');
+      ->name('service-asuransi.status');
+  Route::post('service-asuransi/{id}/ajukan-ulang', [ServiceAsuransiController::class, 'ajukanUlang'])
+      ->name('service-asuransi.ajukan-ulang');
+  Route::post('service-asuransi/{id}/ajukan-ulang-submit', [ServiceAsuransiController::class, 'ajukanUlangSubmit'])
+      ->name('service-asuransi.ajukan-ulang-submit');
 
   // Reminder Service
   Route::resource('reminder-service', ReminderServiceController::class);
@@ -901,6 +909,7 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       Route::post('/{id}/resubmit-simple', [PurchaseOrderController::class, 'resubmitSimple'])->name('resubmit-simple');
       Route::post('/{id}/resubmit-modal', [PurchaseOrderController::class, 'resubmitModal'])->name('resubmit-modal');
       Route::post('/{id}/resubmit-update', [PurchaseOrderController::class, 'resubmitUpdate'])->name('resubmit-update');
+      Route::post('/{id}/resubmit-service-asuransi', [PurchaseOrderController::class, 'resubmitServiceAsuransi'])->name('resubmit-service-asuransi');
       Route::put('/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('update');
       Route::delete('/{purchaseOrder}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
   });

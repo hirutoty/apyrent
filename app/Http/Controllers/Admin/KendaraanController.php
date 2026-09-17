@@ -117,6 +117,40 @@ class KendaraanController extends Controller
             ->get()
             ->groupBy('kendaraan_id');
 
+        // Tanggal terakhir servis (dari service_history atau service_asuransi, ambil yang terbaru)
+        // KM terakhir dari service_history terbaru
+        $serviceHistoryLatest = \App\Models\ServiceHistory::whereIn('kendaraan_id', $kendaraanIds)
+            ->selectRaw('kendaraan_id, MAX(tanggal_service) as tgl_terakhir, MAX(kilometer) as km_terakhir')
+            ->groupBy('kendaraan_id')
+            ->get()
+            ->keyBy('kendaraan_id');
+
+        $serviceAsuransiLatest = \App\Models\ServiceAsuransi::whereIn('kendaraan_id', $kendaraanIds)
+            ->selectRaw('kendaraan_id, MAX(tanggal_service) as tgl_terakhir')
+            ->groupBy('kendaraan_id')
+            ->get()
+            ->keyBy('kendaraan_id');
+
+        // Gabungkan: per kendaraan ambil tanggal terakhir dari kedua sumber
+        foreach ($data as $d) {
+            $tglSvc  = $serviceHistoryLatest->get($d->id)?->tgl_terakhir ?? null;
+            $tglAsu  = $serviceAsuransiLatest->get($d->id)?->tgl_terakhir ?? null;
+            $kmTerakhir = $serviceHistoryLatest->get($d->id)?->km_terakhir ?? null;
+
+            // Pilih tanggal terbaru
+            if ($tglSvc && $tglAsu) {
+                $d->tanggal_terakhir_servis = $tglSvc >= $tglAsu ? $tglSvc : $tglAsu;
+            } elseif ($tglSvc) {
+                $d->tanggal_terakhir_servis = $tglSvc;
+            } elseif ($tglAsu) {
+                $d->tanggal_terakhir_servis = $tglAsu;
+            } else {
+                $d->tanggal_terakhir_servis = null;
+            }
+
+            $d->km_terakhir_servis = $kmTerakhir;
+        }
+
         return view('admin.kendaraan.show', compact('data', 'merk', 'jenis', 'setting', 'members', 'partsPerKendaraan'));
     }
 
@@ -203,20 +237,10 @@ class KendaraanController extends Controller
             'masa_berlaku' => $request->masa_berlaku,
 
             'kilometer_sekarang' => $request->kilometer_sekarang,
-            'limit_km_service' => $request->limit_km_service,
-            'limit_biaya_bulanan_service' => $request->limit_biaya_bulanan_service,
-            'limit_biaya_tahunan_service' => $request->limit_biaya_tahunan_service,
-            'km_terakhir_service' => $request->km_terakhir_service,
-            'tanggal_terakhir_service' => $request->tanggal_terakhir_service,
 
             'status_service' => $request->status_service,
             'status_kendaraan' => $request->status_kendaraan,
         ]);
-
-        // 🔔 Auto-create Reminder Service +3 bulan dari tanggal_terakhir_service
-        if ($request->filled('tanggal_terakhir_service')) {
-            $this->buatAtauUpdateReminderService($kendaraan, $request->tanggal_terakhir_service);
-        }
 
         return back()->with('success', 'Data kendaraan berhasil ditambahkan');
     }
@@ -300,29 +324,11 @@ class KendaraanController extends Controller
             'masa_berlaku' => $request->masa_berlaku,
 
             'kilometer_sekarang' => $request->kilometer_sekarang,
-            'limit_km_service' => $request->limit_km_service,
-            'limit_biaya_bulanan_service' => $request->limit_biaya_bulanan_service,
-            'limit_biaya_tahunan_service' => $request->limit_biaya_tahunan_service,
-            'km_terakhir_service' => $request->km_terakhir_service,
-            'tanggal_terakhir_service' => $request->tanggal_terakhir_service,
+            'kilometer_sekarang' => $request->kilometer_sekarang,
 
             'status_service' => $request->status_service,
 
         ]);
-
-        // 🔔 Jika tanggal_terakhir_service berubah, update/create ReminderService
-        if ($request->filled('tanggal_terakhir_service')) {
-            $tanggalLama = $kendaraan->getOriginal('tanggal_terakhir_service');
-            $tanggalBaru = $request->tanggal_terakhir_service;
-
-            // Bandingkan: jika berubah atau belum ada reminder aktif
-            if (
-                Carbon::parse($tanggalLama)->toDateString() !== Carbon::parse($tanggalBaru)->toDateString()
-                || !ReminderService::where('kendaraan_id', $kendaraan->id)->whereIn('status', ['aktif', 'jatuh_tempo'])->exists()
-            ) {
-                $this->buatAtauUpdateReminderService($kendaraan, $tanggalBaru);
-            }
-        }
 
         return back()->with('success', 'Data kendaraan berhasil diupdate');
     }

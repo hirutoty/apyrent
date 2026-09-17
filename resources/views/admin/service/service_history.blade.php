@@ -6,10 +6,10 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
 @php
-    $totalService = $data->total();
-    $totalBiaya   = $data->sum('total_biaya');
-    $totalProses  = $data->where('status', 'proses')->count();
-    $totalSelesai = $data->where('status', 'selesai')->count();
+    $totalService   = $data->total();
+    $totalBiaya     = $data->sum('total_biaya');
+    $totalAktif     = $data->where('status', 'aktif')->count();
+    $totalTerpasang = $data->where('status', 'terpasang')->count();
 @endphp
 
 <div class="space-y-6">
@@ -78,12 +78,12 @@
             <h3 class="text-sm font-bold text-green-600 mt-1">Rp {{ number_format($totalBiaya, 0, ',', '.') }}</h3>
         </div>
         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <p class="text-xs text-slate-500">Proses</p>
-            <h3 class="text-2xl font-bold text-yellow-600 mt-1">{{ $totalProses }}</h3>
+            <p class="text-xs text-slate-500">Aktif</p>
+            <h3 class="text-2xl font-bold text-blue-600 mt-1">{{ $totalAktif }}</h3>
         </div>
         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <p class="text-xs text-slate-500">Selesai</p>
-            <h3 class="text-2xl font-bold text-emerald-600 mt-1">{{ $totalSelesai }}</h3>
+            <p class="text-xs text-slate-500">Terpasang</p>
+            <h3 class="text-2xl font-bold text-emerald-600 mt-1">{{ $totalTerpasang }}</h3>
         </div>
         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
             <p class="text-xs text-slate-500">Hampir Limit</p>
@@ -120,30 +120,6 @@
                         <i class="fa fa-chevron-right text-xs mr-1"></i> Tutup Semua
                     </button>
                 </div>
-            </div>
-
-            {{-- APPROVAL FILTER TABS --}}
-            <div class="flex items-center gap-2 border-b border-gray-200 pb-3 mb-4">
-                <a href="{{ route('service-history.index', array_merge(request()->except('approval_status'), ['bulan' => request('bulan'), 'kendaraan_id' => request('kendaraan_id'), 'category_id' => request('category_id')])) }}"
-                    class="px-4 py-2 text-xs font-semibold rounded-lg transition-colors {{ !request('approval_status') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100' }}">
-                    <i class="fa fa-list-ul text-[10px] mr-1"></i> Semua
-                </a>
-                <a href="{{ route('service-history.index', array_merge(request()->all(), ['approval_status' => 'pending'])) }}"
-                    class="px-4 py-2 text-xs font-semibold rounded-lg transition-colors {{ request('approval_status') === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'text-gray-600 hover:bg-gray-100' }}">
-                    <i class="fa fa-clock text-[10px] mr-1"></i> Pending Request
-                </a>
-                <a href="{{ route('service-history.index', array_merge(request()->all(), ['approval_status' => 'approved'])) }}"
-                    class="px-4 py-2 text-xs font-semibold rounded-lg transition-colors {{ request('approval_status') === 'approved' ? 'bg-green-100 text-green-700' : 'text-gray-600 hover:bg-gray-100' }}">
-                    <i class="fa fa-check text-[10px] mr-1"></i> Approved
-                </a>
-                <a href="{{ route('service-history.index', array_merge(request()->all(), ['approval_status' => 'rejected'])) }}"
-                    class="px-4 py-2 text-xs font-semibold rounded-lg transition-colors {{ request('approval_status') === 'rejected' ? 'bg-red-100 text-red-700' : 'text-gray-600 hover:bg-gray-100' }}">
-                    <i class="fa fa-times text-[10px] mr-1"></i> Rejected
-                </a>
-                <a href="{{ route('service-history.index', array_merge(request()->all(), ['approval_status' => 'limit'])) }}"
-                    class="px-4 py-2 text-xs font-semibold rounded-lg transition-colors {{ request('approval_status') === 'limit' ? 'bg-red-100 text-red-700' : 'text-gray-600 hover:bg-gray-100' }}">
-                    <i class="fa fa-triangle-exclamation text-[10px] mr-1"></i> Limit
-                </a>
             </div>
 
             {{-- FILTER FORM --}}
@@ -192,12 +168,9 @@
                     <tr class="bg-gray-50 border-b border-gray-200">
                         <th class="w-8 px-3 py-3"></th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Kendaraan</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Jenis</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Tanggal</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">KM</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Parts</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Total Biaya</th>
-                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Status</th>
                         <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Aksi</th>
                     </tr>
                 </thead>
@@ -222,12 +195,6 @@
                                 <div class="font-semibold text-gray-800 text-sm">{{ $d->kendaraan?->merk ?? '-' }}</div>
                                 <div class="text-xs text-gray-500 font-mono">{{ $d->kendaraan?->nopol ?? '-' }}</div>
                             </td>
-                            <td class="px-4 py-4 text-xs text-gray-500">
-                                {{ $d->kendaraan?->jenis?->nama ?? '-' }}
-                            </td>
-                            <td class="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                                {{ \Carbon\Carbon::parse($d->tanggal_service)->format('d M Y') }}
-                            </td>
                             <td class="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
                                 {{ number_format($d->kilometer, 0, ',', '.') }} km
                             </td>
@@ -250,52 +217,6 @@
                             <td class="px-4 py-4 whitespace-nowrap">
                                 <span class="text-sm font-semibold text-gray-800">Rp {{ number_format($d->total_biaya, 0, ',', '.') }}</span>
                             </td>
-                            <td class="px-4 py-4">
-                                <div class="flex flex-col gap-1.5">
-                                    {{-- Badge status header — readonly, hanya sistem & per-item yang mengubah --}}
-                                    @if($d->status === 'limit')
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-red-50 text-red-700 border-red-200 cursor-default"
-                                            title="Status diatur otomatis oleh sistem. Ganti part yang limit untuk mengembalikan status.">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                            <i class="fa fa-triangle-exclamation text-[9px]"></i> Limit
-                                        </span>
-                                    @elseif($d->status === 'proses')
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 cursor-default"
-                                            title="Status dihitung otomatis dari status part">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                                            Proses
-                                        </span>
-                                    @else
-                                        @php $jumlahPartLimit = $d->parts->where('status', 'Limit')->count(); @endphp
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default"
-                                            title="Status dihitung otomatis dari status part">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                            Selesai
-                                        </span>
-                                        @if($jumlahPartLimit > 0)
-                                            <span class="text-[10px] text-red-500 font-medium">
-                                                <i class="fa fa-triangle-exclamation text-[9px]"></i> {{ $jumlahPartLimit }} part limit
-                                            </span>
-                                        @endif
-                                    @endif
-                                    @if ($d->is_request)
-                                        @if ($d->status_approval === 'pending')
-                                            <button type="button" onclick="event.stopPropagation(); openApprovalModal({{ $d->id }})"
-                                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100 transition-colors">
-                                                <i class="fa fa-clock text-[10px]"></i> Pending
-                                            </button>
-                                        @elseif ($d->status_approval === 'approved')
-                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-300">
-                                                <i class="fa fa-check text-[10px]"></i> Approved
-                                            </span>
-                                        @elseif ($d->status_approval === 'rejected')
-                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-300">
-                                                <i class="fa fa-times text-[10px]"></i> Rejected
-                                            </span>
-                                        @endif
-                                    @endif
-                                </div>
-                            </td>
                             <td class="px-4 py-4" onclick="event.stopPropagation()">
                                 <div class="flex items-center justify-center gap-1.5">
                                     <a href="{{ route('kendaraan.service-history', $d->kendaraan_id) }}"
@@ -303,17 +224,18 @@
                                         title="Lihat detail service kendaraan ini">
                                         Detail
                                     </a>
-                                    {{-- Tombol Terpasang di level service: hanya untuk service yang semua partnya tidak_aktif dengan persetujuan Disetujui --}}
+                                    {{-- Tombol Terpasang di level service: muncul saat status aktif --}}
                                     @php
-                                        $adaPartTidakAktif = $d->parts->where('persetujuan', 'Disetujui')->where('status', 'tidak_aktif')->count() > 0;
+                                        $bisaTerpasang = $d->status === 'aktif'
+                                            && in_array(auth()->user()->role, ['superadmin', 'operasi']);
                                     @endphp
-                                    @if($adaPartTidakAktif)
-                                        <form action="{{ route('service-history.terpasang', $d->id) }}" method="POST"
-                                            onsubmit="return confirm('Tandai semua part yang disetujui sebagai Selesai?')" class="inline">
+                                    @if($bisaTerpasang)
+                                        <form action="{{ route('service-history.terpasang-aktif', $d->id) }}" method="POST"
+                                            onsubmit="return confirm('Tandai semua part sebagai Terpasang? Part lama akan diarsipkan sebagai Diganti.')" class="inline">
                                             @csrf
                                             <button type="submit"
                                                 class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
-                                                <i class="fa fa-wrench text-xs"></i> Selesaikan
+                                                <i class="fa fa-wrench text-xs"></i> Terpasang
                                             </button>
                                         </form>
                                     @endif
@@ -347,6 +269,7 @@
                                                 <tr class="bg-slate-100 text-gray-500">
                                                     <th class="text-left px-3 py-2 font-semibold">Part</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Kategori</th>
+                                                    <th class="text-left px-3 py-2 font-semibold">Supplier</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Part No.</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Serial No.</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Posisi</th>
@@ -357,9 +280,10 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Status</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Persetujuan</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Pengeluaran</th>
-                                                    <th class="text-left px-3 py-2 font-semibold">Keterangan</th>
+                                                    <th class="text-left px-3 py-2 font-semibold">Keterangan Limit</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Info Pembayaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Lampiran</th>
+                                                    <th class="text-left px-3 py-2 font-semibold">Bukti Bayar</th>
                                                     <th class="text-right px-3 py-2 font-semibold">Biaya</th>
                                                     <th class="text-center px-3 py-2 font-semibold">Aksi</th>
                                                 </tr>
@@ -368,10 +292,12 @@
                                                 @foreach ($d->parts as $part)
                                                     @php
                                                         $rowBgClass = match($part->status) {
-                                                            'Limit'   => 'bg-red-50',
-                                                            'Diganti' => 'bg-gray-100',
-                                                            'Proses'  => 'bg-amber-50',
-                                                            default   => 'bg-white'
+                                                            'Limit'       => 'bg-red-50',
+                                                            'Diganti'     => 'bg-gray-100',
+                                                            'Proses'      => 'bg-amber-50',
+                                                            'tidak_aktif' => 'bg-slate-50',
+                                                            'aktif'       => 'bg-blue-50/40',
+                                                            default       => 'bg-white'
                                                         };
                                                     @endphp
                                                     <tr class="border-t border-slate-100 {{ $rowBgClass }}">
@@ -386,6 +312,9 @@
                                                             @endif
                                                         </td>
                                                         <td class="px-3 py-2 {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-500' }}">{{ $part->category?->nama ?? '—' }}</td>
+                                                        <td class="px-3 py-2 {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">
+                                                            {{ $part->supplier?->nama_supplier ?? '—' }}
+                                                        </td>
                                                         <td class="px-3 py-2 font-mono {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">{{ $part->part_number ?: '—' }}</td>
                                                         <td class="px-3 py-2 font-mono {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">{{ $part->serial_number ?: '—' }}</td>
                                                         <td class="px-3 py-2 {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">{{ $part->posisi ?: '—' }}</td>
@@ -435,6 +364,11 @@
                                                                     title="Disetujui keuangan, belum dipasang secara fisik">
                                                                     <i class="fa fa-pause text-[9px]"></i> Tidak Aktif
                                                                 </span>
+                                                            @elseif ($part->status === 'aktif')
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-300 cursor-default"
+                                                                    title="Pembayaran disetujui, siap dipasang">
+                                                                    <i class="fa fa-check-circle text-[9px]"></i> Aktif
+                                                                </span>
                                                             @elseif ($part->status === 'Proses')
                                                                 @if ($part->persetujuan !== 'Disetujui')
                                                                     <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-400 border border-amber-200 cursor-not-allowed"
@@ -461,9 +395,17 @@
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                                     <i class="fa fa-check text-[9px]"></i> Disetujui
                                                                 </span>
+                                                            @elseif ($part->persetujuan === 'Diajukan ke Pembayaran')
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                                                    <i class="fa fa-paper-plane text-[9px]"></i> Diajukan ke Pembayaran
+                                                                </span>
                                                             @elseif ($part->persetujuan === 'Ditolak')
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
                                                                     <i class="fa fa-times text-[9px]"></i> Ditolak
+                                                                </span>
+                                                            @elseif ($part->persetujuan === 'Pending')
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
+                                                                    <i class="fa fa-clock text-[9px]"></i> Pending
                                                                 </span>
                                                             @else
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
@@ -484,12 +426,10 @@
                                                                 </span>
                                                             @endif
                                                         </td>
-                                                        {{-- Keterangan Column --}}
-                                                        <td class="px-3 py-2 {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">
-                                                            @if($part->keterangan)
-                                                                <span class="text-xs" title="{{ $part->keterangan }}">
-                                                                    {{ Str::limit($part->keterangan, 30) }}
-                                                                </span>
+                                                        {{-- Keterangan Limit Column --}}
+                                                        <td class="px-3 py-2 whitespace-nowrap {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">
+                                                            @if($part->keterangan_limit)
+                                                                <span class="text-xs">{{ $part->keterangan_limit }}</span>
                                                             @else
                                                                 —
                                                             @endif
@@ -518,7 +458,7 @@
                                                                 <span class="text-gray-300">—</span>
                                                             @endif
                                                         </td>
-                                                        {{-- Bukti Column --}}
+                                                        {{-- Bukti Column (Lampiran dari submit) --}}
                                                         <td class="px-3 py-2">
                                                             @php
                                                                 $buktiData = $part->bukti;
@@ -545,6 +485,39 @@
                                                                 —
                                                             @endif
                                                         </td>
+                                                        {{-- Bukti Bayar Column (dari approval pembayaran) --}}
+                                                        <td class="px-3 py-2">
+                                                            @php
+                                                                $buktiBayarData = $part->bukti_pembayaran;
+                                                                if (is_string($buktiBayarData)) {
+                                                                    $buktiBayarData = json_decode($buktiBayarData, true);
+                                                                }
+                                                            @endphp
+                                                            @if($buktiBayarData && is_array($buktiBayarData) && count($buktiBayarData) > 0)
+                                                                <div class="flex flex-col gap-1">
+                                                                    @foreach($buktiBayarData as $file)
+                                                                        @php
+                                                                            $filePath = $file['path'] ?? '';
+                                                                            // path bisa storage path (pembayaran/approvals/...) atau public path (gps/bukti_bayar/...)
+                                                                            $fileUrl = str_starts_with($filePath, 'pembayaran/')
+                                                                                ? \Illuminate\Support\Facades\Storage::url($filePath)
+                                                                                : asset($filePath);
+                                                                            // Nama asli: gunakan original_name jika ada, fallback strip timestamp prefix
+                                                                            $rawName  = $file['original_name'] ?? $file['name'] ?? basename($filePath);
+                                                                            $fileName = preg_replace('/^\d+_\d+_/', '', $rawName);
+                                                                            if (!$fileName) $fileName = $rawName;
+                                                                        @endphp                                                                        <a href="{{ $fileUrl }}" target="_blank"
+                                                                            class="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-800 hover:underline truncate max-w-[160px]"
+                                                                            title="{{ $fileName }}">
+                                                                            <i class="fa fa-receipt text-[10px] flex-shrink-0"></i>
+                                                                            <span class="truncate">{{ $fileName }}</span>
+                                                                        </a>
+                                                                    @endforeach
+                                                                </div>
+                                                            @else
+                                                                —
+                                                            @endif
+                                                        </td>
                                                         <td class="px-3 py-2 text-right font-semibold whitespace-nowrap {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-700' }}">
                                                             @php
                                                                 $mapKey   = ($d->kendaraan_id ?? 0) . '_' . ($part->category_id ?? 0);
@@ -561,7 +534,17 @@
                                                         </td>
                                                         {{-- Kolom Aksi per-part: tombol Terpasang --}}
                                                         <td class="px-3 py-2 text-center whitespace-nowrap" onclick="event.stopPropagation()">
-                                                            @if ($part->persetujuan === 'Disetujui' && $part->status === 'tidak_aktif')
+                                                            @if ($part->status === 'aktif' && in_array(auth()->user()->role, ['superadmin', 'operasi']))
+                                                                <form action="{{ route('service-parts.update-status', $part->id) }}" method="POST"
+                                                                    onsubmit="return confirm('Tandai part ini sebagai Terpasang?')" class="inline">
+                                                                    @csrf @method('PUT')
+                                                                    <input type="hidden" name="status" value="Terpasang">
+                                                                    <button type="submit"
+                                                                        class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
+                                                                        <i class="fa fa-wrench text-[9px]"></i> Pasang
+                                                                    </button>
+                                                                </form>
+                                                            @elseif ($part->persetujuan === 'Disetujui' && $part->status === 'tidak_aktif')
                                                                 <form action="{{ route('service-parts.update-status', $part->id) }}" method="POST"
                                                                     onsubmit="return confirm('Tandai part ini sebagai Terpasang?')" class="inline">
                                                                     @csrf @method('PUT')
@@ -598,7 +581,7 @@
                                             </tbody>
                                             <tfoot>
                                                 <tr class="bg-slate-100 border-t border-slate-200">
-                                                    <td colspan="16" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
+                                                    <td colspan="18" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
                                                     <td colspan="2" class="px-3 py-2 text-right text-xs font-bold text-gray-800">
                                                         Rp {{ number_format($d->parts->sum('biaya'), 0, ',', '.') }}
                                                     </td>

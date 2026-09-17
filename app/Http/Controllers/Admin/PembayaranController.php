@@ -387,7 +387,7 @@ class PembayaranController extends Controller
                         'merk'             => $part['merk'] ?? null,
                         'tgl_pasang'       => $part['tgl_pasang'],
                         'kilometer_pasang' => $part['kilometer_pasang'] ?? 0,
-                        'kondisi'          => $part['kondisi'] ?? 'Baik',
+                        'kondisi'          => $part['kondisi'] ?? 'Perlu Ganti',
                         'status_part'      => 'Proses',
                         'interval_nilai'   => $part['interval_nilai'] ?? 1,
                         'interval_satuan'  => $part['interval_satuan'] ?? 'bulan',
@@ -720,68 +720,24 @@ class PembayaranController extends Controller
                         'debit'       => $nominal,
                         'kredit'      => 0,
                         'saldo'       => $saldoBB - $nominal,
-                        'aktivitas'            => 'pembayaran',
+                        'aktivitas'   => 'pembayaran',
                         'keterangan'  => 'PR #' . $pembayaran->no_pr . ' disetujui oleh ' . $pembayaran->disetujui_oleh,
                         'referensi'   => $pembayaran->no_pr,
                     ]);
                 }
 
-        // ── Buat service_history jika tipe_pembayaran = service ──
-                if ($pembayaran->tipe_pembayaran === 'service' && $pembayaran->kendaraan_id) {
-                    $pembayaran->load('serviceParts');
+                // ── Aktivasi service_history saat tipe_pembayaran = service ──
+                // Selalu update status dari tidak_aktif → aktif (tidak pernah create baru)
+                if ($pembayaran->tipe_pembayaran === 'service') {
+                    $existingDraft = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
 
-                    $serviceHistory = \App\Models\ServiceHistory::create([
-                        'kendaraan_id'      => $pembayaran->kendaraan_id,
-                        'tanggal_service'   => $pembayaran->tanggal_service ?? now()->toDateString(),
-                        'kilometer'         => $pembayaran->kilometer ?? 0,
-                        'keluhan'           => $pembayaran->keluhan,
-                        'total_biaya'       => $pembayaran->nominal,
-                        'status'            => 'proses',
-                        'status_approval'   => 'approved',
-                        'approval_by'       => auth()->id(),
-                        'approval_at'       => now(),
-                        'is_request'        => true,
-                    ]);
+                    if ($existingDraft) {
+                        $existingDraft->update(['status' => 'aktif']);
 
-                    // Cek apakah ada part yang melebihi limit → status_pengeluaran = overservice
-                    $hasOverLimit = $pembayaran->serviceParts->contains('is_over_limit', true);
-
-                    if ($hasOverLimit) {
-                        $serviceHistory->update(['status_pengeluaran' => 'overservice']);
-                    }
-
-                    // Buat ServicePart dari PR service parts
-                    foreach ($pembayaran->serviceParts as $prPart) {
-                        \App\Models\ServicePart::create([
-                            'service_history_id' => $serviceHistory->id,
-                            'kendaraan_id'       => $pembayaran->kendaraan_id,
-                            'category_id'        => $prPart->category_id,
-                            'nama_part'          => $prPart->nama_part,
-                            'part_number'        => $prPart->part_number,
-                            'serial_number'      => $prPart->serial_number,
-                            'posisi'             => $prPart->posisi,
-                            'tgl_pasang'         => $prPart->tgl_pasang,
-                            'kilometer_pasang'   => $prPart->kilometer_pasang,
-                            'kondisi'            => $prPart->kondisi,
-                            'status'             => 'Terpasang',
-                            'interval_nilai'     => $prPart->interval_nilai,
-                            'interval_satuan'    => $prPart->interval_satuan,
-                            'biaya'              => $prPart->biaya,
-                            'keterangan'         => $prPart->keterangan,
-                            'is_request'         => true,
-                            'status_approval'    => 'approved',
-                            'approval_by'        => auth()->id(),
-                            'approval_at'        => now(),
-                        ]);
-
-                        // Update status_part di PR menjadi Terpasang
-                        $prPart->update(['status_part' => 'Terpasang']);
-                    }
-
-                    // Update kilometer kendaraan
-                    if ($pembayaran->kilometer) {
-                        \App\Models\Kendaraan::where('id', $pembayaran->kendaraan_id)
-                            ->update(['kilometer_sekarang' => $pembayaran->kilometer]);
+                        // Update semua parts tidak_aktif → aktif
+                        $existingDraft->parts()
+                            ->where('status', 'tidak_aktif')
+                            ->update(['status' => 'aktif']);
                     }
                 }
             });
@@ -850,27 +806,25 @@ class PembayaranController extends Controller
                 'lampiran_tambahan'    => $lampiranPath ?? $pembayaran->lampiran_tambahan,
             ]);
 
-            // Buat service_history + parts
-            $pembayaran->load('serviceParts');
-            $hasOverLimit = $pembayaran->serviceParts->contains('is_over_limit', true);
+            // Aktivasi service_history yang sudah ada — hanya update status, tidak create baru
+            $existingDraft = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
 
-            $serviceHistory = \App\Models\ServiceHistory::create([
-                'kendaraan_id'        => $pembayaran->kendaraan_id,
-                'tanggal_service'     => $pembayaran->tanggal_service ?? now()->toDateString(),
-                'kilometer'           => $pembayaran->kilometer ?? 0,
-                'keluhan'             => $pembayaran->keluhan,
-                'total_biaya'         => $pembayaran->nominal,
-                'status'              => 'proses',
-                'status_approval'     => 'approved',
-                'status_pengeluaran'  => $hasOverLimit ? 'overservice' : 'stabil',
-                'approval_by'         => auth()->id(),
-                'approval_at'         => now(),
-                'is_request'          => true,
-                'bukti_pembayaran'    => $buktiPath,
-            ]);
+            $serviceHistory = null;
+            if ($existingDraft) {
+                $existingDraft->update([
+                    'status'           => 'aktif',
+                    'bukti_pembayaran' => $buktiPath ?? $existingDraft->bukti_pembayaran,
+                ]);
+
+                $existingDraft->parts()
+                    ->where('status', 'tidak_aktif')
+                    ->update(['status' => 'aktif']);
+
+                $serviceHistory = $existingDraft;
+            }
 
             // Simpan lampiran ke tabel attachments jika ada
-            if ($lampiranPath) {
+            if ($lampiranPath && $serviceHistory) {
                 \App\Models\Attachment::create([
                     'relation_type' => 'service',
                     'relation_id'   => $serviceHistory->id,
@@ -881,35 +835,7 @@ class PembayaranController extends Controller
                 ]);
             }
 
-            foreach ($pembayaran->serviceParts as $prPart) {
-                \App\Models\ServicePart::create([
-                    'service_history_id' => $serviceHistory->id,
-                    'kendaraan_id'       => $pembayaran->kendaraan_id,
-                    'category_id'        => $prPart->category_id,
-                    'nama_part'          => $prPart->nama_part,
-                    'part_number'        => $prPart->part_number,
-                    'serial_number'      => $prPart->serial_number,
-                    'posisi'             => $prPart->posisi,
-                    'tgl_pasang'         => $prPart->tgl_pasang,
-                    'kilometer_pasang'   => $prPart->kilometer_pasang,
-                    'kondisi'            => $prPart->kondisi,
-                    'status'             => 'Terpasang',
-                    'interval_nilai'     => $prPart->interval_nilai,
-                    'interval_satuan'    => $prPart->interval_satuan,
-                    'biaya'              => $prPart->biaya,
-                    'keterangan'         => $prPart->keterangan,
-                    'is_request'         => true,
-                    'status_approval'    => 'approved',
-                    'approval_by'        => auth()->id(),
-                    'approval_at'        => now(),
-                ]);
-                $prPart->update(['status_part' => 'Terpasang']);
-            }
-
-            if ($pembayaran->kilometer) {
-                \App\Models\Kendaraan::where('id', $pembayaran->kendaraan_id)
-                    ->update(['kilometer_sekarang' => $pembayaran->kilometer]);
-            }
+            // (kilometer kendaraan diupdate saat tombol Terpasang diklik)
 
             DB::commit();
 
@@ -972,7 +898,10 @@ class PembayaranController extends Controller
                 'id'                 => $k->id,
                 'label'              => $k->nopol . ' — ' . $k->merk,
                 'kilometer_sekarang' => $k->kilometer_sekarang ?? 0,
-            ]);
+            ])
+            ->sortByDesc(fn($k) => \App\Models\ServiceHistory::where('kendaraan_id', $k['id'])
+                ->max('tanggal_service'))
+            ->values();
 
         return response()->json(['success' => true, 'data' => $kendaraan]);
     }
@@ -1203,7 +1132,7 @@ class PembayaranController extends Controller
             'bukti.*' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,zip|max:5120',
             'attachment' => 'nullable|array',
             'attachment.*' => 'file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,zip|max:5120',
-            'catatan' => 'nullable|string|max:500',
+            'catatan' => 'required|string|min:3|max:500',
         ]);
         
         // Load Pembayaran
@@ -1331,14 +1260,14 @@ class PembayaranController extends Controller
                 }
             }
 
-            // Untuk service_part: update keterangan part lama ke 'pembayaran ditolak' jika ada replace_part_id
+            // Untuk service_part: update keterangan_limit part lama ke 'pembayaran ditolak' jika ada replace_part_id
             if ($pembayaran->source_type === 'service_part') {
                 $sourceData = $pembayaran->source_data ?? [];
                 $parts      = $sourceData['parts'] ?? [];
                 foreach ($parts as $partData) {
                     if (!empty($partData['replace_part_id'])) {
                         \App\Models\ServicePart::where('id', (int) $partData['replace_part_id'])
-                            ->update(['keterangan' => 'pembayaran ditolak']);
+                            ->update(['keterangan_limit' => 'pembayaran ditolak']);
                     }
                 }
             }
@@ -1568,10 +1497,12 @@ class PembayaranController extends Controller
                 $catatan = $item['catatan'] ?? null;
 
                 // Upload bukti per item jika ada
-                $buktiBayarPath = null;
+                $buktiBayarPath         = null;
+                $buktiBayarOriginalName = null;
                 if ($request->hasFile("items.{$idx}.bukti")) {
-                    $file           = $request->file("items.{$idx}.bukti");
-                    $filename       = time() . '_' . $idx . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                    $file                   = $request->file("items.{$idx}.bukti");
+                    $buktiBayarOriginalName = $file->getClientOriginalName();
+                    $filename               = time() . '_' . $idx . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $buktiBayarOriginalName);
                     $file->move($buktiDir, $filename);
                     $buktiBayarPath = 'gps/bukti_bayar/' . $filename;
                 }
@@ -1582,7 +1513,10 @@ class PembayaranController extends Controller
                     'user_id'          => auth()->id(),
                     'action'           => $action,
                     'catatan'          => $catatan,
-                    'bukti_files'      => $buktiBayarPath ? [['path' => $buktiBayarPath]] : null,
+                    'bukti_files'      => $buktiBayarPath ? [[
+                        'path'          => $buktiBayarPath,
+                        'original_name' => $buktiBayarOriginalName,
+                    ]] : null,
                     'attachment_files' => null,
                 ]);
 

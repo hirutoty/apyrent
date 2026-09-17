@@ -625,6 +625,21 @@ class PurchaseOrderApprovalService
             return;
         }
 
-        // Tipe lain (stnk, service_part, dll) tidak punya linked record eksternal — tidak ada aksi
+        // ── SERVICE PART ───────────────────────────────────────────────────────
+        // Update persetujuan ServicePart dari Pending → Diajukan ke Pembayaran
+        if ($sourceType === 'service_part') {
+            // Cari ServiceHistory yang sudah dibuat saat createServiceHistoryDraft (pembayaran_id = $pembayaran->id)
+            $serviceHistory = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
+            if ($serviceHistory) {
+                $serviceHistory->parts()
+                    ->where('persetujuan', 'Pending')
+                    ->update([
+                        'persetujuan' => 'Diajukan ke Pembayaran',
+                    ]);
+            }
+            return;
+        }
+
+        // Tipe lain (stnk, dll) tidak punya linked record eksternal — tidak ada aksi
     }
 }

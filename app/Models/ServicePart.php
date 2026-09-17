@@ -14,6 +14,7 @@ class ServicePart extends Model
 
     protected $fillable = [
         'service_history_id',
+        'supplier_id',
         'kendaraan_id',
         'category_id',
         'nama_part',
@@ -30,7 +31,7 @@ class ServicePart extends Model
         'biaya',
         'status_pengeluaran',
         'bukti',
-        'keterangan',
+        'keterangan_limit',
         'replaced_at',
         'replaced_by_part_id',
         'is_request',
@@ -41,18 +42,20 @@ class ServicePart extends Model
         'nama_rekening',
         'nama_bank',
         'no_rekening',
+        'bukti_pembayaran',
     ];
 
     protected $casts = [
-        'tgl_pasang'      => 'date',
-        'tanggal_limit'   => 'date',
-        'kilometer_pasang'=> 'integer',
-        'biaya'           => 'integer',
-        'interval_nilai'  => 'integer',
-        'bukti'           => 'array',
-        'replaced_at'     => 'datetime',
-        'is_request'      => 'boolean',
-        'approval_at'     => 'datetime',
+        'tgl_pasang'        => 'date',
+        'tanggal_limit'     => 'date',
+        'kilometer_pasang'  => 'integer',
+        'biaya'             => 'integer',
+        'interval_nilai'    => 'integer',
+        'bukti'             => 'array',
+        'bukti_pembayaran'  => 'array',
+        'replaced_at'       => 'datetime',
+        'is_request'        => 'boolean',
+        'approval_at'       => 'datetime',
     ];
 
     /*
@@ -60,6 +63,11 @@ class ServicePart extends Model
     | RELASI
     |--------------------------------------------------------------------------
     */
+
+    public function supplier()
+    {
+        return $this->belongsTo(\App\Models\Supplier::class, 'supplier_id');
+    }
 
     public function serviceHistory()
     {

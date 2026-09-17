@@ -140,6 +140,7 @@ class ServiceCategoryController extends Controller
             'kendaraan_id' => 'required|exists:kendaraan,id',
             'limit_nilai'  => 'required|integer|min:1',
             'limit_satuan' => 'required|in:hari,minggu,bulan,tahun',
+            'limit_km'     => 'nullable|integer|min:1|max:9999999999',
             'limit_price'  => 'nullable|numeric|min:0',
         ]);
 
@@ -158,6 +159,7 @@ class ServiceCategoryController extends Controller
             'category_id'  => $categoryId,
             'limit_nilai'  => $request->limit_nilai,
             'limit_satuan' => $request->limit_satuan,
+            'limit_km'     => $request->limit_km ? (int)$request->limit_km : null,
             'limit_price'  => $request->limit_price ? (int)$request->limit_price : null,
         ]);
 
@@ -176,12 +178,14 @@ class ServiceCategoryController extends Controller
         $request->validate([
             'limit_nilai'  => 'required|integer|min:1',
             'limit_satuan' => 'required|in:hari,minggu,bulan,tahun',
+            'limit_km'     => 'nullable|integer|min:1|max:9999999999',
             'limit_price'  => 'nullable|numeric|min:0',
         ]);
 
         $limit->update([
             'limit_nilai'  => $request->limit_nilai,
             'limit_satuan' => $request->limit_satuan,
+            'limit_km'     => $request->limit_km ? (int)$request->limit_km : null,
             'limit_price'  => $request->limit_price ? (int)$request->limit_price : null,
         ]);
 
@@ -226,6 +230,7 @@ class ServiceCategoryController extends Controller
         return response()->json([
             'limit_nilai'           => $limit->limit_nilai,
             'limit_satuan'          => $limit->limit_satuan,
+            'limit_km'              => $limit->limit_km,
             'limit_price'           => $limit->limit_price,
             'limit_price_formatted' => $limit->limitPriceFormatted(),
         ]);

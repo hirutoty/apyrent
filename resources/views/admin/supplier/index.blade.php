@@ -153,40 +153,19 @@
                                 <td class="px-4 py-3.5 text-sm text-gray-700">{{ $d->alamat ?? '-' }}</td>
 
                                 @php
-                                    $totalPr      = $d->pembayarans->count();
-                                    $totalNominal = $d->pembayarans->sum(function($pr) {
-                                        if ($pr->items && $pr->items->isNotEmpty()) {
-                                            return $pr->items->sum('subtotal');
-                                        }
-                                        return $pr->nominal ?? 0;
-                                    });
-                                    // Ambil ringkasan barang dari pembayarans (gabung nama barang unik)
-                                    $namaBarang = $d->pembayarans->flatMap(function($pr) {
-                                        if ($pr->items && $pr->items->isNotEmpty()) {
-                                            return $pr->items->pluck('nama_barang');
-                                        }
-                                        return collect([$pr->barang_jasa]);
-                                    })->filter()->unique()->take(2)->implode(', ');
-                                    $jumlahTotal = $d->pembayarans->flatMap(function($pr) {
-                                        if ($pr->items && $pr->items->isNotEmpty()) {
-                                            return $pr->items->pluck('qty');
-                                        }
-                                        return collect([$pr->qty ?? 0]);
-                                    })->sum();
-                                    // Harga rata-rata satuan dari semua item
-                                    $allItems = $d->pembayarans->flatMap(function($pr) {
-                                        if ($pr->items && $pr->items->isNotEmpty()) {
-                                            return $pr->items;
-                                        }
-                                        return collect([]);
-                                    });
-                                    $hargaRata = $allItems->isNotEmpty() ? $allItems->avg('harga_satuan') : 0;
+                                    $namaBarang   = $d->nama_barang_gabungan;
+                                    $jumlahTotal  = $d->jumlah_total_gabungan;
+                                    $hargaRata    = $d->harga_rata_gabungan;
+                                    $totalNominal = $d->total_nominal_gabungan;
+                                    $totalSumber  = $d->pembayarans->count()
+                                                  + $d->serviceParts->count()
+                                                  + $d->incidentParts->count();
                                 @endphp
 
                                 <td class="px-4 py-3.5 text-sm text-gray-700">
-                                    {{ $namaBarang ?: '-' }}
-                                    @if($totalPr > 1)
-                                        <span class="text-[10px] text-gray-400 ml-1">(+{{ $totalPr - 1 }} PR)</span>
+                                    {{ $namaBarang }}
+                                    @if($totalSumber > 1)
+                                        <span class="text-[10px] text-gray-400 ml-1">(+{{ $totalSumber - 1 }} item)</span>
                                     @endif
                                 </td>
 

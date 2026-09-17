@@ -183,38 +183,6 @@
                 <input type="hidden" name="alasan_permintaan" id="alasan_permintaan" value="{{ old('alasan_permintaan', '') }}">
                 <input type="hidden" name="keterangan_pengadaan" id="keterangan_pengadaan" value="{{ old('keterangan_pengadaan', '') }}">
 
-                {{-- Supplier / Bengkel --}}
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Supplier / Bengkel
-                        <span class="text-gray-400 text-[10px] font-normal ml-1">
-                            (opsional —
-                            <button type="button" onclick="openSupplierModal()"
-                                class="text-blue-500 hover:underline text-[10px] font-medium">+ tambah baru</button>
-                            jika belum ada)
-                        </span>
-                    </label>
-                    <div class="flex gap-2">
-                        <select name="supplier_id" id="supplier_id"
-                            class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                            <option value="">-- Pilih Supplier/Bengkel --</option>
-                            @foreach ($suppliers as $s)
-                                <option value="{{ $s->id }}" {{ old('supplier_id') == $s->id ? 'selected' : '' }}>
-                                    {{ $s->nama_supplier }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @if ($suppliers->isEmpty())
-                        <button type="button" onclick="openSupplierModal()"
-                            class="w-10 h-10 rounded-xl bg-green-600 hover:bg-green-700 text-white flex items-center justify-center transition-colors flex-shrink-0"
-                            title="Tambah Supplier Baru">
-                            <i class="fa fa-plus text-sm"></i>
-                        </button>
-                        @endif
-                    </div>
-                    @error('supplier_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                </div>
-
             </div>
         </div>
 
@@ -286,7 +254,11 @@
 // ── Data dari blade ──────────────────────────────────────────
 const categories = @json($categories->map(fn($c) => ['id' => $c->id, 'nama' => $c->nama]));
 const prefillData = @json($prefill ? $prefill['part'] : null);
+let allSuppliers = @json($suppliers->map(fn($s) => ['id' => $s->id, 'nama' => $s->nama_supplier]));
 let partIndex = 0;
+
+// Flag: true saat ajukan ulang dari PO/Pembayaran yang ditolak — lampiran tidak wajib
+const IS_RESUBMIT = {{ (($prefill['source'] ?? '') === 'edit_po' || ($prefill['source'] ?? '') === 'edit_pembayaran') ? 'true' : 'false' }};
 
 // ── Tambah row part ──────────────────────────────────────────
 function addPartRow(data = null) {
@@ -303,6 +275,13 @@ function addPartRow(data = null) {
     let catOptions = '<option value="">— Pilih Kategori —</option>';
     categories.forEach(c => {
         catOptions += `<option value="${c.id}" ${data?.category_id == c.id ? 'selected' : ''}>${c.nama}</option>`;
+    });
+
+    // Build options supplier
+    let supplierOptions = '<option value="">-- Pilih Supplier/Bengkel --</option>';
+    allSuppliers.forEach(s => {
+        const sel = data?.supplier_id == s.id ? 'selected' : '';
+        supplierOptions += `<option value="${s.id}" ${sel}>${s.nama}</option>`;
     });
 
     const tglPasang = data?.tgl_pasang || '{{ now()->format("Y-m-d") }}';
@@ -625,27 +604,6 @@ function addPartRow(data = null) {
                 </p>
             </div>
 
-            <!-- Kondisi -->
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Kondisi</label>
-                <select name="parts[${idx}][kondisi]"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                    <option value="Baik" ${(data?.kondisi || 'Baik') === 'Baik' ? 'selected' : ''}>Baik</option>
-                    <option value="Rusak" ${data?.kondisi === 'Rusak' ? 'selected' : ''}>Rusak</option>
-                    <option value="Perlu Ganti" ${data?.kondisi === 'Perlu Ganti' ? 'selected' : ''}>Perlu Ganti</option>
-                </select>
-            </div>
-
-            <!-- Status Part -->
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Status Part</label>
-                <select name="parts[${idx}][status]"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                    <option value="Proses" ${data?.status === 'Proses' ? 'selected' : 'selected'}>Proses</option>
-                    <option value="Terpasang" ${data?.status === 'Terpasang' ? 'selected' : ''}>Terpasang</option>
-                </select>
-            </div>
-
             <!-- Biaya -->
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
@@ -688,31 +646,52 @@ function addPartRow(data = null) {
                 </div>
             </div>
 
-            <!-- Lampiran (full width) -->
+            <!-- Supplier per Part -->
             <div class="md:col-span-3">
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Keterangan</label>
-                <textarea name="parts[${idx}][keterangan]" rows="2"
-                    placeholder="Keterangan tambahan untuk part ini (opsional)..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none">${data?.keterangan || ''}</textarea>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">
+                    Supplier / Bengkel
+                    <span class="text-gray-400 text-[10px] font-normal ml-1">
+                        (opsional —
+                        <button type="button" onclick="openSupplierModal(${idx})"
+                            class="text-blue-500 hover:underline text-[10px] font-medium">+ tambah baru</button>
+                        jika belum ada)
+                    </span>
+                </label>
+                <select name="parts[${idx}][supplier_id]" id="supplier-select-${idx}"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    ${supplierOptions}
+                </select>
             </div>
 
             <!-- Lampiran (full width) -->
             <div class="md:col-span-3">
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">
-                    Lampiran <span class="text-red-400">*</span>
-                    <span class="text-[10px] font-normal text-gray-400 ml-1">(wajib — bisa lebih dari 1 file)</span>
+                    Lampiran ${IS_RESUBMIT ? '' : '<span class="text-red-400">*</span>'}
+                    <span class="text-[10px] font-normal text-gray-400 ml-1">${IS_RESUBMIT ? '(opsional — lampiran lama dipertahankan)' : '(wajib — bisa lebih dari 1 file)'}</span>
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer border border-dashed border-blue-300 hover:border-blue-400 bg-gray-50 hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors group">
                     <i class="fa fa-paperclip text-blue-400 group-hover:text-blue-500 text-sm transition-colors"></i>
                     <span class="text-xs text-gray-500 group-hover:text-blue-600 transition-colors">Klik untuk pilih file...</span>
                     <input type="file" id="bukti-input-${idx}" name="parts[${idx}][bukti][]"
-                        multiple required accept="image/*,video/mp4,video/mov"
+                        multiple ${IS_RESUBMIT ? '' : 'required'} accept="image/*,video/mp4,video/mov"
                         onchange="updateFileList(${idx})"
                         class="hidden">
                 </label>
                 <p class="text-[10px] text-gray-400 mt-1">Format: JPG, PNG, MP4, MOV</p>
-                <!-- Daftar nama file yang dipilih -->
+                <!-- Daftar nama file yang dipilih (baru) -->
                 <div id="bukti-list-${idx}" class="mt-2 space-y-1"></div>
+                <!-- Daftar file lama (dari PO/Pembayaran ditolak) -->
+                ${(data?.old_files && data.old_files.length > 0) ? `
+                <div class="mt-2 space-y-1" id="old-bukti-list-${idx}">
+                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1"><i class="fa fa-paperclip mr-1"></i>Lampiran lama (dipertahankan):</p>
+                    ${data.old_files.map(f => `
+                        <div class="flex items-center gap-2 text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded px-2 py-1">
+                            <i class="fa fa-file text-gray-400 text-[10px]"></i>
+                            <span class="truncate">${f.original_name || f.stored_name || 'file'}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                ` : ''}
             </div>
 
         </div>
@@ -954,40 +933,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
         @if(($prefill['source'] ?? '') === 'edit_po' && !empty($prefill['all_parts']))
             {{-- Ajukan ulang dari PO ditolak: render semua parts --}}
-            const allParts = @json($prefill['all_parts']);
-            allParts.forEach(function(part) {
+            const allParts  = @json($prefill['all_parts']);
+            const tempFiles = @json($prefill['temp_files'] ?? []);
+            allParts.forEach(function(part, idx) {
+                const oldBukti = (tempFiles.parts && tempFiles.parts[idx] && tempFiles.parts[idx].bukti)
+                    ? tempFiles.parts[idx].bukti
+                    : [];
                 addPartRow({
                     nama_part:        part.nama_part       || '',
                     category_id:      part.category_id     || '',
+                    supplier_id:      part.supplier_id     || '',
                     posisi:           part.posisi           || '',
                     part_number:      part.part_number      || '',
                     interval_nilai:   part.interval_nilai   || 12,
                     interval_satuan:  part.interval_satuan  || 'bulan',
                     biaya:            part.biaya            || 0,
                     kondisi:          part.kondisi          || '',
-                    keterangan:       part.keterangan       || '',
+                    keterangan_limit: part.keterangan_limit || part.keterangan || '',
                     nama_bank:        part.nama_bank        || '',
                     no_rekening:      part.no_rekening      || '',
                     nama_rekening:    part.nama_rekening     || '',
+                    old_files:        oldBukti,
                 });
             });
         @elseif(($prefill['source'] ?? '') === 'edit_pembayaran' && !empty($prefill['all_parts']))
             {{-- Ajukan ulang dari Pembayaran ditolak: render semua parts --}}
-            const allParts = @json($prefill['all_parts']);
-            allParts.forEach(function(part) {
+            const allParts  = @json($prefill['all_parts']);
+            const tempFiles = @json($prefill['temp_files'] ?? []);
+            allParts.forEach(function(part, idx) {
+                const oldBukti = (tempFiles.parts && tempFiles.parts[idx] && tempFiles.parts[idx].bukti)
+                    ? tempFiles.parts[idx].bukti
+                    : [];
                 addPartRow({
                     nama_part:        part.nama_part       || '',
                     category_id:      part.category_id     || '',
+                    supplier_id:      part.supplier_id     || '',
                     posisi:           part.posisi           || '',
                     part_number:      part.part_number      || '',
                     interval_nilai:   part.interval_nilai   || 12,
                     interval_satuan:  part.interval_satuan  || 'bulan',
                     biaya:            part.biaya            || 0,
                     kondisi:          part.kondisi          || '',
-                    keterangan:       part.keterangan       || '',
+                    keterangan_limit: part.keterangan_limit || part.keterangan || '',
                     nama_bank:        part.nama_bank        || '',
                     no_rekening:      part.no_rekening      || '',
                     nama_rekening:    part.nama_rekening     || '',
+                    old_files:        oldBukti,
                 });
             });
         @else
@@ -1066,7 +1057,10 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <script>
-function openSupplierModal() {
+let _supplierTargetIdx = null;
+
+function openSupplierModal(idx) {
+    _supplierTargetIdx = (idx !== undefined) ? idx : null;
     document.getElementById('supplierModal').classList.remove('hidden');
     document.getElementById('supplierForm').reset();
     document.getElementById('supplierError').classList.add('hidden');
@@ -1075,6 +1069,7 @@ function closeSupplierModal() {
     document.getElementById('supplierModal').classList.add('hidden');
     document.getElementById('supplierForm').reset();
     document.getElementById('supplierError').classList.add('hidden');
+    _supplierTargetIdx = null;
 }
 function submitSupplier() {
     const form      = document.getElementById('supplierForm');
@@ -1084,10 +1079,9 @@ function submitSupplier() {
     const namaInput = form.querySelector('[name="nama_supplier"]');
     const namaBaru  = namaInput ? namaInput.value.trim().toLowerCase() : '';
 
-    // Cek duplikat client-side
-    const select   = document.getElementById('supplier_id');
-    const existing = Array.from(select.options).map(o => o.text.trim().toLowerCase());
-    if (namaBaru && existing.includes(namaBaru)) {
+    // Cek duplikat client-side — cek dari allSuppliers
+    const existingNames = allSuppliers.map(s => s.nama.toLowerCase());
+    if (namaBaru && existingNames.includes(namaBaru)) {
         errorDiv.textContent = 'Supplier "' + namaInput.value.trim() + '" sudah ada dalam daftar.';
         errorDiv.classList.remove('hidden');
         return;
@@ -1105,8 +1099,21 @@ function submitSupplier() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            const option = new Option(data.data.nama_supplier, data.data.id, true, true);
-            select.add(option);
+            // Push ke array global agar row baru ikut ter-populate
+            allSuppliers.push({ id: data.data.id, nama: data.data.nama_supplier });
+
+            // Tambah option ke semua select supplier yang ada di halaman
+            document.querySelectorAll('[id^="supplier-select-"]').forEach(function(select) {
+                const option = new Option(data.data.nama_supplier, data.data.id, false, false);
+                select.add(option);
+            });
+
+            // Jika ada target spesifik (dari baris part tertentu), pilih di sana
+            if (_supplierTargetIdx !== null) {
+                const targetSelect = document.getElementById('supplier-select-' + _supplierTargetIdx);
+                if (targetSelect) targetSelect.value = data.data.id;
+            }
+
             closeSupplierModal();
         } else {
             throw new Error(data.message || 'Gagal menambahkan supplier');

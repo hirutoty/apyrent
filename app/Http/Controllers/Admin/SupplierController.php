@@ -15,7 +15,7 @@ class SupplierController extends Controller
     {
         $search = $request->input('search');
         
-        $query = Supplier::with(['user', 'pembayarans.items']);
+        $query = Supplier::with(['user', 'pembayarans.items', 'serviceParts', 'incidentParts']);
         
         // Apply search filter
         if ($search) {
