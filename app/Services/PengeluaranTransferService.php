@@ -371,31 +371,10 @@ class PengeluaranTransferService
             // $idx di sini adalah index dalam filtered $parts, bukan index asli dalam $allParts
             // Jika ada selectedParts, cari index asli untuk ambil temp_files yang tepat
             $originalIdx = !empty($selectedParts) ? array_search($partData, $allParts) : $idx;
-            
-            $tglPasang    = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
-            $intervalNilai = (int)($partData['interval_nilai'] ?? 12);
-            $intervalSatuan = $partData['interval_satuan'] ?? 'bulan';
 
-            $tanggalLimit = match ($intervalSatuan) {
-                'hari'   => (clone $tglPasang)->addDays($intervalNilai),
-                'minggu' => (clone $tglPasang)->addWeeks($intervalNilai),
-                'tahun'  => (clone $tglPasang)->addYears($intervalNilai),
-                default  => (clone $tglPasang)->addMonths($intervalNilai),
-            };
-
-            // Hitung status_pengeluaran
-            $statusPengeluaran = 'stabil';
-            $categoryId = $partData['category_id'] ?? null;
+            $tglPasang  = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
             $biaya      = (int)($partData['biaya'] ?? 0);
-            if ($categoryId && $biaya > 0) {
-                $limit = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $kendaraanId)
-                    ->where('category_id', $categoryId)
-                    ->whereNotNull('limit_price')
-                    ->first();
-                if ($limit && $biaya > $limit->limit_price) {
-                    $statusPengeluaran = 'overservice';
-                }
-            }
+            $categoryId = $partData['category_id'] ?? null;
 
             // Copy bukti files dari temp storage ke final storage
             $buktiFiles = [];
@@ -511,17 +490,16 @@ class PengeluaranTransferService
     }
 
     /**
-     * Transfer Service Incident — dijalankan saat superadmin approve PO service_incident.
+     * Transfer Service Incident — dijalankan saat Pembayaran service_incident diapprove.
      *
      * Alur:
-     * 1. Buat record ServiceIncident baru
-     * 2. Buat ServiceIncidentPart per parts yang diapprove:
-     *    - status       = 'Terpasang'  (langsung terpasang setelah disetujui)
+     * 1. Gunakan record ServiceIncident yang sudah ada (dibuat saat store()),
+     *    update status + approval fields. Jika tidak ada (fallback), buat baru.
+     * 2. Hapus ServiceIncidentPart lama lalu buat ulang per parts yang diapprove:
+     *    - status       = 'tidak_aktif' (menunggu ditandai Terpasang)
      *    - persetujuan  = 'Disetujui'
      * 3. Catat cashflow Keuangan + BukuBesar per part
      * 4. Copy temp files ke final storage
-     *
-     * Tidak ada cek is_over_limit / status_pengeluaran — incident is incident.
      */
     protected function transferServiceIncident(Pembayaran $pembayaran, array $approvalFiles, array $selectedParts = []): int
     {
@@ -572,7 +550,9 @@ class PengeluaranTransferService
         // ── Buat ServiceIncidentPart per part yang diapprove ──────────
         $lastPartId = null;
         foreach ($parts as $idx => $partData) {
-            $originalIdx = !empty($selectedParts) ? array_search($partData, $allParts) : $idx;
+            // Untuk temp files, kita perlu original index di allParts
+            // selectedParts berisi index original dari allParts
+            $originalIdx = !empty($selectedParts) ? ($selectedParts[$idx] ?? $idx) : $idx;
 
             $tglPasang      = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
             $intervalNilai  = (int)($partData['interval_nilai'] ?? 12);

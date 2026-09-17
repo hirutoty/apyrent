@@ -433,19 +433,6 @@ function addPartRow(data = null) {
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100">
             </div>
 
-            <!-- Interval — read-only, diisi otomatis dari kategori. Input hidden + tampilan div -->
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Interval</label>
-                <div class="flex gap-1 items-center">
-                    <div id="interval-display-${idx}"
-                        class="flex-1 bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 font-mono min-h-[38px] flex items-center">
-                        <span id="interval-text-${idx}" class="text-gray-400 text-xs italic">— auto dari kategori —</span>
-                    </div>
-                    <input type="hidden" name="parts[${idx}][interval_nilai]"   id="interval-nilai-${idx}"   value="12">
-                    <input type="hidden" name="parts[${idx}][interval_satuan]"  id="interval-satuan-${idx}"  value="bulan">
-                </div>
-            </div>
-
             <!-- Kondisi -->
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Kondisi</label>
@@ -546,43 +533,7 @@ function addPartRow(data = null) {
 
     container.appendChild(row);
     syncKmPasang(idx);
-    // Bind onchange kategori untuk auto-fill interval
-    const catSel = document.getElementById('cat-select-' + idx);
-    if (catSel) catSel.addEventListener('change', () => onCategoryChange(idx, catSel.value));
     recalcTotal();
-}
-
-// ── Auto-fill interval dari limit rule kategori ────────────────────────────
-async function onCategoryChange(idx, categoryId) {
-    const textEl   = document.getElementById('interval-text-' + idx);
-    const nilaiEl  = document.getElementById('interval-nilai-' + idx);
-    const satuanEl = document.getElementById('interval-satuan-' + idx);
-    if (!categoryId) {
-        textEl.textContent = '— auto dari kategori —';
-        textEl.classList.add('text-gray-400', 'italic');
-        nilaiEl.value  = '12';
-        satuanEl.value = 'bulan';
-        return;
-    }
-    try {
-        const kendaraanId = document.getElementById('kendaraan_id').value;
-        const url = `/admin/service-categories/limit-for?category_id=${categoryId}` +
-                    (kendaraanId ? `&kendaraan_id=${kendaraanId}` : '');
-        const res  = await fetch(url, { headers: { 'Accept': 'application/json' } });
-        const data = await res.json();
-        if (data && data.interval_nilai && data.interval_satuan) {
-            nilaiEl.value  = data.interval_nilai;
-            satuanEl.value = data.interval_satuan;
-            textEl.textContent = data.interval_nilai + ' ' + data.interval_satuan;
-            textEl.classList.remove('text-gray-400', 'italic');
-            textEl.classList.add('text-orange-700', 'font-semibold');
-        } else {
-            textEl.textContent = '— tidak ada aturan —';
-            textEl.classList.add('text-gray-400', 'italic');
-        }
-    } catch {
-        textEl.textContent = '— gagal memuat —';
-    }
 }
 
 function updateFileList(idx) {

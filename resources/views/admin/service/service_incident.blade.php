@@ -305,8 +305,6 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Part No.</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Posisi</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Tgl Pasang</th>
-                                                    <th class="text-left px-3 py-2 font-semibold">Interval</th>
-                                                    <th class="text-left px-3 py-2 font-semibold">Tgl Limit</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Kondisi</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Info Pembayaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Bukti</th>
@@ -339,12 +337,6 @@
                                                         </td>
                                                         <td class="px-3 py-2 whitespace-nowrap text-gray-600">
                                                             {{ $part->tgl_pasang ? \Carbon\Carbon::parse($part->tgl_pasang)->format('d M Y') : '—' }}
-                                                        </td>
-                                                        <td class="px-3 py-2 whitespace-nowrap text-gray-600">
-                                                            {{ $part->interval_nilai }} {{ $part->interval_satuan }}
-                                                        </td>
-                                                        <td class="px-3 py-2 whitespace-nowrap text-gray-600">
-                                                            {{ $part->tanggal_limit ? \Carbon\Carbon::parse($part->tanggal_limit)->format('d M Y') : '—' }}
                                                         </td>
                                                         <td class="px-3 py-2">
                                                             @php

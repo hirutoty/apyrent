@@ -1113,6 +1113,10 @@ class PembayaranController extends Controller
                     $data['nama_asuransi'] = $sourceData['nama_asuransi'] ?? null;
                     $data['jenis_asuransi'] = \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id'] ?? null);
                     break;
+
+                case 'service_incident':
+                    $data['kendaraan'] = \App\Models\Kendaraan::find($sourceData['kendaraan_id']);
+                    break;
             }
         } catch (\Exception $e) {
             \Log::error("Error loading related data: " . $e->getMessage());
@@ -1326,13 +1330,15 @@ class PembayaranController extends Controller
             }
         }
 
-        // Pastikan setiap item approved punya bukti pembayaran
-        foreach ($items as $idx => $item) {
-            if ($item['action'] === 'approved' && !$request->hasFile("items.{$idx}.bukti")) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Item #" . ($idx + 1) . " disetujui tapi bukti pembayaran belum diupload. Wajib upload bukti.",
-                ], 422);
+        // Pastikan setiap item approved punya bukti pembayaran (tidak berlaku untuk service_incident — pakai bukti global)
+        if ($pembayaran->source_type !== 'service_incident') {
+            foreach ($items as $idx => $item) {
+                if ($item['action'] === 'approved' && !$request->hasFile("items.{$idx}.bukti")) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Item #" . ($idx + 1) . " disetujui tapi bukti pembayaran belum diupload. Wajib upload bukti.",
+                    ], 422);
+                }
             }
         }
 
@@ -1341,7 +1347,7 @@ class PembayaranController extends Controller
         
         if (in_array($sourceType, ['gps', 'gps_perpanjang'])) {
             return $this->approveItemsGps($request, $pembayaran, $items);
-        } elseif ($sourceType === 'service_part') {
+        } elseif (in_array($sourceType, ['service_part', 'service_incident'])) {
             return $this->approveItemsServicePart($request, $pembayaran, $items);
         } else {
             return back()->with('error', 'Source type tidak didukung untuk per-item approval.');
@@ -1618,6 +1624,35 @@ class PembayaranController extends Controller
                     }
                 }
                 $pembayaran->update(['source_data' => $sourceData]);
+            }
+
+            // service_incident: simpan bukti global ke PembayaranApproval
+            if ($pembayaran->source_type === 'service_incident' && $request->hasFile('bukti') && !empty($approvedItems)) {
+                $buktiGlobalDir = public_path('service-incident-parts');
+                if (!file_exists($buktiGlobalDir)) mkdir($buktiGlobalDir, 0777, true);
+
+                $buktiGlobalFiles = [];
+                foreach ($request->file('bukti') as $file) {
+                    if (!$file->isValid()) continue;
+                    $origName = $file->getClientOriginalName();
+                    $filename = time() . '_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $origName);
+                    $file->move($buktiGlobalDir, $filename);
+                    $buktiGlobalFiles[] = [
+                        'path'          => 'service-incident-parts/' . $filename,
+                        'original_name' => $origName,
+                    ];
+                }
+
+                if (!empty($buktiGlobalFiles)) {
+                    \App\Models\PembayaranApproval::create([
+                        'pembayaran_id'    => $pembayaran->id,
+                        'user_id'          => auth()->id(),
+                        'action'           => 'bukti_global',
+                        'catatan'          => $request->input('catatan'),
+                        'bukti_files'      => $buktiGlobalFiles,
+                        'attachment_files' => null,
+                    ]);
+                }
             }
 
             DB::commit();

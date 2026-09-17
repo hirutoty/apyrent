@@ -329,7 +329,7 @@ class GpsKendaraanController extends Controller
     {
         $request->validate([
             'biaya_sewa'    => 'required|integer|min:0',
-            'tanggal_bayar' => 'required|date',
+            'tanggal_bayar' => 'nullable|date',
             'nama_bank'     => 'nullable|string|max:255',
             'no_rekening'   => 'nullable|string|max:100',
             'nama_pemilik'  => 'nullable|string|max:255',
@@ -339,13 +339,13 @@ class GpsKendaraanController extends Controller
 
         $data->update([
             'biaya_sewa'    => $request->biaya_sewa,
-            'tanggal_bayar' => $request->tanggal_bayar,
+            'tanggal_bayar' => $request->tanggal_bayar ?? $data->tanggal_bayar,
             'nama_bank'     => $request->nama_bank,
             'no_rekening'   => $request->no_rekening,
             'nama_pemilik'  => $request->nama_pemilik,
         ]);
 
-        return response()->json(['success' => true]);
+        return back()->with('success', 'Data GPS berhasil diupdate.');
     }
 
     public function destroy($id)
@@ -717,6 +717,9 @@ class GpsKendaraanController extends Controller
         $request->validate([
             'tanggal_bayar' => 'required|date',
             'biaya_sewa'    => 'required|integer|min:0',
+            'nama_bank'     => 'nullable|string|max:255',
+            'no_rekening'   => 'nullable|string|max:100',
+            'nama_pemilik'  => 'nullable|string|max:255',
         ]);
 
         $gpsKendaraan = GpsKendaraan::with(['kendaraan', 'gps'])->findOrFail($id);
@@ -731,6 +734,11 @@ class GpsKendaraanController extends Controller
             $biayaSewa    = (int) $request->biaya_sewa;
             $tanggalHabis = Carbon::parse($gpsKendaraan->tanggal_habis)->addYear()->toDateString();
 
+            // Update info bank di GPS record (dari input perpanjang)
+            $namaBank     = $request->nama_bank ?: $gpsKendaraan->nama_bank;
+            $noRekening   = $request->no_rekening ?: $gpsKendaraan->no_rekening;
+            $namaPemilik  = $request->nama_pemilik ?: $gpsKendaraan->nama_pemilik;
+
             // Merge data konteks GPS ke dalam request agar perpanjangViaPembayaran bisa memakai
             $request->merge([
                 'biaya_sewa'   => $biayaSewa,
@@ -742,9 +750,9 @@ class GpsKendaraanController extends Controller
                     'gps_id'           => $gpsKendaraan->gps_id,
                     'type'             => $gpsKendaraan->type,
                     'biaya_sewa'       => $biayaSewa,
-                    'nama_bank'        => $gpsKendaraan->nama_bank,
-                    'no_rekening'      => $gpsKendaraan->no_rekening,
-                    'nama_pemilik'     => $gpsKendaraan->nama_pemilik,
+                    'nama_bank'        => $namaBank,
+                    'no_rekening'      => $noRekening,
+                    'nama_pemilik'     => $namaPemilik,
                 ]],
             ]);
 

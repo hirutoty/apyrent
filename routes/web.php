@@ -631,6 +631,14 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::resource('service-incident', ServiceIncidentController::class)->except(['edit', 'show']);
   Route::put('service-incident/{id}/status', [ServiceIncidentController::class, 'updateStatus'])
       ->name('service-incident.update-status');
+  // Resubmit dari PO yang ditolak
+  Route::post('service-incident/{poId}/resubmit', [ServiceIncidentController::class, 'resubmit'])
+      ->name('service-incident.resubmit');
+  // Ajukan ulang dari Pembayaran yang ditolak (AJAX load data + submit)
+  Route::get('service-incident/{id}/ajukan-ulang',  [ServiceIncidentController::class, 'ajukanUlang'])
+      ->name('service-incident.ajukan-ulang');
+  Route::post('service-incident/{id}/ajukan-ulang', [ServiceIncidentController::class, 'ajukanUlangSubmit'])
+      ->name('service-incident.ajukan-ulang.submit');
 
   // Service Categories CRUD + Limit Rules
   // Service Categories - Superadmin Only

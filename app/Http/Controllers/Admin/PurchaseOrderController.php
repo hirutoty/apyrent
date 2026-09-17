@@ -927,6 +927,13 @@ class PurchaseOrderController extends Controller
             'parts'          => $approvedParts,
             'item_decisions' => array_values($allPartDecisions),
         ]);
+
+        // service_incident: reset total_biaya_override agar nominal Pembayaran
+        // hanya hitungan parts yang diapprove, bukan semua parts original
+        if ($po->source_type === 'service_incident') {
+            $approvedSourceData['total_biaya_override'] = $nominalApproved;
+        }
+
         $pembayaran = $this->approvalService->approveWithItems($po, $approvedSourceData, $perItemBukti, $catatan, $hasRejected);
 
         // Item yang ditolak → buat PO baru terpisah dengan status Ditolak

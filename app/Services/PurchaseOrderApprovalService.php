@@ -45,6 +45,10 @@ class PurchaseOrderApprovalService
             $nominal = collect($approvedSourceData['gps_items'] ?? [])->sum(fn($i) => $i['biaya_sewa'] ?? 0);
         } elseif ($sourceType === 'service_part') {
             $nominal = collect($approvedSourceData['parts'] ?? [])->sum(fn($p) => $p['biaya'] ?? 0);
+        } elseif ($sourceType === 'service_incident') {
+            $nominal = floatval($approvedSourceData['total_biaya_override'] ?? 0) > 0
+                ? floatval($approvedSourceData['total_biaya_override'])
+                : collect($approvedSourceData['parts'] ?? [])->sum(fn($p) => $p['biaya'] ?? 0);
         } elseif (in_array($sourceType, ['pajak', 'pajak_perpanjang'])) {
             $nominal = floatval($approvedSourceData['nominal'] ?? 0);
         } elseif (in_array($sourceType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
@@ -79,6 +83,14 @@ class PurchaseOrderApprovalService
         
         if ($sourceType === 'service_part') {
             // Service part: bank info is per-part, take from first approved part
+            $firstPart = ($approvedSourceData['parts'] ?? [])[0] ?? null;
+            if ($firstPart) {
+                $namaBank = $firstPart['nama_bank'] ?? null;
+                $noRekening = $firstPart['no_rekening'] ?? null;
+                $namaPemilik = $firstPart['nama_rekening'] ?? $firstPart['nama_pemilik'] ?? null;
+            }
+        } elseif ($sourceType === 'service_incident') {
+            // Service incident: bank info is per-part, take from first approved part
             $firstPart = ($approvedSourceData['parts'] ?? [])[0] ?? null;
             if ($firstPart) {
                 $namaBank = $firstPart['nama_bank'] ?? null;
@@ -271,6 +283,22 @@ class PurchaseOrderApprovalService
 
             // Untuk GPS: hapus record Ditolak lama, buat records Pending baru
             $newGpsRecordIds = [];
+
+            // ── SERVICE INCIDENT: reset record lama ke Pending ─────────────────
+            if ($sourceType === 'service_incident') {
+                $oldSourceData = $po->source_data ?? [];
+                $incidentId    = $oldSourceData['service_incident_id'] ?? null;
+                if ($incidentId) {
+                    \App\Models\ServiceIncident::where('id', $incidentId)
+                        ->update([
+                            'persetujuan'   => 'Pending',
+                            'pembayaran_id' => null,
+                        ]);
+                    // Pastikan service_incident_id tersimpan di data baru
+                    $newData['service_incident_id'] = $incidentId;
+                }
+            }
+
             if ($sourceType === 'gps') {
                 $oldSourceData = $po->source_data ?? [];
                 $oldRecordIds  = $oldSourceData['gps_record_ids'] ?? [];
@@ -435,13 +463,14 @@ class PurchaseOrderApprovalService
     protected function generateNoPRFromSourceType(string $sourceType): string
     {
         $typeMap = [
-            'gps' => 'GPS',
-            'asuransi_kendaraan' => 'ASR',
-            'pajak' => 'PJK',
-            'kir' => 'KIR',
-            'stnk' => 'STN',
-            'service_part' => 'SVC',
-            'service_asuransi' => 'SAS',
+            'gps'               => 'GPS',
+            'asuransi_kendaraan'=> 'ASR',
+            'pajak'             => 'PJK',
+            'kir'               => 'KIR',
+            'stnk'              => 'STN',
+            'service_part'      => 'SVC',
+            'service_asuransi'  => 'SAS',
+            'service_incident'  => 'SIN',
         ];
 
         $typeCode = $typeMap[$sourceType] ?? 'PGL';
@@ -470,14 +499,15 @@ class PurchaseOrderApprovalService
     protected function buildAlasanPermintaan(string $sourceType, array $sourceData, PurchaseOrder $po): string
     {
         return match ($sourceType) {
-            'gps' => 'Pembayaran GPS Kendaraan (via PO #' . $po->po_id . ') - ' . ($sourceData['keterangan'] ?? 'N/A'),
-            'asuransi_kendaraan' => 'Pembayaran Asuransi Kendaraan (via PO #' . $po->po_id . ') - ' . ($sourceData['keterangan'] ?? 'N/A'),
-            'pajak' => 'Pembayaran Pajak Kendaraan (via PO #' . $po->po_id . ') - ' . ($sourceData['jenis_pajak'] ?? 'N/A'),
-            'kir' => 'Pembayaran KIR Kendaraan (via PO #' . $po->po_id . ')',
-            'stnk' => 'Pembayaran STNK Kendaraan (via PO #' . $po->po_id . ')',
-            'service_part' => 'Pembelian Service Part (via PO #' . $po->po_id . ')',
-            'service_asuransi' => 'Klaim Asuransi Service (via PO #' . $po->po_id . ')',
-            default => 'Pengeluaran Kendaraan (via PO #' . $po->po_id . ')',
+            'gps'               => 'Pembayaran GPS Kendaraan (via PO #' . $po->po_id . ') - ' . ($sourceData['keterangan'] ?? 'N/A'),
+            'asuransi_kendaraan'=> 'Pembayaran Asuransi Kendaraan (via PO #' . $po->po_id . ') - ' . ($sourceData['keterangan'] ?? 'N/A'),
+            'pajak'             => 'Pembayaran Pajak Kendaraan (via PO #' . $po->po_id . ') - ' . ($sourceData['jenis_pajak'] ?? 'N/A'),
+            'kir'               => 'Pembayaran KIR Kendaraan (via PO #' . $po->po_id . ')',
+            'stnk'              => 'Pembayaran STNK Kendaraan (via PO #' . $po->po_id . ')',
+            'service_part'      => 'Pembelian Service Part (via PO #' . $po->po_id . ')',
+            'service_asuransi'  => 'Klaim Asuransi Service (via PO #' . $po->po_id . ')',
+            'service_incident'  => 'Service Insiden Kendaraan (via PO #' . $po->po_id . ') - ' . ($sourceData['keterangan'] ?? 'N/A'),
+            default             => 'Pengeluaran Kendaraan (via PO #' . $po->po_id . ')',
         };
     }
 
@@ -487,14 +517,17 @@ class PurchaseOrderApprovalService
     protected function extractNominalFromData(string $sourceType, array $data): float
     {
         return match ($sourceType) {
-            'gps' => collect($data['gps_items'] ?? [])->sum(fn($item) => floatval($item['biaya_sewa'] ?? 0)),
-            'asuransi_kendaraan' => floatval($data['biaya'] ?? $data['premi'] ?? 0),
-            'pajak' => floatval($data['nominal'] ?? 0),
-            'kir' => floatval($data['biaya'] ?? 0),
-            'stnk' => floatval($data['biaya'] ?? 0),
-            'service_part' => collect($data['parts'] ?? [])->sum(fn($p) => floatval($p['biaya'] ?? 0)),
-            'service_asuransi' => floatval($data['biaya'] ?? 0),
-            default => 0,
+            'gps'               => collect($data['gps_items'] ?? [])->sum(fn($item) => floatval($item['biaya_sewa'] ?? 0)),
+            'asuransi_kendaraan'=> floatval($data['biaya'] ?? $data['premi'] ?? 0),
+            'pajak'             => floatval($data['nominal'] ?? 0),
+            'kir'               => floatval($data['biaya'] ?? 0),
+            'stnk'              => floatval($data['biaya'] ?? 0),
+            'service_part'      => collect($data['parts'] ?? [])->sum(fn($p) => floatval($p['biaya'] ?? 0)),
+            'service_asuransi'  => floatval($data['biaya'] ?? 0),
+            'service_incident'  => floatval($data['total_biaya_override'] ?? 0) > 0
+                                    ? floatval($data['total_biaya_override'])
+                                    : collect($data['parts'] ?? [])->sum(fn($p) => floatval($p['biaya'] ?? 0)),
+            default             => 0,
         };
     }
 
@@ -504,9 +537,10 @@ class PurchaseOrderApprovalService
     protected function extractTotalItemsFromData(string $sourceType, array $data): int
     {
         return match ($sourceType) {
-            'gps' => count($data['gps_items'] ?? []),
-            'service_part' => count($data['parts'] ?? []),
-            default => 1,
+            'gps'              => count($data['gps_items'] ?? []),
+            'service_part'     => count($data['parts'] ?? []),
+            'service_incident' => count($data['parts'] ?? []),
+            default            => 1,
         };
     }
 

@@ -243,6 +243,7 @@ class Pembayaran extends Model
             'kir_perpanjang'                => 'Perpanjangan KIR',
             'stnk'                          => 'STNK',
             'service_asuransi'              => 'Service Asuransi',
+            'service_incident'              => 'Service Incident',
             'purchase_order'                => 'Purchase Order',
             default => $this->tipe_pembayaran ?? 'Belanja',
         };

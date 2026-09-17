@@ -551,13 +551,22 @@
             <form id="formPerpanjang" method="POST" enctype="multipart/form-data">
                 @csrf
 
+                {{-- Info kendaraan badge (sama dengan GPS/Pajak/KIR/Asuransi) --}}
+                <div class="flex items-center gap-3 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-xl mb-5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-car text-indigo-600 text-sm"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-800" id="perpanjang_kendaraan_text">-</p>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                    <div class="md:col-span-2">
-                        <label class="text-sm font-medium text-slate-700 mb-1 block">Kendaraan</label>
-                        <div class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-slate-50 text-slate-500 cursor-not-allowed select-none">
-                            <span id="perpanjang_kendaraan_text">-</span>
-                        </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Baru <span class="text-red-500">*</span></label>
+                        <input type="number" min="0" name="biaya" id="perpanjang_biaya" required placeholder="0"
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none">
                     </div>
 
                     <div>
@@ -566,41 +575,32 @@
                             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none">
                     </div>
 
+                    <div class="md:col-span-2">
+                        <div class="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
+                            <i class="fa fa-circle-info mt-0.5 flex-shrink-0"></i>
+                            <span>Bukti pembayaran akan diunggah oleh Superadmin saat melakukan approval di halaman Pembayaran.</span>
+                        </div>
+                    </div>
+
                     <div>
-                        <label class="text-sm font-medium text-slate-700 mb-1 block">Biaya Baru <span class="text-red-500">*</span></label>
-                        <input type="number" min="0" name="biaya" id="perpanjang_biaya" required placeholder="0"
-                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                        <label class="text-sm font-medium text-slate-700 mb-1 block">Nama Bank</label>
+                        <input type="text" name="nama_bank" id="perpanjang_nama_bank"
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                            placeholder="Contoh: BRI, BCA, Mandiri">
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 mb-1 block">No. Rekening</label>
+                        <input type="text" name="no_rekening" id="perpanjang_no_rekening"
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                            placeholder="Nomor rekening tujuan">
                     </div>
 
                     <div class="md:col-span-2">
-                        <label class="text-sm font-medium text-slate-700 mb-1 block">Bukti Bayar Baru</label>
-
-                        <div id="perpanjangPreviewWrap" class="hidden mb-3 relative">
-                            <img id="perpanjangPreviewImg" src=""
-                                class="hidden h-36 w-full rounded-xl border border-slate-200 object-cover cursor-pointer"
-                                onclick="window.open(this.src,'_blank')">
-                            <a id="perpanjangPreviewFile" href="#" target="_blank"
-                                class="hidden flex items-center gap-3 p-4 border rounded-xl bg-slate-50 hover:bg-slate-100">
-                                <i class="fa-solid fa-file text-2xl text-red-500"></i>
-                                <div>
-                                    <div class="font-medium text-sm text-slate-700">File Bukti</div>
-                                    <div class="text-xs text-slate-500">Klik untuk membuka file</div>
-                                </div>
-                            </a>
-                            <button type="button" onclick="hapusPerpanjangPreview()"
-                                class="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs flex items-center justify-center">
-                                <i class="fa-solid fa-xmark text-[10px]"></i>
-                            </button>
-                        </div>
-
-                        <label for="bukti_perpanjang"
-                            class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-green-400 hover:bg-green-50 transition">
-                            <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-1"></i>
-                            <span class="text-xs text-slate-500">Klik untuk upload file</span>
-                            <span class="text-xs text-slate-400">(Maks 5MB)</span>
-                        </label>
-                        <input type="file" name="bukti" id="bukti_perpanjang" accept=".jpg,.jpeg,.png,.pdf"
-                            class="hidden" onchange="previewBuktiPerpanjang(this)">
+                        <label class="text-sm font-medium text-slate-700 mb-1 block">Nama Pemilik Rekening</label>
+                        <input type="text" name="nama_pemilik" id="perpanjang_nama_pemilik"
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                            placeholder="Nama pemilik rekening">
                     </div>
 
                 </div>

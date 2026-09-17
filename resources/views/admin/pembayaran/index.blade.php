@@ -353,7 +353,6 @@
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Departemen</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Pemohon</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Keterangan</th>
-                                        <th class="text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Lampiran</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Nominal</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Status</th>
@@ -462,12 +461,6 @@
                                             @else
                                                 <span class="text-xs text-gray-300">—</span>
                                             @endif
-                                        </td>
-                                        <td class="px-3 py-3 text-center">
-                                            @include('admin.partials._lampiran_files', [
-                                                'tempFiles' => (is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []))['temp_files'] ?? [],
-                                                'compact'   => true,
-                                            ])
                                         </td>
                                         <td class="px-3 py-3">
                                             <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
@@ -765,6 +758,36 @@
                                                         @if(isset($sd['tanggal_jatuh_tempo']))<div><p class="text-[10px] text-gray-400 uppercase">Jatuh Tempo</p><p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_jatuh_tempo'])->format('d M Y') }}</p></div>@endif
                                                         <div><p class="text-[10px] text-gray-400 uppercase">Nominal</p><p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['nominal']??$d->nominal??0,0,',','.') }}</p></div>
                                                     </div>
+                                                    @php
+                                                        // Lampiran dari temp_files (baru) atau DB attachments (lama)
+                                                        $pajakLampiran = $sd['temp_files']['attachments'] ?? [];
+                                                        if (empty($pajakLampiran)) {
+                                                            $pajakExistingId = $sd['existing_record_id'] ?? null;
+                                                            if ($pajakExistingId) {
+                                                                $pajakAttachments = \App\Models\Attachment::where('relation_type', 'pajak')
+                                                                    ->where('relation_id', $pajakExistingId)->get();
+                                                                foreach ($pajakAttachments as $att) {
+                                                                    $pajakLampiran[] = [
+                                                                        'original_name' => $att->file_name,
+                                                                        'public_url'    => asset($att->file_path),
+                                                                    ];
+                                                                }
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    @if(!empty($pajakLampiran))
+                                                    <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-blue-100 pt-2">
+                                                        <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
+                                                        @foreach($pajakLampiran as $plf)
+                                                            @php $plfUrl = $plf['public_url'] ?? (isset($plf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($plf['path']) : null); @endphp
+                                                            @if($plfUrl)
+                                                                <a href="{{ $plfUrl }}" target="_blank"
+                                                                    class="text-xs text-blue-600 hover:underline truncate max-w-[200px]"
+                                                                    title="{{ $plf['original_name'] ?? '' }}">{{ $plf['original_name'] ?? 'file' }}</a>
+                                                            @endif
+                                                        @endforeach
+                                                    </div>
+                                                    @endif
                                                     {{-- Asuransi --}}
                                                     @elseif(in_array($d->source_type,['asuransi_kendaraan','asuransi_kendaraan_perpanjang']))
                                                     @php $asr = isset($sd['asuransi_id']) ? \App\Models\Asuransi::find($sd['asuransi_id']) : null; $jAsr = isset($sd['jenis_asuransi_id']) ? \App\Models\JenisAsuransi::find($sd['jenis_asuransi_id']) : null; @endphp
@@ -774,6 +797,26 @@
                                                         @if(isset($sd['no_polis']))<div><p class="text-[10px] text-gray-400 uppercase">No. Polis</p><p class="text-xs font-mono text-gray-700">{{ $sd['no_polis'] }}</p></div>@endif
                                                         <div><p class="text-[10px] text-gray-400 uppercase">Premi</p><p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['premi']??$d->nominal??0,0,',','.') }}</p></div>
                                                     </div>
+                                                    @php
+                                                        $asrLampiran = $sd['temp_files']['attachments'] ?? [];
+                                                        if (empty($asrLampiran)) {
+                                                            $asrExistingId = $sd['existing_record_id'] ?? null;
+                                                            if ($asrExistingId) {
+                                                                foreach (\App\Models\Attachment::where('relation_type','asuransi')->where('relation_id',$asrExistingId)->get() as $att) {
+                                                                    $asrLampiran[] = ['original_name'=>$att->file_name,'public_url'=>asset($att->file_path)];
+                                                                }
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    @if(!empty($asrLampiran))
+                                                    <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-purple-100 pt-2">
+                                                        <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
+                                                        @foreach($asrLampiran as $alf)
+                                                            @php $alfUrl = $alf['public_url'] ?? (isset($alf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($alf['path']) : null); @endphp
+                                                            @if($alfUrl)<a href="{{ $alfUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline truncate max-w-[200px]" title="{{ $alf['original_name']??'' }}">{{ $alf['original_name']??'file' }}</a>@endif
+                                                        @endforeach
+                                                    </div>
+                                                    @endif
                                                     {{-- KIR --}}
                                                     @elseif(in_array($d->source_type,['kir','kir_perpanjang']))
                                                     <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -782,6 +825,26 @@
                                                         @if(isset($sd['tanggal_habis_kir']))<div><p class="text-[10px] text-gray-400 uppercase">Berlaku s/d</p><p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_habis_kir'])->format('d M Y') }}</p></div>@endif
                                                         <div><p class="text-[10px] text-gray-400 uppercase">Biaya</p><p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya']??$d->nominal??0,0,',','.') }}</p></div>
                                                     </div>
+                                                    @php
+                                                        $kirLampiran = $sd['temp_files']['attachments'] ?? [];
+                                                        if (empty($kirLampiran)) {
+                                                            $kirExistingId = $sd['existing_record_id'] ?? null;
+                                                            if ($kirExistingId) {
+                                                                foreach (\App\Models\Attachment::where('relation_type','kir')->where('relation_id',$kirExistingId)->get() as $att) {
+                                                                    $kirLampiran[] = ['original_name'=>$att->file_name,'public_url'=>asset($att->file_path)];
+                                                                }
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    @if(!empty($kirLampiran))
+                                                    <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-teal-100 pt-2">
+                                                        <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
+                                                        @foreach($kirLampiran as $klf)
+                                                            @php $klfUrl = $klf['public_url'] ?? (isset($klf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($klf['path']) : null); @endphp
+                                                            @if($klfUrl)<a href="{{ $klfUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline truncate max-w-[200px]" title="{{ $klf['original_name']??'' }}">{{ $klf['original_name']??'file' }}</a>@endif
+                                                        @endforeach
+                                                    </div>
+                                                    @endif
                                                     {{-- STNK --}}
                                                     @elseif($d->source_type === 'stnk')
                                                     <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -789,6 +852,26 @@
                                                         @if(isset($sd['tanggal_stnk']))<div><p class="text-[10px] text-gray-400 uppercase">Tgl STNK</p><p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_stnk'])->format('d M Y') }}</p></div>@endif
                                                         <div><p class="text-[10px] text-gray-400 uppercase">Biaya</p><p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya']??$d->nominal??0,0,',','.') }}</p></div>
                                                     </div>
+                                                    @php
+                                                        $stnkLampiran = $sd['temp_files']['attachments'] ?? [];
+                                                        if (empty($stnkLampiran)) {
+                                                            $stnkExistingId = $sd['existing_record_id'] ?? null;
+                                                            if ($stnkExistingId) {
+                                                                foreach (\App\Models\Attachment::where('relation_type','stnk')->where('relation_id',$stnkExistingId)->get() as $att) {
+                                                                    $stnkLampiran[] = ['original_name'=>$att->file_name,'public_url'=>asset($att->file_path)];
+                                                                }
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    @if(!empty($stnkLampiran))
+                                                    <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-indigo-100 pt-2">
+                                                        <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
+                                                        @foreach($stnkLampiran as $slf)
+                                                            @php $slfUrl = $slf['public_url'] ?? (isset($slf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($slf['path']) : null); @endphp
+                                                            @if($slfUrl)<a href="{{ $slfUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline truncate max-w-[200px]" title="{{ $slf['original_name']??'' }}">{{ $slf['original_name']??'file' }}</a>@endif
+                                                        @endforeach
+                                                    </div>
+                                                    @endif
                                                     {{-- GPS --}}
                                                     @elseif(in_array($d->source_type, ['gps', 'gps_perpanjang']))
                                                     @php
@@ -823,6 +906,7 @@
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Berlaku s/d</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Lampiran</th>
                                                                 <th class="text-right px-4 py-2 font-semibold text-gray-500">Biaya Sewa</th>
                                                                 @if($itemDecMap->isNotEmpty())
                                                                     <th class="text-center px-4 py-2 font-semibold text-gray-500">Status</th>
@@ -853,6 +937,25 @@
                                                                 </td>
                                                                 <td class="px-4 py-2 text-gray-600">{{ $gitem['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 font-mono text-gray-600">{{ $gitem['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2">
+                                                                    @php
+                                                                        $gpsLamp = $sd['temp_files']['gps_items'][$gi]['lampiran'] ?? [];
+                                                                    @endphp
+                                                                    @if(!empty($gpsLamp))
+                                                                        <div class="flex flex-col gap-0.5">
+                                                                        @foreach($gpsLamp as $gf)
+                                                                            @php $gfUrl = isset($gf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($gf['path']) : null; @endphp
+                                                                            @if($gfUrl)
+                                                                                <a href="{{ $gfUrl }}" target="_blank"
+                                                                                    class="text-[11px] text-blue-600 hover:underline truncate max-w-[120px]"
+                                                                                    title="{{ $gf['original_name'] ?? '' }}">{{ $gf['original_name'] ?? 'file' }}</a>
+                                                                            @endif
+                                                                        @endforeach
+                                                                        </div>
+                                                                    @else
+                                                                        <span class="text-gray-300 text-[10px]">—</span>
+                                                                    @endif
+                                                                </td>
                                                                 <td class="px-4 py-2 text-right font-semibold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                     Rp {{ number_format($gitem['biaya_sewa'] ?? 0, 0, ',', '.') }}
                                                                 </td>
@@ -872,7 +975,7 @@
                                                             </tr>
                                                         @endforeach
                                                             <tr class="border-t-2 border-gray-200 bg-gray-50">
-                                                                <td colspan="{{ $itemDecMap->isNotEmpty() ? 7 : 6 }}" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
+                                                                <td colspan="{{ $itemDecMap->isNotEmpty() ? 8 : 7 }}" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
                                                                 <td class="px-4 py-2 text-right text-sm font-bold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                     Rp {{ number_format($totalFiltered, 0, ',', '.') }}
                                                                 </td>

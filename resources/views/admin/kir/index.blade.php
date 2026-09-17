@@ -578,13 +578,18 @@
         </div>
         <form id="formPerpanjang" method="POST" enctype="multipart/form-data" class="px-6 py-5">
             @csrf
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div class="sm:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Kendaraan</label>
-                    <div class="w-full border rounded-lg px-3 py-2 bg-gray-100 text-sm text-gray-700 cursor-not-allowed select-none">
-                        <span id="perpanjang_kendaraan_text">-</span>
-                    </div>
+
+            {{-- Info kendaraan badge (sama dengan GPS/Pajak) --}}
+            <div class="flex items-center gap-3 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-xl mb-5">
+                <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid fa-car text-indigo-600 text-sm"></i>
                 </div>
+                <div>
+                    <p class="text-sm font-semibold text-slate-800" id="perpanjang_kendaraan_text">-</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">No Uji Baru <span class="text-red-500">*</span></label>
                     <input type="text" name="no_uji" id="perpanjang_no_uji" required
@@ -597,17 +602,17 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Ketentuan Bayar <span class="text-red-500">*</span></label>
+                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar" required
+                        value="{{ now()->format('Y-m-d') }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Masa Berlaku Baru</label>
-                    <div class="w-full border rounded-lg px-3 py-2 bg-gray-100 text-sm text-gray-500 cursor-not-allowed">
+                    <div class="w-full border rounded-lg px-3 py-2 bg-gray-100 text-sm text-gray-600 cursor-not-allowed">
                         <span id="perpanjang_masa_berlaku_text">Otomatis masa berlaku lama + 6 bulan</span>
                     </div>
                     <p class="text-xs text-gray-400 mt-1">Dihitung otomatis saat disetujui</p>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Ketentuan Bayar</label>
-                    <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar"
-                        value="{{ now()->format('Y-m-d') }}"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div class="sm:col-span-2">
                     <div class="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
@@ -619,13 +624,19 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Bank</label>
                     <input type="text" name="nama_bank" id="perpanjang_nama_bank"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                        placeholder="Contoh: BRI, BCA">
+                        placeholder="Contoh: BRI, BCA, Mandiri">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">No. Rekening</label>
                     <input type="text" name="no_rekening" id="perpanjang_no_rekening"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                         placeholder="Nomor rekening tujuan">
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Pemilik Rekening</label>
+                    <input type="text" name="nama_pemilik" id="perpanjang_nama_pemilik"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                        placeholder="Nama pemilik rekening">
                 </div>
             </div>
             <div class="flex gap-3 pt-4">

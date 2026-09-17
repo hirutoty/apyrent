@@ -397,7 +397,10 @@
                                             data-biaya="{{ $d->biaya_sewa }}"
                                             data-tanggal-habis="{{ $d->tanggal_habis ? \Carbon\Carbon::parse($d->tanggal_habis)->format('Y-m-d') : '' }}"
                                             data-tanggal-habis-baru="{{ $d->tanggal_habis ? \Carbon\Carbon::parse($d->tanggal_habis)->addYear()->format('Y-m-d') : '' }}"
-                                            data-tanggal-bayar="{{ $d->tanggal_bayar ? \Carbon\Carbon::parse($d->tanggal_bayar)->format('Y-m-d') : '' }}">
+                                            data-tanggal-bayar="{{ $d->tanggal_bayar ? \Carbon\Carbon::parse($d->tanggal_bayar)->format('Y-m-d') : '' }}"
+                                            data-nama-bank="{{ addslashes($d->nama_bank ?? '') }}"
+                                            data-no-rekening="{{ addslashes($d->no_rekening ?? '') }}"
+                                            data-nama-pemilik="{{ addslashes($d->nama_pemilik ?? '') }}">
                                             <i class="fa-solid fa-rotate-right text-xs"></i> Perpanjang
                                         </button>
                                         @endif
@@ -405,7 +408,7 @@
                                         
                                         {{-- Edit --}}
                                         <button
-                                            onclick="openEditGpsModal({{ $d->id }}, {{ $d->biaya_sewa }}, '{{ $d->tanggal_bayar ? \Carbon\Carbon::parse($d->tanggal_bayar)->format('Y-m-d') : '' }}', '{{ addslashes($d->nama_bank ?? '') }}', '{{ addslashes($d->no_rekening ?? '') }}', '{{ addslashes($d->nama_pemilik ?? '') }}')"
+                                            onclick="openEditGpsModal({{ $d->id }}, {{ $d->kendaraan_id }}, {{ $d->gps_id ?? 'null' }}, '{{ addslashes($d->type) }}', '{{ $d->status_sewa }}', '{{ $d->status_gps }}', '{{ $d->tanggal_habis ? \Carbon\Carbon::parse($d->tanggal_habis)->format('Y-m-d') : '' }}', '{{ $d->tanggal_buat ? \Carbon\Carbon::parse($d->tanggal_buat)->format('Y-m-d') : '' }}', {{ $d->durasi_bulan ?? 12 }}, '{{ $d->tanggal_bayar ? \Carbon\Carbon::parse($d->tanggal_bayar)->format('Y-m-d') : '' }}', {{ $d->biaya_sewa }}, '{{ addslashes($d->nama_bank ?? '') }}', '{{ addslashes($d->no_rekening ?? '') }}', '{{ addslashes($d->nama_pemilik ?? '') }}')"
                                             class="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-xs font-medium transition inline-flex items-center gap-1">
                                             <i class="fa-solid fa-pen-to-square text-xs"></i> Edit
                                         </button>
@@ -1211,6 +1214,9 @@
             const tanggalHabis   = btn.dataset.tanggalHabis;
             const tanggalHabisBaru = btn.dataset.tanggalHabisBaru;
             const tanggalBayarLama = btn.dataset.tanggalBayar;
+            const namaBank       = btn.dataset.namaBank || '';
+            const noRekening     = btn.dataset.noRekening || '';
+            const namaPemilik    = btn.dataset.namaPemilik || '';
 
             // Action ke route perpanjang per-ID
             formPerpanjang.action = `/admin/gps-kendaraan/${gpsId}/perpanjang`;
@@ -1268,6 +1274,34 @@
                             data-gps-id="${gpsId}"
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                         <p class="text-[10px] text-slate-400 mt-0.5">Perubahan harga otomatis tersimpan ke data GPS.</p>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <div class="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
+                            <i class="fa fa-circle-info mt-0.5 flex-shrink-0"></i>
+                            <span>Bukti pembayaran akan diunggah oleh Superadmin saat melakukan approval di halaman Pembayaran.</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Nama Bank</label>
+                        <input type="text" name="nama_bank" id="perp_nama_bank"
+                            value="${namaBank || ''}" placeholder="Contoh: BRI, BCA, Mandiri"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">No. Rekening</label>
+                        <input type="text" name="no_rekening" id="perp_no_rekening"
+                            value="${noRekening || ''}" placeholder="Nomor rekening tujuan"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Nama Pemilik Rekening</label>
+                        <input type="text" name="nama_pemilik" id="perp_nama_pemilik"
+                            value="${namaPemilik || ''}" placeholder="Nama pemilik rekening"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                 </div>
             `;
@@ -1521,64 +1555,31 @@
         });
 
         // ── MODAL EDIT GPS ────────────────────────────────────────────────────
-        let _editGpsId = null;
-
-        function openEditGpsModal(id, biayaSewa, tanggalBayar, namaBank, noRekening, namaPemilik) {
-            _editGpsId = id;
-            document.getElementById('editGpsBiaya').value        = biayaSewa || 0;
+        function openEditGpsModal(id, kendaraanId, gpsId, type, statusSewa, statusGps, tanggalHabis, tanggalBuat, durasiBulan, tanggalBayar, biayaSewa, namaBank, noRekening, namaPemilik) {
+            document.getElementById('formEditGps').action = '/admin/gps-kendaraan/' + id;
+            document.getElementById('editGpsKendaraanId').value  = kendaraanId  || '';
+            document.getElementById('editGpsGpsId').value        = gpsId        || '';
+            document.getElementById('editGpsType').value         = type         || '';
+            document.getElementById('editGpsStatusSewa').value   = statusSewa   || '';
+            document.getElementById('editGpsStatusGps').value    = statusGps    || '';
+            document.getElementById('editGpsTanggalHabis').value = tanggalHabis || '';
+            document.getElementById('editGpsTanggalBuat').value  = tanggalBuat  || '';
+            document.getElementById('editGpsDurasiBulan').value  = durasiBulan  || 12;
             document.getElementById('editGpsTanggalBayar').value = tanggalBayar || '';
-            document.getElementById('editGpsNamaBank').value     = namaBank    || '';
-            document.getElementById('editGpsNoRekening').value   = noRekening  || '';
-            document.getElementById('editGpsNamaPemilik').value  = namaPemilik || '';
+            document.getElementById('editGpsBiaya').value        = biayaSewa    || 0;
+            document.getElementById('editGpsNamaBank').value     = namaBank     || '';
+            document.getElementById('editGpsNoRekening').value   = noRekening   || '';
+            document.getElementById('editGpsNamaPemilik').value  = namaPemilik  || '';
+
             const modal = document.getElementById('modalEditGps');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         }
 
         function closeEditGpsModal() {
-            _editGpsId = null;
             const modal = document.getElementById('modalEditGps');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
-        }
-
-        async function submitEditGps() {
-            if (!_editGpsId) return;
-            const btn         = document.getElementById('editGpsSubmitBtn');
-            const token       = document.querySelector('meta[name="csrf-token"]')?.content || '';
-            const biaya       = document.getElementById('editGpsBiaya').value;
-            const tanggalBayar = document.getElementById('editGpsTanggalBayar').value;
-
-            if (!biaya || !tanggalBayar) {
-                alert('Biaya Sewa dan Tanggal Bayar wajib diisi.');
-                return;
-            }
-
-            btn.disabled  = true;
-            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Menyimpan...';
-
-            const formData = new FormData();
-            formData.append('_token',        token);
-            formData.append('_method',       'PUT');
-            formData.append('biaya_sewa',    biaya);
-            formData.append('tanggal_bayar', tanggalBayar);
-
-            try {
-                const res    = await fetch('/admin/gps-kendaraan/' + _editGpsId, { method: 'POST', body: formData });
-                const result = await res.json();
-                if (result.success) {
-                    closeEditGpsModal();
-                    window.location.reload();
-                } else {
-                    alert(result.message || 'Terjadi kesalahan.');
-                    btn.disabled  = false;
-                    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan';
-                }
-            } catch (e) {
-                alert('Terjadi kesalahan jaringan.');
-                btn.disabled  = false;
-                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan';
-            }
         }
 
         document.getElementById('modalEditGps')?.addEventListener('click', function(e) {
@@ -1716,63 +1717,71 @@
 </div>
 
 {{-- MODAL: EDIT GPS KENDARAAN --}}
-<div id="modalEditGps" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="text-base font-bold text-gray-800">Edit GPS Kendaraan</h3>
+<div id="modalEditGps" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30"
+    style="backdrop-filter:blur(2px)">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+        style="animation:slideUp .2s ease">
+
+        <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div>
+                <h2 class="text-base font-bold text-gray-800">Edit GPS Kendaraan</h2>
+                <p class="text-xs text-gray-500 mt-0.5">Perbarui data GPS kendaraan</p>
+            </div>
             <button onclick="closeEditGpsModal()"
-                class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition flex items-center justify-center">
-                <i class="fa-solid fa-xmark"></i>
+                class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
+                <i class="fa fa-times"></i>
             </button>
         </div>
-        <div class="px-6 py-4 space-y-4">
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Biaya Sewa (Rp) <span class="text-red-500">*</span></label>
-                <input type="number" id="editGpsBiaya" min="0"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-100 focus:border-yellow-400">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar <span class="text-red-500">*</span></label>
-                <input type="date" id="editGpsTanggalBayar"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-100 focus:border-yellow-400">
-            </div>
-            <div class="pt-1 pb-0.5">
-                <div class="flex items-center gap-2">
-                    <div class="h-px flex-1 bg-gray-100"></div>
-                    <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                        <i class="fa-solid fa-building-columns text-[9px]"></i> Info Bank Tujuan
-                    </span>
-                    <div class="h-px flex-1 bg-gray-100"></div>
-                </div>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Bank</label>
-                <input type="text" id="editGpsNamaBank" placeholder="Contoh: Bank Mandiri"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-100 focus:border-yellow-400">
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">No. Rekening</label>
-                    <input type="text" id="editGpsNoRekening" placeholder="Nomor rekening"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-100 focus:border-yellow-400">
+
+        <form id="formEditGps" method="POST" class="px-6 py-5">
+            @csrf
+            @method('PUT')
+            {{-- Hidden fields — nilai tidak berubah, dikirim agar controller tidak error --}}
+            <input type="hidden" name="kendaraan_id"  id="editGpsKendaraanId">
+            <input type="hidden" name="gps_id"        id="editGpsGpsId">
+            <input type="hidden" name="type"          id="editGpsType">
+            <input type="hidden" name="status_sewa"   id="editGpsStatusSewa">
+            <input type="hidden" name="status_gps"    id="editGpsStatusGps">
+            <input type="hidden" name="tanggal_habis" id="editGpsTanggalHabis">
+            <input type="hidden" name="tanggal_buat"  id="editGpsTanggalBuat">
+            <input type="hidden" name="durasi_bulan"  id="editGpsDurasiBulan">
+            <input type="hidden" name="tanggal_bayar" id="editGpsTanggalBayar">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya Sewa <span class="text-red-500">*</span></label>
+                    <input type="number" min="0" name="biaya_sewa" id="editGpsBiaya" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Pemilik</label>
-                    <input type="text" id="editGpsNamaPemilik" placeholder="Nama pemilik rekening"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-100 focus:border-yellow-400">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Pemilik Rekening</label>
+                    <input type="text" name="nama_pemilik" id="editGpsNamaPemilik"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nama Bank</label>
+                    <input type="text" name="nama_bank" id="editGpsNamaBank"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">No. Rekening</label>
+                    <input type="text" name="no_rekening" id="editGpsNoRekening"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
             </div>
-        </div>
-        <div class="border-t border-gray-100 px-6 py-4 flex gap-2">
-            <button type="button" onclick="closeEditGpsModal()"
-                class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition">
-                Batal
-            </button>
-            <button type="button" id="editGpsSubmitBtn" onclick="submitEditGps()"
-                class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-yellow-500 hover:bg-yellow-600 rounded-xl py-2.5 transition">
-                <i class="fa-solid fa-floppy-disk"></i> Simpan
-            </button>
-        </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="closeEditGpsModal()"
+                    class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-blue-50/50 transition-colors">
+                    Batal
+                </button>
+                <button type="submit"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2">
+                    <i class="fa fa-save text-sm"></i> Update Data
+                </button>
+            </div>
+        </form>
+
     </div>
 </div>
 

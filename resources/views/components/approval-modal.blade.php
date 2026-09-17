@@ -324,11 +324,11 @@
                 {{-- ============================================================
                      SERVICE PART: TABEL PER-PART dengan Approve/Reject inline
                 ============================================================ --}}
-                <div x-show="data?.source_type === 'service_part'">
+                <div x-show="data?.source_type === 'service_part' || data?.source_type === 'service_incident'">
                     <div class="flex items-center justify-between mb-3">
                         <h4 class="font-bold text-gray-800 flex items-center gap-2 text-sm">
                             <i class="bi bi-tools text-orange-600"></i>
-                            Service Parts — Tentukan keputusan per part
+                            <span x-text="data?.source_type === 'service_incident' ? 'Parts Incident — Tentukan keputusan per part' : 'Service Parts — Tentukan keputusan per part'"></span>
                         </h4>
                         {{-- Progress badge --}}
                         <span class="text-xs px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 font-semibold"
@@ -426,8 +426,8 @@
                                          'border-red-200 bg-red-50/20':     itemDecisions[idx]?.action === 'rejected'
                                      }">
 
-                                    {{-- Upload Bukti (untuk approved) --}}
-                                    <div x-show="itemDecisions[idx]?.action === 'approved'" class="space-y-2">
+                                    {{-- Upload Bukti (untuk approved) — hanya untuk service_part, bukan service_incident --}}
+                                    <div x-show="itemDecisions[idx]?.action === 'approved' && data?.source_type !== 'service_incident'" class="space-y-2">
                                         <label class="block">
                                             <span class="text-xs font-semibold text-gray-600 flex items-center gap-1 mb-1">
                                                 <i class="fa-solid fa-paperclip text-green-600"></i>
@@ -486,12 +486,63 @@
                             PR akan berstatus "Disetujui Sebagian"
                         </span>
                     </div>
+
+                    {{-- Upload Bukti Pembayaran Global (khusus service_incident, muncul jika ada yang diapprove) --}}
+                    <div x-show="data?.source_type === 'service_incident' && approvedCount() > 0"
+                         class="mt-4 bg-green-50 rounded-xl p-5 border-2 border-green-200">
+                        <h4 class="font-bold text-gray-800 mb-1 flex items-center gap-2 text-sm">
+                            <i class="bi bi-cloud-upload text-green-600"></i>
+                            Upload Bukti Pembayaran
+                            <span class="text-red-500">*</span>
+                        </h4>
+                        <p class="text-xs text-gray-500 mb-3">Wajib upload minimal 1 file bukti pembayaran</p>
+                        <div class="border-2 border-dashed border-green-300 rounded-lg p-5 text-center bg-white cursor-pointer hover:bg-green-50 transition-colors"
+                             @click="$refs.buktiInputSI.click()"
+                             @dragover.prevent="isDragging = true"
+                             @dragleave.prevent="isDragging = false"
+                             @drop.prevent="handleDrop($event, 'bukti')"
+                             :class="isDragging ? 'border-green-500 bg-green-100' : ''">
+                            <input type="file" x-ref="buktiInputSI"
+                                   @change="handleFileSelect($event, 'bukti')"
+                                   accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.zip"
+                                   multiple class="hidden">
+                            <i class="bi bi-cloud-arrow-up text-3xl text-green-600 mb-1"></i>
+                            <p class="text-xs font-medium text-gray-700">Klik atau drag & drop</p>
+                            <p class="text-[11px] text-gray-400 mt-0.5">JPG, PNG, PDF, DOC, XLS, ZIP (Max 5MB)</p>
+                        </div>
+                        <div x-show="buktiFiles.length > 0" class="mt-3 space-y-2">
+                            <template x-for="(file, index) in buktiFiles" :key="index">
+                                <div class="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-green-200">
+                                    <i class="bi bi-file-check text-green-600 text-sm"></i>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-xs font-medium text-gray-700 truncate" x-text="file.name"></p>
+                                        <p class="text-[11px] text-gray-400" x-text="formatFileSize(file.size)"></p>
+                                    </div>
+                                    <button @click="removeFile(index, 'bukti')" class="text-red-400 hover:text-red-600 rounded p-1">
+                                        <i class="bi bi-x-lg text-xs"></i>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    {{-- Catatan global untuk service_incident --}}
+                    <div x-show="data?.source_type === 'service_incident'" class="mt-3">
+                        <label class="block font-bold text-gray-800 mb-2 flex items-center gap-2 text-sm">
+                            <i class="bi bi-chat-left-text text-blue-600"></i>
+                            Catatan
+                            <span class="text-xs text-gray-400 font-normal">(Opsional)</span>
+                        </label>
+                        <textarea x-model="catatan" rows="2"
+                                  placeholder="Catatan tambahan (opsional)..."
+                                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"></textarea>
+                    </div>
                 </div>
 
                 {{-- ============================================================
                      NON-GPS: Approval global (existing flow)
                 ============================================================ --}}
-                <div x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && data?.source_type !== 'service_part'">
+                <div x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && data?.source_type !== 'service_part' && data?.source_type !== 'service_incident'">
 
                     {{-- Info tambahan non-GPS --}}
                     <div x-show="data?.source_type === 'asuransi_kendaraan'" class="bg-gray-50 rounded-xl p-4 border border-gray-200 text-sm">
@@ -709,12 +760,12 @@
                     Batal
                 </button>
 
-                {{-- GPS/Service Part: Simpan Keputusan --}}
+                {{-- GPS/Service Part/Service Incident: Simpan Keputusan --}}
                 <button
-                    x-show="data?.source_type === 'gps' || data?.source_type === 'gps_perpanjang' || data?.source_type === 'service_part'"
+                    x-show="data?.source_type === 'gps' || data?.source_type === 'gps_perpanjang' || data?.source_type === 'service_part' || data?.source_type === 'service_incident'"
                     @click="submitItemDecisions()"
-                    :disabled="submitting || decidedCount() === 0 || !allRejectedHaveCatatan() || !allApprovedHaveBukti()"
-                    :class="submitting || decidedCount() === 0 || !allRejectedHaveCatatan() || !allApprovedHaveBukti()
+                    :disabled="submitting || decidedCount() === 0 || !allRejectedHaveCatatan() || (data?.source_type !== 'service_incident' && !allApprovedHaveBukti()) || (data?.source_type === 'service_incident' && approvedCount() > 0 && buktiFiles.length === 0)"
+                    :class="(submitting || decidedCount() === 0 || !allRejectedHaveCatatan() || (data?.source_type !== 'service_incident' && !allApprovedHaveBukti()) || (data?.source_type === 'service_incident' && approvedCount() > 0 && buktiFiles.length === 0))
                         ? 'opacity-50 cursor-not-allowed bg-blue-400'
                         : 'bg-blue-600 hover:bg-blue-700'"
                     class="px-5 py-2.5 text-white rounded-lg font-medium transition-colors text-sm flex items-center gap-2">
@@ -728,7 +779,7 @@
 
                 {{-- Non-GPS/Non-ServicePart: Approve --}}
                 <button
-                    x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && data?.source_type !== 'service_part' && actionType === 'approve'"
+                    x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && data?.source_type !== 'service_part' && data?.source_type !== 'service_incident' && actionType === 'approve'"
                     @click="submitApprove()"
                     :disabled="submitting || buktiFiles.length === 0"
                     :class="submitting || buktiFiles.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700'"
@@ -743,7 +794,7 @@
 
                 {{-- Non-GPS: Reject --}}
                 <button
-                    x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && actionType === 'reject'"
+                    x-show="data?.source_type !== 'gps' && data?.source_type !== 'gps_perpanjang' && data?.source_type !== 'service_part' && data?.source_type !== 'service_incident' && actionType === 'reject'"
                     @click="submitReject()"
                     :disabled="submitting || !catatan.trim()"
                     :class="submitting || !catatan.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'"
@@ -829,7 +880,7 @@ function approvalModal() {
             let count = 0;
             if (this.data?.source_type === 'gps' || this.data?.source_type === 'gps_perpanjang') {
                 count = this.relatedData?.gps_items?.length || 0;
-            } else if (this.data?.source_type === 'service_part') {
+            } else if (this.data?.source_type === 'service_part' || this.data?.source_type === 'service_incident') {
                 count = this.sourceData?.parts?.length || 0;
             }
             this.itemDecisions = Array.from({ length: count }, () => ({
@@ -902,8 +953,14 @@ function approvalModal() {
                 alert('Semua item yang ditolak harus memiliki alasan penolakan.');
                 return;
             }
-            if (!this.allApprovedHaveBukti()) {
+            if (!this.allApprovedHaveBukti() && this.data?.source_type !== 'service_incident') {
                 alert('Bukti pembayaran wajib diupload untuk setiap item yang disetujui.');
+                return;
+            }
+
+            // service_incident: wajib upload bukti global jika ada yang diapprove
+            if (this.data?.source_type === 'service_incident' && this.approvedCount() > 0 && this.buktiFiles.length === 0) {
+                alert('Bukti pembayaran wajib diupload minimal 1 file.');
                 return;
             }
 
@@ -923,6 +980,16 @@ function approvalModal() {
                     formData.append(`items[${idx}][bukti]`, decision.buktiFile);
                 }
             });
+
+            // service_incident: kirim bukti global
+            if (this.data?.source_type === 'service_incident') {
+                this.buktiFiles.forEach((file, idx) => {
+                    formData.append(`bukti[${idx}]`, file);
+                });
+                if (this.catatan) {
+                    formData.append('catatan', this.catatan);
+                }
+            }
 
             try {
                 const response = await fetch(`/admin/pembayaran/${this.data.id}/approve-items`, {
