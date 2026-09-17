@@ -533,41 +533,19 @@ class PengeluaranTransferService
         }
         unset($partData);
 
-        // ── Cari ServiceIncident yang sudah ada (dibuat saat store()) ─
-        $incidentId = $sourceData['service_incident_id'] ?? null;
-        $incident   = $incidentId ? \App\Models\ServiceIncident::find($incidentId) : null;
-
-        if ($incident) {
-            // Update record existing
-            $incident->update([
-                'total_biaya'     => $totalBiaya,
-                'status'          => 'tidak_aktif',
-                'status_approval' => 'approved',
-                'approval_by'     => auth()->id(),
-                'approval_at'     => now(),
-                'pembayaran_id'   => $pembayaran->id,
-                'persetujuan'     => 'Disetujui',
-            ]);
-
-            // Hapus parts lama sebelum insert ulang
-            $incident->parts()->delete();
-        } else {
-            // Fallback: buat record baru jika tidak ditemukan
-            \Log::warning("transferServiceIncident: service_incident_id tidak ditemukan di source_data Pembayaran #{$pembayaran->id}, membuat record baru.");
-            $incident = \App\Models\ServiceIncident::create([
-                'kendaraan_id'    => $kendaraanId,
-                'keluhan'         => $sourceData['keluhan'] ?? null,
-                'kilometer'       => $sourceData['kilometer'] ?? 0,
-                'total_biaya'     => $totalBiaya,
-                'status'          => 'tidak_aktif',
-                'tanggal_service' => $sourceData['tanggal_service'] ?? now()->toDateString(),
-                'status_approval' => 'approved',
-                'approval_by'     => auth()->id(),
-                'approval_at'     => now(),
-                'pembayaran_id'   => $pembayaran->id,
-                'persetujuan'     => 'Disetujui',
-            ]);
-        }
+        // ── Buat ServiceIncident header ───────────────────────────────
+        $incident = \App\Models\ServiceIncident::create([
+            'kendaraan_id'    => $kendaraanId,
+            'keluhan'         => $sourceData['keluhan'] ?? null,
+            'kilometer'       => $sourceData['kilometer'] ?? 0,
+            'total_biaya'     => $totalBiaya,
+            'status'          => 'tidak_aktif',
+            'tanggal_service' => $sourceData['tanggal_service'] ?? now()->toDateString(),
+            'status_approval' => 'approved',
+            'approval_by'     => auth()->id(),
+            'approval_at'     => now(),
+            'pembayaran_id'   => $pembayaran->id,
+        ]);
 
         // ── Buat ServiceIncidentPart per part yang diapprove ──────────
         $lastPartId = null;
@@ -618,14 +596,14 @@ class PengeluaranTransferService
                 'posisi'              => $partData['posisi'] ?? null,
                 'tgl_pasang'          => $tglPasang->toDateString(),
                 'kilometer_pasang'    => (int)($partData['kilometer_pasang'] ?? $sourceData['kilometer'] ?? 0),
-                'kondisi'             => $partData['kondisi'] ?? 'Perlu Ganti',
-                'status'              => 'tidak_aktif',
-                'interval_nilai'      => null,
-                'interval_satuan'     => null,
-                'tanggal_limit'       => null,
-                'biaya'               => $biaya,
-                'bukti'               => !empty($buktiFiles) ? $buktiFiles : null,
-                'keterangan_limit'    => null,
+                'kondisi'         => $partData['kondisi'] ?? 'Perlu Ganti',
+                'status'          => 'tidak_aktif',
+                'interval_nilai'  => $intervalNilai,
+                'interval_satuan' => $intervalSatuan,
+                'tanggal_limit'   => $tanggalLimit->toDateString(),
+                'biaya'           => $biaya,
+                'bukti'           => !empty($buktiFiles) ? $buktiFiles : null,
+                'keterangan_limit'    => $partData['keterangan_limit'] ?? $partData['keterangan'] ?? null,
                 'persetujuan'         => 'Disetujui',
                 'supplier_id'         => $partData['supplier_id'] ?? null,
                 'nama_rekening'       => $partData['nama_rekening'] ?? null,

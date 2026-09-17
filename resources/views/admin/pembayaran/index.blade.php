@@ -646,17 +646,10 @@
                                                             @php
                                                                 $sd_ajukan = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
                                                                 $saId = $sd_ajukan['service_asuransi_id'] ?? null;
-                                                                $siId = $sd_ajukan['service_incident_id'] ?? null;
                                                             @endphp
                                                             @if($saId)
                                                             <button type="button"
                                                                 onclick="openAjukanUlangSAModal({{ $saId }}, '{{ $d->no_pr }}')"
-                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
-                                                                <i class="fa fa-rotate-right text-[10px]"></i> Ajukan Ulang
-                                                            </button>
-                                                            @elseif($siId)
-                                                            <button type="button"
-                                                                onclick="openAjukanUlangSIModal({{ $siId }}, '{{ $d->no_pr }}')"
                                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
                                                                 <i class="fa fa-rotate-right text-[10px]"></i> Ajukan Ulang
                                                             </button>
@@ -1251,7 +1244,7 @@
                                                                 <thead>
                                                                     <tr class="bg-blue-50 border-b border-blue-100">
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
-                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kejadian</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
                                                                         <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                         <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                                     </tr>
@@ -1923,66 +1916,6 @@
     </div>
 </div>
 
-{{-- MODAL: AJUKAN ULANG SERVICE INCIDENT (dari halaman Pembayaran) --}}
-<div id="modalAjukanUlangSI" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-            <div>
-                <h3 class="text-base font-bold text-gray-800">Ajukan Ulang — Service Insiden</h3>
-                <p class="text-sm text-gray-500 mt-0.5">PR: <span id="siAjukanPoNumber" class="font-mono font-semibold text-amber-600"></span></p>
-            </div>
-            <button onclick="closeAjukanUlangSIModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100">
-                <i class="fa fa-times"></i>
-            </button>
-        </div>
-
-        {{-- Loading --}}
-        <div id="siAjukanLoading" class="flex items-center justify-center py-16">
-            <div class="flex flex-col items-center gap-2 text-gray-400">
-                <i class="fa fa-spinner fa-spin text-2xl"></i>
-                <p class="text-sm">Memuat data...</p>
-            </div>
-        </div>
-
-        {{-- Body --}}
-        <div id="siAjukanBody" class="hidden flex-1 overflow-y-auto flex flex-col">
-            <div class="px-6 pt-4 pb-2 space-y-2">
-                <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
-                    <p class="font-semibold text-gray-800" id="siAjukanKendaraan">-</p>
-                    <p class="text-xs text-gray-500 mt-0.5" id="siAjukanSubInfo"></p>
-                </div>
-                <div id="siAjukanCatatan" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700"></div>
-            </div>
-
-            <form id="siAjukanForm" class="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
-                @csrf
-                {{-- Total biaya auto-sum --}}
-                <div class="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs text-gray-600">
-                    Total Biaya (auto-sum dari parts):
-                    <span id="siTotalBiaya" class="font-bold text-blue-700 ml-1">Rp 0</span>
-                </div>
-
-                {{-- Parts container --}}
-                <div>
-                    <label class="text-xs font-semibold text-gray-600 block mb-2">Daftar Parts</label>
-                    <div id="siAjukanPartsContainer" class="space-y-3"></div>
-                </div>
-            </form>
-
-            <div class="border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
-                <button type="button" onclick="closeAjukanUlangSIModal()"
-                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">
-                    Batal
-                </button>
-                <button type="button" id="siAjukanSubmitBtn" onclick="submitAjukanUlangSI()"
-                    class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl py-2.5 transition-colors">
-                    <i class="fa fa-rotate-right"></i> Ajukan Ulang
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 @push('scripts')
 <script>
 // ── DATA PENDING (untuk modal bulk) ──────────────────────────
@@ -2523,7 +2456,7 @@ function renderSaKejadian(container, idx, kej) {
         </div>
         <div class="grid grid-cols-2 gap-3">
             <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Kejadian <span class="text-red-400">*</span></label>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Kejadian <span class="text-red-400">*</span></label>
                 <input type="text" name="kejadians[${idx}][nama_kejadian]" required
                     value="${(kej.nama_kejadian || '').replace(/"/g, '&quot;')}"
                     placeholder="cth: Ganti Kaca Depan"
@@ -2629,159 +2562,6 @@ async function submitAjukanUlangSA() {
 
 document.getElementById('modalAjukanUlangSA')?.addEventListener('click', function(e) {
     if (e.target === this) closeAjukanUlangSAModal();
-});
-
-// ══════════════════════════════════════════════════════════════════
-// AJUKAN ULANG SERVICE INCIDENT (dari halaman Pembayaran)
-// ══════════════════════════════════════════════════════════════════
-let _siAjukanId = null;
-
-function openAjukanUlangSIModal(siId, noPr) {
-    _siAjukanId = siId;
-    document.getElementById('siAjukanPoNumber').textContent = noPr;
-    document.getElementById('siAjukanLoading').classList.remove('hidden');
-    document.getElementById('siAjukanLoading').innerHTML =
-        '<div class="flex flex-col items-center gap-2 text-gray-400 py-8">' +
-        '<i class="fa fa-spinner fa-spin text-2xl"></i><p class="text-sm">Memuat data...</p></div>';
-    document.getElementById('siAjukanBody').classList.add('hidden');
-    const m = document.getElementById('modalAjukanUlangSI');
-    m.classList.remove('hidden'); m.classList.add('flex');
-
-    fetch('/admin/service-incident/' + siId + '/ajukan-ulang', {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(r => r.json())
-    .then(function(data) {
-        if (!data.success) throw new Error(data.message || 'Gagal memuat data');
-        renderSiAjukanForm(data);
-        document.getElementById('siAjukanLoading').classList.add('hidden');
-        document.getElementById('siAjukanBody').classList.remove('hidden');
-    })
-    .catch(function(err) {
-        document.getElementById('siAjukanLoading').innerHTML =
-            '<div class="text-center text-red-500 py-8 px-6"><i class="fa fa-exclamation-triangle text-xl mb-2 block"></i>' +
-            '<p class="text-sm">' + err.message + '</p></div>';
-    });
-}
-
-function renderSiAjukanForm(data) {
-    document.getElementById('siAjukanKendaraan').textContent = data.kendaraan || '-';
-    document.getElementById('siAjukanSubInfo').textContent =
-        (data.tanggal_service || '') + (data.kilometer ? ' • ' + data.kilometer + ' km' : '') +
-        (data.keluhan ? ' • ' + data.keluhan : '');
-
-    const catatanEl = document.getElementById('siAjukanCatatan');
-    if (data.catatan_penolakan) {
-        catatanEl.textContent = 'Alasan penolakan: ' + data.catatan_penolakan;
-        catatanEl.classList.remove('hidden');
-    } else {
-        catatanEl.classList.add('hidden');
-    }
-
-    const container = document.getElementById('siAjukanPartsContainer');
-    container.innerHTML = '';
-    (data.parts || []).forEach(function(part, idx) {
-        renderSiPart(container, idx, part);
-    });
-    updateSiTotalBiaya();
-}
-
-function renderSiPart(container, idx, part) {
-    const div = document.createElement('div');
-    div.id = 'si-part-' + idx;
-    div.className = 'bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3';
-
-    div.innerHTML = `
-        <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-gray-600">
-                Part #${idx + 1}: <span class="text-blue-700">${part.nama_part || '-'}</span>
-                ${part.category_nama && part.category_nama !== '-' ? '<span class="ml-1 text-[10px] text-gray-400">('+part.category_nama+')</span>' : ''}
-            </span>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
-                <input type="number" name="parts[${idx}][biaya]" min="0"
-                    value="${part.biaya || 0}"
-                    onchange="updateSiTotalBiaya()" oninput="updateSiTotalBiaya()"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Bank</label>
-                <input type="text" name="parts[${idx}][nama_bank]"
-                    value="${(part.nama_bank || '').replace(/"/g,'&quot;')}"
-                    placeholder="cth: BCA"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">No. Rekening</label>
-                <input type="text" name="parts[${idx}][no_rekening]"
-                    value="${(part.no_rekening || '').replace(/"/g,'&quot;')}"
-                    placeholder="cth: 1234567890"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Rekening</label>
-                <input type="text" name="parts[${idx}][nama_rekening]"
-                    value="${(part.nama_rekening || '').replace(/"/g,'&quot;')}"
-                    placeholder="cth: PT Supplier ABC"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
-            </div>
-        </div>
-    `;
-    container.appendChild(div);
-}
-
-function updateSiTotalBiaya() {
-    let total = 0;
-    document.querySelectorAll('#siAjukanPartsContainer [name$="[biaya]"]').forEach(function(inp) {
-        total += parseInt(inp.value || 0);
-    });
-    const el = document.getElementById('siTotalBiaya');
-    if (el) el.textContent = 'Rp ' + total.toLocaleString('id-ID');
-}
-
-function closeAjukanUlangSIModal() {
-    document.getElementById('modalAjukanUlangSI').classList.add('hidden');
-    document.getElementById('modalAjukanUlangSI').classList.remove('flex');
-    _siAjukanId = null;
-}
-
-async function submitAjukanUlangSI() {
-    if (!_siAjukanId) return;
-    const btn   = document.getElementById('siAjukanSubmitBtn');
-    const form  = document.getElementById('siAjukanForm');
-    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
-
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Menyimpan...';
-
-    const formData = new FormData(form);
-    formData.append('_token', token);
-
-    try {
-        const res    = await fetch('/admin/service-incident/' + _siAjukanId + '/ajukan-ulang', {
-            method: 'POST',
-            body:   formData
-        });
-        const result = await res.json();
-        if (result.success) {
-            closeAjukanUlangSIModal();
-            window.location.reload();
-        } else {
-            alert(result.message || 'Terjadi kesalahan.');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa fa-rotate-right"></i> Ajukan Ulang';
-        }
-    } catch (e) {
-        alert('Terjadi kesalahan jaringan.');
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa fa-rotate-right"></i> Ajukan Ulang';
-    }
-}
-
-document.getElementById('modalAjukanUlangSI')?.addEventListener('click', function(e) {
-    if (e.target === this) closeAjukanUlangSIModal();
 });
 </script>
 @endpush

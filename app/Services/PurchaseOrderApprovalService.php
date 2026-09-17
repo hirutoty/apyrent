@@ -674,32 +674,6 @@ class PurchaseOrderApprovalService
             return;
         }
 
-        // ── SERVICE INCIDENT ───────────────────────────────────────────────────
-        // Update ServiceIncident dari Pending → Diajukan ke Pembayaran
-        if ($sourceType === 'service_incident') {
-            $incidentId = ($overrideSourceData ?? $sourceData)['service_incident_id']
-                        ?? $sourceData['service_incident_id']
-                        ?? null;
-
-            if ($incidentId) {
-                \App\Models\ServiceIncident::where('id', $incidentId)
-                    ->where('persetujuan', 'Pending')
-                    ->update([
-                        'persetujuan'   => 'Diajukan ke Pembayaran',
-                        'pembayaran_id' => $pembayaran->id,
-                    ]);
-            } else {
-                // Fallback: cari by purchase_order_id
-                \App\Models\ServiceIncident::where('purchase_order_id', $po->id)
-                    ->where('persetujuan', 'Pending')
-                    ->update([
-                        'persetujuan'   => 'Diajukan ke Pembayaran',
-                        'pembayaran_id' => $pembayaran->id,
-                    ]);
-            }
-            return;
-        }
-
         // Tipe lain (stnk, dll) tidak punya linked record eksternal — tidak ada aksi
     }
 }

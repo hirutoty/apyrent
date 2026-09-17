@@ -319,9 +319,7 @@
                                             $gpsItems = $allGpsItems;
                                         }
 
-                                        $hasItems = !empty($allGpsItems)
-                                            || (in_array($po->source_type, ['service_part', 'service_incident']) && !empty($sourceData['parts']))
-                                            || in_array($po->source_type, ['pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'kir', 'kir_perpanjang', 'stnk']);
+                                        $hasItems = !empty($allGpsItems) || (in_array($po->source_type, ['service_part', 'service_incident']) && !empty($sourceData['parts'])) || ($po->source_type === 'service_asuransi' && !empty($sourceData['kejadians']));
                                     @endphp
                                     {{-- Baris utama --}}
                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40 hover:bg-blue-50/30 transition-colors {{ $hasItems ? 'cursor-pointer' : '' }}"
@@ -685,7 +683,124 @@
                                                     </table>
                                                 </div>
                                             </div>
-                                            @elseif(!empty($allGpsItems))
+                                            @elseif($isServiceAsuransi)
+                                            {{-- ── SERVICE ASURANSI EXPAND ── --}}
+                                            <div class="bg-blue-50/30 border-t border-blue-100 px-6 py-4">
+                                                <div class="flex items-center gap-2 mb-3">
+                                                    <i class="fa fa-shield-alt text-blue-600 text-xs"></i>
+                                                    <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wide">Detail — Service Asuransi</span>
+                                                </div>
+                                                <div class="grid grid-cols-4 gap-4 mb-3 text-xs">
+                                                    <div>
+                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                        <p class="font-semibold text-gray-800">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Nama Asuransi</p>
+                                                        <p class="text-gray-700">{{ $sourceData['nama_asuransi'] ?? '-' }}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Service</p>
+                                                        <p class="text-gray-700">{{ isset($sourceData['tanggal_service']) ? \Carbon\Carbon::parse($sourceData['tanggal_service'])->format('d M Y') : '-' }}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Keterangan</p>
+                                                        <p class="font-mono text-[11px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">{{ $sourceData['keterangan'] ?? ($po->keterangan ?? '-') }}</p>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Lampiran PO-level (temp_files) --}}
+                                                @php
+                                                    $saLampiran = $sourceData['temp_files']['attachments'] ?? [];
+                                                    // Kumpulkan semua lampiran kejadian ke satu array flat
+                                                    $saKejLampiran = [];
+                                                    foreach (($sourceData['kejadians'] ?? []) as $kjIdx2 => $kj2) {
+                                                        foreach (($kj2['lampiran'] ?? []) as $lf) {
+                                                            $saKejLampiran[] = array_merge($lf, ['_kej' => $kj2['nama_kejadian'] ?? '#'.($kjIdx2+1)]);
+                                                        }
+                                                        // Juga cek temp_files per kejadian
+                                                        $tempKejFiles = $sourceData['temp_files']['kejadians'][$kjIdx2] ?? [];
+                                                        foreach ($tempKejFiles as $lf) {
+                                                            $saKejLampiran[] = array_merge($lf, ['_kej' => $kj2['nama_kejadian'] ?? '#'.($kjIdx2+1)]);
+                                                        }
+                                                    }
+                                                    $allSaLampiran = array_merge($saLampiran, $saKejLampiran);
+                                                @endphp
+                                                @if(!empty($allSaLampiran))
+                                                    <div class="mb-3 flex flex-wrap gap-1.5">
+                                                        @foreach($allSaLampiran as $lf)
+                                                            @php
+                                                                $lfPath = $lf['path'] ?? '';
+                                                                $lfName = $lf['original_name'] ?? basename($lfPath);
+                                                                $lfExt  = strtolower($lf['extension'] ?? pathinfo($lfPath, PATHINFO_EXTENSION));
+                                                                $lfIsImg = in_array($lfExt, ['jpg','jpeg','png','webp','gif']);
+                                                                $lfIcon  = $lfIsImg ? 'fa-image text-blue-400' : ($lfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                                $lfUrl   = $lfPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($lfPath) : null;
+                                                            @endphp
+                                                            @if($lfUrl)
+                                                                <a href="{{ $lfUrl }}" target="_blank"
+                                                                    class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg truncate max-w-[160px]"
+                                                                    title="{{ $lfName }}{{ isset($lf['_kej']) ? ' ('. $lf['_kej'].')' : '' }}">
+                                                                    <i class="fa {{ $lfIcon }} text-[9px]"></i>
+                                                                    <span class="truncate">{{ Str::limit($lfName, 20) }}</span>
+                                                                </a>
+                                                            @endif
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+
+                                                <div class="bg-white rounded-xl border border-blue-100 overflow-hidden">
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="bg-blue-50 border-b border-blue-100">
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
+                                                                <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
+                                                                <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach($asuransiKejadians as $kjIdx => $kj)
+                                                                <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
+                                                                    <td class="px-3 py-2 text-gray-400">{{ $kjIdx + 1 }}</td>
+                                                                    <td class="px-3 py-2 font-semibold text-gray-800">{{ $kj['nama_kejadian'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-center">
+                                                                        @php $kjLampiran = $kj['lampiran'] ?? []; @endphp
+                                                                        @if(!empty($kjLampiran))
+                                                                            <div class="flex flex-col gap-0.5 items-center">
+                                                                            @foreach($kjLampiran as $kjf)
+                                                                                @php
+                                                                                    $kjUrl = isset($kjf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($kjf['path']) : null;
+                                                                                    $kjExt = strtolower($kjf['extension'] ?? pathinfo($kjf['path'] ?? '', PATHINFO_EXTENSION));
+                                                                                    $kjIcon = in_array($kjExt, ['jpg','jpeg','png','gif']) ? 'fa-image text-blue-400'
+                                                                                        : ($kjExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                                                @endphp
+                                                                                @if($kjUrl)
+                                                                                    <a href="{{ $kjUrl }}" target="_blank"
+                                                                                        class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline truncate max-w-[140px]"
+                                                                                        title="{{ $kjf['original_name'] ?? '' }}">
+                                                                                        <i class="fa {{ $kjIcon }} text-[10px]"></i>
+                                                                                        <span class="truncate">{{ $kjf['original_name'] ?? 'file' }}</span>
+                                                                                    </a>
+                                                                                @endif
+                                                                            @endforeach
+                                                                            </div>
+                                                                        @else
+                                                                            <span class="text-gray-300 text-[10px]">—</span>
+                                                                        @endif
+                                                                    </td>
+                                                                    <td class="px-3 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($kj['biaya'] ?? 0, 0, ',', '.') }}</td>
+                                                                </tr>
+                                                            @endforeach
+                                                            <tr class="border-t-2 border-blue-200 bg-blue-50/50">
+                                                                <td colspan="3" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td class="px-3 py-2 text-right text-sm font-bold text-emerald-600">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                            @else
                                             {{-- ── GPS EXPAND ── --}}
                                             <div class="bg-green-50/30 border-t border-green-100 px-6 py-4">
                                                 <div class="flex items-center justify-between mb-3">
@@ -1473,7 +1588,7 @@ function renderApproveItems(data) {
         let itemTitle, itemSubtitle, itemNominal, bankInfo = '';
 
         if (isServiceAsuransi) {
-            // Kejadian asuransi: tampilkan Kejadian + lampiran
+            // Kejadian asuransi: tampilkan nama kejadian + lampiran
             itemTitle    = item.nama_kejadian || '-';
             itemSubtitle = '';
             itemNominal  = item.biaya || 0;
@@ -1543,7 +1658,7 @@ function renderApproveItems(data) {
             + '</div>'
             + (isServiceAsuransi && itemSubtitle ? itemSubtitle : '')
             + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
-            + (isServicePart && (item.keterangan_limit || item.keterangan) && (item.keterangan_limit || item.keterangan) !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + (item.keterangan_limit || item.keterangan) + '</p>' : '')
+            + ((isServicePart || isServiceIncident) && (item.keterangan_limit || item.keterangan) && (item.keterangan_limit || item.keterangan) !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + (item.keterangan_limit || item.keterangan) + '</p>' : '')
             + '</label></div>'
             + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
 
@@ -2178,7 +2293,7 @@ function renderRsaKejadian(container, idx, kej) {
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Kejadian <span class="text-red-400">*</span></label>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Kejadian <span class="text-red-400">*</span></label>
                 <input type="text" name="kejadians[${idx}][nama_kejadian]" required
                     value="${(kej.nama_kejadian || '').replace(/"/g, '&quot;')}"
                     placeholder="cth: Ganti Kaca Depan"
