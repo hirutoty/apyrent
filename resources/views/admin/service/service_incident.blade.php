@@ -143,9 +143,13 @@
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Kendaraan</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Tanggal</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">KM</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Keterangan</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Parts</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Total Biaya</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Status</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Persetujuan</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Bukti Bayar</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Lampiran</th>
                         <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-400 px-4 py-3">Aksi</th>
                     </tr>
                 </thead>
@@ -175,6 +179,12 @@
                             <td class="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
                                 {{ number_format($d->kilometer, 0, ',', '.') }} km
                             </td>
+                            {{-- KETERANGAN (slug otomatis) --}}
+                            <td class="px-4 py-4 text-sm text-gray-500 max-w-[160px]">
+                                <span class="font-mono text-[11px] bg-gray-100 px-2 py-0.5 rounded truncate block" title="{{ $d->keterangan ?? '' }}">
+                                    {{ $d->keterangan ?? '—' }}
+                                </span>
+                            </td>
                             <td class="px-4 py-4">
                                 @if ($partCount > 0)
                                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
@@ -192,10 +202,72 @@
                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200">
                                         <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Proses
                                     </span>
+                                @elseif($d->status === 'tidak_aktif')
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-slate-100 text-slate-500 border-slate-300">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Tidak Aktif
+                                    </span>
                                 @else
                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">
                                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Selesai
                                     </span>
+                                @endif
+                            </td>
+                            {{-- PERSETUJUAN --}}
+                            <td class="px-4 py-4" onclick="event.stopPropagation()">
+                                @php $prst = $d->persetujuan ?? null; @endphp
+                                @if($prst === 'Disetujui')
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 text-green-700">
+                                        <i class="fa fa-check-circle text-[9px]"></i> Disetujui
+                                    </span>
+                                @elseif($prst === 'Diajukan ke Pembayaran')
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700">
+                                        <i class="fa fa-paper-plane text-[9px]"></i> Di Pembayaran
+                                    </span>
+                                @elseif($prst === 'Ditolak')
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700">
+                                        <i class="fa fa-times-circle text-[9px]"></i> Ditolak
+                                    </span>
+                                @elseif($prst === 'Pending')
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-yellow-100 text-yellow-700">
+                                        <i class="fa fa-clock text-[9px]"></i> Pending
+                                    </span>
+                                @else
+                                    <span class="text-gray-300 text-xs">—</span>
+                                @endif
+                            </td>
+                            {{-- BUKTI BAYAR --}}
+                            <td class="px-4 py-4" onclick="event.stopPropagation()">
+                                @if($d->bukti_pembayaran)
+                                    <a href="{{ asset($d->bukti_pembayaran) }}" target="_blank"
+                                        class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                                        <i class="fa fa-paperclip text-[10px]"></i> Lihat Bukti
+                                    </a>
+                                @else
+                                    <span class="text-gray-300 text-xs">—</span>
+                                @endif
+                            </td>
+                            {{-- LAMPIRAN --}}
+                            <td class="px-4 py-4" onclick="event.stopPropagation()">
+                                @if($d->attachments->isNotEmpty())
+                                    <div class="flex flex-col gap-1">
+                                        @foreach($d->attachments->take(2) as $att)
+                                            @php
+                                                $aExt  = strtolower($att->file_type ?? pathinfo($att->file_path, PATHINFO_EXTENSION));
+                                                $aIcon = in_array($aExt, ['jpg','jpeg','png','webp']) ? 'fa-image' : ($aExt === 'pdf' ? 'fa-file-pdf' : 'fa-file');
+                                            @endphp
+                                            <a href="{{ asset($att->file_path) }}" target="_blank"
+                                                class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline truncate max-w-[130px]"
+                                                title="{{ $att->file_name }}">
+                                                <i class="fa {{ $aIcon }} text-[9px]"></i>
+                                                {{ Str::limit($att->file_name, 16) }}
+                                            </a>
+                                        @endforeach
+                                        @if($d->attachments->count() > 2)
+                                            <span class="text-[10px] text-gray-400">+{{ $d->attachments->count() - 2 }} lainnya</span>
+                                        @endif
+                                    </div>
+                                @else
+                                    <span class="text-gray-300 text-xs">—</span>
                                 @endif
                             </td>
                             <td class="px-4 py-4" onclick="event.stopPropagation()">
@@ -214,7 +286,7 @@
 
                         {{-- EXPANDABLE PARTS ROW --}}
                         <tr id="{{ $rowId }}" style="display:none;" class="bg-orange-50/10 border-t border-orange-100">
-                            <td colspan="8" class="px-6 py-4">
+                            <td colspan="12" class="px-6 py-4">
                                 @if ($d->keluhan)
                                     <div class="mb-3 flex items-start gap-2 bg-orange-50 rounded-xl px-3 py-2">
                                         <i class="fa fa-exclamation-circle text-orange-500 mt-0.5 text-xs flex-shrink-0"></i>
@@ -373,7 +445,7 @@
 
                     @empty
                         <tr>
-                            <td colspan="8" class="px-5 py-16 text-center">
+                            <td colspan="12" class="px-5 py-16 text-center">
                                 <div class="flex flex-col items-center gap-3">
                                     <div class="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center">
                                         <i class="fa fa-exclamation-triangle text-2xl text-orange-300"></i>

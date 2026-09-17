@@ -26,12 +26,20 @@ class ServiceIncidentController extends Controller
         $bulan       = $request->bulan ?? now()->format('Y-m');
         $kendaraanId = $request->kendaraan_id;
 
+        // Hanya tampilkan yang sudah melewati PO (bukan Pending di PO)
+        // Sama dengan logika GpsKendaraanController::index()
         $data = ServiceIncident::with([
                 'kendaraan.jenis',
                 'attachments',
                 'parts.category',
                 'parts.supplier',
             ])
+            ->whereNotNull('persetujuan')
+            ->where('persetujuan', '!=', 'Pending')
+            ->where(function ($q) {
+                $q->where('persetujuan', '!=', 'Ditolak')
+                  ->orWhereNotNull('pembayaran_id');
+            })
             ->when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(tanggal_service,'%Y-%m') = ?", [$bulan]))
             ->when($kendaraanId, fn($q) => $q->where('kendaraan_id', $kendaraanId))
             ->latest()
@@ -42,7 +50,9 @@ class ServiceIncidentController extends Controller
         $categories = ServiceCategory::orderBy('nama')->get();
 
         $totalService = $data->total();
-        $totalBiaya   = ServiceIncident::when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(tanggal_service,'%Y-%m') = ?", [$bulan]))
+        $totalBiaya   = ServiceIncident::whereNotNull('persetujuan')
+            ->where('persetujuan', '!=', 'Pending')
+            ->when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(tanggal_service,'%Y-%m') = ?", [$bulan]))
             ->when($kendaraanId, fn($q) => $q->where('kendaraan_id', $kendaraanId))
             ->sum('total_biaya');
         $totalProses  = $data->where('status', 'proses')->count();
@@ -94,7 +104,7 @@ class ServiceIncidentController extends Controller
             'parts.*.biaya'                => 'nullable|numeric|min:0',
             'parts.*.bukti'                => 'nullable|array',
             'parts.*.bukti.*'              => 'file|mimes:jpg,jpeg,png,mp4,mov',
-            'parts.*.keterangan'           => 'nullable|string|max:1000',
+            'parts.*.keterangan_limit'     => 'nullable|string|max:1000',
             'parts.*.supplier_id'          => 'nullable|exists:supplier,id',
             'parts.*.nama_rekening'        => 'nullable|string|max:150',
             'parts.*.nama_bank'            => 'nullable|string|max:100',
@@ -102,6 +112,13 @@ class ServiceIncidentController extends Controller
             'bukti_attachment'             => 'nullable|array',
             'bukti_attachment.*'           => 'file|max:5120',
         ]);
+
+        $kendaraan    = Kendaraan::findOrFail($request->kendaraan_id);
+        $nopol        = $kendaraan->nopol ?? '-';
+        $merk         = $kendaraan->merk  ?? '-';
+
+        // ── Slug keterangan otomatis: servis insiden-nopol ────────────────
+        $keterangan = 'servis insiden-' . $nopol;
 
         $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
 
@@ -120,12 +137,12 @@ class ServiceIncidentController extends Controller
             'posisi'             => $p['posisi'] ?? null,
             'tgl_pasang'         => $p['tgl_pasang'] ?? now()->toDateString(),
             'kilometer_pasang'   => $p['kilometer_pasang'] ?? $request->kilometer,
-            'kondisi'            => $p['kondisi'] ?? 'Baik',
+            'kondisi'            => $p['kondisi'] ?? 'Perlu Ganti',
             'status'             => 'Proses',
             'interval_nilai'     => (int)($p['interval_nilai'] ?? 12),
             'interval_satuan'    => $p['interval_satuan'] ?? 'bulan',
             'biaya'              => (int)($p['biaya'] ?? 0),
-            'keterangan'         => $p['keterangan'] ?? null,
+            'keterangan_limit'   => $p['keterangan_limit'] ?? $p['keterangan'] ?? null,
             'supplier_id'        => $p['supplier_id'] ?? null,
             'nama_rekening'      => $p['nama_rekening'] ?? null,
             'nama_bank'          => $p['nama_bank'] ?? null,
@@ -137,36 +154,50 @@ class ServiceIncidentController extends Controller
             'tanggal_service'      => $request->tanggal_service,
             'kilometer'            => $request->kilometer,
             'keluhan'              => $request->keluhan,
+            'keterangan'           => $keterangan,
             'total_biaya_override' => $totalBiaya,
             'parts'                => $partsForPO,
         ];
 
+        // ── Buat record ServiceIncident dengan status Pending ──────────────
+        $serviceIncident = ServiceIncident::create([
+            'kendaraan_id'    => $request->kendaraan_id,
+            'keluhan'         => $request->keluhan,
+            'keterangan'      => $keterangan,
+            'kilometer'       => $request->kilometer,
+            'total_biaya'     => $totalBiaya,
+            'status'          => 'tidak_aktif',
+            'tanggal_service' => $request->tanggal_service,
+            'persetujuan'     => 'Pending',
+        ]);
+
         // ── Simpan ke PurchaseOrder via interceptor ────────────────────────
         $interceptor = app(PengeluaranInterceptorService::class);
 
-        $kendaraan  = Kendaraan::find($request->kendaraan_id);
-        $partNames  = collect($partsForPO)->pluck('nama_part')->filter()->take(3)->implode(', ');
-        $nopol      = $kendaraan?->nopol ?? '-';
-        $merk       = $kendaraan?->merk  ?? '-';
-
         $po = PurchaseOrder::create([
-            'tanggal_po'          => now()->toDateString(),
-            'vendor'              => $merk . ' ' . $nopol,
-            'total_barang'        => count($partsForPO),
-            'total_harga'         => $totalBiaya,
-            'status_po'           => 'Pending',
-            'catatan'             => $request->keluhan,
-            'source_type'         => 'service_incident',
-            'source_data'         => $sourceData,
-            'status'              => 'Pending',
-            'can_edit'            => false,
-            'terakhir_diajukan'   => now(),
+            'tanggal_po'              => now()->toDateString(),
+            'vendor'                  => $merk . ' ' . $nopol,
+            'total_barang'            => count($partsForPO),
+            'total_harga'             => $totalBiaya,
+            'status_po'               => 'Pending',
+            'catatan'                 => $request->keluhan,
+            'keterangan'              => $keterangan,
+            'source_type'             => 'service_incident',
+            'source_data'             => array_merge($sourceData, [
+                'service_incident_id' => $serviceIncident->id,
+            ]),
+            'status'                  => 'Pending',
+            'can_edit'                => false,
+            'terakhir_diajukan'       => now(),
         ]);
+
+        // Link PO ke record incident
+        $serviceIncident->update(['purchase_order_id' => $po->id]);
 
         // ── Upload temporary files (bukti per-part + attachments) ──────────
         $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $po->id, 'purchase_order');
 
-        // Juga proses bukti per-part dari parts[idx][bukti][]
+        // Proses bukti per-part dari parts[idx][bukti][]
         $partTempFiles = [];
         foreach ($resolvedParts as $idx => $p) {
             $fileKey = "parts.{$idx}.bukti";
@@ -175,10 +206,10 @@ class ServiceIncidentController extends Controller
                 if (!is_array($files)) $files = [$files];
                 foreach ($files as $fi => $file) {
                     if (!$file->isValid()) continue;
-                    $ts          = time();
-                    $storedName  = "{$ts}_{$idx}_{$fi}_{$file->getClientOriginalName()}";
-                    $tempDir     = "purchase_order/temp/{$po->id}/parts/{$idx}/bukti";
-                    $path        = $file->storeAs($tempDir, $storedName, 'public');
+                    $ts         = time();
+                    $storedName = "{$ts}_{$idx}_{$fi}_{$file->getClientOriginalName()}";
+                    $tempDir    = "purchase_order/temp/{$po->id}/parts/{$idx}/bukti";
+                    $path       = $file->storeAs($tempDir, $storedName, 'public');
                     $partTempFiles[$idx]['bukti'][] = [
                         'original_name' => $file->getClientOriginalName(),
                         'stored_name'   => $storedName,
@@ -196,8 +227,9 @@ class ServiceIncidentController extends Controller
         }
 
         // Update source_data dengan info temp files
-        $sourceData['temp_files'] = $uploadedFiles;
-        $po->update(['source_data' => $sourceData]);
+        $updatedSource              = $po->source_data;
+        $updatedSource['temp_files'] = $uploadedFiles;
+        $po->update(['source_data' => $updatedSource]);
 
         return redirect()
             ->route('purchase-order.index', ['status' => 'Pending'])
@@ -378,7 +410,7 @@ class ServiceIncidentController extends Controller
         }
 
         foreach ($partsTidakAktif as $part) {
-            $part->update(['status' => 'Terpasang', 'kondisi' => 'Baik']);
+            $part->update(['status' => 'Terpasang', 'kondisi' => 'Aktif']);
         }
 
         $incident->refresh();

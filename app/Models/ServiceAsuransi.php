@@ -24,6 +24,9 @@ class ServiceAsuransi extends Model
         'bukti',
         'attachment',
         'status',
+        'pembayaran_id',
+        'purchase_order_id',
+        'persetujuan',
     ];
 
     protected $casts = [
@@ -39,5 +42,20 @@ class ServiceAsuransi extends Model
     public function jenisAsuransi()
     {
         return $this->belongsTo(JenisAsuransi::class, 'jenis_asuransi_id');
+    }
+
+    public function kejadians()
+    {
+        return $this->hasMany(ServiceAsuransiKejadian::class, 'service_asuransi_id');
+    }
+
+    public function pembayaran()
+    {
+        return $this->belongsTo(Pembayaran::class, 'pembayaran_id');
+    }
+
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
     }
 }

@@ -131,6 +131,7 @@
                         <th class="px-5 py-3 text-left">Kategori</th>
                         <th class="px-5 py-3 text-left">Kendaraan</th>
                         <th class="px-4 py-3 text-center">Interval</th>
+                        <th class="px-4 py-3 text-center">Limit KM</th>
                         <th class="px-4 py-3 text-right">Limit Harga</th>
                         <th class="px-4 py-3 text-center w-24">Aksi</th>
                     </tr>
@@ -153,6 +154,16 @@
                                     {{ $rule->limit_nilai }} {{ $rule->limit_satuan }}
                                 </span>
                             </td>
+                            <td class="px-4 py-3.5 text-center">
+                                @if($rule->limit_km)
+                                    <span class="inline-flex items-center gap-1.5 bg-violet-50 text-violet-700 text-xs font-semibold px-2.5 py-1 rounded-lg">
+                                        <i class="bi bi-speedometer2 text-[10px]"></i>
+                                        {{ number_format($rule->limit_km, 0, ',', '.') }} km
+                                    </span>
+                                @else
+                                    <span class="text-gray-400 text-xs italic">—</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3.5 text-right">
                                 @if($rule->limit_price)
                                     <span class="font-semibold text-emerald-700 tabular-nums">
@@ -165,7 +176,7 @@
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1">
                                     <button
-                                        onclick="openModalEditLimit({{ $rule->id }}, {{ $rule->limit_nilai }}, '{{ $rule->limit_satuan }}', {{ $rule->limit_price ?? 'null' }})"
+                                        onclick="openModalEditLimit({{ $rule->id }}, {{ $rule->limit_nilai }}, '{{ $rule->limit_satuan }}', {{ $rule->limit_km ?? 'null' }}, {{ $rule->limit_price ?? 'null' }})"
                                         class="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
                                         title="Edit">
                                         <i class="fa fa-pen text-xs"></i>
@@ -185,7 +196,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-5 py-12 text-center text-gray-400 text-sm">
+                            <td colspan="6" class="px-5 py-12 text-center text-gray-400 text-sm">
                                 <i class="bi bi-inbox text-3xl block mb-2 text-gray-300"></i>
                                 Belum ada limit rule.
                                 @if(!$filterCategory && !$filterKendaraan)
@@ -390,6 +401,16 @@
                 <p class="text-xs text-gray-400 mt-1">Part dalam kategori ini direkomendasikan diganti tiap interval ini.</p>
             </div>
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Limit KM</label>
+                <div class="relative">
+                    <input type="number" name="limit_km" min="1" step="1"
+                        placeholder="Kosongkan jika tidak dibatasi"
+                        class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                    <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">Part diganti ketika odometer kendaraan mencapai jarak ini.</p>
+            </div>
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Batas Harga (Limit Price)</label>
                 <div class="relative">
                     <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">Rp</span>
@@ -440,6 +461,15 @@
                         <option value="bulan">Bulan</option>
                         <option value="tahun">Tahun</option>
                     </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Limit KM</label>
+                <div class="relative">
+                    <input type="number" id="edit-limit-km" name="limit_km" min="1" step="1"
+                        placeholder="Kosongkan jika tidak dibatasi"
+                        class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                    <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
                 </div>
             </div>
             <div>
@@ -500,14 +530,16 @@ function openModalTambahLimit(categoryId, categoryNama) {
     form.querySelector('[name="kendaraan_id"]').value  = '';
     form.querySelector('[name="limit_nilai"]').value   = '1';
     form.querySelector('[name="limit_satuan"]').value  = 'tahun';
+    form.querySelector('[name="limit_km"]').value      = '';
     form.querySelector('[name="limit_price"]').value   = '';
     openModal('modal-tambah-limit');
 }
 
-function openModalEditLimit(limitId, limitNilai, limitSatuan, limitPrice) {
+function openModalEditLimit(limitId, limitNilai, limitSatuan, limitKm, limitPrice) {
     document.getElementById('form-edit-limit').action  = '/admin/service-categories/limits/' + limitId;
     document.getElementById('edit-limit-nilai').value  = limitNilai;
     document.getElementById('edit-limit-satuan').value = limitSatuan;
+    document.getElementById('edit-limit-km').value     = limitKm !== null ? limitKm : '';
     document.getElementById('edit-limit-price').value  = limitPrice !== null ? limitPrice : '';
     openModal('modal-edit-limit');
 }

@@ -29,7 +29,7 @@ class ServiceIncidentPart extends Model
         'tanggal_limit',
         'biaya',
         'bukti',
-        'keterangan',
+        'keterangan_limit',
         'persetujuan',
         'nama_rekening',
         'nama_bank',

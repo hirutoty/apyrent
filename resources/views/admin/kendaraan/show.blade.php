@@ -332,9 +332,8 @@
                                                 data-masa_berlaku="{{ $d->masa_berlaku }}"
                                                 data-km_sekarang="{{ $d->kilometer_sekarang }}"
                                                 data-limit_km="{{ $d->limit_km_service }}"
-                                                data-limit_bln="{{ $d->limit_biaya_bulanan_service }}"
-                                                data-km_svc="{{ $d->km_terakhir_service }}"
-                                                data-tgl_svc="{{ $d->tanggal_terakhir_service }}"
+                                                data-km_svc="{{ $d->km_terakhir_servis ?? '' }}"
+                                                data-tgl_svc="{{ $d->tanggal_terakhir_servis ?? '' }}"
                                                 data-status_service="{{ $d->status_service }}"
                                                 data-status_kendaraan="{{ $d->status_kendaraan }}"
                                                 data-foto_masalah="{{ addslashes(json_encode($d->foto_masalah ?? [])) }}"
@@ -365,10 +364,6 @@
                                                 data-batas_biaya="{{ $d->batas_biaya }}"
                                                 data-masa_berlaku="{{ $d->masa_berlaku }}"
                                                 data-kilometer_sekarang="{{ $d->kilometer_sekarang }}"
-                                                data-limit_km_service="{{ $d->limit_km_service }}"
-                                                data-limit_biaya_bulanan_service="{{ $d->limit_biaya_bulanan_service }}"
-                                                data-km_terakhir_service="{{ $d->km_terakhir_service }}"
-                                                data-tanggal_terakhir_service="{{ $d->tanggal_terakhir_service }}"
                                                 data-status_service="{{ $d->status_service }}"
                                                 data-status_kendaraan="{{ $d->status_kendaraan }}" data-member_id="{{ $d->member_id }}">
                                                 <i class="fa fa-edit text-xs"></i> Edit
@@ -845,31 +840,25 @@
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">KM
                                     Sekarang</span>
-                                <span id="d_km_sekarang" class="text-sm font-mono text-gray-500">�</span>
+                                <span id="d_km_sekarang" class="text-sm font-mono text-gray-500">-</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Limit KM
                                     Service</span>
-                                <span id="d_limit_km" class="text-sm font-mono text-gray-500">�</span>
-                            </div>
-
-                            <div class="flex flex-col gap-0.5">
-                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Limit Bulan
-                                    Service</span>
-                                <span id="d_limit_bln" class="text-sm text-gray-500">-</span>
+                                <span id="d_limit_km" class="text-sm font-mono text-gray-500">-</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">KM Terakhir
-                                    Service</span>
-                                <span id="d_km_svc" class="text-sm font-mono text-gray-500">�</span>
+                                    Servis</span>
+                                <span id="d_km_svc" class="text-sm font-mono text-gray-500">-</span>
                             </div>
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Tanggal
-                                    Terakhir Service</span>
-                                <span id="d_tgl_svc" class="text-sm font-mono text-gray-500">�</span>
+                                    Terakhir Servis</span>
+                                <span id="d_tgl_svc" class="text-sm font-mono text-gray-500">-</span>
                             </div>
 
                         </div>
@@ -1133,20 +1122,10 @@
                                 <i class="fa fa-tachometer-alt mr-1"></i> Servis & Kilometer
                             </p>
                             <div class="grid grid-cols-3 gap-3">
-                                @foreach ([['kilometer_sekarang', 'Kilometer Sekarang'], ['limit_km_service', 'Limit KM Service'], ['limit_biaya_bulanan_service', 'Limit Biaya Bulanan Service'], ['limit_biaya_tahunan_service', 'Limit Biaya Tahunan Service'], ['km_terakhir_service', 'KM Terakhir Service']] as [$name, $label])
-                                    <div>
-                                        <label
-                                            class="block text-xs font-semibold text-gray-600 mb-1.5">{{ $label }}
-                                            <span class="text-red-500">*</span></label>
-                                        <input name="{{ $name }}" required type="number" placeholder="0"
-                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    </div>
-                                @endforeach
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Terakhir
-                                        Service
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kilometer Sekarang
                                         <span class="text-red-500">*</span></label>
-                                    <input name="tanggal_terakhir_service" required type="date"
+                                    <input name="kilometer_sekarang" required type="number" placeholder="0"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
                             </div>
@@ -1383,18 +1362,9 @@
                                 <i class="fa fa-tachometer-alt mr-1"></i> Servis & Kilometer
                             </p>
                             <div class="grid grid-cols-3 gap-3">
-                                @foreach ([['kilometer_sekarang', 'Kilometer Sekarang'], ['limit_km_service', 'Limit KM Service'], ['limit_biaya_bulanan_service', 'Limit Biaya Bulanan Service'], ['limit_biaya_tahunan_service', 'Limit Biaya Tahunan Service'], ['km_terakhir_service', 'KM Terakhir Service']] as [$name, $label])
-                                    <div>
-                                        <label
-                                            class="block text-xs font-semibold text-gray-600 mb-1.5">{{ $label }}</label>
-                                        <input name="{{ $name }}" id="e_{{ $name }}" type="number"
-                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    </div>
-                                @endforeach
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Terakhir
-                                        Service</label>
-                                    <input name="tanggal_terakhir_service" id="e_tanggal_terakhir_service" type="date"
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kilometer Sekarang</label>
+                                    <input name="kilometer_sekarang" id="e_kilometer_sekarang" type="number"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 </div>
                             </div>
@@ -1760,10 +1730,8 @@
 
                     document.getElementById('d_km_sekarang').textContent = fmtKm(d.km_sekarang);
                     document.getElementById('d_limit_km').textContent = fmtKm(d.limit_km);
-                    document.getElementById('d_limit_bln').textContent =
-                    d.limit_bln ? 'Rp ' + d.limit_bln : '-';
-                    document.getElementById('d_km_svc').textContent = fmtKm(d.km_svc);
-                    document.getElementById('d_tgl_svc').textContent = d.tgl_svc || '�';
+                    document.getElementById('d_km_svc').textContent = d.km_svc ? fmtKm(d.km_svc) : '-';
+                    document.getElementById('d_tgl_svc').textContent = d.tgl_svc || '-';
 
                     document.getElementById('d_status_service').innerHTML = badgeStatus(d.status_kendaraan);
                     document.getElementById('d_status_kendaraan').innerHTML = badgeStatus(d.status_kendaraan);
@@ -1857,8 +1825,7 @@
                         'tahun_pembuatan', 'tahun_perakitan', 'isi_silinder', 'warna',
                         'no_rangka', 'no_mesin', 'no_bpkb', 'warna_tnkb', 'bahan_bakar',
                         'kode_lokasi', 'no_urut_pendaftaran', 'batas_biaya', 'masa_berlaku',
-                        'kilometer_sekarang', 'limit_km_service', 'limit_biaya_bulanan_service',
-                        'limit_biaya_tahunan_service', 'km_terakhir_service', 'tanggal_terakhir_service',
+                        'kilometer_sekarang',
                         'status_service', 'status_kendaraan', 'member_id',
                         'harga_sewa_per_hari', 'harga_sewa_per_jam',
                     ];

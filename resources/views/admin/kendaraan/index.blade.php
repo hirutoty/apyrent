@@ -462,14 +462,11 @@
                                 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Limit KM
                                 Service</span><span id="d_limit_km" class="font-mono text-gray-500 text-xs">—</span></div>
                         <div class="flex flex-col gap-0.5"><span
-                                class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Limit Bulan
-                                Service</span><span id="d_limit_bln" class="text-gray-500">—</span></div>
-                        <div class="flex flex-col gap-0.5"><span
                                 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">KM Terakhir
-                                Service</span><span id="d_km_svc" class="font-mono text-gray-500 text-xs">—</span></div>
+                                Servis</span><span id="d_km_svc" class="font-mono text-gray-500 text-xs">—</span></div>
                         <div class="flex flex-col gap-0.5"><span
                                 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Tanggal Terakhir
-                                Service</span><span id="d_tgl_svc" class="font-mono text-gray-500 text-xs">—</span></div>
+                                Servis</span><span id="d_tgl_svc" class="font-mono text-gray-500 text-xs">—</span></div>
                     </div>
                 </div>
 
@@ -802,18 +799,10 @@
                             <i class="fa fa-tachometer-alt mr-1"></i> Servis & Kilometer
                         </p>
                         <div class="grid grid-cols-3 gap-3">
-                            @foreach ([['kilometer_sekarang', 'Kilometer Sekarang'], ['limit_km_service', 'Limit KM Service'], ['limit_biaya_bulanan_service', 'Limit Biaya Bulanan Service'], ['limit_biaya_tahunan_service', 'Limit Biaya Tahunan Service'], ['km_terakhir_service', 'KM Terakhir Service']] as [$name, $label])
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">{{ $label }}
-                                        <span class="text-red-500">*</span></label>
-                                    <input name="{{ $name }}" required type="number" placeholder="0"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                </div>
-                            @endforeach
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Terakhir Service
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kilometer Sekarang
                                     <span class="text-red-500">*</span></label>
-                                <input name="tanggal_terakhir_service" required type="date"
+                                <input name="kilometer_sekarang" required type="number" placeholder="0"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                         </div>
@@ -1101,18 +1090,9 @@
                             <i class="fa fa-tachometer-alt mr-1"></i> Servis & Kilometer
                         </p>
                         <div class="grid grid-cols-3 gap-3">
-                            @foreach ([['kilometer_sekarang', 'Kilometer Sekarang'], ['limit_km_service', 'Limit KM Service'], ['limit_biaya_bulanan_service', 'Limit Biaya Bulanan Service'], ['limit_biaya_tahunan_service', 'Limit Biaya Tahunan Service'], ['km_terakhir_service', 'KM Terakhir Service']] as [$name, $label])
-                                <div>
-                                    <label
-                                        class="block text-xs font-semibold text-gray-600 mb-1.5">{{ $label }}</label>
-                                    <input name="{{ $name }}" id="e_{{ $name }}" type="number"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                </div>
-                            @endforeach
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Terakhir
-                                    Service</label>
-                                <input name="tanggal_terakhir_service" id="e_tanggal_terakhir_service" type="date"
+                                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kilometer Sekarang</label>
+                                <input name="kilometer_sekarang" id="e_kilometer_sekarang" type="number"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                             </div>
                         </div>
@@ -1458,9 +1438,7 @@
 
                 document.getElementById('d_km_sekarang').textContent = fmtKm(d.km_sekarang);
                 document.getElementById('d_limit_km').textContent = fmtKm(d.limit_km);
-                document.getElementById('d_limit_bln').textContent = d.limit_bln ? d.limit_bln + ' bulan' :
-                    '—';
-                document.getElementById('d_km_svc').textContent = fmtKm(d.km_svc);
+                document.getElementById('d_km_svc').textContent = d.km_svc ? fmtKm(d.km_svc) : '—';
                 document.getElementById('d_tgl_svc').textContent = d.tgl_svc || '—';
 
                 document.getElementById('d_status_service').innerHTML = badgeSvc(d.status_service);
@@ -1586,8 +1564,7 @@
                     'tahun_pembuatan', 'tahun_perakitan', 'isi_silinder', 'warna',
                     'no_rangka', 'no_mesin', 'no_bpkb', 'warna_tnkb', 'bahan_bakar',
                     'kode_lokasi', 'no_urut_pendaftaran', 'batas_biaya', 'masa_berlaku',
-                    'kilometer_sekarang', 'limit_km_service', 'limit_biaya_bulanan_service',
-                    'limit_biaya_tahunan_service', 'km_terakhir_service', 'tanggal_terakhir_service',
+                    'kilometer_sekarang',
                     'status_service', 'status_kendaraan',
                     'harga_sewa_per_hari', 'harga_sewa_per_jam',
                 ];

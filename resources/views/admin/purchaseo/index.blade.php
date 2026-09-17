@@ -335,9 +335,14 @@
                                             <span class="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg border border-indigo-100">{{ $po->po_id }}</span>
                                         </td>
                                         <td class="px-4 py-3 text-xs text-gray-700">{{ $po->vendor ?? '-' }}</td>
-                                        <td class="px-4 py-3 text-xs text-gray-500 max-w-[160px]">
-                                            @if($po->keterangan)
-                                                <span title="{{ $po->keterangan }}">{{ \Illuminate\Support\Str::limit($po->keterangan, 40) }}</span>
+                                        <td class="px-4 py-3 text-xs text-gray-500">
+                                            @php
+                                                $ketPO = $po->keterangan
+                                                    ?: ($po->source_data['keluhan'] ?? null)
+                                                    ?: ($po->source_data['alasan_permintaan'] ?? null);
+                                            @endphp
+                                            @if($ketPO)
+                                                <span>{{ $ketPO }}</span>
                                             @else
                                                 <span class="text-gray-300">—</span>
                                             @endif
@@ -407,8 +412,8 @@
                                                     <i class="fa fa-eye text-xs"></i> Detail
                                                 </button>
                                                 @if($po->status === 'Pending' && auth()->user()->role === 'superadmin')
-                                                    @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident']))
-                                                        {{-- GPS / Service Part / Service Incident: per-item approval modal --}}
+                                                    @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident', 'service_asuransi']))
+                                                        {{-- GPS / Service Part / Service Incident / Service Asuransi: per-item approval modal --}}
                                                         <button onclick="openApproveModal({{ $po->id }}, '{{ $po->po_id }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors">
                                                             <i class="fa fa-check text-xs"></i> Approve
@@ -426,7 +431,7 @@
                                                             <i class="fa fa-check text-xs"></i> Approve
                                                         </button>
                                                     @endif
-                                                    @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident']))
+                                                    @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident', 'service_asuransi']))
                                                         <button onclick="openRejectModal({{ $po->id }}, '{{ $po->po_id }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
                                                             <i class="fa fa-times text-xs"></i> Reject
@@ -438,7 +443,7 @@
                                                         </button>
                                                     @endif
                                                 @endif
-                                                @if($po->status === 'Ditolak' && ($po->can_edit || $po->source_type === 'service_part'))
+                                                @if($po->status === 'Ditolak' && ($po->can_edit || in_array($po->source_type, ['service_part', 'service_asuransi', 'service_incident'])))
                                                     @if(in_array($po->source_type, ['gps', 'gps_perpanjang']))
                                                         <button onclick="openResubmitModal({{ $po->id }}, '{{ $po->po_id }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
@@ -453,6 +458,12 @@
                                                     @elseif($po->source_type === 'service_part')
                                                         {{-- Service Part: redirect ke form create dengan semua parts pre-filled --}}
                                                         <button onclick="resubmitViaPO({{ $po->id }})"
+                                                            class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
+                                                            <i class="fa fa-rotate-right text-xs"></i> Ulang
+                                                        </button>
+                                                    @elseif(in_array($po->source_type, ['service_asuransi', 'service_incident']))
+                                                        {{-- Service Asuransi: modal ajukan ulang dengan pre-fill data lama --}}
+                                                        <button onclick="openResubmitServiceAsuransiModal({{ $po->id }}, '{{ $po->po_id }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
                                                             <i class="fa fa-rotate-right text-xs"></i> Ulang
                                                         </button>
@@ -485,6 +496,7 @@
                                         $kendaraan    = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
                                         $isServicePart     = $po->source_type === 'service_part';
                                         $isServiceIncident = $po->source_type === 'service_incident';
+                                        $isServiceAsuransi = $po->source_type === 'service_asuransi';
 
                                         if ($isServicePart || $isServiceIncident) {
                                             $allParts    = $sourceData['parts'] ?? [];
@@ -507,6 +519,9 @@
                                             }
 
                                             $totalItems = collect($parts)->sum(fn($p) => $p['biaya'] ?? 0);
+                                        } elseif ($isServiceAsuransi) {
+                                            $asuransiKejadians = $sourceData['kejadians'] ?? [];
+                                            $totalItems = collect($asuransiKejadians)->sum(fn($k) => $k['biaya'] ?? 0);
                                         } else {
                                             $tanggalBayar = $sourceData['tanggal_bayar'] ?? null;
                                             $tanggalHabis = $sourceData['tanggal_habis'] ?? null;
@@ -526,7 +541,7 @@
                                                     </span>
                                                 </div>
                                                 {{-- Info kendaraan & service --}}
-                                                <div class="grid grid-cols-3 gap-4 mb-3 text-xs">
+                                                <div class="grid grid-cols-4 gap-4 mb-3 text-xs">
                                                     <div>
                                                         <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
                                                         <p class="font-semibold text-gray-800">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
@@ -539,7 +554,52 @@
                                                         <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">KM / Keluhan</p>
                                                         <p class="text-gray-700">{{ $sourceData['kilometer'] ?? '-' }} {{ $sourceData['keluhan'] ? '— ' . \Illuminate\Support\Str::limit($sourceData['keluhan'], 30) : '' }}</p>
                                                     </div>
+                                                    @if($isServiceIncident && !empty($sourceData['keterangan']))
+                                                    <div>
+                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Keterangan</p>
+                                                        <p class="font-mono text-[11px] text-red-700 bg-red-50 px-1.5 py-0.5 rounded">{{ $sourceData['keterangan'] }}</p>
+                                                    </div>
+                                                    @endif
                                                 </div>
+
+                                                {{-- Lampiran per-part (bukti dari form incident) --}}
+                                                @if($isServiceIncident)
+                                                @php
+                                                    $siAllLampiran = [];
+                                                    foreach (($sourceData['temp_files']['parts'] ?? []) as $pIdx2 => $pFiles) {
+                                                        foreach (($pFiles['bukti'] ?? []) as $pf) {
+                                                            $partName = $parts[$pIdx2]['nama_part'] ?? 'Part '.($pIdx2+1);
+                                                            $siAllLampiran[] = array_merge($pf, ['_part' => $partName]);
+                                                        }
+                                                    }
+                                                    // Lampiran umum
+                                                    foreach (($sourceData['temp_files']['attachments'] ?? []) as $af) {
+                                                        $siAllLampiran[] = $af;
+                                                    }
+                                                @endphp
+                                                @if(!empty($siAllLampiran))
+                                                <div class="mb-3 flex flex-wrap gap-1.5">
+                                                    @foreach($siAllLampiran as $lf)
+                                                        @php
+                                                            $lfPath = $lf['path'] ?? '';
+                                                            $lfName = $lf['original_name'] ?? basename($lfPath);
+                                                            $lfExt  = strtolower($lf['extension'] ?? pathinfo($lfPath, PATHINFO_EXTENSION));
+                                                            $lfIsImg = in_array($lfExt, ['jpg','jpeg','png','webp','gif']);
+                                                            $lfIcon  = $lfIsImg ? 'fa-image text-red-400' : ($lfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                            $lfUrl   = $lfPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($lfPath) : null;
+                                                        @endphp
+                                                        @if($lfUrl)
+                                                            <a href="{{ $lfUrl }}" target="_blank"
+                                                                class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg truncate max-w-[160px]"
+                                                                title="{{ $lfName }}{{ isset($lf['_part']) ? ' ('.$lf['_part'].')' : '' }}">
+                                                                <i class="fa {{ $lfIcon }} text-[9px]"></i>
+                                                                <span class="truncate">{{ Str::limit($lfName, 20) }}</span>
+                                                            </a>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                                @endif
+                                                @endif
                                                 {{-- Tabel parts --}}
                                                 <div class="bg-white rounded-xl border border-{{ $expandColor }}-100 overflow-hidden">
                                                     <table class="w-full text-xs">
@@ -552,8 +612,10 @@
                                                                 @if($isServiceIncident)
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Supplier</th>
                                                                 @endif
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Keterangan</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Atas Nama</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                             </tr>
@@ -580,8 +642,17 @@
                                                                     @if($isServiceIncident)
                                                                         <td class="px-3 py-2 text-gray-600">{{ $supplier?->nama_supplier ?? '-' }}</td>
                                                                     @endif
+                                                                    <td class="px-3 py-2 text-gray-500 whitespace-nowrap">
+                                                                        @php $ket = $part['keterangan_limit'] ?? $part['keterangan'] ?? null; @endphp
+                                                                        @if($ket && $ket !== '-')
+                                                                            <span class="text-[10px] italic">{{ $ket }}</span>
+                                                                        @else
+                                                                            <span class="text-gray-300">—</span>
+                                                                        @endif
+                                                                    </td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['nama_bank'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 font-mono text-gray-600">{{ $part['no_rekening'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $part['nama_rekening'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-center">
                                                                         @php
                                                                             $partLampiran = $sourceData['temp_files']['parts'][$pIdx]['bukti'] ?? [];
@@ -607,7 +678,7 @@
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-{{ $expandColor }}-200 bg-{{ $expandColor }}-50/50">
-                                                                <td colspan="{{ $isServiceIncident ? 7 : 6 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="{{ $isServiceIncident ? 9 : 8 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -814,7 +885,7 @@
             <div id="approveKendaraanInfo" class="px-6 pt-4 pb-2"></div>
             <div class="px-6 pb-2">
                 <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    <p id="approveItemListLabel" class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                         <i class="fa fa-list-ul mr-1 text-green-500"></i> Item GPS — Centang yang ingin disetujui
                     </p>
                     <div class="flex gap-2">
@@ -1251,7 +1322,7 @@ function buildDetailContent(data) {
                 + '<div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div>'
                 + '<div><span class="text-gray-400">A/n:</span> ' + (item.nama_rekening || '-') + '</div>'
                 + '</div>'
-                + (item.keterangan && item.keterangan !== '-' ? '<p class="mt-1.5 text-[10px] text-gray-400 italic border-t border-orange-100 pt-1">' + item.keterangan + '</p>' : '')
+                + (item.keterangan && item.keterangan !== '-' ? '<p class="mt-1.5 text-[10px] text-gray-400 italic border-t border-orange-100 pt-1">' + (item.keterangan_limit || item.keterangan) + '</p>' : (item.keterangan_limit && item.keterangan_limit !== '-' ? '<p class="mt-1.5 text-[10px] text-gray-400 italic border-t border-orange-100 pt-1">' + item.keterangan_limit + '</p>' : ''))
                 + (function() {
                     const lamps = item.lampiran || [];
                     if (!lamps.length) return '<p class="mt-1.5 text-[10px] text-gray-300 italic border-t border-orange-100 pt-1"><i class="fa fa-paperclip mr-1"></i>Tidak ada lampiran</p>';
@@ -1357,10 +1428,12 @@ function renderApproveItems(data) {
     const details = data.details, items = details.items || [];
     approveItemDecisions = items.map(function() { return { action: null, buktiFile: null }; });
     const k = details.kendaraan || {};
-    const isServicePart = details.type === 'service_part';
+    const isServicePart     = details.type === 'service_part';
+    const isServiceIncident = details.type === 'service_incident';
+    const isServiceAsuransi = details.type === 'service_asuransi';
 
     // ── Header info kendaraan ─────────────────────────────────
-    if (isServicePart) {
+    if (isServicePart || isServiceIncident) {
         document.getElementById('approveKendaraanInfo').innerHTML =
             '<div class="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3"><i class="fa fa-tools text-orange-600"></i>'
             + '<div class="text-sm flex-1"><div class="flex items-center gap-2 flex-wrap"><span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
@@ -1370,6 +1443,20 @@ function renderApproveItems(data) {
             + '<span>KM: <b class="text-gray-600">' + (details.kilometer || '-') + '</b></span>'
             + (details.keluhan ? '<span>Keluhan: <b class="text-gray-600">' + details.keluhan + '</b></span>' : '')
             + '</div></div></div>';
+    } else if (isServiceAsuransi) {
+        document.getElementById('approveKendaraanInfo').innerHTML =
+            '<div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3"><i class="fa fa-shield-halved text-blue-600"></i>'
+            + '<div class="text-sm flex-1"><div class="flex items-center gap-2 flex-wrap"><span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
+            + '<span class="text-gray-500">' + (k.merk || '') + '</span>'
+            + (details.nama_asuransi && details.nama_asuransi !== '-' ? '<span class="bg-blue-100 text-blue-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">' + details.nama_asuransi + '</span>' : '')
+            + '</div>'
+            + '<div class="flex gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">'
+            + '<span>Tgl Service: <b class="text-gray-600">' + (details.tanggal_service || '-') + '</b></span>'
+            + '<span>KM: <b class="text-gray-600">' + (details.kilometer || '-') + '</b></span>'
+            + '</div></div></div>';
+        // Update label list
+        const lbl = document.getElementById('approveItemListLabel');
+        if (lbl) lbl.innerHTML = '<i class="fa fa-list-ul mr-1 text-blue-500"></i> Kejadian — Centang yang ingin disetujui';
     } else {
         document.getElementById('approveKendaraanInfo').innerHTML =
             '<div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3"><i class="fa fa-car text-green-600"></i>'
@@ -1382,19 +1469,28 @@ function renderApproveItems(data) {
     const list = document.getElementById('approveItemList');
     list.innerHTML = '';
     items.forEach(function(item, idx) {
-        // ── Bank info ──────────────────────────────────────────
-        const bankName = item.nama_bank || item.nama_bank || '-';
-        const bankRek  = item.no_rekening || '-';
-        const bankAn   = item.nama_pemilik || item.nama_rekening || '-';
-        const bankInfo = [
-            bankName !== '-' ? '<span><i class="fa fa-building text-[9px]"></i> ' + bankName + '</span>' : '',
-            bankRek  !== '-' ? '<span class="font-mono">' + bankRek + '</span>' : '',
-            bankAn   !== '-' ? '<span>a/n ' + bankAn + '</span>' : '',
-        ].filter(Boolean).join(' ');
+        // ── Item title, subtitle, nominal ──────────────────────
+        let itemTitle, itemSubtitle, itemNominal, bankInfo = '';
 
-        // ── Item title & subtitle ──────────────────────────────
-        let itemTitle, itemSubtitle, itemNominal;
-        if (isServicePart) {
+        if (isServiceAsuransi) {
+            // Kejadian asuransi: tampilkan nama kejadian + lampiran
+            itemTitle    = item.nama_kejadian || '-';
+            itemSubtitle = '';
+            itemNominal  = item.biaya || 0;
+
+            // Tampilkan lampiran per kejadian
+            const lamps = item.lampiran || [];
+            if (lamps.length > 0) {
+                const lampHtml = lamps.map(function(lf) {
+                    const ext    = (lf.file_type || '').toLowerCase();
+                    const isImg  = ['jpg','jpeg','png','webp','gif'].includes(ext);
+                    const icon   = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                    return '<a href="' + lf.file_path + '" target="_blank" class="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:underline max-w-[150px] truncate">'
+                        + '<i class="fa ' + icon + ' text-[9px]"></i><span class="truncate">' + (lf.file_name || 'file') + '</span></a>';
+                }).join('');
+                itemSubtitle = '<div class="flex flex-wrap gap-1.5 mt-1">' + lampHtml + '</div>';
+            }
+        } else if (isServicePart || isServiceIncident) {
             itemTitle    = item.nama_part || '-';
             itemSubtitle = [
                 item.category_nama ? '<span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">' + item.category_nama + '</span>' : '',
@@ -1403,11 +1499,33 @@ function renderApproveItems(data) {
                 item.posisi && item.posisi !== '-'   ? '<span class="text-gray-400 text-[10px]">Posisi: ' + item.posisi + '</span>' : '',
             ].filter(Boolean).join(' ');
             itemNominal  = item.biaya || 0;
+            const bankName = item.nama_bank || '-';
+            const bankRek  = item.no_rekening || '-';
+            const bankAn   = item.nama_pemilik || item.nama_rekening || '-';
+            bankInfo = [
+                bankName !== '-' ? '<span><i class="fa fa-building text-[9px]"></i> ' + bankName + '</span>' : '',
+                bankRek  !== '-' ? '<span class="font-mono">' + bankRek + '</span>' : '',
+                bankAn   !== '-' ? '<span>a/n ' + bankAn + '</span>' : '',
+            ].filter(Boolean).join(' ');
         } else {
+            // GPS
+            const bankName = item.nama_bank || '-';
+            const bankRek  = item.no_rekening || '-';
+            const bankAn   = item.nama_pemilik || item.nama_rekening || '-';
+            bankInfo = [
+                bankName !== '-' ? '<span><i class="fa fa-building text-[9px]"></i> ' + bankName + '</span>' : '',
+                bankRek  !== '-' ? '<span class="font-mono">' + bankRek + '</span>' : '',
+                bankAn   !== '-' ? '<span>a/n ' + bankAn + '</span>' : '',
+            ].filter(Boolean).join(' ');
             itemTitle    = item.gps_name || '-';
             itemSubtitle = '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + (item.type || '-') + '</span>';
             itemNominal  = item.biaya_sewa || 0;
         }
+
+        // ── Warna aksen per type ───────────────────────────────
+        const accentColor = isServiceAsuransi ? 'blue'
+            : (isServicePart || isServiceIncident) ? 'orange'
+            : 'green';
 
         const card = document.createElement('div');
         card.id = 'approve-item-card-' + idx;
@@ -1420,11 +1538,12 @@ function renderApproveItems(data) {
             + '<div class="flex items-center gap-2 flex-wrap">'
             + '<span class="text-xs text-gray-400">#' + (idx+1) + '</span>'
             + '<span class="font-semibold text-gray-800 text-sm">' + itemTitle + '</span>'
-            + itemSubtitle
+            + (itemSubtitle && !isServiceAsuransi ? itemSubtitle : '')
             + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(itemNominal) + '</span>'
             + '</div>'
+            + (isServiceAsuransi && itemSubtitle ? itemSubtitle : '')
             + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
-            + (isServicePart && item.keterangan && item.keterangan !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + item.keterangan + '</p>' : '')
+            + ((isServicePart || isServiceIncident) && (item.keterangan_limit || item.keterangan) && (item.keterangan_limit || item.keterangan) !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + (item.keterangan_limit || item.keterangan) + '</p>' : '')
             + '</label></div>'
             + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
 
@@ -1560,18 +1679,27 @@ function renderRejectItems(data) {
     const details = data.details, items = details.items || [];
     rejectItemDecisions = items.map(function() { return { action: 'rejected', catatan: '' }; });
     const k = details.kendaraan || {};
+    const isServicePart     = details.type === 'service_part';
+    const isServiceIncident = details.type === 'service_incident';
+    const isServiceAsuransi = details.type === 'service_asuransi';
+
+    let headerBg = 'bg-red-50 border-red-200';
+    let headerIcon = 'fa-car text-red-500';
     document.getElementById('rejectKendaraanInfo').innerHTML =
-        '<div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3"><i class="fa fa-car text-red-500"></i>'
+        '<div class="' + headerBg + ' border rounded-xl px-4 py-3 mb-3 flex items-center gap-3"><i class="fa ' + headerIcon + '"></i>'
         + '<div class="text-sm"><span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
         + '<span class="text-gray-500 ml-2">' + (k.merk || '') + '</span></div></div>';
-    // Update label sesuai source_type
+
+    // Update label
     const rejectLabel = document.getElementById('rejectItemListLabel');
     if (rejectLabel) {
-        const labelText = (details.type === 'service_part')
-            ? 'Part — Centang yang ingin ditolak'
-            : 'Item GPS — Centang yang ingin ditolak';
+        let labelText = 'Item GPS — Centang yang ingin ditolak';
+        if (isServicePart)     labelText = 'Part — Centang yang ingin ditolak';
+        if (isServiceIncident) labelText = 'Part Incident — Centang yang ingin ditolak';
+        if (isServiceAsuransi) labelText = 'Kejadian — Centang yang ingin ditolak';
         rejectLabel.innerHTML = '<i class="fa fa-list-ul mr-1 text-red-500"></i> ' + labelText;
     }
+
     const list = document.getElementById('rejectItemList');
     list.innerHTML = '';
     items.forEach(function(item, idx) {
@@ -1580,26 +1708,46 @@ function renderRejectItems(data) {
         card.className = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/20';
         const row = document.createElement('div');
         row.className = 'flex items-start gap-3 px-4 py-3';
-        // Resolve nama & badge sesuai source_type
-        const isServicePart = (details.type === 'service_part');
-        const itemName  = isServicePart ? (item.nama_part     || '-') : (item.gps_name  || '-');
-        const itemBadge = isServicePart ? (item.category_nama || '-') : (item.type      || '-');
-        const itemBiaya = isServicePart ? (item.biaya         ||  0)  : (item.biaya_sewa ||  0);
+
+        let itemName, itemBadge, itemBiaya;
+        if (isServiceAsuransi) {
+            itemName  = item.nama_kejadian || '-';
+            itemBadge = '<span class="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">Kejadian</span>';
+            itemBiaya = item.biaya || 0;
+        } else if (isServicePart || isServiceIncident) {
+            itemName  = item.nama_part     || '-';
+            itemBadge = item.category_nama ? '<span class="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-semibold">' + item.category_nama + '</span>' : '-';
+            itemBiaya = item.biaya         ||  0;
+        } else {
+            // GPS
+            itemName  = item.gps_name  || '-';
+            itemBadge = (item.type || '-');
+            itemBiaya = item.biaya_sewa ||  0;
+        }
+
+        const badgeHtml = (isServicePart || isServiceIncident)
+            ? itemBadge
+            : (isServiceAsuransi
+                ? itemBadge
+                : '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + itemBadge + '</span>');
+
         row.innerHTML = '<div class="flex-shrink-0 pt-0.5"><input type="checkbox" id="reject-chk-' + idx + '" checked class="w-4 h-4 rounded text-red-600 cursor-pointer"></div>'
             + '<div class="flex-1 min-w-0"><label for="reject-chk-' + idx + '" class="cursor-pointer"><div class="flex items-center gap-2 flex-wrap">'
             + '<span class="text-xs text-gray-400">#' + (idx+1) + '</span>'
             + '<span class="font-semibold text-gray-800 text-sm">' + itemName + '</span>'
-            + '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + itemBadge + '</span>'
+            + badgeHtml
             + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(itemBiaya) + '</span>'
             + '</div></label></div>'
             + '<div id="reject-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
         card.appendChild(row);
+
         const reasonPanel = document.createElement('div');
         reasonPanel.id = 'reject-reason-panel-' + idx;
         reasonPanel.className = 'px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/30';
         reasonPanel.innerHTML = '<label class="text-[11px] font-semibold text-red-500 mb-1.5 block">Alasan Penolakan <span class="text-red-400 font-normal">(wajib)</span></label>'
             + '<textarea id="reject-reason-' + idx + '" rows="2" placeholder="Tulis alasan penolakan item ini..." class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white" oninput="rejectItemDecisions[' + idx + '].catatan = this.value; updateRejectSummary()"></textarea>';
         card.appendChild(reasonPanel);
+
         const chk = row.querySelector('input[type=checkbox]');
         chk.addEventListener('change', function() { toggleRejectItem(idx, this.checked); });
         list.appendChild(card);
@@ -1936,6 +2084,210 @@ async function submitResubmitSimple() {
 
 document.getElementById('resubmitSimpleModal')?.addEventListener('click', function(e) { if (e.target === this) closeResubmitSimpleModal(); });
 
+// ── RESUBMIT SERVICE ASURANSI MODAL ───────────────────────────────────────
+let _rsaPoId = null;
+
+function openResubmitServiceAsuransiModal(poId, poNumber) {
+    _rsaPoId = poId;
+    document.getElementById('rsaPoNumber').textContent = poNumber;
+    document.getElementById('rsaLoading').classList.remove('hidden');
+    document.getElementById('rsaBody').classList.add('hidden');
+    document.getElementById('modalResubmitServiceAsuransi').classList.remove('hidden');
+    document.getElementById('modalResubmitServiceAsuransi').classList.add('flex');
+
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    fetch('/admin/purchase-order/' + poId + '/resubmit', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({}),
+    })
+    .then(r => r.json())
+    .then(function(data) {
+        if (!data.success) throw new Error(data.message || 'Gagal memuat data');
+        renderRsaForm(data);
+        document.getElementById('rsaLoading').classList.add('hidden');
+        document.getElementById('rsaBody').classList.remove('hidden');
+    })
+    .catch(function(err) {
+        document.getElementById('rsaLoading').innerHTML =
+            '<div class="text-center text-red-500 py-8 px-6"><i class="fa fa-exclamation-triangle text-xl mb-2 block"></i><p class="text-sm">' + err.message + '</p></div>';
+    });
+}
+
+function renderRsaForm(data) {
+    // Info kendaraan + alasan
+    document.getElementById('rsaKendaraan').textContent = (data.nopol || '-') + ' — ' + (data.merk || '');
+    const catatanEl = document.getElementById('rsaCatatan');
+    if (data.catatan) {
+        catatanEl.textContent = 'Alasan penolakan: ' + data.catatan;
+        catatanEl.classList.remove('hidden');
+    } else {
+        catatanEl.classList.add('hidden');
+    }
+
+    // Set form action
+    document.getElementById('rsaForm').action = '/admin/purchase-order/' + _rsaPoId + '/resubmit-service-asuransi';
+
+    // Hidden fields
+    document.getElementById('rsa_kendaraan_id').value   = data.kendaraan_id   || '';
+    document.getElementById('rsa_nama_asuransi').value  = data.nama_asuransi  || '';
+    document.getElementById('rsa_tanggal_service').value= data.tanggal_service|| '';
+    document.getElementById('rsa_periode_mulai').value  = data.periode_mulai  || '';
+    document.getElementById('rsa_periode_selesai').value= data.periode_selesai|| '';
+    document.getElementById('rsa_kilometer').value      = data.kilometer      || '';
+
+    // Render kejadian rows
+    const container = document.getElementById('rsaKejadianContainer');
+    container.innerHTML = '';
+    (data.kejadians || []).forEach(function(kej, idx) {
+        renderRsaKejadian(container, idx, kej);
+    });
+    updateRsaTotalBiaya();
+}
+
+function renderRsaKejadian(container, idx, kej) {
+    const div = document.createElement('div');
+    div.id = 'rsa-kej-' + idx;
+    div.className = 'bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3';
+
+    // Lampiran lama
+    const lampiranLama = (kej.lampiran_existing || kej.lampiran || []);
+    let lampiranLamaHtml = '';
+    if (lampiranLama.length > 0) {
+        lampiranLamaHtml = '<div class="mt-1 space-y-1">'
+            + lampiranLama.map(function(lf) {
+                const path = lf.path || '';
+                const name = lf.original_name || basename(path);
+                const ext  = (lf.extension || '').toLowerCase();
+                const isImg = ['jpg','jpeg','png','webp'].includes(ext);
+                const icon  = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                const url   = path ? '/storage/' + path : null;
+                if (!url) return '';
+                return '<a href="' + url + '" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline">'
+                    + '<i class="fa ' + icon + ' text-[9px]"></i><span class="truncate max-w-[200px]">' + name + '</span></a>';
+            }).join('') + '</div>';
+    }
+
+    div.innerHTML = `
+        <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-gray-600">Kejadian #${idx + 1}</span>
+            <button type="button" onclick="removeRsaKejadian(${idx})"
+                class="w-6 h-6 rounded-lg bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center text-xs">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Kejadian <span class="text-red-400">*</span></label>
+                <input type="text" name="kejadians[${idx}][nama_kejadian]" required
+                    value="${(kej.nama_kejadian || '').replace(/"/g, '&quot;')}"
+                    placeholder="cth: Ganti Kaca Depan"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
+                <input type="number" name="kejadians[${idx}][biaya]" min="0" value="${kej.biaya || 0}"
+                    onchange="updateRsaTotalBiaya()" oninput="updateRsaTotalBiaya()"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+            </div>
+        </div>
+        <div>
+            <label class="text-xs font-semibold text-gray-500 mb-1 block">
+                Lampiran Lama
+            </label>
+            ${lampiranLamaHtml || '<p class="text-xs text-gray-400">Tidak ada lampiran lama</p>'}
+        </div>
+        <div>
+            <label class="text-xs font-semibold text-gray-500 mb-1 block">
+                Tambah Lampiran Baru <span class="text-gray-400 font-normal text-[10px]">(opsional)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer border border-dashed border-blue-200 hover:border-blue-400 bg-white hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors">
+                <i class="fa fa-paperclip text-blue-400 text-sm"></i>
+                <span class="text-xs text-gray-500">Klik untuk pilih file...</span>
+                <input type="file" name="kejadians[${idx}][lampiran][]" multiple
+                    accept="image/*,.pdf,.doc,.docx"
+                    onchange="updateRsaLampiranList(${idx}, this)"
+                    class="hidden">
+            </label>
+            <div id="rsa-lampiran-list-${idx}" class="mt-1 space-y-1"></div>
+        </div>
+    `;
+    container.appendChild(div);
+}
+
+function removeRsaKejadian(idx) {
+    document.getElementById('rsa-kej-' + idx)?.remove();
+    updateRsaTotalBiaya();
+}
+
+let rsaKejadianCount = 0;
+function addRsaKejadian() {
+    const container = document.getElementById('rsaKejadianContainer');
+    const idx = container.children.length + rsaKejadianCount++;
+    renderRsaKejadian(container, idx, {});
+}
+
+function updateRsaTotalBiaya() {
+    let total = 0;
+    document.querySelectorAll('#rsaKejadianContainer [name$="[biaya]"]').forEach(function(inp) {
+        total += parseInt(inp.value || 0);
+    });
+    const el = document.getElementById('rsaTotalBiaya');
+    if (el) el.textContent = 'Rp ' + total.toLocaleString('id-ID');
+}
+
+function updateRsaLampiranList(idx, input) {
+    const list = document.getElementById('rsa-lampiran-list-' + idx);
+    if (!list) return;
+    list.innerHTML = Array.from(input.files).map(f =>
+        '<div class="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded px-2 py-1">'
+        + '<i class="fa fa-paperclip text-[10px] text-gray-400"></i>'
+        + '<span class="truncate">' + f.name + '</span>'
+        + '<span class="ml-auto text-[10px] text-gray-400">' + (f.size/1024).toFixed(0) + ' KB</span>'
+        + '</div>'
+    ).join('');
+}
+
+function closeResubmitServiceAsuransiModal() {
+    document.getElementById('modalResubmitServiceAsuransi').classList.add('hidden');
+    document.getElementById('modalResubmitServiceAsuransi').classList.remove('flex');
+    _rsaPoId = null;
+}
+
+async function submitResubmitServiceAsuransi() {
+    if (!_rsaPoId) return;
+    const btn   = document.getElementById('rsaSubmitBtn');
+    const form  = document.getElementById('rsaForm');
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Menyimpan...';
+
+    const formData = new FormData(form);
+    formData.append('_token', token);
+
+    try {
+        const res    = await fetch('/admin/purchase-order/' + _rsaPoId + '/resubmit-service-asuransi', { method: 'POST', body: formData });
+        const result = await res.json();
+        if (result.success) {
+            closeResubmitServiceAsuransiModal();
+            window.location.href = result.redirect || window.location.href;
+        } else {
+            alert(result.message || 'Terjadi kesalahan.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-rotate-right"></i> Ajukan Ulang';
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan jaringan.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-rotate-right"></i> Ajukan Ulang';
+    }
+}
+
+document.getElementById('modalResubmitServiceAsuransi')?.addEventListener('click', function(e) {
+    if (e.target === this) closeResubmitServiceAsuransiModal();
+});
+
 // ── RESUBMIT SIMPLE (STNK → reset ke Pending langsung) ───────
 async function resubmitSimple(poId, poNumber) {
     if (!confirm('Ajukan ulang PO ' + poNumber + '?')) return;
@@ -2103,3 +2455,76 @@ async function approveStnk(poId, poNumber) {
 
 </script>
 @endpush
+
+{{-- MODAL: RESUBMIT SERVICE ASURANSI --}}
+<div id="modalResubmitServiceAsuransi" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h3 class="text-base font-bold text-gray-800">Ajukan Ulang — Service Asuransi</h3>
+                <p class="text-sm text-gray-500 mt-0.5">PO: <span id="rsaPoNumber" class="font-mono font-semibold text-amber-600"></span></p>
+            </div>
+            <button onclick="closeResubmitServiceAsuransiModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+
+        {{-- Loading --}}
+        <div id="rsaLoading" class="flex items-center justify-center py-16">
+            <div class="flex flex-col items-center gap-2 text-gray-400">
+                <i class="fa fa-spinner fa-spin text-2xl"></i>
+                <p class="text-sm">Memuat data...</p>
+            </div>
+        </div>
+
+        {{-- Body --}}
+        <div id="rsaBody" class="hidden flex-1 overflow-y-auto flex flex-col">
+            {{-- Info kendaraan + alasan --}}
+            <div class="px-6 pt-4 pb-2 space-y-2">
+                <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
+                    <p class="font-semibold text-gray-800" id="rsaKendaraan">-</p>
+                </div>
+                <div id="rsaCatatan" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700"></div>
+            </div>
+
+            <form id="rsaForm" method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
+                @csrf
+                <input type="hidden" name="kendaraan_id"    id="rsa_kendaraan_id">
+                <input type="hidden" name="nama_asuransi"   id="rsa_nama_asuransi">
+                <input type="hidden" name="tanggal_service" id="rsa_tanggal_service">
+                <input type="hidden" name="periode_mulai"   id="rsa_periode_mulai">
+                <input type="hidden" name="periode_selesai" id="rsa_periode_selesai">
+                <input type="hidden" name="kilometer"       id="rsa_kilometer">
+
+                {{-- Total biaya auto-sum --}}
+                <div class="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs text-gray-600">
+                    Total Biaya (auto-sum dari kejadian):
+                    <span id="rsaTotalBiaya" class="font-bold text-blue-700 ml-1">Rp 0</span>
+                </div>
+
+                {{-- Kejadian container --}}
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-semibold text-gray-600">Daftar Kejadian</label>
+                        <button type="button" onclick="addRsaKejadian()"
+                            class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fa fa-plus text-xs"></i> Tambah Kejadian
+                        </button>
+                    </div>
+                    <div id="rsaKejadianContainer" class="space-y-3"></div>
+                </div>
+            </form>
+
+            <div class="border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
+                <button type="button" onclick="closeResubmitServiceAsuransiModal()"
+                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">
+                    Batal
+                </button>
+                <button type="button" id="rsaSubmitBtn" onclick="submitResubmitServiceAsuransi()"
+                    class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl py-2.5 transition-colors">
+                    <i class="fa fa-rotate-right"></i> Ajukan Ulang
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
