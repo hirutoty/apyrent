@@ -150,11 +150,18 @@
 
             {{-- Lampiran --}}
             @php
-                $_showTempFiles = ($pembayaran->source_data['temp_files'] ?? []);
-                $_hasLampiran   = !empty($_showTempFiles['bukti'])
+                $_showTempFiles  = ($pembayaran->source_data['temp_files'] ?? []);
+                $_sourceParts    = ($pembayaran->source_data['parts'] ?? []);
+                $_sourceGpsItems = ($pembayaran->source_data['gps_items'] ?? []);
+                $_hasLampiran    = !empty($_showTempFiles['bukti'])
                     || !empty($_showTempFiles['attachments'])
                     || !empty($_showTempFiles['parts'])
                     || !empty($_showTempFiles['gps_items']);
+
+                // Gunakan mode per-item untuk tipe yang punya banyak part/item
+                $_usePerItem = in_array($pembayaran->source_type, [
+                    'service_part', 'service_incident', 'gps', 'gps_perpanjang'
+                ]) && (!empty($_showTempFiles['parts']) || !empty($_showTempFiles['gps_items']));
             @endphp
             @if($_hasLampiran)
             <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -162,12 +169,18 @@
                     <span class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
                         <i class="fa fa-paperclip text-blue-600 text-xs"></i>
                     </span>
-                    <h2 class="text-sm font-bold text-gray-800">Lampiran</h2>
+                    <h2 class="text-sm font-bold text-gray-800">Lampiran & Bukti</h2>
+                    @if($_usePerItem)
+                        <span class="text-[10px] font-semibold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">Per Item</span>
+                    @endif
                 </div>
                 <div class="p-5">
                     @include('admin.partials._lampiran_files', [
                         'tempFiles' => $_showTempFiles,
+                        'parts'     => $_sourceParts,
+                        'gpsItems'  => $_sourceGpsItems,
                         'compact'   => false,
+                        'perItem'   => $_usePerItem,
                     ])
                 </div>
             </div>

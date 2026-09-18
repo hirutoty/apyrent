@@ -347,8 +347,10 @@
                                         </td>
                                         <td class="px-4 py-3 text-xs text-gray-700 text-center">
                                             @php
-                                                $_poDec  = $po->source_data['item_decisions'] ?? [];
-                                                $_poGpsI = $po->source_data['gps_items'] ?? [];
+                                                $_poDec   = $po->source_data['item_decisions'] ?? [];
+                                                $_poGpsI  = $po->source_data['gps_items'] ?? [];
+                                                $_poParts = $po->source_data['parts'] ?? [];
+                                                $_poKejad = $po->source_data['kejadians'] ?? [];
                                                 if (!empty($_poDec)) {
                                                     // Ada keputusan per item — tampilkan sesuai status
                                                     $_poItemCount = collect($_poDec)
@@ -358,6 +360,10 @@
                                                         ->count();
                                                 } elseif (!empty($_poGpsI)) {
                                                     $_poItemCount = count($_poGpsI);
+                                                } elseif ($po->source_type === 'service_asuransi' && !empty($_poKejad)) {
+                                                    $_poItemCount = count($_poKejad);
+                                                } elseif (in_array($po->source_type, ['service_part','service_incident']) && !empty($_poParts)) {
+                                                    $_poItemCount = count($_poParts);
                                                 } else {
                                                     $_poItemCount = $po->total_barang ?? 0;
                                                 }

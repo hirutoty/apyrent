@@ -318,6 +318,33 @@ class ServiceIncidentController extends Controller
     }
 
     // =========================================================================
+    // MARK PART AS DIGANTI (ubah status aktif → Diganti)
+    // =========================================================================
+
+    public function markDiganti($id)
+    {
+        $part = ServiceIncidentPart::findOrFail($id);
+
+        if ($part->status !== 'aktif') {
+            return back()->with('error', 'Hanya part dengan status Aktif yang bisa diubah ke Diganti.');
+        }
+
+        $part->update([
+            'status'      => 'Diganti',
+            'replaced_at' => now(),
+        ]);
+
+        // Recalculate header status incident
+        $incident = ServiceIncident::with('parts')->find($part->service_incident_id);
+        if ($incident) {
+            $adaAktif = $incident->parts->contains(fn($p) => $p->status === 'aktif');
+            $incident->update(['status' => $adaAktif ? 'aktif' : 'selesai']);
+        }
+
+        return back()->with('success', 'Part "' . $part->nama_part . '" berhasil diubah ke status Diganti.');
+    }
+
+    // =========================================================================
     // DELETE PART BUKTI
     // =========================================================================
 

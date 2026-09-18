@@ -566,10 +566,10 @@ class PengeluaranTransferService
 
         if ($incident) {
             // Update existing — jangan hapus parts karena sudah dibuat saat PO approve
-            // Hanya update header + isi bukti_bayar per part dari approval
+            // Aktifkan incident (tidak_aktif → aktif) karena pembayaran sudah disetujui
             $incident->update([
                 'total_biaya'     => $totalBiaya,
-                'status'          => 'tidak_aktif',
+                'status'          => 'aktif',
                 'status_approval' => 'approved',
                 'approval_by'     => auth()->id(),
                 'approval_at'     => now(),
@@ -577,18 +577,18 @@ class PengeluaranTransferService
                 'persetujuan'     => 'Disetujui',
             ]);
 
-            // Update bukti_bayar per part yang sudah ada
+            // Update bukti_bayar per part + aktifkan semua parts (tidak_aktif → aktif)
             $existingParts = $incident->parts()->orderBy('id')->get();
             foreach ($existingParts as $idx => $existingPart) {
                 $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
+                $updateData = [
+                    'persetujuan' => 'Disetujui',
+                    'status'      => 'aktif',   // aktifkan saat pembayaran disetujui
+                ];
                 if (isset($buktiBayarMap[$originalIdx])) {
-                    $existingPart->update([
-                        'bukti_bayar' => [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]],
-                        'persetujuan' => 'Disetujui',
-                    ]);
-                } else {
-                    $existingPart->update(['persetujuan' => 'Disetujui']);
+                    $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]];
                 }
+                $existingPart->update($updateData);
             }
 
             // Catat cashflow per part

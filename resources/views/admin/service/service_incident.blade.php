@@ -231,6 +231,7 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Lampiran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Bukti Bayar</th>
                                                     <th class="text-right px-3 py-2 font-semibold">Biaya</th>
+                                                    <th class="text-center px-3 py-2 font-semibold">Aksi</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -279,6 +280,8 @@
                                                                     'Terpasang'   => 'bg-emerald-100 text-emerald-700',
                                                                     'Proses'      => 'bg-amber-100 text-amber-700',
                                                                     'tidak_aktif' => 'bg-slate-100 text-slate-500',
+                                                                    'aktif'       => 'bg-blue-100 text-blue-700',
+                                                                    'Diganti'     => 'bg-purple-100 text-purple-700',
                                                                     'Limit'       => 'bg-red-100 text-red-700',
                                                                     default       => 'bg-gray-100 text-gray-500',
                                                                 };
@@ -286,6 +289,8 @@
                                                                     'Terpasang'   => 'Terpasang',
                                                                     'Proses'      => 'Proses',
                                                                     'tidak_aktif' => 'Tidak Aktif',
+                                                                    'aktif'       => 'Aktif',
+                                                                    'Diganti'     => 'Diganti',
                                                                     'Limit'       => 'Limit',
                                                                     default       => $part->status ?? '—',
                                                                 };
@@ -386,12 +391,28 @@
                                                         <td class="px-3 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
                                                             Rp {{ number_format($part->biaya, 0, ',', '.') }}
                                                         </td>
+                                                        {{-- AKSI: tombol Diganti hanya untuk parts aktif --}}
+                                                        <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
+                                                            @if($part->status === 'aktif')
+                                                                <form action="{{ route('service-incident-parts.diganti', $part->id) }}" method="POST"
+                                                                    onsubmit="return confirm('Ubah status part &quot;{{ addslashes($part->nama_part) }}&quot; menjadi Diganti?')"
+                                                                    class="inline">
+                                                                    @csrf
+                                                                    <button type="submit"
+                                                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors whitespace-nowrap">
+                                                                        <i class="fa fa-rotate text-[9px]"></i> Diganti
+                                                                    </button>
+                                                                </form>
+                                                            @else
+                                                                <span class="text-gray-300 text-[10px]">—</span>
+                                                            @endif
+                                                        </td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
                                             <tfoot>
                                                 <tr class="bg-orange-50 border-t-2 border-orange-200">
-                                                    <td colspan="13" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
+                                                    <td colspan="14" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
                                                     <td class="px-3 py-2 text-right text-xs font-bold text-emerald-700">
                                                         Rp {{ number_format($d->parts->sum('biaya'), 0, ',', '.') }}
                                                     </td>

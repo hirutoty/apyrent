@@ -618,6 +618,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       ->name('service-incident-parts.bukti.delete');
   Route::put('service-incident-parts/{id}/status', [ServiceIncidentController::class, 'updatePartStatus'])
       ->name('service-incident-parts.update-status');
+  Route::post('service-incident-parts/{id}/diganti', [ServiceIncidentController::class, 'markDiganti'])
+      ->name('service-incident-parts.diganti');
   Route::post('service-incident/{id}/terpasang', [ServiceIncidentController::class, 'terpasang'])
       ->name('service-incident.terpasang');
   Route::delete('service-incident/attachment/{id}', [ServiceIncidentController::class, 'destroyAttachment'])

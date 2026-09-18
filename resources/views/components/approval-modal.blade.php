@@ -426,8 +426,8 @@
                                          'border-red-200 bg-red-50/20':     itemDecisions[idx]?.action === 'rejected'
                                      }">
 
-                                    {{-- Upload Bukti (untuk approved) — hanya untuk service_part, bukan service_incident --}}
-                                    <div x-show="itemDecisions[idx]?.action === 'approved' && data?.source_type !== 'service_incident'" class="space-y-2">
+                                    {{-- Upload Bukti (untuk approved) — untuk service_part dan service_incident --}}
+                                    <div x-show="itemDecisions[idx]?.action === 'approved'" class="space-y-2">
                                         <label class="block">
                                             <span class="text-xs font-semibold text-gray-600 flex items-center gap-1 mb-1">
                                                 <i class="fa-solid fa-paperclip text-green-600"></i>
@@ -487,8 +487,8 @@
                         </span>
                     </div>
 
-                    {{-- Upload Bukti Pembayaran Global (khusus service_incident, muncul jika ada yang diapprove) --}}
-                    <div x-show="data?.source_type === 'service_incident' && approvedCount() > 0"
+                    {{-- Upload Bukti Pembayaran Global (tidak dipakai lagi — bukti sekarang per-item) --}}
+                    <div x-show="false"
                          class="mt-4 bg-green-50 rounded-xl p-5 border-2 border-green-200">
                         <h4 class="font-bold text-gray-800 mb-1 flex items-center gap-2 text-sm">
                             <i class="bi bi-cloud-upload text-green-600"></i>
@@ -946,11 +946,9 @@
                     x-show="data?.source_type === 'gps' || data?.source_type === 'gps_perpanjang' || data?.source_type === 'service_part' || data?.source_type === 'service_incident' || data?.source_type === 'service_asuransi'"
                     @click="submitItemDecisions()"
                     :disabled="submitting || decidedCount() === 0 || !allRejectedHaveCatatan()
-                        || (data?.source_type !== 'service_incident' && !allApprovedHaveBukti())
-                        || (data?.source_type === 'service_incident' && approvedCount() > 0 && buktiFiles.length === 0)"
+                        || !allApprovedHaveBukti()"
                     :class="(submitting || decidedCount() === 0 || !allRejectedHaveCatatan()
-                        || (data?.source_type !== 'service_incident' && !allApprovedHaveBukti())
-                        || (data?.source_type === 'service_incident' && approvedCount() > 0 && buktiFiles.length === 0))
+                        || !allApprovedHaveBukti())
                         ? 'opacity-50 cursor-not-allowed bg-blue-400'
                         : 'bg-blue-600 hover:bg-blue-700'"
                     class="px-5 py-2.5 text-white rounded-lg font-medium transition-colors text-sm flex items-center gap-2">
@@ -1140,14 +1138,8 @@ function approvalModal() {
                 alert('Semua item yang ditolak harus memiliki alasan penolakan.');
                 return;
             }
-            if (!this.allApprovedHaveBukti() && this.data?.source_type !== 'service_incident') {
+            if (!this.allApprovedHaveBukti()) {
                 alert('Bukti pembayaran wajib diupload untuk setiap item yang disetujui.');
-                return;
-            }
-
-            // service_incident: wajib upload bukti global jika ada yang diapprove
-            if (this.data?.source_type === 'service_incident' && this.approvedCount() > 0 && this.buktiFiles.length === 0) {
-                alert('Bukti pembayaran wajib diupload minimal 1 file.');
                 return;
             }
 
@@ -1168,8 +1160,8 @@ function approvalModal() {
                 }
             });
 
-            // service_incident / service_asuransi: kirim bukti global
-            if (this.data?.source_type === 'service_incident' || this.data?.source_type === 'service_asuransi') {
+            // service_asuransi: kirim bukti global
+            if (this.data?.source_type === 'service_asuransi') {
                 this.buktiFiles.forEach((file, idx) => {
                     formData.append(`bukti[${idx}]`, file);
                 });

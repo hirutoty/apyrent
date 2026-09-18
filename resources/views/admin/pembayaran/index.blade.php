@@ -403,6 +403,8 @@
                                         $_sd_items = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
                                         $_dec = $_sd_items['item_decisions'] ?? [];
                                         $_gpsItemsAll = $_sd_items['gps_items'] ?? [];
+                                        $_sdParts  = $_sd_items['parts'] ?? [];
+                                        $_sdKejad  = $_sd_items['kejadians'] ?? [];
 
                                         if (!empty($_gpsItemsAll)) {
                                             // GPS: hitung dari gps_items actual sesuai tab
@@ -423,6 +425,10 @@
                                             } else {
                                                 $itemCount = count($_gpsItemsAll);
                                             }
+                                        } elseif ($d->source_type === 'service_asuransi' && !empty($_sdKejad)) {
+                                            $itemCount = count($_sdKejad);
+                                        } elseif (in_array($d->source_type, ['service_part', 'service_incident']) && !empty($_sdParts)) {
+                                            $itemCount = count($_sdParts);
                                         } elseif ($d->items->count() > 0) {
                                             $itemCount = $d->items->count();
                                         } else {
@@ -1175,11 +1181,7 @@
                                                     @endphp
                                                     <div class="px-4 py-3">
                                                         {{-- Info header --}}
-                                                        <div class="grid grid-cols-4 gap-3 mb-3 text-xs">
-                                                            <div>
-                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Kendaraan</p>
-                                                                <p class="font-semibold text-gray-800">{{ $saKend ? $saKend->nopol . ' — ' . $saKend->merk : '-' }}</p>
-                                                            </div>
+                                                       
                                                             <div>
                                                                 <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Nama Asuransi</p>
                                                                 <p class="text-gray-700">{{ $sd['nama_asuransi'] ?? '-' }}</p>
@@ -1399,69 +1401,7 @@
                                                             @endif
                                                         </div>
 
-                                                        {{-- Lampiran per-part --}}
-                                                        @php
-                                                            $siLampiran = [];
-                                                            foreach (($sd['temp_files']['parts'] ?? []) as $pIdx3 => $pFiles3) {
-                                                                $pName3 = $siParts[$pIdx3]['nama_part'] ?? 'Part '.($pIdx3+1);
-                                                                foreach (($pFiles3['bukti'] ?? []) as $pf3) {
-                                                                    $siLampiran[] = array_merge($pf3, ['_label' => $pName3]);
-                                                                }
-                                                            }
-                                                            foreach (($sd['temp_files']['attachments'] ?? []) as $af3) {
-                                                                $siLampiran[] = $af3;
-                                                            }
-                                                        @endphp
-                                                        @if(!empty($siLampiran))
-                                                        <div class="mb-3 flex flex-wrap gap-1.5">
-                                                            @foreach($siLampiran as $lf)
-                                                                @php
-                                                                    $lfPath = $lf['path'] ?? '';
-                                                                    $lfName = $lf['original_name'] ?? basename($lfPath);
-                                                                    $lfExt  = strtolower($lf['extension'] ?? pathinfo($lfPath, PATHINFO_EXTENSION));
-                                                                    $lfIsImg = in_array($lfExt, ['jpg','jpeg','png','webp','gif']);
-                                                                    $lfIcon  = $lfIsImg ? 'fa-image text-red-400' : ($lfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
-                                                                    $lfUrl   = $lfPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($lfPath) : null;
-                                                                @endphp
-                                                                @if($lfUrl)
-                                                                    <a href="{{ $lfUrl }}" target="_blank"
-                                                                        class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg"
-                                                                        title="{{ $lfName }}{{ isset($lf['_label']) ? ' ('.$lf['_label'].')' : '' }}">
-                                                                        <i class="fa {{ $lfIcon }} text-[9px]"></i>
-                                                                        <span class="truncate max-w-[140px]">{{ Str::limit($lfName, 20) }}</span>
-                                                                    </a>
-                                                                @endif
-                                                            @endforeach
-                                                        </div>
-                                                        @endif
-
-                                                        {{-- Bukti bayar dari approval --}}
-                                                        @php
-                                                            $siBukti = null;
-                                                            $siApproval = $d->approvals->where('action','approved')->first();
-                                                            if ($siApproval && !empty($siApproval->bukti_files)) {
-                                                                $siBuktiFiles = is_array($siApproval->bukti_files) ? $siApproval->bukti_files : json_decode($siApproval->bukti_files, true);
-                                                                $siBukti = $siBuktiFiles[0] ?? null;
-                                                            }
-                                                        @endphp
-                                                        @if($siBukti)
-                                                        @php
-                                                            $siBPath = $siBukti['path'] ?? '';
-                                                            $siBName = $siBukti['original_name'] ?? basename($siBPath);
-                                                            $siBUrl  = $siBPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($siBPath) : null;
-                                                        @endphp
-                                                        @if($siBUrl)
-                                                        <div class="mb-3">
-                                                            <p class="text-[10px] text-gray-400 uppercase font-semibold mb-1">Bukti Pembayaran</p>
-                                                            <a href="{{ $siBUrl }}" target="_blank"
-                                                                class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100">
-                                                                <i class="fa fa-paperclip text-[9px]"></i> {{ Str::limit($siBName, 25) }}
-                                                            </a>
-                                                        </div>
-                                                        @endif
-                                                        @endif
-
-                                                        {{-- Tabel parts --}}
+                                                        {{-- Tabel parts (lampiran & bukti per item) --}}
                                                         @if(!empty($siParts))
                                                         <div class="rounded-xl border border-red-100 overflow-hidden">
                                                             <table class="w-full text-xs">
@@ -1472,31 +1412,94 @@
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kategori</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bukti</th>
                                                                         <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
                                                                     @foreach($siParts as $siPIdx => $siPart)
-                                                                    @php $siCat = isset($siPart['category_id']) ? \App\Models\ServiceCategory::find($siPart['category_id']) : null; @endphp
+                                                                    @php
+                                                                        $siCat = isset($siPart['category_id']) ? \App\Models\ServiceCategory::find($siPart['category_id']) : null;
+                                                                        // Lampiran: file yang diupload saat buat service incident
+                                                                        $siPartLampiran = $sd['temp_files']['parts'][$siPIdx]['bukti'] ?? [];
+                                                                        // Bukti bayar admin: diupload saat approve
+                                                                        $siPartBukti = isset($siPart['bukti_bayar_admin']) && $siPart['bukti_bayar_admin']
+                                                                            ? (is_array($siPart['bukti_bayar_admin']) ? $siPart['bukti_bayar_admin'] : [$siPart['bukti_bayar_admin']])
+                                                                            : [];
+                                                                    @endphp
                                                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                         <td class="px-3 py-2 text-gray-400">{{ $siPIdx + 1 }}</td>
                                                                         <td class="px-3 py-2 font-semibold text-gray-800">{{ $siPart['nama_part'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2">
                                                                             @if($siCat)
                                                                                 <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ $siCat->nama }}</span>
+                                                                            @elseif(!empty($siPart['category_nama']))
+                                                                                <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ $siPart['category_nama'] }}</span>
                                                                             @else
                                                                                 <span class="text-gray-400">—</span>
                                                                             @endif
                                                                         </td>
                                                                         <td class="px-3 py-2 text-gray-600">{{ $siPart['nama_bank'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2 font-mono text-gray-600">{{ $siPart['no_rekening'] ?? '-' }}</td>
+
+                                                                        {{-- Kolom LAMPIRAN: file yang diupload saat buat service incident --}}
+                                                                        <td class="px-3 py-2">
+                                                                            @if(count($siPartLampiran) > 0)
+                                                                                <div class="flex flex-col gap-1">
+                                                                                    @foreach($siPartLampiran as $siLf)
+                                                                                        @php
+                                                                                            $siLfPath = $siLf['path'] ?? '';
+                                                                                            $siLfName = $siLf['original_name'] ?? basename($siLfPath);
+                                                                                            $siLfExt  = strtolower($siLf['extension'] ?? pathinfo($siLfPath, PATHINFO_EXTENSION));
+                                                                                            $siLfIsImg = in_array($siLfExt, ['jpg','jpeg','png','webp','gif']);
+                                                                                            $siLfIcon  = $siLfIsImg ? 'fa-image text-blue-400' : ($siLfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                                                            $siLfUrl   = $siLfPath ? asset('storage/' . $siLfPath) : null;
+                                                                                        @endphp
+                                                                                        @if($siLfUrl)
+                                                                                            <a href="{{ $siLfUrl }}" target="_blank"
+                                                                                                class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 hover:underline truncate max-w-[150px]"
+                                                                                                title="{{ $siLfName }}">
+                                                                                                <i class="fa {{ $siLfIcon }} text-[9px] flex-shrink-0"></i>
+                                                                                                <span class="truncate">{{ Str::limit($siLfName, 18) }}</span>
+                                                                                            </a>
+                                                                                        @endif
+                                                                                    @endforeach
+                                                                                </div>
+                                                                            @else
+                                                                                <span class="text-gray-300 text-[10px]">—</span>
+                                                                            @endif
+                                                                        </td>
+
+                                                                        {{-- Kolom BUKTI: diupload saat approve --}}
+                                                                        <td class="px-3 py-2">
+                                                                            @if(!empty($siPartBukti))
+                                                                                @php
+                                                                                    $siBVal = $siPartBukti[0];
+                                                                                    $siBPath = is_array($siBVal) ? ($siBVal['path'] ?? '') : $siBVal;
+                                                                                    $siBName = is_array($siBVal) ? ($siBVal['original_name'] ?? basename($siBPath)) : basename($siBPath);
+                                                                                    $siBUrl  = $siBPath ? asset($siBPath) : null;
+                                                                                @endphp
+                                                                                @if($siBUrl)
+                                                                                    <a href="{{ $siBUrl }}" target="_blank"
+                                                                                        class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100 max-w-[150px]"
+                                                                                        title="{{ $siBName }}">
+                                                                                        <i class="fa fa-paperclip text-[9px]"></i>
+                                                                                        <span class="truncate">{{ Str::limit($siBName, 18) }}</span>
+                                                                                    </a>
+                                                                                @endif
+                                                                            @else
+                                                                                <span class="text-gray-300 text-[10px]">—</span>
+                                                                            @endif
+                                                                        </td>
+
                                                                         <td class="px-3 py-2 text-right font-bold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                             Rp {{ number_format($siPart['biaya'] ?? 0, 0, ',', '.') }}
                                                                         </td>
                                                                     </tr>
                                                                     @endforeach
                                                                     <tr class="border-t-2 border-red-200 bg-red-50/50">
-                                                                        <td colspan="5" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                        <td colspan="7" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                         <td class="px-3 py-2 text-right text-sm font-bold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                             Rp {{ number_format($siTotal, 0, ',', '.') }}
                                                                         </td>
