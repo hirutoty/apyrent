@@ -295,46 +295,84 @@ class ServiceAsuransiController extends Controller
         $sourceData = $pembayaran ? ($pembayaran->source_data ?? []) : [];
         $tempFiles  = $sourceData['temp_files'] ?? [];
 
-        $kejadians = $data->kejadians->map(function ($kej, $idx) use ($tempFiles) {
-            $tempKejFiles = $tempFiles['kejadians'][$idx] ?? [];
+        // Helper: bangun daftar lampiran yang sudah ada untuk satu kejadian
+        $buildLampiran = function (array $lampiranModel, array $tempKejFiles) {
             $lampiranExisting = [];
-            foreach ($tempKejFiles as $tf) {
-                $url = isset($tf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($tf['path']) : null;
-                if ($url) {
+            $seenPaths = [];
+
+            // Prioritaskan lampiran yang tersimpan di model kejadian
+            foreach ($lampiranModel as $lf) {
+                $path = $lf['path'] ?? '';
+                if (!$path) continue;
+                $url = \Illuminate\Support\Facades\Storage::disk('public')->url($path);
+                if ($url && !in_array($path, $seenPaths)) {
+                    $seenPaths[] = $path;
                     $lampiranExisting[] = [
-                        'path'          => $tf['path'],
-                        'original_name' => $tf['original_name'] ?? basename($tf['path']),
-                        'extension'     => $tf['extension'] ?? '',
+                        'path'          => $path,
+                        'original_name' => $lf['original_name'] ?? $lf['name'] ?? basename($path),
+                        'extension'     => $lf['extension'] ?? pathinfo($path, PATHINFO_EXTENSION),
                         'url'           => $url,
                     ];
                 }
             }
-            // Juga cek lampiran yang tersimpan di model kejadian
-            foreach ($kej->lampiran ?? [] as $lf) {
-                $path = $lf['path'] ?? '';
-                $url  = $path ? \Illuminate\Support\Facades\Storage::disk('public')->url($path) : null;
+
+            // Fallback: ambil dari temp_files source_data jika belum ada
+            foreach ($tempKejFiles as $tf) {
+                $path = $tf['path'] ?? '';
+                if (!$path || in_array($path, $seenPaths)) continue;
+                $url = \Illuminate\Support\Facades\Storage::disk('public')->url($path);
                 if ($url) {
-                    $lampiranExisting[] = array_merge($lf, ['url' => $url]);
+                    $seenPaths[] = $path;
+                    $lampiranExisting[] = [
+                        'path'          => $path,
+                        'original_name' => $tf['original_name'] ?? basename($path),
+                        'extension'     => $tf['extension'] ?? pathinfo($path, PATHINFO_EXTENSION),
+                        'url'           => $url,
+                    ];
                 }
             }
+
+            return $lampiranExisting;
+        };
+
+        // Bangun daftar kejadian dari relasi Eloquent
+        $kejadians = $data->kejadians->map(function ($kej, $idx) use ($tempFiles, $buildLampiran) {
+            $tempKejFiles = $tempFiles['kejadians'][$idx] ?? [];
             return [
-                'id'               => $kej->id,
-                'nama_kejadian'    => $kej->nama_kejadian,
-                'biaya'            => $kej->biaya,
-                'lampiran_existing'=> $lampiranExisting,
+                'id'                => $kej->id,
+                'nama_kejadian'     => $kej->nama_kejadian,
+                'biaya'             => $kej->biaya,
+                'lampiran_existing' => $buildLampiran($kej->lampiran ?? [], $tempKejFiles),
             ];
         })->values();
 
+        // Fallback: jika kejadian di DB kosong, coba bangun dari source_data pembayaran
+        if ($kejadians->isEmpty() && !empty($sourceData['kejadians'])) {
+            $kejadians = collect($sourceData['kejadians'])->map(function ($kej, $idx) use ($tempFiles, $buildLampiran) {
+                $tempKejFiles = $tempFiles['kejadians'][$idx] ?? [];
+                $lampiranModel = $kej['lampiran'] ?? [];
+                return [
+                    'id'                => null,
+                    'nama_kejadian'     => $kej['nama_kejadian'] ?? '',
+                    'biaya'             => (int)($kej['biaya'] ?? 0),
+                    'lampiran_existing' => $buildLampiran($lampiranModel, $tempKejFiles),
+                ];
+            })->values();
+        }
+
         return response()->json([
-            'success'         => true,
-            'id'              => $data->id,
-            'pembayaran_id'   => $data->pembayaran_id,
-            'kendaraan'       => ($data->kendaraan->nopol ?? '-') . ' — ' . ($data->kendaraan->merk ?? ''),
-            'nama_asuransi'   => $data->nama_asuransi ?? '-',
-            'tanggal_service' => $data->tanggal_service,
-            'kilometer'       => $data->kilometer,
+            'success'           => true,
+            'id'                => $data->id,
+            'pembayaran_id'     => $data->pembayaran_id,
+            'kendaraan_id'      => $data->kendaraan_id,
+            'kendaraan'         => ($data->kendaraan->nopol ?? '-') . ' — ' . ($data->kendaraan->merk ?? ''),
+            'nama_asuransi'     => $data->nama_asuransi ?? '-',
+            'tanggal_service'   => $data->tanggal_service,
+            'periode_mulai'     => $data->periode_mulai,
+            'periode_selesai'   => $data->periode_selesai,
+            'kilometer'         => $data->kilometer,
             'catatan_penolakan' => $catatan,
-            'kejadians'       => $kejadians,
+            'kejadians'         => $kejadians,
         ]);
     }
 
@@ -386,10 +424,25 @@ class ServiceAsuransiController extends Controller
 
             // Update source_data pembayaran
             $newKejadians = array_map(function ($kej, $idx) use ($tempFiles) {
+                // Lampiran lama dikirim dari form sebagai hidden inputs
+                $lampiranLama = array_values(array_filter(
+                    array_map(function ($lf) {
+                        $path = $lf['path'] ?? '';
+                        if (!$path) return null;
+                        return [
+                            'path'          => $path,
+                            'original_name' => $lf['original_name'] ?? basename($path),
+                            'extension'     => $lf['extension'] ?? pathinfo($path, PATHINFO_EXTENSION),
+                            'size'          => (int)($lf['size'] ?? 0),
+                        ];
+                    }, $kej['lampiran_lama'] ?? [])
+                ));
+                // Gabungkan lampiran lama + file baru yang di-upload
+                $newLampiran = $tempFiles['kejadians'][$idx] ?? [];
                 return [
                     'nama_kejadian' => $kej['nama_kejadian'] ?? '',
                     'biaya'         => (int)($kej['biaya'] ?? 0),
-                    'lampiran'      => $tempFiles['kejadians'][$idx] ?? [],
+                    'lampiran'      => array_merge($lampiranLama, $newLampiran),
                 ];
             }, $kejadians, array_keys($kejadians));
 

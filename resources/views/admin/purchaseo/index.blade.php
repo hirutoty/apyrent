@@ -610,7 +610,6 @@
                                                                 @if($isServiceIncident)
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Supplier</th>
                                                                 @endif
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Keterangan</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Atas Nama</th>
@@ -640,14 +639,6 @@
                                                                     @if($isServiceIncident)
                                                                         <td class="px-3 py-2 text-gray-600">{{ $supplier?->nama_supplier ?? '-' }}</td>
                                                                     @endif
-                                                                    <td class="px-3 py-2 text-gray-500 whitespace-nowrap">
-                                                                        @php $ket = $part['keterangan_limit'] ?? $part['keterangan'] ?? null; @endphp
-                                                                        @if($ket && $ket !== '-')
-                                                                            <span class="text-[10px] italic">{{ $ket }}</span>
-                                                                        @else
-                                                                            <span class="text-gray-300">—</span>
-                                                                        @endif
-                                                                    </td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['nama_bank'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 font-mono text-gray-600">{{ $part['no_rekening'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['nama_rekening'] ?? '-' }}</td>
@@ -676,7 +667,7 @@
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-{{ $expandColor }}-200 bg-{{ $expandColor }}-50/50">
-                                                                <td colspan="{{ $isServiceIncident ? 9 : 8 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="{{ $isServiceIncident ? 8 : 8 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -1437,7 +1428,6 @@ function buildDetailContent(data) {
                 + '<div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div>'
                 + '<div><span class="text-gray-400">A/n:</span> ' + (item.nama_rekening || '-') + '</div>'
                 + '</div>'
-                + (item.keterangan && item.keterangan !== '-' ? '<p class="mt-1.5 text-[10px] text-gray-400 italic border-t border-orange-100 pt-1">' + (item.keterangan_limit || item.keterangan) + '</p>' : (item.keterangan_limit && item.keterangan_limit !== '-' ? '<p class="mt-1.5 text-[10px] text-gray-400 italic border-t border-orange-100 pt-1">' + item.keterangan_limit + '</p>' : ''))
                 + (function() {
                     const lamps = item.lampiran || [];
                     if (!lamps.length) return '<p class="mt-1.5 text-[10px] text-gray-300 italic border-t border-orange-100 pt-1"><i class="fa fa-paperclip mr-1"></i>Tidak ada lampiran</p>';
@@ -1658,7 +1648,7 @@ function renderApproveItems(data) {
             + '</div>'
             + (isServiceAsuransi && itemSubtitle ? itemSubtitle : '')
             + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
-            + ((isServicePart || isServiceIncident) && (item.keterangan_limit || item.keterangan) && (item.keterangan_limit || item.keterangan) !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + (item.keterangan_limit || item.keterangan) + '</p>' : '')
+            + (isServicePart && (item.keterangan_limit || item.keterangan) && (item.keterangan_limit || item.keterangan) !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + (item.keterangan_limit || item.keterangan) + '</p>' : '')
             + '</label></div>'
             + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
 
@@ -2267,12 +2257,26 @@ function renderRsaKejadian(container, idx, kej) {
 
     // Lampiran lama
     const lampiranLama = (kej.lampiran_existing || kej.lampiran || []);
+
+    // Hidden inputs untuk lampiran lama (agar ikut terkirim ke server)
+    let hiddenLampiranInputs = lampiranLama.map(function(lf, li) {
+        const path = lf.path || '';
+        const name = lf.original_name || path.split('/').pop();
+        const ext  = lf.extension || path.split('.').pop();
+        const size = lf.size || 0;
+        if (!path) return '';
+        return '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][path]"          value="' + path.replace(/"/g, '&quot;') + '">'
+             + '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][original_name]" value="' + name.replace(/"/g, '&quot;') + '">'
+             + '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][extension]"     value="' + ext + '">'
+             + '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][size]"          value="' + size + '">';
+    }).join('');
+
     let lampiranLamaHtml = '';
     if (lampiranLama.length > 0) {
         lampiranLamaHtml = '<div class="mt-1 space-y-1">'
             + lampiranLama.map(function(lf) {
                 const path = lf.path || '';
-                const name = lf.original_name || basename(path);
+                const name = lf.original_name || path.split('/').pop();
                 const ext  = (lf.extension || '').toLowerCase();
                 const isImg = ['jpg','jpeg','png','webp'].includes(ext);
                 const icon  = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
@@ -2284,6 +2288,7 @@ function renderRsaKejadian(container, idx, kej) {
     }
 
     div.innerHTML = `
+        ${hiddenLampiranInputs}
         <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-gray-600">Kejadian #${idx + 1}</span>
             <button type="button" onclick="removeRsaKejadian(${idx})"
@@ -2306,26 +2311,11 @@ function renderRsaKejadian(container, idx, kej) {
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
             </div>
         </div>
+        ${lampiranLama.length ? `
         <div>
-            <label class="text-xs font-semibold text-gray-500 mb-1 block">
-                Lampiran Lama
-            </label>
-            ${lampiranLamaHtml || '<p class="text-xs text-gray-400">Tidak ada lampiran lama</p>'}
-        </div>
-        <div>
-            <label class="text-xs font-semibold text-gray-500 mb-1 block">
-                Tambah Lampiran Baru <span class="text-gray-400 font-normal text-[10px]">(opsional)</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer border border-dashed border-blue-200 hover:border-blue-400 bg-white hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors">
-                <i class="fa fa-paperclip text-blue-400 text-sm"></i>
-                <span class="text-xs text-gray-500">Klik untuk pilih file...</span>
-                <input type="file" name="kejadians[${idx}][lampiran][]" multiple
-                    accept="image/*,.pdf,.doc,.docx"
-                    onchange="updateRsaLampiranList(${idx}, this)"
-                    class="hidden">
-            </label>
-            <div id="rsa-lampiran-list-${idx}" class="mt-1 space-y-1"></div>
-        </div>
+            <label class="text-xs font-semibold text-gray-500 mb-1 block">Lampiran</label>
+            ${lampiranLamaHtml}
+        </div>` : ''}
     `;
     container.appendChild(div);
 }

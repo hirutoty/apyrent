@@ -16,11 +16,13 @@ class ServiceAsuransiKejadian extends Model
         'nama_kejadian',
         'biaya',
         'lampiran',
+        'bukti_bayar',
     ];
 
     protected $casts = [
-        'biaya'    => 'integer',
-        'lampiran' => 'array',
+        'biaya'      => 'integer',
+        'lampiran'   => 'array',
+        'bukti_bayar'=> 'array',
     ];
 
     public function serviceAsuransi()

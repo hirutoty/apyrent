@@ -1331,7 +1331,7 @@ class PembayaranController extends Controller
         }
 
         // Pastikan setiap item approved punya bukti pembayaran (tidak berlaku untuk service_incident — pakai bukti global)
-        if ($pembayaran->source_type !== 'service_incident') {
+        if (!in_array($pembayaran->source_type, ['service_incident'])) {
             foreach ($items as $idx => $item) {
                 if ($item['action'] === 'approved' && !$request->hasFile("items.{$idx}.bukti")) {
                     return response()->json([
@@ -1349,6 +1349,8 @@ class PembayaranController extends Controller
             return $this->approveItemsGps($request, $pembayaran, $items);
         } elseif (in_array($sourceType, ['service_part', 'service_incident'])) {
             return $this->approveItemsServicePart($request, $pembayaran, $items);
+        } elseif ($sourceType === 'service_asuransi') {
+            return $this->approveItemsServiceAsuransi($request, $pembayaran, $items);
         } else {
             return back()->with('error', 'Source type tidak didukung untuk per-item approval.');
         }
@@ -1541,9 +1543,11 @@ class PembayaranController extends Controller
             // Transfer item approved → service_history & service_parts
             $targetId = null;
             if (!empty($approvedItems)) {
-                // Extract indices only for transfer method
-                $approvedIndices = array_column($approvedItems, 'idx');
-                $targetId = $transferService->transfer($pembayaran, [], $approvedIndices);
+                // Untuk service_incident: kirim array lengkap (idx + bukti_path) agar bukti_bayar per-part tersimpan
+                $transferArg = ($pembayaran->source_type === 'service_incident')
+                    ? $approvedItems
+                    : array_column($approvedItems, 'idx');
+                $targetId = $transferService->transfer($pembayaran, [], $transferArg);
             }
 
             // Tentukan status PR induk
@@ -1663,6 +1667,178 @@ class PembayaranController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error("approveItems ServicePart failed for Pembayaran #{$pembayaran->id}: " . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle service_asuransi-specific per-item (per-kejadian) approval
+     */
+    private function approveItemsServiceAsuransi(Request $request, Pembayaran $pembayaran, array $items)
+    {
+        DB::beginTransaction();
+        try {
+            $approvedItems   = [];
+            $rejectedItems   = [];
+            $buktiDir        = public_path('service-asuransi/bukti_bayar');
+            if (!file_exists($buktiDir)) mkdir($buktiDir, 0777, true);
+
+            $sourceKejadians = $pembayaran->source_data['kejadians'] ?? [];
+
+            foreach ($items as $idx => $item) {
+                $action  = $item['action'];
+                $catatan = $item['catatan'] ?? null;
+
+                // Upload bukti per kejadian
+                $buktiBayarPath         = null;
+                $buktiBayarOriginalName = null;
+                if ($request->hasFile("items.{$idx}.bukti")) {
+                    $file                   = $request->file("items.{$idx}.bukti");
+                    $buktiBayarOriginalName = $file->getClientOriginalName();
+                    $filename               = time() . '_' . $idx . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $buktiBayarOriginalName);
+                    $file->move($buktiDir, $filename);
+                    $buktiBayarPath = 'service-asuransi/bukti_bayar/' . $filename;
+                }
+
+                // Catat ke approval history per item
+                \App\Models\PembayaranApproval::create([
+                    'pembayaran_id'    => $pembayaran->id,
+                    'user_id'          => auth()->id(),
+                    'action'           => $action,
+                    'catatan'          => $catatan,
+                    'bukti_files'      => $buktiBayarPath ? [[
+                        'path'          => $buktiBayarPath,
+                        'original_name' => $buktiBayarOriginalName,
+                        'extension'     => pathinfo($buktiBayarPath, PATHINFO_EXTENSION),
+                    ]] : null,
+                    'attachment_files' => null,
+                ]);
+
+                if ($action === 'approved') {
+                    $approvedItems[] = [
+                        'idx'        => (int) $idx,
+                        'bukti_path' => $buktiBayarPath,
+                        'bukti_name' => $buktiBayarOriginalName,
+                    ];
+                } else {
+                    $rejectedItems[] = ['idx' => (int) $idx, 'catatan' => $catatan];
+                }
+            }
+
+            // Tentukan status PR
+            $totalItems    = count($items);
+            $approvedCount = count($approvedItems);
+            $rejectedCount = count($rejectedItems);
+
+            if ($approvedCount === $totalItems) {
+                $newStatus = 'Disetujui';
+            } elseif ($rejectedCount === $totalItems) {
+                $newStatus = 'Ditolak';
+            } else {
+                $newStatus = 'Disetujui Sebagian';
+            }
+
+            // Hitung nominal dan bangun item_decisions
+            $nominalApproved = 0;
+            $nominalRejected = 0;
+            $itemDecisions   = [];
+            foreach ($items as $idx => $decision) {
+                $kej   = $sourceKejadians[(int) $idx] ?? [];
+                $biaya = (int) ($kej['biaya'] ?? 0);
+                if ($decision['action'] === 'approved') {
+                    $nominalApproved += $biaya;
+                } else {
+                    $nominalRejected += $biaya;
+                }
+                // Cari bukti path untuk item ini
+                $buktiBayarForItem = null;
+                foreach ($approvedItems as $ai) {
+                    if ($ai['idx'] === (int) $idx) {
+                        $buktiBayarForItem = $ai['bukti_path'] ? [
+                            'path'          => $ai['bukti_path'],
+                            'original_name' => $ai['bukti_name'],
+                        ] : null;
+                        break;
+                    }
+                }
+                $itemDecisions[] = [
+                    'idx'           => (int) $idx,
+                    'nama_kejadian' => $kej['nama_kejadian'] ?? '-',
+                    'biaya'         => $biaya,
+                    'action'        => $decision['action'],
+                    'catatan'       => $decision['catatan'] ?? null,
+                    'bukti'         => $buktiBayarForItem,
+                ];
+            }
+
+            // Simpan bukti per kejadian ke source_data['kejadians'] agar transfer bisa ambil
+            $sourceData = $pembayaran->source_data ?? [];
+            foreach ($approvedItems as $ai) {
+                if (isset($sourceData['kejadians'][$ai['idx']]) && $ai['bukti_path']) {
+                    $sourceData['kejadians'][$ai['idx']]['bukti_bayar_admin'] = [
+                        'path'          => $ai['bukti_path'],
+                        'original_name' => $ai['bukti_name'],
+                        'extension'     => pathinfo($ai['bukti_path'], PATHINFO_EXTENSION),
+                    ];
+                }
+            }
+
+            // Jalankan transfer hanya untuk yang disetujui
+            $transferService = app(\App\Services\PengeluaranTransferService::class);
+            $targetId        = null;
+            if (!empty($approvedItems)) {
+                $approvedIndices = array_column($approvedItems, 'idx');
+                // Update source_data dulu agar transfer bisa baca bukti per kejadian
+                $pembayaran->update(['source_data' => $sourceData]);
+                $targetId = $transferService->transfer(
+                    $pembayaran->fresh(),
+                    ['bukti' => [], 'attachments' => []],
+                    $approvedIndices
+                );
+            }
+
+            $pembayaran->update([
+                'status'              => $newStatus,
+                'target_id'           => $targetId,
+                'can_edit'            => $rejectedCount > 0,
+                'nominal'             => $nominalApproved,
+                'disetujui_oleh'      => auth()->user()->nama ?? auth()->user()->email,
+                'tanggal_persetujuan' => now(),
+            ]);
+
+            // Simpan keputusan per kejadian ke source_data
+            $sourceData = $pembayaran->fresh()->source_data ?? [];
+            $sourceData['item_decisions']   = $itemDecisions;
+            $sourceData['nominal_approved'] = $nominalApproved;
+            $sourceData['nominal_rejected'] = $nominalRejected;
+            $pembayaran->update(['source_data' => $sourceData]);
+
+            // Update ServiceAsuransi.persetujuan
+            $saId = ($pembayaran->fresh()->source_data)['service_asuransi_id'] ?? null;
+            if ($saId) {
+                $saPersetujuan = match($newStatus) {
+                    'Disetujui'          => 'Disetujui',
+                    'Ditolak'            => 'Ditolak',
+                    'Disetujui Sebagian' => 'Disetujui',
+                    default              => null,
+                };
+                if ($saPersetujuan) {
+                    \App\Models\ServiceAsuransi::where('id', $saId)->update([
+                        'persetujuan'   => $saPersetujuan,
+                        'pembayaran_id' => $pembayaran->id,
+                        'status'        => $newStatus === 'Ditolak' ? 'tidak_aktif' : 'bermasalah',
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            $msg = "Keputusan disimpan: {$approvedCount} kejadian disetujui, {$rejectedCount} ditolak. Status PR: {$newStatus}.";
+            return redirect()->route('pembayaran.index')->with('success', $msg);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("approveItems ServiceAsuransi failed for Pembayaran #{$pembayaran->id}: " . $e->getMessage());
             return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }

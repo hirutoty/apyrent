@@ -972,8 +972,94 @@ class PurchaseOrderController extends Controller
             ]);
         }
 
-        // ── Buat ServiceHistory draft (tidak_aktif) dari approved parts ───────
-        $this->createServiceHistoryDraft($pembayaran, $approvedSourceData);
+        // ── Buat ServiceHistory draft atau update ServiceIncident ────────────
+        if ($po->source_type === 'service_incident') {
+            $incidentId = $sourceData['service_incident_id'] ?? null;
+            if ($incidentId) {
+                $incident = \App\Models\ServiceIncident::find($incidentId);
+                $kendaraanId = $incident?->kendaraan_id ?? ($sourceData['kendaraan_id'] ?? null);
+                $tanggalService = $sourceData['tanggal_service'] ?? now()->toDateString();
+
+                // Update header incident
+                \App\Models\ServiceIncident::where('id', $incidentId)->update([
+                    'persetujuan'   => 'Diajukan ke Pembayaran',
+                    'pembayaran_id' => $pembayaran->id,
+                    'total_biaya'   => $nominalApproved,
+                ]);
+
+                // Hapus parts lama (jika ada dari submit sebelumnya) lalu buat ulang
+                \App\Models\ServiceIncidentPart::where('service_incident_id', $incidentId)->delete();
+
+                // Buat parts dengan status tidak_aktif + persetujuan Pending
+                foreach ($approvedParts as $idx => $part) {
+                    $tglPasang    = \Carbon\Carbon::parse($part['tgl_pasang'] ?? $tanggalService);
+                    $tglLimit     = (clone $tglPasang)->addMonths(12);
+
+                    // Copy lampiran dari temp_files
+                    $buktiFiles = [];
+                    $tempFiles  = $sourceData['temp_files'] ?? [];
+                    // Cari original index di allParts
+                    $allParts = $sourceData['parts'] ?? [];
+                    $originalIdx = array_search($part, $allParts);
+                    if ($originalIdx === false) $originalIdx = $idx;
+                    $partTempBukti = $tempFiles['parts'][$originalIdx]['bukti'] ?? [];
+                    foreach ((array)$partTempBukti as $tf) {
+                        if (!empty($tf['path'])) {
+                            try {
+                                $srcFull = storage_path('app/public/' . $tf['path']);
+                                if (!file_exists($srcFull)) $srcFull = public_path($tf['path']);
+                                if (file_exists($srcFull)) {
+                                    $destDir  = public_path('service-incident-parts');
+                                    if (!file_exists($destDir)) mkdir($destDir, 0777, true);
+                                    $filename = time() . '_' . uniqid() . '_' . basename($tf['path']);
+                                    \Illuminate\Support\Facades\File::copy($srcFull, $destDir . '/' . $filename);
+                                    $buktiFiles[] = [
+                                        'path' => 'service-incident-parts/' . $filename,
+                                        'name' => $tf['original_name'] ?? basename($tf['path']),
+                                        'type' => $tf['extension'] ?? pathinfo($tf['path'], PATHINFO_EXTENSION),
+                                    ];
+                                } else {
+                                    $buktiFiles[] = [
+                                        'path' => $tf['path'],
+                                        'name' => $tf['original_name'] ?? basename($tf['path']),
+                                        'type' => $tf['extension'] ?? pathinfo($tf['path'], PATHINFO_EXTENSION),
+                                    ];
+                                }
+                            } catch (\Exception $e) {
+                                \Log::warning("Gagal copy bukti part idx={$originalIdx}: " . $e->getMessage());
+                            }
+                        }
+                    }
+
+                    \App\Models\ServiceIncidentPart::create([
+                        'service_incident_id' => $incidentId,
+                        'kendaraan_id'        => $kendaraanId,
+                        'category_id'         => $part['category_id'] ?? null,
+                        'supplier_id'         => !empty($part['supplier_id']) ? (int)$part['supplier_id'] : null,
+                        'nama_part'           => $part['nama_part'] ?? '',
+                        'part_number'         => $part['part_number'] ?? null,
+                        'serial_number'       => $part['serial_number'] ?? null,
+                        'posisi'              => $part['posisi'] ?? null,
+                        'tgl_pasang'          => $tglPasang->toDateString(),
+                        'kilometer_pasang'    => (int)($part['kilometer_pasang'] ?? $sourceData['kilometer'] ?? 0),
+                        'kondisi'             => $part['kondisi'] ?? 'Perlu Ganti',
+                        'status'              => 'tidak_aktif',
+                        'interval_nilai'      => 12,
+                        'interval_satuan'     => 'bulan',
+                        'tanggal_limit'       => $tglLimit->toDateString(),
+                        'biaya'               => (int)($part['biaya'] ?? 0),
+                        'bukti'               => !empty($buktiFiles) ? $buktiFiles : null,
+                        'nama_rekening'       => $part['nama_rekening'] ?? null,
+                        'nama_bank'           => $part['nama_bank'] ?? null,
+                        'no_rekening'         => $part['no_rekening'] ?? null,
+                        'persetujuan'         => 'Pending',
+                    ]);
+                }
+            }
+        } else {
+            // Service part biasa: buat ServiceHistory draft
+            $this->createServiceHistoryDraft($pembayaran, $approvedSourceData);
+        }
 
         \DB::commit();
 
@@ -1310,6 +1396,7 @@ class PurchaseOrderController extends Controller
 
             // Service Asuransi: return data ke modal form
             if ($po->source_type === 'service_asuransi') {
+                $sourceData  = $po->source_data ?? [];
                 $kendaraanId = $sourceData['kendaraan_id'] ?? null;
                 $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
                 $kejadians   = $sourceData['kejadians'] ?? [];
@@ -1347,6 +1434,64 @@ class PurchaseOrderController extends Controller
                     'periode_selesai'=> $sourceData['periode_selesai'] ?? '',
                     'kilometer'      => $sourceData['kilometer']      ?? '',
                     'keterangan'     => $sourceData['keterangan']     ?? '',
+                    'kejadians'      => $enrichedKejadians,
+                ]);
+            }
+
+            // Service Incident: return data ke modal form (pakai modal yang sama dgn service_asuransi)
+            if ($po->source_type === 'service_incident') {
+                $sourceData  = $po->source_data ?? [];
+                $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+                $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+                $parts       = $sourceData['parts'] ?? [];
+
+                // Enrich parts dengan lampiran dari temp_files — map ke format kejadians agar modal bisa render
+                $tempFiles = $sourceData['temp_files'] ?? [];
+                $enrichedKejadians = array_map(function ($part, $idx) use ($tempFiles) {
+                    $tempPartBukti = $tempFiles['parts'][$idx]['bukti'] ?? [];
+                    $lampiranExisting = [];
+                    $seenPaths = [];
+                    // Ambil dari model part (jika ada field lampiran/bukti)
+                    foreach (($part['lampiran'] ?? []) as $lf) {
+                        $path = $lf['path'] ?? '';
+                        if (!$path || in_array($path, $seenPaths)) continue;
+                        $seenPaths[] = $path;
+                        $lampiranExisting[] = [
+                            'path'          => $path,
+                            'original_name' => $lf['original_name'] ?? basename($path),
+                            'extension'     => $lf['extension'] ?? pathinfo($path, PATHINFO_EXTENSION),
+                        ];
+                    }
+                    // Fallback: ambil dari temp_files
+                    foreach ($tempPartBukti as $tf) {
+                        $path = $tf['path'] ?? '';
+                        if (!$path || in_array($path, $seenPaths)) continue;
+                        $seenPaths[] = $path;
+                        $lampiranExisting[] = [
+                            'path'          => $path,
+                            'original_name' => $tf['original_name'] ?? basename($path),
+                            'extension'     => $tf['extension'] ?? pathinfo($path, PATHINFO_EXTENSION),
+                        ];
+                    }
+                    return [
+                        'nama_kejadian'     => $part['nama_part'] ?? '-',
+                        'biaya'             => $part['biaya'] ?? 0,
+                        'lampiran_existing' => $lampiranExisting,
+                    ];
+                }, $parts, array_keys($parts));
+
+                return response()->json([
+                    'success'        => true,
+                    'po_id'          => $po->id,
+                    'po_number'      => $po->po_id,
+                    'source_type'    => 'service_incident',
+                    'catatan'        => $po->catatan_approval,
+                    'kendaraan_id'   => $kendaraanId,
+                    'nopol'          => $kendaraan ? $kendaraan->nopol : '-',
+                    'merk'           => $kendaraan ? $kendaraan->merk  : '-',
+                    'tanggal_service'=> $sourceData['tanggal_service'] ?? '',
+                    'kilometer'      => $sourceData['kilometer']      ?? '',
+                    'keterangan'     => $sourceData['keluhan']        ?? $sourceData['keterangan'] ?? '',
                     'kejadians'      => $enrichedKejadians,
                 ]);
             }
@@ -1658,13 +1803,25 @@ class PurchaseOrderController extends Controller
 
             // Bangun ulang kejadians dengan lampiran lama dipertahankan
             $newKejadians = array_map(function ($kej, $idx) use ($tempFiles) {
-                $oldLampiran = $kej['lampiran'] ?? [];
-                // Gabungkan dengan lampiran baru dari temp_files
+                // Lampiran lama dikirim dari form sebagai hidden inputs
+                $lampiranLama = array_values(array_filter(
+                    array_map(function ($lf) {
+                        $path = $lf['path'] ?? '';
+                        if (!$path) return null;
+                        return [
+                            'path'          => $path,
+                            'original_name' => $lf['original_name'] ?? basename($path),
+                            'extension'     => $lf['extension'] ?? pathinfo($path, PATHINFO_EXTENSION),
+                            'size'          => (int)($lf['size'] ?? 0),
+                        ];
+                    }, $kej['lampiran_lama'] ?? [])
+                ));
+                // Gabungkan dengan lampiran baru yang baru di-upload
                 $newLampiran = $tempFiles['kejadians'][$idx] ?? [];
                 return [
                     'nama_kejadian' => $kej['nama_kejadian'] ?? '',
                     'biaya'         => (int)($kej['biaya'] ?? 0),
-                    'lampiran'      => array_merge($oldLampiran, $newLampiran),
+                    'lampiran'      => array_merge($lampiranLama, $newLampiran),
                 ];
             }, $kejadians, array_keys($kejadians));
 
@@ -1708,6 +1865,16 @@ class PurchaseOrderController extends Controller
                         'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
                     ]);
                 }
+            }
+
+            // Update record ServiceIncident ke Pending (jika source_type = service_incident)
+            $serviceIncidentId = $sourceData['service_incident_id'] ?? null;
+            if ($po->source_type === 'service_incident' && $serviceIncidentId) {
+                \App\Models\ServiceIncident::where('id', $serviceIncidentId)->update([
+                    'persetujuan'       => 'Pending',
+                    'total_biaya'       => $biayaTotal,
+                    'purchase_order_id' => $po->id,
+                ]);
             }
 
             return response()->json([
