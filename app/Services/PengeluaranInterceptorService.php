@@ -485,9 +485,10 @@ class PengeluaranInterceptorService
     protected function extractTotalItems(string $sourceType, array $data): int
     {
         return match($sourceType) {
-            'gps' => count($data['gps_items'] ?? []),
+            'gps'              => count($data['gps_items'] ?? []),
             'service_part'     => count($data['parts'] ?? []),
             'service_incident' => count($data['parts'] ?? []),
+            'service_asuransi' => count($data['kejadians'] ?? []),
             default => 1,
         };
     }

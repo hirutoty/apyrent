@@ -1330,15 +1330,13 @@ class PembayaranController extends Controller
             }
         }
 
-        // Pastikan setiap item approved punya bukti pembayaran (tidak berlaku untuk service_incident — pakai bukti global)
-        if (!in_array($pembayaran->source_type, ['service_incident'])) {
-            foreach ($items as $idx => $item) {
-                if ($item['action'] === 'approved' && !$request->hasFile("items.{$idx}.bukti")) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Item #" . ($idx + 1) . " disetujui tapi bukti pembayaran belum diupload. Wajib upload bukti.",
-                    ], 422);
-                }
+        // Pastikan setiap item approved punya bukti pembayaran
+        foreach ($items as $idx => $item) {
+            if ($item['action'] === 'approved' && !$request->hasFile("items.{$idx}.bukti")) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Item #" . ($idx + 1) . " disetujui tapi bukti pembayaran belum diupload. Wajib upload bukti.",
+                ], 422);
             }
         }
 
@@ -1497,7 +1495,12 @@ class PembayaranController extends Controller
         try {
             $approvedItems  = [];
             $rejectedItems  = [];
-            $buktiDir       = public_path('gps/bukti_bayar');
+
+            // Tentukan direktori bukti berdasarkan source_type
+            $buktiDirName = $pembayaran->source_type === 'service_incident'
+                ? 'service-incident-parts'
+                : 'gps/bukti_bayar';
+            $buktiDir = public_path($buktiDirName);
             if (!file_exists($buktiDir)) mkdir($buktiDir, 0777, true);
 
             foreach ($items as $idx => $item) {
@@ -1512,7 +1515,7 @@ class PembayaranController extends Controller
                     $buktiBayarOriginalName = $file->getClientOriginalName();
                     $filename               = time() . '_' . $idx . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $buktiBayarOriginalName);
                     $file->move($buktiDir, $filename);
-                    $buktiBayarPath = 'gps/bukti_bayar/' . $filename;
+                    $buktiBayarPath = $buktiDirName . '/' . $filename;
                 }
 
                 // Catat ke approval history
@@ -1628,35 +1631,6 @@ class PembayaranController extends Controller
                     }
                 }
                 $pembayaran->update(['source_data' => $sourceData]);
-            }
-
-            // service_incident: simpan bukti global ke PembayaranApproval
-            if ($pembayaran->source_type === 'service_incident' && $request->hasFile('bukti') && !empty($approvedItems)) {
-                $buktiGlobalDir = public_path('service-incident-parts');
-                if (!file_exists($buktiGlobalDir)) mkdir($buktiGlobalDir, 0777, true);
-
-                $buktiGlobalFiles = [];
-                foreach ($request->file('bukti') as $file) {
-                    if (!$file->isValid()) continue;
-                    $origName = $file->getClientOriginalName();
-                    $filename = time() . '_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $origName);
-                    $file->move($buktiGlobalDir, $filename);
-                    $buktiGlobalFiles[] = [
-                        'path'          => 'service-incident-parts/' . $filename,
-                        'original_name' => $origName,
-                    ];
-                }
-
-                if (!empty($buktiGlobalFiles)) {
-                    \App\Models\PembayaranApproval::create([
-                        'pembayaran_id'    => $pembayaran->id,
-                        'user_id'          => auth()->id(),
-                        'action'           => 'bukti_global',
-                        'catatan'          => $request->input('catatan'),
-                        'bukti_files'      => $buktiGlobalFiles,
-                        'attachment_files' => null,
-                    ]);
-                }
             }
 
             DB::commit();
