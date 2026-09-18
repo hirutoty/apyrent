@@ -29,6 +29,7 @@ class ServiceIncidentPart extends Model
         'tanggal_limit',
         'biaya',
         'bukti',
+        'bukti_bayar',
         'keterangan_limit',
         'persetujuan',
         'nama_rekening',
@@ -46,6 +47,7 @@ class ServiceIncidentPart extends Model
         'biaya'            => 'integer',
         'interval_nilai'   => 'integer',
         'bukti'            => 'array',
+        'bukti_bayar'      => 'array',
         'replaced_at'      => 'datetime',
     ];
 

@@ -473,14 +473,6 @@ function addPartRow(data = null) {
                 </div>
             </div>
 
-            <!-- Keterangan Limit -->
-            <div class="md:col-span-3">
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Keterangan Limit</label>
-                <textarea name="parts[${idx}][keterangan_limit]" rows="2"
-                    placeholder="Catatan kondisi, penyebab kerusakan, dll..."
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 resize-none"></textarea>
-            </div>
-
             <!-- Info Pembayaran -->
             <div class="md:col-span-3">
                 <div class="border border-dashed border-orange-200 rounded-xl p-3 bg-orange-50/40 space-y-3">
@@ -513,7 +505,7 @@ function addPartRow(data = null) {
             <!-- Bukti -->
             <div class="md:col-span-3">
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">
-                    Bukti / Attachment
+                    Lampiran
                     <span class="text-[10px] font-normal text-gray-400 ml-1">(opsional — foto kerusakan, nota bengkel, dll)</span>
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer border border-dashed border-orange-300 hover:border-orange-400 bg-gray-50 hover:bg-orange-50/40 rounded-lg px-3 py-2.5 transition-colors group">

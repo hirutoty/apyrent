@@ -659,6 +659,19 @@ class PurchaseOrderApprovalService
             return;
         }
 
+        // ── SERVICE INCIDENT ──────────────────────────────────────────────────
+        if ($sourceType === 'service_incident') {
+            $incidentId = $sourceData['service_incident_id'] ?? null;
+            if ($incidentId) {
+                \App\Models\ServiceIncident::where('id', $incidentId)
+                    ->update([
+                        'persetujuan'   => 'Diajukan ke Pembayaran',
+                        'pembayaran_id' => $pembayaran->id,
+                    ]);
+            }
+            return;
+        }
+
         // ── SERVICE PART ───────────────────────────────────────────────────────
         // Update persetujuan ServicePart dari Pending → Diajukan ke Pembayaran
         if ($sourceType === 'service_part') {

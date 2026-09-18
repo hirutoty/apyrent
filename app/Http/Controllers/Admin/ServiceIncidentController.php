@@ -102,7 +102,6 @@ class ServiceIncidentController extends Controller
             'parts.*.biaya'                => 'nullable|numeric|min:0',
             'parts.*.bukti'                => 'nullable|array',
             'parts.*.bukti.*'              => 'file|mimes:jpg,jpeg,png,mp4,mov',
-            'parts.*.keterangan_limit'     => 'nullable|string|max:1000',
             'parts.*.supplier_id'          => 'nullable|exists:supplier,id',
             'parts.*.nama_rekening'        => 'nullable|string|max:150',
             'parts.*.nama_bank'            => 'nullable|string|max:100',
@@ -138,7 +137,6 @@ class ServiceIncidentController extends Controller
             'kondisi'            => $p['kondisi'] ?? 'Perlu Ganti',
             'status'             => 'Proses',
             'biaya'              => (int)($p['biaya'] ?? 0),
-            'keterangan_limit'   => $p['keterangan_limit'] ?? $p['keterangan'] ?? null,
             'supplier_id'        => $p['supplier_id'] ?? null,
             'nama_rekening'      => $p['nama_rekening'] ?? null,
             'nama_bank'          => $p['nama_bank'] ?? null,
@@ -228,8 +226,8 @@ class ServiceIncidentController extends Controller
         $po->update(['source_data' => $updatedSource]);
 
         return redirect()
-            ->route('purchase-order.index', ['status' => 'Pending'])
-            ->with('success', "Service Incident ({$nopol}) berhasil diajukan ke Purchase Order. Menunggu approval Superadmin.");
+            ->route('service-incident.index')
+            ->with('success', "Service Incident ({$nopol}) berhasil diajukan. Menunggu approval Superadmin di Purchase Order.");
     }
 
     // =========================================================================
@@ -458,6 +456,8 @@ class ServiceIncidentController extends Controller
         $kendaraan  = Kendaraan::findOrFail($request->kendaraan_id);
         $nopol      = $kendaraan->nopol ?? '-';
         $keterangan = 'servis insiden-' . $nopol;
+
+        $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
 
         $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
 

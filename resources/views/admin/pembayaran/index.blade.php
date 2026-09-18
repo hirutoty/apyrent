@@ -478,14 +478,34 @@
                                                 $_itemsTotal = match(true) {
                                                     $_srcType === 'service_part'
                                                         => collect($_sd['parts'] ?? [])->sum(fn($p) => $p['biaya'] ?? 0),
+                                                    $_srcType === 'service_asuransi'
+                                                        => collect($_sd['kejadians'] ?? [])->sum(fn($k) => $k['biaya'] ?? 0),
+                                                    $_srcType === 'service_incident'
+                                                        => collect($_sd['parts'] ?? [])->sum(fn($p) => $p['biaya'] ?? 0),
                                                     in_array($_srcType, ['gps', 'gps_perpanjang'])
                                                         => collect($_sd['gps_items'] ?? [])->sum(fn($g) => $g['biaya_sewa'] ?? 0),
+                                                    // pajak, asuransi_kendaraan, kir, stnk: ambil dari field langsung di source_data
+                                                    in_array($_srcType, ['pajak', 'pajak_perpanjang'])
+                                                        => (int)($_sd['nominal'] ?? 0),
+                                                    in_array($_srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])
+                                                        => (int)($_sd['biaya'] ?? $_sd['premi'] ?? 0),
+                                                    in_array($_srcType, ['kir', 'kir_perpanjang'])
+                                                        => (int)($_sd['biaya'] ?? 0),
                                                     default => 0,
                                                 };
 
-                                                // Fallback ke total_nominal accessor jika _itemsTotal masih 0
+                                                // Fallback bertingkat jika _itemsTotal masih 0:
+                                                // 1. Coba nominal_approved + nominal_rejected dari source_data (tersimpan saat approval)
+                                                // 2. Coba total_nominal accessor (yang mungkin juga 0 kalau DB sudah ditimpa)
+                                                // 3. Coba kolom nominal di DB
                                                 if ($_itemsTotal == 0) {
-                                                    $_itemsTotal = (int)($d->total_nominal ?? 0);
+                                                    $_nomApp = (int)($_sd['nominal_approved'] ?? 0);
+                                                    $_nomRej = (int)($_sd['nominal_rejected'] ?? 0);
+                                                    if ($_nomApp + $_nomRej > 0) {
+                                                        $_itemsTotal = $_nomApp + $_nomRej;
+                                                    } else {
+                                                        $_itemsTotal = (int)($d->total_nominal ?? $d->nominal ?? 0);
+                                                    }
                                                 }
 
                                                 if (($tab ?? '') === 'semua') {
@@ -585,8 +605,8 @@
                                                 @if($role === 'superadmin')
                                                     @if(in_array($d->status, ['Pending', 'Diajukan']))
                                                         @if($d->source_type)
-                                                            @if(in_array($d->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident']))
-                                                                {{-- GPS/Service Part: pakai approval modal dengan per-item approve/reject --}}
+                                                            @if(in_array($d->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident', 'service_asuransi']))
+                                                                {{-- GPS/Service Part/Service Asuransi: pakai approval modal dengan per-item approve/reject --}}
                                                                 <button type="button"
                                                                     onclick="openApprovalModal({{ $d->id }})"
                                                                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors">
@@ -1239,6 +1259,9 @@
 
                                                         {{-- Tabel kejadian --}}
                                                         @if(!empty($saKejadians))
+                                                        @php
+                                                            $saDecMap = collect($sd['item_decisions'] ?? [])->keyBy('idx');
+                                                        @endphp
                                                         <div class="rounded-xl border border-blue-100 overflow-hidden">
                                                             <table class="w-full text-xs">
                                                                 <thead>
@@ -1247,10 +1270,15 @@
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
                                                                         <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                         <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
+                                                                        @if($saDecMap->isNotEmpty())
+                                                                            <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bukti Bayar</th>
+                                                                            <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status</th>
+                                                                        @endif
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
                                                                     @foreach($saKejadians as $saKjIdx => $saKj)
+                                                                    @php $saKjDec = $saDecMap[$saKjIdx] ?? null; @endphp
                                                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                         <td class="px-3 py-2 text-gray-400">{{ $saKjIdx + 1 }}</td>
                                                                         <td class="px-3 py-2 font-semibold text-gray-800">{{ $saKj['nama_kejadian'] ?? '-' }}</td>
@@ -1279,10 +1307,59 @@
                                                                             @endif
                                                                         </td>
                                                                         <td class="px-3 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($saKj['biaya'] ?? 0, 0, ',', '.') }}</td>
+                                                                        @if($saDecMap->isNotEmpty())
+                                                                            {{-- Kolom Bukti Bayar --}}
+                                                                            <td class="px-3 py-2 text-center">
+                                                                                @php
+                                                                                    $saKjBukti = $saKjDec['bukti'] ?? null;
+                                                                                    $saKjBuktiUrl = null;
+                                                                                    $saKjBuktiName = null;
+                                                                                    $saKjBuktiExt = null;
+                                                                                    if ($saKjBukti && isset($saKjBukti['path'])) {
+                                                                                        $saKjBuktiUrl  = asset($saKjBukti['path']);
+                                                                                        $saKjBuktiName = $saKjBukti['original_name'] ?? basename($saKjBukti['path']);
+                                                                                        $saKjBuktiExt  = strtolower(pathinfo($saKjBukti['path'], PATHINFO_EXTENSION));
+                                                                                    }
+                                                                                @endphp
+                                                                                @if($saKjBuktiUrl)
+                                                                                    @php
+                                                                                        $bkIcon = in_array($saKjBuktiExt, ['jpg','jpeg','png','gif','webp'])
+                                                                                            ? 'fa-image text-blue-400'
+                                                                                            : ($saKjBuktiExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                                                    @endphp
+                                                                                    <a href="{{ $saKjBuktiUrl }}" target="_blank"
+                                                                                        class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
+                                                                                        title="{{ $saKjBuktiName }}">
+                                                                                        <i class="fa {{ $bkIcon }} text-[9px]"></i>
+                                                                                        <span class="truncate max-w-[90px]">{{ Str::limit($saKjBuktiName, 14) }}</span>
+                                                                                    </a>
+                                                                                @else
+                                                                                    <span class="text-gray-300 text-[10px]">—</span>
+                                                                                @endif
+                                                                            </td>
+                                                                            {{-- Kolom Status --}}
+                                                                            <td class="px-3 py-2 text-center">
+                                                                                @if($saKjDec && ($saKjDec['action'] ?? '') === 'approved')
+                                                                                    <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                                                                                        <i class="fa fa-check text-[8px]"></i> Disetujui
+                                                                                    </span>
+                                                                                @elseif($saKjDec)
+                                                                                    <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"
+                                                                                        title="{{ $saKjDec['catatan'] ?? '' }}">
+                                                                                        <i class="fa fa-times text-[8px]"></i> Ditolak
+                                                                                    </span>
+                                                                                    @if(!empty($saKjDec['catatan']))
+                                                                                        <p class="text-[9px] text-red-400 mt-0.5 truncate max-w-[100px]" title="{{ $saKjDec['catatan'] }}">{{ Str::limit($saKjDec['catatan'], 20) }}</p>
+                                                                                    @endif
+                                                                                @else
+                                                                                    <span class="text-gray-300 text-[10px]">—</span>
+                                                                                @endif
+                                                                            </td>
+                                                                        @endif
                                                                     </tr>
                                                                     @endforeach
                                                                     <tr class="border-t-2 border-blue-200 bg-blue-50/50">
-                                                                        <td colspan="3" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                        <td colspan="{{ $saDecMap->isNotEmpty() ? 5 : 3 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                         <td class="px-3 py-2 text-right text-sm font-bold text-emerald-600">Rp {{ number_format($saTotal, 0, ',', '.') }}</td>
                                                                     </tr>
                                                                 </tbody>
@@ -2427,11 +2504,25 @@ function renderSaKejadian(container, idx, kej) {
     div.id = 'sa-kej-' + idx;
     div.className = 'bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3';
 
-    // Lampiran lama
+    // Lampiran lama — tampil read-only, kirim via hidden inputs
     const lampiranLama = kej.lampiran_existing || [];
+
+    // Hidden inputs agar lampiran lama ikut terkirim ke server
+    const hiddenLampiranInputs = lampiranLama.map(function(lf, li) {
+        const path = lf.path || '';
+        const name = (lf.original_name || path.split('/').pop()).replace(/"/g, '&quot;');
+        const ext  = lf.extension || path.split('.').pop();
+        const size = lf.size || 0;
+        if (!path) return '';
+        return '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][path]"          value="' + path.replace(/"/g, '&quot;') + '">'
+             + '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][original_name]" value="' + name + '">'
+             + '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][extension]"     value="' + ext + '">'
+             + '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][size]"          value="' + size + '">';
+    }).join('');
+
     let lampiranLamaHtml = '';
     if (lampiranLama.length > 0) {
-        lampiranLamaHtml = '<div class="mt-1 space-y-0.5">'
+        lampiranLamaHtml = '<div class="flex flex-wrap gap-1.5">'
             + lampiranLama.map(function(lf) {
                 const path = lf.path || '';
                 const name = lf.original_name || path.split('/').pop();
@@ -2440,13 +2531,18 @@ function renderSaKejadian(container, idx, kej) {
                 const icon  = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
                 const url   = path ? '/storage/' + path : null;
                 if (!url) return '';
-                return '<a href="' + url + '" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline">'
+                return '<a href="' + url + '" target="_blank"'
+                    + ' class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-white border border-gray-200 text-blue-600 hover:bg-blue-50"'
+                    + ' title="' + name + '">'
                     + '<i class="fa ' + icon + ' text-[9px]"></i>'
-                    + '<span class="truncate max-w-[200px]">' + name + '</span></a><br>';
+                    + '<span class="truncate max-w-[160px]">' + name + '</span></a>';
             }).join('') + '</div>';
+    } else {
+        lampiranLamaHtml = '<p class="text-xs text-gray-400 italic">Tidak ada lampiran</p>';
     }
 
     div.innerHTML = `
+        ${hiddenLampiranInputs}
         <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-gray-600">Kejadian #${idx + 1}</span>
             <button type="button" onclick="removeSaKejadian(${idx})"
@@ -2470,22 +2566,10 @@ function renderSaKejadian(container, idx, kej) {
             </div>
         </div>
         <div>
-            <label class="text-xs font-semibold text-gray-500 mb-1 block">Lampiran Lama</label>
-            ${lampiranLamaHtml || '<p class="text-xs text-gray-400">Tidak ada lampiran lama</p>'}
-        </div>
-        <div>
-            <label class="text-xs font-semibold text-gray-500 mb-1 block">
-                Tambah Lampiran Baru <span class="text-gray-400 font-normal text-[10px]">(opsional)</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer border border-dashed border-blue-200 hover:border-blue-400 bg-white hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors">
-                <i class="fa fa-paperclip text-blue-400 text-sm"></i>
-                <span class="text-xs text-gray-500">Klik untuk pilih file...</span>
-                <input type="file" name="kejadians[${idx}][lampiran][]" multiple
-                    accept="image/*,.pdf,.doc,.docx"
-                    onchange="updateSaLampiranList(${idx}, this)"
-                    class="hidden">
-            </label>
-            <div id="sa-lampiran-list-${idx}" class="mt-1 space-y-1"></div>
+            <p class="text-xs font-semibold text-gray-500 mb-1.5">
+                <i class="fa fa-paperclip text-gray-400 mr-1"></i>Lampiran
+            </p>
+            ${lampiranLamaHtml}
         </div>
     `;
     container.appendChild(div);
@@ -2509,18 +2593,6 @@ function updateSaTotalBiaya() {
     });
     const el = document.getElementById('saTotalBiaya');
     if (el) el.textContent = 'Rp ' + total.toLocaleString('id-ID');
-}
-
-function updateSaLampiranList(idx, input) {
-    const list = document.getElementById('sa-lampiran-list-' + idx);
-    if (!list) return;
-    list.innerHTML = Array.from(input.files).map(f =>
-        '<div class="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded px-2 py-1">'
-        + '<i class="fa fa-paperclip text-[10px] text-gray-400"></i>'
-        + '<span class="truncate">' + f.name + '</span>'
-        + '<span class="ml-auto text-[10px] text-gray-400">' + (f.size/1024).toFixed(0) + ' KB</span>'
-        + '</div>'
-    ).join('');
 }
 
 function closeAjukanUlangSAModal() {
