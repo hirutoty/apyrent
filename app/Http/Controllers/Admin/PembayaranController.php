@@ -103,7 +103,61 @@ class PembayaranController extends Controller
         $totalPending   = (clone $baseQuery)->where('status', 'Pending')->count();
         $totalDitolak   = (clone $baseQuery)->whereIn('status', ['Ditolak', 'Disetujui Sebagian'])->count();
         $totalDiajukan  = (clone $baseQuery)->where('status', 'Diajukan')->count();
-        $totalNominal   = (clone $baseQuery)->whereIn('status', ['Diajukan', 'Disetujui', 'Disetujui Sebagian'])->sum('nominal');
+
+        // Hitung totalNominal dengan benar:
+        // Untuk record yang punya item_decisions (GPS/service), ambil nominal_approved dari source_data
+        // Untuk record lain, ambil kolom nominal langsung
+        $nominalRecords = (clone $baseQuery)
+            ->whereIn('status', ['Diajukan', 'Disetujui', 'Disetujui Sebagian'])
+            ->get(['nominal', 'source_data', 'source_type']);
+
+        $totalNominal = $nominalRecords->sum(function ($pr) {
+            $sd = is_array($pr->source_data) ? $pr->source_data : (json_decode($pr->source_data ?? '{}', true) ?? []);
+            $decisions = $sd['item_decisions'] ?? [];
+
+            if (empty($decisions)) {
+                return (int) ($pr->nominal ?? 0);
+            }
+
+            // Ada item_decisions: hitung hanya yang approved atau belum diputuskan
+            $srcType = $pr->source_type;
+            $total   = 0;
+
+            if (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                $items   = $sd['gps_items'] ?? [];
+                $decMap  = collect($decisions)->keyBy('idx');
+                foreach ($items as $idx => $item) {
+                    $action = $decMap->get($idx)['action'] ?? null;
+                    if ($action !== 'rejected') {
+                        $total += (int) ($item['biaya_sewa'] ?? 0);
+                    }
+                }
+            } elseif (in_array($srcType, ['service_part', 'service_incident'])) {
+                $parts  = $sd['parts'] ?? [];
+                $decMap = collect($decisions)->keyBy('idx');
+                foreach ($parts as $idx => $part) {
+                    $action = $decMap->get($idx)['action'] ?? null;
+                    if ($action !== 'rejected') {
+                        $total += (int) ($part['biaya'] ?? 0);
+                    }
+                }
+            } elseif ($srcType === 'service_asuransi') {
+                $kejadians = $sd['kejadians'] ?? [];
+                $decMap    = collect($decisions)->keyBy('idx');
+                foreach ($kejadians as $idx => $kej) {
+                    $action = $decMap->get($idx)['action'] ?? null;
+                    if ($action !== 'rejected') {
+                        $total += (int) ($kej['biaya'] ?? 0);
+                    }
+                }
+            } else {
+                // Fallback: pakai nominal_approved jika tersedia, atau nominal kolom
+                $nomApp = (int) ($sd['nominal_approved'] ?? 0);
+                $total  = $nomApp > 0 ? $nomApp : (int) ($pr->nominal ?? 0);
+            }
+
+            return $total;
+        });
 
         // Source types untuk dropdown filter
         $sourceTypes = Pembayaran::selectRaw('source_type, count(*) as total')
@@ -124,9 +178,14 @@ class PembayaranController extends Controller
             default     => ucfirst($role),
         };
 
+        // Mapping email → nama user untuk kolom pemohon
+        $pemohonEmails = $data->pluck('pemohon')->filter()->unique()->values();
+        $userNames = \App\Models\User::whereIn('email', $pemohonEmails)
+            ->pluck('name', 'email');
+
         return view('admin.pembayaran.index', compact(
             'data', 'role', 'tab', 'sort', 'deptLabel', 'bulan', 'deptFilter',
-            'sourceFilter', 'sourceTypes',
+            'sourceFilter', 'sourceTypes', 'userNames',
             'totalPR', 'totalDisetujui', 'totalPending', 'totalDitolak', 'totalDiajukan', 'totalNominal'
         ));
     }
@@ -190,8 +249,50 @@ class PembayaranController extends Controller
     public function details($id)
     {
         try {
-            $pembayaran = Pembayaran::with('items')->findOrFail($id);
-            
+            $pembayaran = Pembayaran::with(['items', 'approvals'])->findOrFail($id);
+
+            // Nama pemohon dari tabel users berdasarkan email
+            $pemohonNama = \App\Models\User::where('email', $pembayaran->pemohon)->value('name');
+
+            // Hitung total nominal yang relevan — sama persis dengan logika showApprovalModal:
+            // Exclude item yang sudah rejected, include yang pending/approved
+            $sourceData    = $pembayaran->source_data ?? [];
+            $itemDecisions = $sourceData['item_decisions'] ?? [];
+            $totalNominalDisplay = $pembayaran->total_nominal;
+
+            if (!empty($itemDecisions)) {
+                $srcType = $pembayaran->source_type;
+                $decMap  = collect($itemDecisions)->keyBy('idx');
+
+                if (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                    $gpsItems = $sourceData['gps_items'] ?? [];
+                    $totalNominalDisplay = collect($gpsItems)->reduce(function ($sum, $item, $idx) use ($decMap) {
+                        $action = $decMap->get($idx)['action'] ?? null;
+                        if ($action !== 'rejected') $sum += (int) ($item['biaya_sewa'] ?? 0);
+                        return $sum;
+                    }, 0);
+                } elseif (in_array($srcType, ['service_part', 'service_incident'])) {
+                    $parts = $sourceData['parts'] ?? [];
+                    $totalNominalDisplay = collect($parts)->reduce(function ($sum, $part, $idx) use ($decMap) {
+                        $action = $decMap->get($idx)['action'] ?? null;
+                        if ($action !== 'rejected') $sum += (int) ($part['biaya'] ?? 0);
+                        return $sum;
+                    }, 0);
+                } elseif ($srcType === 'service_asuransi') {
+                    $kejadians = $sourceData['kejadians'] ?? [];
+                    $totalNominalDisplay = collect($kejadians)->reduce(function ($sum, $kej, $idx) use ($decMap) {
+                        $action = $decMap->get($idx)['action'] ?? null;
+                        if ($action !== 'rejected') $sum += (int) ($kej['biaya'] ?? 0);
+                        return $sum;
+                    }, 0);
+                }
+
+                // Fallback jika hasil 0 (semua pending belum ada keputusan)
+                if ($totalNominalDisplay === 0) {
+                    $totalNominalDisplay = $pembayaran->total_nominal;
+                }
+            }
+
             // Format data untuk response
             $data = [
                 'id' => $pembayaran->id,
@@ -199,6 +300,7 @@ class PembayaranController extends Controller
                 'tanggal_formatted' => $pembayaran->tanggal ? \Carbon\Carbon::parse($pembayaran->tanggal)->format('d M Y') : '-',
                 'departemen' => $pembayaran->departemen ?? '-',
                 'pemohon' => $pembayaran->pemohon ?? '-',
+                'pemohon_nama' => $pemohonNama,
                 'alasan_permintaan' => $pembayaran->alasan_permintaan ?? '-',
                 'status' => $pembayaran->status ?? '-',
                 'status_class' => match($pembayaran->status) {
@@ -212,8 +314,8 @@ class PembayaranController extends Controller
                 'tanggal_persetujuan_formatted' => $pembayaran->tanggal_persetujuan ? \Carbon\Carbon::parse($pembayaran->tanggal_persetujuan)->format('d M Y') : null,
                 'catatan' => $pembayaran->catatan,
                 'terakhir_diajukan_formatted' => $pembayaran->terakhir_diajukan ? \Carbon\Carbon::parse($pembayaran->terakhir_diajukan)->format('d M Y H:i') : null,
-                'total_nominal' => $pembayaran->total_nominal,
-                'total_nominal_formatted' => number_format($pembayaran->total_nominal, 0, ',', '.'),
+                'total_nominal' => $totalNominalDisplay,
+                'total_nominal_formatted' => number_format($totalNominalDisplay, 0, ',', '.'),
                 'total_items' => $pembayaran->items->count() > 0 ? $pembayaran->items->count() : 1,
                 // Rekening bank & informasi tambahan
                 'nama_bank'     => $pembayaran->nama_bank,
@@ -222,7 +324,7 @@ class PembayaranController extends Controller
                 'informasi'     => $pembayaran->informasi,
             ];
 
-            // Items data (new structure)
+            // Items data (new structure — belanja/purchase order)
             if ($pembayaran->items->count() > 0) {
                 $data['items'] = $pembayaran->items->map(function($item) {
                     return [
@@ -243,6 +345,143 @@ class PembayaranController extends Controller
                         'bukti' => $item->bukti,
                     ];
                 });
+            } elseif ($pembayaran->source_type) {
+                // Source_type dari kendaraan — bangun items dari source_data
+                $srcType = $pembayaran->source_type;
+                $sd      = $pembayaran->source_data ?? [];
+                $decMap  = collect($sd['item_decisions'] ?? [])->keyBy('idx');
+
+                $kendaraan = isset($sd['kendaraan_id'])
+                    ? \App\Models\Kendaraan::find($sd['kendaraan_id'])
+                    : null;
+                $kendaraanLabel = $kendaraan
+                    ? ($kendaraan->nopol . ' — ' . $kendaraan->merk)
+                    : null;
+
+                if (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                    $gpsItems = $sd['gps_items'] ?? [];
+                    $data['items'] = collect($gpsItems)->map(function ($item, $idx) use ($decMap, $kendaraanLabel) {
+                        $action = $decMap->get($idx)['action'] ?? null;
+                        return [
+                            'nama_barang'           => $item['nama_gps'] ?? ('GPS #' . ($idx + 1)),
+                            'kategori'              => $item['type'] ?? '-',
+                            'qty'                   => 1,
+                            'satuan'                => 'unit',
+                            'subtotal'              => $item['biaya_sewa'] ?? 0,
+                            'subtotal_formatted'    => number_format($item['biaya_sewa'] ?? 0, 0, ',', '.'),
+                            'keterangan'            => implode(' | ', array_filter([
+                                $kendaraanLabel,
+                                $item['nama_bank'] ?? null,
+                                $item['no_rekening'] ?? null,
+                            ])),
+                            'status_item'           => $action,
+                        ];
+                    })->values()->all();
+
+                } elseif (in_array($srcType, ['service_part', 'service_incident'])) {
+                    $parts = $sd['parts'] ?? [];
+                    $data['items'] = collect($parts)->map(function ($part, $idx) use ($decMap, $kendaraanLabel) {
+                        $action = $decMap->get($idx)['action'] ?? null;
+                        $cat = isset($part['category_id'])
+                            ? \App\Models\ServiceCategory::find($part['category_id'])
+                            : null;
+                        return [
+                            'nama_barang'           => $part['nama_part'] ?? '-',
+                            'kategori'              => $cat ? $cat->nama : ($part['category_nama'] ?? '-'),
+                            'qty'                   => 1,
+                            'satuan'                => 'unit',
+                            'subtotal'              => $part['biaya'] ?? 0,
+                            'subtotal_formatted'    => number_format($part['biaya'] ?? 0, 0, ',', '.'),
+                            'keterangan'            => implode(' | ', array_filter([
+                                $kendaraanLabel,
+                                $part['nama_bank'] ?? null,
+                                $part['no_rekening'] ?? null,
+                                $part['kondisi'] ?? null,
+                            ])),
+                            'status_item'           => $action,
+                        ];
+                    })->values()->all();
+
+                } elseif ($srcType === 'service_asuransi') {
+                    $kejadians = $sd['kejadians'] ?? [];
+                    $data['items'] = collect($kejadians)->map(function ($kej, $idx) use ($decMap, $kendaraanLabel, $sd) {
+                        $action = $decMap->get($idx)['action'] ?? null;
+                        return [
+                            'nama_barang'           => $kej['nama_kejadian'] ?? '-',
+                            'kategori'              => 'Service Asuransi',
+                            'qty'                   => 1,
+                            'satuan'                => 'kejadian',
+                            'subtotal'              => $kej['biaya'] ?? 0,
+                            'subtotal_formatted'    => number_format($kej['biaya'] ?? 0, 0, ',', '.'),
+                            'keterangan'            => implode(' | ', array_filter([
+                                $kendaraanLabel,
+                                $sd['nama_asuransi'] ?? null,
+                            ])),
+                            'status_item'           => $action,
+                        ];
+                    })->values()->all();
+
+                } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
+                    $data['items'] = [[
+                        'nama_barang'           => ($sd['jenis_pajak'] ?? 'Pajak Kendaraan') . ($sd['tahun_pajak'] ? ' ' . $sd['tahun_pajak'] : ''),
+                        'kategori'              => 'Pajak',
+                        'qty'                   => 1,
+                        'satuan'                => 'tahun',
+                        'subtotal'              => $sd['nominal'] ?? $pembayaran->nominal ?? 0,
+                        'subtotal_formatted'    => number_format($sd['nominal'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
+                        'keterangan'            => implode(' | ', array_filter([
+                            $kendaraanLabel,
+                            isset($sd['tanggal_jatuh_tempo']) ? 'JT: ' . \Carbon\Carbon::parse($sd['tanggal_jatuh_tempo'])->format('d M Y') : null,
+                        ])),
+                    ]];
+
+                } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                    $asr = isset($sd['asuransi_id']) ? \App\Models\Asuransi::find($sd['asuransi_id']) : null;
+                    $data['items'] = [[
+                        'nama_barang'           => $asr ? $asr->nama_asuransi : ($sd['nama_asuransi'] ?? 'Asuransi Kendaraan'),
+                        'kategori'              => 'Asuransi',
+                        'qty'                   => 1,
+                        'satuan'                => 'polis',
+                        'subtotal'              => $sd['premi'] ?? $sd['biaya'] ?? $pembayaran->nominal ?? 0,
+                        'subtotal_formatted'    => number_format($sd['premi'] ?? $sd['biaya'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
+                        'keterangan'            => implode(' | ', array_filter([
+                            $kendaraanLabel,
+                            isset($sd['no_polis']) ? 'No Polis: ' . $sd['no_polis'] : null,
+                            isset($sd['tanggal_habis']) ? 'Berlaku s/d: ' . \Carbon\Carbon::parse($sd['tanggal_habis'])->format('d M Y') : null,
+                        ])),
+                    ]];
+
+                } elseif (in_array($srcType, ['kir', 'kir_perpanjang'])) {
+                    $data['items'] = [[
+                        'nama_barang'           => 'KIR Kendaraan' . ($sd['no_kir'] ? ' (' . $sd['no_kir'] . ')' : ''),
+                        'kategori'              => 'KIR',
+                        'qty'                   => 1,
+                        'satuan'                => 'kali',
+                        'subtotal'              => $sd['biaya'] ?? $pembayaran->nominal ?? 0,
+                        'subtotal_formatted'    => number_format($sd['biaya'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
+                        'keterangan'            => implode(' | ', array_filter([
+                            $kendaraanLabel,
+                            isset($sd['tanggal_habis_kir']) ? 'Berlaku s/d: ' . \Carbon\Carbon::parse($sd['tanggal_habis_kir'])->format('d M Y') : null,
+                        ])),
+                    ]];
+
+                } elseif ($srcType === 'stnk') {
+                    $data['items'] = [[
+                        'nama_barang'           => 'STNK' . ($sd['tahun_stnk'] ? ' ' . $sd['tahun_stnk'] : ''),
+                        'kategori'              => 'STNK',
+                        'qty'                   => 1,
+                        'satuan'                => 'tahun',
+                        'subtotal'              => $sd['biaya'] ?? $pembayaran->nominal ?? 0,
+                        'subtotal_formatted'    => number_format($sd['biaya'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
+                        'keterangan'            => $kendaraanLabel ?? '-',
+                    ]];
+
+                } else {
+                    // Fallback legacy
+                    $data['barang_jasa'] = $pembayaran->barang_jasa;
+                    $data['nominal']     = $pembayaran->nominal;
+                    $data['nominal_formatted'] = $pembayaran->nominal ? number_format($pembayaran->nominal, 0, ',', '.') : null;
+                }
             } else {
                 // Legacy data (old structure) - for backward compatibility
                 $data['barang_jasa'] = $pembayaran->barang_jasa;
@@ -961,6 +1200,9 @@ class PembayaranController extends Controller
         $pembayaran = Pembayaran::with(['kendaraan', 'approvals.user'])
             ->findOrFail($id);
         
+        // Nama pemohon dari tabel users berdasarkan email
+        $pemohonNama = \App\Models\User::where('email', $pembayaran->pemohon)->value('name');
+
         // Decode source_data dan load related data
         $sourceData = $pembayaran->source_data ?? [];
         $relatedData = [];
@@ -969,11 +1211,53 @@ class PembayaranController extends Controller
         if ($pembayaran->source_type) {
             $relatedData = $this->loadRelatedData($pembayaran->source_type, $sourceData);
         }
+
+        // Hitung nominal yang relevan untuk ditampilkan di modal:
+        // Jika ada item_decisions tersimpan, hitung hanya item yang belum diputuskan
+        // (pending) atau yang approved — exclude yang sudah rejected
+        $existingDecisions = collect($sourceData['item_decisions'] ?? [])->keyBy('idx');
+        $nominalDisplay = (int) ($pembayaran->nominal ?? 0);
+
+        if ($existingDecisions->isNotEmpty()) {
+            $srcType = $pembayaran->source_type;
+            if (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                $gpsItems = $sourceData['gps_items'] ?? [];
+                $nominalDisplay = collect($gpsItems)->reduce(function ($sum, $item, $idx) use ($existingDecisions) {
+                    $dec = $existingDecisions->get($idx);
+                    // Tampilkan jika belum ada keputusan atau approved
+                    if (!$dec || ($dec['action'] ?? '') !== 'rejected') {
+                        $sum += (int) ($item['biaya_sewa'] ?? 0);
+                    }
+                    return $sum;
+                }, 0);
+            } elseif (in_array($srcType, ['service_part', 'service_incident'])) {
+                $parts = $sourceData['parts'] ?? [];
+                $nominalDisplay = collect($parts)->reduce(function ($sum, $part, $idx) use ($existingDecisions) {
+                    $dec = $existingDecisions->get($idx);
+                    if (!$dec || ($dec['action'] ?? '') !== 'rejected') {
+                        $sum += (int) ($part['biaya'] ?? 0);
+                    }
+                    return $sum;
+                }, 0);
+            } elseif ($srcType === 'service_asuransi') {
+                $kejadians = $sourceData['kejadians'] ?? [];
+                $nominalDisplay = collect($kejadians)->reduce(function ($sum, $kej, $idx) use ($existingDecisions) {
+                    $dec = $existingDecisions->get($idx);
+                    if (!$dec || ($dec['action'] ?? '') !== 'rejected') {
+                        $sum += (int) ($kej['biaya'] ?? 0);
+                    }
+                    return $sum;
+                }, 0);
+            }
+        }
         
         return response()->json([
             'success' => true,
             'data' => [
-                'pembayaran' => $pembayaran,
+                'pembayaran' => array_merge($pembayaran->toArray(), [
+                    'pemohon_nama'    => $pemohonNama,
+                    'nominal_display' => $nominalDisplay,
+                ]),
                 'source_data' => $sourceData,
                 'related_data' => $relatedData,
                 'temp_files' => $sourceData['temp_files'] ?? [],

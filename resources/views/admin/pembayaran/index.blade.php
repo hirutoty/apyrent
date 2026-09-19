@@ -356,9 +356,7 @@
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Nominal</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Status</th>
-                                        @if(in_array($tab ?? 'semua', ['semua', 'Disetujui']))
-                                        <th class="text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Bukti Bayar</th>
-                                        @endif
+
                                         <th class="text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Aksi</th>
                                     </tr>
                                 </thead>
@@ -454,7 +452,15 @@
                                                 <i class="fa fa-building text-blue-400 text-[10px] mr-1"></i>{{ $d->departemen ?? '-' }}
                                             </span>
                                         </td>
-                                        <td class="px-3 py-3 text-xs text-gray-700">{{ $d->pemohon ?? '-' }}</td>
+                                        <td class="px-3 py-3 text-xs text-gray-700">
+                                            @php $pemohonNama = $userNames[$d->pemohon] ?? null; @endphp
+                                            @if($pemohonNama)
+                                                <span class="font-medium text-gray-800">{{ $pemohonNama }}</span>
+                                                <p class="text-[11px] text-gray-400 mt-0.5">{{ $d->pemohon ?? '-' }}</p>
+                                            @else
+                                                {{ $d->pemohon ?? '-' }}
+                                            @endif
+                                        </td>
                                         <td class="px-3 py-3">
                                             @php
                                                 $_sd_ket = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
@@ -559,47 +565,7 @@
                                                 <i class="fa {{ $statusIcon }} text-[8px]"></i> {{ $statusLabel }}
                                             </span>
                                         </td>
-                                        @if(in_array($tab ?? 'semua', ['semua', 'Disetujui']))
-                                        <td class="px-3 py-3 text-center" onclick="event.stopPropagation()">
-                                            @php
-                                                $buktiBayar = null;
-                                                $latestAppr = $d->approvals->where('action', 'approved')->first();
-                                                if ($latestAppr && !empty($latestAppr->bukti_files)) {
-                                                    $buktiBayar = is_array($latestAppr->bukti_files)
-                                                        ? $latestAppr->bukti_files
-                                                        : json_decode($latestAppr->bukti_files, true);
-                                                }
-                                            @endphp
-                                            @if(!empty($buktiBayar))
-                                                <div class="flex flex-wrap gap-1 justify-center">
-                                                    @foreach($buktiBayar as $bf)
-                                                        @php
-                                                            $bfExt = strtolower($bf['extension'] ?? '');
-                                                            $bfUrl = isset($bf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($bf['path']) : null;
-                                                            $bfIcon = in_array($bfExt, ['jpg','jpeg','png','gif','webp'])
-                                                                ? 'fa-image text-blue-400'
-                                                                : ($bfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
-                                                        @endphp
-                                                        @if($bfUrl)
-                                                            <a href="{{ $bfUrl }}" target="_blank"
-                                                                title="{{ $bf['original_name'] ?? 'bukti' }}"
-                                                                class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
-                                                                <i class="fa {{ $bfIcon }} text-[9px]"></i>
-                                                                <span class="max-w-[80px] truncate">{{ $bf['original_name'] ?? 'Lihat' }}</span>
-                                                            </a>
-                                                        @endif
-                                                    @endforeach
-                                                </div>
-                                            @elseif($d->bukti_pembayaran)
-                                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($d->bukti_pembayaran) }}" target="_blank"
-                                                    class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
-                                                    <i class="fa fa-file text-[9px]"></i> Lihat
-                                                </a>
-                                            @else
-                                                <span class="text-gray-300 text-xs">—</span>
-                                            @endif
-                                        </td>
-                                        @endif
+
                                         <td class="px-3 py-3" onclick="event.stopPropagation()">
                                             <div class="flex items-center justify-center gap-1 flex-wrap">
 
@@ -686,11 +652,6 @@
                                                             <i class="fa fa-edit text-[10px]"></i> Edit & Ajukan Ulang
                                                         </a>
                                                         @endif
-                                                    @elseif($d->status === 'Disetujui' && $d->source_type && $d->target_id)
-                                                        <a href="{{ route(match($d->source_type){'asuransi_kendaraan'=>'asuransi-kendaraan.index','pajak'=>'pajak.index',default=>'pembayaran.index'}) }}" target="_blank"
-                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors">
-                                                            <i class="bi bi-box-arrow-up-right text-[10px]"></i> Lihat Data
-                                                        </a>
                                                     @endif
                                                 @else
                                                     @if(!in_array($d->status, ['Diajukan','Disetujui']))
@@ -724,7 +685,7 @@
 
                                     {{-- ROW EXPAND --}}
                                     <tr id="rowexpand-{{ $rowUid }}" class="hidden bg-blue-50/20">
-                                        <td colspan="{{ in_array($tab ?? 'semua', ['semua', 'Disetujui']) ? 11 : 10 }}" class="px-6 pb-4 pt-1">
+                                        <td colspan="10" class="px-6 pb-4 pt-1">
                                             @php $sd = $d->source_data ?? []; @endphp
                                             <div class="rounded-xl border border-blue-100 bg-white overflow-hidden shadow-sm">
 
@@ -769,7 +730,7 @@
                                                         </p>
                                                     </div>
                                                     @php $kend = isset($sd['kendaraan_id']) ? \App\Models\Kendaraan::find($sd['kendaraan_id']) : null; @endphp
-                                                    @if($kend)
+                                                    @if($kend && !in_array($d->source_type, ['service_asuransi', 'service_part', 'service_incident']))
                                                     <div class="px-4 py-2.5 grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50/50 border-b border-gray-100">
                                                         <div><p class="text-[10px] text-gray-400 uppercase">Kendaraan</p><p class="text-xs font-semibold text-gray-700">{{ $kend->nopol }} — {{ $kend->merk }}</p></div>
                                                         @if(isset($sd['tanggal_bayar']))<div><p class="text-[10px] text-gray-400 uppercase">Tgl Bayar</p><p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') }}</p></div>@endif
@@ -1181,7 +1142,11 @@
                                                     @endphp
                                                     <div class="px-4 py-3">
                                                         {{-- Info header --}}
-                                                       
+                                                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 text-xs">
+                                                            <div>
+                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Kendaraan</p>
+                                                                <p class="font-semibold text-gray-800">{{ $saKend ? $saKend->nopol . ' — ' . $saKend->merk : '-' }}</p>
+                                                            </div>
                                                             <div>
                                                                 <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Nama Asuransi</p>
                                                                 <p class="text-gray-700">{{ $sd['nama_asuransi'] ?? '-' }}</p>
@@ -1842,14 +1807,12 @@
             <div class="border border-gray-100 rounded-xl overflow-hidden">
                 <div class="bg-gray-50 px-4 py-2 border-b border-gray-100"><p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detail Items</p></div>
                 <div id="d_items_container"></div>
-                <div id="d_old_structure" class="hidden grid grid-cols-3 divide-x divide-y divide-gray-100">
-                    <div class="px-4 py-2.5 col-span-2"><p class="text-[10px] text-gray-400 mb-0.5">Barang/Jasa</p><p id="d_barang_jasa" class="text-sm font-medium text-gray-700"></p></div>
-                    <div class="px-4 py-2.5"><p class="text-[10px] text-gray-400 mb-0.5">Nominal</p><p id="d_nominal_old" class="text-sm font-semibold text-emerald-700"></p></div>
+                <div id="d_old_structure" class="hidden grid grid-cols-1 divide-y divide-gray-100">
+                    <div class="px-4 py-2.5"><p class="text-[10px] text-gray-400 mb-0.5">Barang/Jasa</p><p id="d_barang_jasa" class="text-sm font-medium text-gray-700"></p></div>
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div>
                 <div class="bg-emerald-50 rounded-xl px-3 py-2.5 border border-emerald-100"><p class="text-[10px] text-emerald-400 font-semibold uppercase tracking-wide mb-0.5">Total Nominal</p><p id="d_total_nominal" class="text-base font-bold text-emerald-700"></p></div>
-                <div class="bg-gray-50 rounded-xl px-3 py-2.5"><p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Total Items</p><p id="d_total_items" class="text-base font-semibold text-gray-700"></p></div>
             </div>
             <div class="bg-blue-50 rounded-xl px-4 py-3 border border-blue-100"><p class="text-[10px] text-blue-400 font-semibold uppercase tracking-wide mb-1">Alasan Permintaan</p><p id="d_alasan" class="text-sm text-blue-700"></p></div>
             <div id="d_catatan_section" class="hidden bg-red-50 border border-red-100 rounded-xl px-4 py-2.5"><p class="text-[10px] text-red-400 font-semibold uppercase tracking-wide mb-0.5">Catatan Penolakan</p><p id="d_catatan" class="text-sm text-red-700"></p></div>
@@ -2331,14 +2294,15 @@ function openDetailModal(id) {
 function populateDetailModal(pr) {
     document.getElementById('d_no_pr').innerText = pr.no_pr;
     document.getElementById('d_tanggal').innerText = pr.tanggal_formatted;
-    document.getElementById('d_pemohon').innerText = pr.pemohon;
+    document.getElementById('d_pemohon').innerHTML = pr.pemohon_nama
+        ? `<span class="font-semibold text-gray-800">${pr.pemohon_nama}</span><br><span class="text-[11px] text-gray-400">${pr.pemohon}</span>`
+        : pr.pemohon;
     document.getElementById('d_departemen').innerText = pr.departemen;
     document.getElementById('d_alasan').innerText = pr.alasan_permintaan || '-';
     const sb = document.getElementById('d_status_badge');
     sb.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ' + pr.status_class;
     sb.innerHTML = '<i class="fa fa-circle text-[6px]"></i> ' + pr.status;
     document.getElementById('d_total_nominal').innerText = 'Rp ' + pr.total_nominal_formatted;
-    document.getElementById('d_total_items').innerText = pr.total_items + ' item' + (pr.total_items > 1 ? 's' : '');
 
     const container = document.getElementById('d_items_container');
     const oldStruct = document.getElementById('d_old_structure');
@@ -2346,17 +2310,26 @@ function populateDetailModal(pr) {
         container.innerHTML = '';
         oldStruct.classList.add('hidden');
         pr.items.forEach((item, idx) => {
+            const statusBadge = item.status_item === 'approved'
+                ? '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>'
+                : item.status_item === 'rejected'
+                ? '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>'
+                : '';
             const div = document.createElement('div');
             div.className = 'p-4' + (idx > 0 ? ' border-t border-gray-100' : '');
             div.innerHTML = `<div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">Item #${idx+1}</span>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">Item #${idx+1}</span>
+                    ${statusBadge}
+                    ${item.kategori ? `<span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">${item.kategori}</span>` : ''}
+                </div>
                 ${item.subtotal ? '<span class="text-sm font-semibold text-emerald-600">Rp '+item.subtotal_formatted+'</span>' : ''}
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                <div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Nama Barang</p><p class="font-medium text-gray-700">${item.nama_barang}</p></div>
-                <div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kategori</p><p class="text-gray-600">${item.kategori||'-'}</p></div>
-                <div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Qty</p><p class="font-medium text-gray-700">${item.qty} ${item.satuan||''}</p></div>
-                <div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Harga Satuan</p><p class="text-gray-600">${item.harga_satuan ? 'Rp '+item.harga_satuan_formatted : '-'}</p></div>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                <div class="col-span-2 md:col-span-1"><p class="text-[10px] text-gray-400 uppercase mb-0.5">Nama</p><p class="font-medium text-gray-700">${item.nama_barang || '-'}</p></div>
+                ${item.qty ? `<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Qty</p><p class="font-medium text-gray-700">${item.qty} ${item.satuan||''}</p></div>` : ''}
+                ${item.harga_satuan ? `<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Harga Satuan</p><p class="text-gray-600">Rp ${item.harga_satuan_formatted}</p></div>` : ''}
+                ${item.keterangan ? `<div class="col-span-2 md:col-span-3"><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keterangan</p><p class="text-gray-600 text-[11px]">${item.keterangan}</p></div>` : ''}
             </div>`;
             container.appendChild(div);
         });
@@ -2364,7 +2337,6 @@ function populateDetailModal(pr) {
         oldStruct.classList.remove('hidden');
         container.innerHTML = '';
         document.getElementById('d_barang_jasa').innerText = pr.barang_jasa || '-';
-        document.getElementById('d_nominal_old').innerText = pr.nominal ? 'Rp ' + pr.nominal_formatted : '-';
     }
 
     const catatanSection = document.getElementById('d_catatan_section');

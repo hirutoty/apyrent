@@ -285,7 +285,7 @@
                                         <th class="w-6 px-2 py-2.5"></th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">PO Number</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Vendor</th>
-                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Keterangan</th>
+                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Keluhan</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Total Harga</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Tanggal</th>
@@ -566,8 +566,7 @@
                                                     @endif
                                                 </div>
 
-                                                {{-- Lampiran per-part (bukti dari form incident) --}}
-                                                @if($isServiceIncident)
+                                                {{-- Lampiran per-part (bukti dari form incident/service part) --}}
                                                 @php
                                                     $siAllLampiran = [];
                                                     foreach (($sourceData['temp_files']['parts'] ?? []) as $pIdx2 => $pFiles) {
@@ -585,16 +584,17 @@
                                                 <div class="mb-3 flex flex-wrap gap-1.5">
                                                     @foreach($siAllLampiran as $lf)
                                                         @php
-                                                            $lfPath = $lf['path'] ?? '';
-                                                            $lfName = $lf['original_name'] ?? basename($lfPath);
-                                                            $lfExt  = strtolower($lf['extension'] ?? pathinfo($lfPath, PATHINFO_EXTENSION));
+                                                            $lfPath  = $lf['path'] ?? '';
+                                                            $lfName  = $lf['original_name'] ?? basename($lfPath);
+                                                            $lfExt   = strtolower($lf['extension'] ?? pathinfo($lfPath, PATHINFO_EXTENSION));
                                                             $lfIsImg = in_array($lfExt, ['jpg','jpeg','png','webp','gif']);
-                                                            $lfIcon  = $lfIsImg ? 'fa-image text-red-400' : ($lfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                            $lfColor = $isServiceIncident ? 'red' : 'orange';
+                                                            $lfIcon  = $lfIsImg ? 'fa-image text-' . $lfColor . '-400' : ($lfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
                                                             $lfUrl   = $lfPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($lfPath) : null;
                                                         @endphp
                                                         @if($lfUrl)
                                                             <a href="{{ $lfUrl }}" target="_blank"
-                                                                class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg truncate max-w-[160px]"
+                                                                class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-white border border-{{ $lfColor }}-200 text-{{ $lfColor }}-600 hover:bg-{{ $lfColor }}-50 rounded-lg truncate max-w-[160px]"
                                                                 title="{{ $lfName }}{{ isset($lf['_part']) ? ' ('.$lf['_part'].')' : '' }}">
                                                                 <i class="fa {{ $lfIcon }} text-[9px]"></i>
                                                                 <span class="truncate">{{ Str::limit($lfName, 20) }}</span>
@@ -602,7 +602,6 @@
                                                         @endif
                                                     @endforeach
                                                 </div>
-                                                @endif
                                                 @endif
                                                 {{-- Tabel parts --}}
                                                 <div class="bg-white rounded-xl border border-{{ $expandColor }}-100 overflow-hidden">

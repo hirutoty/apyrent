@@ -260,6 +260,216 @@ let partIndex = 0;
 // Flag: true saat ajukan ulang dari PO/Pembayaran yang ditolak — lampiran tidak wajib
 const IS_RESUBMIT = {{ (($prefill['source'] ?? '') === 'edit_po' || ($prefill['source'] ?? '') === 'edit_pembayaran') ? 'true' : 'false' }};
 
+// ── Limit rules: di-load saat kendaraan dipilih ───────────────
+// Format: { [category_id]: { limit_price, limit_km, limit_nilai, limit_satuan } }
+let limitRulesMap = {};
+
+// ── Cache km_pasang part lama dari DB ─────────────────────────
+// Key: "categoryId_posisi" → integer km_pasang (atau null)
+let partLamaKmCache = {};
+
+/**
+ * Fetch km_pasang part lama (Terpasang/aktif) dari server
+ * berdasarkan kendaraan + kategori + posisi.
+ * Hasil di-cache di partLamaKmCache.
+ */
+async function fetchPartLamaKm(kendaraanId, categoryId, posisi, idx) {
+    if (!kendaraanId) return;
+    const cacheKey = (categoryId || '0') + '_' + (posisi || '');
+    // Jangan fetch ulang jika sudah ada di cache
+    if (partLamaKmCache.hasOwnProperty(cacheKey)) {
+        calcKeteranganLimit(idx);
+        return;
+    }
+    try {
+        const params = new URLSearchParams({ kendaraan_id: kendaraanId });
+        if (categoryId)  params.set('category_id', categoryId);
+        if (posisi)       params.set('posisi', posisi);
+        const res  = await fetch('/admin/service-history/part-lama-km?' + params.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        partLamaKmCache[cacheKey] = data.kilometer_pasang ?? null;
+    } catch (e) {
+        partLamaKmCache[cacheKey] = null;
+    }
+    calcKeteranganLimit(idx);
+}
+
+async function loadLimitRules(kendaraanId) {
+    limitRulesMap = {};
+    if (!kendaraanId) return;
+    try {
+        const res  = await fetch('/admin/service-history/limit-rules/' + kendaraanId, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        data.forEach(function(r) {
+            limitRulesMap[r.category_id] = r;
+        });
+    } catch (e) { /* silent */ }
+    recalcAllKeterangan();
+}
+
+/**
+ * Hitung keterangan limit untuk satu baris part secara client-side.
+ * Mirror logika generateKeteranganLimit() PHP + KM kumulatif per tahun.
+ */
+function calcKeteranganLimit(idx) {
+    const catSelect    = document.getElementById('cat-select-' + idx);
+    const categoryId   = catSelect ? parseInt(catSelect.value) : null;
+    const limitRule    = (categoryId && limitRulesMap[categoryId]) ? limitRulesMap[categoryId] : null;
+
+    const resultEl     = document.getElementById('ket-limit-text-' + idx);
+    const badgeEl      = document.getElementById('ket-limit-badge-' + idx);
+    const wrapEl       = document.getElementById('ket-limit-wrap-' + idx);
+    const hiddenEl     = document.getElementById('ket-limit-hidden-' + idx);
+
+    if (!resultEl) return;
+
+    // Tidak ada rule → "-"
+    if (!limitRule) {
+        resultEl.textContent = '-';
+        if (badgeEl) { badgeEl.className = 'hidden'; }
+        if (hiddenEl) hiddenEl.value = '-';
+        return;
+    }
+
+    // Ambil nilai dari form
+    const biaya         = parseInt(document.querySelector('[name="parts[' + idx + '][biaya]"]')?.value || 0);
+    const tglPasangStr  = document.querySelector('[name="parts[' + idx + '][tgl_pasang]"]')?.value || '';
+    const intervalNilai = parseInt(document.getElementById('interval-nilai-' + idx)?.value || 0);
+    const intervalSat   = document.getElementById('interval-satuan-' + idx)?.value || 'bulan';
+    const kmPasang      = parseInt(document.getElementById('km-pasang-' + idx)?.value || 0);
+    const kmInput       = parseInt(document.getElementById('kilometer')?.value || 0);
+    const tanggalServis = document.querySelector('[name="tanggal_service"]')?.value || '';
+
+    const tglPasang     = tglPasangStr  ? new Date(tglPasangStr)  : new Date();
+    const refTanggal    = tanggalServis ? new Date(tanggalServis) : new Date();
+
+    // Hitung tanggal limit (tgl_pasang + interval)
+    const tglLimit = calcTglLimit(tglPasang, intervalNilai, intervalSat);
+
+    const limitPrice    = limitRule.limit_price  ? parseInt(limitRule.limit_price)  : null;
+    const limitKm       = limitRule.limit_km     ? parseInt(limitRule.limit_km)     : null;
+    const intervalAda   = intervalNilai > 0;
+
+    // ── Dimensi biaya ─────────────────────────────────────────
+    const biayaSama  = limitPrice !== null && biaya === limitPrice;
+    const biayaLewat = limitPrice !== null && biaya  >  limitPrice;
+    const biayaAman  = limitPrice === null || biaya  <  limitPrice;
+
+    // ── Dimensi waktu ─────────────────────────────────────────
+    // Normalisasi ke startOfDay
+    const refMs   = new Date(refTanggal.getFullYear(), refTanggal.getMonth(), refTanggal.getDate()).getTime();
+    const limMs   = new Date(tglLimit.getFullYear(),   tglLimit.getMonth(),   tglLimit.getDate()).getTime();
+    const waktuSama  = intervalAda && limMs === refMs;
+    const waktuLewat = intervalAda && limMs  <  refMs;
+    const waktuAman  = !intervalAda || limMs  >  refMs;
+
+    // ── Dimensi KM (km_pasang part LAMA + limit_km = target) ────────────
+    // km_pasang diambil dari part lama (Terpasang/aktif) di DB,
+    // bukan dari km_pasang form baru. Ini agar limit terdeteksi
+    // meski part baru baru saja dipasang di KM yang lebih tinggi.
+    let kmSama = false, kmLewat = false, kmAman = true;
+    const kmAda = limitKm !== null && limitKm > 0;
+    if (kmAda) {
+        // Coba ambil km_pasang part lama dari cache
+        const posisiVal = document.querySelector('[name="parts[' + idx + '][posisi]"]')?.value || '';
+        const cacheKey  = (categoryId || '0') + '_' + posisiVal;
+        const kmPasangLama = partLamaKmCache.hasOwnProperty(cacheKey)
+            ? partLamaKmCache[cacheKey]
+            : null;
+        // Gunakan km_pasang lama jika ada, fallback ke km_pasang form baru
+        const baseKm   = (kmPasangLama !== null && kmPasangLama !== undefined) ? kmPasangLama : kmPasang;
+        const targetKm = baseKm + limitKm;
+        kmSama  = kmInput === targetKm;
+        kmLewat = kmInput  >  targetKm;
+        kmAman  = kmInput  <  targetKm;
+    }
+
+    // Tidak ada limit dikonfigurasi → "-"
+    const adaLimit = limitPrice || intervalAda || kmAda;
+    if (!adaLimit) {
+        resultEl.textContent = '-';
+        if (badgeEl) badgeEl.className = 'hidden';
+        if (hiddenEl) hiddenEl.value = '-';
+        return;
+    }
+
+    // Semua aman → "-"
+    if (biayaAman && waktuAman && kmAman) {
+        resultEl.textContent = '-';
+        if (badgeEl) badgeEl.className = 'hidden';
+        if (hiddenEl) hiddenEl.value = '-';
+        return;
+    }
+
+    // ── Bangun kalimat ────────────────────────────────────────
+    const parts_ket = [];
+    const belum     = [];
+
+    if (biayaSama)       parts_ket.push('mencapai batas limit biaya');
+    else if (biayaLewat) parts_ket.push('sudah melebihi limit biaya');
+    else if (limitPrice && biayaAman) belum.push('belum mencapai limit biaya');
+
+    if (waktuSama)       parts_ket.push('mencapai batas limit jangka waktu');
+    else if (waktuLewat) parts_ket.push('sudah melebihi batas waktu');
+    else if (intervalAda && waktuAman) belum.push('belum mencapai limit jangka waktu');
+
+    if (kmSama)          parts_ket.push('mencapai batas limit KM');
+    else if (kmLewat)    parts_ket.push('sudah melebihi batas limit KM');
+    else if (kmAda && kmAman) belum.push('belum mencapai limit KM');
+
+    const kalimat = parts_ket.concat(belum);
+    if (kalimat.length === 0) {
+        resultEl.textContent = '-';
+        if (badgeEl) badgeEl.className = 'hidden';
+        if (hiddenEl) hiddenEl.value = '-';
+        return;
+    }
+
+    const hasil = kalimat[0].charAt(0).toUpperCase() + kalimat[0].slice(1) + (kalimat.length > 1 ? ', ' + kalimat.slice(1).join(', ') : '');
+    resultEl.textContent = hasil;
+    if (hiddenEl) hiddenEl.value = hasil;
+
+    // ── Badge warna ───────────────────────────────────────────
+    if (badgeEl) {
+        const adaLewat = biayaLewat || waktuLewat || kmLewat;
+        const adaSama  = !adaLewat && (biayaSama || waktuSama || kmSama);
+        if (adaLewat) {
+            badgeEl.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700';
+            badgeEl.innerHTML = '<i class="fa fa-circle-exclamation text-[9px]"></i> Melebihi Limit';
+        } else if (adaSama) {
+            badgeEl.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-100 text-yellow-700';
+            badgeEl.innerHTML = '<i class="fa fa-triangle-exclamation text-[9px]"></i> Mencapai Limit';
+        } else {
+            badgeEl.className = 'hidden';
+        }
+    }
+}
+
+/** Hitung tanggal limit dari tgl_pasang + interval */
+function calcTglLimit(tglPasang, nilai, satuan) {
+    const d = new Date(tglPasang);
+    if (!nilai || nilai <= 0) return d;
+    switch (satuan) {
+        case 'hari':   d.setDate(d.getDate() + nilai); break;
+        case 'minggu': d.setDate(d.getDate() + nilai * 7); break;
+        case 'tahun':  d.setFullYear(d.getFullYear() + nilai); break;
+        default:       d.setMonth(d.getMonth() + nilai); break; // bulan
+    }
+    return d;
+}
+
+/** Recalc semua baris part yang sudah ada */
+function recalcAllKeterangan() {
+    document.querySelectorAll('[id^="ket-limit-text-"]').forEach(function(el) {
+        const m = el.id.match(/ket-limit-text-(\d+)/);
+        if (m) calcKeteranganLimit(parseInt(m[1]));
+    });
+}
+
 // ── Tambah row part ──────────────────────────────────────────
 function addPartRow(data = null) {
     const container = document.getElementById('parts-container');
@@ -559,14 +769,9 @@ function addPartRow(data = null) {
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 ${data ? 'border-amber-300 bg-amber-50' : ''}">
             </div>
 
-            <!-- KM Pasang -->
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">KM Pasang</label>
-                <input type="number" name="parts[${idx}][kilometer_pasang]" id="km-pasang-${idx}"
-                    value="${kmPasang}"
-                    placeholder="Auto dari header KM"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-            </div>
+            <!-- KM Pasang — hidden, sync otomatis dari header KM -->
+            <input type="hidden" name="parts[${idx}][kilometer_pasang]" id="km-pasang-${idx}"
+                value="${kmPasang}">
 
             <!-- Interval Nilai -->
             <div>
@@ -609,9 +814,28 @@ function addPartRow(data = null) {
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
                 <input type="number" name="parts[${idx}][biaya]" id="biaya-${idx}" min="0"
                     value="${data?.biaya || 0}"
-                    onchange="recalcTotal()" oninput="recalcTotal()"
+                    onchange="recalcTotal(); calcKeteranganLimit(${idx});"
+                    oninput="recalcTotal(); calcKeteranganLimit(${idx});"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                 <p id="biaya-hint-${idx}" class="text-[10px] text-gray-400 mt-1 hidden"></p>
+            </div>
+
+            <!-- Keterangan Limit Otomatis -->
+            <div class="md:col-span-3">
+                <div id="ket-limit-wrap-${idx}" class="rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3 flex items-start gap-3">
+                    <i class="fa fa-circle-info text-blue-400 text-sm mt-0.5 flex-shrink-0"></i>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap mb-1">
+                            <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Keterangan Limit</span>
+                            <span id="ket-limit-badge-${idx}" class="hidden"></span>
+                        </div>
+                        <p id="ket-limit-text-${idx}" class="text-xs text-gray-600 break-words">
+                            ${data?.keterangan_limit || '-'}
+                        </p>
+                    </div>
+                    <input type="hidden" name="parts[${idx}][keterangan_limit]" id="ket-limit-hidden-${idx}"
+                        value="${data?.keterangan_limit || '-'}">
+                </div>
             </div>
 
             <!-- Info Pembayaran (nama rekening, bank, no rekening) -->
@@ -704,6 +928,40 @@ function addPartRow(data = null) {
 
     recalcTotal();
     generateKeterangan();
+
+    // Kalkulasi keterangan limit untuk baris baru
+    calcKeteranganLimit(idx);
+
+    // Pasang listener pada field tgl pasang baris ini
+    const tglPasangInput = document.querySelector('[name="parts[' + idx + '][tgl_pasang]"]');
+    if (tglPasangInput) {
+        tglPasangInput.addEventListener('change', function() { calcKeteranganLimit(idx); });
+    }
+
+    // Pasang listener pada field posisi — saat posisi berubah, fetch part lama baru
+    const posisiSelect = document.querySelector('[name="parts[' + idx + '][posisi]"]');
+    if (posisiSelect) {
+        posisiSelect.addEventListener('change', function() {
+            const kendaraanId = document.getElementById('kendaraan_id').value;
+            const catSelect   = document.getElementById('cat-select-' + idx);
+            const categoryId  = catSelect ? catSelect.value : null;
+            if (kendaraanId && categoryId) {
+                fetchPartLamaKm(kendaraanId, categoryId, this.value, idx);
+            } else {
+                calcKeteranganLimit(idx);
+            }
+        });
+    }
+
+    // Fetch part lama saat row baru ditambah (jika kategori sudah terisi dari prefill)
+    const catSelectNew = document.getElementById('cat-select-' + idx);
+    if (catSelectNew && catSelectNew.value) {
+        const kendaraanId = document.getElementById('kendaraan_id').value;
+        const posisiVal   = posisiSelect ? posisiSelect.value : '';
+        if (kendaraanId) {
+            fetchPartLamaKm(kendaraanId, catSelectNew.value, posisiVal, idx);
+        }
+    }
 }
 
 // ── Bukti per-part: render daftar nama file ───────────────────
@@ -775,13 +1033,11 @@ function removePartRow(idx) {
     }
 }
 
-// Auto-fill KM pasang dari field kilometer header
+// Auto-fill km pasang dari header KM — selalu sync karena field hidden
 function syncKmPasang(idx) {
     const headerKm = document.getElementById('kilometer').value;
     const kmInput  = document.getElementById('km-pasang-' + idx);
-    if (kmInput && !kmInput.value && headerKm) {
-        kmInput.value = headerKm;
-    }
+    if (kmInput && headerKm) kmInput.value = headerKm;
 }
 
 // ── Kategori inline ───────────────────────────────────────────
@@ -791,6 +1047,13 @@ function onCategoryChange(select, idx) {
     if (kendaraanId && select.value) {
         fetchLimitRule(kendaraanId, select.value, idx);
     }
+    // Fetch km_pasang part lama (pakai kategori baru + posisi saat ini)
+    const posisiVal = document.querySelector('[name="parts[' + idx + '][posisi]"]')?.value || '';
+    if (kendaraanId && select.value) {
+        partLamaKmCache = {}; // reset cache saat kategori berubah
+        fetchPartLamaKm(kendaraanId, select.value, posisiVal, idx);
+    }
+    calcKeteranganLimit(idx);
 }
 
 // ── Fetch limit rule dari server lalu auto-fill interval & hint harga ─────
@@ -802,6 +1065,19 @@ function fetchLimitRule(kendaraanId, categoryId, idx) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         var labelMap = {hari:'Hari', minggu:'Minggu', bulan:'Bulan', tahun:'Tahun'};
+
+        // Simpan ke limitRulesMap agar calcKeteranganLimit bisa pakai
+        if (data) {
+            limitRulesMap[categoryId] = {
+                category_id : parseInt(categoryId),
+                limit_price : data.limit_price  ? parseInt(data.limit_price)  : null,
+                limit_km    : data.limit_km      ? parseInt(data.limit_km)     : null,
+                limit_nilai : parseInt(data.limit_nilai  || 12),
+                limit_satuan: data.limit_satuan || 'bulan',
+            };
+        } else {
+            delete limitRulesMap[categoryId];
+        }
 
         // Ambil elemen display dan hidden
         var nilaiHidden       = document.getElementById('interval-nilai-' + idx);
@@ -821,6 +1097,7 @@ function fetchLimitRule(kendaraanId, categoryId, idx) {
             if (satuanHidden) { satuanHidden.value = 'bulan'; }
             if (nilaiDisplay)  { nilaiDisplay.textContent  = '12'; }
             if (satuanDisplay) { satuanDisplay.textContent = 'Bulan'; }
+            calcKeteranganLimit(idx);
             return;
         }
 
@@ -848,6 +1125,9 @@ function fetchLimitRule(kendaraanId, categoryId, idx) {
                 biayaHint.classList.add('hidden');
             }
         }
+
+        // Recalc keterangan setelah interval dan limit rules ter-update
+        calcKeteranganLimit(idx);
     })
     .catch(function() { /* silent fail */ });
 }
@@ -879,26 +1159,40 @@ function onKendaraanChange(val) {
     } else {
         document.getElementById('km-badge').classList.add('hidden');
     }
-    // Re-fetch limit rules untuk semua part row yang sudah ada
+    // Load limit rules baru untuk kendaraan ini (juga re-fetch per-baris)
     if (val) {
-        document.querySelectorAll('[id^="cat-select-"]').forEach(function(sel) {
-            var idxMatch = sel.id.match(/cat-select-(\d+)/);
-            if (!idxMatch) return;
-            var rowIdx = idxMatch[1];
-            if (sel.value && sel.value !== '__new__') {
-                fetchLimitRule(val, sel.value, rowIdx);
-            }
+        partLamaKmCache = {}; // reset cache part lama saat kendaraan berubah
+        loadLimitRules(val).then(function() {
+            // Setelah map ter-update, re-fetch per baris agar interval ikut update
+            document.querySelectorAll('[id^="cat-select-"]').forEach(function(catSel) {
+                var idxMatch = catSel.id.match(/cat-select-(\d+)/);
+                if (!idxMatch) return;
+                var rowIdx = idxMatch[1];
+                if (catSel.value && catSel.value !== '__new__') {
+                    fetchLimitRule(val, catSel.value, rowIdx);
+                }
+            });
         });
+    } else {
+        limitRulesMap = {};
+        recalcAllKeterangan();
     }
     generateKeterangan();
 }
 
 document.getElementById('kilometer').addEventListener('input', function() {
     document.getElementById('km-badge').classList.add('hidden');
-    // Sync semua km-pasang yang kosong
+    // Sync semua km-pasang (hidden) ke nilai header KM
     document.querySelectorAll('[id^="km-pasang-"]').forEach(input => {
-        if (!input.dataset.userEdited) input.value = this.value;
+        input.value = this.value;
     });
+    // Recalc keterangan semua baris (KM berubah)
+    recalcAllKeterangan();
+});
+
+// Recalc keterangan saat tanggal service berubah
+document.querySelector('[name="tanggal_service"]')?.addEventListener('change', function() {
+    recalcAllKeterangan();
 });
 
 // ── Auto-generate keterangan slug ──────────────────────────────
@@ -926,10 +1220,13 @@ function generateKeterangan() {
 // ── Init prefill (dari reminder) ─────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
     @if ($prefill)
-        // Set kendaraan dan trigger auto-fill KM
+        // Set kendaraan dan trigger auto-fill KM + load limit rules
         const kendaraanSelect = document.getElementById('kendaraan_id');
         kendaraanSelect.value = '{{ $prefill["kendaraan_id"] }}';
-        onKendaraanChange('{{ $prefill["kendaraan_id"] }}');
+
+        // Load limit rules dulu, baru render baris part agar keterangan langsung akurat
+        loadLimitRules('{{ $prefill["kendaraan_id"] }}').then(function() {
+            onKendaraanChange('{{ $prefill["kendaraan_id"] }}');
 
         @if(($prefill['source'] ?? '') === 'edit_po' && !empty($prefill['all_parts']))
             {{-- Ajukan ulang dari PO ditolak: render semua parts --}}
@@ -993,6 +1290,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 biaya:            '{{ $prefill["part"]["biaya"] ?? 0 }}',
             });
         @endif
+        }); // end loadLimitRules().then
     @endif
     generateKeterangan();
 });
