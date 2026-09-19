@@ -400,6 +400,12 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   Route::get('/service-history/pdf', [ServiceHistoryController::class, 'pdf'])
     ->name('service-history.pdf');
+  Route::get('/service-history/limit-rules/{kendaraan_id}', [ServiceHistoryController::class, 'getLimitRules'])
+    ->name('service-history.limit-rules');
+  Route::get('/service-history/part-lama-km', [ServiceHistoryController::class, 'getPartLamaKm'])
+    ->name('service-history.part-lama-km');
+  Route::post('/service-history/perpanjang-part/{part_id}', [ServiceHistoryController::class, 'perpanjangPart'])
+    ->name('service-history.perpanjang-part');
   Route::post('/service-history/{id}/terpasang', [ServiceHistoryController::class, 'terpasang'])
     ->name('service-history.terpasang');
   Route::post('/service-history/{id}/terpasang-aktif', [ServiceHistoryController::class, 'terpasangAktif'])

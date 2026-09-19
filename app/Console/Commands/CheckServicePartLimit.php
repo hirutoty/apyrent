@@ -31,8 +31,63 @@ class CheckServicePartLimit extends Command
                 return self::FAILURE;
             }
 
+            // Ambil batas reminder dari Setting (default 30 hari)
+            $batasReminder = (int) ($setting->batas_reminder ?? 30);
+
+            // ──────────────────────────────────────────────────────────────────
+            // STEP 0: Buat reminder WARNING untuk part yang mendekati limit
+            //         (sisa hari <= batas_reminder, tapi belum jatuh tempo)
+            //         Part tetap berstatus Terpasang, hanya diberi reminder 'aktif'
+            // ──────────────────────────────────────────────────────────────────
+            $partsWarning = ServicePart::with(['kendaraan', 'category'])
+                ->where('status', 'Terpasang')
+                ->whereNotNull('tanggal_limit')
+                ->whereDate('tanggal_limit', '>', Carbon::today())
+                ->whereDate('tanggal_limit', '<=', Carbon::today()->addDays($batasReminder))
+                ->get();
+
+            Log::info('Part mendekati limit ditemukan', ['jumlah' => $partsWarning->count()]);
+
+            foreach ($partsWarning as $part) {
+                // Cek apakah sudah ada reminder aktif untuk part ini
+                $reminderAktifSudahAda = ReminderService::where('service_part_id', $part->id)
+                    ->whereIn('status', ['aktif', 'jatuh_tempo'])
+                    ->exists();
+
+                if (!$reminderAktifSudahAda) {
+                    $sisaHari = (int) Carbon::today()->diffInDays(Carbon::parse($part->tanggal_limit));
+                    $namaReminder = 'Warning: ' . $part->nama_part
+                        . ' — ' . (optional($part->kendaraan)->merk ?? '')
+                        . ' ' . (optional($part->kendaraan)->nopol ?? '')
+                        . ' (sisa ' . $sisaHari . ' hari)';
+
+                    ReminderService::create([
+                        'kendaraan_id'        => $part->kendaraan_id,
+                        'service_part_id'     => $part->id,
+                        'nama_reminder'       => $namaReminder,
+                        'tanggal_mulai'       => $part->tgl_pasang,
+                        'interval_nilai'      => $part->interval_nilai,
+                        'interval_satuan'     => $part->interval_satuan,
+                        'tanggal_jatuh_tempo' => $part->tanggal_limit,
+                        'keterangan'          => 'Auto-warning: ' . $part->interval_nilai . ' ' . $part->interval_satuan . ', sisa ' . $sisaHari . ' hari',
+                        'biaya'               => $part->biaya > 0 ? $part->biaya : null,
+                        'status'              => 'aktif',
+                        'sudah_dibuat_masalah' => false,
+                    ]);
+
+                    Log::info('Reminder warning dibuat untuk part mendekati limit', [
+                        'part_id'    => $part->id,
+                        'nama_part'  => $part->nama_part,
+                        'kendaraan'  => optional($part->kendaraan)->nopol ?? '-',
+                        'tgl_limit'  => $part->tanggal_limit,
+                        'sisa_hari'  => $sisaHari,
+                    ]);
+                }
+            }
+
             // ──────────────────────────────────────────────────────────────────
             // STEP 1: Ambil semua part Terpasang yang sudah melewati tanggal limit
+            //         → ubah status menjadi Limit, kondisi Rusak
             // ──────────────────────────────────────────────────────────────────
             $partsLimit = ServicePart::with(['kendaraan', 'category'])
                 ->where('status', 'Terpasang')

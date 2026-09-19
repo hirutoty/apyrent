@@ -325,7 +325,44 @@
                                                             {{ $part->interval_nilai }} {{ $part->interval_satuan }}
                                                         </td>
                                                         <td class="px-3 py-2 whitespace-nowrap {{ $part->status === 'Limit' ? 'text-red-600 font-semibold' : ($part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600') }}">
-                                                            {{ $part->tanggal_limit ? \Carbon\Carbon::parse($part->tanggal_limit)->format('d M Y') : '—' }}
+                                                            @php
+                                                                $tglLimitCarbon  = $part->tanggal_limit ? \Carbon\Carbon::parse($part->tanggal_limit)->startOfDay() : null;
+                                                                $hariIniCarbon   = now()->startOfDay();
+                                                                $sisaHariPart    = $tglLimitCarbon ? (int) $hariIniCarbon->diffInDays($tglLimitCarbon, false) : null;
+                                                                $partIsWarning   = $tglLimitCarbon && $sisaHariPart !== null
+                                                                    && $sisaHariPart >= 0
+                                                                    && $sisaHariPart <= $batasReminder
+                                                                    && $part->status === 'Terpasang';
+                                                                $partIsLimitDate = $tglLimitCarbon && $sisaHariPart !== null && $sisaHariPart < 0;
+                                                            @endphp
+                                                            {{ $tglLimitCarbon ? $tglLimitCarbon->format('d M Y') : '—' }}
+                                                            @if ($partIsLimitDate && $part->status !== 'Diganti')
+                                                                <div class="mt-0.5">
+                                                                    <span class="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full w-fit">
+                                                                        <i class="fa fa-circle-exclamation text-[9px]"></i>
+                                                                        Terlambat {{ abs($sisaHariPart) }} hari
+                                                                    </span>
+                                                                </div>
+                                                            @elseif ($partIsWarning)
+                                                                <div class="mt-0.5">
+                                                                    @if ($sisaHariPart === 0)
+                                                                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full w-fit">
+                                                                            <i class="fa fa-triangle-exclamation text-[9px]"></i>
+                                                                            Berakhir Hari Ini
+                                                                        </span>
+                                                                    @elseif ($sisaHariPart === 1)
+                                                                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full w-fit">
+                                                                            <i class="fa fa-triangle-exclamation text-[9px]"></i>
+                                                                            Berakhir Besok
+                                                                        </span>
+                                                                    @else
+                                                                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full w-fit">
+                                                                            <i class="fa fa-triangle-exclamation text-[9px]"></i>
+                                                                            Sisa {{ $sisaHariPart }} hari
+                                                                        </span>
+                                                                    @endif
+                                                                </div>
+                                                            @endif
                                                         </td>
                                                         <td class="px-3 py-2">
                                                             @php
@@ -349,11 +386,11 @@
                                                                         title="Part melewati tanggal limit, perlu diganti">
                                                                         <i class="fa fa-exclamation-triangle text-[9px]"></i> Limit
                                                                     </span>
-                                                                    <a href="{{ route('service-history.create', ['from_part' => $part->id]) }}"
-                                                                        onclick="event.stopPropagation()"
+                                                                    <button type="button"
+                                                                        onclick="event.stopPropagation(); openModalPerpanjangPart({{ $part->id }}, '{{ addslashes($part->nama_part) }}', '{{ addslashes($part->category?->nama ?? '') }}', {{ $part->category_id ?? 'null' }}, '{{ addslashes($part->posisi ?? '') }}', {{ $part->interval_nilai }}, '{{ $part->interval_satuan }}', {{ $part->biaya }}, {{ $d->kendaraan_id }}, '{{ addslashes($d->kendaraan?->merk . ' — ' . $d->kendaraan?->nopol) }}', {{ $d->kendaraan?->kilometer_sekarang ?? 0 }})"
                                                                         class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 transition-colors">
-                                                                        <i class="fa fa-plus text-[9px]"></i> Ganti Baru
-                                                                    </a>
+                                                                        <i class="fa fa-rotate-right text-[9px]"></i> Perpanjang
+                                                                    </button>
                                                                 </div>
                                                             @elseif ($part->status === 'Diganti')
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600 cursor-default">
@@ -383,10 +420,23 @@
                                                                     </button>
                                                                 @endif
                                                             @else
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 cursor-default"
-                                                                    title="Part sudah terpasang, tidak bisa diubah">
-                                                                    <i class="fa fa-check text-[9px]"></i> Terpasang
-                                                                </span>
+                                                                {{-- Terpasang — tampilkan tombol Perpanjang jika warning atau limit tanggal --}}
+                                                                @php
+                                                                    $showPerpanjangBtn = isset($partIsWarning) && ($partIsWarning || (isset($partIsLimitDate) && $partIsLimitDate));
+                                                                @endphp
+                                                                <div class="flex items-center gap-1 flex-wrap">
+                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 cursor-default"
+                                                                        title="Part sudah terpasang, tidak bisa diubah">
+                                                                        <i class="fa fa-check text-[9px]"></i> Terpasang
+                                                                    </span>
+                                                                    @if ($showPerpanjangBtn)
+                                                                        <button type="button"
+                                                                            onclick="event.stopPropagation(); openModalPerpanjangPart({{ $part->id }}, '{{ addslashes($part->nama_part) }}', '{{ addslashes($part->category?->nama ?? '') }}', {{ $part->category_id ?? 'null' }}, '{{ addslashes($part->posisi ?? '') }}', {{ $part->interval_nilai }}, '{{ $part->interval_satuan }}', {{ $part->biaya }}, {{ $d->kendaraan_id }}, '{{ addslashes($d->kendaraan?->merk . ' — ' . $d->kendaraan?->nopol) }}', {{ $d->kendaraan?->kilometer_sekarang ?? 0 }})"
+                                                                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 transition-colors">
+                                                                            <i class="fa fa-rotate-right text-[9px]"></i> Perpanjang
+                                                                        </button>
+                                                                    @endif
+                                                                </div>
                                                             @endif
                                                         </td>
                                                         {{-- Kolom Persetujuan --}}
@@ -1121,6 +1171,301 @@ async function updateServiceHistoryCharts(filters) {
         console.error('Error updating service history charts:', error);
     }
 }
+</script>
+
+{{-- ===================== MODAL: PERPANJANG PART ===================== --}}
+<div id="modal-perpanjang-part"
+    class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/50 p-4 overflow-y-auto"
+    style="backdrop-filter:blur(2px)">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-6" style="animation:slideUp .2s ease">
+
+        {{-- Header --}}
+        <div class="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+            <div>
+                <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
+                        <i class="fa fa-rotate-right text-sm"></i>
+                    </span>
+                    Perpanjang / Ganti Part
+                </h2>
+                <p class="text-xs text-gray-500 mt-0.5 ml-10">Pengajuan akan dikirim ke PO untuk disetujui</p>
+            </div>
+            <button onclick="closeModalPerpanjangPart()"
+                class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors">
+                <i class="fa fa-times text-sm"></i>
+            </button>
+        </div>
+
+        {{-- Info kendaraan --}}
+        <div class="px-6 pt-4 pb-2">
+            <div class="flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-100 rounded-xl">
+                <div class="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <i class="fa fa-car text-orange-600 text-sm"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-800" id="mpp-kendaraan-label">-</p>
+                    <p class="text-xs text-orange-600 mt-0.5" id="mpp-part-label">-</p>
+                </div>
+            </div>
+        </div>
+
+        {{-- Form --}}
+        <form id="form-perpanjang-part" method="POST" enctype="multipart/form-data"
+              action="/admin/service-history/perpanjang-part/0">
+            @csrf
+            <input type="hidden" name="replace_part_id" id="mpp-replace-part-id" value="">
+            <input type="hidden" name="kendaraan_id" id="mpp-kendaraan-id" value="">
+
+            <div class="px-6 py-4 space-y-4">
+
+                {{-- Row 1: Nama Part + Kategori (readonly) + Posisi (readonly) --}}
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                            Nama Part <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="nama_part" id="mpp-nama-part" required
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                            Kategori
+                            <span class="text-[10px] font-normal text-gray-400 ml-1">(tidak dapat diubah)</span>
+                        </label>
+                        <input type="text" id="mpp-category-display" readonly
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
+                        <input type="hidden" name="category_id" id="mpp-category-id">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                            Posisi
+                            <span class="text-[10px] font-normal text-gray-400 ml-1">(tidak dapat diubah)</span>
+                        </label>
+                        <input type="text" id="mpp-posisi-display" readonly
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
+                        <input type="hidden" name="posisi" id="mpp-posisi">
+                    </div>
+                </div>
+
+                {{-- Row 2: Tgl Pasang + KM Pasang + Interval --}}
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                            Tgl Pasang Baru <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" name="tgl_pasang" id="mpp-tgl-pasang" required
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">KM Pasang</label>
+                        <input type="number" name="kilometer_pasang" id="mpp-km-pasang" min="0"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                            Interval <span class="text-red-500">*</span>
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="number" name="interval_nilai" id="mpp-interval-nilai" required min="1"
+                                class="w-20 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                            <select name="interval_satuan" id="mpp-interval-satuan"
+                                class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                                <option value="hari">Hari</option>
+                                <option value="minggu">Minggu</option>
+                                <option value="bulan" selected>Bulan</option>
+                                <option value="tahun">Tahun</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Row 3: Biaya + Part Number + Serial Number --}}
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Biaya (Rp)</label>
+                        <input type="number" name="biaya" id="mpp-biaya" min="0"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Part Number</label>
+                        <input type="text" name="part_number" id="mpp-part-number"
+                            placeholder="opsional"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Serial Number</label>
+                        <input type="text" name="serial_number" id="mpp-serial-number"
+                            placeholder="SN part baru"
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                    </div>
+                </div>
+
+                {{-- Info Pembayaran --}}
+                <div class="border border-dashed border-orange-200 rounded-xl p-3 bg-orange-50/40 space-y-3">
+                    <p class="text-[10px] font-semibold text-orange-600 uppercase tracking-wide flex items-center gap-1.5">
+                        <i class="fa fa-university text-[10px]"></i> Info Pembayaran
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Rekening</label>
+                            <input type="text" name="nama_rekening" placeholder="cth: Budi Santoso"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 bg-white">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Bank</label>
+                            <input type="text" name="nama_bank" placeholder="cth: BCA, Mandiri..."
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 bg-white">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 mb-1 block">No. Rekening</label>
+                            <input type="text" name="no_rekening" placeholder="cth: 1234567890"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 bg-white">
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Supplier --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Supplier / Bengkel <span class="text-gray-400 text-[10px] font-normal">(opsional)</span>
+                    </label>
+                    <select name="supplier_id"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                        <option value="">-- Pilih Supplier --</option>
+                        @foreach($suppliers as $sup)
+                            <option value="{{ $sup->id }}">{{ $sup->nama_supplier }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- Lampiran --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Lampiran <span class="text-red-500">*</span>
+                        <span class="text-[10px] font-normal text-gray-400 ml-1">(nota bengkel, foto, dll)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer border border-dashed border-orange-300 hover:border-orange-400 bg-gray-50 hover:bg-orange-50/40 rounded-lg px-3 py-2.5 transition-colors group">
+                        <i class="fa fa-paperclip text-orange-400 group-hover:text-orange-500 text-sm"></i>
+                        <span class="text-xs text-gray-500 group-hover:text-orange-600">Klik untuk pilih file...</span>
+                        <input type="file" name="bukti[]" id="mpp-bukti" multiple
+                            accept="image/*,video/mp4,video/mov"
+                            onchange="updateMppBuktiList()"
+                            class="hidden">
+                    </label>
+                    <p class="text-[10px] text-gray-400 mt-1">Format: JPG, PNG, MP4, MOV</p>
+                    <div id="mpp-bukti-list" class="mt-2 space-y-1"></div>
+                </div>
+
+            </div>
+
+            {{-- Footer --}}
+            <div class="flex gap-3 px-6 py-4 border-t border-gray-100">
+                <button type="button" onclick="closeModalPerpanjangPart()"
+                    class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                    Batal
+                </button>
+                <button type="submit" id="mpp-submit-btn"
+                    class="flex-1 inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
+                    <i class="fa fa-paper-plane text-sm"></i> Ajukan ke PO
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// ── Modal Perpanjang Part ──────────────────────────────────────────────────
+function openModalPerpanjangPart(partId, namaPart, categoryNama, categoryId, posisi, intervalNilai, intervalSatuan, biaya, kendaraanId, kendaraanLabel, kmSekarang) {
+    document.getElementById('mpp-kendaraan-label').textContent = kendaraanLabel;
+    document.getElementById('mpp-part-label').textContent      = namaPart + (posisi ? ' — ' + posisi : '');
+
+    // Form action
+    document.getElementById('form-perpanjang-part').action = '/admin/service-history/perpanjang-part/' + partId;
+
+    // Hidden fields
+    document.getElementById('mpp-replace-part-id').value = partId;
+    document.getElementById('mpp-kendaraan-id').value    = kendaraanId;
+
+    // Pre-fill fields
+    document.getElementById('mpp-nama-part').value      = namaPart;
+    document.getElementById('mpp-category-display').value = categoryNama || '-';
+    document.getElementById('mpp-category-id').value    = categoryId || '';
+    document.getElementById('mpp-posisi-display').value = posisi || '-';
+    document.getElementById('mpp-posisi').value         = posisi || '';
+    document.getElementById('mpp-interval-nilai').value = intervalNilai || 12;
+    document.getElementById('mpp-biaya').value          = biaya || 0;
+    document.getElementById('mpp-km-pasang').value      = kmSekarang || '';
+    document.getElementById('mpp-part-number').value    = '';
+    document.getElementById('mpp-serial-number').value  = '';
+
+    // Set interval satuan
+    var satSelect = document.getElementById('mpp-interval-satuan');
+    if (satSelect) {
+        Array.from(satSelect.options).forEach(function(opt) {
+            opt.selected = opt.value === intervalSatuan;
+        });
+    }
+
+    // Tgl pasang = hari ini
+    var today = new Date();
+    var yyyy  = today.getFullYear();
+    var mm    = String(today.getMonth() + 1).padStart(2, '0');
+    var dd    = String(today.getDate()).padStart(2, '0');
+    document.getElementById('mpp-tgl-pasang').value = yyyy + '-' + mm + '-' + dd;
+
+    // Reset lampiran
+    document.getElementById('mpp-bukti-list').innerHTML = '';
+
+    var modal = document.getElementById('modal-perpanjang-part');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeModalPerpanjangPart() {
+    var modal = document.getElementById('modal-perpanjang-part');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function updateMppBuktiList() {
+    var input  = document.getElementById('mpp-bukti');
+    var listEl = document.getElementById('mpp-bukti-list');
+    if (!input || !listEl) return;
+
+    listEl.innerHTML = '';
+    Array.from(input.files).forEach(function(file, idx) {
+        var size = file.size < 1024 * 1024
+            ? (file.size / 1024).toFixed(1) + ' KB'
+            : (file.size / 1024 / 1024).toFixed(1) + ' MB';
+        var isImg = file.type.startsWith('image/');
+        var icon  = isImg ? '<i class="fa fa-image text-orange-400 text-xs w-4 text-center"></i>'
+                          : '<i class="fa fa-film text-purple-400 text-xs w-4 text-center"></i>';
+        var item = document.createElement('div');
+        item.className = 'flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs';
+        item.innerHTML = icon
+            + '<span class="flex-1 truncate text-gray-700 font-medium">' + file.name + '</span>'
+            + '<span class="text-gray-400 text-[10px]">' + size + '</span>';
+        listEl.appendChild(item);
+    });
+}
+
+// Submit dengan konfirmasi
+document.getElementById('form-perpanjang-part').addEventListener('submit', function(e) {
+    var bukti = document.getElementById('mpp-bukti');
+    if (!bukti || bukti.files.length === 0) {
+        e.preventDefault();
+        alert('Lampiran wajib diisi.');
+        return;
+    }
+    var btn = document.getElementById('mpp-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin text-sm"></i> Mengirim...';
+});
+
+// Tutup saat klik backdrop
+document.getElementById('modal-perpanjang-part').addEventListener('click', function(e) {
+    if (e.target === this) closeModalPerpanjangPart();
+});
 </script>
 
 @endsection

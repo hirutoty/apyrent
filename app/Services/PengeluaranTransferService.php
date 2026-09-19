@@ -455,6 +455,11 @@ class PengeluaranTransferService
                 'Auto-posting: Service part ' . $namaKategori . ' ' . $nopolKendaraan . ' via PR #' . $pembayaran->no_pr
             );
 
+            // ── Update limit_km tidak diperlukan ──────────────────────────────
+            // limit_km adalah jarak interval tetap (km_pasang + limit_km = target).
+            // Nilai ini tidak berubah setelah approve — target berikutnya otomatis
+            // dihitung dari km_pasang part baru + limit_km yang sama.
+
             $lastPartId = $part->id;
         }
 

@@ -844,12 +844,6 @@
                             </div>
 
                             <div class="flex flex-col gap-0.5">
-                                <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Limit KM
-                                    Service</span>
-                                <span id="d_limit_km" class="text-sm font-mono text-gray-500">-</span>
-                            </div>
-
-                            <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">KM Terakhir
                                     Servis</span>
                                 <span id="d_km_svc" class="text-sm font-mono text-gray-500">-</span>
@@ -1729,7 +1723,6 @@
                     }
 
                     document.getElementById('d_km_sekarang').textContent = fmtKm(d.km_sekarang);
-                    document.getElementById('d_limit_km').textContent = fmtKm(d.limit_km);
                     document.getElementById('d_km_svc').textContent = d.km_svc ? fmtKm(d.km_svc) : '-';
                     document.getElementById('d_tgl_svc').textContent = d.tgl_svc || '-';
 
@@ -1877,7 +1870,7 @@
 
             function renderTable() {
                 const perPageEl = document.getElementById('perPageSelect');
-                const perPage   = perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10);
+                const perPage   = perPageEl ? (perPageEl.value === 'all' ? Infinity : parseInt(perPageEl.value, 10)) : Infinity;
                 const matched   = allRowsShow.filter(row => row.dataset.search.includes(currentSearchShow));
                 let shown = 0;
 
@@ -2038,151 +2031,6 @@
                 const ext  = file.name.split('.').pop().toLowerCase();
                 const icon = ext === 'pdf'                     ? 'fa-file-pdf text-red-500'
                            : ['doc','docx'].includes(ext)      ? 'fa-file-word text-blue-500'
-                           : ['jpg','jpeg','png'].includes(ext) ? 'fa-file-image text-green-500'
-                           : 'fa-file text-gray-400';
-                const div = document.createElement('div');
-                div.className = 'flex items-center gap-2 text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1.5';
-                div.innerHTML = `<i class="fa-solid ${icon}"></i><span class="truncate flex-1">${file.name}</span><span class="text-gray-400 flex-shrink-0">${(file.size/1024).toFixed(0)} KB</span>`;
-                container.appendChild(div);
-            });
-        }
-        </script>
-
-        <script>
-        // ── MEMBER AUTOCOMPLETE (pola rental) ─────────────────────────
-        const memberData = @json($members->map(fn($m) => ['id' => $m->id, 'nama' => $m->nama, 'alamat' => $m->alamat ?? '']));
-
-        function initMemberAutocomplete(inputId, resultId, hiddenId, alamatId, warningId, editBtnId) {
-            const input   = document.getElementById(inputId);
-            const result  = document.getElementById(resultId);
-            const hidden  = document.getElementById(hiddenId);
-            const warning = document.getElementById(warningId);
-            if (!input || !result) return;
-
-            input.addEventListener('keyup', function() {
-                const keyword = this.value.toLowerCase().trim();
-                result.innerHTML = '';
-                if (hidden) hidden.value = '';
-
-                if (keyword.length < 1) {
-                    result.classList.add('hidden');
-                    if (warning) warning.classList.add('hidden');
-                    return;
-                }
-
-                const filtered = memberData.filter(m => m.nama.toLowerCase().includes(keyword));
-
-                if (filtered.length === 0) {
-                    result.innerHTML = '<div class="px-3 py-2 text-xs text-red-500 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Member tidak ditemukan</div>';
-                    result.classList.remove('hidden');
-                    if (warning) warning.classList.remove('hidden');
-                    return;
-                }
-
-                if (warning) warning.classList.add('hidden');
-
-                filtered.forEach(function(m) {
-                    const item = document.createElement('div');
-                    item.className = 'mr-item';
-                    item.innerHTML = '<strong style="font-size:13px;">' + m.nama + '</strong><br>'
-                                   + '<small style="color:#6b7280;">' + (m.alamat || '-') + '</small>';
-                    item.onclick = function() {
-                        input.value = m.nama;
-                        if (hidden) hidden.value = m.id;
-                        result.classList.add('hidden');
-                        if (warning) warning.classList.add('hidden');
-                        const alamatEl = document.getElementById(alamatId);
-                        const editBtn  = document.getElementById(editBtnId);
-                        if (alamatEl) {
-                            alamatEl.value    = m.alamat;
-                            alamatEl.readOnly = true;
-                            if (editBtn) editBtn.style.display = '';
-                        }
-                    };
-                    result.appendChild(item);
-                });
-                result.classList.remove('hidden');
-            });
-
-            document.addEventListener('click', function(e) {
-                if (!input.contains(e.target) && !result.contains(e.target)) {
-                    result.classList.add('hidden');
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            initMemberAutocomplete('nama_pemilik',   'member-result-tambah', 'member_id',   'alamat',   'member_warning_tambah', 'alamat_edit_btn');
-            initMemberAutocomplete('e_nama_pemilik', 'member-result-edit',   'e_member_id', 'e_alamat', 'member_warning_edit',   'e_alamat_edit_btn');
-        });
-
-        // fungsi lama tidak dipakai lagi — diganti initMemberAutocomplete
-        function memberSuggest(input, dropdownId, hiddenId, alamatId, warningId) {
-            const q       = input.value.trim();
-            const ul      = document.getElementById(dropdownId);
-            const hidden  = document.getElementById(hiddenId);
-            const alamatEl = document.getElementById(alamatId);
-            const warning = document.getElementById(warningId);
-
-            hidden.value = '';
-            input.setCustomValidity('');
-
-            if (!q) {
-                ul.classList.add('hidden');
-                warning.classList.add('hidden');
-                return;
-            }
-
-            const filtered = memberData.filter(m =>
-                m.nama.toLowerCase().includes(q.toLowerCase())
-            );
-
-            if (filtered.length === 0) {
-                ul.classList.add('hidden');
-                warning.classList.remove('hidden');
-                input.setCustomValidity('Member tidak ditemukan, pilih dari daftar.');
-                return;
-            }
-
-            warning.classList.add('hidden');
-
-            ul.innerHTML = filtered.map(m => `
-                <li class="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
-                    onmousedown="pilihMember(event,${m.id},${JSON.stringify(m.nama)},${JSON.stringify(m.alamat)},'${input.id}','${dropdownId}','${hiddenId}','${alamatId}','${warningId}')">
-                    <div class="font-medium text-gray-800">${m.nama}</div>
-                    <div class="text-xs text-gray-400 truncate">${m.alamat}</div>
-                </li>
-            `).join('');
-            ul.classList.remove('hidden');
-        }
-
-        function pilihMember(e, id, nama, alamat, inputId, dropdownId, hiddenId, alamatId, warningId) {
-            e.preventDefault();
-            document.getElementById(inputId).value  = nama;
-            document.getElementById(inputId).setCustomValidity('');
-            document.getElementById(hiddenId).value = id;
-            document.getElementById(dropdownId).classList.add('hidden');
-            document.getElementById(warningId).classList.add('hidden');
-
-            const alamatEl  = document.getElementById(alamatId);
-            const editBtn   = document.getElementById(alamatId === 'alamat' ? 'alamat_edit_btn' : 'e_alamat_edit_btn');
-            if (alamatEl) {
-                alamatEl.value    = alamat;
-                alamatEl.readOnly = true;
-                if (editBtn) editBtn.style.display = '';
-            }
-        }
-
-        // ── PREVIEW MULTI DOKUMEN ──────────────────────────────────────
-        function previewDokumen(input, previewId) {
-            const container = document.getElementById(previewId);
-            container.innerHTML = '';
-            if (!input.files.length) { container.classList.add('hidden'); return; }
-            container.classList.remove('hidden');
-            Array.from(input.files).forEach(function(file) {
-                const ext  = file.name.split('.').pop().toLowerCase();
-                const icon = ext === 'pdf'            ? 'fa-file-pdf text-red-500'
-                           : ['doc','docx'].includes(ext) ? 'fa-file-word text-blue-500'
                            : ['jpg','jpeg','png'].includes(ext) ? 'fa-file-image text-green-500'
                            : 'fa-file text-gray-400';
                 const div = document.createElement('div');

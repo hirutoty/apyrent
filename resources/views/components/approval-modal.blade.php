@@ -84,11 +84,19 @@
                         </div>
                         <div>
                             <p class="text-gray-500 mb-1">Total Nominal</p>
-                            <p class="font-bold text-green-600" x-text="'Rp ' + formatNumber(data?.nominal || 0)"></p>
+                            <p class="font-bold text-green-600" x-text="'Rp ' + formatNumber(approvedNominal())"></p>
                         </div>
                         <div>
                             <p class="text-gray-500 mb-1">Diajukan Oleh</p>
-                            <p class="font-semibold text-gray-800" x-text="data?.pemohon || '-'"></p>
+                            <template x-if="data?.pemohon_nama">
+                                <div>
+                                    <p class="font-semibold text-gray-800" x-text="data?.pemohon_nama"></p>
+                                    <p class="text-xs text-gray-400 mt-0.5" x-text="data?.pemohon"></p>
+                                </div>
+                            </template>
+                            <template x-if="!data?.pemohon_nama">
+                                <p class="font-semibold text-gray-800" x-text="data?.pemohon || '-'"></p>
+                            </template>
                         </div>
                         <div>
                             <p class="text-gray-500 mb-1">Tanggal Pengajuan</p>
@@ -1114,6 +1122,38 @@ function approvalModal() {
 
         rejectedCount() {
             return this.itemDecisions.filter(d => d.action === 'rejected').length;
+        },
+
+        // Hitung total nominal hanya dari item yang di-approve
+        approvedNominal() {
+            const srcType = this.data?.source_type;
+            // Jika belum ada keputusan sama sekali, tampilkan nominal_display (sudah dikurangi rejected sebelumnya)
+            if (this.decidedCount() === 0) {
+                return this.data?.nominal_display ?? this.data?.nominal ?? 0;
+            }
+            if (srcType === 'gps' || srcType === 'gps_perpanjang') {
+                const items = this.relatedData?.gps_items || [];
+                return this.itemDecisions.reduce((sum, d, idx) => {
+                    if (d.action === 'approved') sum += (items[idx]?.biaya_sewa || 0);
+                    return sum;
+                }, 0);
+            }
+            if (srcType === 'service_part' || srcType === 'service_incident') {
+                const parts = this.sourceData?.parts || [];
+                return this.itemDecisions.reduce((sum, d, idx) => {
+                    if (d.action === 'approved') sum += (parts[idx]?.biaya || 0);
+                    return sum;
+                }, 0);
+            }
+            if (srcType === 'service_asuransi') {
+                const kejadians = this.sourceData?.kejadians || [];
+                return this.itemDecisions.reduce((sum, d, idx) => {
+                    if (d.action === 'approved') sum += (kejadians[idx]?.biaya || 0);
+                    return sum;
+                }, 0);
+            }
+            // Non per-item: tampilkan nominal_display
+            return this.data?.nominal_display ?? this.data?.nominal ?? 0;
         },
 
         allRejectedHaveCatatan() {

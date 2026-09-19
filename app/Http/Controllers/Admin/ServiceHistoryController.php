@@ -85,6 +85,8 @@ class ServiceHistoryController extends Controller
             'aman'               => $aman,
             'hampir'             => $hampir,
             'habis'              => $habis,
+            'batasReminder'      => (int) (Setting::first()?->batas_reminder ?? 30),
+            'suppliers'          => Supplier::orderBy('nama_supplier')->get(),
             // Map limit price: "{kendaraan_id}_{category_id}" => limit_price
             // Dipakai di view untuk badge "Melebihi Limit" tanpa N+1 query
             'categoryLimitsMap'  => ServiceCategoryLimit::all()
@@ -504,8 +506,25 @@ class ServiceHistoryController extends Controller
                         ? ($limitRulesMap[$partData['category_id']] ?? null)
                         : null;
 
+                    // Cari km_pasang part lama (Terpasang/aktif) dengan kategori+posisi sama
+                    $partLamaKmPasang = null;
+                    if (isset($partData['category_id']) && $partData['category_id']) {
+                        $posisiVal = trim($partData['posisi'] ?? '');
+                        $partLamaQuery = ServicePart::where('kendaraan_id', $request->kendaraan_id)
+                            ->whereIn('status', ['Terpasang', 'aktif'])
+                            ->where('category_id', $partData['category_id'])
+                            ->whereNotNull('kilometer_pasang');
+                        if ($posisiVal) {
+                            $partLamaQuery->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisiVal)]);
+                        } else {
+                            $partLamaQuery->where(fn($q) => $q->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+                        }
+                        $partLama = $partLamaQuery->orderByDesc('tgl_pasang')->first();
+                        $partLamaKmPasang = $partLama ? (int) $partLama->kilometer_pasang : null;
+                    }
+
                     // Auto-generate keterangan, kondisi, dan status
-                    $keteranganOtomatis = $this->generateKeteranganLimit($partData, $kmInput, $limitRule, $request->tanggal_service);
+                    $keteranganOtomatis = $this->generateKeteranganLimit($partData, $kmInput, $limitRule, $request->tanggal_service, $partLamaKmPasang);
                     $statusOtomatis     = $this->deriveStatusPart();
 
                     // Upload bukti files untuk part ini
@@ -1033,6 +1052,233 @@ class ServiceHistoryController extends Controller
         return $pdf->stream('service-history.pdf');
     }
 
+    /**
+     * AJAX endpoint: return semua ServiceCategoryLimit untuk kendaraan tertentu.
+     * Dipakai oleh form service_history_create untuk kalkulasi keterangan limit otomatis di JS.
+     *
+     * GET /admin/service-history/limit-rules/{kendaraan_id}
+     */
+    public function getLimitRules(int $kendaraanId): \Illuminate\Http\JsonResponse
+    {
+        $rules = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $kendaraanId)
+            ->get()
+            ->map(fn($r) => [
+                'category_id'        => $r->category_id,
+                'limit_price'        => $r->limit_price,
+                'limit_km'           => $r->limit_km,
+                'limit_km_interval'  => $r->limit_km_interval,
+                'limit_nilai'        => $r->limit_nilai,
+                'limit_satuan'       => $r->limit_satuan,
+            ]);
+
+        return response()->json($rules);
+    }
+
+    /**
+     * AJAX endpoint: cari ServicePart Terpasang/aktif berdasarkan
+     * kendaraan_id + category_id + posisi → return kilometer_pasang.
+     *
+     * Dipakai di form service untuk menghitung target KM limit:
+     *   target = part_lama.kilometer_pasang + limit_km
+     *
+     * GET /admin/service-history/part-lama-km
+     *   ?kendaraan_id=X&category_id=Y&posisi=Z
+     */
+    public function getPartLamaKm(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        $kendaraanId = (int) $request->kendaraan_id;
+        $categoryId  = $request->category_id ? (int) $request->category_id : null;
+        $posisi      = $request->posisi ? trim($request->posisi) : null;
+
+        if (!$kendaraanId) {
+            return response()->json(['kilometer_pasang' => null]);
+        }
+
+        $query = ServicePart::where('kendaraan_id', $kendaraanId)
+            ->whereIn('status', ['Terpasang', 'aktif'])
+            ->whereNotNull('kilometer_pasang');
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        } else {
+            $query->whereNull('category_id');
+        }
+
+        if ($posisi) {
+            $query->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisi)]);
+        } else {
+            $query->where(fn($q) => $q->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+        }
+
+        $part = $query->orderByDesc('tgl_pasang')->first();
+
+        return response()->json([
+            'kilometer_pasang' => $part ? (int) $part->kilometer_pasang : null,
+            'part_id'          => $part?->id,
+            'nama_part'        => $part?->nama_part,
+        ]);
+    }
+
+    /**
+     * Perpanjang / Ganti Part dari modal di service history.
+     *
+     * Alur:
+     * 1. Validasi request (nama_part, tgl_pasang, interval, lampiran wajib)
+     * 2. Intercept → buat PurchaseOrder baru (service_part) dengan replace_part_id
+     * 3. Upload file lampiran ke temp storage
+     * 4. Redirect balik ke service history dengan pesan sukses
+     *
+     * POST /admin/service-history/perpanjang-part/{part_id}
+     */
+    public function perpanjangPart(Request $request, int $partId, \App\Services\PengeluaranInterceptorService $interceptor)
+    {
+        $oldPart = ServicePart::with(['kendaraan', 'category'])->findOrFail($partId);
+
+        $request->validate([
+            'kendaraan_id'     => 'required|exists:kendaraan,id',
+            'nama_part'        => 'required|string|max:255',
+            'category_id'      => 'nullable|exists:service_categories,id',
+            'posisi'           => 'nullable|string|max:100',
+            'tgl_pasang'       => 'required|date',
+            'kilometer_pasang' => 'nullable|integer|min:0',
+            'interval_nilai'   => 'required|integer|min:1',
+            'interval_satuan'  => 'required|in:hari,minggu,bulan,tahun',
+            'biaya'            => 'nullable|numeric|min:0',
+            'part_number'      => 'nullable|string|max:100',
+            'serial_number'    => 'nullable|string|max:100',
+            'nama_rekening'    => 'nullable|string|max:150',
+            'nama_bank'        => 'nullable|string|max:100',
+            'no_rekening'      => 'nullable|string|max:50',
+            'supplier_id'      => 'nullable|exists:supplier,id',
+            'bukti'            => 'required|array|min:1',
+            'bukti.*'          => 'file|mimes:jpg,jpeg,png,mp4,mov|max:10240',
+        ], [
+            'bukti.required'   => 'Lampiran wajib diisi.',
+            'bukti.min'        => 'Minimal 1 file lampiran.',
+        ]);
+
+        $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
+
+        try {
+            // Build synthetic request data agar kompatibel dengan intercept()
+            // — wrap part baru dalam array parts[] seperti form service biasa
+            $tanggalService = $request->tgl_pasang;
+            $kmPasang       = (int) ($request->kilometer_pasang ?? $kendaraan->kilometer_sekarang ?? 0);
+
+            // Resolve kategori jika ada
+            $categoryId = $request->category_id ? (int) $request->category_id : ($oldPart->category_id);
+
+            // Hitung tanggal_limit baru
+            $tglPasangCarbon = Carbon::parse($tanggalService);
+            $tanggalLimit    = $this->hitungTanggalLimitPart(
+                $tglPasangCarbon,
+                (int) $request->interval_nilai,
+                $request->interval_satuan
+            );
+
+            // Ambil limit rule untuk keterangan otomatis
+            $limitRule = $categoryId
+                ? ServiceCategoryLimit::where('kendaraan_id', $request->kendaraan_id)
+                    ->where('category_id', $categoryId)
+                    ->first()
+                : null;
+
+            // Cari km_pasang part lama (old_part = $oldPart) — sudah diketahui karena ini perpanjang
+            $partLamaKmPasang = $oldPart ? (int) $oldPart->kilometer_pasang : null;
+
+            $partDataForKet = [
+                'biaya'            => (int) ($request->biaya ?? 0),
+                'tgl_pasang'       => $tanggalService,
+                'interval_nilai'   => (int) $request->interval_nilai,
+                'interval_satuan'  => $request->interval_satuan,
+                'kilometer_pasang' => $kmPasang,
+            ];
+            $keteranganOtomatis = $this->generateKeteranganLimit(
+                $partDataForKet, $kmPasang, $limitRule, $tanggalService, $partLamaKmPasang
+            );
+
+            // Buat source_data untuk PO
+            $partsData = [[
+                'nama_part'        => $request->nama_part,
+                'category_id'      => $categoryId,
+                'posisi'           => $request->posisi ?? $oldPart->posisi,
+                'part_number'      => $request->part_number ?? null,
+                'serial_number'    => $request->serial_number ?? null,
+                'tgl_pasang'       => $tanggalService,
+                'kilometer_pasang' => $kmPasang,
+                'interval_nilai'   => (int) $request->interval_nilai,
+                'interval_satuan'  => $request->interval_satuan,
+                'biaya'            => (int) ($request->biaya ?? 0),
+                'kondisi'          => 'Perlu Ganti',
+                'status'           => 'Proses',
+                'keterangan_limit' => $keteranganOtomatis,
+                'nama_rekening'    => $request->nama_rekening ?? null,
+                'nama_bank'        => $request->nama_bank ?? null,
+                'no_rekening'      => $request->no_rekening ?? null,
+                'supplier_id'      => $request->supplier_id ? (int) $request->supplier_id : null,
+                'replace_part_id'  => $partId,   // tandai part mana yang diganti
+            ]];
+
+            $sourceData = [
+                'kendaraan_id'    => (int) $request->kendaraan_id,
+                'tanggal_service' => $tanggalService,
+                'kilometer'       => $kmPasang,
+                'keluhan'         => 'Perpanjang/Ganti: ' . $oldPart->nama_part
+                                     . ($oldPart->posisi ? ' (' . $oldPart->posisi . ')' : ''),
+                'parts'           => $partsData,
+                'is_perpanjang'   => true,
+                'old_part_id'     => $partId,
+            ];
+
+            // Buat PurchaseOrder langsung tanpa melalui intercept() karena request tidak punya
+            // format multipart parts[0][nama_part] yang diharapkan intercept — kita buat manual
+            $poModel = \App\Models\PurchaseOrder::create([
+                'tanggal_po'        => now()->toDateString(),
+                'vendor'            => $kendaraan->merk . ' — ' . $kendaraan->nopol,
+                'source_type'       => 'service_part',
+                'source_data'       => $sourceData,
+                'total_barang'      => 1,
+                'total_harga'       => (int) ($request->biaya ?? 0),
+                'status'            => 'Pending',
+                'status_po'         => 'Pending',
+                'terakhir_diajukan' => now(),
+            ]);
+
+            // Upload lampiran ke temp storage
+            $tempDir = storage_path('app/public/purchase_order/' . $poModel->id . '/parts/0/bukti');
+            if (!file_exists($tempDir)) mkdir($tempDir, 0777, true);
+
+            $tempFiles  = [];
+            $buktiFiles = $request->file('bukti', []);
+            foreach ($buktiFiles as $file) {
+                if (!$file->isValid()) continue;
+                $ext      = $file->getClientOriginalExtension();
+                $filename = time() . '_' . uniqid() . '.' . $ext;
+                $relPath  = 'purchase_order/' . $poModel->id . '/parts/0/bukti/' . $filename;
+                $file->storeAs('public/' . 'purchase_order/' . $poModel->id . '/parts/0/bukti', $filename);
+                $tempFiles[] = [
+                    'path'          => $relPath,
+                    'original_name' => $file->getClientOriginalName(),
+                    'extension'     => $ext,
+                    'size'          => $file->getSize(),
+                ];
+            }
+
+            // Simpan temp_files ke source_data
+            $updatedSource                        = $poModel->source_data;
+            $updatedSource['temp_files']['parts'] = ['0' => ['bukti' => $tempFiles]];
+            $poModel->update(['source_data' => $updatedSource]);
+
+            return redirect()
+                ->route('service-history.index')
+                ->with('success', 'Pengajuan perpanjang part "' . $request->nama_part . '" berhasil dikirim. Menunggu approval di Purchase Order (PO: ' . $poModel->po_id . ').');
+
+        } catch (\Throwable $e) {
+            \Log::error('perpanjangPart error: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
     // =========================================================================
     // PRIVATE HELPERS
     // =========================================================================
@@ -1056,7 +1302,7 @@ class ServiceHistoryController extends Controller
      * @param  ServiceCategoryLimit|null    $limitRule   Rule limit kategori untuk kendaraan ini
      * @return string
      */
-    private function generateKeteranganLimit(array $partData, int $kmInput, ?ServiceCategoryLimit $limitRule, ?string $tanggalServis = null): string
+    private function generateKeteranganLimit(array $partData, int $kmInput, ?ServiceCategoryLimit $limitRule, ?string $tanggalServis = null, ?int $kmPasangLama = null): string
     {
         // Tidak ada rule → tidak ada limit
         if (!$limitRule) {
@@ -1089,14 +1335,24 @@ class ServiceHistoryController extends Controller
         $waktuSama   = $intervalAda && $tglLimit->eq($refTanggal);
         $waktuAman   = !$intervalAda || $tglLimit->gt($refTanggal);
 
-        // ── Dimensi KM ────────────────────────────────────────────────────────
-        $kmAda       = $kmLimit && $kmLimit > 0;
-        $kmTercapai  = $kmAda && $kmInput >= $kmPasang + $kmLimit;
-        $kmSama      = $kmAda && $kmInput === $kmPasang + $kmLimit;
-        $kmLewat     = $kmAda && $kmInput > $kmPasang + $kmLimit;
-        $kmAman      = !$kmAda || $kmInput < $kmPasang + $kmLimit;
+        // ── Dimensi KM (km_pasang part LAMA + limit_km = target) ────────────
+        // $kmPasangLama = kilometer_pasang dari part lama yang masih Terpasang
+        //                 di kategori + posisi yang sama (dicari dari DB sebelum memanggil fungsi ini)
+        // Jika tidak ada part lama, fallback ke km_pasang form baru
+        $kmAda    = $limitRule->limit_km && $limitRule->limit_km > 0;
+        $kmSama   = false;
+        $kmLewat  = false;
+        $kmAman   = true;
+        if ($kmAda) {
+            // Base KM: dari part lama jika tersedia, fallback ke km_pasang form baru
+            $baseKm   = $kmPasangLama ?? $kmPasang;
+            $targetKm = $baseKm + (int) $limitRule->limit_km;
+            $kmSama  = $kmInput === $targetKm;
+            $kmLewat = $kmInput  >  $targetKm;
+            $kmAman  = $kmInput  <  $targetKm;
+        }
 
-        // Tidak ada satu pun limit yang terlampaui → "-"
+        // Tidak ada satu pun limit yang dikonfigurasi → "-"
         $adaLimit = $hargaLimit || $intervalAda || $kmAda;
         if (!$adaLimit) {
             return '-';
@@ -1166,7 +1422,7 @@ class ServiceHistoryController extends Controller
     private function deriveKondisiFromStatus(string $status): string
     {
         return match ($status) {
-            'Terpasang'   => 'Aktif',
+            'Terpasang'   => 'Baik',
             'Limit'       => 'Rusak',
             default       => 'Perlu Ganti',
         };
@@ -1671,13 +1927,17 @@ class ServiceHistoryController extends Controller
 
             // ── 4. Update status kendaraan ────────────────────────────────────────
             $kendaraan = $sh->kendaraan;
-            if ($kendaraan && $newStatus === 'terpasang') {
-                $kendaraan->update([
-                    'status_kendaraan'           => 'tersedia',
-                    'km_terakhir_service'        => $sh->kilometer ?? $kendaraan->km_terakhir_service,
-                    'kilometer_sekarang'         => $sh->kilometer ?? $kendaraan->kilometer_sekarang,
-                    'tanggal_terakhir_service'   => \Carbon\Carbon::parse($sh->tanggal_service)->toDateString(),
-                ]);
+            if ($kendaraan) {
+                $updateKendaraan = [
+                    // KM selalu diupdate saat part dipasang (tidak tunggu status terpasang)
+                    'km_terakhir_service'      => $sh->kilometer ?? $kendaraan->km_terakhir_service,
+                    'kilometer_sekarang'       => $sh->kilometer ?? $kendaraan->kilometer_sekarang,
+                    'tanggal_terakhir_service' => \Carbon\Carbon::parse($sh->tanggal_service)->toDateString(),
+                ];
+                if ($newStatus === 'terpasang') {
+                    $updateKendaraan['status_kendaraan'] = 'tersedia';
+                }
+                $kendaraan->update($updateKendaraan);
 
                 // Auto-close reminder aktif untuk parts yang baru terpasang
                 foreach ($partsToActivate as $part) {
@@ -1841,8 +2101,25 @@ class ServiceHistoryController extends Controller
                 $isOverLimit = true;
             }
 
+            // Cari km_pasang part lama (Terpasang/aktif) dengan kategori+posisi sama
+            $partLamaKmPasangPO = null;
+            if (isset($partData['category_id']) && $partData['category_id']) {
+                $posisiValPO = trim($partData['posisi'] ?? '');
+                $partLamaQueryPO = ServicePart::where('kendaraan_id', $service->kendaraan_id)
+                    ->whereIn('status', ['Terpasang', 'aktif'])
+                    ->where('category_id', $partData['category_id'])
+                    ->whereNotNull('kilometer_pasang');
+                if ($posisiValPO) {
+                    $partLamaQueryPO->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisiValPO)]);
+                } else {
+                    $partLamaQueryPO->where(fn($q) => $q->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+                }
+                $partLamaPO = $partLamaQueryPO->orderByDesc('tgl_pasang')->first();
+                $partLamaKmPasangPO = $partLamaPO ? (int) $partLamaPO->kilometer_pasang : null;
+            }
+
             // Keterangan otomatis
-            $keteranganPartOtomatis = $this->generateKeteranganLimit($partData, $kmInputPO, $limitRulePO, $service->tanggal_service);
+            $keteranganPartOtomatis = $this->generateKeteranganLimit($partData, $kmInputPO, $limitRulePO, $service->tanggal_service, $partLamaKmPasangPO);
 
             PurchaseroServicePart::create([
                 'purchasero_id'    => $purchasero->id,
