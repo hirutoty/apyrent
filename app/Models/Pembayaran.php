@@ -25,6 +25,7 @@ class Pembayaran extends Model
         'alasan_permintaan',
         'keterangan',
         'nominal',
+        'nominal_original',
         'status',
         'disetujui_oleh',
         'tanggal_persetujuan',

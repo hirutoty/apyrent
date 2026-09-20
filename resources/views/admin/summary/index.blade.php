@@ -1012,25 +1012,20 @@
         // ── CHART SUMMARY ─────────────────────────────────────────────────────
         const summaryChartManager = new ChartManager();
 
-        document.addEventListener('DOMContentLoaded', function () {
-            // Init chart saat pertama kali halaman dibuka
-            initSummaryCharts({ filter_type: 'specific_year', specific_year: new Date().getFullYear() });
-
-            document.addEventListener('chartFilterChange', function (e) {
-                if (e.detail.filterId === 'summaryChartFilter') {
-                    const filters = {
-                        filter_type: e.detail.filterType,
-                        start_date: e.detail.startDate,
-                        end_date: e.detail.endDate,
-                    };
-                    if (e.detail.specificYear) filters.specific_year = e.detail.specificYear;
-                    if (!summaryChartManager.hasChart('summaryBarChart')) {
-                        initSummaryCharts(filters);
-                    } else {
-                        updateSummaryCharts(filters);
-                    }
+        document.addEventListener('chartFilterChange', function (e) {
+            if (e.detail.filterId === 'summaryChartFilter') {
+                const filters = {
+                    filter_type:   e.detail.filterType,
+                    start_date:    e.detail.startDate,
+                    end_date:      e.detail.endDate,
+                    specific_year: e.detail.specificYear,
+                };
+                if (!summaryChartManager.hasChart('summaryBarChart')) {
+                    initSummaryCharts(filters);
+                } else {
+                    updateSummaryCharts(filters);
                 }
-            });
+            }
         });
 
         async function initSummaryCharts(filters) {

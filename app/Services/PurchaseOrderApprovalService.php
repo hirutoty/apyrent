@@ -40,7 +40,7 @@ class PurchaseOrderApprovalService
         $pemohon    = $approvedSourceData['pemohon'] ?? Auth::user()->nama ?? Auth::user()->email ?? 'N/A';
         $departemen = $approvedSourceData['departemen'] ?? Auth::user()->departemen ?? 'Umum';
         
-        // Calculate nominal based on source_type
+        // Calculate nominal based on source_type (hanya approved items)
         if ($sourceType === 'gps' || $sourceType === 'gps_perpanjang') {
             $nominal = collect($approvedSourceData['gps_items'] ?? [])->sum(fn($i) => $i['biaya_sewa'] ?? 0);
         } elseif ($sourceType === 'service_part') {
@@ -55,8 +55,24 @@ class PurchaseOrderApprovalService
             $nominal = floatval($approvedSourceData['premi'] ?? $approvedSourceData['biaya'] ?? 0);
         } elseif (in_array($sourceType, ['kir', 'kir_perpanjang', 'stnk'])) {
             $nominal = floatval($approvedSourceData['biaya'] ?? 0);
+        } elseif ($sourceType === 'service_asuransi') {
+            // Hitung hanya dari kejadians yang ada di approvedSourceData (sudah difilter approved saja)
+            $nominal = collect($approvedSourceData['kejadians'] ?? [])->sum(fn($k) => $k['biaya'] ?? 0);
         } else {
             $nominal = floatval($approvedSourceData['nominal'] ?? $approvedSourceData['biaya'] ?? 0);
+        }
+
+        // nominal_original = total semua item dari PO asli (approved + rejected)
+        // Ambil dari source_data PO original sebelum difilter
+        $poOriginalData = $po->source_data ?? [];
+        if ($sourceType === 'gps' || $sourceType === 'gps_perpanjang') {
+            $nominalOriginal = collect($poOriginalData['gps_items'] ?? [])->sum(fn($i) => $i['biaya_sewa'] ?? 0);
+        } elseif (in_array($sourceType, ['service_part', 'service_incident'])) {
+            $nominalOriginal = collect($poOriginalData['parts'] ?? [])->sum(fn($p) => $p['biaya'] ?? 0);
+        } elseif ($sourceType === 'service_asuransi') {
+            $nominalOriginal = collect($poOriginalData['kejadians'] ?? [])->sum(fn($k) => $k['biaya'] ?? 0);
+        } else {
+            $nominalOriginal = $nominal; // non-partial: sama dengan nominal
         }
 
         // Sematkan bukti per item ke dalam source_data
@@ -116,6 +132,7 @@ class PurchaseOrderApprovalService
             'pemohon'             => $pemohon,
             'alasan_permintaan'   => $alasanPermintaan,
             'nominal'             => $nominal,
+            'nominal_original'    => $nominalOriginal,
             'nama_bank'           => $namaBank,
             'no_rekening'         => $noRekening,
             'nama_pemilik'        => $namaPemilik,

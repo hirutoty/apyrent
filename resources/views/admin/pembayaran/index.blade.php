@@ -19,14 +19,56 @@
     </div>
 
     {{-- STAT CARDS --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
-            <p class="text-sm text-gray-500">Total Pembayaran</p>
-            <h2 class="text-3xl font-bold text-blue-600 mt-2">{{ $totalPR }}</h2>
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
+                    <i class="fa fa-shopping-cart text-indigo-600 text-sm"></i>
+                </span>
+                <p class="text-xs text-gray-500 font-medium">Total PR</p>
+            </div>
+            <h2 class="text-2xl font-bold text-indigo-600">{{ $totalPR }}</h2>
+            <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($totalNominal, 0, ',', '.') }}</p>
         </div>
-        <div class="bg-white rounded-2xl border border-gray-100 p-5">
-            <p class="text-sm text-gray-500">Total Nominal (Diajukan + Disetujui)</p>
-            <h2 class="text-2xl font-bold text-emerald-600 mt-2">Rp {{ number_format($totalNominal, 0, ',', '.') }}</h2>
+        <div class="bg-white rounded-2xl border border-blue-100 p-5">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <i class="fa fa-paper-plane text-blue-600 text-sm"></i>
+                </span>
+                <p class="text-xs text-gray-500 font-medium">Diajukan</p>
+            </div>
+            <h2 class="text-2xl font-bold text-blue-600">{{ $totalDiajukan }}</h2>
+            <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalDiajukan, 0, ',', '.') }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-yellow-100 p-5">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-8 rounded-xl bg-yellow-100 flex items-center justify-center">
+                    <i class="fa fa-clock text-yellow-600 text-sm"></i>
+                </span>
+                <p class="text-xs text-gray-500 font-medium">Pending</p>
+            </div>
+            <h2 class="text-2xl font-bold text-yellow-600">{{ $totalPending }}</h2>
+            <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalPending, 0, ',', '.') }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-emerald-100 p-5">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <i class="fa fa-check-circle text-emerald-600 text-sm"></i>
+                </span>
+                <p class="text-xs text-gray-500 font-medium">Disetujui</p>
+            </div>
+            <h2 class="text-2xl font-bold text-emerald-600">{{ $totalDisetujui }}</h2>
+            <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalDisetujui, 0, ',', '.') }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-red-100 p-5">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center">
+                    <i class="fa fa-times-circle text-red-600 text-sm"></i>
+                </span>
+                <p class="text-xs text-gray-500 font-medium">Ditolak</p>
+            </div>
+            <h2 class="text-2xl font-bold text-red-600">{{ $totalDitolak }}</h2>
+            <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalDitolak, 0, ',', '.') }}</p>
         </div>
     </div>
 
@@ -35,7 +77,7 @@
         $deptList = collect(['Keuangan','Produksi','HRD','Purchase','Sales','Marketing','IT'])
             ->map(fn($d) => ['id' => $d, 'nama' => $d]);
     @endphp
-    <x-chart-filter id="pembayaranChartFilter" defaultFilter="month" :showCustomRange="true"
+    <x-chart-filter id="pembayaranChartFilter" defaultFilter="year" :showCustomRange="true"
         :showCategoryFilter="true" :categories="$deptList" />
 
     <x-chart-container id="pembayaranChartContainer" layout="stacked"
@@ -204,8 +246,27 @@
                         $_gpsI     = $_sd['gps_items'] ?? [];
                         $_dec      = $_sd['item_decisions'] ?? [];
                         $_relItems = $_pr->items ?? collect([]);
+                        $_srcType  = $_pr->source_type ?? '';
 
-                        if (!empty($_gpsI)) {
+                        // ── Service Asuransi dengan item_decisions ──
+                        if (in_array($_srcType, ['service_asuransi', 'service_part', 'service_incident']) && !empty($_dec)) {
+                            $_allItems = [];
+                            if ($_srcType === 'service_asuransi') {
+                                $_allItems = $_sd['kejadians'] ?? [];
+                            } else {
+                                $_allItems = $_sd['parts'] ?? [];
+                            }
+                            foreach ($_dec as $_dIdx => $_d) {
+                                $_iNom = (int)(($_allItems[(int)($_d['idx'] ?? $_dIdx)]['biaya'] ?? 0));
+                                if (($_d['action'] ?? '') === 'approved') {
+                                    $grpApproved++;
+                                    $nominalApproved += $_iNom;
+                                } else {
+                                    $grpRejected++;
+                                    $nominalRejected += $_iNom;
+                                }
+                            }
+                        } elseif (!empty($_gpsI)) {
                             // GPS multi-item
                             if (!empty($_dec)) {
                                 foreach ($_dec as $_dIdx => $_d) {
@@ -306,21 +367,40 @@
                         {{-- Breakdown status per item — hanya tampil di tab Semua --}}
                         @if(($tab ?? '') === 'semua')
                         <span class="flex items-center gap-1">
+                            @if($grpPending > 0)
                             <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
                                 Pending: {{ $grpPending }}
                             </span>
+                            @endif
+                            @if($grpDiajukan > 0)
                             <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
                                 Diajukan: {{ $grpDiajukan }}
                             </span>
+                            @endif
+                            @if($grpApproved > 0 && $grpRejected > 0)
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">
+                                <i class="fa fa-adjust text-[8px]"></i> Sebagian Ditolak ({{ $grpApproved }}/{{ $grpApproved + $grpRejected }})
+                            </span>
+                            @elseif($grpApproved > 0)
                             <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
                                 Disetujui: {{ $grpApproved }}
                             </span>
+                            @endif
+                            @if($grpRejected > 0 && $grpApproved === 0)
                             <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
                                 Ditolak: {{ $grpRejected }}
                             </span>
+                            @endif
+                        </span>
+                        @else
+                        {{-- Di tab selain Semua: tampilkan count part saja --}}
+                        <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{ $items->count() }} PR</span>
+                        @if($grpRejected > 0 && $grpApproved > 0)
+                        <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">
+                            <i class="fa fa-adjust text-[8px]"></i> Sebagian Ditolak
                         </span>
                         @endif
-
+                        @endif
                         {{-- Per-group approve/reject — sebelah kanan nama jenis --}}
                         @if($role === 'superadmin' && $tab === 'Pending' && count($pendingIds) > 0)
                             <div class="flex gap-1.5 flex-shrink-0 ml-auto" onclick="event.stopPropagation()">
@@ -2389,18 +2469,21 @@ function openRejectModal(id) {
 
 // ── CHARTS ────────────────────────────────────────────────────
 const pembayaranChartManager = new ChartManager();
-document.addEventListener('DOMContentLoaded', function() {
-    initPembayaranCharts({ filter_type: 'month' });
-    document.addEventListener('chartFilterChange', function(e) {
-        if (e.detail.filterId === 'pembayaranChartFilter') {
-            updatePembayaranCharts({
-                filter_type: e.detail.filterType,
-                start_date:  e.detail.startDate,
-                end_date:    e.detail.endDate,
-                departemen:  e.detail.categoryId ?? '',
-            });
+document.addEventListener('chartFilterChange', function(e) {
+    if (e.detail.filterId === 'pembayaranChartFilter') {
+        const filters = {
+            filter_type:   e.detail.filterType,
+            start_date:    e.detail.startDate,
+            end_date:      e.detail.endDate,
+            specific_year: e.detail.specificYear,
+            departemen:    e.detail.categoryId ?? '',
+        };
+        if (!pembayaranChartManager.hasChart('pembayaranBarChart')) {
+            initPembayaranCharts(filters);
+        } else {
+            updatePembayaranCharts(filters);
         }
-    });
+    }
 });
 async function initPembayaranCharts(f) {
     try { await pembayaranChartManager.initChartsFromAPI('pembayaran', {pie:'pembayaranPieChart',bar:'pembayaranBarChart',line:'pembayaranLineChart'}, f); } catch(e) {}

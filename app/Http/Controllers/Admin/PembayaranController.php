@@ -104,60 +104,15 @@ class PembayaranController extends Controller
         $totalDitolak   = (clone $baseQuery)->whereIn('status', ['Ditolak', 'Disetujui Sebagian'])->count();
         $totalDiajukan  = (clone $baseQuery)->where('status', 'Diajukan')->count();
 
-        // Hitung totalNominal dengan benar:
-        // Untuk record yang punya item_decisions (GPS/service), ambil nominal_approved dari source_data
-        // Untuk record lain, ambil kolom nominal langsung
-        $nominalRecords = (clone $baseQuery)
-            ->whereIn('status', ['Diajukan', 'Disetujui', 'Disetujui Sebagian'])
-            ->get(['nominal', 'source_data', 'source_type']);
+        $nominalDisetujui = (clone $baseQuery)->whereIn('status', ['Disetujui', 'Disetujui Sebagian'])->sum('nominal');
+        $nominalPending   = (clone $baseQuery)->where('status', 'Pending')->sum('nominal');
+        $nominalDitolak   = (clone $baseQuery)->whereIn('status', ['Ditolak', 'Disetujui Sebagian'])->sum('nominal');
+        $nominalDiajukan  = (clone $baseQuery)->where('status', 'Diajukan')->sum('nominal');
 
-        $totalNominal = $nominalRecords->sum(function ($pr) {
-            $sd = is_array($pr->source_data) ? $pr->source_data : (json_decode($pr->source_data ?? '{}', true) ?? []);
-            $decisions = $sd['item_decisions'] ?? [];
-
-            if (empty($decisions)) {
-                return (int) ($pr->nominal ?? 0);
-            }
-
-            // Ada item_decisions: hitung hanya yang approved atau belum diputuskan
-            $srcType = $pr->source_type;
-            $total   = 0;
-
-            if (in_array($srcType, ['gps', 'gps_perpanjang'])) {
-                $items   = $sd['gps_items'] ?? [];
-                $decMap  = collect($decisions)->keyBy('idx');
-                foreach ($items as $idx => $item) {
-                    $action = $decMap->get($idx)['action'] ?? null;
-                    if ($action !== 'rejected') {
-                        $total += (int) ($item['biaya_sewa'] ?? 0);
-                    }
-                }
-            } elseif (in_array($srcType, ['service_part', 'service_incident'])) {
-                $parts  = $sd['parts'] ?? [];
-                $decMap = collect($decisions)->keyBy('idx');
-                foreach ($parts as $idx => $part) {
-                    $action = $decMap->get($idx)['action'] ?? null;
-                    if ($action !== 'rejected') {
-                        $total += (int) ($part['biaya'] ?? 0);
-                    }
-                }
-            } elseif ($srcType === 'service_asuransi') {
-                $kejadians = $sd['kejadians'] ?? [];
-                $decMap    = collect($decisions)->keyBy('idx');
-                foreach ($kejadians as $idx => $kej) {
-                    $action = $decMap->get($idx)['action'] ?? null;
-                    if ($action !== 'rejected') {
-                        $total += (int) ($kej['biaya'] ?? 0);
-                    }
-                }
-            } else {
-                // Fallback: pakai nominal_approved jika tersedia, atau nominal kolom
-                $nomApp = (int) ($sd['nominal_approved'] ?? 0);
-                $total  = $nomApp > 0 ? $nomApp : (int) ($pr->nominal ?? 0);
-            }
-
-            return $total;
-        });
+        // Nominal total — pakai nominal_original (total sebelum partial approval) jika ada,
+        // fallback ke nominal untuk record lama atau yang tidak partial
+        $totalNominal = (clone $baseQuery)->get(['nominal', 'nominal_original'])
+            ->sum(fn($p) => $p->nominal_original ?? $p->nominal ?? 0);
 
         // Source types untuk dropdown filter
         $sourceTypes = Pembayaran::selectRaw('source_type, count(*) as total')
@@ -186,7 +141,8 @@ class PembayaranController extends Controller
         return view('admin.pembayaran.index', compact(
             'data', 'role', 'tab', 'sort', 'deptLabel', 'bulan', 'deptFilter',
             'sourceFilter', 'sourceTypes', 'userNames',
-            'totalPR', 'totalDisetujui', 'totalPending', 'totalDitolak', 'totalDiajukan', 'totalNominal'
+            'totalPR', 'totalDisetujui', 'totalPending', 'totalDitolak', 'totalDiajukan', 'totalNominal',
+            'nominalDisetujui', 'nominalPending', 'nominalDitolak', 'nominalDiajukan'
         ));
     }
 
