@@ -615,6 +615,7 @@
                                                                 @if($isServiceIncident)
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Supplier</th>
                                                                 @endif
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Keterangan</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Atas Nama</th>
@@ -644,6 +645,33 @@
                                                                     @if($isServiceIncident)
                                                                         <td class="px-3 py-2 text-gray-600">{{ $supplier?->nama_supplier ?? '-' }}</td>
                                                                     @endif
+                                                                    <td class="px-3 py-2 text-gray-500">
+                                                                        @php
+                                                                            $poKet = $part['keterangan_limit'] ?? $part['keterangan'] ?? null;
+                                                                            $poKetBadges = $poKet && $poKet !== '-' ? array_map('trim', explode(',', $poKet)) : [];
+                                                                        @endphp
+                                                                        @if(!empty($poKetBadges))
+                                                                            <div class="flex flex-col gap-0.5">
+                                                                            @foreach($poKetBadges as $badge)
+                                                                                @php
+                                                                                    $badgeLower = strtolower($badge);
+                                                                                    if (str_contains($badgeLower, 'melebihi limit biaya')) {
+                                                                                        $badgeColor = 'bg-red-100 text-red-700';
+                                                                                    } elseif (str_contains($badgeLower, 'melebihi batas waktu') || str_contains($badgeLower, 'melebihi limit km')) {
+                                                                                        $badgeColor = 'bg-red-100 text-red-700';
+                                                                                    } elseif (str_contains($badgeLower, 'mencapai batas limit')) {
+                                                                                        $badgeColor = 'bg-yellow-100 text-yellow-700';
+                                                                                    } else {
+                                                                                        $badgeColor = 'bg-green-100 text-green-700';
+                                                                                    }
+                                                                                @endphp
+                                                                                <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $badgeColor }}">{{ ucfirst($badge) }}</span>
+                                                                            @endforeach
+                                                                            </div>
+                                                                        @else
+                                                                            <span class="text-gray-300">—</span>
+                                                                        @endif
+                                                                    </td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['nama_bank'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 font-mono text-gray-600">{{ $part['no_rekening'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['nama_rekening'] ?? '-' }}</td>
@@ -672,7 +700,7 @@
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-{{ $expandColor }}-200 bg-{{ $expandColor }}-50/50">
-                                                                <td colspan="{{ $isServiceIncident ? 8 : 8 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="{{ $isServiceIncident ? 9 : 9 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
