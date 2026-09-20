@@ -51,13 +51,23 @@ class PurchaseOrderController extends Controller
 
         $data = $query->paginate(15)->withQueryString();
 
-        // Statistics
-        $totalPO       = PurchaseOrder::count();
-        $totalApproved = PurchaseOrder::where('status', 'Disetujui')->count();
-        $totalPending  = PurchaseOrder::where('status', 'Pending')->count();
-        $totalRejected = PurchaseOrder::where('status', 'Ditolak')->count();
-        $totalClosed   = PurchaseOrder::where('status_po', 'Closed')->count();
-        $totalNominal  = PurchaseOrder::whereIn('status', ['Disetujui', 'Pending'])->sum('total_harga');
+        // Statistics — ikut filter tahun jika ada
+        $statsQuery = PurchaseOrder::query();
+        if ($tahunFilter) {
+            $statsQuery->whereYear('tanggal_po', $tahunFilter);
+        }
+
+        $totalPO       = (clone $statsQuery)->count();
+        $totalApproved = (clone $statsQuery)->where('status', 'Disetujui')->count();
+        $totalPending  = (clone $statsQuery)->where('status', 'Pending')->count();
+        $totalRejected = (clone $statsQuery)->where('status', 'Ditolak')->count();
+        $totalClosed   = (clone $statsQuery)->where('status_po', 'Closed')->count();
+        $totalNominal  = (clone $statsQuery)->whereIn('status', ['Disetujui', 'Pending'])->sum('total_harga');
+
+        // Nominal per status
+        $nominalPending  = (clone $statsQuery)->where('status', 'Pending')->sum('total_harga');
+        $nominalApproved = (clone $statsQuery)->where('status', 'Disetujui')->sum('total_harga');
+        $nominalRejected = (clone $statsQuery)->where('status', 'Ditolak')->sum('total_harga');
 
         // Source types untuk dropdown filter
         $sourceTypes = PurchaseOrder::selectRaw('source_type, count(*) as total')
@@ -87,6 +97,9 @@ class PurchaseOrderController extends Controller
             'totalRejected',
             'totalClosed',
             'totalNominal',
+            'nominalPending',
+            'nominalApproved',
+            'nominalRejected',
             'sourceTypes'
         ));
     }
@@ -116,7 +129,7 @@ class PurchaseOrderController extends Controller
                     'catatan' => $po->catatan,
                     'keterangan' => $po->keterangan,
                     'catatan_approval' => $po->catatan_approval,
-                    'disetujui_oleh' => $po->approver ? $po->approver->nama : null,
+                    'disetujui_oleh' => $po->approver ? $po->approver->name : null,
                     'tanggal_persetujuan' => $po->tanggal_persetujuan ? $po->tanggal_persetujuan->format('d M Y H:i') : null,
                     'pembayaran_no_pr' => $po->pembayaran ? $po->pembayaran->no_pr : null,
                     'temp_files' => $sourceData['temp_files'] ?? [],
@@ -807,50 +820,17 @@ class PurchaseOrderController extends Controller
         ]);
         $pembayaran = $this->approvalService->approveWithItems($po, $approvedSourceData, $perItemBukti, $catatan, $hasRejected);
 
-        // Item yang ditolak → buat PO baru terpisah dengan status Ditolak
-        $allRecordIds     = $sourceData['gps_record_ids'] ?? [];
-        $rejectedGpsItems = array_values(
-            array_filter($gpsItems, fn($item, $idx) => in_array($idx, $rejectedIdx), ARRAY_FILTER_USE_BOTH)
-        );
-
+        // Item yang ditolak → hanya dicatat di item_decisions, tidak dibuat PO baru
         if (!empty($rejectedGpsItems)) {
-            $rejectedRecordIds = [];
+            // Update status GPS record yang ditolak
+            $allRecordIds  = $sourceData['gps_record_ids'] ?? [];
             foreach ($rejectedIdx as $idx) {
                 $recordId = $allRecordIds[$idx] ?? null;
-                if ($recordId) $rejectedRecordIds[] = $recordId;
-            }
-
-            $rejectedCatatan = collect($rejectedIdx)
-                ->map(fn($idx) => $items[$idx]['catatan'] ?? null)
-                ->filter()
-                ->implode('; ');
-
-            $rejectedSourceData = array_merge($sourceData, [
-                'gps_items'      => $rejectedGpsItems,
-                'gps_record_ids' => $rejectedRecordIds,
-            ]);
-            $nominalRejected = collect($rejectedGpsItems)->sum(fn($i) => $i['biaya_sewa'] ?? 0);
-
-            PurchaseOrder::create([
-                'tanggal_po'          => now()->toDateString(),
-                'vendor'              => $po->vendor,
-                'source_type'         => $po->source_type,
-                'source_data'         => $rejectedSourceData,
-                'total_barang'        => count($rejectedGpsItems),
-                'total_harga'         => $nominalRejected,
-                'status'              => 'Ditolak',
-                'status_po'           => 'Pending',
-                'disetujui_oleh'      => auth()->id(),
-                'tanggal_persetujuan' => now(),
-                'catatan_approval'    => $catatan ?: $rejectedCatatan ?: 'Item ditolak dari PO ' . $po->po_id,
-                'can_edit'            => true,
-                'terakhir_diajukan'   => now(),
-            ]);
-
-            if (!empty($rejectedRecordIds)) {
-                \App\Models\GpsKendaraan::whereIn('id', $rejectedRecordIds)
-                    ->where('persetujuan', 'Pending')
-                    ->update(['persetujuan' => 'Ditolak']);
+                if ($recordId) {
+                    \App\Models\GpsKendaraan::where('id', $recordId)
+                        ->where('persetujuan', 'Pending')
+                        ->update(['persetujuan' => 'Ditolak']);
+                }
             }
         }
 
@@ -936,41 +916,7 @@ class PurchaseOrderController extends Controller
 
         $pembayaran = $this->approvalService->approveWithItems($po, $approvedSourceData, $perItemBukti, $catatan, $hasRejected);
 
-        // Item yang ditolak → buat PO baru terpisah dengan status Ditolak
-        // agar user dapat melihat di tab "Ditolak" dan bisa resubmit
-        $rejectedParts = array_values(
-            array_filter($parts, fn($part, $idx) => in_array($idx, $rejectedIdx), ARRAY_FILTER_USE_BOTH)
-        );
-
-        if (!empty($rejectedParts)) {
-            // Kumpulkan catatan penolakan per part
-            $rejectedCatatan = collect($rejectedIdx)
-                ->map(fn($idx) => $items[$idx]['catatan'] ?? null)
-                ->filter()
-                ->implode('; ');
-
-            // Buat PO baru untuk part yang ditolak (status Ditolak, can_edit=true)
-            $rejectedSourceData = array_merge($sourceData, [
-                'parts' => $rejectedParts,
-            ]);
-            $nominalRejected = collect($rejectedParts)->sum(fn($p) => $p['biaya'] ?? 0);
-
-            PurchaseOrder::create([
-                'tanggal_po'          => now()->toDateString(),
-                'vendor'              => $po->vendor,
-                'source_type'         => $po->source_type,
-                'source_data'         => $rejectedSourceData,
-                'total_barang'        => count($rejectedParts),
-                'total_harga'         => $nominalRejected,
-                'status'              => 'Ditolak',
-                'status_po'           => 'Pending',
-                'disetujui_oleh'      => auth()->id(),
-                'tanggal_persetujuan' => now(),
-                'catatan_approval'    => $catatan ?: $rejectedCatatan ?: 'Part ditolak dari PO ' . $po->po_id,
-                'can_edit'            => true,
-                'terakhir_diajukan'   => now(),
-            ]);
-        }
+        // Item yang ditolak → hanya dicatat di item_decisions, tidak dibuat PO baru
 
         // ── Buat ServiceHistory draft atau update ServiceIncident ────────────
         if ($po->source_type === 'service_incident') {
@@ -1167,33 +1113,7 @@ class PurchaseOrderController extends Controller
             }
         }
 
-        // Jika ada kejadian yang ditolak → buat PO baru terpisah
-        if (!empty($rejectedKejadians)) {
-            $rejectedCatatan = collect($rejectedIdx)
-                ->map(fn($idx) => $items[$idx]['catatan'] ?? null)
-                ->filter()->implode('; ');
-
-            $rejectedSourceData = array_merge($sourceData, [
-                'kejadians' => $rejectedKejadians,
-            ]);
-            $nominalRejected = collect($rejectedKejadians)->sum(fn($k) => $k['biaya'] ?? 0);
-
-            PurchaseOrder::create([
-                'tanggal_po'          => now()->toDateString(),
-                'vendor'              => $po->vendor,
-                'source_type'         => $po->source_type,
-                'source_data'         => $rejectedSourceData,
-                'total_barang'        => count($rejectedKejadians),
-                'total_harga'         => $nominalRejected,
-                'status'              => 'Ditolak',
-                'status_po'           => 'Pending',
-                'disetujui_oleh'      => auth()->id(),
-                'tanggal_persetujuan' => now(),
-                'catatan_approval'    => $catatan ?: $rejectedCatatan ?: 'Kejadian ditolak dari PO ' . $po->po_id,
-                'can_edit'            => true,
-                'terakhir_diajukan'   => now(),
-            ]);
-        }
+        // Kejadian yang ditolak → hanya dicatat di item_decisions, tidak dibuat PO baru
 
         \DB::commit();
 

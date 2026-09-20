@@ -28,14 +28,46 @@
     </div>
 
     {{-- SUMMARY CARDS --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-white rounded-2xl border border-gray-100 p-5">
-            <p class="text-sm text-gray-500">Total PO</p>
-            <h2 class="text-3xl font-bold text-indigo-600 mt-2">{{ $totalPO }}</h2>
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
+                    <i class="fa fa-file-invoice text-indigo-600 text-sm"></i>
+                </span>
+                <p class="text-xs text-gray-500 font-medium">Total PO</p>
+            </div>
+            <h2 class="text-2xl font-bold text-indigo-600">{{ $totalPO }}</h2>
+            <p class="text-xs text-gray-400 mt-1">Semua pengajuan</p>
         </div>
-        <div class="bg-white rounded-2xl border border-gray-100 p-5">
-            <p class="text-sm text-gray-500">Total Nilai (Pending + Disetujui)</p>
-            <h2 class="text-2xl font-bold text-emerald-600 mt-2">Rp {{ number_format($totalNominal, 0, ',', '.') }}</h2>
+        <div class="bg-white rounded-2xl border border-yellow-100 p-5">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-8 rounded-xl bg-yellow-100 flex items-center justify-center">
+                    <i class="fa fa-clock text-yellow-600 text-sm"></i>
+                </span>
+                <p class="text-xs text-gray-500 font-medium">Pending</p>
+            </div>
+            <h2 class="text-2xl font-bold text-yellow-600">{{ $totalPending }}</h2>
+            <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalPending, 0, ',', '.') }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-emerald-100 p-5">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <i class="fa fa-check-circle text-emerald-600 text-sm"></i>
+                </span>
+                <p class="text-xs text-gray-500 font-medium">Disetujui</p>
+            </div>
+            <h2 class="text-2xl font-bold text-emerald-600">{{ $totalApproved }}</h2>
+            <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalApproved, 0, ',', '.') }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-red-100 p-5">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center">
+                    <i class="fa fa-times-circle text-red-600 text-sm"></i>
+                </span>
+                <p class="text-xs text-gray-500 font-medium">Ditolak</p>
+            </div>
+            <h2 class="text-2xl font-bold text-red-600">{{ $totalRejected }}</h2>
+            <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalRejected, 0, ',', '.') }}</p>
         </div>
     </div>
 
@@ -43,11 +75,11 @@
     @php
         $sourceList = $sourceTypes->keys()->map(fn($s) => ['id' => $s, 'nama' => ucfirst(str_replace('_', ' ', $s))]);
     @endphp
-    <x-chart-filter id="poChartFilter" defaultFilter="month" :showCustomRange="true"
+    <x-chart-filter id="poChartFilter" defaultFilter="year" :showCustomRange="true"
         :showCategoryFilter="true" :categories="$sourceList" />
     <x-chart-container id="poChartContainer" layout="stacked"
         pieTitle="Distribusi Status PO" pieId="poPieChart"
-        barTitle="Total Harga PO per Bulan" barId="poBarChart"
+        barTitle="Nominal PO per Bulan" barId="poBarChart"
         lineTitle="Trend PO" lineId="poLineChart"
         :showStats="true" :statsData="[]" />
 
@@ -479,16 +511,7 @@
                                                         </button>
                                                     @endif
                                                 @endif
-                                                @if(in_array($po->status, ['Pending', 'Ditolak']))
-                                                    <form action="{{ route('purchase-order.destroy', $po->id) }}" method="POST" class="inline"
-                                                        onsubmit="return confirm('Yakin menghapus PO ini?')">
-                                                        @csrf @method('DELETE')
-                                                        <button type="submit"
-                                                            class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-gray-500 rounded-lg hover:bg-gray-600 transition-colors">
-                                                            <i class="fa fa-trash text-xs"></i>
-                                                        </button>
-                                                    </form>
-                                                @endif
+
                                             </div>
                                         </td>
                                     </tr>
@@ -750,28 +773,7 @@
                                                     }
                                                     $allSaLampiran = array_merge($saLampiran, $saKejLampiran);
                                                 @endphp
-                                                @if(!empty($allSaLampiran))
-                                                    <div class="mb-3 flex flex-wrap gap-1.5">
-                                                        @foreach($allSaLampiran as $lf)
-                                                            @php
-                                                                $lfPath = $lf['path'] ?? '';
-                                                                $lfName = $lf['original_name'] ?? basename($lfPath);
-                                                                $lfExt  = strtolower($lf['extension'] ?? pathinfo($lfPath, PATHINFO_EXTENSION));
-                                                                $lfIsImg = in_array($lfExt, ['jpg','jpeg','png','webp','gif']);
-                                                                $lfIcon  = $lfIsImg ? 'fa-image text-blue-400' : ($lfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
-                                                                $lfUrl   = $lfPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($lfPath) : null;
-                                                            @endphp
-                                                            @if($lfUrl)
-                                                                <a href="{{ $lfUrl }}" target="_blank"
-                                                                    class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg truncate max-w-[160px]"
-                                                                    title="{{ $lfName }}{{ isset($lf['_kej']) ? ' ('. $lf['_kej'].')' : '' }}">
-                                                                    <i class="fa {{ $lfIcon }} text-[9px]"></i>
-                                                                    <span class="truncate">{{ Str::limit($lfName, 20) }}</span>
-                                                                </a>
-                                                            @endif
-                                                        @endforeach
-                                                    </div>
-                                                @endif
+
 
                                                 <div class="bg-white rounded-xl border border-blue-100 overflow-hidden">
                                                     <table class="w-full text-xs">
@@ -1347,21 +1349,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // ── CHART ─────────────────────────────────────────────────────
 const chartManager = new ChartManager();
-document.addEventListener('DOMContentLoaded', function () {
-    document.addEventListener('chartFilterChange', function (e) {
-        if (e.detail.filterId === 'poChartFilter') {
-            const filters = {
-                filter_type: e.detail.filterType,
-                start_date:  e.detail.startDate,
-                end_date:    e.detail.endDate,
-            };
-            if (!chartManager.hasChart('poBarChart')) {
-                initPoCharts(filters);
-            } else {
-                updatePoCharts(filters);
-            }
+document.addEventListener('chartFilterChange', function (e) {
+    if (e.detail.filterId === 'poChartFilter') {
+        const filters = {
+            filter_type:   e.detail.filterType,
+            start_date:    e.detail.startDate,
+            end_date:      e.detail.endDate,
+            specific_year: e.detail.specificYear,
+        };
+        if (!chartManager.hasChart('poBarChart')) {
+            initPoCharts(filters);
+        } else {
+            updatePoCharts(filters);
         }
-    });
+    }
 });
 async function initPoCharts(filters) {
     try {
@@ -1517,7 +1518,7 @@ function buildDetailContent(data) {
     if (po.status !== 'Pending') {
         html += '<div class="border-t pt-4"><h4 class="font-semibold text-gray-800 mb-2">Info Approval</h4>'
             + '<div class="bg-gray-50 rounded-xl p-3 space-y-1 text-sm">'
-            + '<p><span class="text-gray-500">Oleh:</span> ' + (po.disetujui_oleh || '-') + '</p>'
+            + '<p><span class="text-gray-500">Oleh:</span> ' + (po.status === 'Ditolak' ? '-' : (po.disetujui_oleh || '-')) + '</p>'
             + '<p><span class="text-gray-500">Tanggal:</span> ' + (po.tanggal_persetujuan || '-') + '</p>'
             + (po.catatan_approval ? '<p><span class="text-gray-500">Catatan:</span> ' + po.catatan_approval + '</p>' : '')
             + (po.pembayaran_no_pr ? '<p><span class="text-gray-500">Pembayaran:</span> <b class="font-mono">' + po.pembayaran_no_pr + '</b></p>' : '')
