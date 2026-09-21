@@ -1081,6 +1081,12 @@
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Nama Part</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Kategori</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Kondisi</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">
+                                                                    <div class="grid grid-cols-2 gap-1 min-w-[180px]">
+                                                                        <span class="text-blue-600">Service</span>
+                                                                        <span class="text-orange-500">Limit</span>
+                                                                    </div>
+                                                                </th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Keterangan</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
@@ -1118,10 +1124,60 @@
                                                                     <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ $spCatNm }}</span>
                                                                 </td>
                                                                 <td class="px-4 py-2 text-gray-600">{{ $spart['kondisi'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-500 whitespace-nowrap">
-                                                                    @php $ket = $spart['keterangan_limit'] ?? $spart['keterangan'] ?? null; @endphp
-                                                                    @if($ket && $ket !== '-')
-                                                                        <span class="text-[10px] italic">{{ $ket }}</span>
+                                                                {{-- KOLOM STATUS LIMIT: Service vs Limit --}}
+                                                                @php $snap = $spart['limit_snapshot'] ?? null; @endphp
+                                                                <td class="px-4 py-2">
+                                                                    @if($snap)
+                                                                    <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 min-w-[180px] text-[11px]">
+                                                                        {{-- Biaya --}}
+                                                                        <span class="{{ $snap['biaya_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
+                                                                            Rp {{ number_format($snap['service_biaya'], 0, ',', '.') }}
+                                                                        </span>
+                                                                        <span class="text-gray-500">
+                                                                            {{ $snap['limit_biaya'] ? 'Rp ' . number_format($snap['limit_biaya'], 0, ',', '.') : '—' }}
+                                                                        </span>
+                                                                        {{-- Tanggal --}}
+                                                                        <span class="{{ $snap['tanggal_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
+                                                                            {{ $snap['service_tanggal'] ?? '—' }}
+                                                                        </span>
+                                                                        <span class="text-gray-500">
+                                                                            {{ $snap['limit_interval_label'] ?? '—' }}
+                                                                        </span>
+                                                                        {{-- KM --}}
+                                                                        <span class="{{ $snap['km_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
+                                                                            KM {{ number_format($snap['service_km'], 0, ',', '.') }}
+                                                                        </span>
+                                                                        <span class="text-gray-500">
+                                                                            {{ $snap['limit_km_target'] ? 'KM ' . number_format($snap['limit_km_target'], 0, ',', '.') : '—' }}
+                                                                        </span>
+                                                                    </div>
+                                                                    @else
+                                                                        <span class="text-gray-300 text-[10px]">—</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td class="px-4 py-2 text-gray-500">
+                                                                    @php
+                                                                        $ket = $spart['keterangan_limit'] ?? $spart['keterangan'] ?? null;
+                                                                        $ketBadges = ($ket && $ket !== '-') ? array_map('trim', explode(',', $ket)) : [];
+                                                                    @endphp
+                                                                    @if(!empty($ketBadges))
+                                                                        <div class="flex flex-col gap-0.5">
+                                                                        @foreach($ketBadges as $badge)
+                                                                            @php
+                                                                                $badgeLower = strtolower($badge);
+                                                                                if (str_contains($badgeLower, 'melebihi limit biaya')) {
+                                                                                    $badgeColor = 'bg-red-100 text-red-700';
+                                                                                } elseif (str_contains($badgeLower, 'melebihi batas waktu') || str_contains($badgeLower, 'melebihi limit km')) {
+                                                                                    $badgeColor = 'bg-red-100 text-red-700';
+                                                                                } elseif (str_contains($badgeLower, 'mencapai batas limit')) {
+                                                                                    $badgeColor = 'bg-yellow-100 text-yellow-700';
+                                                                                } else {
+                                                                                    $badgeColor = 'bg-green-100 text-green-700';
+                                                                                }
+                                                                            @endphp
+                                                                            <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $badgeColor }}">{{ ucfirst($badge) }}</span>
+                                                                        @endforeach
+                                                                        </div>
                                                                     @else
                                                                         <span class="text-gray-300">—</span>
                                                                     @endif

@@ -638,6 +638,14 @@
                                                                 @if($isServiceIncident)
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Supplier</th>
                                                                 @endif
+                                                                @if(!$isServiceIncident)
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">
+                                                                    <div class="grid grid-cols-2 gap-1 min-w-[180px]">
+                                                                        <span class="text-blue-600">Service</span>
+                                                                        <span class="text-orange-500">Limit</span>
+                                                                    </div>
+                                                                </th>
+                                                                @endif
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Keterangan</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
@@ -667,6 +675,41 @@
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['kondisi'] ?? '-' }}</td>
                                                                     @if($isServiceIncident)
                                                                         <td class="px-3 py-2 text-gray-600">{{ $supplier?->nama_supplier ?? '-' }}</td>
+                                                                    @endif
+                                                                    {{-- KOLOM STATUS LIMIT: Service vs Limit --}}
+                                                                    @if(!$isServiceIncident)
+                                                                    @php
+                                                                        $snap = $part['limit_snapshot'] ?? null;
+                                                                    @endphp
+                                                                    <td class="px-3 py-2">
+                                                                        @if($snap)
+                                                                        <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 min-w-[180px] text-[11px]">
+                                                                            {{-- Biaya --}}
+                                                                            <span class="{{ $snap['biaya_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
+                                                                                Rp {{ number_format($snap['service_biaya'], 0, ',', '.') }}
+                                                                            </span>
+                                                                            <span class="text-gray-500">
+                                                                                {{ $snap['limit_biaya'] ? 'Rp ' . number_format($snap['limit_biaya'], 0, ',', '.') : '—' }}
+                                                                            </span>
+                                                                            {{-- Tanggal --}}
+                                                                            <span class="{{ $snap['tanggal_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
+                                                                                {{ $snap['service_tanggal'] ?? '—' }}
+                                                                            </span>
+                                                                            <span class="text-gray-500">
+                                                                                {{ $snap['limit_interval_label'] ?? '—' }}
+                                                                            </span>
+                                                                            {{-- KM --}}
+                                                                            <span class="{{ $snap['km_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
+                                                                                KM {{ number_format($snap['service_km'], 0, ',', '.') }}
+                                                                            </span>
+                                                                            <span class="text-gray-500">
+                                                                                {{ $snap['limit_km_target'] ? 'KM ' . number_format($snap['limit_km_target'], 0, ',', '.') : '—' }}
+                                                                            </span>
+                                                                        </div>
+                                                                        @else
+                                                                            <span class="text-gray-300 text-[10px]">—</span>
+                                                                        @endif
+                                                                    </td>
                                                                     @endif
                                                                     <td class="px-3 py-2 text-gray-500">
                                                                         @php

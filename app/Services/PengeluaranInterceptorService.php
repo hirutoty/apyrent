@@ -51,6 +51,52 @@ class PengeluaranInterceptorService
                 // Kondisi — Perlu Ganti saat baru diinput
                 $partData['kondisi'] = 'Perlu Ganti';
 
+                // ── Inject replace_part_id otomatis berdasarkan kategori + posisi ──────
+                // Prioritas: dari hidden input auto (form) → dari from_part → dari deteksi DB
+                $autoReplaceId = !empty($partData['replace_part_id_auto'])
+                    ? (int) $partData['replace_part_id_auto']
+                    : null;
+
+                if ($autoReplaceId && empty($partData['replace_part_id'])) {
+                    $partData['replace_part_id'] = $autoReplaceId;
+                }
+
+                // Fallback: jika belum ada replace_part_id, cari dari DB berdasarkan kategori+posisi
+                if (empty($partData['replace_part_id']) && $kendaraanId) {
+                    $categoryId  = $partData['category_id'] ?? null;
+                    $posisi      = trim($partData['posisi'] ?? '');
+                    $partLamaQuery = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
+                        ->whereIn('status', ['Terpasang', 'aktif'])
+                        ->whereNotNull('kilometer_pasang');
+
+                    if ($categoryId) {
+                        $partLamaQuery->where('category_id', $categoryId);
+                    } else {
+                        $partLamaQuery->whereNull('category_id');
+                    }
+                    if ($posisi) {
+                        $partLamaQuery->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisi)]);
+                    } else {
+                        $partLamaQuery->where(fn($q) => $q->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+                    }
+
+                    $partLama = $partLamaQuery->orderByDesc('tgl_pasang')->first();
+                    if ($partLama) {
+                        $partData['replace_part_id']  = $partLama->id;
+                        $partData['nama_part_lama']   = $partLama->nama_part;
+                        $partData['ket_limit_lama']   = $partLama->keterangan_limit ?? '';
+                    }
+                }
+
+                // Simpan nama part lama untuk keterangan jika replace_part_id sudah ada
+                if (!empty($partData['replace_part_id']) && empty($partData['nama_part_lama'])) {
+                    $partLamaById = \App\Models\ServicePart::find((int) $partData['replace_part_id']);
+                    if ($partLamaById) {
+                        $partData['nama_part_lama'] = $partLamaById->nama_part;
+                        $partData['ket_limit_lama'] = $partLamaById->keterangan_limit ?? '';
+                    }
+                }
+
                 // Keterangan limit otomatis
                 $categoryId = $partData['category_id'] ?? null;
                 $limitRule  = ($categoryId && isset($limitRules[$categoryId]))
@@ -63,6 +109,44 @@ class PengeluaranInterceptorService
                     $limitRule,
                     $data['tanggal_service'] ?? null
                 );
+
+                // Inject limit_snapshot: nilai aktual service vs nilai limit per dimensi
+                // Digunakan untuk kolom perbandingan Service vs Limit di view PO
+                $tglPasangSnap      = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
+                $intervalNilaiSnap  = (int) ($partData['interval_nilai'] ?? 0);
+                $intervalSatuanSnap = $partData['interval_satuan'] ?? 'bulan';
+                $tglLimitSnap = match ($intervalSatuanSnap) {
+                    'hari'   => (clone $tglPasangSnap)->addDays($intervalNilaiSnap),
+                    'minggu' => (clone $tglPasangSnap)->addWeeks($intervalNilaiSnap),
+                    'tahun'  => (clone $tglPasangSnap)->addYears($intervalNilaiSnap),
+                    default  => (clone $tglPasangSnap)->addMonths($intervalNilaiSnap),
+                };
+                $kmPasangSnap = (int) ($partData['kilometer_pasang'] ?? $kmInput);
+                $partData['limit_snapshot'] = [
+                    // Biaya
+                    'service_biaya' => (int) ($partData['biaya'] ?? 0),
+                    'limit_biaya'   => $limitRule ? ((int) ($limitRule->limit_price ?? 0) ?: null) : null,
+                    // Tanggal pasang vs interval limit
+                    'service_tanggal'      => $tglPasangSnap->format('d M Y'),
+                    'limit_interval_label' => ($intervalNilaiSnap > 0)
+                                                ? $intervalNilaiSnap . ' ' . ucfirst($intervalSatuanSnap)
+                                                : null,
+                    // KM pasang vs KM target (km_pasang + limit_km)
+                    'service_km'      => $kmPasangSnap,
+                    'limit_km_target' => ($limitRule && $limitRule->limit_km)
+                                            ? $kmPasangSnap + (int) $limitRule->limit_km
+                                            : null,
+                    // Flag lewat atau tidak per dimensi (untuk pewarnaan merah)
+                    'biaya_lewat'   => $limitRule && $limitRule->limit_price
+                                        ? ((int) ($partData['biaya'] ?? 0) > (int) $limitRule->limit_price)
+                                        : false,
+                    'tanggal_lewat' => ($intervalNilaiSnap > 0)
+                                        ? $tglLimitSnap->lt(\Carbon\Carbon::parse($data['tanggal_service'] ?? now())->startOfDay())
+                                        : false,
+                    'km_lewat'      => ($limitRule && $limitRule->limit_km)
+                                        ? ($kmInput > $kmPasangSnap + (int) $limitRule->limit_km)
+                                        : false,
+                ];
             }
             unset($partData);
         }
@@ -118,9 +202,30 @@ class PengeluaranInterceptorService
         $kmLimit     = $limitRule->limit_km;
         $intervalAda = $intervalNilai > 0;
 
-        $biayaLewat  = $hargaLimit && $biaya > $hargaLimit;
-        $biayaSama   = $hargaLimit && $biaya === $hargaLimit;
-        $biayaAman   = !$hargaLimit || $biaya < $hargaLimit;
+        // ── Biaya kumulatif per periode ──────────────────────────────────────
+        // Hitung total biaya semua part kategori yang sama dalam periode aktif,
+        // lalu bandingkan (total + biaya_baru) vs limit_price.
+        $biayaKumulatif = $biaya; // default: hanya biaya ini jika belum ada riwayat
+        $adaRiwayat     = false;
+        if ($hargaLimit && $limitRule->limit_nilai && $limitRule->kendaraan_id) {
+            $controller = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
+            $kumulatifData = $controller->getKumulatifBiayaKategori(
+                (int) $limitRule->kendaraan_id,
+                (int) $limitRule->category_id,
+                (int) $limitRule->limit_nilai,
+                $limitRule->limit_satuan ?? 'bulan',
+                (int) $hargaLimit,
+                $tglPasang->toDateString()
+            );
+            if ($kumulatifData !== null) {
+                $biayaKumulatif = $kumulatifData['total_dalam_periode'] + $biaya;
+                $adaRiwayat     = true;
+            }
+        }
+
+        $biayaLewat  = $hargaLimit && $adaRiwayat && $biayaKumulatif > $hargaLimit;
+        $biayaSama   = $hargaLimit && $adaRiwayat && $biayaKumulatif === $hargaLimit;
+        $biayaAman   = !$hargaLimit || !$adaRiwayat || $biayaKumulatif < $hargaLimit;
 
         $waktuLewat  = $intervalAda && $tglLimit->lt($refTanggal);
         $waktuSama   = $intervalAda && $tglLimit->eq($refTanggal);
@@ -152,7 +257,25 @@ class PengeluaranInterceptorService
         $kalimat = array_merge(array_values($parts), $belumParts);
         if (empty($kalimat)) { return '-'; }
 
-        return ucfirst(implode(', ', $kalimat));
+        $result = ucfirst(implode(', ', $kalimat));
+
+        // Tambahkan info "Menggantikan [nama_part lama] yang sudah limit X" jika ada
+        $namaPartLama = $partData['nama_part_lama'] ?? null;
+        if ($namaPartLama) {
+            $ketLama = strtolower($partData['ket_limit_lama'] ?? '');
+            if (str_contains($ketLama, 'melebihi limit km') || str_contains($ketLama, 'mencapai batas limit km')) {
+                $alasanGanti = 'sudah limit KM';
+            } elseif (str_contains($ketLama, 'melebihi batas waktu') || str_contains($ketLama, 'mencapai batas limit jangka waktu')) {
+                $alasanGanti = 'sudah limit waktu';
+            } elseif (str_contains($ketLama, 'melebihi limit biaya') || str_contains($ketLama, 'mencapai batas limit biaya')) {
+                $alasanGanti = 'sudah melebihi limit biaya';
+            } else {
+                $alasanGanti = 'sudah limit';
+            }
+            $result .= '. Menggantikan ' . $namaPartLama . ' yang ' . $alasanGanti;
+        }
+
+        return $result;
     }
 
     /**
