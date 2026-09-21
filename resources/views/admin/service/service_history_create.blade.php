@@ -296,6 +296,143 @@ async function fetchPartLamaKm(kendaraanId, categoryId, posisi, idx) {
     calcKeteranganLimit(idx);
 }
 
+/**
+ * Cek apakah ada part aktif (Terpasang/aktif) dengan kategori + posisi yang sama.
+ * Jika ada → tampilkan warning di bawah field Posisi.
+ */
+async function checkPartLamaWarning(idx) {
+    const kendaraanId = document.getElementById('kendaraan_id')?.value || '';
+    const catSelect   = document.getElementById('cat-select-' + idx);
+    const categoryId  = catSelect ? catSelect.value : '';
+    const posisiEl    = document.querySelector('[name="parts[' + idx + '][posisi]"]');
+    const posisi      = posisiEl ? posisiEl.value : '';
+    const warningEl   = document.getElementById('part-lama-warning-' + idx);
+    const warningText = document.getElementById('part-lama-warning-text-' + idx);
+    const hiddenEl    = document.getElementById('replace-part-id-auto-' + idx);
+
+    if (!warningEl || !warningText) return;
+
+    // Butuh minimal kendaraan + (kategori atau posisi) untuk query
+    if (!kendaraanId || (!categoryId && !posisi)) {
+        warningEl.classList.add('hidden');
+        if (hiddenEl) hiddenEl.value = '';
+        return;
+    }
+
+    try {
+        const params = new URLSearchParams({ kendaraan_id: kendaraanId });
+        if (categoryId) params.set('category_id', categoryId);
+        if (posisi)     params.set('posisi', posisi);
+
+        const res  = await fetch('/admin/service-history/part-lama-km?' + params.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+
+        if (data.part_id) {
+            // Bangun teks warning
+            const namaPart  = data.nama_part || 'Part lama';
+            const kmPasang  = data.kilometer_pasang ? 'KM ' + parseInt(data.kilometer_pasang).toLocaleString('id-ID') : null;
+            const tglPasang = data.tgl_pasang
+                ? new Date(data.tgl_pasang).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                : null;
+            const status    = data.status || '';
+
+            // Deteksi apakah sudah limit berdasarkan keterangan_limit
+            const ket = (data.keterangan_limit || '').toLowerCase();
+            let limitInfo = '';
+            if (ket.includes('melebihi limit km') || ket.includes('mencapai batas limit km')) {
+                limitInfo = ' — sudah limit KM';
+            } else if (ket.includes('melebihi batas waktu') || ket.includes('mencapai batas limit jangka waktu')) {
+                limitInfo = ' — sudah limit waktu';
+            } else if (ket.includes('melebihi limit biaya') || ket.includes('mencapai batas limit biaya')) {
+                limitInfo = ' — sudah melebihi limit biaya';
+            }
+
+            const info = [kmPasang, tglPasang ? 'dipasang ' + tglPasang : null].filter(Boolean).join(', ');
+            warningText.textContent = 'Terpasang: ' + namaPart + (info ? ' (' + info + ')' : '') + limitInfo;
+            warningEl.classList.remove('hidden');
+
+            // Simpan replace_part_id ke hidden input
+            if (hiddenEl) hiddenEl.value = data.part_id;
+        } else {
+            warningEl.classList.add('hidden');
+            if (hiddenEl) hiddenEl.value = '';
+        }
+    } catch (e) {
+        warningEl.classList.add('hidden');
+        if (hiddenEl) hiddenEl.value = '';
+    }
+}
+
+
+/**
+ * Fetch sisa limit biaya kumulatif dari server dan tampilkan info/warning
+ * di bawah field Biaya.
+ */
+async function fetchLimitBiayaKumulatif(idx) {
+    const kendaraanId = document.getElementById('kendaraan_id')?.value || '';
+    const catSelect   = document.getElementById('cat-select-' + idx);
+    const categoryId  = catSelect ? catSelect.value : '';
+    const biayaEl     = document.getElementById('biaya-' + idx);
+    const biayaBaru   = biayaEl ? parseInt(biayaEl.value || 0) : 0;
+    const tglPasangEl = document.querySelector('[name="parts[' + idx + '][tgl_pasang]"]');
+    const tglPasang   = tglPasangEl ? tglPasangEl.value : '';
+    const hintEl      = document.getElementById('biaya-kumulatif-hint-' + idx);
+
+    if (!hintEl) return;
+
+    if (!kendaraanId || !categoryId) {
+        hintEl.classList.add('hidden');
+        return;
+    }
+
+    try {
+        const params = new URLSearchParams({
+            kendaraan_id: kendaraanId,
+            category_id:  categoryId,
+            tgl_pasang:   tglPasang || new Date().toISOString().slice(0, 10),
+            biaya_baru:   biayaBaru,
+        });
+        const res  = await fetch('/admin/service-history/limit-biaya-kumulatif?' + params.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+
+        if (!data.has_limit) {
+            hintEl.classList.add('hidden');
+            return;
+        }
+
+        const fmt = n => parseInt(n).toLocaleString('id-ID');
+        const periode = data.periode_mulai + ' – ' + data.periode_selesai;
+
+        if (data.is_exceeded) {
+            hintEl.className = 'mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px] bg-red-50 border border-red-200 text-red-700';
+            hintEl.innerHTML = '<i class="fa fa-circle-exclamation text-[10px] mr-1"></i>'
+                + '<strong>Melebihi limit biaya!</strong> Total: Rp ' + fmt(data.total_dengan_baru)
+                + ' / Limit: Rp ' + fmt(data.limit_price)
+                + ' <span class="text-red-400 font-normal">(' + periode + ')</span>';
+        } else if (data.is_exact) {
+            hintEl.className = 'mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px] bg-yellow-50 border border-yellow-200 text-yellow-700';
+            hintEl.innerHTML = '<i class="fa fa-triangle-exclamation text-[10px] mr-1"></i>'
+                + '<strong>Mencapai batas limit biaya.</strong> Total: Rp ' + fmt(data.total_dengan_baru)
+                + ' / Limit: Rp ' + fmt(data.limit_price)
+                + ' <span class="text-yellow-500 font-normal">(' + periode + ')</span>';
+        } else {
+            hintEl.className = 'mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px] bg-blue-50 border border-blue-200 text-blue-700';
+            hintEl.innerHTML = '<i class="fa fa-circle-info text-[10px] mr-1"></i>'
+                + 'Sisa limit biaya: <strong>Rp ' + fmt(data.sisa_setelah_input) + '</strong>'
+                + ' (terpakai Rp ' + fmt(data.total_dengan_baru) + ' / Rp ' + fmt(data.limit_price) + ')'
+                + ' <span class="text-blue-400 font-normal">(' + periode + ')</span>';
+        }
+        hintEl.classList.remove('hidden');
+    } catch (e) {
+        hintEl.classList.add('hidden');
+    }
+}
+
+
 async function loadLimitRules(kendaraanId) {
     limitRulesMap = {};
     if (!kendaraanId) return;
@@ -521,7 +658,7 @@ function addPartRow(data = null) {
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Kategori</label>
                 <select name="parts[${idx}][category_id]" id="cat-select-${idx}"
-                    onchange="onCategoryChange(this, ${idx})"
+                    onchange="onCategoryChange(this, ${idx}); checkPartLamaWarning(${idx}); fetchLimitBiayaKumulatif(${idx})"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                     ${catOptions}
                 </select>
@@ -532,6 +669,7 @@ function addPartRow(data = null) {
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Posisi</label>
                 <select name="parts[${idx}][posisi]"
+                    onchange="checkPartLamaWarning(${idx})"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                     <option value="">-- Pilih Posisi --</option>
                     <optgroup label="🚗 Eksterior Depan">
@@ -736,6 +874,11 @@ function addPartRow(data = null) {
                         <option value="Keseluruhan" ${data?.posisi === 'Keseluruhan' ? 'selected' : ''}>Keseluruhan</option>
                     </optgroup>
                 </select>
+                <div id="part-lama-warning-${idx}" class="hidden mt-1.5 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                    <i class="fa fa-triangle-exclamation text-amber-500 mt-0.5 flex-shrink-0"></i>
+                    <span id="part-lama-warning-text-${idx}"></span>
+                </div>
+                <input type="hidden" name="parts[${idx}][replace_part_id_auto]" id="replace-part-id-auto-${idx}" value="">
             </div>
 
             <!-- Part Number -->
@@ -814,10 +957,11 @@ function addPartRow(data = null) {
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
                 <input type="number" name="parts[${idx}][biaya]" id="biaya-${idx}" min="0"
                     value="${data?.biaya || 0}"
-                    onchange="recalcTotal(); calcKeteranganLimit(${idx});"
-                    oninput="recalcTotal(); calcKeteranganLimit(${idx});"
+                    onchange="recalcTotal(); calcKeteranganLimit(${idx}); fetchLimitBiayaKumulatif(${idx});"
+                    oninput="recalcTotal(); calcKeteranganLimit(${idx}); fetchLimitBiayaKumulatif(${idx});"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                 <p id="biaya-hint-${idx}" class="text-[10px] text-gray-400 mt-1 hidden"></p>
+                <div id="biaya-kumulatif-hint-${idx}" class="hidden mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px]"></div>
             </div>
 
             <!-- Keterangan Limit Otomatis -->

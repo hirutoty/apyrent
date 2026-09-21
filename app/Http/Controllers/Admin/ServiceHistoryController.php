@@ -328,7 +328,13 @@ class ServiceHistoryController extends Controller
                     
                     // Resubmit: Update existing PO
                     $po = $interceptor->resubmitToPurchaseOrder($poId, $request, 'service_part');
-                    
+
+                    // Update kilometer_sekarang jika lebih besar
+                    $kendaraanForKm = \App\Models\Kendaraan::find($request->kendaraan_id);
+                    if ($kendaraanForKm && (int)$request->kilometer > (int)($kendaraanForKm->kilometer_sekarang ?? 0)) {
+                        $kendaraanForKm->update(['kilometer_sekarang' => (int)$request->kilometer]);
+                    }
+
                 return redirect()
                     ->route('service-history.index')
                     ->with('success', 'Pengajuan service part berhasil diajukan ulang. Menunggu approval di Purchase Order.');
@@ -339,6 +345,12 @@ class ServiceHistoryController extends Controller
                     $pembayaranId = (int) $request->input('edit_pembayaran');
 
                     $pembayaran = $interceptor->resubmitToPembayaran($pembayaranId, $request, 'service_part');
+
+                    // Update kilometer_sekarang jika lebih besar
+                    $kendaraanForKm = \App\Models\Kendaraan::find($request->kendaraan_id);
+                    if ($kendaraanForKm && (int)$request->kilometer > (int)($kendaraanForKm->kilometer_sekarang ?? 0)) {
+                        $kendaraanForKm->update(['kilometer_sekarang' => (int)$request->kilometer]);
+                    }
 
                     return redirect()
                         ->route('service-history.index')
@@ -358,7 +370,15 @@ class ServiceHistoryController extends Controller
                 $sourceData = $po->source_data;
                 $sourceData['temp_files'] = $uploadedFiles;
                 $po->update(['source_data' => $sourceData]);
-                
+
+                // Step 5: Update kilometer_sekarang kendaraan jika kilometer baru lebih besar
+                $kendaraanForKm = \App\Models\Kendaraan::find($request->kendaraan_id);
+                if ($kendaraanForKm && (int)$request->kilometer > (int)($kendaraanForKm->kilometer_sekarang ?? 0)) {
+                    $kendaraanForKm->update([
+                        'kilometer_sekarang' => (int)$request->kilometer,
+                    ]);
+                }
+
                 return redirect()
                     ->route('service-history.index')
                     ->with('success', 'Pengajuan service part berhasil dikirim. Menunggu approval dari Superadmin.');
@@ -1113,9 +1133,141 @@ class ServiceHistoryController extends Controller
         $part = $query->orderByDesc('tgl_pasang')->first();
 
         return response()->json([
-            'kilometer_pasang' => $part ? (int) $part->kilometer_pasang : null,
-            'part_id'          => $part?->id,
-            'nama_part'        => $part?->nama_part,
+            'kilometer_pasang'  => $part ? (int) $part->kilometer_pasang : null,
+            'part_id'           => $part?->id,
+            'nama_part'         => $part?->nama_part,
+            'tgl_pasang'        => $part?->tgl_pasang,
+            'status'            => $part?->status,
+            'keterangan_limit'  => $part?->keterangan_limit,
+            'tanggal_limit'     => $part?->tanggal_limit,
+        ]);
+    }
+
+    /**
+     * Helper: hitung total biaya kumulatif kategori dalam periode aktif.
+     *
+     * Periode ditentukan dari tgl_pasang part terbaru di kategori + interval limit.
+     * Jika belum ada riwayat part → return null (tidak ada limit diterapkan).
+     *
+     * @param int    $kendaraanId
+     * @param int    $categoryId
+     * @param int    $limitNilai   interval jumlah (misal: 1)
+     * @param string $limitSatuan  interval satuan (hari/minggu/bulan/tahun)
+     * @param int    $limitPrice   batas maksimal kumulatif
+     * @param string $tglPasangBaru tanggal pasang part baru (untuk konteks periode)
+     * @return array|null  null = tidak ada riwayat (limit tidak diterapkan)
+     */
+    public function getKumulatifBiayaKategori(
+        int $kendaraanId,
+        int $categoryId,
+        int $limitNilai,
+        string $limitSatuan,
+        int $limitPrice,
+        string $tglPasangBaru
+    ): ?array {
+        // Cari part terbaru di kategori ini (semua status)
+        $partTerbaru = ServicePart::where('kendaraan_id', $kendaraanId)
+            ->where('category_id', $categoryId)
+            ->whereNotNull('tgl_pasang')
+            ->orderByDesc('tgl_pasang')
+            ->first();
+
+        // Belum ada riwayat → tidak ada limit diterapkan
+        if (!$partTerbaru) {
+            return null;
+        }
+
+        // Hitung periode dari tgl_pasang part terbaru
+        $periodeMulai = \Carbon\Carbon::parse($partTerbaru->tgl_pasang)->startOfDay();
+        $periodeSelesai = match ($limitSatuan) {
+            'hari'   => (clone $periodeMulai)->addDays($limitNilai)->subDay(),
+            'minggu' => (clone $periodeMulai)->addWeeks($limitNilai)->subDay(),
+            'tahun'  => (clone $periodeMulai)->addYears($limitNilai)->subDay(),
+            default  => (clone $periodeMulai)->addMonths($limitNilai)->subDay(),
+        };
+
+        // Pastikan tgl_pasang_baru masuk dalam periode ini
+        $tglBaru = \Carbon\Carbon::parse($tglPasangBaru)->startOfDay();
+        // Jika tgl_pasang_baru melewati periode selesai → periode baru dimulai dari tgl_pasang_baru
+        if ($tglBaru->gt($periodeSelesai)) {
+            $periodeMulai   = $tglBaru;
+            $periodeSelesai = match ($limitSatuan) {
+                'hari'   => (clone $periodeMulai)->addDays($limitNilai)->subDay(),
+                'minggu' => (clone $periodeMulai)->addWeeks($limitNilai)->subDay(),
+                'tahun'  => (clone $periodeMulai)->addYears($limitNilai)->subDay(),
+                default  => (clone $periodeMulai)->addMonths($limitNilai)->subDay(),
+            };
+        }
+
+        // Sum semua biaya part di kategori ini dalam periode
+        $totalDalamPeriode = ServicePart::where('kendaraan_id', $kendaraanId)
+            ->where('category_id', $categoryId)
+            ->whereDate('tgl_pasang', '>=', $periodeMulai->toDateString())
+            ->whereDate('tgl_pasang', '<=', $periodeSelesai->toDateString())
+            ->sum('biaya');
+
+        return [
+            'total_dalam_periode' => (int) $totalDalamPeriode,
+            'sisa_limit'          => max(0, $limitPrice - (int) $totalDalamPeriode),
+            'periode_mulai'       => $periodeMulai->format('d M Y'),
+            'periode_selesai'     => $periodeSelesai->format('d M Y'),
+        ];
+    }
+
+    /**
+     * AJAX endpoint: cek sisa limit biaya kumulatif per kategori per periode.
+     *
+     * GET /admin/service-history/limit-biaya-kumulatif
+     *   ?kendaraan_id=X&category_id=Y&tgl_pasang=YYYY-MM-DD&biaya_baru=N
+     */
+    public function getLimitBiayaKumulatif(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        $kendaraanId = (int) $request->kendaraan_id;
+        $categoryId  = $request->category_id ? (int) $request->category_id : null;
+        $tglPasang   = $request->tgl_pasang ?: now()->toDateString();
+        $biayaBaru   = (int) ($request->biaya_baru ?? 0);
+
+        if (!$kendaraanId || !$categoryId) {
+            return response()->json(['has_limit' => false]);
+        }
+
+        $limitRule = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $kendaraanId)
+            ->where('category_id', $categoryId)
+            ->first();
+
+        if (!$limitRule || !$limitRule->limit_price || !$limitRule->limit_nilai) {
+            return response()->json(['has_limit' => false]);
+        }
+
+        $result = $this->getKumulatifBiayaKategori(
+            $kendaraanId,
+            $categoryId,
+            (int) $limitRule->limit_nilai,
+            $limitRule->limit_satuan ?? 'bulan',
+            (int) $limitRule->limit_price,
+            $tglPasang
+        );
+
+        // Belum ada riwayat → limit tidak diterapkan
+        if ($result === null) {
+            return response()->json(['has_limit' => false]);
+        }
+
+        $totalDenganBaru = $result['total_dalam_periode'] + $biayaBaru;
+        $isExceeded      = $totalDenganBaru > (int) $limitRule->limit_price;
+        $isExact         = $totalDenganBaru === (int) $limitRule->limit_price;
+
+        return response()->json([
+            'has_limit'           => true,
+            'limit_price'         => (int) $limitRule->limit_price,
+            'total_dalam_periode' => $result['total_dalam_periode'],
+            'total_dengan_baru'   => $totalDenganBaru,
+            'sisa_limit'          => $result['sisa_limit'],
+            'sisa_setelah_input'  => max(0, (int) $limitRule->limit_price - $totalDenganBaru),
+            'periode_mulai'       => $result['periode_mulai'],
+            'periode_selesai'     => $result['periode_selesai'],
+            'is_exceeded'         => $isExceeded,
+            'is_exact'            => $isExact,
         ]);
     }
 

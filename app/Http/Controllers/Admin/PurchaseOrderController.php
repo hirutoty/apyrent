@@ -1113,7 +1113,80 @@ class PurchaseOrderController extends Controller
             }
         }
 
-        // Kejadian yang ditolak → hanya dicatat di item_decisions, tidak dibuat PO baru
+        // Kejadian yang ditolak → buat PO baru (status=Ditolak) + ServiceAsuransi baru
+        if ($hasRejected && !empty($rejectedKejadians) && $serviceAsuransiId) {
+            $originalRecord  = \App\Models\ServiceAsuransi::find($serviceAsuransiId);
+            $nominalRejected = collect($rejectedKejadians)->sum(fn($k) => (int)($k['biaya'] ?? 0));
+
+            // Susun catatan penolakan per-kejadian
+            $catatanRejected = collect($rejectedKejadians)
+                ->map(fn($k) => $k['nama_kejadian'] ?? '-')
+                ->implode(', ');
+            $allCatatan = collect($items)
+                ->filter(fn($d, $idx) => in_array($idx, $rejectedIdx))
+                ->map(fn($d) => trim($d['catatan'] ?? ''))
+                ->filter()
+                ->implode('; ');
+
+            // Buat source_data untuk PO baru (berisi hanya kejadian yang ditolak)
+            $rejectedSourceData = array_merge($sourceData, [
+                'kejadians'         => $rejectedKejadians,
+                'item_decisions'    => array_map(fn($k) => [
+                    'nama_kejadian' => $k['nama_kejadian'] ?? '-',
+                    'action'        => 'rejected',
+                    'catatan'       => $allCatatan,
+                ], $rejectedKejadians),
+            ]);
+
+            // Buat PO baru dengan status Ditolak
+            $rejectedPO = \App\Models\PurchaseOrder::create([
+                'tanggal_po'          => $po->tanggal_po,
+                'vendor'              => $po->vendor,
+                'total_barang'        => count($rejectedKejadians),
+                'total_harga'         => $nominalRejected,
+                'status_po'           => $po->status_po ?? 'Open',
+                'source_type'         => $po->source_type,
+                'source_data'         => $rejectedSourceData,
+                'status'              => 'Ditolak',
+                'disetujui_oleh'      => auth()->id(),
+                'tanggal_persetujuan' => now(),
+                'catatan_approval'    => $allCatatan ?: ('Ditolak (partial dari PO ' . $po->po_id . '): ' . $catatanRejected),
+                'can_edit'            => true,
+                'terakhir_diajukan'   => $po->terakhir_diajukan,
+            ]);
+
+            // Buat record ServiceAsuransi baru untuk kejadian yang ditolak
+            if ($originalRecord) {
+                $rejectedSaRecord = \App\Models\ServiceAsuransi::create([
+                    'kendaraan_id'      => $originalRecord->kendaraan_id,
+                    'nama_asuransi'     => $originalRecord->nama_asuransi,
+                    'jenis_asuransi_id' => $originalRecord->jenis_asuransi_id,
+                    'tanggal_service'   => $originalRecord->tanggal_service,
+                    'periode_mulai'     => $originalRecord->periode_mulai,
+                    'periode_selesai'   => $originalRecord->periode_selesai,
+                    'kilometer'         => $originalRecord->kilometer,
+                    'biaya'             => $nominalRejected,
+                    'keterangan'        => $originalRecord->keterangan,
+                    'status'            => 'tidak_aktif',
+                    'persetujuan'       => 'Ditolak',
+                    'purchase_order_id' => $rejectedPO->id,
+                    'pembayaran_id'     => null,
+                ]);
+
+                foreach ($rejectedKejadians as $kej) {
+                    \App\Models\ServiceAsuransiKejadian::create([
+                        'service_asuransi_id' => $rejectedSaRecord->id,
+                        'nama_kejadian'       => $kej['nama_kejadian'] ?? '',
+                        'biaya'               => (int)($kej['biaya'] ?? 0),
+                        'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
+                    ]);
+                }
+
+                // Update source_data PO baru dengan service_asuransi_id baru
+                $rejectedSourceData['service_asuransi_id'] = $rejectedSaRecord->id;
+                $rejectedPO->update(['source_data' => $rejectedSourceData]);
+            }
+        }
 
         \DB::commit();
 

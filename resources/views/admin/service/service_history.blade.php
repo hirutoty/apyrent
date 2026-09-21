@@ -276,6 +276,7 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Tgl Pasang</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Interval</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Tgl Limit</th>
+                                                    <th class="text-left px-3 py-2 font-semibold">KM Limit</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Kondisi</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Status</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Persetujuan</th>
@@ -362,6 +363,34 @@
                                                                         </span>
                                                                     @endif
                                                                 </div>
+                                                            @endif
+                                                        </td>
+                                                        {{-- KM Limit --}}
+                                                        @php
+                                                            $limitKey    = $d->kendaraan_id . '_' . $part->category_id;
+                                                            $limitRule   = $categoryLimitsMap[$limitKey] ?? null;
+                                                            $kmPasang    = (int) ($part->kilometer_pasang ?? 0);
+                                                            $limitKm     = $limitRule ? (int) ($limitRule->limit_km ?? 0) : 0;
+                                                            $kmTarget    = $limitKm > 0 ? $kmPasang + $limitKm : null;
+                                                            // Ambil kilometer_sekarang kendaraan untuk cek apakah sudah lewat
+                                                            $kmSekarang  = (int) ($d->kendaraan?->kilometer_sekarang ?? 0);
+                                                            $kmSudahLewat = $kmTarget && $kmSekarang >= $kmTarget;
+                                                        @endphp
+                                                        <td class="px-3 py-2 whitespace-nowrap text-xs">
+                                                            @if($kmTarget)
+                                                                <span class="{{ $kmSudahLewat ? 'text-red-600 font-bold' : ($part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-700') }}">
+                                                                    {{ number_format($kmTarget, 0, ',', '.') }} km
+                                                                </span>
+                                                                @if($kmSudahLewat && $part->status !== 'Diganti')
+                                                                    <div class="mt-0.5">
+                                                                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full w-fit">
+                                                                            <i class="fa fa-circle-exclamation text-[9px]"></i>
+                                                                            Lewat {{ number_format($kmSekarang - $kmTarget, 0, ',', '.') }} km
+                                                                        </span>
+                                                                    </div>
+                                                                @endif
+                                                            @else
+                                                                <span class="text-gray-300">—</span>
                                                             @endif
                                                         </td>
                                                         <td class="px-3 py-2">

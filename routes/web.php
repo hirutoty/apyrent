@@ -404,6 +404,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('service-history.limit-rules');
   Route::get('/service-history/part-lama-km', [ServiceHistoryController::class, 'getPartLamaKm'])
     ->name('service-history.part-lama-km');
+  Route::get('/service-history/limit-biaya-kumulatif', [ServiceHistoryController::class, 'getLimitBiayaKumulatif'])
+    ->name('service-history.limit-biaya-kumulatif');
   Route::post('/service-history/perpanjang-part/{part_id}', [ServiceHistoryController::class, 'perpanjangPart'])
     ->name('service-history.perpanjang-part');
   Route::post('/service-history/{id}/terpasang', [ServiceHistoryController::class, 'terpasang'])
