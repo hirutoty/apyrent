@@ -177,7 +177,7 @@
                 <tbody>
                     @forelse ($data as $d)
                         @php
-                            $partCount     = $d->parts->count();
+                            $partCount     = $d->parts->where('status', '!=', 'Diganti')->count();
                             $partLimit     = $d->parts->where('status', 'Limit')->count();
                             $rowId         = 'parts-row-' . $d->id;
                         @endphp
@@ -264,6 +264,12 @@
                                     @endif
 
                                     <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                        @php
+                                            $partsAktif    = $d->parts->where('status', '!=', 'Diganti');
+                                            $partsDiganti  = $d->parts->where('status', 'Diganti');
+                                        @endphp
+
+                                        {{-- ── TABEL 1: PART AKTIF ── --}}
                                         <table class="w-full text-xs">
                                             <thead>
                                                 <tr class="bg-slate-100 text-gray-500">
@@ -290,11 +296,10 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach ($d->parts as $part)
+                                                @forelse ($partsAktif as $part)
                                                     @php
                                                         $rowBgClass = match($part->status) {
                                                             'Limit'       => 'bg-red-50',
-                                                            'Diganti'     => 'bg-gray-100',
                                                             'Proses'      => 'bg-amber-50',
                                                             'tidak_aktif' => 'bg-slate-50',
                                                             'aktif'       => 'bg-blue-50/40',
@@ -302,30 +307,19 @@
                                                         };
                                                     @endphp
                                                     <tr class="border-t border-slate-100 {{ $rowBgClass }}">
-                                                        <td class="px-3 py-2 font-medium {{ $part->status === 'Diganti' ? 'text-gray-400 line-through' : 'text-gray-800' }}">
-                                                            {{ $part->nama_part }}
-                                                            @if($part->status === 'Diganti')
-                                                                <span class="ml-2 px-1.5 py-0.5 text-[10px] bg-gray-200 text-gray-600 rounded no-underline" 
-                                                                      style="text-decoration: none !important;"
-                                                                      title="Diganti pada {{ $part->replaced_at?->format('d M Y H:i') }} → Part #{{ $part->replaced_by_part_id }}">
-                                                                    <i class="fa fa-exchange-alt"></i> Diganti
-                                                                </span>
-                                                            @endif
-                                                        </td>
-                                                        <td class="px-3 py-2 {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-500' }}">{{ $part->category?->nama ?? '—' }}</td>
-                                                        <td class="px-3 py-2 {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">
-                                                            {{ $part->supplier?->nama_supplier ?? '—' }}
-                                                        </td>
-                                                        <td class="px-3 py-2 font-mono {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">{{ $part->part_number ?: '—' }}</td>
-                                                        <td class="px-3 py-2 font-mono {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">{{ $part->serial_number ?: '—' }}</td>
-                                                        <td class="px-3 py-2 {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">{{ $part->posisi ?: '—' }}</td>
-                                                        <td class="px-3 py-2 whitespace-nowrap {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">
+                                                        <td class="px-3 py-2 font-medium text-gray-800">{{ $part->nama_part }}</td>
+                                                        <td class="px-3 py-2 text-gray-500">{{ $part->category?->nama ?? '—' }}</td>
+                                                        <td class="px-3 py-2 text-gray-600">{{ $part->supplier?->nama_supplier ?? '—' }}</td>
+                                                        <td class="px-3 py-2 font-mono text-gray-600">{{ $part->part_number ?: '—' }}</td>
+                                                        <td class="px-3 py-2 font-mono text-gray-600">{{ $part->serial_number ?: '—' }}</td>
+                                                        <td class="px-3 py-2 text-gray-600">{{ $part->posisi ?: '—' }}</td>
+                                                        <td class="px-3 py-2 whitespace-nowrap text-gray-600">
                                                             {{ $part->tgl_pasang ? \Carbon\Carbon::parse($part->tgl_pasang)->format('d M Y') : '—' }}
                                                         </td>
-                                                        <td class="px-3 py-2 whitespace-nowrap {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">
+                                                        <td class="px-3 py-2 whitespace-nowrap text-gray-600">
                                                             {{ $part->interval_nilai }} {{ $part->interval_satuan }}
                                                         </td>
-                                                        <td class="px-3 py-2 whitespace-nowrap {{ $part->status === 'Limit' ? 'text-red-600 font-semibold' : ($part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600') }}">
+                                                        <td class="px-3 py-2 whitespace-nowrap {{ $part->status === 'Limit' ? 'text-red-600 font-semibold' : 'text-gray-600' }}">
                                                             @php
                                                                 $tglLimitCarbon  = $part->tanggal_limit ? \Carbon\Carbon::parse($part->tanggal_limit)->startOfDay() : null;
                                                                 $hariIniCarbon   = now()->startOfDay();
@@ -337,7 +331,7 @@
                                                                 $partIsLimitDate = $tglLimitCarbon && $sisaHariPart !== null && $sisaHariPart < 0;
                                                             @endphp
                                                             {{ $tglLimitCarbon ? $tglLimitCarbon->format('d M Y') : '—' }}
-                                                            @if ($partIsLimitDate && $part->status !== 'Diganti')
+                                                            @if ($partIsLimitDate)
                                                                 <div class="mt-0.5">
                                                                     <span class="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full w-fit">
                                                                         <i class="fa fa-circle-exclamation text-[9px]"></i>
@@ -348,18 +342,15 @@
                                                                 <div class="mt-0.5">
                                                                     @if ($sisaHariPart === 0)
                                                                         <span class="inline-flex items-center gap-1 text-[10px] font-medium text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full w-fit">
-                                                                            <i class="fa fa-triangle-exclamation text-[9px]"></i>
-                                                                            Berakhir Hari Ini
+                                                                            <i class="fa fa-triangle-exclamation text-[9px]"></i> Berakhir Hari Ini
                                                                         </span>
                                                                     @elseif ($sisaHariPart === 1)
                                                                         <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full w-fit">
-                                                                            <i class="fa fa-triangle-exclamation text-[9px]"></i>
-                                                                            Berakhir Besok
+                                                                            <i class="fa fa-triangle-exclamation text-[9px]"></i> Berakhir Besok
                                                                         </span>
                                                                     @else
                                                                         <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full w-fit">
-                                                                            <i class="fa fa-triangle-exclamation text-[9px]"></i>
-                                                                            Sisa {{ $sisaHariPart }} hari
+                                                                            <i class="fa fa-triangle-exclamation text-[9px]"></i> Sisa {{ $sisaHariPart }} hari
                                                                         </span>
                                                                     @endif
                                                                 </div>
@@ -367,21 +358,20 @@
                                                         </td>
                                                         {{-- KM Limit --}}
                                                         @php
-                                                            $limitKey    = $d->kendaraan_id . '_' . $part->category_id;
-                                                            $limitRule   = $categoryLimitsMap[$limitKey] ?? null;
-                                                            $kmPasang    = (int) ($part->kilometer_pasang ?? 0);
-                                                            $limitKm     = $limitRule ? (int) ($limitRule->limit_km ?? 0) : 0;
-                                                            $kmTarget    = $limitKm > 0 ? $kmPasang + $limitKm : null;
-                                                            // Ambil kilometer_sekarang kendaraan untuk cek apakah sudah lewat
-                                                            $kmSekarang  = (int) ($d->kendaraan?->kilometer_sekarang ?? 0);
+                                                            $limitKey     = $d->kendaraan_id . '_' . $part->category_id;
+                                                            $limitRule    = $categoryLimitsMap[$limitKey] ?? null;
+                                                            $kmPasang     = (int) ($part->kilometer_pasang ?? 0);
+                                                            $limitKm      = $limitRule ? (int) ($limitRule->limit_km ?? 0) : 0;
+                                                            $kmTarget     = $limitKm > 0 ? $kmPasang + $limitKm : null;
+                                                            $kmSekarang   = (int) ($d->kendaraan?->kilometer_sekarang ?? 0);
                                                             $kmSudahLewat = $kmTarget && $kmSekarang >= $kmTarget;
                                                         @endphp
                                                         <td class="px-3 py-2 whitespace-nowrap text-xs">
                                                             @if($kmTarget)
-                                                                <span class="{{ $kmSudahLewat ? 'text-red-600 font-bold' : ($part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-700') }}">
+                                                                <span class="{{ $kmSudahLewat ? 'text-red-600 font-bold' : 'text-gray-700' }}">
                                                                     {{ number_format($kmTarget, 0, ',', '.') }} km
                                                                 </span>
-                                                                @if($kmSudahLewat && $part->status !== 'Diganti')
+                                                                @if($kmSudahLewat)
                                                                     <div class="mt-0.5">
                                                                         <span class="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full w-fit">
                                                                             <i class="fa fa-circle-exclamation text-[9px]"></i>
@@ -400,45 +390,32 @@
                                                                     'Perlu Ganti' => 'bg-amber-100 text-amber-700',
                                                                     default       => 'bg-emerald-100 text-emerald-700',
                                                                 };
-                                                                if ($part->status === 'Diganti') {
-                                                                    $kondisiColor = 'bg-gray-200 text-gray-500';
-                                                                }
                                                             @endphp
-                                                            <span class="px-1.5 py-0.5 rounded text-xs font-medium {{ $kondisiColor }}">
-                                                                {{ $part->kondisi }}
-                                                            </span>
+                                                            <span class="px-1.5 py-0.5 rounded text-xs font-medium {{ $kondisiColor }}">{{ $part->kondisi }}</span>
                                                         </td>
                                                         <td class="px-3 py-2">
                                                             @if ($part->status === 'Limit')
                                                                 <div class="flex items-center gap-1 flex-wrap">
-                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700"
-                                                                        title="Part melewati tanggal limit, perlu diganti">
+                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700" title="Part melewati tanggal limit, perlu diganti">
                                                                         <i class="fa fa-exclamation-triangle text-[9px]"></i> Limit
                                                                     </span>
                                                                     <button type="button"
-                                                                        onclick="event.stopPropagation(); openModalPerpanjangPart({{ $part->id }}, '{{ addslashes($part->nama_part) }}', '{{ addslashes($part->category?->nama ?? '') }}', {{ $part->category_id ?? 'null' }}, '{{ addslashes($part->posisi ?? '') }}', {{ $part->interval_nilai }}, '{{ $part->interval_satuan }}', {{ $part->biaya }}, {{ $d->kendaraan_id }}, '{{ addslashes($d->kendaraan?->merk . ' — ' . $d->kendaraan?->nopol) }}', {{ $d->kendaraan?->kilometer_sekarang ?? 0 }})"
+                                                                        onclick="event.stopPropagation(); openModalPerpanjangPart({{ $part->id }}, '{{ addslashes($part->nama_part) }}', '{{ addslashes($part->category?->nama ?? '') }}', {{ $part->category_id ?? 'null' }}, '{{ addslashes($part->posisi ?? '') }}', {{ $part->interval_nilai }}, '{{ $part->interval_satuan }}', {{ $part->biaya }}, {{ $d->kendaraan_id }}, '{{ addslashes($d->kendaraan?->merk . ' — ' . $d->kendaraan?->nopol) }}', {{ $d->kendaraan?->kilometer_sekarang ?? 0 }}, '{{ addslashes($part->part_number ?? '') }}', '{{ addslashes($part->serial_number ?? '') }}', '{{ addslashes($part->nama_rekening ?? '') }}', '{{ addslashes($part->nama_bank ?? '') }}', '{{ addslashes($part->no_rekening ?? '') }}', {{ $part->supplier_id ?? 'null' }})"
                                                                         class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 transition-colors">
                                                                         <i class="fa fa-rotate-right text-[9px]"></i> Perpanjang
                                                                     </button>
                                                                 </div>
-                                                            @elseif ($part->status === 'Diganti')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600 cursor-default">
-                                                                    <i class="fa fa-history text-[9px]"></i> Diganti
-                                                                </span>
                                                             @elseif ($part->status === 'tidak_aktif')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-300 cursor-default"
-                                                                    title="Disetujui keuangan, belum dipasang secara fisik">
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-300 cursor-default" title="Disetujui keuangan, belum dipasang secara fisik">
                                                                     <i class="fa fa-pause text-[9px]"></i> Tidak Aktif
                                                                 </span>
                                                             @elseif ($part->status === 'aktif')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-300 cursor-default"
-                                                                    title="Pembayaran disetujui, siap dipasang">
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-300 cursor-default" title="Pembayaran disetujui, siap dipasang">
                                                                     <i class="fa fa-check-circle text-[9px]"></i> Aktif
                                                                 </span>
                                                             @elseif ($part->status === 'Proses')
                                                                 @if ($part->persetujuan !== 'Disetujui')
-                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-400 border border-amber-200 cursor-not-allowed"
-                                                                        title="Tidak bisa diubah — menunggu approval keuangan">
+                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-400 border border-amber-200 cursor-not-allowed" title="Tidak bisa diubah — menunggu approval keuangan">
                                                                         <i class="fa fa-lock text-[9px]"></i> Proses
                                                                     </span>
                                                                 @else
@@ -449,204 +426,158 @@
                                                                     </button>
                                                                 @endif
                                                             @else
-                                                                {{-- Terpasang — tampilkan tombol Perpanjang jika warning atau limit tanggal --}}
-                                                                @php
-                                                                    $showPerpanjangBtn = isset($partIsWarning) && ($partIsWarning || (isset($partIsLimitDate) && $partIsLimitDate));
-                                                                @endphp
+                                                                {{-- Terpasang --}}
+                                                                @php $showPerpanjangBtn = $partIsWarning || $partIsLimitDate; @endphp
                                                                 <div class="flex items-center gap-1 flex-wrap">
-                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 cursor-default"
-                                                                        title="Part sudah terpasang, tidak bisa diubah">
+                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 cursor-default">
                                                                         <i class="fa fa-check text-[9px]"></i> Terpasang
                                                                     </span>
                                                                     @if ($showPerpanjangBtn)
                                                                         <button type="button"
-                                                                            onclick="event.stopPropagation(); openModalPerpanjangPart({{ $part->id }}, '{{ addslashes($part->nama_part) }}', '{{ addslashes($part->category?->nama ?? '') }}', {{ $part->category_id ?? 'null' }}, '{{ addslashes($part->posisi ?? '') }}', {{ $part->interval_nilai }}, '{{ $part->interval_satuan }}', {{ $part->biaya }}, {{ $d->kendaraan_id }}, '{{ addslashes($d->kendaraan?->merk . ' — ' . $d->kendaraan?->nopol) }}', {{ $d->kendaraan?->kilometer_sekarang ?? 0 }})"
+                                                                            onclick="event.stopPropagation(); openModalPerpanjangPart({{ $part->id }}, '{{ addslashes($part->nama_part) }}', '{{ addslashes($part->category?->nama ?? '') }}', {{ $part->category_id ?? 'null' }}, '{{ addslashes($part->posisi ?? '') }}', {{ $part->interval_nilai }}, '{{ $part->interval_satuan }}', {{ $part->biaya }}, {{ $d->kendaraan_id }}, '{{ addslashes($d->kendaraan?->merk . ' — ' . $d->kendaraan?->nopol) }}', {{ $d->kendaraan?->kilometer_sekarang ?? 0 }}, '{{ addslashes($part->part_number ?? '') }}', '{{ addslashes($part->serial_number ?? '') }}', '{{ addslashes($part->nama_rekening ?? '') }}', '{{ addslashes($part->nama_bank ?? '') }}', '{{ addslashes($part->no_rekening ?? '') }}', {{ $part->supplier_id ?? 'null' }})"
                                                                             class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 transition-colors">
-                                                                            <i class="fa fa-rotate-right text-[9px]"></i> Perpanjang
+                                                                            <i class="fa fa-rotate-right text-[9px]"></i> Ganti Part
                                                                         </button>
                                                                     @endif
                                                                 </div>
                                                             @endif
                                                         </td>
-                                                        {{-- Kolom Persetujuan --}}
+                                                        {{-- Persetujuan --}}
                                                         <td class="px-3 py-2">
                                                             @if ($part->persetujuan === 'Disetujui')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                    <i class="fa fa-check text-[9px]"></i> Disetujui
-                                                                </span>
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><i class="fa fa-check text-[9px]"></i> Disetujui</span>
                                                             @elseif ($part->persetujuan === 'Diajukan ke Pembayaran')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                                                                    <i class="fa fa-paper-plane text-[9px]"></i> Diajukan ke Pembayaran
-                                                                </span>
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"><i class="fa fa-paper-plane text-[9px]"></i> Diajukan ke Pembayaran</span>
                                                             @elseif ($part->persetujuan === 'Ditolak')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-                                                                    <i class="fa fa-times text-[9px]"></i> Ditolak
-                                                                </span>
-                                                            @elseif ($part->persetujuan === 'Pending')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
-                                                                    <i class="fa fa-clock text-[9px]"></i> Pending
-                                                                </span>
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-200"><i class="fa fa-times text-[9px]"></i> Ditolak</span>
                                                             @else
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
-                                                                    <i class="fa fa-clock text-[9px]"></i> Pending
-                                                                </span>
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200"><i class="fa fa-clock text-[9px]"></i> Pending</span>
                                                             @endif
                                                         </td>
-                                                        {{-- Pengeluaran Column --}}
+                                                        {{-- Pengeluaran --}}
                                                         <td class="px-3 py-2">
                                                             @if($part->status_pengeluaran === 'overservice')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-200"
-                                                                    title="Biaya part melebihi batas limit harga kategori">
-                                                                    <i class="fa fa-triangle-exclamation text-[9px]"></i> Over
-                                                                </span>
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-200" title="Biaya part melebihi batas limit harga kategori"><i class="fa fa-triangle-exclamation text-[9px]"></i> Over</span>
                                                             @else
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                    <i class="fa fa-check text-[9px]"></i> Stabil
-                                                                </span>
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><i class="fa fa-check text-[9px]"></i> Stabil</span>
                                                             @endif
                                                         </td>
-                                                        {{-- Keterangan Limit Column --}}
-                                                        <td class="px-3 py-2 whitespace-nowrap {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-600' }}">
-                                                            @if($part->keterangan_limit)
-                                                                <span class="text-xs">{{ $part->keterangan_limit }}</span>
-                                                            @else
-                                                                —
-                                                            @endif
-                                                        </td>
-                                                        {{-- Info Pembayaran Column --}}
+                                                        {{-- Keterangan Limit --}}
                                                         <td class="px-3 py-2">
-                                                            @if($part->nama_rekening || $part->nama_bank || $part->no_rekening)
+                                                            @php
+                                                                $ketLimit = $part->keterangan_limit;
+                                                                $ketBadges = ($ketLimit && $ketLimit !== '-')
+                                                                    ? array_filter(array_map('trim', explode(',', $ketLimit)))
+                                                                    : [];
+                                                            @endphp
+                                                            @if(!empty($ketBadges))
                                                                 <div class="flex flex-col gap-0.5">
-                                                                    @if($part->nama_rekening)
-                                                                        <span class="text-xs text-gray-700 font-medium">
-                                                                            <i class="fa fa-user text-[9px] text-gray-400 mr-1"></i>{{ $part->nama_rekening }}
-                                                                        </span>
-                                                                    @endif
-                                                                    @if($part->nama_bank)
-                                                                        <span class="text-xs text-gray-500">
-                                                                            <i class="fa fa-university text-[9px] text-gray-400 mr-1"></i>{{ $part->nama_bank }}
-                                                                        </span>
-                                                                    @endif
-                                                                    @if($part->no_rekening)
-                                                                        <span class="text-xs font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">
-                                                                            {{ $part->no_rekening }}
-                                                                        </span>
-                                                                    @endif
+                                                                @foreach($ketBadges as $badge)
+                                                                    @php
+                                                                        $bl = strtolower($badge);
+                                                                        $bc = match(true) {
+                                                                            str_contains($bl, 'melebihi limit biaya'),
+                                                                            str_contains($bl, 'melebihi batas waktu'),
+                                                                            str_contains($bl, 'melebihi limit km'),
+                                                                            str_contains($bl, 'melebihi batas limit km') => 'bg-red-100 text-red-700',
+                                                                            str_contains($bl, 'mencapai batas limit')    => 'bg-yellow-100 text-yellow-700',
+                                                                            default                                       => 'bg-green-100 text-green-700',
+                                                                        };
+                                                                    @endphp
+                                                                    <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $bc }}">{{ ucfirst($badge) }}</span>
+                                                                @endforeach
                                                                 </div>
                                                             @else
                                                                 <span class="text-gray-300">—</span>
                                                             @endif
                                                         </td>
-                                                        {{-- Bukti Column (Lampiran dari submit) --}}
+                                                        {{-- Info Pembayaran --}}
                                                         <td class="px-3 py-2">
-                                                            @php
-                                                                $buktiData = $part->bukti;
-                                                                if (is_string($buktiData)) {
-                                                                    $buktiData = json_decode($buktiData, true);
-                                                                }
-                                                            @endphp
-                                                            @if($buktiData && is_array($buktiData) && count($buktiData) > 0)
+                                                            @if($part->nama_rekening || $part->nama_bank || $part->no_rekening)
+                                                                <div class="flex flex-col gap-0.5">
+                                                                    @if($part->nama_rekening)<span class="text-xs text-gray-700 font-medium"><i class="fa fa-user text-[9px] text-gray-400 mr-1"></i>{{ $part->nama_rekening }}</span>@endif
+                                                                    @if($part->nama_bank)<span class="text-xs text-gray-500"><i class="fa fa-university text-[9px] text-gray-400 mr-1"></i>{{ $part->nama_bank }}</span>@endif
+                                                                    @if($part->no_rekening)<span class="text-xs font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{{ $part->no_rekening }}</span>@endif
+                                                                </div>
+                                                            @else
+                                                                <span class="text-gray-300">—</span>
+                                                            @endif
+                                                        </td>
+                                                        {{-- Lampiran --}}
+                                                        <td class="px-3 py-2">
+                                                            @php $buktiData = is_string($part->bukti) ? json_decode($part->bukti, true) : $part->bukti; @endphp
+                                                            @if($buktiData && count($buktiData) > 0)
                                                                 <div class="flex flex-col gap-1">
                                                                     @foreach($buktiData as $file)
-                                                                        @php
-                                                                            $filePath = $file['path'] ?? '';
-                                                                            $fileName = $file['name'] ?? basename($filePath);
-                                                                        @endphp
-                                                                        <a href="{{ asset($filePath) }}" target="_blank"
-                                                                            class="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline truncate max-w-[160px]"
-                                                                            title="{{ $fileName }}">
-                                                                            <i class="fa fa-paperclip text-[10px] flex-shrink-0"></i>
-                                                                            <span class="truncate">{{ $fileName }}</span>
+                                                                        <a href="{{ asset($file['path'] ?? '') }}" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline truncate max-w-[160px]" title="{{ $file['name'] ?? '' }}">
+                                                                            <i class="fa fa-paperclip text-[10px] flex-shrink-0"></i><span class="truncate">{{ $file['name'] ?? basename($file['path'] ?? '') }}</span>
                                                                         </a>
                                                                     @endforeach
                                                                 </div>
-                                                            @else
-                                                                —
+                                                            @else —
                                                             @endif
                                                         </td>
-                                                        {{-- Bukti Bayar Column (dari approval pembayaran) --}}
+                                                        {{-- Bukti Bayar --}}
                                                         <td class="px-3 py-2">
-                                                            @php
-                                                                $buktiBayarData = $part->bukti_pembayaran;
-                                                                if (is_string($buktiBayarData)) {
-                                                                    $buktiBayarData = json_decode($buktiBayarData, true);
-                                                                }
-                                                            @endphp
-                                                            @if($buktiBayarData && is_array($buktiBayarData) && count($buktiBayarData) > 0)
+                                                            @php $buktiBayarData = is_string($part->bukti_pembayaran) ? json_decode($part->bukti_pembayaran, true) : $part->bukti_pembayaran; @endphp
+                                                            @if($buktiBayarData && count($buktiBayarData) > 0)
                                                                 <div class="flex flex-col gap-1">
                                                                     @foreach($buktiBayarData as $file)
                                                                         @php
-                                                                            $filePath = $file['path'] ?? '';
-                                                                            // path bisa storage path (pembayaran/approvals/...) atau public path (gps/bukti_bayar/...)
-                                                                            $fileUrl = str_starts_with($filePath, 'pembayaran/')
-                                                                                ? \Illuminate\Support\Facades\Storage::url($filePath)
-                                                                                : asset($filePath);
-                                                                            // Nama asli: gunakan original_name jika ada, fallback strip timestamp prefix
-                                                                            $rawName  = $file['original_name'] ?? $file['name'] ?? basename($filePath);
-                                                                            $fileName = preg_replace('/^\d+_\d+_/', '', $rawName);
-                                                                            if (!$fileName) $fileName = $rawName;
-                                                                        @endphp                                                                        <a href="{{ $fileUrl }}" target="_blank"
-                                                                            class="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-800 hover:underline truncate max-w-[160px]"
-                                                                            title="{{ $fileName }}">
-                                                                            <i class="fa fa-receipt text-[10px] flex-shrink-0"></i>
-                                                                            <span class="truncate">{{ $fileName }}</span>
+                                                                            $fp  = $file['path'] ?? '';
+                                                                            $fu  = str_starts_with($fp, 'pembayaran/') ? \Illuminate\Support\Facades\Storage::url($fp) : asset($fp);
+                                                                            $rn  = $file['original_name'] ?? $file['name'] ?? basename($fp);
+                                                                            $fn  = preg_replace('/^\d+_\d+_/', '', $rn) ?: $rn;
+                                                                        @endphp
+                                                                        <a href="{{ $fu }}" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:underline truncate max-w-[160px]" title="{{ $fn }}">
+                                                                            <i class="fa fa-receipt text-[10px] flex-shrink-0"></i><span class="truncate">{{ $fn }}</span>
                                                                         </a>
                                                                     @endforeach
                                                                 </div>
-                                                            @else
-                                                                —
+                                                            @else —
                                                             @endif
                                                         </td>
-                                                        <td class="px-3 py-2 text-right font-semibold whitespace-nowrap {{ $part->status === 'Diganti' ? 'text-gray-400' : 'text-gray-700' }}">
+                                                        {{-- Biaya --}}
+                                                        <td class="px-3 py-2 text-right font-semibold whitespace-nowrap text-gray-700">
                                                             @php
-                                                                $mapKey   = ($d->kendaraan_id ?? 0) . '_' . ($part->category_id ?? 0);
-                                                                $limitRule = $categoryLimitsMap->get($mapKey);
-                                                                $melebihi  = $limitRule && $limitRule->limit_price && $part->biaya > $limitRule->limit_price;
+                                                                $mapKey2  = ($d->kendaraan_id ?? 0) . '_' . ($part->category_id ?? 0);
+                                                                $lr2      = $categoryLimitsMap->get($mapKey2);
+                                                                $mel2     = $lr2 && $lr2->limit_price && $part->biaya > $lr2->limit_price;
                                                             @endphp
                                                             Rp {{ number_format($part->biaya, 0, ',', '.') }}
-                                                            @if($melebihi)
-                                                                <span class="inline-flex items-center gap-0.5 ml-1 bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
-                                                                    title="Melebihi batas harga kategori {{ optional($part->category)->nama }} (maks Rp {{ number_format($limitRule->limit_price, 0, ',', '.') }})">
-                                                                    <i class="fa fa-triangle-exclamation text-[9px]"></i> Limit
-                                                                </span>
+                                                            @if($mel2)
+                                                                <span class="inline-flex items-center gap-0.5 ml-1 bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-md" title="Melebihi batas harga kategori"><i class="fa fa-triangle-exclamation text-[9px]"></i> Limit</span>
                                                             @endif
                                                         </td>
-                                                        {{-- Kolom Aksi per-part: tombol Terpasang --}}
+                                                        {{-- Aksi --}}
                                                         <td class="px-3 py-2 text-center whitespace-nowrap" onclick="event.stopPropagation()">
                                                             @if ($part->status === 'aktif' && in_array(auth()->user()->role, ['superadmin', 'operasi']))
-                                                                <form action="{{ route('service-parts.update-status', $part->id) }}" method="POST"
-                                                                    onsubmit="return confirm('Tandai part ini sebagai Terpasang?')" class="inline">
+                                                                <form action="{{ route('service-parts.update-status', $part->id) }}" method="POST" onsubmit="return confirm('Tandai part ini sebagai Terpasang?')" class="inline">
                                                                     @csrf @method('PUT')
                                                                     <input type="hidden" name="status" value="Terpasang">
-                                                                    <button type="submit"
-                                                                        class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
+                                                                    <button type="submit" class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
                                                                         <i class="fa fa-wrench text-[9px]"></i> Pasang
                                                                     </button>
                                                                 </form>
                                                             @elseif ($part->persetujuan === 'Disetujui' && $part->status === 'tidak_aktif')
-                                                                <form action="{{ route('service-parts.update-status', $part->id) }}" method="POST"
-                                                                    onsubmit="return confirm('Tandai part ini sebagai Terpasang?')" class="inline">
+                                                                <form action="{{ route('service-parts.update-status', $part->id) }}" method="POST" onsubmit="return confirm('Tandai part ini sebagai Terpasang?')" class="inline">
                                                                     @csrf @method('PUT')
                                                                     <input type="hidden" name="status" value="Terpasang">
-                                                                    <button type="submit"
-                                                                        class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
+                                                                    <button type="submit" class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
                                                                         <i class="fa fa-wrench text-[9px]"></i> Terpasang
                                                                     </button>
                                                                 </form>
-                                                            @elseif ($part->persetujuan === 'Pending' && auth()->user()->role === 'superadmin')
+                                                            @elseif ($part->persetujuan === 'Pending' && auth()->user()->role === 'superadmin' && $part->status !== 'tidak_aktif')
                                                                 <div class="flex items-center justify-center gap-1">
                                                                     <form action="{{ route('service-parts.approve', $part->id) }}" method="POST" class="inline">
                                                                         @csrf
-                                                                        <button type="submit"
-                                                                            class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
+                                                                        <button type="submit" class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
                                                                             <i class="fa fa-check text-[9px]"></i> Setuju
                                                                         </button>
                                                                     </form>
-                                                                    <form action="{{ route('service-parts.reject', $part->id) }}" method="POST" class="inline"
-                                                                        onsubmit="return confirm('Yakin tolak part ini?')">
+                                                                    <form action="{{ route('service-parts.reject', $part->id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin tolak part ini?')">
                                                                         @csrf
-                                                                        <button type="submit"
-                                                                            class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
+                                                                        <button type="submit" class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
                                                                             <i class="fa fa-times text-[9px]"></i> Tolak
                                                                         </button>
                                                                     </form>
@@ -656,17 +587,132 @@
                                                             @endif
                                                         </td>
                                                     </tr>
-                                                @endforeach
+                                                @empty
+                                                    <tr>
+                                                        <td colspan="20" class="px-3 py-3 text-center text-xs text-gray-400">Belum ada part aktif</td>
+                                                    </tr>
+                                                @endforelse
                                             </tbody>
                                             <tfoot>
                                                 <tr class="bg-slate-100 border-t border-slate-200">
-                                                    <td colspan="18" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
+                                                    <td colspan="18" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts Aktif:</td>
                                                     <td colspan="2" class="px-3 py-2 text-right text-xs font-bold text-gray-800">
-                                                        Rp {{ number_format($d->parts->sum('biaya'), 0, ',', '.') }}
+                                                        Rp {{ number_format($partsAktif->sum('biaya'), 0, ',', '.') }}
                                                     </td>
                                                 </tr>
                                             </tfoot>
                                         </table>
+
+                                        {{-- ── TABEL 2: RIWAYAT PART (DIGANTI) ── --}}
+                                        @if ($partsDiganti->count() > 0)
+                                            <div class="border-t border-slate-200">
+                                                {{-- Toggle header --}}
+                                                <button type="button"
+                                                    onclick="toggleRiwayat('riwayat-{{ $d->id }}')"
+                                                    class="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left">
+                                                    <span class="flex items-center gap-2 text-xs font-semibold text-gray-500">
+                                                        <i class="fa fa-history text-gray-400"></i>
+                                                        Riwayat Part Diganti
+                                                        <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 text-gray-600 text-[10px] font-bold">{{ $partsDiganti->count() }}</span>
+                                                    </span>
+                                                    <i id="icon-riwayat-{{ $d->id }}" class="fa fa-chevron-down text-gray-400 text-xs transition-transform duration-200"></i>
+                                                </button>
+
+                                                {{-- Tabel riwayat: hidden by default --}}
+                                                <div id="riwayat-{{ $d->id }}" style="display:none;">
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="bg-gray-100 text-gray-400">
+                                                                <th class="text-left px-3 py-2 font-semibold">Part</th>
+                                                                <th class="text-left px-3 py-2 font-semibold">Kategori</th>
+                                                                <th class="text-left px-3 py-2 font-semibold">Supplier</th>
+                                                                <th class="text-left px-3 py-2 font-semibold">Posisi</th>
+                                                                <th class="text-left px-3 py-2 font-semibold">Tgl Pasang</th>
+                                                                <th class="text-left px-3 py-2 font-semibold">Tgl Diganti</th>
+                                                                <th class="text-left px-3 py-2 font-semibold">Interval</th>
+                                                                <th class="text-left px-3 py-2 font-semibold">Tgl Limit</th>
+                                                                <th class="text-left px-3 py-2 font-semibold">Keterangan Limit</th>
+                                                                <th class="text-left px-3 py-2 font-semibold">Lampiran</th>
+                                                                <th class="text-left px-3 py-2 font-semibold">Bukti Bayar</th>
+                                                                <th class="text-right px-3 py-2 font-semibold">Biaya</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach ($partsDiganti as $part)
+                                                                <tr class="border-t border-gray-100 bg-gray-50">
+                                                                    <td class="px-3 py-2 text-gray-400 line-through">
+                                                                        {{ $part->nama_part }}
+                                                                        <span class="ml-1 no-underline text-[10px] bg-gray-200 text-gray-500 px-1 py-0.5 rounded" style="text-decoration:none !important">
+                                                                            <i class="fa fa-exchange-alt"></i> Diganti
+                                                                        </span>
+                                                                    </td>
+                                                                    <td class="px-3 py-2 text-gray-400">{{ $part->category?->nama ?? '—' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-400">{{ $part->supplier?->nama_supplier ?? '—' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-400">{{ $part->posisi ?: '—' }}</td>
+                                                                    <td class="px-3 py-2 whitespace-nowrap text-gray-400">
+                                                                        {{ $part->tgl_pasang ? \Carbon\Carbon::parse($part->tgl_pasang)->format('d M Y') : '—' }}
+                                                                    </td>
+                                                                    <td class="px-3 py-2 whitespace-nowrap text-gray-400">
+                                                                        {{ $part->replaced_at ? $part->replaced_at->format('d M Y') : '—' }}
+                                                                    </td>
+                                                                    <td class="px-3 py-2 whitespace-nowrap text-gray-400">
+                                                                        {{ $part->interval_nilai }} {{ $part->interval_satuan }}
+                                                                    </td>
+                                                                    <td class="px-3 py-2 whitespace-nowrap text-gray-400">
+                                                                        {{ $part->tanggal_limit ? \Carbon\Carbon::parse($part->tanggal_limit)->format('d M Y') : '—' }}
+                                                                    </td>
+                                                                    <td class="px-3 py-2 text-gray-400">{{ $part->keterangan_limit ?: '—' }}</td>
+                                                                    <td class="px-3 py-2">
+                                                                        @php $buktiRw = is_string($part->bukti) ? json_decode($part->bukti, true) : $part->bukti; @endphp
+                                                                        @if($buktiRw && count($buktiRw) > 0)
+                                                                            <div class="flex flex-col gap-1">
+                                                                                @foreach($buktiRw as $file)
+                                                                                    <a href="{{ asset($file['path'] ?? '') }}" target="_blank" class="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 hover:underline truncate max-w-[140px]">
+                                                                                        <i class="fa fa-paperclip text-[9px] flex-shrink-0"></i>
+                                                                                        <span class="truncate">{{ $file['name'] ?? basename($file['path'] ?? '') }}</span>
+                                                                                    </a>
+                                                                                @endforeach
+                                                                            </div>
+                                                                        @else
+                                                                            <span class="text-gray-300">—</span>
+                                                                        @endif
+                                                                    </td>
+                                                                        
+                                                                       
+                                                                    {{-- Bukti Bayar (dari approval pembayaran) --}}
+                                                                    <td class="px-3 py-2">
+                                                                        @php
+                                                                            $buktiBayarRw = is_string($part->bukti_pembayaran) ? json_decode($part->bukti_pembayaran, true) : $part->bukti_pembayaran;
+                                                                        @endphp
+                                                                        @if($buktiBayarRw && count($buktiBayarRw) > 0)
+                                                                            <div class="flex flex-col gap-1">
+                                                                                @foreach($buktiBayarRw as $file)
+                                                                                    @php
+                                                                                        $fp  = $file['path'] ?? '';
+                                                                                        $fu  = str_starts_with($fp, 'pembayaran/') ? \Illuminate\Support\Facades\Storage::url($fp) : asset($fp);
+                                                                                        $rn  = $file['original_name'] ?? $file['name'] ?? basename($fp);
+                                                                                        $fn  = preg_replace('/^\d+_\d+_/', '', $rn) ?: $rn;
+                                                                                    @endphp
+                                                                                    <a href="{{ $fu }}" target="_blank" class="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-600 hover:underline truncate max-w-[140px]" title="{{ $fn }}">
+                                                                                        <i class="fa fa-receipt text-[9px] flex-shrink-0"></i>
+                                                                                        <span class="truncate">{{ $fn }}</span>
+                                                                                    </a>
+                                                                                @endforeach
+                                                                            </div>
+                                                                        @else
+                                                                            <span class="text-gray-300">—</span>
+                                                                        @endif
+                                                                    </td>
+                                                                    <td class="px-3 py-2 text-right font-semibold whitespace-nowrap text-gray-400">
+                                                                        Rp {{ number_format($part->biaya, 0, ',', '.') }}
+                                                                    </td>
+                                                                </tr>
+                                                            @endforeach
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
 
                                     {{-- Bukti & Lampiran --}}
@@ -851,6 +897,15 @@ function togglePartsRow(rowId, headerTr) {
 
     row.style.display  = isOpen ? 'none' : '';
     if (ch) ch.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+}
+
+function toggleRiwayat(riwayatId) {
+    const el   = document.getElementById(riwayatId);
+    const icon = document.getElementById('icon-' + riwayatId);
+    if (!el) return;
+    const isOpen = el.style.display !== 'none';
+    el.style.display = isOpen ? 'none' : '';
+    if (icon) icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
 function expandAllRows() {
@@ -1292,18 +1347,23 @@ async function updateServiceHistoryCharts(filters) {
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                            Interval <span class="text-red-500">*</span>
+                            Interval
+                            <span class="text-[10px] font-normal text-gray-400 ml-1">(tidak dapat diubah)</span>
                         </label>
                         <div class="flex gap-2">
                             <input type="number" name="interval_nilai" id="mpp-interval-nilai" required min="1"
-                                class="w-20 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                                readonly
+                                class="w-20 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
                             <select name="interval_satuan" id="mpp-interval-satuan"
-                                class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
+                                disabled
+                                class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
                                 <option value="hari">Hari</option>
                                 <option value="minggu">Minggu</option>
                                 <option value="bulan" selected>Bulan</option>
                                 <option value="tahun">Tahun</option>
                             </select>
+                            {{-- Hidden input untuk interval_satuan karena select disabled tidak terkirim --}}
+                            <input type="hidden" name="interval_satuan" id="mpp-interval-satuan-hidden">
                         </div>
                     </div>
                 </div>
@@ -1337,17 +1397,17 @@ async function updateServiceHistoryCharts(filters) {
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Rekening</label>
-                            <input type="text" name="nama_rekening" placeholder="cth: Budi Santoso"
+                            <input type="text" name="nama_rekening" id="mpp-nama-rekening" placeholder="cth: Budi Santoso"
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 bg-white">
                         </div>
                         <div>
                             <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Bank</label>
-                            <input type="text" name="nama_bank" placeholder="cth: BCA, Mandiri..."
+                            <input type="text" name="nama_bank" id="mpp-nama-bank" placeholder="cth: BCA, Mandiri..."
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 bg-white">
                         </div>
                         <div>
                             <label class="text-xs font-semibold text-gray-500 mb-1 block">No. Rekening</label>
-                            <input type="text" name="no_rekening" placeholder="cth: 1234567890"
+                            <input type="text" name="no_rekening" id="mpp-no-rekening" placeholder="cth: 1234567890"
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 bg-white">
                         </div>
                     </div>
@@ -1358,7 +1418,7 @@ async function updateServiceHistoryCharts(filters) {
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Supplier / Bengkel <span class="text-gray-400 text-[10px] font-normal">(opsional)</span>
                     </label>
-                    <select name="supplier_id"
+                    <select name="supplier_id" id="mpp-supplier-id"
                         class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400">
                         <option value="">-- Pilih Supplier --</option>
                         @foreach($suppliers as $sup)
@@ -1404,7 +1464,7 @@ async function updateServiceHistoryCharts(filters) {
 
 <script>
 // ── Modal Perpanjang Part ──────────────────────────────────────────────────
-function openModalPerpanjangPart(partId, namaPart, categoryNama, categoryId, posisi, intervalNilai, intervalSatuan, biaya, kendaraanId, kendaraanLabel, kmSekarang) {
+function openModalPerpanjangPart(partId, namaPart, categoryNama, categoryId, posisi, intervalNilai, intervalSatuan, biaya, kendaraanId, kendaraanLabel, kmSekarang, partNumber, serialNumber, namaRekening, namaBank, noRekening, supplierId) {
     document.getElementById('mpp-kendaraan-label').textContent = kendaraanLabel;
     document.getElementById('mpp-part-label').textContent      = namaPart + (posisi ? ' — ' + posisi : '');
 
@@ -1415,25 +1475,30 @@ function openModalPerpanjangPart(partId, namaPart, categoryNama, categoryId, pos
     document.getElementById('mpp-replace-part-id').value = partId;
     document.getElementById('mpp-kendaraan-id').value    = kendaraanId;
 
-    // Pre-fill fields
-    document.getElementById('mpp-nama-part').value      = namaPart;
+    // Pre-fill fields dari data part lama (sementara, akan diupdate oleh fetch limit rule)
+    document.getElementById('mpp-nama-part').value        = namaPart;
     document.getElementById('mpp-category-display').value = categoryNama || '-';
-    document.getElementById('mpp-category-id').value    = categoryId || '';
-    document.getElementById('mpp-posisi-display').value = posisi || '-';
-    document.getElementById('mpp-posisi').value         = posisi || '';
-    document.getElementById('mpp-interval-nilai').value = intervalNilai || 12;
-    document.getElementById('mpp-biaya').value          = biaya || 0;
-    document.getElementById('mpp-km-pasang').value      = kmSekarang || '';
-    document.getElementById('mpp-part-number').value    = '';
-    document.getElementById('mpp-serial-number').value  = '';
-
-    // Set interval satuan
-    var satSelect = document.getElementById('mpp-interval-satuan');
-    if (satSelect) {
-        Array.from(satSelect.options).forEach(function(opt) {
-            opt.selected = opt.value === intervalSatuan;
+    document.getElementById('mpp-category-id').value      = categoryId || '';
+    document.getElementById('mpp-posisi-display').value   = posisi || '-';
+    document.getElementById('mpp-posisi').value           = posisi || '';
+    document.getElementById('mpp-biaya').value            = biaya || 0;
+    document.getElementById('mpp-km-pasang').value        = kmSekarang || '';
+    document.getElementById('mpp-part-number').value      = partNumber || '';
+    document.getElementById('mpp-serial-number').value    = serialNumber || '';
+    // Info pembayaran dari part lama
+    document.getElementById('mpp-nama-rekening').value    = namaRekening || '';
+    document.getElementById('mpp-nama-bank').value        = namaBank || '';
+    document.getElementById('mpp-no-rekening').value      = noRekening || '';
+    // Supplier dari part lama
+    var supSelect = document.getElementById('mpp-supplier-id');
+    if (supSelect) {
+        Array.from(supSelect.options).forEach(function(opt) {
+            opt.selected = supplierId && opt.value == supplierId;
         });
     }
+
+    // Set interval sementara dari data part lama (fallback)
+    _mppSetInterval(intervalNilai || 12, intervalSatuan || 'bulan');
 
     // Tgl pasang = hari ini
     var today = new Date();
@@ -1445,9 +1510,41 @@ function openModalPerpanjangPart(partId, namaPart, categoryNama, categoryId, pos
     // Reset lampiran
     document.getElementById('mpp-bukti-list').innerHTML = '';
 
-    var modal = document.getElementById('modal-perpanjang-part');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    // Fetch interval terbaru dari ServiceCategoryLimit
+    if (kendaraanId && categoryId) {
+        fetch('/admin/service-categories/limit-for?kendaraan_id=' + kendaraanId + '&category_id=' + categoryId, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.limit_nilai) {
+                // Ada rule terbaru → pakai dari ServiceCategoryLimit
+                _mppSetInterval(parseInt(data.limit_nilai), data.limit_satuan || 'bulan');
+            }
+            // Jika tidak ada rule, tetap pakai fallback dari part lama
+        })
+        .catch(function() { /* silent — tetap pakai fallback */ });
+    }
+
+    var m = document.getElementById('modal-perpanjang-part');
+    m.classList.remove('hidden'); m.classList.add('flex');
+}
+
+/** Helper: set nilai interval ke semua field display/hidden di modal perpanjang */
+function _mppSetInterval(nilai, satuan) {
+    var labelMap = { hari: 'Hari', minggu: 'Minggu', bulan: 'Bulan', tahun: 'Tahun' };
+
+    var nilaiEl  = document.getElementById('mpp-interval-nilai');
+    var satEl    = document.getElementById('mpp-interval-satuan');
+    var satHid   = document.getElementById('mpp-interval-satuan-hidden');
+
+    if (nilaiEl) nilaiEl.value = nilai;
+    if (satHid)  satHid.value  = satuan;
+    if (satEl) {
+        Array.from(satEl.options).forEach(function(opt) {
+            opt.selected = opt.value === satuan;
+        });
+    }
 }
 
 function closeModalPerpanjangPart() {

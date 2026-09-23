@@ -116,23 +116,43 @@ class PurchaseOrderController extends Controller
             // Build detail berdasarkan source_type
             $details = $this->buildDetailBySourceType($po->source_type, $sourceData);
             
+            // Resolve source_type label
+            $sourceTypeName = match($po->source_type) {
+                'pajak'                         => 'Pajak Kendaraan',
+                'pajak_perpanjang'              => 'Perpanjangan Pajak',
+                'asuransi_kendaraan'            => 'Asuransi Kendaraan',
+                'asuransi_kendaraan_perpanjang' => 'Perpanjangan Asuransi',
+                'service_part'                  => 'Service Part',
+                'service_asuransi'              => 'Service Asuransi',
+                'service_incident'              => 'Service Incident',
+                'gps'                           => 'GPS Kendaraan',
+                'gps_perpanjang'                => 'Perpanjangan GPS',
+                'kir'                           => 'KIR',
+                'kir_perpanjang'                => 'Perpanjangan KIR',
+                'stnk'                          => 'STNK',
+                default                         => $po->source_type ? ucwords(str_replace('_', ' ', $po->source_type)) : 'Lainnya',
+            };
+
             return response()->json([
                 'success' => true,
                 'po' => [
-                    'po_id' => $po->po_id,
-                    'source_type' => $po->source_type,
-                    'vendor' => $po->vendor,
-                    'total_barang' => $po->total_barang,
-                    'total_harga' => $po->total_harga,
-                    'tanggal_po' => $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-',
-                    'status' => $po->status,
-                    'catatan' => $po->catatan,
-                    'keterangan' => $po->keterangan,
-                    'catatan_approval' => $po->catatan_approval,
-                    'disetujui_oleh' => $po->approver ? $po->approver->name : null,
-                    'tanggal_persetujuan' => $po->tanggal_persetujuan ? $po->tanggal_persetujuan->format('d M Y H:i') : null,
-                    'pembayaran_no_pr' => $po->pembayaran ? $po->pembayaran->no_pr : null,
-                    'temp_files' => $sourceData['temp_files'] ?? [],
+                    'po_id'              => $po->po_id,
+                    'source_type'        => $po->source_type,
+                    'source_type_name'   => $sourceTypeName,
+                    'vendor'             => $po->vendor,
+                    'pemohon'            => $po->pemohon,
+                    'departemen'         => $po->departemen,
+                    'total_barang'       => $po->total_barang,
+                    'total_harga'        => $po->total_harga,
+                    'tanggal_po'         => $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-',
+                    'status'             => $po->status,
+                    'catatan'            => $po->catatan,
+                    'keterangan'         => $po->keterangan,
+                    'catatan_approval'   => $po->catatan_approval,
+                    'disetujui_oleh'     => $po->approver ? $po->approver->name : null,
+                    'tanggal_persetujuan'=> $po->tanggal_persetujuan ? $po->tanggal_persetujuan->format('d M Y H:i') : null,
+                    'pembayaran_no_pr'   => $po->pembayaran ? $po->pembayaran->no_pr : null,
+                    'temp_files'         => $sourceData['temp_files'] ?? [],
                 ],
                 'details' => $details,
             ]);
@@ -147,6 +167,28 @@ class PurchaseOrderController extends Controller
     /**
      * Build detail content berdasarkan source type
      */
+    /**
+     * Helper: resolve bukti_bayar_admin field ke {url, name} atau null
+     */
+    protected function resolveBuktiAdmin($bukti): ?array
+    {
+        if (!$bukti) return null;
+        // bisa berupa path string, atau array [{path, original_name}], atau [[path, ...]]
+        $arr = is_array($bukti) ? $bukti : [$bukti];
+        $b0  = $arr[0] ?? null;
+        if (!$b0) return null;
+        if (is_array($b0)) {
+            $path = $b0['path'] ?? '';
+            $name = $b0['original_name'] ?? basename($path);
+            if ($path) return ['url' => asset('storage/'.$path), 'name' => $name];
+            // fallback: public path
+            $path = $b0['path'] ?? '';
+            return $path ? ['url' => asset($path), 'name' => $name] : null;
+        }
+        // string path
+        return ['url' => asset($b0), 'name' => basename($b0)];
+    }
+
     protected function buildDetailBySourceType($sourceType, $sourceData)
     {
         if ($sourceType === 'gps') {
@@ -351,10 +393,19 @@ class PurchaseOrderController extends Controller
                     'file_size' => $lf['size'] ?? 0,
                 ];
             }
+
+            // Bukti bayar dari item_decisions
+            $itemDecisions = $sourceData['item_decisions'] ?? [];
+            $decMap = collect($itemDecisions)->keyBy('idx');
+            $buktiAdmin = $decMap->get($idx)['bukti'] ?? null;
+
             $items[] = [
                 'nama_kejadian' => $kej['nama_kejadian'] ?? '-',
                 'biaya'         => (int) ($kej['biaya'] ?? 0),
                 'lampiran'      => $lampiran,
+                'bukti'         => $buktiAdmin && isset($buktiAdmin['path'])
+                    ? ['url' => asset($buktiAdmin['path']), 'name' => $buktiAdmin['original_name'] ?? basename($buktiAdmin['path'])]
+                    : null,
             ];
         }
 
@@ -414,17 +465,23 @@ class PurchaseOrderController extends Controller
             }
 
             $items[] = [
-                'nama_part'      => $part['nama_part'] ?? '-',
-                'category_nama'  => $category ? $category->nama : ($part['nama_category_baru'] ?? '-'),
-                'part_number'    => $part['part_number'] ?? '-',
-                'posisi'         => $part['posisi'] ?? '-',
-                'biaya'          => $part['biaya'] ?? 0,
-                'kondisi'        => $part['kondisi'] ?? '-',
-                'keterangan'     => $part['keterangan'] ?? '-',
-                'nama_bank'      => $part['nama_bank'] ?? '-',
-                'no_rekening'    => $part['no_rekening'] ?? '-',
-                'nama_rekening'  => $part['nama_rekening'] ?? '-',
-                'lampiran'       => $lampiran,
+                'nama_part'        => $part['nama_part'] ?? '-',
+                'category_nama'    => $category ? $category->nama : ($part['nama_category_baru'] ?? '-'),
+                'part_number'      => $part['part_number'] ?? '-',
+                'posisi'           => $part['posisi'] ?? '-',
+                'biaya'            => $part['biaya'] ?? 0,
+                'kondisi'          => $part['kondisi'] ?? '-',
+                'keterangan'       => $part['keterangan_limit'] ?? $part['keterangan'] ?? '-',
+                'nama_bank'        => $part['nama_bank'] ?? '-',
+                'no_rekening'      => $part['no_rekening'] ?? '-',
+                'nama_rekening'    => $part['nama_rekening'] ?? '-',
+                'supplier'         => isset($part['supplier_id'])
+                    ? optional(\App\Models\Supplier::find($part['supplier_id']))->nama_supplier
+                    : null,
+                'limit_snapshot'   => $part['limit_snapshot'] ?? null,
+                'keterangan_limit' => $part['keterangan_limit'] ?? $part['keterangan'] ?? null,
+                'lampiran'         => $lampiran,
+                'bukti'            => $this->resolveBuktiAdmin($part['bukti_bayar_admin'] ?? null),
             ];
         }
 
@@ -1226,6 +1283,7 @@ class PurchaseOrderController extends Controller
         if ($exists) {
             return;
         }
+
         $tanggalService = $sourceData['tanggal_service'] ?? now()->toDateString();
         $kilometer      = (int) ($sourceData['kilometer'] ?? 0);
         $keluhan        = $sourceData['keluhan'] ?? null;
@@ -1247,20 +1305,41 @@ class PurchaseOrderController extends Controller
             }
         }
 
-        $serviceHistory = \App\Models\ServiceHistory::create([
-            'kendaraan_id'       => $kendaraanId,
-            'tanggal_service'    => $tanggalService,
-            'kilometer'          => $kilometer,
-            'keluhan'            => $keluhan,
-            'total_biaya'        => $totalBiaya,
-            'status'             => 'tidak_aktif',
-            'status_approval'    => 'approved',
-            'status_pengeluaran' => $hasOverLimit ? 'overservice' : 'stabil',
-            'approval_by'        => auth()->id(),
-            'approval_at'        => now(),
-            'is_request'         => true,
-            'pembayaran_id'      => $pembayaran->id,
-        ]);
+        // ── Merge ke ServiceHistory yang sudah ada (1 kendaraan = 1 SH) ──────
+        // Perpanjang/tambah part harus masuk ke SH yang sama, bukan buat baru.
+        // Cari SH existing berdasarkan kendaraan_id (ambil yang terbaru).
+        $existingSH = \App\Models\ServiceHistory::where('kendaraan_id', $kendaraanId)
+            ->latest()
+            ->first();
+
+        if ($existingSH) {
+            // Update header SH: tambah total_biaya, perbarui tanggal & kilometer jika lebih baru
+            $existingSH->update([
+                'total_biaya'     => $existingSH->total_biaya + $totalBiaya,
+                'tanggal_service' => $tanggalService,
+                'kilometer'       => max($kilometer, (int) $existingSH->kilometer),
+                'keluhan'         => $keluhan ?: $existingSH->keluhan,
+                'status'          => 'tidak_aktif', // ada part baru menunggu pemasangan
+                'pembayaran_id'   => $pembayaran->id,
+            ]);
+            $serviceHistory = $existingSH;
+        } else {
+            // Belum ada SH sama sekali untuk kendaraan ini → buat baru
+            $serviceHistory = \App\Models\ServiceHistory::create([
+                'kendaraan_id'       => $kendaraanId,
+                'tanggal_service'    => $tanggalService,
+                'kilometer'          => $kilometer,
+                'keluhan'            => $keluhan,
+                'total_biaya'        => $totalBiaya,
+                'status'             => 'tidak_aktif',
+                'status_approval'    => 'approved',
+                'status_pengeluaran' => $hasOverLimit ? 'overservice' : 'stabil',
+                'approval_by'        => auth()->id(),
+                'approval_at'        => now(),
+                'is_request'         => true,
+                'pembayaran_id'      => $pembayaran->id,
+            ]);
+        }
 
         foreach ($parts as $idx => $part) {
             // Hitung tanggal_limit
@@ -1284,7 +1363,6 @@ class PurchaseOrderController extends Controller
 
                 $sourceFull = storage_path('app/public/' . $storagePath);
                 if (!file_exists($sourceFull)) {
-                    // Coba public path langsung (kadang path sudah public)
                     $sourceFull = public_path($storagePath);
                 }
                 if (file_exists($sourceFull)) {
@@ -1298,7 +1376,6 @@ class PurchaseOrderController extends Controller
                         'type' => $tf['extension'] ?? pathinfo($storagePath, PATHINFO_EXTENSION),
                     ];
                 } elseif ($storagePath) {
-                    // File belum di-copy — simpan path asli supaya tidak hilang
                     $buktiFiles[] = [
                         'path' => $storagePath,
                         'name' => $tf['original_name'] ?? basename($storagePath),
@@ -1307,7 +1384,7 @@ class PurchaseOrderController extends Controller
                 }
             }
 
-            \App\Models\ServicePart::create([
+            $newPart = \App\Models\ServicePart::create([
                 'service_history_id' => $serviceHistory->id,
                 'kendaraan_id'       => $kendaraanId,
                 'category_id'        => $part['category_id'] ?? null,
@@ -1324,7 +1401,7 @@ class PurchaseOrderController extends Controller
                 'interval_satuan'    => $satuan,
                 'tanggal_limit'      => $tanggalLimit->toDateString(),
                 'biaya'              => (int) ($part['biaya'] ?? 0),
-                'keterangan_limit'   => $part['keterangan'] ?? null,
+                'keterangan_limit'   => $part['keterangan_limit'] ?? $part['keterangan'] ?? null,
                 'nama_bank'          => $part['nama_bank'] ?? null,
                 'no_rekening'        => $part['no_rekening'] ?? null,
                 'nama_rekening'      => $part['nama_rekening'] ?? null,
@@ -1335,6 +1412,9 @@ class PurchaseOrderController extends Controller
                 'approval_at'        => now(),
                 'persetujuan'        => 'Pending',
             ]);
+            // Part lama (replace_part_id) TIDAK di-archive di sini.
+            // Archive hanya terjadi saat user klik tombol Pasang (updatePartStatus).
+            // Selama menunggu pemasangan, part lama dan baru keduanya tampil di Tabel Aktif.
         }
     }
 

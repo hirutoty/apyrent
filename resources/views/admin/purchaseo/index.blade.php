@@ -317,6 +317,8 @@
                                         <th class="w-6 px-2 py-2.5"></th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">PO Number</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Vendor</th>
+                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Pemohon</th>
+                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Departemen</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Keluhan</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Total Harga</th>
@@ -351,7 +353,7 @@
                                             $gpsItems = $allGpsItems;
                                         }
 
-                                        $hasItems = !empty($allGpsItems) || (in_array($po->source_type, ['service_part', 'service_incident']) && !empty($sourceData['parts'])) || ($po->source_type === 'service_asuransi' && !empty($sourceData['kejadians']));
+                                        $hasItems = !empty($allGpsItems) || (in_array($po->source_type, ['service_part', 'service_incident']) && !empty($sourceData['parts'])) || ($po->source_type === 'service_asuransi' && !empty($sourceData['kejadians'])) || in_array($po->source_type, ['pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'kir', 'kir_perpanjang', 'stnk']);
                                     @endphp
                                     {{-- Baris utama --}}
                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40 hover:bg-blue-50/30 transition-colors {{ $hasItems ? 'cursor-pointer' : '' }}"
@@ -365,6 +367,8 @@
                                             <span class="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg border border-indigo-100">{{ $po->po_id }}</span>
                                         </td>
                                         <td class="px-4 py-3 text-xs text-gray-700">{{ $po->vendor ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-xs text-gray-700">{{ $po->pemohon ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-xs text-gray-700">{{ $po->departemen ?? '-' }}</td>
                                         <td class="px-4 py-3 text-xs text-gray-500">
                                             @php
                                                 $ketPO = $po->keterangan
@@ -556,7 +560,7 @@
                                         }
                                     @endphp
                                     <tr id="{{ $poRowId }}" class="hidden">
-                                        <td colspan="9" class="px-0 py-0">
+                                        <td colspan="11" class="px-0 py-0">
                                             @if($isServicePart || $isServiceIncident)
                                             {{-- ── SERVICE PART / SERVICE INCIDENT EXPAND ── --}}
                                             @php $expandColor = $isServiceIncident ? 'red' : 'orange'; @endphp
@@ -588,7 +592,6 @@
                                                     </div>
                                                     @endif
                                                 </div>
-
                                                 {{-- Lampiran per-part (bukti dari form incident/service part) --}}
                                                 @php
                                                     $siAllLampiran = [];
@@ -646,7 +649,7 @@
                                                                     </div>
                                                                 </th>
                                                                 @endif
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Keterangan</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Keterangan Limit</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Atas Nama</th>
@@ -714,24 +717,23 @@
                                                                     <td class="px-3 py-2 text-gray-500">
                                                                         @php
                                                                             $poKet = $part['keterangan_limit'] ?? $part['keterangan'] ?? null;
-                                                                            $poKetBadges = $poKet && $poKet !== '-' ? array_map('trim', explode(',', $poKet)) : [];
+                                                                            $poKetBadges = $poKet && $poKet !== '-' ? array_filter(array_map('trim', explode(',', $poKet))) : [];
                                                                         @endphp
                                                                         @if(!empty($poKetBadges))
                                                                             <div class="flex flex-col gap-0.5">
                                                                             @foreach($poKetBadges as $badge)
                                                                                 @php
-                                                                                    $badgeLower = strtolower($badge);
-                                                                                    if (str_contains($badgeLower, 'melebihi limit biaya')) {
-                                                                                        $badgeColor = 'bg-red-100 text-red-700';
-                                                                                    } elseif (str_contains($badgeLower, 'melebihi batas waktu') || str_contains($badgeLower, 'melebihi limit km')) {
-                                                                                        $badgeColor = 'bg-red-100 text-red-700';
-                                                                                    } elseif (str_contains($badgeLower, 'mencapai batas limit')) {
-                                                                                        $badgeColor = 'bg-yellow-100 text-yellow-700';
-                                                                                    } else {
-                                                                                        $badgeColor = 'bg-green-100 text-green-700';
-                                                                                    }
+                                                                                    $bl = strtolower($badge);
+                                                                                    $bc = match(true) {
+                                                                                        str_contains($bl, 'melebihi limit biaya'),
+                                                                                        str_contains($bl, 'melebihi batas waktu'),
+                                                                                        str_contains($bl, 'melebihi limit km'),
+                                                                                        str_contains($bl, 'melebihi batas limit km') => 'bg-red-100 text-red-700',
+                                                                                        str_contains($bl, 'mencapai batas limit')    => 'bg-yellow-100 text-yellow-700',
+                                                                                        default                                       => 'bg-green-100 text-green-700',
+                                                                                    };
                                                                                 @endphp
-                                                                                <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $badgeColor }}">{{ ucfirst($badge) }}</span>
+                                                                                <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $bc }}">{{ ucfirst($badge) }}</span>
                                                                             @endforeach
                                                                             </div>
                                                                         @else
@@ -798,6 +800,7 @@
                                                         <p class="font-mono text-[11px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">{{ $sourceData['keterangan'] ?? ($po->keterangan ?? '-') }}</p>
                                                     </div>
                                                 </div>
+                                                @php $_saPemohon = $po->pemohon ?? $sourceData['pemohon'] ?? null; $_saDept = $po->departemen ?? $sourceData['departemen'] ?? null; @endphp
 
                                                 {{-- Lampiran PO-level (temp_files) --}}
                                                 @php
@@ -1032,14 +1035,22 @@
 
 {{-- MODAL DETAIL --}}
 <div id="detailModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="text-lg font-bold text-gray-800">Purchase Order Detail</h3>
-            <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600">
-                <i class="fa fa-times text-lg"></i>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa fa-file-invoice text-indigo-500"></i> Detail Purchase Order
+                </h3>
+                <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span id="po_d_id" class="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded"></span>
+                    <span id="po_d_jenis" class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded"></span>
+                </div>
+            </div>
+            <button onclick="closeDetailModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center flex-shrink-0">
+                <i class="fa fa-xmark text-sm"></i>
             </button>
         </div>
-        <div class="flex-1 overflow-y-auto p-6" id="detailContent">
+        <div class="flex-1 overflow-y-auto" id="detailContent">
             <div class="flex items-center justify-center py-12">
                 <i class="fa fa-spinner fa-spin text-2xl text-gray-400"></i>
             </div>
@@ -1428,156 +1439,298 @@ function viewDetail(poId) {
     const modal = document.getElementById('detailModal');
     const content = document.getElementById('detailContent');
     modal.classList.remove('hidden'); modal.classList.add('flex');
+    document.getElementById('po_d_id').textContent = '';
+    document.getElementById('po_d_jenis').textContent = '';
     content.innerHTML = '<div class="flex items-center justify-center py-12"><i class="fa fa-spinner fa-spin text-2xl text-gray-400"></i></div>';
+
     fetch('/admin/purchase-order/' + poId + '/detail')
         .then(r => r.json())
-        .then(data => { content.innerHTML = data.success ? buildDetailContent(data) : '<p class="text-red-600 text-center py-8">' + (data.message || 'Error') + '</p>'; })
-        .catch(err => { content.innerHTML = '<p class="text-red-600 text-center py-8">' + err.message + '</p>'; });
-}
-function buildDetailContent(data) {
-    const po = data.po, details = data.details;
-    let html = '<div class="space-y-5">'
-        + '<div class="bg-gray-50 rounded-xl p-4 grid grid-cols-2 gap-4">'
-        + '<div><p class="text-xs text-gray-500">PO Number</p><p class="font-mono font-bold text-indigo-700">' + po.po_id + '</p></div>'
-        + '<div><p class="text-xs text-gray-500">Jenis</p><p class="font-semibold capitalize">' + (po.source_type || '').replace(/_/g, ' ') + '</p></div>'
-        + '<div><p class="text-xs text-gray-500">Vendor</p><p class="font-medium">' + (po.vendor || '-') + '</p></div>'
-        + '<div><p class="text-xs text-gray-500">Tanggal PO</p><p class="font-medium">' + (po.tanggal_po || '-') + '</p></div>'
-        + '<div><p class="text-xs text-gray-500">Total Items</p><p class="font-medium">' + po.total_barang + '</p></div>'
-        + '<div><p class="text-xs text-gray-500">Total Harga</p><p class="font-bold text-lg text-indigo-600">Rp ' + Number(po.total_harga).toLocaleString('id-ID') + '</p></div>'
-        + '</div>'
-        + (po.keterangan ? '<div class="mt-3 px-4 py-2.5 bg-gray-50 rounded-xl border border-gray-100"><p class="text-xs text-gray-400 mb-0.5">Keterangan</p><p class="text-sm text-gray-700">' + po.keterangan + '</p></div>' : '')
-        + '<div class="flex items-center gap-2"><span class="text-sm text-gray-600">Status:</span>' + getStatusBadge(po.status) + '</div>';
-    if (details.type === 'gps') {
-        const k = details.kendaraan || {};
-        html += '<div><h4 class="font-semibold text-gray-800 mb-2">Kendaraan</h4>'
-            + '<div class="bg-blue-50 rounded-xl p-3 text-sm space-y-1">'
-            + '<p><span class="text-gray-500">Nopol:</span> <b>' + (k.nopol || '-') + '</b></p>'
-            + '<p><span class="text-gray-500">Merk:</span> ' + (k.merk || '-') + '</p>'
-            + '<p><span class="text-gray-500">Tgl Bayar:</span> ' + (details.tanggal_bayar || '-') + '</p>'
-            + '<p><span class="text-gray-500">Berlaku s/d:</span> ' + (details.tanggal_habis || '-') + '</p>'
-            + '</div></div>';
-        html += '<div><h4 class="font-semibold text-gray-800 mb-2">GPS Items (' + details.items.length + ')</h4><div class="space-y-2">';
-        details.items.forEach(function(item) {
-            const lampiran = item.lampiran || [];
-            let lampiranHtml = lampiran.length
-                ? '<div class="mt-2 pt-2 border-t border-gray-100"><p class="text-[10px] font-semibold text-gray-400 uppercase mb-1"><i class="fa fa-paperclip mr-1"></i>Lampiran (' + lampiran.length + ')</p><div class="flex flex-wrap gap-1.5">'
-                    + lampiran.map(function(att) {
-                        const ext = (att.file_type || '').toLowerCase();
-                        const icon = ['jpg','jpeg','png'].includes(ext) ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
-                        return '<a href="' + att.file_path + '" target="_blank" class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-[11px] text-gray-600 hover:bg-blue-50 hover:text-blue-700 max-w-[180px]" title="' + att.file_name + '"><i class="fa ' + icon + ' text-[10px]"></i><span class="truncate">' + att.file_name + '</span></a>';
-                    }).join('') + '</div></div>'
-                : '<p class="mt-1 text-[11px] text-gray-300 italic">Tidak ada lampiran</p>';
-            html += '<div class="border border-gray-200 rounded-xl p-3">'
-                + '<div class="flex items-start justify-between mb-1"><div><p class="font-semibold text-gray-800">' + (item.gps_name || '-') + '</p><p class="text-xs text-gray-500">Type: ' + (item.type || '-') + '</p></div>'
-                + '<p class="font-bold text-indigo-600">Rp ' + Number(item.biaya_sewa || 0).toLocaleString('id-ID') + '</p></div>'
-                + '<div class="grid grid-cols-3 gap-2 text-xs text-gray-600"><div><span class="text-gray-400">Bank:</span> ' + (item.nama_bank || '-') + '</div><div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div><div><span class="text-gray-400">A/n:</span> ' + (item.nama_pemilik || '-') + '</div></div>'
-                + lampiranHtml + '</div>';
+        .then(data => {
+            if (data.success) {
+                document.getElementById('po_d_id').textContent    = data.po.po_id || '-';
+                document.getElementById('po_d_jenis').textContent = data.po.source_type_name || '';
+                content.innerHTML = buildDetailContent(data);
+            } else {
+                content.innerHTML = '<p class="text-red-600 text-center py-8 text-sm">' + (data.message || 'Gagal memuat data') + '</p>';
+            }
+        })
+        .catch(err => {
+            content.innerHTML = '<p class="text-red-600 text-center py-8 text-sm">' + err.message + '</p>';
         });
-        html += '</div></div>';
+}
+
+function buildDetailContent(data) {
+    const po      = data.po;
+    const details = data.details;
+
+    // ── Helper: file chip ────────────────────────────────────
+    function fileChip(filePath, fileName, colorClass) {
+        colorClass = colorClass || 'bg-blue-50 border-blue-200 text-blue-700';
+        if (!filePath) return '';
+        const ext   = (fileName || filePath).split('.').pop().toLowerCase();
+        const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
+        const icon  = isImg ? 'fa-image' : (ext === 'pdf' ? 'fa-file-pdf' : 'fa-paperclip');
+        return '<a href="' + filePath + '" target="_blank" title="' + (fileName || filePath) + '"'
+            + ' class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium hover:opacity-80 transition-opacity ' + colorClass + ' max-w-[180px]">'
+            + '<i class="fa ' + icon + ' text-[10px] flex-shrink-0"></i>'
+            + '<span class="truncate">' + (fileName || 'file') + '</span></a>';
     }
 
-    if (details.type === 'service_part') {
-        const k = details.kendaraan || {};
-        html += '<div><h4 class="font-semibold text-gray-800 mb-2 flex items-center gap-2"><i class="fa fa-tools text-orange-500 text-sm"></i> Kendaraan & Service</h4>'
-            + '<div class="bg-orange-50 rounded-xl p-3 text-sm grid grid-cols-2 gap-2">'
-            + '<div><span class="text-gray-500">Nopol:</span> <b>' + (k.nopol || '-') + '</b> <span class="text-gray-400">' + (k.merk || '') + '</span></div>'
-            + '<div><span class="text-gray-500">Tgl Service:</span> ' + (details.tanggal_service || '-') + '</div>'
-            + '<div><span class="text-gray-500">KM:</span> ' + (details.kilometer || '-') + '</div>'
-            + (details.keluhan ? '<div><span class="text-gray-500">Keluhan:</span> ' + details.keluhan + '</div>' : '')
-            + '</div></div>';
-        const items = details.items || [];
-        html += '<div><h4 class="font-semibold text-gray-800 mb-2">Service Parts (' + items.length + ')</h4><div class="space-y-2">';
-        let totalBiaya = 0;
-        items.forEach(function(item, idx) {
-            totalBiaya += Number(item.biaya || 0);
-            html += '<div class="border border-orange-200 rounded-xl p-3 bg-orange-50/20">'
-                + '<div class="flex items-start justify-between mb-1.5">'
-                + '<div><p class="font-semibold text-gray-800">' + (item.nama_part || '-') + '</p>'
-                + '<div class="flex items-center gap-1.5 mt-0.5 flex-wrap">'
-                + (item.category_nama ? '<span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">' + item.category_nama + '</span>' : '')
-                + (item.part_number && item.part_number !== '-' ? '<span class="font-mono text-gray-400 text-[10px]">' + item.part_number + '</span>' : '')
-                + (item.kondisi && item.kondisi !== '-' ? '<span class="text-gray-400 text-[10px]">Kondisi: ' + item.kondisi + '</span>' : '')
-                + (item.posisi && item.posisi !== '-' ? '<span class="text-gray-400 text-[10px]">Posisi: ' + item.posisi + '</span>' : '')
-                + '</div></div>'
-                + '<p class="font-bold text-emerald-600 text-sm">Rp ' + Number(item.biaya || 0).toLocaleString('id-ID') + '</p></div>'
-                + '<div class="grid grid-cols-3 gap-2 text-xs text-gray-600 border-t border-orange-100 pt-2 mt-1">'
-                + '<div><span class="text-gray-400">Bank:</span> ' + (item.nama_bank || '-') + '</div>'
-                + '<div><span class="text-gray-400">Rek:</span> ' + (item.no_rekening || '-') + '</div>'
-                + '<div><span class="text-gray-400">A/n:</span> ' + (item.nama_rekening || '-') + '</div>'
-                + '</div>'
-                + (function() {
-                    const lamps = item.lampiran || [];
-                    if (!lamps.length) return '<p class="mt-1.5 text-[10px] text-gray-300 italic border-t border-orange-100 pt-1"><i class="fa fa-paperclip mr-1"></i>Tidak ada lampiran</p>';
-                    return '<div class="mt-2 pt-2 border-t border-orange-100">'
-                        + '<p class="text-[10px] font-semibold text-gray-400 uppercase mb-1"><i class="fa fa-paperclip mr-1"></i>Lampiran (' + lamps.length + ')</p>'
-                        + '<div class="flex flex-wrap gap-1.5">'
-                        + lamps.map(function(f) {
-                            const ext = (f.file_type || '').toLowerCase();
-                            const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
-                            const icon = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : (['mp4','mov'].includes(ext) ? 'fa-file-video text-purple-400' : 'fa-paperclip text-gray-400'));
-                            return '<a href="' + f.file_path + '" target="_blank" class="inline-flex items-center gap-1 px-2 py-1 bg-white border border-orange-200 rounded-lg text-[11px] text-gray-600 hover:bg-orange-50 hover:text-orange-700 max-w-[180px]" title="' + f.file_name + '">'
-                                + '<i class="fa ' + icon + ' text-[10px]"></i>'
-                                + '<span class="truncate">' + f.file_name + '</span>'
-                                + '</a>';
-                        }).join('')
-                        + '</div></div>';
-                })()
-                + '</div>';
-        });
-        html += '</div>'
-            + '<div class="mt-2 flex justify-end"><p class="text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5">Total: Rp ' + totalBiaya.toLocaleString('id-ID') + '</p></div>'
+    // ── Helper: info cell ────────────────────────────────────
+    function infoCell(label, value) {
+        if (!value || value === '-') return '';
+        return '<div class="bg-gray-50 rounded-xl px-3 py-2.5">'
+            + '<p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-0.5">' + label + '</p>'
+            + '<p class="text-sm font-medium text-gray-700">' + value + '</p>'
             + '</div>';
     }
-    // ── LAMPIRAN (temp_files) ─────────────────────────────────
-    var tempFiles = po.temp_files || {};
-    var allLampiran = [].concat(tempFiles.bukti || [], tempFiles.attachments || []);
-    if (tempFiles.parts) { Object.values(tempFiles.parts).forEach(function(p) { allLampiran = allLampiran.concat(p.bukti || []); }); }
-    if (tempFiles.gps_items) { Object.values(tempFiles.gps_items).forEach(function(g) { allLampiran = allLampiran.concat(g.lampiran || []); }); }
-    if (allLampiran.length > 0) {
-        html += '<div><h4 class="font-semibold text-gray-800 mb-2 flex items-center gap-2"><i class="fa fa-paperclip text-blue-500 text-sm"></i> Lampiran (' + allLampiran.length + ')</h4>'
-            + '<div class="flex flex-wrap gap-2">';
-        allLampiran.forEach(function(f) {
-            var name = f.original_name || f.stored_name || 'file';
-            var ext  = (f.extension || '').toLowerCase();
-            var path = f.path || null;
-            var url  = path ? '/storage/' + path : null;
-            var isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
-            var icon  = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : (['mp4','mov'].includes(ext) ? 'fa-file-video text-purple-400' : 'fa-paperclip text-gray-400'));
-            var size  = f.size ? Math.round(f.size / 1024) + ' KB' : '';
-            if (url) {
-                html += '<a href="' + url + '" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors max-w-[200px]" title="' + name + '">'
-                    + '<i class="fa ' + icon + ' text-[11px] flex-shrink-0"></i>'
-                    + '<span class="truncate">' + name + '</span>'
-                    + (size ? '<span class="text-gray-400 text-[10px] flex-shrink-0">' + size + '</span>' : '')
-                    + '</a>';
-            } else {
-                html += '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-500 max-w-[200px]" title="' + name + '">'
-                    + '<i class="fa ' + icon + ' text-[11px] flex-shrink-0"></i><span class="truncate">' + name + '</span></span>';
-            }
-        });
+
+    let html = '<div class="px-6 py-4 space-y-4">';
+
+    // ── 1. Info utama PO ─────────────────────────────────────
+    html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">'
+        + infoCell('Tanggal PO', po.tanggal_po)
+        + infoCell('Pemohon', po.pemohon)
+        + infoCell('Departemen', po.departemen)
+        + infoCell('Vendor', po.vendor)
+        + '</div>';
+
+    // ── 2. Info Kendaraan & Service ───────────────────────────
+    const k = details.kendaraan || {};
+    const kLabel = (k.nopol && k.nopol !== '-') ? (k.nopol + ' — ' + (k.merk || '')) : null;
+    if (kLabel || details.tanggal_service || details.tanggal_bayar) {
+        const isService   = ['service_part','service_incident','service_asuransi'].includes(details.type);
+        const accentColor = details.type === 'service_asuransi' ? 'blue' : (isService ? 'orange' : 'green');
+        html += '<div class="bg-' + accentColor + '-50/50 border border-' + accentColor + '-100 rounded-xl px-4 py-3">'
+            + '<p class="text-[10px] font-bold text-' + accentColor + '-600 uppercase tracking-wide mb-2">'
+            + '<i class="fa fa-car mr-1"></i> Kendaraan & Service</p>'
+            + '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">';
+        if (kLabel)                 html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kendaraan</p><p class="font-semibold text-gray-800">' + kLabel + '</p></div>';
+        if (details.tanggal_service)html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Service</p><p class="text-gray-700">' + details.tanggal_service + '</p></div>';
+        if (details.tanggal_bayar)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + details.tanggal_bayar + '</p></div>';
+        if (details.tanggal_habis)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + details.tanggal_habis + '</p></div>';
+        if (details.kilometer && details.kilometer !== '-') html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kilometer</p><p class="text-gray-700">' + details.kilometer + ' km</p></div>';
+        if (details.keluhan && details.keluhan !== '-')    html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keluhan</p><p class="text-gray-700">' + details.keluhan + '</p></div>';
+        if (details.nama_asuransi && details.nama_asuransi !== '-') html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Asuransi</p><p class="text-gray-700">' + details.nama_asuransi + '</p></div>';
         html += '</div></div>';
     }
 
-    if (po.status !== 'Pending') {
-        html += '<div class="border-t pt-4"><h4 class="font-semibold text-gray-800 mb-2">Info Approval</h4>'
-            + '<div class="bg-gray-50 rounded-xl p-3 space-y-1 text-sm">'
-            + '<p><span class="text-gray-500">Oleh:</span> ' + (po.status === 'Ditolak' ? '-' : (po.disetujui_oleh || '-')) + '</p>'
-            + '<p><span class="text-gray-500">Tanggal:</span> ' + (po.tanggal_persetujuan || '-') + '</p>'
-            + (po.catatan_approval ? '<p><span class="text-gray-500">Catatan:</span> ' + po.catatan_approval + '</p>' : '')
-            + (po.pembayaran_no_pr ? '<p><span class="text-gray-500">Pembayaran:</span> <b class="font-mono">' + po.pembayaran_no_pr + '</b></p>' : '')
-            + '</div></div>';
+    // ── 3. Keterangan / Alasan PO ────────────────────────────
+    const alasanValue = po.catatan;
+    const ketValue    = po.keterangan || details.keterangan;
+    if (alasanValue && alasanValue !== '-') {
+        html += '<div class="bg-blue-50 rounded-xl px-4 py-3 border border-blue-100">'
+            + '<p class="text-[10px] text-blue-500 font-semibold uppercase tracking-wide mb-1">Alasan Permintaan</p>'
+            + '<p class="text-sm text-blue-800">' + alasanValue + '</p></div>';
+    } else if (ketValue && ketValue !== '-') {
+        html += '<div class="bg-blue-50 rounded-xl px-4 py-3 border border-blue-100">'
+            + '<p class="text-[10px] text-blue-500 font-semibold uppercase tracking-wide mb-1">Keterangan</p>'
+            + '<p class="text-sm text-blue-800">' + ketValue + '</p></div>';
     }
+
+    // ── 4. Items / Parts ──────────────────────────────────────
+    const items = details.items || [];
+    if (items.length > 0) {
+        const totalHarga = Number(po.total_harga || 0);
+        html += '<div class="border border-gray-100 rounded-xl overflow-hidden">'
+            + '<div class="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">'
+            + '<p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detail Items (' + items.length + ')</p>'
+            + '<p class="text-sm font-bold text-emerald-600">Total: Rp ' + totalHarga.toLocaleString('id-ID') + '</p>'
+            + '</div>';
+
+        items.forEach(function(item, idx) {
+            const isGps          = details.type === 'gps';
+            const isServicePart  = ['service_part','service_incident'].includes(details.type);
+            const isServiceAsr   = details.type === 'service_asuransi';
+
+            const itemName   = item.nama_part || item.gps_name || item.nama_kejadian || '-';
+            const itemBiaya  = Number(item.biaya || item.biaya_sewa || 0);
+            const hasBank    = (item.nama_bank && item.nama_bank !== '-') || (item.no_rekening && item.no_rekening !== '-');
+            const lampiranArr = item.lampiran || [];
+            const hasLampiran = lampiranArr.length > 0;
+
+            html += '<div class="px-4 py-3' + (idx > 0 ? ' border-t border-gray-100' : '') + '">'
+                // Row atas: nama + harga
+                + '<div class="flex items-start justify-between gap-2 mb-2">'
+                + '<div class="flex-1 min-w-0">'
+                + '<div class="flex items-center gap-1.5 flex-wrap">';
+
+            // Badge kategori
+            if (item.category_nama && item.category_nama !== '-') {
+                html += '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">' + item.category_nama + '</span>';
+            } else if (item.type && item.type !== '-') {
+                html += '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700">' + item.type + '</span>';
+            }
+            html += '<span class="text-sm font-semibold text-gray-800">' + itemName + '</span>';
+            if (item.part_number && item.part_number !== '-') {
+                html += '<span class="font-mono text-gray-400 text-[10px]">(' + item.part_number + ')</span>';
+            }
+            if (item.kondisi && item.kondisi !== '-') {
+                html += '<span class="text-[10px] text-gray-400">· ' + item.kondisi + '</span>';
+            }
+            html += '</div>';
+
+            // Keterangan limit (teks singkat — sekarang diganti blok limit_snapshot di bawah)
+            html += '</div>'
+                + '<span class="text-sm font-bold text-emerald-600 flex-shrink-0">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span>'
+                + '</div>';
+
+            // ── Limit Snapshot (Service vs Limit grid) ──────────────
+            const snap = item.limit_snapshot || null;
+            if (snap) {
+                html += '<div class="mt-1.5 mb-2">'
+                    // Baris header
+                    + '<div class="grid grid-cols-2 gap-x-3 text-[10px] font-semibold text-gray-400 uppercase mb-0.5 px-1">'
+                    + '<span class="text-blue-500">Service</span><span class="text-orange-400">Limit</span></div>'
+                    // Biaya
+                    + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1 mb-0.5">'
+                    + '<span class="' + (snap.biaya_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">Rp ' + Number(snap.service_biaya || 0).toLocaleString('id-ID') + '</span>'
+                    + '<span class="text-gray-400">' + (snap.limit_biaya ? 'Rp ' + Number(snap.limit_biaya).toLocaleString('id-ID') : '—') + '</span>'
+                    + '</div>'
+                    // Tanggal
+                    + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1 mb-0.5">'
+                    + '<span class="' + (snap.tanggal_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">' + (snap.service_tanggal || '—') + '</span>'
+                    + '<span class="text-gray-400">' + (snap.limit_interval_label || '—') + '</span>'
+                    + '</div>'
+                    // KM
+                    + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1">'
+                    + '<span class="' + (snap.km_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">KM ' + Number(snap.service_km || 0).toLocaleString('id-ID') + '</span>'
+                    + '<span class="text-gray-400">' + (snap.limit_km_target ? 'KM ' + Number(snap.limit_km_target).toLocaleString('id-ID') : '—') + '</span>'
+                    + '</div>'
+                    + '</div>';
+            }
+
+            // ── Keterangan Limit badges ──────────────────────────────
+            const ketLimitStr = item.keterangan_limit || item.keterangan || null;
+            if (ketLimitStr && ketLimitStr !== '-') {
+                const badges = ketLimitStr.split(',').map(s => s.trim()).filter(Boolean);
+                if (badges.length > 0) {
+                    html += '<div class="flex flex-wrap gap-1 mb-2">';
+                    badges.forEach(function(badge) {
+                        const bl = badge.toLowerCase();
+                        let bc = 'bg-green-100 text-green-700';
+                        if (bl.includes('melebihi limit biaya') || bl.includes('melebihi batas waktu') || bl.includes('melebihi limit km') || bl.includes('melebihi batas limit km')) {
+                            bc = 'bg-red-100 text-red-700';
+                        } else if (bl.includes('mencapai batas limit')) {
+                            bc = 'bg-yellow-100 text-yellow-700';
+                        }
+                        html += '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ' + bc + '">' + badge.charAt(0).toUpperCase() + badge.slice(1) + '</span>';
+                    });
+                    html += '</div>';
+                }
+            }
+
+            // Info supplier + bank per item
+            const itemSupplier = item.supplier || null;
+            if (itemSupplier || hasBank) {
+                html += '<div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 mb-2 px-1">';
+                if (itemSupplier) {
+                    html += '<span class="flex items-center gap-1 font-medium text-gray-700"><i class="fa fa-store text-[9px] text-indigo-400"></i>' + itemSupplier + '</span>';
+                    if (hasBank) html += '<span class="text-gray-200 select-none">|</span>';
+                }
+                if (hasBank) {
+                    html += '<span class="flex items-center gap-1"><i class="fa fa-building text-[9px] text-amber-500"></i>' + (item.nama_bank || '-') + '</span>'
+                        + '<span class="flex items-center gap-1"><i class="fa fa-credit-card text-[9px] text-amber-500"></i>' + (item.no_rekening || item.nama_pemilik || '-') + '</span>';
+                    const namaRek = item.nama_rekening || item.nama_pemilik;
+                    if (namaRek && namaRek !== '-') {
+                        html += '<span class="flex items-center gap-1"><i class="fa fa-user text-[9px] text-amber-500"></i>' + namaRek + '</span>';
+                    }
+                }
+                html += '</div>';
+            }
+
+            // Lampiran per item
+            if (lampiranArr.length > 0) {
+                html += '<div class="flex flex-wrap gap-1.5">';
+                lampiranArr.forEach(function(f) {
+                    html += fileChip(f.file_path, f.file_name, 'bg-blue-50 border-blue-200 text-blue-700');
+                });
+                html += '</div>';
+            }
+
+            html += '</div>';
+        });
+
+        html += '<div class="border-t-2 border-gray-200 bg-gray-50 px-4 py-2.5 flex justify-end">'
+            + '<span class="text-sm font-bold text-emerald-600">Rp ' + Number(po.total_harga || 0).toLocaleString('id-ID') + '</span>'
+            + '</div></div>';
+
+    } else if (details.type === 'asuransi_kendaraan' || details.type === 'pajak' || details.type === 'kir') {
+        // Single-item types — tampilkan info spesifik
+        html += '<div class="border border-gray-100 rounded-xl px-4 py-4 space-y-3">';
+        html += '<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">';
+        if (details.type === 'pajak') {
+            if (details.jenis_pajak)   html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Jenis Pajak</p><p class="font-semibold text-gray-700">' + details.jenis_pajak + '</p></div>';
+            if (details.tanggal_bayar) html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + details.tanggal_bayar + '</p></div>';
+            if (details.jatuh_tempo)   html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Jatuh Tempo</p><p class="text-gray-700">' + details.jatuh_tempo + '</p></div>';
+        } else if (details.type === 'asuransi_kendaraan') {
+            if (details.perusahaan)    html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Perusahaan</p><p class="font-semibold text-gray-700">' + details.perusahaan + '</p></div>';
+            if (details.jenis_asuransi)html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Jenis</p><p class="text-gray-700">' + details.jenis_asuransi + '</p></div>';
+            if (details.tgl_mulai)     html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Mulai</p><p class="text-gray-700">' + details.tgl_mulai + '</p></div>';
+            if (details.tgl_berakhir)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + details.tgl_berakhir + '</p></div>';
+        } else if (details.type === 'kir') {
+            if (details.no_uji)        html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">No. Uji</p><p class="font-mono text-gray-700">' + details.no_uji + '</p></div>';
+            if (details.tanggal_bayar) html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + details.tanggal_bayar + '</p></div>';
+            if (details.masa_berlaku)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + details.masa_berlaku + '</p></div>';
+        }
+        html += '</div>';
+
+        // Nominal
+        const nominalVal = details.nominal || details.biaya || 0;
+        if (nominalVal) {
+            html += '<div class="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">'
+                + '<span class="text-xs text-gray-500">Total Nominal</span>'
+                + '<span class="text-sm font-bold text-emerald-600">Rp ' + Number(nominalVal).toLocaleString('id-ID') + '</span></div>';
+        }
+
+        // Bank info (single item)
+        const bankName = details.nama_bank || '-';
+        const bankRek  = details.no_rekening || '-';
+        if (bankName !== '-' || bankRek !== '-') {
+            html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">'
+                + '<p class="text-[10px] font-semibold text-amber-600 uppercase mb-1.5"><i class="bi bi-bank mr-1"></i>Rekening Bank</p>'
+                + '<div class="flex flex-wrap gap-x-5 gap-y-1 text-xs">';
+            if (bankName !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">Bank</span><span class="font-medium text-gray-700">' + bankName + '</span></div>';
+            if (bankRek  !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">No. Rekening</span><span class="font-mono font-medium text-gray-700">' + bankRek + '</span></div>';
+            const namaRek = details.nama_rekening || details.nama_pemilik;
+            if (namaRek && namaRek !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">Atas Nama</span><span class="font-medium text-gray-700">' + namaRek + '</span></div>';
+            html += '</div></div>';
+        }
+
+        // Lampiran
+        const lampiranArr = details.lampiran || [];
+        if (lampiranArr.length > 0) {
+            html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase mb-1.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>'
+                + '<div class="flex flex-wrap gap-1.5">';
+            lampiranArr.forEach(function(f) {
+                html += fileChip(f.file_path, f.file_name, 'bg-blue-50 border-blue-200 text-blue-700');
+            });
+            html += '</div></div>';
+        }
+        html += '</div>';
+    }
+
+    // ── 5. Info Approval ──────────────────────────────────────
+    if (po.disetujui_oleh || po.tanggal_persetujuan || po.catatan_approval) {
+        const isApproved  = po.status === 'Disetujui';
+        const apColor     = isApproved ? 'green' : 'red';
+        const apIcon      = isApproved ? 'fa-check-circle' : 'fa-times-circle';
+        const apLabel     = isApproved ? 'Disetujui' : 'Ditolak';
+        html += '<div class="bg-' + apColor + '-50 border border-' + apColor + '-200 rounded-xl px-4 py-3">'
+            + '<p class="text-[10px] font-semibold text-' + apColor + '-600 uppercase tracking-wide mb-2">'
+            + '<i class="fa ' + apIcon + ' mr-1"></i> Info Approval — ' + apLabel + '</p>'
+            + '<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">';
+        if (po.disetujui_oleh)       html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Oleh</p><p class="font-semibold text-gray-700">' + po.disetujui_oleh + '</p></div>';
+        if (po.tanggal_persetujuan)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tanggal</p><p class="text-gray-700">' + po.tanggal_persetujuan + '</p></div>';
+        if (po.catatan_approval)     html += '<div class="col-span-2 sm:col-span-3"><p class="text-[10px] text-gray-400 uppercase mb-0.5">Catatan</p><p class="text-gray-700">' + po.catatan_approval + '</p></div>';
+        html += '</div></div>';
+    }
+
+    html += '<div class="pb-2"><button onclick="closeDetailModal()" class="w-full text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2 hover:bg-gray-50 transition-colors">Tutup</button></div>';
     html += '</div>';
     return html;
 }
-function getStatusBadge(status) {
-    const map = {
-        'Pending':   '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700"><i class="fa fa-clock text-[8px]"></i> Pending</span>',
-        'Disetujui': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>',
-        'Ditolak':   '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>',
-    };
-    return map[status] || status;
-}
+
 function closeDetailModal() {
     document.getElementById('detailModal').classList.replace('flex','hidden');
     document.getElementById('detailModal').classList.add('hidden');

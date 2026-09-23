@@ -317,6 +317,9 @@ class PengeluaranTransferService
                     'status'      => 'aktif',
                     'persetujuan' => 'Disetujui',
                 ]);
+            // Part lama (replace_part_id) TIDAK di-archive di sini.
+            // Archive hanya terjadi saat user klik tombol Pasang (updatePartStatus).
+            // Selama menunggu pemasangan, part lama dan baru keduanya tampil di Tabel Aktif.
 
             return $draftByPembayaran->id;
         }
