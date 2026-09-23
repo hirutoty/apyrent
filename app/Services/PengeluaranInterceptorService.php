@@ -103,12 +103,22 @@ class PengeluaranInterceptorService
                     ? $limitRules[$categoryId]
                     : null;
 
+                // Simpan nilai keterangan_limit dari form (hidden input) sebelum ditimpa
+                $ketFromForm = trim($partData['keterangan_limit'] ?? '');
+
                 $partData['keterangan_limit'] = $this->buildKeteranganLimitForIntercept(
                     $partData,
                     $kmInput,
                     $limitRule,
                     $data['tanggal_service'] ?? null
                 );
+
+                // Jika server-side generate hasilnya '-' atau kosong,
+                // gunakan nilai dari form sebagai fallback (dari JS calcKeteranganLimit).
+                if (($partData['keterangan_limit'] === '-' || empty($partData['keterangan_limit']))
+                    && $ketFromForm && $ketFromForm !== '-') {
+                    $partData['keterangan_limit'] = $ketFromForm;
+                }
 
                 // Inject limit_snapshot: nilai aktual service vs nilai limit per dimensi
                 // Digunakan untuk kolom perbandingan Service vs Limit di view PO
@@ -131,10 +141,10 @@ class PengeluaranInterceptorService
                     'limit_interval_label' => ($intervalNilaiSnap > 0)
                                                 ? $intervalNilaiSnap . ' ' . ucfirst($intervalSatuanSnap)
                                                 : null,
-                    // KM pasang vs KM target (km_pasang + limit_km)
+                    // KM pasang vs KM limit (murni dari rule, tanpa ditambah km_pasang)
                     'service_km'      => $kmPasangSnap,
                     'limit_km_target' => ($limitRule && $limitRule->limit_km)
-                                            ? $kmPasangSnap + (int) $limitRule->limit_km
+                                            ? (int) $limitRule->limit_km
                                             : null,
                     // Flag lewat atau tidak per dimensi (untuk pewarnaan merah)
                     'biaya_lewat'   => $limitRule && $limitRule->limit_price
@@ -144,7 +154,7 @@ class PengeluaranInterceptorService
                                         ? $tglLimitSnap->lt(\Carbon\Carbon::parse($data['tanggal_service'] ?? now())->startOfDay())
                                         : false,
                     'km_lewat'      => ($limitRule && $limitRule->limit_km)
-                                        ? ($kmInput > $kmPasangSnap + (int) $limitRule->limit_km)
+                                        ? ($kmInput > (int) $limitRule->limit_km)
                                         : false,
                 ];
             }
@@ -153,13 +163,31 @@ class PengeluaranInterceptorService
 
         // Get user info
         $user = Auth::user();
-        
+
+        // Mapping role → departemen (konsisten dengan PembayaranController)
+        $deptMap = [
+            'keuangan'   => 'Keuangan',
+            'produksi'   => 'Produksi',
+            'hrd'        => 'HRD',
+            'purchase'   => 'Purchase',
+            'sales'      => 'Sales',
+            'marketing'  => 'Marketing',
+            'it'         => 'IT',
+            'operasi'    => 'Operasi',
+            'superadmin' => 'Superadmin',
+        ];
+
+        // Inject pemohon & departemen ke dalam source_data
+        // supaya tersimpan di PO dan bisa dibaca saat approve → buat Pembayaran
+        $data['pemohon']    = $user->name ?? $user->email;
+        $data['departemen'] = $deptMap[$user->role ?? ''] ?? $user->departemen ?? '-';
+
         // Format data berdasarkan source type
         $formattedData = [
             'source_type' => $sourceType,
             'source_data' => $data,
-            'departemen' => $user->departemen ?? 'Umum',
-            'pemohon' => $user->nama ?? $user->email,
+            'departemen' => $deptMap[$user->role ?? ''] ?? $user->departemen ?? '-',
+            'pemohon' => $user->name ?? $user->email,
             'alasan_permintaan' => $this->getAlasanPermintaan($sourceType, $data),
             'nominal' => $this->extractNominal($sourceType, $data),
             'nama_bank' => $request->input('nama_bank'),
@@ -232,9 +260,9 @@ class PengeluaranInterceptorService
         $waktuAman   = !$intervalAda || $tglLimit->gt($refTanggal);
 
         $kmAda      = $kmLimit && $kmLimit > 0;
-        $kmSama     = $kmAda && $kmInput === $kmPasang + $kmLimit;
-        $kmLewat    = $kmAda && $kmInput > $kmPasang + $kmLimit;
-        $kmAman     = !$kmAda || $kmInput < $kmPasang + $kmLimit;
+        $kmSama     = $kmAda && $kmInput === $kmLimit;
+        $kmLewat    = $kmAda && $kmInput > $kmLimit;
+        $kmAman     = !$kmAda || $kmInput < $kmLimit;
 
         $adaLimit   = $hargaLimit || $intervalAda || $kmAda;
         if (!$adaLimit || ($biayaAman && $waktuAman && $kmAman)) {
@@ -577,19 +605,20 @@ class PengeluaranInterceptorService
             
             // Create Purchase Order
             $po = \App\Models\PurchaseOrder::create([
-                'tanggal_po' => now()->toDateString(),
-                'vendor' => $vendor,
-                'terkait_rfq' => $data['source_data']['terkait_rfq'] ?? null,
-                'total_barang' => $totalItems,
-                'total_harga' => (int) $data['nominal'],
-                'status_po' => 'Pending', // Legacy field, not used in new flow
-                'catatan' => $data['informasi'] ?? $data['source_data']['keterangan'] ?? null,
-                'keterangan' => $data['source_data']['keterangan'] ?? null,
-                // Approval workflow fields
-                'source_type' => $sourceType,
-                'source_data' => $data['source_data'],
-                'status' => 'Pending',
-                'can_edit' => false,
+                'tanggal_po'        => now()->toDateString(),
+                'vendor'            => $vendor,
+                'pemohon'           => $data['source_data']['pemohon'] ?? $data['pemohon'] ?? null,
+                'departemen'        => $data['source_data']['departemen'] ?? $data['departemen'] ?? null,
+                'terkait_rfq'       => $data['source_data']['terkait_rfq'] ?? null,
+                'total_barang'      => $totalItems,
+                'total_harga'       => (int) $data['nominal'],
+                'status_po'         => 'Pending',
+                'catatan'           => $data['informasi'] ?? $data['source_data']['keterangan'] ?? null,
+                'keterangan'        => $data['source_data']['keterangan'] ?? null,
+                'source_type'       => $sourceType,
+                'source_data'       => $data['source_data'],
+                'status'            => 'Pending',
+                'can_edit'          => false,
                 'terakhir_diajukan' => now(),
             ]);
             

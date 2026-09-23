@@ -15,6 +15,8 @@ class PurchaseOrder extends Model
         'po_id',
         'tanggal_po',
         'vendor',
+        'pemohon',
+        'departemen',
         'terkait_rfq',
         'total_barang',
         'total_harga',

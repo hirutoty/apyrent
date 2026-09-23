@@ -39,6 +39,7 @@
             </div>
             <h2 class="text-2xl font-bold text-blue-600">{{ $totalDiajukan }}</h2>
             <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalDiajukan, 0, ',', '.') }}</p>
+            <p class="text-[10px] text-gray-300 mt-0.5">item</p>
         </div>
         <div class="bg-white rounded-2xl border border-yellow-100 p-5">
             <div class="flex items-center gap-2 mb-2">
@@ -49,6 +50,7 @@
             </div>
             <h2 class="text-2xl font-bold text-yellow-600">{{ $totalPending }}</h2>
             <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalPending, 0, ',', '.') }}</p>
+            <p class="text-[10px] text-gray-300 mt-0.5">item</p>
         </div>
         <div class="bg-white rounded-2xl border border-emerald-100 p-5">
             <div class="flex items-center gap-2 mb-2">
@@ -59,6 +61,7 @@
             </div>
             <h2 class="text-2xl font-bold text-emerald-600">{{ $totalDisetujui }}</h2>
             <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalDisetujui, 0, ',', '.') }}</p>
+            <p class="text-[10px] text-gray-300 mt-0.5">item</p>
         </div>
         <div class="bg-white rounded-2xl border border-red-100 p-5">
             <div class="flex items-center gap-2 mb-2">
@@ -69,6 +72,7 @@
             </div>
             <h2 class="text-2xl font-bold text-red-600">{{ $totalDitolak }}</h2>
             <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalDitolak, 0, ',', '.') }}</p>
+            <p class="text-[10px] text-gray-300 mt-0.5">item</p>
         </div>
     </div>
 
@@ -364,43 +368,8 @@
 
                         <span class="text-sm font-bold text-gray-800">{{ $jenis }}</span>
 
-                        {{-- Breakdown status per item — hanya tampil di tab Semua --}}
-                        @if(($tab ?? '') === 'semua')
-                        <span class="flex items-center gap-1">
-                            @if($grpPending > 0)
-                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
-                                Pending: {{ $grpPending }}
-                            </span>
-                            @endif
-                            @if($grpDiajukan > 0)
-                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                                Diajukan: {{ $grpDiajukan }}
-                            </span>
-                            @endif
-                            @if($grpApproved > 0 && $grpRejected > 0)
-                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">
-                                <i class="fa fa-adjust text-[8px]"></i> Sebagian Ditolak ({{ $grpApproved }}/{{ $grpApproved + $grpRejected }})
-                            </span>
-                            @elseif($grpApproved > 0)
-                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
-                                Disetujui: {{ $grpApproved }}
-                            </span>
-                            @endif
-                            @if($grpRejected > 0 && $grpApproved === 0)
-                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
-                                Ditolak: {{ $grpRejected }}
-                            </span>
-                            @endif
-                        </span>
-                        @else
-                        {{-- Di tab selain Semua: tampilkan count part saja --}}
+                        {{-- Count PR --}}
                         <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{ $items->count() }} PR</span>
-                        @if($grpRejected > 0 && $grpApproved > 0)
-                        <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">
-                            <i class="fa fa-adjust text-[8px]"></i> Sebagian Ditolak
-                        </span>
-                        @endif
-                        @endif
                         {{-- Per-group approve/reject — sebelah kanan nama jenis --}}
                         @if($role === 'superadmin' && $tab === 'Pending' && count($pendingIds) > 0)
                             <div class="flex gap-1.5 flex-shrink-0 ml-auto" onclick="event.stopPropagation()">
@@ -432,7 +401,7 @@
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Tanggal</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Departemen</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Pemohon</th>
-                                        <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Keterangan</th>
+                                        <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Keluhan</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Nominal</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Status</th>
@@ -443,17 +412,14 @@
                                 <tbody>
                                 @foreach($items as $di => $d)
                                     @php
-                                        // Hitung approved/rejected dari approval history untuk GPS
-                                        $approvedCount = 0;
-                                        $rejectedCount = 0;
-                                        $isGpsPartial  = false;
-                                        if ($d->status === 'Disetujui Sebagian' && in_array($d->source_type, ['gps','gps_perpanjang'])) {
-                                            $approvedCount = $d->approvals->where('action','approved')->count();
-                                            $rejectedCount = $d->approvals->where('action','rejected')->count();
-                                            $isGpsPartial  = true;
-                                        }
+                                        // Hitung approved/rejected dari item_decisions (berlaku untuk semua tipe per-item)
+                                        $_decRaw   = (is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []))['item_decisions'] ?? [];
+                                        $_decColl  = collect($_decRaw);
+                                        $approvedCount = $_decColl->where('action','approved')->count();
+                                        $rejectedCount = $_decColl->where('action','rejected')->count();
+                                        $totalDecCount = $approvedCount + $rejectedCount;
 
-                                        // Status color: Disetujui Sebagian diperlakukan berbeda per tab
+                                        // Status color
                                         $statusColor = match($d->status) {
                                             'Disetujui'          => 'bg-green-100 text-green-700',
                                             'Ditolak'            => 'bg-red-100 text-red-700',
@@ -461,7 +427,7 @@
                                             'Pending'            => 'bg-yellow-100 text-yellow-600',
                                             'Disetujui Sebagian' => $tab === 'Ditolak'
                                                                         ? 'bg-red-100 text-red-700'
-                                                                        : 'bg-green-100 text-green-700',
+                                                                        : 'bg-teal-100 text-teal-700',
                                             default              => 'bg-gray-100 text-gray-500',
                                         };
                                         $statusIcon = match($d->status) {
@@ -469,13 +435,22 @@
                                             'Ditolak'            => 'fa-times-circle',
                                             'Diajukan'           => 'fa-paper-plane',
                                             'Pending'            => 'fa-clock',
-                                            'Disetujui Sebagian' => $tab === 'Ditolak' ? 'fa-times-circle' : 'fa-check-circle',
+                                            'Disetujui Sebagian' => $tab === 'Ditolak' ? 'fa-times-circle' : 'fa-adjust',
                                             default              => 'fa-circle',
                                         };
-                                        $statusLabel = match($d->status) {
-                                            'Disetujui Sebagian' => $tab === 'Ditolak' ? 'Ditolak' : 'Disetujui',
-                                            default              => $d->status ?? '-',
-                                        };
+                                        // Label: "Sebagian Ditolak (approved/total)" jika ada partial
+                                        if ($d->status === 'Disetujui Sebagian' && $totalDecCount > 0) {
+                                            if ($tab === 'Ditolak') {
+                                                $statusLabel = 'Sebagian Ditolak (' . $rejectedCount . '/' . $totalDecCount . ')';
+                                            } else {
+                                                $statusLabel = 'Sebagian Ditolak (' . $approvedCount . '/' . $totalDecCount . ')';
+                                            }
+                                        } else {
+                                            $statusLabel = match($d->status) {
+                                                'Disetujui Sebagian' => $tab === 'Ditolak' ? 'Ditolak' : 'Disetujui',
+                                                default              => $d->status ?? '-',
+                                            };
+                                        }
 
                                         $rowUid = 'r'.$gIdx.'i'.$di;
                                         $_sd_items = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
@@ -497,16 +472,47 @@
                                                         ->filter(fn($g, $i) => ($_decMapCount[$i]['action'] ?? '') !== 'approved' && $_decMapCount->has($i))
                                                         ->count();
                                                 } else {
-                                                    // Semua/Pending/Diajukan: total gps_items
                                                     $itemCount = count($_gpsItemsAll);
                                                 }
                                             } else {
                                                 $itemCount = count($_gpsItemsAll);
                                             }
-                                        } elseif ($d->source_type === 'service_asuransi' && !empty($_sdKejad)) {
-                                            $itemCount = count($_sdKejad);
                                         } elseif (in_array($d->source_type, ['service_part', 'service_incident']) && !empty($_sdParts)) {
-                                            $itemCount = count($_sdParts);
+                                            // Service part/incident: filter per tab jika ada item_decisions
+                                            if (!empty($_dec)) {
+                                                $_decMapCount = collect($_dec)->keyBy('idx');
+                                                if (in_array($tab ?? '', ['Disetujui'])) {
+                                                    $itemCount = collect($_sdParts)
+                                                        ->filter(fn($p, $i) => ($_decMapCount[$i]['action'] ?? '') === 'approved')
+                                                        ->count();
+                                                } elseif (in_array($tab ?? '', ['Ditolak'])) {
+                                                    $itemCount = collect($_sdParts)
+                                                        ->filter(fn($p, $i) => ($_decMapCount[$i]['action'] ?? '') === 'rejected')
+                                                        ->count();
+                                                } else {
+                                                    $itemCount = count($_sdParts);
+                                                }
+                                            } else {
+                                                $itemCount = count($_sdParts);
+                                            }
+                                        } elseif ($d->source_type === 'service_asuransi' && !empty($_sdKejad)) {
+                                            // Service asuransi: filter per tab jika ada item_decisions
+                                            if (!empty($_dec)) {
+                                                $_decMapCount = collect($_dec)->keyBy('idx');
+                                                if (in_array($tab ?? '', ['Disetujui'])) {
+                                                    $itemCount = collect($_sdKejad)
+                                                        ->filter(fn($k, $i) => ($_decMapCount[$i]['action'] ?? '') === 'approved')
+                                                        ->count();
+                                                } elseif (in_array($tab ?? '', ['Ditolak'])) {
+                                                    $itemCount = collect($_sdKejad)
+                                                        ->filter(fn($k, $i) => ($_decMapCount[$i]['action'] ?? '') === 'rejected')
+                                                        ->count();
+                                                } else {
+                                                    $itemCount = count($_sdKejad);
+                                                }
+                                            } else {
+                                                $itemCount = count($_sdKejad);
+                                            }
                                         } elseif ($d->items->count() > 0) {
                                             $itemCount = $d->items->count();
                                         } else {
@@ -631,8 +637,39 @@
                                                             $_rowNominal = $_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0);
                                                         }
                                                     } else {
-                                                        // service_part, pajak, asuransi, kir, stnk, dll: pakai nominal langsung
-                                                        $_rowNominal = $_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0);
+                                                        // service_part / service_incident / service_asuransi: filter per item_decisions
+                                                        if (!$_decMap->isEmpty() && in_array($_srcType, ['service_part', 'service_incident'])) {
+                                                            $_nomApprRow = collect($_sd['parts'] ?? [])
+                                                                ->filter(fn($p, $i) => ($_decMap[$i]['action'] ?? '') === 'approved')
+                                                                ->sum(fn($p) => $p['biaya'] ?? 0);
+                                                            $_nomRejRow = collect($_sd['parts'] ?? [])
+                                                                ->filter(fn($p, $i) => ($_decMap[$i]['action'] ?? '') === 'rejected')
+                                                                ->sum(fn($p) => $p['biaya'] ?? 0);
+                                                            if (in_array($tab ?? '', ['Ditolak'])) {
+                                                                $_rowNominal = $_nomRejRow ?: ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0));
+                                                            } elseif (in_array($tab ?? '', ['Disetujui'])) {
+                                                                $_rowNominal = $_nomApprRow ?: ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0));
+                                                            } else {
+                                                                $_rowNominal = ($_nomApprRow + $_nomRejRow) > 0 ? ($_nomApprRow + $_nomRejRow) : ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->nominal ?? 0));
+                                                            }
+                                                        } elseif (!$_decMap->isEmpty() && $_srcType === 'service_asuransi') {
+                                                            $_nomApprRow = collect($_sd['kejadians'] ?? [])
+                                                                ->filter(fn($k, $i) => ($_decMap[$i]['action'] ?? '') === 'approved')
+                                                                ->sum(fn($k) => $k['biaya'] ?? 0);
+                                                            $_nomRejRow = collect($_sd['kejadians'] ?? [])
+                                                                ->filter(fn($k, $i) => ($_decMap[$i]['action'] ?? '') === 'rejected')
+                                                                ->sum(fn($k) => $k['biaya'] ?? 0);
+                                                            if (in_array($tab ?? '', ['Ditolak'])) {
+                                                                $_rowNominal = $_nomRejRow ?: ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0));
+                                                            } elseif (in_array($tab ?? '', ['Disetujui'])) {
+                                                                $_rowNominal = $_nomApprRow ?: ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0));
+                                                            } else {
+                                                                $_rowNominal = ($_nomApprRow + $_nomRejRow) > 0 ? ($_nomApprRow + $_nomRejRow) : ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->nominal ?? 0));
+                                                            }
+                                                        } else {
+                                                            // pajak, asuransi_kendaraan, kir, stnk, dll: pakai nominal langsung
+                                                            $_rowNominal = $_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0);
+                                                        }
                                                     }
                                                 }
                                             @endphp
@@ -649,7 +686,7 @@
                                         <td class="px-3 py-3" onclick="event.stopPropagation()">
                                             <div class="flex items-center justify-center gap-1 flex-wrap">
 
-                                                <button type="button" onclick="openDetailModal({{ $d->id }})"
+                                                <button type="button" onclick="openDetailModal({{ $d->id }}, '{{ $tab }}')"
                                                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors">
                                                     <i class="fa fa-eye text-[10px]"></i> Detail
                                                 </button>
@@ -1058,6 +1095,7 @@
                                                     {{-- Fallback --}}
                                                     @elseif($d->source_type === 'service_part')
                                                     @php
+                                                        $spKendaraan = isset($sd['kendaraan_id']) ? \App\Models\Kendaraan::find($sd['kendaraan_id']) : null;
                                                         $spParts    = $sd['parts'] ?? [];
                                                         $spDecMap   = collect($sd['item_decisions'] ?? [])->keyBy('idx');
                                                         if ($spDecMap->isNotEmpty()) {
@@ -1073,6 +1111,21 @@
                                                         }
                                                         $spTotal = collect($filteredParts)->sum(fn($p) => $p['biaya'] ?? 0);
                                                     @endphp
+                                                    {{-- Header info kendaraan, tgl service, km --}}
+                                                    <div class="px-4 py-3 grid grid-cols-3 gap-3 bg-orange-50/40 border-b border-orange-100 text-xs">
+                                                        <div>
+                                                            <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Kendaraan</p>
+                                                            <p class="font-semibold text-gray-800">{{ $spKendaraan ? $spKendaraan->nopol . ' — ' . $spKendaraan->merk : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tgl Service</p>
+                                                            <p class="text-gray-700">{{ isset($sd['tanggal_service']) ? \Carbon\Carbon::parse($sd['tanggal_service'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">KM / Keluhan</p>
+                                                            <p class="text-gray-700">{{ ($sd['kilometer'] ?? '-') . ($sd['keluhan'] ? ' — ' . \Illuminate\Support\Str::limit($sd['keluhan'], 25) : '') }}</p>
+                                                        </div>
+                                                    </div>
                                                     @if(count($filteredParts) > 0)
                                                     <table class="w-full text-xs">
                                                         <thead>
@@ -1087,7 +1140,7 @@
                                                                         <span class="text-orange-500">Limit</span>
                                                                     </div>
                                                                 </th>
-                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Keterangan</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Keterangan Limit</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Atas Nama</th>
@@ -1158,24 +1211,23 @@
                                                                 <td class="px-4 py-2 text-gray-500">
                                                                     @php
                                                                         $ket = $spart['keterangan_limit'] ?? $spart['keterangan'] ?? null;
-                                                                        $ketBadges = ($ket && $ket !== '-') ? array_map('trim', explode(',', $ket)) : [];
+                                                                        $ketBadges = ($ket && $ket !== '-') ? array_filter(array_map('trim', explode(',', $ket))) : [];
                                                                     @endphp
                                                                     @if(!empty($ketBadges))
                                                                         <div class="flex flex-col gap-0.5">
                                                                         @foreach($ketBadges as $badge)
                                                                             @php
-                                                                                $badgeLower = strtolower($badge);
-                                                                                if (str_contains($badgeLower, 'melebihi limit biaya')) {
-                                                                                    $badgeColor = 'bg-red-100 text-red-700';
-                                                                                } elseif (str_contains($badgeLower, 'melebihi batas waktu') || str_contains($badgeLower, 'melebihi limit km')) {
-                                                                                    $badgeColor = 'bg-red-100 text-red-700';
-                                                                                } elseif (str_contains($badgeLower, 'mencapai batas limit')) {
-                                                                                    $badgeColor = 'bg-yellow-100 text-yellow-700';
-                                                                                } else {
-                                                                                    $badgeColor = 'bg-green-100 text-green-700';
-                                                                                }
+                                                                                $bl = strtolower($badge);
+                                                                                $bc = match(true) {
+                                                                                    str_contains($bl, 'melebihi limit biaya'),
+                                                                                    str_contains($bl, 'melebihi batas waktu'),
+                                                                                    str_contains($bl, 'melebihi limit km'),
+                                                                                    str_contains($bl, 'melebihi batas limit km') => 'bg-red-100 text-red-700',
+                                                                                    str_contains($bl, 'mencapai batas limit')    => 'bg-yellow-100 text-yellow-700',
+                                                                                    default                                       => 'bg-green-100 text-green-700',
+                                                                                };
                                                                             @endphp
-                                                                            <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $badgeColor }}">{{ ucfirst($badge) }}</span>
+                                                                            <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $bc }}">{{ ucfirst($badge) }}</span>
                                                                         @endforeach
                                                                         </div>
                                                                     @else
@@ -1211,7 +1263,6 @@
                                                                     @if(!empty($spBukti))
                                                                         @php
                                                                             $buktiVal = $spBukti[0];
-                                                                            // bukti_bayar_admin bisa berupa path string atau array
                                                                             if (is_array($buktiVal)) {
                                                                                 $bPath = $buktiVal['path'] ?? '';
                                                                                 $bName = $buktiVal['original_name'] ?? basename($bPath);
@@ -1223,21 +1274,16 @@
                                                                                 $bExt  = strtolower(pathinfo($bPath, PATHINFO_EXTENSION));
                                                                                 $bUrl  = asset($bPath);
                                                                             }
-                                                                            $isImg = in_array($bExt, ['jpg','jpeg','png','gif','webp']);
+                                                                            $bIcon = in_array($bExt, ['jpg','jpeg','png','gif','webp'])
+                                                                                ? 'fa-image'
+                                                                                : ($bExt === 'pdf' ? 'fa-file-pdf' : 'fa-paperclip');
                                                                         @endphp
-                                                                        @if($isImg)
-                                                                            <a href="{{ $bUrl }}" target="_blank" title="{{ $bName }}">
-                                                                                <img src="{{ $bUrl }}" alt="{{ $bName }}"
-                                                                                    class="w-10 h-10 object-cover rounded border border-green-200 hover:opacity-80 transition-opacity">
-                                                                            </a>
-                                                                        @else
-                                                                            <a href="{{ $bUrl }}" target="_blank"
-                                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 text-[10px]"
-                                                                                title="{{ $bName }}">
-                                                                                <i class="fa fa-file-alt text-[9px]"></i>
-                                                                                {{ Str::limit($bName, 15) }}
-                                                                            </a>
-                                                                        @endif
+                                                                        <a href="{{ $bUrl }}" target="_blank"
+                                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 text-[10px]"
+                                                                            title="{{ $bName }}">
+                                                                            <i class="fa {{ $bIcon }} text-[9px]"></i>
+                                                                            {{ Str::limit($bName, 20) }}
+                                                                        </a>
                                                                     @else
                                                                         <span class="text-gray-300 text-[10px]">—</span>
                                                                     @endif
@@ -1628,6 +1674,8 @@
                                                 @endif
 
                                                 {{-- Rekening Bank --}}
+                                                {{-- Untuk service_part/service_incident: info bank sudah tampil per-part di tabel di atas --}}
+                                                @if(!in_array($d->source_type, ['service_part', 'service_incident']))
                                                 @if($d->nama_bank || $d->no_rekening || $d->nama_rekening)
                                                 <div class="mx-4 mb-3 mt-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
                                                     <p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-2"><i class="bi bi-bank mr-1"></i> Rekening Bank</p>
@@ -1637,6 +1685,7 @@
                                                         @if($d->nama_rekening)<div><p class="text-[10px] text-amber-500 uppercase">Atas Nama</p><p class="text-xs font-medium text-gray-700">{{ $d->nama_rekening }}</p></div>@endif
                                                     </div>
                                                 </div>
+                                                @endif
                                                 @endif
 
                                             </div>
@@ -1920,40 +1969,33 @@
 
 {{-- MODAL: DETAIL --}}
 <div id="detailModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4" style="backdrop-filter:blur(2px)">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4" style="animation:slideUp .2s ease">
-        <div class="flex items-start justify-between px-6 py-4 border-b border-gray-100">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4 max-h-[92vh] flex flex-col" style="animation:slideUp .2s ease">
+        {{-- Header --}}
+        <div class="flex items-start justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
             <div>
                 <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                    <i class="fa fa-file-lines text-blue-500"></i> Detail Pembayaran
+                    <i class="fa fa-file-invoice text-blue-500"></i> Detail Pembayaran
                 </h2>
-                <p id="d_no_pr" class="text-xs text-gray-400 mt-0.5 font-mono"></p>
-            </div>
-            <button onclick="closeDetailModal()"
-                class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center">
-                <i class="fa-solid fa-xmark text-sm"></i>
-            </button>
-        </div>
-        <div class="px-6 py-4 space-y-3">
-            <div class="grid grid-cols-4 gap-3">
-                <div class="bg-gray-50 rounded-xl px-3 py-2.5"><p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Tanggal</p><p id="d_tanggal" class="text-sm font-medium text-gray-700"></p></div>
-                <div class="bg-gray-50 rounded-xl px-3 py-2.5"><p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Pemohon</p><p id="d_pemohon" class="text-sm font-medium text-gray-700"></p></div>
-                <div class="bg-gray-50 rounded-xl px-3 py-2.5"><p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Departemen</p><p id="d_departemen" class="text-sm font-medium text-gray-700"></p></div>
-                <div class="bg-gray-50 rounded-xl px-3 py-2.5"><p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Status</p><span id="d_status_badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"></span></div>
-            </div>
-            <div class="border border-gray-100 rounded-xl overflow-hidden">
-                <div class="bg-gray-50 px-4 py-2 border-b border-gray-100"><p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detail Items</p></div>
-                <div id="d_items_container"></div>
-                <div id="d_old_structure" class="hidden grid grid-cols-1 divide-y divide-gray-100">
-                    <div class="px-4 py-2.5"><p class="text-[10px] text-gray-400 mb-0.5">Barang/Jasa</p><p id="d_barang_jasa" class="text-sm font-medium text-gray-700"></p></div>
+                <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span id="d_no_pr" class="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded"></span>
+                    <span id="d_jenis_badge" class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded"></span>
                 </div>
             </div>
-            <div>
-                <div class="bg-emerald-50 rounded-xl px-3 py-2.5 border border-emerald-100"><p class="text-[10px] text-emerald-400 font-semibold uppercase tracking-wide mb-0.5">Total Nominal</p><p id="d_total_nominal" class="text-base font-bold text-emerald-700"></p></div>
-            </div>
-            <div class="bg-blue-50 rounded-xl px-4 py-3 border border-blue-100"><p class="text-[10px] text-blue-400 font-semibold uppercase tracking-wide mb-1">Alasan Permintaan</p><p id="d_alasan" class="text-sm text-blue-700"></p></div>
-            <div id="d_catatan_section" class="hidden bg-red-50 border border-red-100 rounded-xl px-4 py-2.5"><p class="text-[10px] text-red-400 font-semibold uppercase tracking-wide mb-0.5">Catatan Penolakan</p><p id="d_catatan" class="text-sm text-red-700"></p></div>
+            <button onclick="closeDetailModal()"
+                class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center flex-shrink-0">
+                <i class="fa fa-xmark text-sm"></i>
+            </button>
         </div>
-        <div class="px-6 pb-4">
+        {{-- Scrollable body --}}
+        <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4" id="d_body">
+            {{-- Loading --}}
+            <div id="d_loading" class="flex items-center justify-center py-12 text-gray-400">
+                <i class="fa fa-spinner fa-spin text-xl mr-2"></i> Memuat data...
+            </div>
+            {{-- Content (diisi JS) --}}
+            <div id="d_content" class="hidden space-y-4"></div>
+        </div>
+        <div class="px-6 pb-4 flex-shrink-0">
             <button onclick="closeDetailModal()" class="w-full text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2 hover:bg-gray-50 transition-colors">Tutup</button>
         </div>
     </div>
@@ -2414,74 +2456,273 @@ document.getElementById('modalBulkApprove')?.addEventListener('click', e => { if
 document.getElementById('modalBulkReject')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeBulkRejectModal(); });
 
 // ── DETAIL MODAL ──────────────────────────────────────────────
-function openDetailModal(id) {
+function openDetailModal(id, currentTab) {
     const modal = document.getElementById('detailModal');
     modal.classList.remove('hidden'); modal.classList.add('flex');
-    document.getElementById('d_no_pr').innerText = 'Loading...';
-    document.getElementById('d_items_container').innerHTML =
-        '<div class="px-4 py-6 text-center text-gray-400"><i class="fa fa-spinner fa-spin mr-2"></i>Loading...</div>';
+    document.getElementById('d_no_pr').textContent = '';
+    document.getElementById('d_jenis_badge').textContent = '';
+    document.getElementById('d_loading').classList.remove('hidden');
+    document.getElementById('d_content').classList.add('hidden');
+    document.getElementById('d_content').innerHTML = '';
 
     fetch('/admin/pembayaran/' + id + '/details')
         .then(r => r.json())
-        .then(data => { if (data.success) populateDetailModal(data.pembayaran); else closeDetailModal(); })
+        .then(data => {
+            if (data.success) populateDetailModal(data.pembayaran, currentTab || 'semua');
+            else closeDetailModal();
+        })
         .catch(() => closeDetailModal());
 }
 
-function populateDetailModal(pr) {
-    document.getElementById('d_no_pr').innerText = pr.no_pr;
-    document.getElementById('d_tanggal').innerText = pr.tanggal_formatted;
-    document.getElementById('d_pemohon').innerHTML = pr.pemohon_nama
-        ? `<span class="font-semibold text-gray-800">${pr.pemohon_nama}</span><br><span class="text-[11px] text-gray-400">${pr.pemohon}</span>`
-        : pr.pemohon;
-    document.getElementById('d_departemen').innerText = pr.departemen;
-    document.getElementById('d_alasan').innerText = pr.alasan_permintaan || '-';
-    const sb = document.getElementById('d_status_badge');
-    sb.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ' + pr.status_class;
-    sb.innerHTML = '<i class="fa fa-circle text-[6px]"></i> ' + pr.status;
-    document.getElementById('d_total_nominal').innerText = 'Rp ' + pr.total_nominal_formatted;
+function populateDetailModal(pr, activeTab) {
+    activeTab = activeTab || 'semua';
+    document.getElementById('d_no_pr').textContent = pr.no_pr || '-';
+    document.getElementById('d_jenis_badge').textContent = pr.source_type_name || 'Belanja';
+    document.getElementById('d_loading').classList.add('hidden');
 
-    const container = document.getElementById('d_items_container');
-    const oldStruct = document.getElementById('d_old_structure');
-    if (pr.items && pr.items.length > 0) {
-        container.innerHTML = '';
-        oldStruct.classList.add('hidden');
-        pr.items.forEach((item, idx) => {
-            const statusBadge = item.status_item === 'approved'
-                ? '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>'
-                : item.status_item === 'rejected'
-                ? '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>'
-                : '';
-            const div = document.createElement('div');
-            div.className = 'p-4' + (idx > 0 ? ' border-t border-gray-100' : '');
-            div.innerHTML = `<div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">Item #${idx+1}</span>
-                    ${statusBadge}
-                    ${item.kategori ? `<span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">${item.kategori}</span>` : ''}
-                </div>
-                ${item.subtotal ? '<span class="text-sm font-semibold text-emerald-600">Rp '+item.subtotal_formatted+'</span>' : ''}
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                <div class="col-span-2 md:col-span-1"><p class="text-[10px] text-gray-400 uppercase mb-0.5">Nama</p><p class="font-medium text-gray-700">${item.nama_barang || '-'}</p></div>
-                ${item.qty ? `<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Qty</p><p class="font-medium text-gray-700">${item.qty} ${item.satuan||''}</p></div>` : ''}
-                ${item.harga_satuan ? `<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Harga Satuan</p><p class="text-gray-600">Rp ${item.harga_satuan_formatted}</p></div>` : ''}
-                ${item.keterangan ? `<div class="col-span-2 md:col-span-3"><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keterangan</p><p class="text-gray-600 text-[11px]">${item.keterangan}</p></div>` : ''}
-            </div>`;
-            container.appendChild(div);
+    const content = document.getElementById('d_content');
+    content.classList.remove('hidden');
+
+    // ── Helper: file chip ────────────────────────────────────
+    function fileChip(url, name, colorClass) {
+        colorClass = colorClass || 'bg-blue-50 border-blue-200 text-blue-700';
+        if (!url) return '';
+        const ext = (name || '').split('.').pop().toLowerCase();
+        const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
+        const icon = isImg ? 'fa-image' : (ext === 'pdf' ? 'fa-file-pdf' : 'fa-paperclip');
+        return '<a href="' + url + '" target="_blank" title="' + name + '"'
+            + ' class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium hover:opacity-80 transition ' + colorClass + ' max-w-[180px]">'
+            + '<i class="fa ' + icon + ' text-[10px] flex-shrink-0"></i>'
+            + '<span class="truncate">' + (name || 'file') + '</span></a>';
+    }
+
+    // ── Helper: info row ──────────────────────────────────────
+    function infoCell(label, value) {
+        if (!value) return '';
+        return '<div class="bg-gray-50 rounded-xl px-3 py-2.5">'
+            + '<p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-0.5">' + label + '</p>'
+            + '<p class="text-sm font-medium text-gray-700">' + value + '</p>'
+            + '</div>';
+    }
+
+    // ── Filter items berdasarkan activeTab + item_decisions ───
+    function filterItemsByTab(items) {
+        if (!items || !items.length) return items || [];
+        // Cek apakah ada item yang punya status_item (dari item_decisions)
+        const hasDecisions = items.some(function(it) { return it.status_item !== null && it.status_item !== undefined; });
+        if (!hasDecisions) return items; // belum ada keputusan, tampilkan semua
+        if (activeTab === 'Disetujui') {
+            return items.filter(function(it) { return it.status_item === 'approved'; });
+        }
+        if (activeTab === 'Ditolak') {
+            return items.filter(function(it) { return it.status_item === 'rejected'; });
+        }
+        return items; // semua/pending/diajukan → tampilkan semua
+    }
+
+    let html = '';
+
+    // ── 1. Info utama PR ─────────────────────────────────────
+    html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">'
+        + infoCell('Tanggal', pr.tanggal_formatted)
+        + infoCell('Pemohon', pr.pemohon_nama ? '<span class="font-semibold text-gray-800">' + pr.pemohon_nama + '</span><br><span class="text-[11px] text-gray-400">' + pr.pemohon + '</span>' : (pr.pemohon || '-'))
+        + infoCell('Departemen', pr.departemen)
+        + infoCell('Vendor', pr.vendor)
+        + '</div>';
+    // Tanggal ajukan sebagai baris terpisah (hanya jika ada)
+    if (pr.terakhir_diajukan_formatted) {
+        html += '<div class="grid grid-cols-1">' + infoCell('Tanggal Diajukan', pr.terakhir_diajukan_formatted) + '</div>';
+    }
+
+    // ── 2. Info Kendaraan & Service (jika ada) ────────────────
+    if (pr.kendaraan || pr.service_info) {
+        const k = pr.kendaraan || {};
+        const s = pr.service_info || {};
+        const isAsuransi = pr.source_type === 'service_asuransi';
+        const color = isAsuransi ? 'blue' : 'orange';
+        html += '<div class="bg-' + color + '-50/50 border border-' + color + '-100 rounded-xl px-4 py-3">'
+            + '<p class="text-[10px] font-bold text-' + color + '-600 uppercase tracking-wide mb-2">'
+            + '<i class="fa fa-car mr-1"></i> Kendaraan & Service</p>'
+            + '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">';
+        if (k.label)             html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kendaraan</p><p class="font-semibold text-gray-800">' + k.label + '</p></div>';
+        if (s.tanggal_service)   html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Service</p><p class="text-gray-700">' + s.tanggal_service + '</p></div>';
+        if (s.kilometer)         html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kilometer</p><p class="text-gray-700">' + s.kilometer + ' km</p></div>';
+        if (s.keluhan)           html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keluhan</p><p class="text-gray-700">' + s.keluhan + '</p></div>';
+        if (s.nama_asuransi)     html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Asuransi</p><p class="text-gray-700">' + s.nama_asuransi + '</p></div>';
+        if (s.keterangan)        html += '<div class="col-span-2"><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keterangan</p><p class="text-gray-700">' + s.keterangan + '</p></div>';
+        html += '</div></div>';
+    }
+
+    // ── 3. Alasan & Keterangan ────────────────────────────────
+    if (pr.alasan_permintaan && pr.alasan_permintaan !== '-') {
+        html += '<div class="bg-blue-50 rounded-xl px-4 py-3 border border-blue-100">'
+            + '<p class="text-[10px] text-blue-500 font-semibold uppercase tracking-wide mb-1">Alasan Permintaan</p>'
+            + '<p class="text-sm text-blue-800">' + pr.alasan_permintaan + '</p></div>';
+    }
+
+    // ── 4. Items / Daftar Part ────────────────────────────────
+    const allItems = pr.items || [];
+    const items = filterItemsByTab(allItems);
+    const isTabRejected = activeTab === 'Ditolak';
+    if (items.length > 0) {
+        // Hitung total dari items yang ditampilkan
+        const visibleTotal = items.reduce(function(s, it) {
+            return s + (parseInt((it.subtotal || '').toString().replace(/\D/g,'')) || 0);
+        }, 0);
+        const totalDisplay = visibleTotal > 0
+            ? visibleTotal.toLocaleString('id-ID')
+            : pr.total_nominal_formatted;
+        html += '<div class="border border-gray-100 rounded-xl overflow-hidden">'
+            + '<div class="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">'
+            + '<p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detail Items (' + items.length + ')</p>'
+            + '<p class="text-sm font-bold ' + (isTabRejected ? 'text-red-500' : 'text-emerald-600') + '">Total: Rp ' + totalDisplay + '</p>'
+            + '</div>';
+
+        items.forEach(function(item, idx) {
+            const hasBank = item.nama_bank || item.no_rekening;
+            const lampiranArr = item.lampiran || [];
+            const bukti = item.bukti || null;
+            const hasFiles = lampiranArr.length > 0 || bukti;
+
+            html += '<div class="px-4 py-3' + (idx > 0 ? ' border-t border-gray-100' : '') + '">'
+                // Row atas: nama + harga
+                + '<div class="flex items-start justify-between gap-2 mb-2">'
+                + '<div class="flex-1 min-w-0">'
+                + '<div class="flex items-center gap-1.5 flex-wrap">';
+            if (item.kategori) html += '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">' + item.kategori + '</span>';
+            html += '<span class="text-sm font-semibold text-gray-800">' + (item.nama_barang || '-') + '</span>';
+            if (item.part_number) html += '<span class="font-mono text-gray-400 text-[10px]">(' + item.part_number + ')</span>';
+            if (item.kondisi)     html += '<span class="text-[10px] text-gray-400">· ' + item.kondisi + '</span>';
+            html += '</div>'
+                + (item.keterangan ? '<p class="text-[11px] text-gray-400 mt-0.5">' + item.keterangan + '</p>' : '')
+                + '</div>'
+                + '<span class="text-sm font-bold text-emerald-600 flex-shrink-0">Rp ' + (item.subtotal_formatted || '0') + '</span>'
+                + '</div>';
+
+            // ── Limit Snapshot (Service vs Limit grid) ──────────────
+            const snap = item.limit_snapshot || null;
+            if (snap) {
+                html += '<div class="mt-1.5 mb-2">'
+                    + '<div class="grid grid-cols-2 gap-x-3 text-[10px] font-semibold text-gray-400 uppercase mb-0.5 px-1">'
+                    + '<span class="text-blue-500">Service</span><span class="text-orange-400">Limit</span></div>'
+                    + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1 mb-0.5">'
+                    + '<span class="' + (snap.biaya_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">Rp ' + Number(snap.service_biaya || 0).toLocaleString('id-ID') + '</span>'
+                    + '<span class="text-gray-400">' + (snap.limit_biaya ? 'Rp ' + Number(snap.limit_biaya).toLocaleString('id-ID') : '—') + '</span>'
+                    + '</div>'
+                    + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1 mb-0.5">'
+                    + '<span class="' + (snap.tanggal_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">' + (snap.service_tanggal || '—') + '</span>'
+                    + '<span class="text-gray-400">' + (snap.limit_interval_label || '—') + '</span>'
+                    + '</div>'
+                    + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1">'
+                    + '<span class="' + (snap.km_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">KM ' + Number(snap.service_km || 0).toLocaleString('id-ID') + '</span>'
+                    + '<span class="text-gray-400">' + (snap.limit_km_target ? 'KM ' + Number(snap.limit_km_target).toLocaleString('id-ID') : '—') + '</span>'
+                    + '</div>'
+                    + '</div>';
+            }
+
+            // ── Keterangan Limit badges ──────────────────────────────
+            const ketLimitStr = item.keterangan_limit || null;
+            if (ketLimitStr && ketLimitStr !== '-') {
+                const badges = ketLimitStr.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+                if (badges.length > 0) {
+                    html += '<div class="flex flex-wrap gap-1 mb-2">';
+                    badges.forEach(function(badge) {
+                        const bl = badge.toLowerCase();
+                        let bc = 'bg-green-100 text-green-700';
+                        if (bl.includes('melebihi limit biaya') || bl.includes('melebihi batas waktu') || bl.includes('melebihi limit km') || bl.includes('melebihi batas limit km')) {
+                            bc = 'bg-red-100 text-red-700';
+                        } else if (bl.includes('mencapai batas limit')) {
+                            bc = 'bg-yellow-100 text-yellow-700';
+                        }
+                        html += '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ' + bc + '">' + badge.charAt(0).toUpperCase() + badge.slice(1) + '</span>';
+                    });
+                    html += '</div>';
+                }
+            }
+
+            // Info Supplier per item (jika ada)
+            if (item.supplier) {
+                html += '<div class="flex items-center gap-1.5 text-[11px] text-gray-600 font-medium mb-1.5 px-1">'
+                    + '<i class="fa fa-store text-[9px] text-indigo-400"></i>' + item.supplier
+                    + '</div>';
+            }
+
+            // Info Bank per item
+            if (hasBank) {
+                html += '<div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 mb-2 px-1">'
+                    + '<span class="flex items-center gap-1"><i class="fa fa-building text-[9px] text-amber-500"></i>'
+                    + (item.nama_bank || '-') + '</span>'
+                    + '<span class="flex items-center gap-1"><i class="fa fa-credit-card text-[9px] text-amber-500"></i>'
+                    + (item.no_rekening || '-') + '</span>'
+                    + (item.nama_rekening ? '<span class="flex items-center gap-1"><i class="fa fa-user text-[9px] text-amber-500"></i>' + item.nama_rekening + '</span>' : '')
+                    + '</div>';
+            }
+
+            // Lampiran + Bukti per item
+            if (hasFiles) {
+                html += '<div class="flex flex-wrap gap-1.5">';
+                if (lampiranArr.length > 0) {
+                    lampiranArr.forEach(function(f) {
+                        html += fileChip(f.url, f.name, 'bg-blue-50 border-blue-200 text-blue-700');
+                    });
+                }
+                if (bukti) {
+                    html += fileChip(bukti.url, bukti.name, 'bg-emerald-50 border-emerald-200 text-emerald-700');
+                }
+                html += '</div>';
+            }
+            html += '</div>';
         });
-    } else {
-        oldStruct.classList.remove('hidden');
-        container.innerHTML = '';
-        document.getElementById('d_barang_jasa').innerText = pr.barang_jasa || '-';
+
+        // Total row
+        html += '<div class="border-t-2 border-gray-200 bg-gray-50 px-4 py-2.5 flex justify-end">'
+            + '<span class="text-sm font-bold ' + (isTabRejected ? 'text-red-500' : 'text-emerald-600') + '">Rp ' + totalDisplay + '</span>'
+            + '</div>';
+        html += '</div>';
+
+    } else if (pr.barang_jasa) {
+        html += '<div class="border border-gray-100 rounded-xl px-4 py-3">'
+            + '<p class="text-[10px] text-gray-400 mb-0.5 uppercase">Barang/Jasa</p>'
+            + '<p class="text-sm font-medium text-gray-700">' + pr.barang_jasa + '</p>'
+            + (pr.nominal_formatted ? '<p class="text-sm font-bold text-emerald-600 mt-1">Rp ' + pr.nominal_formatted + '</p>' : '')
+            + '</div>';
     }
 
-    const catatanSection = document.getElementById('d_catatan_section');
-    if (pr.catatan && pr.catatan.trim()) {
-        document.getElementById('d_catatan').innerText = pr.catatan;
-        catatanSection.classList.remove('hidden');
-    } else {
-        catatanSection.classList.add('hidden');
+    // ── 5. Info Rekening bank level PR (untuk non service_part/incident) ─
+    if (!pr.source_type || !['service_part','service_incident'].includes(pr.source_type)) {
+        if (pr.nama_bank || pr.no_rekening) {
+            html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">'
+                + '<p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-2"><i class="bi bi-bank mr-1"></i> Rekening Bank</p>'
+                + '<div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">';
+            if (pr.nama_bank)     html += '<div><span class="text-[10px] text-gray-400 uppercase block">Bank</span><span class="font-medium text-gray-700">' + pr.nama_bank + '</span></div>';
+            if (pr.no_rekening)   html += '<div><span class="text-[10px] text-gray-400 uppercase block">No. Rekening</span><span class="font-mono font-medium text-gray-700">' + pr.no_rekening + '</span></div>';
+            if (pr.nama_rekening) html += '<div><span class="text-[10px] text-gray-400 uppercase block">Atas Nama</span><span class="font-medium text-gray-700">' + pr.nama_rekening + '</span></div>';
+            html += '</div></div>';
+        }
     }
+
+    // ── 6. Info Approval ──────────────────────────────────────
+    const ap = pr.approval;
+    if (ap && (ap.oleh || ap.tanggal || ap.catatan)) {
+        const isApproved = ap.action === 'approved';
+        const apColor = isApproved ? 'green' : 'red';
+        const apIcon  = isApproved ? 'fa-check-circle' : 'fa-times-circle';
+        const apLabel = isApproved ? 'Disetujui' : 'Ditolak';
+        html += '<div class="bg-' + apColor + '-50 border border-' + apColor + '-200 rounded-xl px-4 py-3">'
+            + '<p class="text-[10px] font-semibold text-' + apColor + '-600 uppercase tracking-wide mb-2">'
+            + '<i class="fa ' + apIcon + ' mr-1"></i> Info Approval — ' + apLabel + '</p>'
+            + '<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">';
+        if (ap.oleh)    html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Oleh</p><p class="font-semibold text-gray-700">' + ap.oleh + '</p></div>';
+        if (ap.tanggal) html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tanggal</p><p class="text-gray-700">' + ap.tanggal + '</p></div>';
+        if (ap.catatan) html += '<div class="col-span-2 sm:col-span-3"><p class="text-[10px] text-gray-400 uppercase mb-0.5">Catatan</p><p class="text-gray-700">' + ap.catatan + '</p></div>';
+        html += '</div></div>';
+    } else if (pr.catatan) {
+        html += '<div class="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">'
+            + '<p class="text-[10px] text-red-400 font-semibold uppercase tracking-wide mb-0.5">Catatan</p>'
+            + '<p class="text-sm text-red-700">' + pr.catatan + '</p></div>';
+    }
+
+    content.innerHTML = html;
 }
 
 function closeDetailModal() {

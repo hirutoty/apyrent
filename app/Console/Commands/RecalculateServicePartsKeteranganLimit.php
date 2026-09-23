@@ -93,18 +93,36 @@ class RecalculateServicePartsKeteranganLimit extends Command
         $kmLimit     = $limitRule->limit_km;
         $intervalAda = $intervalNilai > 0;
 
-        $biayaLewat = $hargaLimit && $biaya > $hargaLimit;
-        $biayaSama  = $hargaLimit && $biaya === $hargaLimit;
-        $biayaAman  = !$hargaLimit || $biaya < $hargaLimit;
+        // ── Biaya kumulatif dalam periode rolling ────────────────────────────
+        // Part ini sudah tersimpan di DB, jadi total_dalam_periode sudah termasuk biaya part ini sendiri
+        $biayaKumulatif  = $biaya;
+        if ($hargaLimit && $limitRule->limit_nilai && $limitRule->kendaraan_id) {
+            $controller    = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
+            $kumulatifData = $controller->getKumulatifBiayaKategori(
+                (int) $limitRule->kendaraan_id,
+                (int) $limitRule->category_id,
+                (int) $limitRule->limit_nilai,
+                $limitRule->limit_satuan ?? 'bulan',
+                (int) $hargaLimit,
+                $tglPasang->toDateString()
+            );
+            if ($kumulatifData !== null) {
+                $biayaKumulatif = $kumulatifData['total_dalam_periode'];
+            }
+        }
+
+        $biayaLewat = $hargaLimit && $biayaKumulatif > $hargaLimit;
+        $biayaSama  = $hargaLimit && $biayaKumulatif === $hargaLimit;
+        $biayaAman  = !$hargaLimit || $biayaKumulatif < $hargaLimit;
 
         $waktuLewat = $intervalAda && $tglLimit->lt($refTanggal);
         $waktuSama  = $intervalAda && $tglLimit->eq($refTanggal);
         $waktuAman  = !$intervalAda || $tglLimit->gt($refTanggal);
 
         $kmAda      = $kmLimit && $kmLimit > 0;
-        $kmLewat    = $kmAda && $kmInput > $kmPasang + $kmLimit;
-        $kmSama     = $kmAda && $kmInput === $kmPasang + $kmLimit;
-        $kmAman     = !$kmAda || $kmInput < $kmPasang + $kmLimit;
+        $kmLewat    = $kmAda && $kmInput > $kmLimit;
+        $kmSama     = $kmAda && $kmInput === $kmLimit;
+        $kmAman     = !$kmAda || $kmInput < $kmLimit;
 
         $adaLimit = $hargaLimit || $intervalAda || $kmAda;
         if (!$adaLimit || ($biayaAman && $waktuAman && $kmAman)) {

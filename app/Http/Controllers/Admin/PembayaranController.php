@@ -99,15 +99,101 @@ class PembayaranController extends Controller
         }
 
         $totalPR        = (clone $baseQuery)->count();
-        $totalDisetujui = (clone $baseQuery)->whereIn('status', ['Disetujui', 'Disetujui Sebagian'])->count();
-        $totalPending   = (clone $baseQuery)->where('status', 'Pending')->count();
-        $totalDitolak   = (clone $baseQuery)->whereIn('status', ['Ditolak', 'Disetujui Sebagian'])->count();
-        $totalDiajukan  = (clone $baseQuery)->where('status', 'Diajukan')->count();
 
-        $nominalDisetujui = (clone $baseQuery)->whereIn('status', ['Disetujui', 'Disetujui Sebagian'])->sum('nominal');
-        $nominalPending   = (clone $baseQuery)->where('status', 'Pending')->sum('nominal');
-        $nominalDitolak   = (clone $baseQuery)->whereIn('status', ['Ditolak', 'Disetujui Sebagian'])->sum('nominal');
-        $nominalDiajukan  = (clone $baseQuery)->where('status', 'Diajukan')->sum('nominal');
+        // Stats per item — loop semua PR dan hitung dari item_decisions
+        $allPRsForStats = (clone $baseQuery)->get(['id', 'status', 'nominal', 'nominal_original', 'source_type', 'source_data']);
+
+        $totalItemDisetujui = 0;
+        $totalItemDitolak   = 0;
+        $totalItemPending   = 0;
+        $totalItemDiajukan  = 0;
+        $nominalDisetujui   = 0;
+        $nominalDitolak     = 0;
+        $nominalPending     = 0;
+        $nominalDiajukan    = 0;
+
+        foreach ($allPRsForStats as $_pr) {
+            $_sd       = is_array($_pr->source_data) ? $_pr->source_data : (json_decode($_pr->source_data, true) ?? []);
+            $_dec      = collect($_sd['item_decisions'] ?? [])->keyBy('idx');
+            $_srcType  = $_pr->source_type ?? '';
+            $_status   = $_pr->status ?? '';
+
+            // Ambil item list sesuai source_type
+            $_itemList = match(true) {
+                in_array($_srcType, ['service_part', 'service_incident']) => $_sd['parts'] ?? [],
+                $_srcType === 'service_asuransi'                          => $_sd['kejadians'] ?? [],
+                in_array($_srcType, ['gps', 'gps_perpanjang'])            => $_sd['gps_items'] ?? [],
+                default => [],
+            };
+            $_nomField = in_array($_srcType, ['gps', 'gps_perpanjang']) ? 'biaya_sewa' : 'biaya';
+
+            if (!empty($_dec) && !empty($_itemList)) {
+                // Punya item_decisions → hitung per item
+                foreach ($_dec as $_idx => $_d) {
+                    $_iNom = (int)(($_itemList[(int)($_d['idx'] ?? $_idx)][$_nomField] ?? 0));
+                    if (($_d['action'] ?? '') === 'approved') {
+                        $totalItemDisetujui++;
+                        $nominalDisetujui += $_iNom;
+                    } else {
+                        $totalItemDitolak++;
+                        $nominalDitolak += $_iNom;
+                    }
+                }
+                // Sisa item yang belum ada keputusan
+                $processedIdx = array_column($_dec->values()->toArray(), 'idx');
+                foreach ($_itemList as $_iIdx => $_iItem) {
+                    if (!in_array((int)$_iIdx, array_map('intval', $processedIdx))) {
+                        $_iNom = (int)($_iItem[$_nomField] ?? 0);
+                        if ($_status === 'Pending') {
+                            $totalItemPending++;
+                            $nominalPending += $_iNom;
+                        } elseif ($_status === 'Diajukan') {
+                            $totalItemDiajukan++;
+                            $nominalDiajukan += $_iNom;
+                        }
+                    }
+                }
+            } elseif (!empty($_itemList)) {
+                // Belum ada item_decisions → seluruh item ikut status PR
+                $cnt    = count($_itemList);
+                $_prNom = (int)($_pr->nominal_original ?? $_pr->nominal ?? 0);
+                if ($_status === 'Pending') {
+                    $totalItemPending  += $cnt;
+                    $nominalPending    += $_prNom;
+                } elseif ($_status === 'Diajukan') {
+                    $totalItemDiajukan += $cnt;
+                    $nominalDiajukan   += $_prNom;
+                } elseif (in_array($_status, ['Disetujui', 'Disetujui Sebagian'])) {
+                    $totalItemDisetujui += $cnt;
+                    $nominalDisetujui   += $_prNom;
+                } elseif ($_status === 'Ditolak') {
+                    $totalItemDitolak  += $cnt;
+                    $nominalDitolak    += $_prNom;
+                }
+            } else {
+                // Fallback: 1 PR = 1 item (pajak, asuransi, kir, stnk, belanja biasa)
+                $_prNom = (int)($_pr->nominal_original ?? $_pr->nominal ?? 0);
+                if ($_status === 'Pending') {
+                    $totalItemPending++;
+                    $nominalPending += $_prNom;
+                } elseif ($_status === 'Diajukan') {
+                    $totalItemDiajukan++;
+                    $nominalDiajukan += $_prNom;
+                } elseif (in_array($_status, ['Disetujui', 'Disetujui Sebagian'])) {
+                    $totalItemDisetujui++;
+                    $nominalDisetujui += $_prNom;
+                } elseif ($_status === 'Ditolak') {
+                    $totalItemDitolak++;
+                    $nominalDitolak += $_prNom;
+                }
+            }
+        }
+
+        // Alias untuk view (tetap kompatibel dengan nama lama)
+        $totalDisetujui = $totalItemDisetujui;
+        $totalDitolak   = $totalItemDitolak;
+        $totalPending   = $totalItemPending;
+        $totalDiajukan  = $totalItemDiajukan;
 
         // Nominal total — pakai nominal_original (total sebelum partial approval) jika ada,
         // fallback ke nominal untuk record lama atau yang tidak partial
@@ -205,7 +291,7 @@ class PembayaranController extends Controller
     public function details($id)
     {
         try {
-            $pembayaran = Pembayaran::with(['items', 'approvals'])->findOrFail($id);
+            $pembayaran = Pembayaran::with(['items', 'approvals', 'supplier'])->findOrFail($id);
 
             // Nama pemohon dari tabel users berdasarkan email
             $pemohonNama = \App\Models\User::where('email', $pembayaran->pemohon)->value('name');
@@ -249,15 +335,81 @@ class PembayaranController extends Controller
                 }
             }
 
+            // ── Source type label ───────────────────────────────────
+            $sourceTypeName = match($pembayaran->source_type) {
+                'pajak'                          => 'Pajak Kendaraan',
+                'pajak_perpanjang'               => 'Perpanjangan Pajak',
+                'asuransi_kendaraan'             => 'Asuransi Kendaraan',
+                'asuransi_kendaraan_perpanjang'  => 'Perpanjangan Asuransi',
+                'service_part'                   => 'Service Part',
+                'service_asuransi'               => 'Service Asuransi',
+                'service_incident'               => 'Service Incident',
+                'gps'                            => 'GPS Kendaraan',
+                'gps_perpanjang'                 => 'Perpanjangan GPS',
+                'kir'                            => 'KIR',
+                'kir_perpanjang'                 => 'Perpanjangan KIR',
+                'stnk'                           => 'STNK',
+                'purchase_order'                 => 'Purchase Order',
+                default                          => $pembayaran->source_type ? ucwords(str_replace('_', ' ', $pembayaran->source_type)) : 'Belanja',
+            };
+
+            // ── Info kendaraan & service dari source_data ────────────
+            $sd        = $pembayaran->source_data ?? [];
+            $kendaraan = isset($sd['kendaraan_id']) ? \App\Models\Kendaraan::find($sd['kendaraan_id']) : null;
+            $kendaraanInfo = null;
+            if ($kendaraan) {
+                $kendaraanInfo = [
+                    'nopol' => $kendaraan->nopol,
+                    'merk'  => $kendaraan->merk,
+                    'label' => $kendaraan->nopol . ' — ' . $kendaraan->merk,
+                ];
+            }
+
+            $serviceInfo = null;
+            if (in_array($pembayaran->source_type, ['service_part', 'service_incident', 'service_asuransi'])) {
+                $serviceInfo = [
+                    'tanggal_service'  => isset($sd['tanggal_service']) ? \Carbon\Carbon::parse($sd['tanggal_service'])->format('d M Y') : null,
+                    'kilometer'        => $sd['kilometer'] ?? null,
+                    'keluhan'          => $sd['keluhan'] ?? null,
+                    'nama_asuransi'    => $sd['nama_asuransi'] ?? null,
+                    'keterangan'       => $sd['keterangan'] ?? $pembayaran->keterangan ?? null,
+                ];
+            }
+
+            // ── Info approval dari approvals relation ────────────────
+            $approvalInfo = null;
+            $approvedRec  = $pembayaran->approvals->where('action', 'approved')->sortByDesc('created_at')->first();
+            $rejectedRec  = $pembayaran->approvals->where('action', 'rejected')->sortByDesc('created_at')->first();
+            $latestRec    = $pembayaran->approvals->sortByDesc('created_at')->first();
+            if ($latestRec) {
+                $approvalInfo = [
+                    'action'         => $latestRec->action,
+                    'oleh'           => $latestRec->approved_by ?? $pembayaran->disetujui_oleh,
+                    'tanggal'        => $latestRec->created_at ? $latestRec->created_at->format('d M Y') : null,
+                    'catatan'        => $latestRec->catatan ?? $pembayaran->catatan,
+                ];
+            } elseif ($pembayaran->disetujui_oleh || $pembayaran->tanggal_persetujuan) {
+                $approvalInfo = [
+                    'action'  => in_array($pembayaran->status, ['Disetujui','Disetujui Sebagian']) ? 'approved' : ($pembayaran->status === 'Ditolak' ? 'rejected' : null),
+                    'oleh'    => $pembayaran->disetujui_oleh,
+                    'tanggal' => $pembayaran->tanggal_persetujuan ? \Carbon\Carbon::parse($pembayaran->tanggal_persetujuan)->format('d M Y') : null,
+                    'catatan' => $pembayaran->catatan,
+                ];
+            }
+
             // Format data untuk response
             $data = [
                 'id' => $pembayaran->id,
                 'no_pr' => $pembayaran->no_pr,
+                'source_type' => $pembayaran->source_type,
+                'source_type_name' => $sourceTypeName,
                 'tanggal_formatted' => $pembayaran->tanggal ? \Carbon\Carbon::parse($pembayaran->tanggal)->format('d M Y') : '-',
                 'departemen' => $pembayaran->departemen ?? '-',
                 'pemohon' => $pembayaran->pemohon ?? '-',
                 'pemohon_nama' => $pemohonNama,
-                'alasan_permintaan' => $pembayaran->alasan_permintaan ?? '-',
+                'vendor' => $pembayaran->supplier ? $pembayaran->supplier->nama_supplier : null,
+                'alasan_permintaan' => $pembayaran->alasan_permintaan ?? $sd['keluhan'] ?? $sd['alasan_permintaan'] ?? '-',
+                'keterangan' => $pembayaran->keterangan ?? $sd['keterangan'] ?? null,
                 'status' => $pembayaran->status ?? '-',
                 'status_class' => match($pembayaran->status) {
                     'Disetujui' => 'bg-green-100 text-green-600',
@@ -273,163 +425,233 @@ class PembayaranController extends Controller
                 'total_nominal' => $totalNominalDisplay,
                 'total_nominal_formatted' => number_format($totalNominalDisplay, 0, ',', '.'),
                 'total_items' => $pembayaran->items->count() > 0 ? $pembayaran->items->count() : 1,
-                // Rekening bank & informasi tambahan
+                // Rekening bank & informasi tambahan (level PR — untuk non service_part/service_incident)
                 'nama_bank'     => $pembayaran->nama_bank,
                 'no_rekening'   => $pembayaran->no_rekening,
                 'nama_rekening' => $pembayaran->nama_rekening,
                 'informasi'     => $pembayaran->informasi,
+                // Extra
+                'kendaraan'    => $kendaraanInfo,
+                'service_info' => $serviceInfo,
+                'approval'     => $approvalInfo,
             ];
 
             // Items data (new structure — belanja/purchase order)
             if ($pembayaran->items->count() > 0) {
                 $data['items'] = $pembayaran->items->map(function($item) {
+                    // Resolve bukti file
+                    $buktiFinal = null;
+                    if ($item->bukti) {
+                        $b = is_array($item->bukti) ? $item->bukti : (json_decode($item->bukti, true) ?? []);
+                        if (!empty($b)) {
+                            $bFirst = $b[0] ?? $b;
+                            $bPath  = is_array($bFirst) ? ($bFirst['path'] ?? '') : $bFirst;
+                            $bName  = is_array($bFirst) ? ($bFirst['original_name'] ?? basename($bPath)) : basename($bFirst);
+                            if ($bPath) $buktiFinal = ['url' => asset('storage/'.$bPath), 'name' => $bName];
+                        }
+                    }
                     return [
-                        'nama_barang' => $item->nama_barang,
-                        'kategori' => $item->kategori,
-                        'posisi' => $item->posisi,
-                        'part_number' => $item->part_number,
-                        'serial_number' => $item->serial_number,
-                        'qty' => $item->qty,
-                        'satuan' => $item->satuan,
-                        'harga_satuan' => $item->harga_satuan,
+                        'nama_barang'            => $item->nama_barang,
+                        'kategori'               => $item->kategori,
+                        'posisi'                 => $item->posisi,
+                        'part_number'            => $item->part_number,
+                        'serial_number'          => $item->serial_number,
+                        'qty'                    => $item->qty,
+                        'satuan'                 => $item->satuan,
                         'harga_satuan_formatted' => $item->harga_satuan ? number_format($item->harga_satuan, 0, ',', '.') : null,
-                        'subtotal' => $item->subtotal,
-                        'subtotal_formatted' => $item->subtotal ? number_format($item->subtotal, 0, ',', '.') : null,
-                        'spesifikasi' => $item->spesifikasi,
-                        'merk' => $item->merk,
-                        'keterangan' => $item->keterangan,
-                        'bukti' => $item->bukti,
+                        'subtotal'               => $item->subtotal,
+                        'subtotal_formatted'     => $item->subtotal ? number_format($item->subtotal, 0, ',', '.') : null,
+                        'spesifikasi'            => $item->spesifikasi,
+                        'merk'                   => $item->merk,
+                        'keterangan'             => $item->keterangan,
+                        'bukti'                  => $buktiFinal,
                     ];
                 });
             } elseif ($pembayaran->source_type) {
                 // Source_type dari kendaraan — bangun items dari source_data
                 $srcType = $pembayaran->source_type;
-                $sd      = $pembayaran->source_data ?? [];
+                // $sd sudah di-set di atas
                 $decMap  = collect($sd['item_decisions'] ?? [])->keyBy('idx');
 
-                $kendaraan = isset($sd['kendaraan_id'])
-                    ? \App\Models\Kendaraan::find($sd['kendaraan_id'])
-                    : null;
                 $kendaraanLabel = $kendaraan
                     ? ($kendaraan->nopol . ' — ' . $kendaraan->merk)
                     : null;
 
+                // Helper: resolve lampiran array menjadi [{url, name}]
+                $resolveLampiran = function(array $files) {
+                    return collect($files)->map(function($f) {
+                        $path = is_array($f) ? ($f['path'] ?? '') : $f;
+                        $name = is_array($f) ? ($f['original_name'] ?? basename($path)) : basename($f);
+                        if (!$path) return null;
+                        return ['url' => asset('storage/'.$path), 'name' => $name];
+                    })->filter()->values()->all();
+                };
+
                 if (in_array($srcType, ['gps', 'gps_perpanjang'])) {
                     $gpsItems = $sd['gps_items'] ?? [];
-                    $data['items'] = collect($gpsItems)->map(function ($item, $idx) use ($decMap, $kendaraanLabel) {
-                        $action = $decMap->get($idx)['action'] ?? null;
+                    $data['items'] = collect($gpsItems)->map(function ($item, $idx) use ($decMap, $sd, $resolveLampiran) {
+                        $action  = $decMap->get($idx)['action'] ?? null;
+                        $gpsRaw  = $sd['temp_files']['gps_items'][$idx]['lampiran'] ?? [];
                         return [
-                            'nama_barang'           => $item['nama_gps'] ?? ('GPS #' . ($idx + 1)),
-                            'kategori'              => $item['type'] ?? '-',
-                            'qty'                   => 1,
-                            'satuan'                => 'unit',
-                            'subtotal'              => $item['biaya_sewa'] ?? 0,
-                            'subtotal_formatted'    => number_format($item['biaya_sewa'] ?? 0, 0, ',', '.'),
-                            'keterangan'            => implode(' | ', array_filter([
-                                $kendaraanLabel,
-                                $item['nama_bank'] ?? null,
-                                $item['no_rekening'] ?? null,
-                            ])),
-                            'status_item'           => $action,
+                            'nama_barang'        => $item['nama_gps'] ?? ('GPS #' . ($idx + 1)),
+                            'kategori'           => $item['type'] ?? '-',
+                            'qty'                => 1,
+                            'satuan'             => 'unit',
+                            'subtotal'           => $item['biaya_sewa'] ?? 0,
+                            'subtotal_formatted' => number_format($item['biaya_sewa'] ?? 0, 0, ',', '.'),
+                            'nama_bank'          => $item['nama_bank'] ?? null,
+                            'no_rekening'        => $item['no_rekening'] ?? null,
+                            'nama_rekening'      => $item['nama_pemilik'] ?? null,
+                            'lampiran'           => $resolveLampiran($gpsRaw),
+                            'bukti'              => null,
+                            'status_item'        => $action,
                         ];
                     })->values()->all();
 
                 } elseif (in_array($srcType, ['service_part', 'service_incident'])) {
                     $parts = $sd['parts'] ?? [];
-                    $data['items'] = collect($parts)->map(function ($part, $idx) use ($decMap, $kendaraanLabel) {
-                        $action = $decMap->get($idx)['action'] ?? null;
-                        $cat = isset($part['category_id'])
+                    $data['items'] = collect($parts)->map(function ($part, $idx) use ($decMap, $sd, $resolveLampiran) {
+                        $action  = $decMap->get($idx)['action'] ?? null;
+                        $cat     = isset($part['category_id'])
                             ? \App\Models\ServiceCategory::find($part['category_id'])
                             : null;
+                        // Lampiran yang diupload saat buat PR
+                        $lampiranRaw = $sd['temp_files']['parts'][$idx]['bukti'] ?? [];
+                        // Bukti bayar admin (diupload saat approve)
+                        $buktiFinal  = null;
+                        if (!empty($part['bukti_bayar_admin'])) {
+                            $bv   = $part['bukti_bayar_admin'];
+                            $bArr = is_array($bv) ? $bv : [$bv];
+                            $b0   = $bArr[0];
+                            $bPath = is_array($b0) ? ($b0['path'] ?? '') : $b0;
+                            $bName = is_array($b0) ? ($b0['original_name'] ?? basename($bPath)) : basename($b0);
+                            if ($bPath) $buktiFinal = ['url' => asset('storage/'.$bPath), 'name' => $bName];
+                            if (!$buktiFinal && !is_array($b0) && $b0) $buktiFinal = ['url' => asset($b0), 'name' => basename($b0)];
+                        }
+                        // Cek juga di item_decisions[idx].bukti
+                        if (!$buktiFinal && isset($decMap[$idx]['bukti']['path'])) {
+                            $dp = $decMap[$idx]['bukti']['path'];
+                            $dn = $decMap[$idx]['bukti']['original_name'] ?? basename($dp);
+                            $buktiFinal = ['url' => asset($dp), 'name' => $dn];
+                        }
                         return [
-                            'nama_barang'           => $part['nama_part'] ?? '-',
-                            'kategori'              => $cat ? $cat->nama : ($part['category_nama'] ?? '-'),
-                            'qty'                   => 1,
-                            'satuan'                => 'unit',
-                            'subtotal'              => $part['biaya'] ?? 0,
-                            'subtotal_formatted'    => number_format($part['biaya'] ?? 0, 0, ',', '.'),
-                            'keterangan'            => implode(' | ', array_filter([
-                                $kendaraanLabel,
-                                $part['nama_bank'] ?? null,
-                                $part['no_rekening'] ?? null,
-                                $part['kondisi'] ?? null,
-                            ])),
-                            'status_item'           => $action,
+                            'nama_barang'        => $part['nama_part'] ?? '-',
+                            'part_number'        => !empty($part['part_number']) && $part['part_number'] !== '-' ? $part['part_number'] : null,
+                            'kategori'           => $cat ? $cat->nama : ($part['category_nama'] ?? '-'),
+                            'kondisi'            => $part['kondisi'] ?? null,
+                            'qty'                => 1,
+                            'satuan'             => 'unit',
+                            'subtotal'           => $part['biaya'] ?? 0,
+                            'subtotal_formatted' => number_format($part['biaya'] ?? 0, 0, ',', '.'),
+                            'nama_bank'          => $part['nama_bank'] ?? null,
+                            'no_rekening'        => $part['no_rekening'] ?? null,
+                            'nama_rekening'      => $part['nama_rekening'] ?? null,
+                            'supplier'           => isset($part['supplier_id'])
+                                ? optional(\App\Models\Supplier::find($part['supplier_id']))->nama_supplier
+                                : null,
+                            'limit_snapshot'     => $part['limit_snapshot'] ?? null,
+                            'keterangan_limit'   => $part['keterangan_limit'] ?? $part['keterangan'] ?? null,
+                            'lampiran'           => $resolveLampiran($lampiranRaw),
+                            'bukti'              => $buktiFinal,
+                            'status_item'        => $action,
                         ];
                     })->values()->all();
 
                 } elseif ($srcType === 'service_asuransi') {
                     $kejadians = $sd['kejadians'] ?? [];
-                    $data['items'] = collect($kejadians)->map(function ($kej, $idx) use ($decMap, $kendaraanLabel, $sd) {
-                        $action = $decMap->get($idx)['action'] ?? null;
+                    $decMap2   = collect($sd['item_decisions'] ?? [])->keyBy('idx');
+                    $data['items'] = collect($kejadians)->map(function ($kej, $idx) use ($decMap2, $sd, $resolveLampiran) {
+                        $action  = $decMap2->get($idx)['action'] ?? null;
+                        $lampiranRaw = $kej['lampiran'] ?? [];
+                        // Bukti dari item_decisions
+                        $buktiFinal = null;
+                        if (isset($decMap2[$idx]['bukti']['path'])) {
+                            $dp = $decMap2[$idx]['bukti']['path'];
+                            $dn = $decMap2[$idx]['bukti']['original_name'] ?? basename($dp);
+                            $buktiFinal = ['url' => asset($dp), 'name' => $dn];
+                        }
                         return [
-                            'nama_barang'           => $kej['nama_kejadian'] ?? '-',
-                            'kategori'              => 'Service Asuransi',
-                            'qty'                   => 1,
-                            'satuan'                => 'kejadian',
-                            'subtotal'              => $kej['biaya'] ?? 0,
-                            'subtotal_formatted'    => number_format($kej['biaya'] ?? 0, 0, ',', '.'),
-                            'keterangan'            => implode(' | ', array_filter([
-                                $kendaraanLabel,
-                                $sd['nama_asuransi'] ?? null,
-                            ])),
-                            'status_item'           => $action,
+                            'nama_barang'        => $kej['nama_kejadian'] ?? '-',
+                            'kategori'           => 'Kejadian',
+                            'qty'                => 1,
+                            'satuan'             => 'kejadian',
+                            'subtotal'           => $kej['biaya'] ?? 0,
+                            'subtotal_formatted' => number_format($kej['biaya'] ?? 0, 0, ',', '.'),
+                            'lampiran'           => $resolveLampiran($lampiranRaw),
+                            'bukti'              => $buktiFinal,
+                            'status_item'        => $action,
                         ];
                     })->values()->all();
 
                 } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
+                    $lampiranRaw = $sd['temp_files']['attachments'] ?? [];
                     $data['items'] = [[
-                        'nama_barang'           => ($sd['jenis_pajak'] ?? 'Pajak Kendaraan') . ($sd['tahun_pajak'] ? ' ' . $sd['tahun_pajak'] : ''),
-                        'kategori'              => 'Pajak',
-                        'qty'                   => 1,
-                        'satuan'                => 'tahun',
-                        'subtotal'              => $sd['nominal'] ?? $pembayaran->nominal ?? 0,
-                        'subtotal_formatted'    => number_format($sd['nominal'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
-                        'keterangan'            => implode(' | ', array_filter([
-                            $kendaraanLabel,
-                            isset($sd['tanggal_jatuh_tempo']) ? 'JT: ' . \Carbon\Carbon::parse($sd['tanggal_jatuh_tempo'])->format('d M Y') : null,
-                        ])),
+                        'nama_barang'        => ($sd['jenis_pajak'] ?? 'Pajak Kendaraan') . ($sd['tahun_pajak'] ? ' ' . $sd['tahun_pajak'] : ''),
+                        'kategori'           => 'Pajak',
+                        'qty'                => 1,
+                        'satuan'             => 'tahun',
+                        'subtotal'           => $sd['nominal'] ?? $pembayaran->nominal ?? 0,
+                        'subtotal_formatted' => number_format($sd['nominal'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
+                        'keterangan'         => isset($sd['tanggal_jatuh_tempo']) ? 'Jatuh tempo: ' . \Carbon\Carbon::parse($sd['tanggal_jatuh_tempo'])->format('d M Y') : null,
+                        'lampiran'           => $resolveLampiran($lampiranRaw),
+                        'bukti'              => null,
+                        'nama_bank'          => $pembayaran->nama_bank,
+                        'no_rekening'        => $pembayaran->no_rekening,
+                        'nama_rekening'      => $pembayaran->nama_rekening,
                     ]];
 
                 } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
                     $asr = isset($sd['asuransi_id']) ? \App\Models\Asuransi::find($sd['asuransi_id']) : null;
+                    $lampiranRaw = $sd['temp_files']['attachments'] ?? [];
                     $data['items'] = [[
-                        'nama_barang'           => $asr ? $asr->nama_asuransi : ($sd['nama_asuransi'] ?? 'Asuransi Kendaraan'),
-                        'kategori'              => 'Asuransi',
-                        'qty'                   => 1,
-                        'satuan'                => 'polis',
-                        'subtotal'              => $sd['premi'] ?? $sd['biaya'] ?? $pembayaran->nominal ?? 0,
-                        'subtotal_formatted'    => number_format($sd['premi'] ?? $sd['biaya'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
-                        'keterangan'            => implode(' | ', array_filter([
-                            $kendaraanLabel,
+                        'nama_barang'        => $asr ? $asr->nama_asuransi : ($sd['nama_asuransi'] ?? 'Asuransi Kendaraan'),
+                        'kategori'           => 'Asuransi',
+                        'qty'                => 1,
+                        'satuan'             => 'polis',
+                        'subtotal'           => $sd['premi'] ?? $sd['biaya'] ?? $pembayaran->nominal ?? 0,
+                        'subtotal_formatted' => number_format($sd['premi'] ?? $sd['biaya'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
+                        'keterangan'         => implode(' | ', array_filter([
                             isset($sd['no_polis']) ? 'No Polis: ' . $sd['no_polis'] : null,
                             isset($sd['tanggal_habis']) ? 'Berlaku s/d: ' . \Carbon\Carbon::parse($sd['tanggal_habis'])->format('d M Y') : null,
-                        ])),
+                        ])) ?: null,
+                        'lampiran'           => $resolveLampiran($lampiranRaw),
+                        'bukti'              => null,
+                        'nama_bank'          => $pembayaran->nama_bank,
+                        'no_rekening'        => $pembayaran->no_rekening,
+                        'nama_rekening'      => $pembayaran->nama_rekening,
                     ]];
 
                 } elseif (in_array($srcType, ['kir', 'kir_perpanjang'])) {
+                    $lampiranRaw = $sd['temp_files']['attachments'] ?? [];
                     $data['items'] = [[
-                        'nama_barang'           => 'KIR Kendaraan' . ($sd['no_kir'] ? ' (' . $sd['no_kir'] . ')' : ''),
-                        'kategori'              => 'KIR',
-                        'qty'                   => 1,
-                        'satuan'                => 'kali',
-                        'subtotal'              => $sd['biaya'] ?? $pembayaran->nominal ?? 0,
-                        'subtotal_formatted'    => number_format($sd['biaya'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
-                        'keterangan'            => implode(' | ', array_filter([
-                            $kendaraanLabel,
-                            isset($sd['tanggal_habis_kir']) ? 'Berlaku s/d: ' . \Carbon\Carbon::parse($sd['tanggal_habis_kir'])->format('d M Y') : null,
-                        ])),
+                        'nama_barang'        => 'KIR Kendaraan' . (!empty($sd['no_kir']) ? ' (' . $sd['no_kir'] . ')' : ''),
+                        'kategori'           => 'KIR',
+                        'qty'                => 1,
+                        'satuan'             => 'kali',
+                        'subtotal'           => $sd['biaya'] ?? $pembayaran->nominal ?? 0,
+                        'subtotal_formatted' => number_format($sd['biaya'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
+                        'keterangan'         => isset($sd['tanggal_habis_kir']) ? 'Berlaku s/d: ' . \Carbon\Carbon::parse($sd['tanggal_habis_kir'])->format('d M Y') : null,
+                        'lampiran'           => $resolveLampiran($lampiranRaw),
+                        'bukti'              => null,
+                        'nama_bank'          => $pembayaran->nama_bank,
+                        'no_rekening'        => $pembayaran->no_rekening,
+                        'nama_rekening'      => $pembayaran->nama_rekening,
                     ]];
 
                 } elseif ($srcType === 'stnk') {
+                    $lampiranRaw = $sd['temp_files']['attachments'] ?? [];
                     $data['items'] = [[
-                        'nama_barang'           => 'STNK' . ($sd['tahun_stnk'] ? ' ' . $sd['tahun_stnk'] : ''),
-                        'kategori'              => 'STNK',
-                        'qty'                   => 1,
-                        'satuan'                => 'tahun',
-                        'subtotal'              => $sd['biaya'] ?? $pembayaran->nominal ?? 0,
-                        'subtotal_formatted'    => number_format($sd['biaya'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
-                        'keterangan'            => $kendaraanLabel ?? '-',
+                        'nama_barang'        => 'STNK' . (!empty($sd['tahun_stnk']) ? ' ' . $sd['tahun_stnk'] : ''),
+                        'kategori'           => 'STNK',
+                        'qty'                => 1,
+                        'satuan'             => 'tahun',
+                        'subtotal'           => $sd['biaya'] ?? $pembayaran->nominal ?? 0,
+                        'subtotal_formatted' => number_format($sd['biaya'] ?? $pembayaran->nominal ?? 0, 0, ',', '.'),
+                        'lampiran'           => $resolveLampiran($lampiranRaw),
+                        'bukti'              => null,
+                        'nama_bank'          => $pembayaran->nama_bank,
+                        'no_rekening'        => $pembayaran->no_rekening,
+                        'nama_rekening'      => $pembayaran->nama_rekening,
                     ]];
 
                 } else {
@@ -1153,7 +1375,8 @@ class PembayaranController extends Controller
      */
     public function showApprovalModal($id)
     {
-        $pembayaran = Pembayaran::with(['kendaraan', 'approvals.user'])
+        try {
+        $pembayaran = Pembayaran::with(['kendaraan', 'approvals.user', 'serviceParts', 'items'])
             ->findOrFail($id);
         
         // Nama pemohon dari tabel users berdasarkan email
@@ -1161,6 +1384,11 @@ class PembayaranController extends Controller
 
         // Decode source_data dan load related data
         $sourceData = $pembayaran->source_data ?? [];
+
+        // Kirimkan source_data tanpa temp_files yang bisa sangat besar,
+        // temp_files dikirim terpisah
+        $sourceDataForClient = $sourceData;
+
         $relatedData = [];
         
         // Load related data berdasarkan source_type
@@ -1207,18 +1435,48 @@ class PembayaranController extends Controller
             }
         }
         
+        // Bangun data pembayaran secara manual agar tidak ada masalah serialisasi
+        // dari accessor atau relasi yang tidak diharapkan
+        $pembayaranData = [
+            'id'                  => $pembayaran->id,
+            'no_pr'               => $pembayaran->no_pr,
+            'tanggal'             => $pembayaran->tanggal,
+            'departemen'          => $pembayaran->departemen,
+            'pemohon'             => $pembayaran->pemohon,
+            'pemohon_nama'        => $pemohonNama,
+            'alasan_permintaan'   => $pembayaran->alasan_permintaan,
+            'keterangan'          => $pembayaran->keterangan,
+            'status'              => $pembayaran->status,
+            'nominal'             => $pembayaran->nominal,
+            'nominal_display'     => $nominalDisplay,
+            'source_type'         => $pembayaran->source_type,
+            'source_type_name'    => $pembayaran->source_type_name,
+            'can_edit'            => $pembayaran->can_edit,
+            'target_id'           => $pembayaran->target_id,
+            'disetujui_oleh'      => $pembayaran->disetujui_oleh,
+            'tanggal_persetujuan' => $pembayaran->tanggal_persetujuan,
+            'catatan'             => $pembayaran->catatan,
+            'terakhir_diajukan'   => $pembayaran->terakhir_diajukan,
+            'tipe_pembayaran'     => $pembayaran->tipe_pembayaran,
+        ];
+
         return response()->json([
             'success' => true,
             'data' => [
-                'pembayaran' => array_merge($pembayaran->toArray(), [
-                    'pemohon_nama'    => $pemohonNama,
-                    'nominal_display' => $nominalDisplay,
-                ]),
-                'source_data' => $sourceData,
+                'pembayaran' => $pembayaranData,
+                'source_data' => $sourceDataForClient,
                 'related_data' => $relatedData,
                 'temp_files' => $sourceData['temp_files'] ?? [],
             ],
         ]);
+
+        } catch (\Throwable $e) {
+            \Log::error('showApprovalModal error for id=' . $id . ': ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memuat data approval: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

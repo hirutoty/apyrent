@@ -29,25 +29,33 @@ class ServiceHistoryController extends Controller
         $bulan           = $request->bulan ?? now()->format('Y-m');
         $categoryId      = $request->category_id;
         $kendaraanId     = $request->kendaraan_id;
-        $approvalStatus  = $request->approval_status; // all, pending, approved, rejected
+        $approvalStatus  = $request->approval_status;
+
+        // ── 1 kendaraan = 1 baris: ambil service history terbaru per kendaraan ──
+        // Gunakan subquery untuk dapat id terbesar per kendaraan_id, lalu join balik.
+        // Dengan desain merge (store() selalu merge ke 1 SH per kendaraan), ini
+        // memastikan tidak ada baris duplikat meski ada data lama sebelum merge.
+        $latestIdPerKendaraan = ServiceHistory::selectRaw('MAX(id) as id')
+            ->groupBy('kendaraan_id');
 
         $data = ServiceHistory::with([
                 'kendaraan.jenis',
                 'attachments',
+                // Load SEMUA parts (tidak dibatasi bulan) agar riwayat lengkap
                 'parts.category',
                 'parts.supplier',
             ])
-            ->when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(tanggal_service,'%Y-%m') = ?", [$bulan]))
-            ->when($kendaraanId, fn($q) => $q->where('kendaraan_id', $kendaraanId))
-            ->when($approvalStatus === 'pending', fn($q) => $q->where('status_approval', 'pending'))
-            ->when($approvalStatus === 'approved', fn($q) => $q->where('status_approval', 'approved'))
-            ->when($approvalStatus === 'rejected', fn($q) => $q->where('status_approval', 'rejected'))
-            ->when($approvalStatus === 'limit', fn($q) => $q->where('status', 'limit'))
-            ->when($approvalStatus === 'aktif', fn($q) => $q->where('status', 'aktif'))
-            ->when($approvalStatus === 'terpasang', fn($q) => $q->where('status', 'terpasang'))
-            ->when($approvalStatus === 'tidak_aktif', fn($q) => $q->where('status', 'tidak_aktif'))
+            ->joinSub($latestIdPerKendaraan, 'latest', fn($join) => $join->on('service_history.id', '=', 'latest.id'))
+            ->when($kendaraanId, fn($q) => $q->where('service_history.kendaraan_id', $kendaraanId))
+            ->when($approvalStatus === 'pending',    fn($q) => $q->where('service_history.status_approval', 'pending'))
+            ->when($approvalStatus === 'approved',   fn($q) => $q->where('service_history.status_approval', 'approved'))
+            ->when($approvalStatus === 'rejected',   fn($q) => $q->where('service_history.status_approval', 'rejected'))
+            ->when($approvalStatus === 'limit',      fn($q) => $q->where('service_history.status', 'limit'))
+            ->when($approvalStatus === 'aktif',      fn($q) => $q->where('service_history.status', 'aktif'))
+            ->when($approvalStatus === 'terpasang',  fn($q) => $q->where('service_history.status', 'terpasang'))
+            ->when($approvalStatus === 'tidak_aktif',fn($q) => $q->where('service_history.status', 'tidak_aktif'))
             ->when($categoryId, fn($q) => $q->whereHas('parts', fn($p) => $p->where('category_id', $categoryId)))
-            ->latest()
+            ->orderByDesc('service_history.tanggal_service')
             ->paginate($request->per_page ?? 50)->withQueryString();
 
         $kendaraan  = Kendaraan::whereNotIn('status_kendaraan', ['disewa'])
@@ -1146,8 +1154,11 @@ class ServiceHistoryController extends Controller
     /**
      * Helper: hitung total biaya kumulatif kategori dalam periode aktif.
      *
-     * Periode ditentukan dari tgl_pasang part terbaru di kategori + interval limit.
-     * Jika belum ada riwayat part → return null (tidak ada limit diterapkan).
+     * Sistem rolling period: periode dihitung dari part PERTAMA (terlama) di kategori ini,
+     * lalu slot periode berurutan dihitung sampai slot yang mencakup tglPasangBaru.
+     *
+     * Contoh: limit 30.000/minggu, service hari-1 = 10.000, hari-5 = 10.000 → total 20.000.
+     * Service hari-8 (minggu ke-2) → periode baru, total reset ke 0, lalu tambah biaya baru.
      *
      * @param int    $kendaraanId
      * @param int    $categoryId
@@ -1165,41 +1176,53 @@ class ServiceHistoryController extends Controller
         int $limitPrice,
         string $tglPasangBaru
     ): ?array {
-        // Cari part terbaru di kategori ini (semua status)
-        $partTerbaru = ServicePart::where('kendaraan_id', $kendaraanId)
+        // Cari part pertama (terlama) di kategori ini sebagai anchor awal periode
+        $partPertama = ServicePart::where('kendaraan_id', $kendaraanId)
             ->where('category_id', $categoryId)
             ->whereNotNull('tgl_pasang')
-            ->orderByDesc('tgl_pasang')
+            ->orderBy('tgl_pasang')
             ->first();
 
         // Belum ada riwayat → tidak ada limit diterapkan
-        if (!$partTerbaru) {
+        if (!$partPertama) {
             return null;
         }
 
-        // Hitung periode dari tgl_pasang part terbaru
-        $periodeMulai = \Carbon\Carbon::parse($partTerbaru->tgl_pasang)->startOfDay();
-        $periodeSelesai = match ($limitSatuan) {
-            'hari'   => (clone $periodeMulai)->addDays($limitNilai)->subDay(),
-            'minggu' => (clone $periodeMulai)->addWeeks($limitNilai)->subDay(),
-            'tahun'  => (clone $periodeMulai)->addYears($limitNilai)->subDay(),
-            default  => (clone $periodeMulai)->addMonths($limitNilai)->subDay(),
+        $tglBaru  = \Carbon\Carbon::parse($tglPasangBaru)->startOfDay();
+        $anchor   = \Carbon\Carbon::parse($partPertama->tgl_pasang)->startOfDay();
+
+        // Helper closure: hitung akhir slot dari awal slot
+        $hitungSelesai = function (\Carbon\Carbon $mulai) use ($limitNilai, $limitSatuan): \Carbon\Carbon {
+            return match ($limitSatuan) {
+                'hari'   => (clone $mulai)->addDays($limitNilai)->subDay(),
+                'minggu' => (clone $mulai)->addWeeks($limitNilai)->subDay(),
+                'tahun'  => (clone $mulai)->addYears($limitNilai)->subDay(),
+                default  => (clone $mulai)->addMonths($limitNilai)->subDay(),
+            };
         };
 
-        // Pastikan tgl_pasang_baru masuk dalam periode ini
-        $tglBaru = \Carbon\Carbon::parse($tglPasangBaru)->startOfDay();
-        // Jika tgl_pasang_baru melewati periode selesai → periode baru dimulai dari tgl_pasang_baru
-        if ($tglBaru->gt($periodeSelesai)) {
-            $periodeMulai   = $tglBaru;
-            $periodeSelesai = match ($limitSatuan) {
-                'hari'   => (clone $periodeMulai)->addDays($limitNilai)->subDay(),
-                'minggu' => (clone $periodeMulai)->addWeeks($limitNilai)->subDay(),
-                'tahun'  => (clone $periodeMulai)->addYears($limitNilai)->subDay(),
-                default  => (clone $periodeMulai)->addMonths($limitNilai)->subDay(),
+        // Helper closure: hitung awal slot berikutnya dari awal slot saat ini
+        $hitungSlotBerikutnya = function (\Carbon\Carbon $mulai) use ($limitNilai, $limitSatuan): \Carbon\Carbon {
+            return match ($limitSatuan) {
+                'hari'   => (clone $mulai)->addDays($limitNilai),
+                'minggu' => (clone $mulai)->addWeeks($limitNilai),
+                'tahun'  => (clone $mulai)->addYears($limitNilai),
+                default  => (clone $mulai)->addMonths($limitNilai),
             };
+        };
+
+        // Iterasi slot periode berurutan sampai slot yang mencakup tglBaru
+        // Proteksi: maksimal 500 iterasi untuk mencegah infinite loop
+        $periodeMulai   = $anchor;
+        $periodeSelesai = $hitungSelesai($periodeMulai);
+        $maxIter        = 500;
+
+        while ($tglBaru->gt($periodeSelesai) && $maxIter-- > 0) {
+            $periodeMulai   = $hitungSlotBerikutnya($periodeMulai);
+            $periodeSelesai = $hitungSelesai($periodeMulai);
         }
 
-        // Sum semua biaya part di kategori ini dalam periode
+        // Sum semua biaya part di kategori ini dalam periode aktif yang ditemukan
         $totalDalamPeriode = ServicePart::where('kendaraan_id', $kendaraanId)
             ->where('category_id', $categoryId)
             ->whereDate('tgl_pasang', '>=', $periodeMulai->toDateString())
@@ -1382,11 +1405,25 @@ class ServiceHistoryController extends Controller
                 'old_part_id'     => $partId,
             ];
 
+            // Inject pemohon & departemen dari auth user ke source_data
+            $deptMap = [
+                'keuangan'   => 'Keuangan',  'produksi'  => 'Produksi',
+                'hrd'        => 'HRD',       'purchase'  => 'Purchase',
+                'sales'      => 'Sales',     'marketing' => 'Marketing',
+                'it'         => 'IT',        'operasi'   => 'Operasi',
+                'superadmin' => 'Superadmin',
+            ];
+            $_ppUser = auth()->user();
+            $sourceData['pemohon']    = $_ppUser->name ?? $_ppUser->email;
+            $sourceData['departemen'] = $deptMap[$_ppUser->role ?? ''] ?? $_ppUser->departemen ?? '-';
+
             // Buat PurchaseOrder langsung tanpa melalui intercept() karena request tidak punya
             // format multipart parts[0][nama_part] yang diharapkan intercept — kita buat manual
             $poModel = \App\Models\PurchaseOrder::create([
                 'tanggal_po'        => now()->toDateString(),
                 'vendor'            => $kendaraan->merk . ' — ' . $kendaraan->nopol,
+                'pemohon'           => $sourceData['pemohon'] ?? null,
+                'departemen'        => $sourceData['departemen'] ?? null,
                 'source_type'       => 'service_part',
                 'source_data'       => $sourceData,
                 'total_barang'      => 1,
@@ -1477,10 +1514,29 @@ class ServiceHistoryController extends Controller
         $kmLimit     = $limitRule->limit_km;      // nullable
         $intervalAda = $intervalNilai > 0;
 
-        // ── Dimensi biaya ─────────────────────────────────────────────────────
-        $biayaLewat  = $hargaLimit && $biaya > $hargaLimit;
-        $biayaSama   = $hargaLimit && $biaya === $hargaLimit;
-        $biayaAman   = !$hargaLimit || $biaya < $hargaLimit;
+        // ── Dimensi biaya (kumulatif dalam periode rolling) ───────────────────
+        // Hitung total biaya semua part kategori yang sama dalam periode aktif,
+        // lalu tambahkan biaya baru. Jika belum ada riwayat, pakai biaya ini saja.
+        $biayaKumulatif = $biaya;
+        $adaRiwayatBiaya = false;
+        if ($hargaLimit && $limitRule->limit_nilai && $limitRule->kendaraan_id) {
+            $kumulatifData = $this->getKumulatifBiayaKategori(
+                (int) $limitRule->kendaraan_id,
+                (int) $limitRule->category_id,
+                (int) $limitRule->limit_nilai,
+                $limitRule->limit_satuan ?? 'bulan',
+                (int) $hargaLimit,
+                $tglPasang->toDateString()
+            );
+            if ($kumulatifData !== null) {
+                $biayaKumulatif  = $kumulatifData['total_dalam_periode'] + $biaya;
+                $adaRiwayatBiaya = true;
+            }
+        }
+
+        $biayaLewat  = $hargaLimit && $biayaKumulatif > $hargaLimit;
+        $biayaSama   = $hargaLimit && $biayaKumulatif === $hargaLimit;
+        $biayaAman   = !$hargaLimit || $biayaKumulatif < $hargaLimit;
 
         // ── Dimensi interval waktu ────────────────────────────────────────────
         $waktuLewat  = $intervalAda && $tglLimit->lt($refTanggal);
@@ -1612,30 +1668,69 @@ class ServiceHistoryController extends Controller
             return back()->with('error', 'Status part tidak bisa diubah sebelum disetujui oleh keuangan.');
         }
 
-        $updateData = ['status' => $request->status];
+        \Illuminate\Support\Facades\DB::transaction(function () use ($part, $request) {
+            $updateData = [
+                'status'  => $request->status,
+                'kondisi' => $this->deriveKondisiFromStatus($request->status),
+            ];
+            $part->update($updateData);
 
-        // Kondisi otomatis berdasarkan status baru
-        $updateData['kondisi'] = $this->deriveKondisiFromStatus($request->status);
+            // ── Jika part baru ditandai Terpasang: archive part lama ──────────
+            // Cari semua part lain di kendaraan yang sama dengan kategori + posisi
+            // yang sama dan masih aktif/terpasang/limit → ubah jadi Diganti.
+            if ($request->status === 'Terpasang') {
+                $now    = now();
+                $posisi = trim($part->posisi ?? '');
 
-        $part->update($updateData);
+                ServicePart::where('kendaraan_id', $part->kendaraan_id)
+                    ->where('category_id', $part->category_id)
+                    ->where(function ($q) use ($posisi) {
+                        if ($posisi !== '') {
+                            $q->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisi)]);
+                        } else {
+                            $q->where(fn($q2) => $q2->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+                        }
+                    })
+                    ->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
+                    ->where('id', '!=', $part->id) // jangan archive diri sendiri
+                    ->update([
+                        'status'              => 'Diganti',
+                        'replaced_at'         => $now,
+                        'replaced_by_part_id' => $part->id,
+                    ]);
 
-        // Recalculate header status dari semua parts di service history ini
-        $sh = ServiceHistory::with('parts')->find($part->service_history_id);
-        if ($sh) {
-            $parts = $sh->parts;
-            $adaAktif      = $parts->contains(fn($p) => $p->status === 'aktif');
-            $adaTidakAktif = $parts->contains(fn($p) => $p->status === 'tidak_aktif');
-            $adaLimit      = $parts->contains(fn($p) => $p->status === 'Limit');
-
-            if ($adaLimit && !$adaAktif && !$adaTidakAktif) {
-                $newStatus = 'limit';
-            } elseif ($adaAktif || $adaTidakAktif) {
-                $newStatus = 'aktif';
-            } else {
-                $newStatus = 'terpasang';
+                // Auto-close reminder aktif untuk part ini
+                $this->autoCloseReminderPart($part->kendaraan_id, $part);
             }
-            $sh->update(['status' => $newStatus]);
-        }
+
+            // Recalculate header status dari semua parts di service history ini
+            $sh = ServiceHistory::with('parts')->find($part->service_history_id);
+            if ($sh) {
+                $parts         = $sh->parts;
+                $adaAktif      = $parts->contains(fn($p) => $p->status === 'aktif');
+                $adaTidakAktif = $parts->contains(fn($p) => $p->status === 'tidak_aktif');
+                $adaLimit      = $parts->contains(fn($p) => $p->status === 'Limit');
+
+                if ($adaLimit && !$adaAktif && !$adaTidakAktif) {
+                    $newStatus = 'limit';
+                } elseif ($adaAktif || $adaTidakAktif) {
+                    $newStatus = 'aktif';
+                } else {
+                    $newStatus = 'terpasang';
+                }
+                $sh->update(['status' => $newStatus]);
+
+                // Update status kendaraan jika semua part sudah terpasang
+                if ($newStatus === 'terpasang' && $sh->kendaraan) {
+                    $sh->kendaraan->update([
+                        'status_kendaraan'         => 'tersedia',
+                        'km_terakhir_service'      => $sh->kilometer ?? $sh->kendaraan->km_terakhir_service,
+                        'kilometer_sekarang'       => $sh->kilometer ?? $sh->kendaraan->kilometer_sekarang,
+                        'tanggal_terakhir_service' => \Carbon\Carbon::parse($sh->tanggal_service)->toDateString(),
+                    ]);
+                }
+            }
+        });
 
         return back()->with('success', 'Status part berhasil diperbarui.');
     }
@@ -2221,9 +2316,9 @@ class ServiceHistoryController extends Controller
         $purchasero = Purchasero::create([
             'no_pr'             => $noPr,
             'tanggal'           => $service->tanggal_service,
-            'departemen'        => 'Produksi',
+            'departemen'        => auth()->user()->departemen ?? '-',
             'tipe_pengadaan'    => 'service',
-            'pemohon'           => auth()->user()->name,
+            'pemohon'           => auth()->user()->name ?? auth()->user()->email,
             'supplier_id'       => $supplierId,
             'alasan_permintaan' => $alasanPermintaan ?? $service->keluhan ?? '-',
             'keterangan'        => $keteranganPengadaan,

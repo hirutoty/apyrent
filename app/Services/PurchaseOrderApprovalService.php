@@ -37,8 +37,8 @@ class PurchaseOrderApprovalService
 
         $alasanPermintaan = $this->buildAlasanPermintaan($sourceType, $approvedSourceData, $po);
 
-        $pemohon    = $approvedSourceData['pemohon'] ?? Auth::user()->nama ?? Auth::user()->email ?? 'N/A';
-        $departemen = $approvedSourceData['departemen'] ?? Auth::user()->departemen ?? 'Umum';
+        $pemohon    = $approvedSourceData['pemohon'] ?? Auth::user()->name ?? Auth::user()->email ?? 'N/A';
+        $departemen = $approvedSourceData['departemen'] ?? Auth::user()->departemen ?? '-';
         
         // Calculate nominal based on source_type (hanya approved items)
         if ($sourceType === 'gps' || $sourceType === 'gps_perpanjang') {
@@ -447,8 +447,8 @@ class PurchaseOrderApprovalService
         $alasanPermintaan = $this->buildAlasanPermintaan($sourceType, $sourceData, $po);
 
         // Get user info (pemohon dari source_data atau current user)
-        $pemohon = $sourceData['pemohon'] ?? Auth::user()->nama ?? Auth::user()->email ?? 'N/A';
-        $departemen = $sourceData['departemen'] ?? Auth::user()->departemen ?? 'Umum';
+        $pemohon = $sourceData['pemohon'] ?? Auth::user()->name ?? Auth::user()->email ?? 'N/A';
+        $departemen = $sourceData['departemen'] ?? Auth::user()->departemen ?? '-';
 
         // Create Pembayaran
         $pembayaran = Pembayaran::create([

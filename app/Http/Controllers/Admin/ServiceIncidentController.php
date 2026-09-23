@@ -153,6 +153,18 @@ class ServiceIncidentController extends Controller
             'parts'                => $partsForPO,
         ];
 
+        // Inject pemohon & departemen dari auth user ke source_data
+        $deptMap = [
+            'keuangan'   => 'Keuangan',  'produksi'  => 'Produksi',
+            'hrd'        => 'HRD',       'purchase'  => 'Purchase',
+            'sales'      => 'Sales',     'marketing' => 'Marketing',
+            'it'         => 'IT',        'operasi'   => 'Operasi',
+            'superadmin' => 'Superadmin',
+        ];
+        $_siUser = auth()->user();
+        $sourceData['pemohon']    = $_siUser->name ?? $_siUser->email;
+        $sourceData['departemen'] = $deptMap[$_siUser->role ?? ''] ?? $_siUser->departemen ?? '-';
+
         // ── Buat record ServiceIncident dengan status Pending ──────────────
         $serviceIncident = ServiceIncident::create([
             'kendaraan_id'    => $request->kendaraan_id,
@@ -171,6 +183,8 @@ class ServiceIncidentController extends Controller
         $po = PurchaseOrder::create([
             'tanggal_po'              => now()->toDateString(),
             'vendor'                  => $merk . ' ' . $nopol,
+            'pemohon'                 => $sourceData['pemohon'] ?? null,
+            'departemen'              => $sourceData['departemen'] ?? null,
             'total_barang'            => count($partsForPO),
             'total_harga'             => $totalBiaya,
             'status_po'               => 'Pending',

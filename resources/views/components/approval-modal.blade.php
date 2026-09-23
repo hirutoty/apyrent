@@ -386,20 +386,44 @@
 
                                         {{-- Bank info per part --}}
                                         <div x-show="part.nama_bank || part.no_rekening || part.nama_rekening"
-                                             class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                                             class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 bg-blue-50/50 border border-blue-100 rounded-lg px-2.5 py-1.5">
+                                            <span class="text-[10px] font-semibold text-blue-500 uppercase tracking-wide w-full mb-0.5">
+                                                <i class="fa-solid fa-building-columns text-[9px] mr-1"></i>Info Pembayaran
+                                            </span>
+                                            <span x-show="part.nama_rekening"
+                                                  class="inline-flex items-center gap-1 text-[11px] text-gray-700">
+                                                <span class="text-gray-400 text-[10px]">Nama:</span>
+                                                <span x-text="part.nama_rekening" class="font-medium"></span>
+                                            </span>
                                             <span x-show="part.nama_bank"
-                                                  class="inline-flex items-center gap-1 text-[11px] text-blue-600">
-                                                <i class="fa-solid fa-building-columns text-[9px]"></i>
-                                                <span x-text="part.nama_bank"></span>
+                                                  class="inline-flex items-center gap-1 text-[11px] text-gray-700">
+                                                <span class="text-gray-400 text-[10px]">Bank:</span>
+                                                <span x-text="part.nama_bank" class="font-medium text-blue-600"></span>
                                             </span>
                                             <span x-show="part.no_rekening"
-                                                  class="text-[11px] font-mono text-gray-500" x-text="part.no_rekening"></span>
-                                            <span x-show="part.nama_rekening"
-                                                  class="text-[11px] text-gray-400" x-text="'a/n ' + part.nama_rekening"></span>
+                                                  class="inline-flex items-center gap-1 text-[11px] text-gray-700">
+                                                <span class="text-gray-400 text-[10px]">No. Rek:</span>
+                                                <span x-text="part.no_rekening" class="font-mono font-medium bg-white border border-blue-200 px-1.5 py-0.5 rounded text-[10px]"></span>
+                                            </span>
                                         </div>
 
-                                        {{-- Keterangan part jika ada --}}
-                                        <div x-show="part.keterangan && part.keterangan !== '-'"
+                                        {{-- Keterangan Limit per part --}}
+                                        <div x-show="part.keterangan_limit && part.keterangan_limit !== '-'"
+                                             class="mt-1.5 flex flex-wrap gap-1">
+                                            <template x-for="(badge, bi) in (part.keterangan_limit || '').split(',').map(s => s.trim()).filter(s => s && s !== '-')" :key="bi">
+                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                                                      :class="{
+                                                          'bg-red-100 text-red-700':    badge.toLowerCase().includes('melebihi limit biaya') || badge.toLowerCase().includes('melebihi batas waktu') || badge.toLowerCase().includes('melebihi batas limit km') || badge.toLowerCase().includes('melebihi limit km'),
+                                                          'bg-yellow-100 text-yellow-700': badge.toLowerCase().includes('mencapai batas limit'),
+                                                          'bg-green-100 text-green-700':  !badge.toLowerCase().includes('melebihi') && !badge.toLowerCase().includes('mencapai batas limit')
+                                                      }">
+                                                    <i class="fa-solid fa-circle-info text-[8px]"></i>
+                                                    <span x-text="badge.charAt(0).toUpperCase() + badge.slice(1)"></span>
+                                                </span>
+                                            </template>
+                                        </div>
+                                        {{-- Fallback: keterangan lama (non-keterangan_limit) --}}
+                                        <div x-show="(!part.keterangan_limit || part.keterangan_limit === '-') && part.keterangan && part.keterangan !== '-'"
                                              class="mt-1.5 text-[11px] text-gray-500 italic" x-text="part.keterangan"></div>
                                     </div>
 
@@ -1038,11 +1062,18 @@ function approvalModal() {
                         this.relatedData = response.data.related_data;
                         this.tempFiles   = response.data.temp_files;
                         this.initItemDecisions();
+                    } else {
+                        alert('Gagal memuat data: ' + (response.message || 'Data tidak ditemukan'));
+                        this.closeModal();
                     }
                 })
                 .catch(err => {
                     console.error('Error loading approval data:', err);
-                    alert('Gagal memuat data. Silakan coba lagi.');
+                    // Tampilkan pesan error yang lebih informatif
+                    this.loading = false;
+                    // Tampilkan error di dalam modal daripada langsung close
+                    const errMsg = err?.message || 'Terjadi kesalahan jaringan. Silakan coba lagi.';
+                    alert('Gagal memuat data approval: ' + errMsg);
                     this.closeModal();
                 })
                 .finally(() => { this.loading = false; });

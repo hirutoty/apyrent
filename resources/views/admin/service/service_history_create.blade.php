@@ -93,7 +93,7 @@
         <input type="hidden" id="prefill_kendaraan_id" value="{{ $prefill['kendaraan_id'] }}">
     @endif
 
-    <form action="{{ route('service-history.store') }}" method="POST" enctype="multipart/form-data">
+    <form id="form-service-history" action="{{ route('service-history.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
 
         @if ($prefill)
@@ -268,6 +268,11 @@ let limitRulesMap = {};
 // Key: "categoryId_posisi" → integer km_pasang (atau null)
 let partLamaKmCache = {};
 
+// ── Cache hasil fetch limit biaya kumulatif dari server ────────
+// Key: part index → object { has_limit, total_dalam_periode, limit_price, periode_mulai, periode_selesai, ... }
+// Diisi oleh fetchLimitBiayaKumulatif(), dibaca oleh calcKeteranganLimit()
+let kumulatifBiayaCache = {};
+
 /**
  * Fetch km_pasang part lama (Terpasang/aktif) dari server
  * berdasarkan kendaraan + kategori + posisi.
@@ -384,6 +389,9 @@ async function fetchLimitBiayaKumulatif(idx) {
 
     if (!kendaraanId || !categoryId) {
         hintEl.classList.add('hidden');
+        // Reset cache supaya calcKeteranganLimit pakai biaya tunggal saja
+        delete kumulatifBiayaCache[idx];
+        calcKeteranganLimit(idx);
         return;
     }
 
@@ -398,6 +406,11 @@ async function fetchLimitBiayaKumulatif(idx) {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         const data = await res.json();
+
+        // Simpan ke cache agar calcKeteranganLimit bisa baca data kumulatif
+        kumulatifBiayaCache[idx] = data;
+        // Trigger kalkulasi ulang keterangan dengan data terbaru
+        calcKeteranganLimit(idx);
 
         if (!data.has_limit) {
             hintEl.classList.add('hidden');
@@ -429,6 +442,8 @@ async function fetchLimitBiayaKumulatif(idx) {
         hintEl.classList.remove('hidden');
     } catch (e) {
         hintEl.classList.add('hidden');
+        delete kumulatifBiayaCache[idx];
+        calcKeteranganLimit(idx);
     }
 }
 
@@ -491,10 +506,19 @@ function calcKeteranganLimit(idx) {
     const limitKm       = limitRule.limit_km     ? parseInt(limitRule.limit_km)     : null;
     const intervalAda   = intervalNilai > 0;
 
-    // ── Dimensi biaya ─────────────────────────────────────────
-    const biayaSama  = limitPrice !== null && biaya === limitPrice;
-    const biayaLewat = limitPrice !== null && biaya  >  limitPrice;
-    const biayaAman  = limitPrice === null || biaya  <  limitPrice;
+    // ── Dimensi biaya (kumulatif dari server) ─────────────────
+    // Gunakan data kumulatif dari cache fetchLimitBiayaKumulatif() jika tersedia.
+    // Cache berisi total_dengan_baru = total periode sebelumnya + biaya baru ini.
+    // Jika cache belum ada (belum pernah fetch), fallback ke biaya tunggal.
+    let biayaCek = biaya;
+    const kumulatifData = kumulatifBiayaCache[idx];
+    if (kumulatifData && kumulatifData.has_limit && limitPrice !== null) {
+        biayaCek = kumulatifData.total_dengan_baru ?? biaya;
+    }
+
+    const biayaSama  = limitPrice !== null && biayaCek === limitPrice;
+    const biayaLewat = limitPrice !== null && biayaCek  >  limitPrice;
+    const biayaAman  = limitPrice === null || biayaCek  <  limitPrice;
 
     // ── Dimensi waktu ─────────────────────────────────────────
     // Normalisasi ke startOfDay
@@ -1079,7 +1103,11 @@ function addPartRow(data = null) {
     // Pasang listener pada field tgl pasang baris ini
     const tglPasangInput = document.querySelector('[name="parts[' + idx + '][tgl_pasang]"]');
     if (tglPasangInput) {
-        tglPasangInput.addEventListener('change', function() { calcKeteranganLimit(idx); });
+        tglPasangInput.addEventListener('change', function() {
+            // Invalidasi cache kumulatif karena tanggal berubah → periode bisa berbeda
+            delete kumulatifBiayaCache[idx];
+            fetchLimitBiayaKumulatif(idx);
+        });
     }
 
     // Pasang listener pada field posisi — saat posisi berubah, fetch part lama baru
@@ -1437,6 +1465,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }); // end loadLimitRules().then
     @endif
     generateKeterangan();
+
+    // Pastikan semua keterangan_limit hidden input terisi sebelum form dikirim.
+    // recalcAllKeterangan() bersifat sinkron untuk kalkulasi JS murni,
+    // tapi fetchLimitBiayaKumulatif() asinkron — jalankan recalc dulu,
+    // lalu submit setelah semua fetch selesai (atau timeout 1.5 detik).
+    var mainForm = document.getElementById('form-service-history');
+    if (mainForm) {
+        mainForm.addEventListener('submit', function(e) {
+            // Jalankan kalkulasi keterangan limit untuk semua baris
+            recalcAllKeterangan();
+            // Submit langsung — nilai dari form sudah di-fill saat perubahan input sebelumnya.
+            // recalcAllKeterangan() sebagai safety net untuk row yang belum pernah di-trigger.
+        });
+    }
 });
 </script>
 
