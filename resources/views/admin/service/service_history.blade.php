@@ -282,7 +282,7 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Tgl Pasang</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Interval</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Tgl Limit</th>
-                                                    <th class="text-left px-3 py-2 font-semibold">KM Limit</th>
+                                                    {{-- <th class="text-left px-3 py-2 font-semibold">Limit KM Selanjutnya</th> --}}
                                                     <th class="text-left px-3 py-2 font-semibold">Kondisi</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Status</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Persetujuan</th>
@@ -366,7 +366,7 @@
                                                             $kmSekarang   = (int) ($d->kendaraan?->kilometer_sekarang ?? 0);
                                                             $kmSudahLewat = $kmTarget && $kmSekarang >= $kmTarget;
                                                         @endphp
-                                                        <td class="px-3 py-2 whitespace-nowrap text-xs">
+                                                        {{-- <td class="px-3 py-2 whitespace-nowrap text-xs">
                                                             @if($kmTarget)
                                                                 <span class="{{ $kmSudahLewat ? 'text-red-600 font-bold' : 'text-gray-700' }}">
                                                                     {{ number_format($kmTarget, 0, ',', '.') }} km
@@ -382,7 +382,7 @@
                                                             @else
                                                                 <span class="text-gray-300">—</span>
                                                             @endif
-                                                        </td>
+                                                        </td> --}}
                                                         <td class="px-3 py-2">
                                                             @php
                                                                 $kondisiColor = match($part->kondisi) {

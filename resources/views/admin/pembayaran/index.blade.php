@@ -771,28 +771,51 @@
                                                         @endif
                                                     @endif
                                                 @else
-                                                    @if(!in_array($d->status, ['Diajukan','Disetujui']))
-                                                        <a href="{{ route('pembayaran.edit', $d->id) }}"
-                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 transition-colors">
-                                                            <i class="fa fa-edit text-[10px]"></i> Edit
-                                                        </a>
+                                                    {{-- Tombol Edit & Ajukan Ulang untuk item rejected (modal inline) --}}
+                                                    @php
+                                                        $_resubmitSupported = in_array($d->source_type, ['service_part', 'service_incident', 'service_asuransi']);
+                                                    @endphp
+
+                                                    {{-- Kondisi A: Disetujui Sebagian — semua source_type yang support --}}
+                                                    @if($d->status === 'Disetujui Sebagian' && $_resubmitSupported && $rejectedCount > 0 && $d->can_edit)
                                                         <button type="button"
-                                                            data-action="{{ route('pembayaran.destroy', $d->id) }}"
-                                                            data-name="{{ $d->no_pr }}"
-                                                            onclick="triggerDelete(this)"
-                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors">
-                                                            <i class="fa fa-trash text-[10px]"></i> Hapus
+                                                            onclick="openResubmitRejectedModal({{ $d->id }})"
+                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
+                                                            <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
                                                         </button>
-                                                    @endif
-                                                    @if(in_array($d->status, ['Pending','Ditolak']))
-                                                        <form action="{{ route('pembayaran.ajukan', $d->id) }}" method="POST" class="inline">
-                                                            @csrf
-                                                            <button type="submit"
-                                                                onclick="return confirm('Ajukan pembayaran {{ $d->no_pr }}?')"
-                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors">
-                                                                <i class="fa fa-paper-plane text-[10px]"></i> Ajukan
+
+                                                    {{-- Kondisi B: service_part Ditolak penuh — ganti redirect lama dengan modal --}}
+                                                    @elseif($d->status === 'Ditolak' && $d->source_type === 'service_part' && $d->can_edit)
+                                                        <button type="button"
+                                                            onclick="openResubmitRejectedModal({{ $d->id }})"
+                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
+                                                            <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
+                                                        </button>
+
+                                                    @else
+                                                        @if(!in_array($d->status, ['Diajukan','Disetujui','Disetujui Sebagian']))
+                                                            <a href="{{ route('pembayaran.edit', $d->id) }}"
+                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 transition-colors">
+                                                                <i class="fa fa-edit text-[10px]"></i> Edit
+                                                            </a>
+                                                            <button type="button"
+                                                                data-action="{{ route('pembayaran.destroy', $d->id) }}"
+                                                                data-name="{{ $d->no_pr }}"
+                                                                onclick="triggerDelete(this)"
+                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors">
+                                                                <i class="fa fa-trash text-[10px]"></i> Hapus
                                                             </button>
-                                                        </form>
+                                                        @endif
+                                                        @if(in_array($d->status, ['Pending','Ditolak']))
+                                                            <form action="{{ route('pembayaran.ajukan', $d->id) }}" method="POST" class="inline">
+                                                                @csrf
+                                                                <button type="submit"
+                                                                    onclick="return confirm('Ajukan pembayaran {{ $d->no_pr }}?')"
+                                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors">
+                                                                    <i class="fa fa-paper-plane text-[10px]"></i> Ajukan
+                                                                </button>
+                                                            </form>
+                                                        @endif
                                                     @endif
                                                 @endif
 
@@ -2137,6 +2160,95 @@
     </div>
 </div>
 
+{{-- ============================================================
+     MODAL: EDIT & AJUKAN ULANG ITEM DITOLAK
+     Digunakan untuk: service_part (Ditolak/Disetujui Sebagian),
+                      service_incident (Disetujui Sebagian),
+                      service_asuransi (Disetujui Sebagian)
+============================================================ --}}
+<div id="resubmitRejectedModal"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+     onclick="if(event.target===this) closeResubmitRejectedModal()">
+
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
+
+        {{-- Header --}}
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+                        <i class="fa fa-rotate-right text-amber-600 text-sm"></i>
+                    </span>
+                    Edit &amp; Ajukan Ulang Item Ditolak
+                </h2>
+                <p class="text-xs text-gray-400 mt-0.5 ml-10">
+                    No PR: <span id="rrm-no-pr" class="font-mono font-semibold text-gray-600">—</span>
+                </p>
+            </div>
+            <button type="button" onclick="closeResubmitRejectedModal()"
+                class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                <i class="fa fa-times text-lg"></i>
+            </button>
+        </div>
+
+        {{-- Loading state --}}
+        <div id="rrm-loading" class="flex-1 flex items-center justify-center py-16">
+            <div class="text-center text-gray-400">
+                <i class="fa fa-spinner fa-spin text-2xl mb-3 block text-blue-400"></i>
+                <p class="text-sm">Memuat data item...</p>
+            </div>
+        </div>
+
+        {{-- Error state --}}
+        <div id="rrm-error" class="hidden flex-1 flex items-center justify-center py-16 px-6">
+            <div class="text-center text-red-500">
+                <i class="fa fa-exclamation-triangle text-2xl mb-3 block"></i>
+                <p class="text-sm" id="rrm-error-msg">Gagal memuat data.</p>
+            </div>
+        </div>
+
+        {{-- Body + Footer (setelah data dimuat) --}}
+        <form id="rrm-form" method="POST" action="" class="hidden flex-1 flex flex-col overflow-hidden">
+            @csrf
+
+            {{-- Catatan penolakan PR-level --}}
+            <div id="rrm-catatan-wrap" class="hidden px-6 pt-4 flex-shrink-0">
+                <div class="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                    <i class="fa fa-exclamation-circle text-red-500 mt-0.5 flex-shrink-0"></i>
+                    <div>
+                        <p class="text-xs font-semibold text-red-700 mb-0.5">Catatan Penolakan Admin</p>
+                        <p id="rrm-catatan-pr" class="text-xs text-red-600"></p>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Items list --}}
+            <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4" id="rrm-items-container">
+                {{-- Diisi via JS --}}
+            </div>
+
+            {{-- Footer --}}
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0 rounded-b-2xl">
+                <button type="button" onclick="closeResubmitRejectedModal()"
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors">
+                    Batal
+                </button>
+                <button type="submit" id="rrm-submit-btn"
+                    class="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors shadow-sm">
+                    <i class="fa fa-paper-plane text-xs"></i>
+                    Ajukan Ulang
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+{{-- Supplier data untuk JS dropdown --}}
+<script>
+window.__rrmSuppliers = @json($suppliers->map(fn($s) => ['id' => $s->id, 'nama' => $s->nama_supplier]));
+</script>
+
 @push('scripts')
 <script>
 // ── DATA PENDING (untuk modal bulk) ──────────────────────────
@@ -2990,6 +3102,182 @@ async function submitAjukanUlangSA() {
 document.getElementById('modalAjukanUlangSA')?.addEventListener('click', function(e) {
     if (e.target === this) closeAjukanUlangSAModal();
 });
+
+// ── RESUBMIT REJECTED ITEMS MODAL ────────────────────────────
+// Digunakan untuk: service_part (Ditolak/Disetujui Sebagian),
+//                 service_incident (Disetujui Sebagian),
+//                 service_asuransi (Disetujui Sebagian)
+
+let _rrmPembayaranId = null;
+
+function openResubmitRejectedModal(pembayaranId) {
+    _rrmPembayaranId = pembayaranId;
+
+    // Reset state modal
+    document.getElementById('rrm-no-pr').textContent = '—';
+    document.getElementById('rrm-loading').classList.remove('hidden');
+    document.getElementById('rrm-error').classList.add('hidden');
+    document.getElementById('rrm-form').classList.add('hidden');
+    document.getElementById('rrm-catatan-wrap').classList.add('hidden');
+    document.getElementById('rrm-items-container').innerHTML = '';
+
+    // Buka modal
+    const modal = document.getElementById('resubmitRejectedModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    // Fetch data item rejected
+    fetch('/admin/pembayaran/' + pembayaranId + '/rejected-items', {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(function(data) {
+        if (!data.success) throw new Error(data.message || 'Gagal memuat data.');
+
+        // Set no_pr di header
+        document.getElementById('rrm-no-pr').textContent = data.no_pr || '—';
+
+        // Set form action
+        const form = document.getElementById('rrm-form');
+        form.action = '/admin/pembayaran/' + pembayaranId + '/resubmit-rejected-items';
+
+        // Tampilkan catatan penolakan PR-level jika ada
+        if (data.catatan_pr) {
+            document.getElementById('rrm-catatan-pr').textContent = data.catatan_pr;
+            document.getElementById('rrm-catatan-wrap').classList.remove('hidden');
+        }
+
+        // Render items
+        const container = document.getElementById('rrm-items-container');
+        const srcType   = data.source_type;
+        const isServicePart = ['service_part', 'service_incident'].includes(srcType);
+
+        data.items.forEach(function(item, i) {
+            const div = document.createElement('div');
+            div.className = 'border border-gray-200 rounded-xl overflow-hidden';
+
+            // Item header
+            let headerHtml = `
+                <div class="flex items-center gap-2 px-4 py-3 bg-red-50/60 border-b border-red-100">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">
+                        <i class="fa fa-times-circle text-[9px]"></i> Ditolak
+                    </span>
+                    <span class="text-sm font-semibold text-gray-800">${_escHtml(item.nama)}</span>
+                </div>`;
+
+            // Alasan tolak per item
+            if (item.catatan_tolak) {
+                headerHtml += `
+                <div class="px-4 py-2 bg-yellow-50 border-b border-yellow-100 flex items-start gap-2">
+                    <i class="fa fa-comment-dots text-yellow-500 text-xs mt-0.5 flex-shrink-0"></i>
+                    <p class="text-xs text-yellow-700"><span class="font-semibold">Alasan:</span> ${_escHtml(item.catatan_tolak)}</p>
+                </div>`;
+            }
+
+            // Form fields
+            headerHtml += `<div class="px-4 py-3 grid grid-cols-1 gap-3">`;
+
+            // Hidden idx
+            headerHtml += `<input type="hidden" name="items[${i}][idx]" value="${item.idx}">`;
+
+            // Biaya
+            headerHtml += `
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
+                        <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
+                            min="0" step="1000" required
+                            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
+                    </div>`;
+
+            if (isServicePart) {
+                // Supplier dropdown
+                let supplierOptions = '<option value="">— Pilih Supplier —</option>';
+                (window.__rrmSuppliers || []).forEach(function(s) {
+                    const sel = s.id == item.supplier_id ? 'selected' : '';
+                    supplierOptions += `<option value="${s.id}" ${sel}>${_escHtml(s.nama)}</option>`;
+                });
+                headerHtml += `
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Supplier</label>
+                        <select name="items[${i}][supplier_id]"
+                            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
+                            ${supplierOptions}
+                        </select>
+                    </div>`;
+            }
+            headerHtml += `</div>`; // end biaya row
+
+            if (isServicePart) {
+                // Bank / Rekening
+                headerHtml += `
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Nama Bank</label>
+                            <input type="text" name="items[${i}][nama_bank]" value="${_escAttr(item.nama_bank || '')}"
+                                maxlength="100"
+                                class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">No. Rekening</label>
+                            <input type="text" name="items[${i}][no_rekening]" value="${_escAttr(item.no_rekening || '')}"
+                                maxlength="50"
+                                class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Atas Nama</label>
+                            <input type="text" name="items[${i}][nama_rekening]" value="${_escAttr(item.nama_rekening || '')}"
+                                maxlength="150"
+                                class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
+                        </div>
+                    </div>`;
+            }
+
+            // Keterangan
+            headerHtml += `
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Keterangan</label>
+                    <textarea name="items[${i}][keterangan]" rows="2" maxlength="500"
+                        class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 resize-none">${_escHtml(item.keterangan || '')}</textarea>
+                </div>`;
+
+            headerHtml += `</div>`; // end grid
+            div.innerHTML = headerHtml;
+            container.appendChild(div);
+        });
+
+        // Tampilkan form, sembunyikan loading
+        document.getElementById('rrm-loading').classList.add('hidden');
+        document.getElementById('rrm-form').classList.remove('hidden');
+    })
+    .catch(function(err) {
+        document.getElementById('rrm-loading').classList.add('hidden');
+        document.getElementById('rrm-error-msg').textContent = err.message || 'Terjadi kesalahan.';
+        document.getElementById('rrm-error').classList.remove('hidden');
+    });
+}
+
+function closeResubmitRejectedModal() {
+    const modal = document.getElementById('resubmitRejectedModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    _rrmPembayaranId = null;
+}
+
+// Handle submit: disable tombol saat loading
+document.getElementById('rrm-form')?.addEventListener('submit', function(e) {
+    const btn = document.getElementById('rrm-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin text-xs"></i> Mengajukan...';
+});
+
+// Helper escape HTML
+function _escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function _escAttr(str) {
+    return String(str).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 </script>
 @endpush
 

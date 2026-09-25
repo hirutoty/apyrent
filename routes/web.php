@@ -478,6 +478,13 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get('pembayaran/{pembayaran}/edit-rejected', [PembayaranController::class, 'editRejected'])
     ->name('pembayaran.edit-rejected');
 
+  // Resubmit rejected items (inline modal — service_part, service_incident, service_asuransi)
+  Route::get('pembayaran/{pembayaran}/rejected-items', [PembayaranController::class, 'rejectedItems'])
+    ->name('pembayaran.rejected-items');
+
+  Route::post('pembayaran/{pembayaran}/resubmit-rejected-items', [PembayaranController::class, 'resubmitRejectedItems'])
+    ->name('pembayaran.resubmit-rejected-items');
+
   // AJAX endpoints untuk form pembayaran service
   Route::get('pembayaran/api/kendaraan-service', [PembayaranController::class, 'apiKendaraan'])
     ->name('pembayaran.api.kendaraan');

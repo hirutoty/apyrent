@@ -224,9 +224,13 @@ class PembayaranController extends Controller
         $userNames = \App\Models\User::whereIn('email', $pemohonEmails)
             ->pluck('name', 'email');
 
+        // Supplier list untuk dropdown di modal resubmit rejected items
+        $suppliers = \App\Models\Supplier::orderBy('nama_supplier')
+            ->get(['id', 'nama_supplier']);
+
         return view('admin.pembayaran.index', compact(
             'data', 'role', 'tab', 'sort', 'deptLabel', 'bulan', 'deptFilter',
-            'sourceFilter', 'sourceTypes', 'userNames',
+            'sourceFilter', 'sourceTypes', 'userNames', 'suppliers',
             'totalPR', 'totalDisetujui', 'totalPending', 'totalDitolak', 'totalDiajukan', 'totalNominal',
             'nominalDisetujui', 'nominalPending', 'nominalDitolak', 'nominalDiajukan'
         ));
@@ -2654,6 +2658,247 @@ class PembayaranController extends Controller
                 'rejection_reason' => $pembayaran->latestApproval?->catatan ?? 'Tidak ada catatan',
             ])
             ->with('info', 'Silakan perbaiki data sesuai catatan penolakan, lalu submit ulang.');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESUBMIT REJECTED ITEMS (inline modal — service_part, service_incident, service_asuransi)
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * AJAX GET — kembalikan semua item yang rejected dari satu PR.
+     * Digunakan untuk prefill form di modal resubmit.
+     */
+    public function rejectedItems(Pembayaran $pembayaran)
+    {
+        // Guard: hanya PR yang punya item rejected yang bisa diakses
+        if (!in_array($pembayaran->status, ['Ditolak', 'Disetujui Sebagian'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PR ini tidak dalam status yang dapat diajukan ulang.',
+            ], 422);
+        }
+
+        if (!$pembayaran->can_edit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PR ini tidak dapat diedit.',
+            ], 403);
+        }
+
+        $supportedTypes = ['service_part', 'service_incident', 'service_asuransi'];
+        if (!in_array($pembayaran->source_type, $supportedTypes)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Source type tidak didukung untuk resubmit inline.',
+            ], 422);
+        }
+
+        $sourceData    = $pembayaran->source_data ?? [];
+        $itemDecisions = collect($sourceData['item_decisions'] ?? [])->keyBy('idx');
+
+        // Ambil hanya item yang action = 'rejected'
+        $rejectedDecisions = collect($sourceData['item_decisions'] ?? [])
+            ->filter(fn($d) => ($d['action'] ?? '') === 'rejected');
+
+        if ($rejectedDecisions->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak ada item yang ditolak.',
+            ], 422);
+        }
+
+        $srcType = $pembayaran->source_type;
+        $items   = [];
+
+        foreach ($rejectedDecisions as $decision) {
+            $idx = (int) ($decision['idx'] ?? 0);
+
+            if (in_array($srcType, ['service_part', 'service_incident'])) {
+                $part = $sourceData['parts'][$idx] ?? [];
+                $items[] = [
+                    'idx'           => $idx,
+                    'nama'          => $part['nama_part'] ?? '-',
+                    'biaya'         => (int) ($part['biaya'] ?? 0),
+                    'nama_bank'     => $part['nama_bank'] ?? '',
+                    'no_rekening'   => $part['no_rekening'] ?? '',
+                    'nama_rekening' => $part['nama_rekening'] ?? '',
+                    'supplier_id'   => $part['supplier_id'] ?? null,
+                    'keterangan'    => $part['keterangan'] ?? '',
+                    'catatan_tolak' => $decision['catatan'] ?? '',
+                ];
+            } elseif ($srcType === 'service_asuransi') {
+                $kej = $sourceData['kejadians'][$idx] ?? [];
+                $items[] = [
+                    'idx'           => $idx,
+                    'nama'          => $kej['nama_kejadian'] ?? '-',
+                    'biaya'         => (int) ($kej['biaya'] ?? 0),
+                    'keterangan'    => $kej['keterangan'] ?? '',
+                    'catatan_tolak' => $decision['catatan'] ?? '',
+                ];
+            }
+        }
+
+        // Catatan PR-level (dari approval history terbaru)
+        $catatanPR = $pembayaran->approvals()
+            ->where('action', 'rejected')
+            ->latest()
+            ->value('catatan') ?? $pembayaran->catatan ?? null;
+
+        return response()->json([
+            'success'      => true,
+            'no_pr'        => $pembayaran->no_pr,
+            'source_type'  => $srcType,
+            'catatan_pr'   => $catatanPR,
+            'status'       => $pembayaran->status,
+            'items'        => array_values($items),
+        ]);
+    }
+
+    /**
+     * POST — update source_data item yang rejected, reset item_decisions,
+     * dan ubah status PR ke Diajukan.
+     */
+    public function resubmitRejectedItems(Request $request, Pembayaran $pembayaran)
+    {
+        // Guard
+        if (!in_array($pembayaran->status, ['Ditolak', 'Disetujui Sebagian'])) {
+            return back()->with('error', 'PR ini tidak dalam status yang dapat diajukan ulang.');
+        }
+
+        if (!$pembayaran->can_edit) {
+            return back()->with('error', 'PR ini tidak dapat diedit.');
+        }
+
+        $srcType = $pembayaran->source_type;
+
+        // Validasi dasar
+        $rules = [
+            'items'         => 'required|array|min:1',
+            'items.*.idx'   => 'required|integer|min:0',
+            'items.*.biaya' => 'required|integer|min:0',
+        ];
+
+        if (in_array($srcType, ['service_part', 'service_incident'])) {
+            $rules['items.*.nama_bank']     = 'nullable|string|max:100';
+            $rules['items.*.no_rekening']   = 'nullable|string|max:50';
+            $rules['items.*.nama_rekening'] = 'nullable|string|max:150';
+            $rules['items.*.supplier_id']   = 'nullable|integer|exists:supplier,id';
+            $rules['items.*.keterangan']    = 'nullable|string|max:500';
+        } elseif ($srcType === 'service_asuransi') {
+            $rules['items.*.keterangan'] = 'nullable|string|max:500';
+        }
+
+        $request->validate($rules);
+
+        DB::beginTransaction();
+        try {
+            $sourceData    = $pembayaran->source_data ?? [];
+            $itemDecisions = collect($sourceData['item_decisions'] ?? [])->keyBy('idx');
+            $statusAwal    = $pembayaran->status; // simpan sebelum update
+
+            // Update tiap item yang diedit
+            foreach ($request->items as $item) {
+                $idx = (int) $item['idx'];
+
+                if (in_array($srcType, ['service_part', 'service_incident'])) {
+                    if (isset($sourceData['parts'][$idx])) {
+                        $sourceData['parts'][$idx]['biaya']         = (int) $item['biaya'];
+                        $sourceData['parts'][$idx]['nama_bank']     = $item['nama_bank'] ?? $sourceData['parts'][$idx]['nama_bank'] ?? null;
+                        $sourceData['parts'][$idx]['no_rekening']   = $item['no_rekening'] ?? $sourceData['parts'][$idx]['no_rekening'] ?? null;
+                        $sourceData['parts'][$idx]['nama_rekening'] = $item['nama_rekening'] ?? $sourceData['parts'][$idx]['nama_rekening'] ?? null;
+                        $sourceData['parts'][$idx]['supplier_id']   = $item['supplier_id'] ?? $sourceData['parts'][$idx]['supplier_id'] ?? null;
+                        $sourceData['parts'][$idx]['keterangan']    = $item['keterangan'] ?? $sourceData['parts'][$idx]['keterangan'] ?? null;
+                        // Hapus flag rejection lama
+                        unset($sourceData['parts'][$idx]['status_approval']);
+                        unset($sourceData['parts'][$idx]['catatan_penolakan']);
+                    }
+                } elseif ($srcType === 'service_asuransi') {
+                    if (isset($sourceData['kejadians'][$idx])) {
+                        $sourceData['kejadians'][$idx]['biaya']       = (int) $item['biaya'];
+                        $sourceData['kejadians'][$idx]['keterangan']  = $item['keterangan'] ?? $sourceData['kejadians'][$idx]['keterangan'] ?? null;
+                    }
+                }
+
+                // Hapus entry rejected dari item_decisions — item kembali ke "belum diputuskan"
+                $itemDecisions->forget($idx);
+            }
+
+            // Rebuild item_decisions tanpa entry yang baru diresubmit
+            $sourceData['item_decisions'] = $itemDecisions->values()->toArray();
+
+            // Hitung ulang nominal:
+            // approved yang tersisa + semua item yang tidak ada di decisions (akan diperiksa ulang admin)
+            $nominalApproved = 0;
+            $nominalPending  = 0;
+            $approvedMap     = $itemDecisions->filter(fn($d) => ($d['action'] ?? '') === 'approved');
+
+            if (in_array($srcType, ['service_part', 'service_incident'])) {
+                $parts = $sourceData['parts'] ?? [];
+                foreach ($parts as $idx => $part) {
+                    $biaya = (int) ($part['biaya'] ?? 0);
+                    if ($approvedMap->has($idx)) {
+                        $nominalApproved += $biaya;
+                    } else {
+                        // Ini item yang baru diresubmit (belum ada di decisions)
+                        $nominalPending += $biaya;
+                    }
+                }
+            } elseif ($srcType === 'service_asuransi') {
+                $kejadians = $sourceData['kejadians'] ?? [];
+                foreach ($kejadians as $idx => $kej) {
+                    $biaya = (int) ($kej['biaya'] ?? 0);
+                    if ($approvedMap->has($idx)) {
+                        $nominalApproved += $biaya;
+                    } else {
+                        $nominalPending += $biaya;
+                    }
+                }
+            }
+
+            $nominalTotal = $nominalApproved + $nominalPending;
+
+            // Update nominal di source_data
+            $sourceData['nominal_approved'] = $nominalApproved;
+            $sourceData['nominal_rejected'] = 0; // sudah tidak ada yang rejected
+
+            // Tentukan status baru:
+            // Jika masih ada approved yang tersisa → Diajukan (partial resubmit)
+            // Jika semua diresubmit (tidak ada approved) → Diajukan
+            // Intinya selalu Diajukan setelah resubmit
+            $newStatus = 'Diajukan';
+
+            $pembayaran->update([
+                'source_data'       => $sourceData,
+                'nominal'           => $nominalApproved > 0 ? $nominalApproved : $nominalTotal,
+                'status'            => $newStatus,
+                'catatan'           => null, // reset catatan penolakan
+                'can_edit'          => false,
+                'terakhir_diajukan' => now(),
+                // Reset approval info agar tidak membingungkan
+                'disetujui_oleh'      => null,
+                'tanggal_persetujuan' => null,
+            ]);
+
+            DB::commit();
+
+            // Redirect: service_part Ditolak penuh → service history, sisanya → pembayaran.index
+            if ($srcType === 'service_part' && $statusAwal === 'Ditolak') {
+                return redirect()
+                    ->route('service-history.index')
+                    ->with('success', 'Item berhasil diajukan ulang. PR ' . $pembayaran->no_pr . ' sudah kembali ke antrian approval.');
+            }
+
+            return redirect()
+                ->route('pembayaran.index')
+                ->with('success', 'Item ditolak berhasil diajukan ulang. PR ' . $pembayaran->no_pr . ' sudah kembali ke antrian approval.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("resubmitRejectedItems failed for Pembayaran #{$pembayaran->id}: " . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
     }
 }
 
