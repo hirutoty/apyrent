@@ -439,6 +439,16 @@
                                                                             <i class="fa fa-rotate-right text-[9px]"></i> Ganti Part
                                                                         </button>
                                                                     @endif
+                                                                    @if ($kmSudahLewat && $limitRule && $limitRule->limit_km_interval)
+                                                                        @php
+                                                                            $kmBaruPreview = ($limitRule->limit_km ?? 0) + $limitRule->limit_km_interval;
+                                                                        @endphp
+                                                                        <button type="button"
+                                                                            onclick="event.stopPropagation(); openModalGantiLimitKm({{ $limitRule->id }}, '{{ addslashes(optional($limitRule->category)->nama ?? '') }}', {{ $limitRule->limit_km ?? 0 }}, {{ $limitRule->limit_km_interval }}, {{ $kmBaruPreview }})"
+                                                                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-300 transition-colors">
+                                                                            <i class="bi bi-speedometer2 text-[9px]"></i> Ganti Limit
+                                                                        </button>
+                                                                    @endif
                                                                 </div>
                                                             @endif
                                                         </td>
@@ -863,17 +873,23 @@
 </div>
 
 {{-- ALERT --}}
-@if (session('success') || session('error') || $errors->any())
+@if (session('success') || session('error') || session('warning_jumlah') || $errors->any())
 <div id="alertOverlay" class="fixed inset-0 z-[9999] flex items-start justify-center pt-6"
     style="background:rgba(0,0,0,0.18);opacity:0;transition:opacity 0.2s;pointer-events:none">
     <div id="alertBox" class="bg-white rounded-xl shadow-xl border border-gray-100 px-5 py-4 flex items-start gap-3 w-full max-w-md mx-4"
         style="transform:translateY(-16px);transition:transform 0.25s">
-        @if (session('success'))
+        @if (session('success') && session('warning_jumlah'))
+            <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-500 text-xl"><i class="fa fa-triangle-exclamation"></i></div>
+            <div class="flex-1"><p class="text-sm font-bold text-gray-800">Sebagian Berhasil</p><p class="text-xs text-gray-500 mt-0.5">{{ session('success') }}</p><p class="text-xs text-amber-600 mt-1">{{ session('warning_jumlah') }}</p></div>
+        @elseif (session('success'))
             <div class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0 text-green-600 text-xl"><i class="fa fa-check-circle"></i></div>
             <div class="flex-1"><p class="text-sm font-bold text-gray-800">Berhasil!</p><p class="text-xs text-gray-500 mt-0.5">{{ session('success') }}</p></div>
         @elseif (session('error'))
             <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl"><i class="fa fa-exclamation-circle"></i></div>
             <div class="flex-1"><p class="text-sm font-bold text-gray-800">Error!</p><p class="text-xs text-gray-500 mt-0.5">{{ session('error') }}</p></div>
+        @elseif (session('warning_jumlah'))
+            <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-500 text-xl"><i class="fa fa-triangle-exclamation"></i></div>
+            <div class="flex-1"><p class="text-sm font-bold text-gray-800">Peringatan</p><p class="text-xs text-gray-500 mt-0.5">{{ session('warning_jumlah') }}</p></div>
         @else
             <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl"><i class="fa fa-exclamation-circle"></i></div>
             <div class="flex-1"><p class="text-sm font-bold text-gray-800">Validasi Error!</p><ul class="text-xs text-gray-500 mt-0.5 list-disc ml-4">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
@@ -1591,6 +1607,71 @@ document.getElementById('form-perpanjang-part').addEventListener('submit', funct
 // Tutup saat klik backdrop
 document.getElementById('modal-perpanjang-part').addEventListener('click', function(e) {
     if (e.target === this) closeModalPerpanjangPart();
+});
+</script>
+
+{{-- ===================== MODAL: GANTI LIMIT KM ===================== --}}
+<div id="modal-ganti-limit-km"
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+                <h3 class="font-bold text-gray-800">Ganti Limit KM</h3>
+                <p id="ganti-limit-subtitle" class="text-xs text-gray-400 mt-0.5"></p>
+            </div>
+            <button onclick="closeModalGantiLimitKm()"
+                class="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+            {{-- Info current & target --}}
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-gray-50 rounded-xl p-3 text-center">
+                    <p class="text-xs text-gray-400 mb-1">Limit KM Saat Ini</p>
+                    <p id="ganti-limit-km-lama" class="text-base font-bold text-gray-700">—</p>
+                </div>
+                <div class="bg-violet-50 rounded-xl p-3 text-center">
+                    <p class="text-xs text-violet-400 mb-1">Akan Digeser ke</p>
+                    <p id="ganti-limit-km-baru" class="text-base font-bold text-violet-700">—</p>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 text-center">
+                Interval <span id="ganti-limit-interval" class="font-semibold text-gray-700"></span> km ditambahkan ke limit saat ini.
+            </p>
+            <form id="form-ganti-limit-km" method="POST" action="">
+                @csrf
+                <div class="flex justify-end gap-2 mt-2">
+                    <button type="button" onclick="closeModalGantiLimitKm()"
+                        class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit"
+                        class="px-5 py-2.5 text-sm font-medium text-white bg-violet-600 rounded-xl hover:bg-violet-700 transition-colors">
+                        <i class="bi bi-speedometer2 text-xs mr-1"></i> Geser Limit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openModalGantiLimitKm(limitId, kategoriNama, kmLama, interval, kmBaru) {
+    document.getElementById('form-ganti-limit-km').action = '/admin/service-categories/limits/' + limitId + '/geser-km';
+    document.getElementById('ganti-limit-subtitle').textContent  = 'Kategori: ' + kategoriNama;
+    document.getElementById('ganti-limit-km-lama').textContent   = Number(kmLama).toLocaleString('id-ID') + ' km';
+    document.getElementById('ganti-limit-km-baru').textContent   = Number(kmBaru).toLocaleString('id-ID') + ' km';
+    document.getElementById('ganti-limit-interval').textContent  = Number(interval).toLocaleString('id-ID');
+    var el = document.getElementById('modal-ganti-limit-km');
+    el.classList.remove('hidden'); el.classList.add('flex');
+}
+function closeModalGantiLimitKm() {
+    var el = document.getElementById('modal-ganti-limit-km');
+    el.classList.add('hidden'); el.classList.remove('flex');
+}
+document.getElementById('modal-ganti-limit-km').addEventListener('click', function(e) {
+    if (e.target === this) closeModalGantiLimitKm();
 });
 </script>
 

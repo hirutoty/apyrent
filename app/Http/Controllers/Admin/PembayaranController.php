@@ -1295,6 +1295,48 @@ class PembayaranController extends Controller
             if ($sh) {
                 $sh->update(['status' => 'selesai']);
             }
+
+            // Update data kendaraan berdasarkan service history
+            $kendaraan = \App\Models\Kendaraan::find($pembayaran->kendaraan_id);
+            if ($kendaraan) {
+                $kilometer = null;
+                $tglService = null;
+
+                // Ambil dari service_history yang baru saja diselesaikan, atau cari yang terkait
+                if ($sh) {
+                    $kilometer  = $sh->kilometer;
+                    $tglService = $sh->tanggal_service;
+                } else {
+                    // Fallback: ambil dari source_data pembayaran
+                    $sourceData = $pembayaran->source_data ?? [];
+                    $kilometer  = $sourceData['kilometer'] ?? null;
+                    $tglService = $pembayaran->tanggal_service ?? null;
+                }
+
+                $updateKendaraan = [];
+
+                // Update kilometer hanya jika nilai baru lebih besar dari yang tersimpan
+                if ($kilometer && (int)$kilometer > (int)($kendaraan->kilometer_sekarang ?? 0)) {
+                    $updateKendaraan['kilometer_sekarang']  = (int)$kilometer;
+                    $updateKendaraan['km_terakhir_service'] = (int)$kilometer;
+                }
+
+                // Update tanggal terakhir service
+                if ($tglService) {
+                    $tglCarbon = \Carbon\Carbon::parse($tglService);
+                    $tglExisting = $kendaraan->tanggal_terakhir_service
+                        ? \Carbon\Carbon::parse($kendaraan->tanggal_terakhir_service)
+                        : null;
+
+                    if (!$tglExisting || $tglCarbon->gte($tglExisting)) {
+                        $updateKendaraan['tanggal_terakhir_service'] = $tglCarbon->toDateString();
+                    }
+                }
+
+                if (!empty($updateKendaraan)) {
+                    $kendaraan->update($updateKendaraan);
+                }
+            }
         });
 
         return redirect()->route('pembayaran.index')
