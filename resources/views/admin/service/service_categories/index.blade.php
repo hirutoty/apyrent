@@ -132,6 +132,7 @@
                         <th class="px-5 py-3 text-left">Kendaraan</th>
                         <th class="px-4 py-3 text-center">Interval</th>
                         <th class="px-4 py-3 text-center">Limit KM</th>
+                        <th class="px-4 py-3 text-center">Jumlah</th>
                         <th class="px-4 py-3 text-right">Limit Harga</th>
                         <th class="px-4 py-3 text-center w-24">Aksi</th>
                     </tr>
@@ -164,6 +165,16 @@
                                     <span class="text-gray-400 text-xs italic">—</span>
                                 @endif
                             </td>
+                            <td class="px-4 py-3.5 text-center">
+                                @if($rule->jumlah)
+                                    <span class="inline-flex items-center gap-1.5 bg-teal-50 text-teal-700 text-xs font-semibold px-2.5 py-1 rounded-lg">
+                                        <i class="bi bi-stack text-[10px]"></i>
+                                        {{ $rule->jumlah }} pcs
+                                    </span>
+                                @else
+                                    <span class="text-gray-400 text-xs italic">—</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3.5 text-right">
                                 @if($rule->limit_price)
                                     <span class="font-semibold text-emerald-700 tabular-nums">
@@ -176,7 +187,7 @@
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1">
                                     <button
-                                        onclick="openModalEditLimit({{ $rule->id }}, {{ $rule->limit_nilai }}, '{{ $rule->limit_satuan }}', {{ $rule->limit_km ?? 'null' }}, {{ $rule->limit_price ?? 'null' }})"
+                                        onclick="openModalEditLimit({{ $rule->id }}, {{ $rule->limit_nilai }}, '{{ $rule->limit_satuan }}', {{ $rule->limit_km ?? 'null' }}, {{ $rule->limit_price ?? 'null' }}, {{ $rule->jumlah ?? 'null' }})"
                                         class="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
                                         title="Edit">
                                         <i class="fa fa-pen text-xs"></i>
@@ -196,7 +207,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-5 py-12 text-center text-gray-400 text-sm">
+                            <td colspan="7" class="px-5 py-12 text-center text-gray-400 text-sm">
                                 <i class="bi bi-inbox text-3xl block mb-2 text-gray-300"></i>
                                 Belum ada limit rule.
                                 @if(!$filterCategory && !$filterKendaraan)
@@ -420,6 +431,16 @@
                 </div>
                 <p class="text-xs text-gray-400 mt-1">Input service akan diblokir jika biaya part melebihi nilai ini.</p>
             </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Jumlah Maksimal Part</label>
+                <div class="relative">
+                    <input type="number" name="jumlah" min="1" max="999" step="1"
+                        placeholder="Kosongkan jika tidak dibatasi"
+                        class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                    <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">pcs</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">Penambahan part akan ditolak jika jumlah aktif sudah mencapai batas ini.</p>
+            </div>
             <div class="flex justify-end gap-2">
                 <button type="button" onclick="closeModal('modal-tambah-limit')"
                     class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
@@ -481,6 +502,15 @@
                         class="w-full border border-gray-200 rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                 </div>
             </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Jumlah Maksimal Part</label>
+                <div class="relative">
+                    <input type="number" id="edit-limit-jumlah" name="jumlah" min="1" max="999" step="1"
+                        placeholder="Kosongkan jika tidak dibatasi"
+                        class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                    <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">pcs</span>
+                </div>
+            </div>
             <div class="flex justify-end gap-2">
                 <button type="button" onclick="closeModal('modal-edit-limit')"
                     class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
@@ -532,15 +562,17 @@ function openModalTambahLimit(categoryId, categoryNama) {
     form.querySelector('[name="limit_satuan"]').value  = 'tahun';
     form.querySelector('[name="limit_km"]').value      = '';
     form.querySelector('[name="limit_price"]').value   = '';
+    form.querySelector('[name="jumlah"]').value        = '';
     openModal('modal-tambah-limit');
 }
 
-function openModalEditLimit(limitId, limitNilai, limitSatuan, limitKm, limitPrice) {
+function openModalEditLimit(limitId, limitNilai, limitSatuan, limitKm, limitPrice, limitJumlah) {
     document.getElementById('form-edit-limit').action  = '/admin/service-categories/limits/' + limitId;
     document.getElementById('edit-limit-nilai').value  = limitNilai;
     document.getElementById('edit-limit-satuan').value = limitSatuan;
     document.getElementById('edit-limit-km').value     = limitKm !== null ? limitKm : '';
     document.getElementById('edit-limit-price').value  = limitPrice !== null ? limitPrice : '';
+    document.getElementById('edit-limit-jumlah').value = limitJumlah !== null ? limitJumlah : '';
     openModal('modal-edit-limit');
 }
 </script>

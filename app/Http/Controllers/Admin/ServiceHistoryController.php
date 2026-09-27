@@ -322,6 +322,68 @@ class ServiceHistoryController extends Controller
         ]);
 
         // ===========================================================================
+        // VALIDASI JUMLAH LIMIT PER KATEGORI
+        // Jalankan sebelum intercept agar semua alur (PO/langsung) terkena validasi.
+        // Skip untuk: reminder (replacement = ganti part lama) & edit existing.
+        // ===========================================================================
+        if (!$request->filled('from_reminder') && !$request->filled('service_history_id') && !$request->filled('edit_po') && !$request->filled('edit_pembayaran')) {
+            $partsInput = $request->parts ?? [];
+
+            // Resolve inline category name dulu (supaya category_id sudah ada)
+            $partsForValidasi = $this->resolvePartsCategory($partsInput);
+
+            $limitRulesJumlah = ServiceCategoryLimit::where('kendaraan_id', $request->kendaraan_id)
+                ->whereNotNull('jumlah')
+                ->get()
+                ->keyBy('category_id');
+
+            $partsDitolakJumlah = [];
+
+            foreach ($partsForValidasi as $partData) {
+                $catId = $partData['category_id'] ?? null;
+                if (!$catId) continue;
+
+                $limitJ = $limitRulesJumlah[$catId] ?? null;
+                if (!$limitJ || !$limitJ->jumlah) continue;
+
+                $aktifCount = ServicePart::where('kendaraan_id', $request->kendaraan_id)
+                    ->where('category_id', $catId)
+                    ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                    ->count();
+
+                if ($aktifCount >= $limitJ->jumlah) {
+                    $namaKat = optional($limitJ->category)->nama ?? "Kategori #{$catId}";
+                    $partsDitolakJumlah[] = "\"{$partData['nama_part']}\" — {$namaKat} sudah {$aktifCount}/{$limitJ->jumlah} pcs";
+                }
+            }
+
+            if (!empty($partsDitolakJumlah)) {
+                // Hitung berapa part yang LOLOS (tidak ditolak karena jumlah)
+                $partLolos = array_filter($partsForValidasi, function ($partData) use ($limitRulesJumlah, $request) {
+                    $catId = $partData['category_id'] ?? null;
+                    if (!$catId) return true;
+                    $limitJ = $limitRulesJumlah[$catId] ?? null;
+                    if (!$limitJ || !$limitJ->jumlah) return true;
+                    $aktif = ServicePart::where('kendaraan_id', $request->kendaraan_id)
+                        ->where('category_id', $catId)
+                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                        ->count();
+                    return $aktif < $limitJ->jumlah;
+                });
+
+                $pesan = implode(', ', $partsDitolakJumlah);
+
+                if (empty($partLolos)) {
+                    // Semua part ditolak → stop sepenuhnya
+                    return back()->with('error', "Penambahan part ditolak karena sudah mencapai batas jumlah: {$pesan}.")
+                        ->withInput();
+                }
+                // Sebagian ditolak → lanjut tapi flash warning
+                session()->flash('warning_jumlah', "Beberapa part tidak ditambahkan karena sudah mencapai batas jumlah: {$pesan}.");
+            }
+        }
+
+        // ===========================================================================
         // APPROVAL WORKFLOW: Intercept dan kirim ke Purchase Order
         // Skip intercept jika:
         // 1. Dari reminder (replacement part yang sudah approved)

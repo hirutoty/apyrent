@@ -142,6 +142,7 @@ class ServiceCategoryController extends Controller
             'limit_satuan' => 'required|in:hari,minggu,bulan,tahun',
             'limit_km'     => 'nullable|integer|min:1|max:9999999999',
             'limit_price'  => 'nullable|numeric|min:0',
+            'jumlah'       => 'nullable|integer|min:1|max:999',
         ]);
 
         $exists = ServiceCategoryLimit::where('kendaraan_id', $request->kendaraan_id)
@@ -161,6 +162,7 @@ class ServiceCategoryController extends Controller
             'limit_satuan' => $request->limit_satuan,
             'limit_km'     => $request->limit_km ? (int)$request->limit_km : null,
             'limit_price'  => $request->limit_price ? (int)$request->limit_price : null,
+            'jumlah'       => $request->jumlah ? (int)$request->jumlah : null,
         ]);
 
         return back()->with('success', "Limit rule berhasil ditambahkan untuk kategori \"{$category->nama}\".");
@@ -180,6 +182,7 @@ class ServiceCategoryController extends Controller
             'limit_satuan' => 'required|in:hari,minggu,bulan,tahun',
             'limit_km'     => 'nullable|integer|min:1|max:9999999999',
             'limit_price'  => 'nullable|numeric|min:0',
+            'jumlah'       => 'nullable|integer|min:1|max:999',
         ]);
 
         $limit->update([
@@ -187,6 +190,7 @@ class ServiceCategoryController extends Controller
             'limit_satuan' => $request->limit_satuan,
             'limit_km'     => $request->limit_km ? (int)$request->limit_km : null,
             'limit_price'  => $request->limit_price ? (int)$request->limit_price : null,
+            'jumlah'       => $request->jumlah ? (int)$request->jumlah : null,
         ]);
 
         return back()->with('success', "Limit rule berhasil diperbarui.");
@@ -205,6 +209,32 @@ class ServiceCategoryController extends Controller
         $limit->delete();
 
         return back()->with('success', "Limit rule untuk kategori \"{$nama}\" berhasil dihapus.");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | GESER LIMIT KM — geser target limit_km ke berikutnya (+ interval)
+    |--------------------------------------------------------------------------
+    */
+    public function geserLimitKm($limitId)
+    {
+        $limit = ServiceCategoryLimit::with(['category', 'kendaraan'])->findOrFail($limitId);
+
+        if (!$limit->limit_km_interval || $limit->limit_km_interval <= 0) {
+            return back()->with('error', 'Limit KM interval belum diset. Silakan edit limit rule terlebih dahulu.');
+        }
+
+        $kmBaru = ($limit->limit_km ?? 0) + $limit->limit_km_interval;
+
+        $limit->update(['limit_km' => $kmBaru]);
+
+        $namaKat = optional($limit->category)->nama  ?? 'kategori';
+        $nopol   = optional($limit->kendaraan)->nopol ?? '';
+
+        return back()->with('success',
+            "Limit KM kategori \"{$namaKat}\" ({$nopol}) berhasil digeser ke " .
+            number_format($kmBaru, 0, ',', '.') . " km."
+        );
     }
 
     /*
@@ -231,8 +261,10 @@ class ServiceCategoryController extends Controller
             'limit_nilai'           => $limit->limit_nilai,
             'limit_satuan'          => $limit->limit_satuan,
             'limit_km'              => $limit->limit_km,
+            'limit_km_interval'     => $limit->limit_km_interval,
             'limit_price'           => $limit->limit_price,
             'limit_price_formatted' => $limit->limitPriceFormatted(),
+            'jumlah'                => $limit->jumlah,
         ]);
     }
 }
