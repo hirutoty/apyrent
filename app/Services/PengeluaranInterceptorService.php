@@ -201,8 +201,11 @@ class PengeluaranInterceptorService
 
     /**
      * Generate keterangan_limit otomatis untuk source_data PO/Pembayaran.
-     * Sama logikanya dengan ServiceHistoryController::generateKeteranganLimit()
-     * tapi sebagai method standalone di service ini.
+     * Mirror logika ServiceHistoryController::generateKeteranganLimit():
+     * selalu tampilkan status + angka sisa untuk semua dimensi yang dikonfigurasi.
+     *
+     * Catatan: dipanggil saat part BELUM tersimpan ke DB, jadi biaya kumulatif
+     * = total_dalam_periode (dari DB) + biaya baru ini.
      */
     private function buildKeteranganLimitForIntercept(array $partData, int $kmInput, ?\App\Models\ServiceCategoryLimit $limitRule, ?string $tanggalServis = null): string
     {
@@ -214,16 +217,14 @@ class PengeluaranInterceptorService
         $tglPasang      = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
         $intervalNilai  = (int) ($partData['interval_nilai'] ?? 0);
         $intervalSatuan = $partData['interval_satuan'] ?? 'bulan';
-        $kmPasang       = (int) ($partData['kilometer_pasang'] ?? $kmInput);
 
-        // Hitung tanggal limit
+        // Hitung tanggal limit (tgl_pasang + interval)
         $tglLimit = match ($intervalSatuan) {
             'hari'   => (clone $tglPasang)->addDays($intervalNilai),
             'minggu' => (clone $tglPasang)->addWeeks($intervalNilai),
             'tahun'  => (clone $tglPasang)->addYears($intervalNilai),
             default  => (clone $tglPasang)->addMonths($intervalNilai),
         };
-        // Bandingkan dengan tanggal servis yang diinput (bukan hari ini)
         $refTanggal = \Carbon\Carbon::parse($tanggalServis ?? now())->startOfDay();
 
         $hargaLimit  = $limitRule->limit_price;
@@ -231,12 +232,11 @@ class PengeluaranInterceptorService
         $intervalAda = $intervalNilai > 0;
 
         // ── Biaya kumulatif per periode ──────────────────────────────────────
-        // Hitung total biaya semua part kategori yang sama dalam periode aktif,
-        // lalu bandingkan (total + biaya_baru) vs limit_price.
-        $biayaKumulatif = $biaya; // default: hanya biaya ini jika belum ada riwayat
-        $adaRiwayat     = false;
+        // Part belum tersimpan ke DB → tambahkan $biaya ke total periode yang ada
+        $biayaKumulatif = $biaya;
+        $sisaBiaya      = $hargaLimit ? ((int)$hargaLimit - $biaya) : null;
         if ($hargaLimit && $limitRule->limit_nilai && $limitRule->kendaraan_id) {
-            $controller = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
+            $controller    = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
             $kumulatifData = $controller->getKumulatifBiayaKategori(
                 (int) $limitRule->kendaraan_id,
                 (int) $limitRule->category_id,
@@ -247,55 +247,69 @@ class PengeluaranInterceptorService
             );
             if ($kumulatifData !== null) {
                 $biayaKumulatif = $kumulatifData['total_dalam_periode'] + $biaya;
-                $adaRiwayat     = true;
+                $sisaBiaya      = (int)$hargaLimit - $biayaKumulatif; // bisa negatif
             }
         }
 
-        $biayaLewat  = $hargaLimit && $adaRiwayat && $biayaKumulatif > $hargaLimit;
-        $biayaSama   = $hargaLimit && $adaRiwayat && $biayaKumulatif === $hargaLimit;
-        $biayaAman   = !$hargaLimit || !$adaRiwayat || $biayaKumulatif < $hargaLimit;
+        $biayaLewat = $hargaLimit && $biayaKumulatif > $hargaLimit;
+        $biayaSama  = $hargaLimit && $biayaKumulatif === $hargaLimit;
+        $biayaAman  = !$hargaLimit || $biayaKumulatif < $hargaLimit;
 
-        $waktuLewat  = $intervalAda && $tglLimit->lt($refTanggal);
-        $waktuSama   = $intervalAda && $tglLimit->eq($refTanggal);
-        $waktuAman   = !$intervalAda || $tglLimit->gt($refTanggal);
+        $waktuLewat = $intervalAda && $tglLimit->lt($refTanggal);
+        $waktuSama  = $intervalAda && $tglLimit->eq($refTanggal);
+        $waktuAman  = !$intervalAda || $tglLimit->gt($refTanggal);
 
-        $kmAda      = $kmLimit && $kmLimit > 0;
-        $kmSama     = $kmAda && $kmInput === $kmLimit;
-        $kmLewat    = $kmAda && $kmInput > $kmLimit;
-        $kmAman     = !$kmAda || $kmInput < $kmLimit;
+        $kmAda   = $kmLimit && $kmLimit > 0;
+        $sisaKm  = $kmAda ? ((int)$kmLimit - $kmInput) : null; // bisa negatif
+        $kmSama  = $kmAda && $kmInput === (int)$kmLimit;
+        $kmLewat = $kmAda && $kmInput  >  (int)$kmLimit;
+        $kmAman  = !$kmAda || $kmInput  <  (int)$kmLimit;
 
-        $adaLimit   = $hargaLimit || $intervalAda || $kmAda;
-        if (!$adaLimit || ($biayaAman && $waktuAman && $kmAman)) {
+        // Tidak ada limit dikonfigurasi → "-"
+        $adaLimit = $hargaLimit || $intervalAda || $kmAda;
+        if (!$adaLimit) {
             return '-';
         }
 
-        $parts = [];
-        if ($biayaSama)       { $parts['biaya'] = 'mencapai batas limit biaya'; }
-        elseif ($biayaLewat)  { $parts['biaya'] = 'sudah melebihi limit biaya'; }
-        if ($waktuSama)       { $parts['waktu'] = 'mencapai batas limit jangka waktu'; }
-        elseif ($waktuLewat)  { $parts['waktu'] = 'sudah melebihi batas waktu'; }
-        if ($kmSama)          { $parts['km'] = 'mencapai batas limit KM'; }
-        elseif ($kmLewat)     { $parts['km'] = 'sudah melebihi batas limit KM'; }
+        // ── Bangun keterangan: 1 baris status per dimensi, jumlah pasang + sisa pcs ─
+        $kalimat = [];
 
-        $belumParts = [];
-        if ($hargaLimit && $biayaAman && !isset($parts['biaya']))   { $belumParts[] = 'belum mencapai limit biaya'; }
-        if ($intervalAda && $waktuAman && !isset($parts['waktu']))   { $belumParts[] = 'belum mencapai limit jangka waktu'; }
-        if ($kmAda && $kmAman && !isset($parts['km']))               { $belumParts[] = 'belum mencapai limit KM'; }
+        // KM — status saja, tanpa angka sisa
+        if ($kmAda) {
+            if ($kmSama)       $kalimat[] = 'Sudah mencapai batas limit KM';
+            elseif ($kmLewat)  $kalimat[] = 'Sudah melebihi batas limit KM';
+            else               $kalimat[] = 'Belum mencapai batas limit KM';
+        }
 
-        $kalimat = array_merge(array_values($parts), $belumParts);
-        if (empty($kalimat)) { return '-'; }
+        // Jangka waktu — status saja
+        if ($intervalAda) {
+            if ($waktuSama)       $kalimat[] = 'Sudah mencapai batas limit jangka waktu';
+            elseif ($waktuLewat)  $kalimat[] = 'Sudah melebihi batas limit jangka waktu';
+            else                  $kalimat[] = 'Belum mencapai limit jangka waktu';
+        }
 
-        $result = ucfirst(implode(', ', $kalimat));
+        // Biaya — status saja, tanpa angka sisa
+        if ($hargaLimit) {
+            if ($biayaSama)       $kalimat[] = 'Sudah mencapai batas limit biaya';
+            elseif ($biayaLewat)  $kalimat[] = 'Sudah melebihi limit biaya';
+            else                  $kalimat[] = 'Belum mencapai limit biaya';
+        }
+
+        if (empty($kalimat)) {
+            return '-';
+        }
+
+        $result = implode(', ', $kalimat);
 
         // Tambahkan info "Menggantikan [nama_part lama] yang sudah limit X" jika ada
         $namaPartLama = $partData['nama_part_lama'] ?? null;
         if ($namaPartLama) {
             $ketLama = strtolower($partData['ket_limit_lama'] ?? '');
-            if (str_contains($ketLama, 'melebihi limit km') || str_contains($ketLama, 'mencapai batas limit km')) {
+            if (str_contains($ketLama, 'melebihi batas limit km') || str_contains($ketLama, 'sudah mencapai batas limit km')) {
                 $alasanGanti = 'sudah limit KM';
-            } elseif (str_contains($ketLama, 'melebihi batas waktu') || str_contains($ketLama, 'mencapai batas limit jangka waktu')) {
+            } elseif (str_contains($ketLama, 'melebihi batas limit jangka waktu') || str_contains($ketLama, 'sudah mencapai batas limit jangka waktu')) {
                 $alasanGanti = 'sudah limit waktu';
-            } elseif (str_contains($ketLama, 'melebihi limit biaya') || str_contains($ketLama, 'mencapai batas limit biaya')) {
+            } elseif (str_contains($ketLama, 'sudah melebihi limit biaya') || str_contains($ketLama, 'sudah mencapai batas limit biaya')) {
                 $alasanGanti = 'sudah melebihi limit biaya';
             } else {
                 $alasanGanti = 'sudah limit';

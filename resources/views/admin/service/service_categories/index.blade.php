@@ -187,7 +187,7 @@
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1">
                                     <button
-                                        onclick="openModalEditLimit({{ $rule->id }}, {{ $rule->limit_nilai }}, '{{ $rule->limit_satuan }}', {{ $rule->limit_km ?? 'null' }}, {{ $rule->limit_km_interval ?? 'null' }}, {{ $rule->limit_price ?? 'null' }}, {{ $rule->jumlah ?? 'null' }})"
+                                        onclick="openModalEditLimit({{ $rule->id }}, {{ $rule->limit_nilai }}, '{{ $rule->limit_satuan }}', {{ $rule->limit_km ?? 'null' }}, {{ $rule->limit_price ?? 'null' }}, {{ $rule->jumlah ?? 'null' }})"
                                         class="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
                                         title="Edit">
                                         <i class="fa fa-pen text-xs"></i>
@@ -419,17 +419,7 @@
                         class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                     <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
                 </div>
-                <p class="text-xs text-gray-400 mt-1">Target KM absolut pertama. Setelah tercapai, tombol "Ganti Limit" akan muncul.</p>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Interval KM <span class="text-xs text-gray-400 font-normal">(per periode)</span></label>
-                <div class="relative">
-                    <input type="number" name="limit_km_interval" min="1" step="1"
-                        placeholder="Kosongkan jika tidak ada periode KM"
-                        class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
-                    <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
-                </div>
-                <p class="text-xs text-gray-400 mt-1">Setiap kali limit digeser, limit_km += nilai ini. Juga dipakai untuk reset hitungan jumlah part.</p>
+                <p class="text-xs text-gray-400 mt-1">Target KM absolut pertama. Setelah tercapai, tombol "Ganti Limit" akan muncul untuk update manual.</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Batas Harga (Limit Price)</label>
@@ -502,17 +492,7 @@
                         class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                     <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
                 </div>
-                <p class="text-xs text-gray-400 mt-1">Target KM absolut saat ini. Digeser otomatis saat klik "Ganti Limit".</p>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Interval KM <span class="text-xs text-gray-400 font-normal">(per periode)</span></label>
-                <div class="relative">
-                    <input type="number" id="edit-limit-km-interval" name="limit_km_interval" min="1" step="1"
-                        placeholder="Kosongkan jika tidak ada periode KM"
-                        class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
-                    <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
-                </div>
-                <p class="text-xs text-gray-400 mt-1">Setiap kali "Ganti Limit" diklik, limit_km += nilai ini. Juga dipakai untuk reset hitungan jumlah part.</p>
+                <p class="text-xs text-gray-400 mt-1">Target KM absolut saat ini. Update manual via tombol "Ganti Limit" di service history.</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Batas Harga (Limit Price)</label>
@@ -587,12 +567,11 @@ function openModalTambahLimit(categoryId, categoryNama) {
     openModal('modal-tambah-limit');
 }
 
-function openModalEditLimit(limitId, limitNilai, limitSatuan, limitKm, limitKmInterval, limitPrice, limitJumlah) {
+function openModalEditLimit(limitId, limitNilai, limitSatuan, limitKm, limitPrice, limitJumlah) {
     document.getElementById('form-edit-limit').action          = '/admin/service-categories/limits/' + limitId;
     document.getElementById('edit-limit-nilai').value          = limitNilai;
     document.getElementById('edit-limit-satuan').value         = limitSatuan;
     document.getElementById('edit-limit-km').value             = limitKm !== null ? limitKm : '';
-    document.getElementById('edit-limit-km-interval').value    = limitKmInterval !== null ? limitKmInterval : '';
     document.getElementById('edit-limit-price').value          = limitPrice !== null ? limitPrice : '';
     document.getElementById('edit-limit-jumlah').value         = limitJumlah !== null ? limitJumlah : '';
     openModal('modal-edit-limit');

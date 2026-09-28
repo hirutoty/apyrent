@@ -465,7 +465,8 @@ async function loadLimitRules(kendaraanId) {
 
 /**
  * Hitung keterangan limit untuk satu baris part secara client-side.
- * Mirror logika generateKeteranganLimit() PHP + KM kumulatif per tahun.
+ * Mirror logika generateKeteranganLimit() PHP — menampilkan status + angka sisa
+ * untuk semua dimensi: KM, jangka waktu, biaya, dan jumlah pasang.
  */
 function calcKeteranganLimit(idx) {
     const catSelect    = document.getElementById('cat-select-' + idx);
@@ -474,7 +475,6 @@ function calcKeteranganLimit(idx) {
 
     const resultEl     = document.getElementById('ket-limit-text-' + idx);
     const badgeEl      = document.getElementById('ket-limit-badge-' + idx);
-    const wrapEl       = document.getElementById('ket-limit-wrap-' + idx);
     const hiddenEl     = document.getElementById('ket-limit-hidden-' + idx);
 
     if (!resultEl) return;
@@ -482,7 +482,7 @@ function calcKeteranganLimit(idx) {
     // Tidak ada rule → "-"
     if (!limitRule) {
         resultEl.textContent = '-';
-        if (badgeEl) { badgeEl.className = 'hidden'; }
+        if (badgeEl) badgeEl.className = 'hidden';
         if (hiddenEl) hiddenEl.value = '-';
         return;
     }
@@ -492,7 +492,6 @@ function calcKeteranganLimit(idx) {
     const tglPasangStr  = document.querySelector('[name="parts[' + idx + '][tgl_pasang]"]')?.value || '';
     const intervalNilai = parseInt(document.getElementById('interval-nilai-' + idx)?.value || 0);
     const intervalSat   = document.getElementById('interval-satuan-' + idx)?.value || 'bulan';
-    const kmPasang      = parseInt(document.getElementById('km-pasang-' + idx)?.value || 0);
     const kmInput       = parseInt(document.getElementById('kilometer')?.value || 0);
     const tanggalServis = document.querySelector('[name="tanggal_service"]')?.value || '';
 
@@ -500,69 +499,63 @@ function calcKeteranganLimit(idx) {
     const refTanggal    = tanggalServis ? new Date(tanggalServis) : new Date();
 
     // Hitung tanggal limit (tgl_pasang + interval)
-    const tglLimit = calcTglLimit(tglPasang, intervalNilai, intervalSat);
+    const tglLimit    = calcTglLimit(tglPasang, intervalNilai, intervalSat);
 
-    const limitPrice    = limitRule.limit_price  ? parseInt(limitRule.limit_price)  : null;
-    const limitKm       = limitRule.limit_km     ? parseInt(limitRule.limit_km)     : null;
-    const intervalAda   = intervalNilai > 0;
+    const limitPrice  = limitRule.limit_price ? parseInt(limitRule.limit_price) : null;
+    const limitKm     = limitRule.limit_km    ? parseInt(limitRule.limit_km)    : null;
+    const intervalAda = intervalNilai > 0;
 
-    // ── Dimensi biaya (kumulatif dari server) ─────────────────
-    // Gunakan data kumulatif dari cache fetchLimitBiayaKumulatif() jika tersedia.
-    // Cache berisi total_dengan_baru = total periode sebelumnya + biaya baru ini.
-    // Jika cache belum ada (belum pernah fetch), fallback ke biaya tunggal.
-    let biayaCek = biaya;
+    // ── Dimensi biaya (kumulatif dari server) ─────────────────────────────
+    // kumulatifBiayaCache[idx].total_dengan_baru = total periode + biaya baru ini.
+    // sisa_setelah_input dari server sudah bisa negatif.
+    let biayaCek  = biaya;
+    let sisaBiaya = limitPrice !== null ? (limitPrice - biaya) : null;
     const kumulatifData = kumulatifBiayaCache[idx];
     if (kumulatifData && kumulatifData.has_limit && limitPrice !== null) {
-        biayaCek = kumulatifData.total_dengan_baru ?? biaya;
+        biayaCek  = kumulatifData.total_dengan_baru ?? biaya;
+        sisaBiaya = kumulatifData.sisa_setelah_input ?? (limitPrice - biayaCek);
     }
 
     const biayaSama  = limitPrice !== null && biayaCek === limitPrice;
     const biayaLewat = limitPrice !== null && biayaCek  >  limitPrice;
     const biayaAman  = limitPrice === null || biayaCek  <  limitPrice;
 
-    // ── Dimensi waktu ─────────────────────────────────────────
-    // Normalisasi ke startOfDay
-    const refMs   = new Date(refTanggal.getFullYear(), refTanggal.getMonth(), refTanggal.getDate()).getTime();
-    const limMs   = new Date(tglLimit.getFullYear(),   tglLimit.getMonth(),   tglLimit.getDate()).getTime();
+    // ── Dimensi waktu ─────────────────────────────────────────────────────
+    const refMs      = new Date(refTanggal.getFullYear(), refTanggal.getMonth(), refTanggal.getDate()).getTime();
+    const limMs      = new Date(tglLimit.getFullYear(),   tglLimit.getMonth(),   tglLimit.getDate()).getTime();
     const waktuSama  = intervalAda && limMs === refMs;
     const waktuLewat = intervalAda && limMs  <  refMs;
     const waktuAman  = !intervalAda || limMs  >  refMs;
 
-    // ── Dimensi KM — limit_km adalah target KM absolut ──────────────────
-    // limit_km langsung dipakai sebagai target, bukan dijumlah dengan km_pasang.
-    // Konsisten dengan logika PHP di generateKeteranganLimit().
-    let kmSama = false, kmLewat = false, kmAman = true;
+    // ── Dimensi KM — limit_km adalah target KM absolut ───────────────────
+    let kmSama = false, kmLewat = false, kmAman = true, sisaKm = null;
     const kmAda = limitKm !== null && limitKm > 0;
     if (kmAda) {
-        const targetKm = limitKm;   // absolut — bukan baseKm + limitKm
-        kmSama  = kmInput === targetKm;
-        kmLewat = kmInput  >  targetKm;
-        kmAman  = kmInput  <  targetKm;
+        sisaKm  = limitKm - kmInput; // bisa negatif
+        kmSama  = kmInput === limitKm;
+        kmLewat = kmInput  >  limitKm;
+        kmAman  = kmInput  <  limitKm;
     }
 
-    // ── Dimensi Jumlah ─────────────────────────────────────────────────
-    const limitJumlah  = limitRule.jumlah      ? parseInt(limitRule.jumlah)      : null;
-    // aktif_count dari DB = yang sudah tersimpan sebelumnya
-    // Tambahkan jumlah row di form yang memilih kategori yang sama (belum tersimpan ke DB)
-    // agar saat user tambah part ke-2 di form, keterangan langsung muncul
-    const aktifCountDb = limitRule.aktif_count !== null && limitRule.aktif_count !== undefined
+    // ── Dimensi Jumlah pasang ─────────────────────────────────────────────
+    const limitJumlah  = limitRule.jumlah ? parseInt(limitRule.jumlah) : null;
+    const aktifCountDb = (limitRule.aktif_count !== null && limitRule.aktif_count !== undefined)
         ? parseInt(limitRule.aktif_count) : null;
     let aktifCountForm = 0;
     if (limitJumlah !== null && categoryId) {
         document.querySelectorAll('[id^="cat-select-"]').forEach(function(catEl) {
             const mIdx = catEl.id.match(/cat-select-(\d+)/);
             if (!mIdx) return;
-            const rowIdx = parseInt(mIdx[1]);
-            if (rowIdx === idx) return; // skip row ini sendiri
+            if (parseInt(mIdx[1]) === idx) return; // skip baris ini sendiri
             if (parseInt(catEl.value) === categoryId) aktifCountForm++;
         });
     }
-    const aktifCount   = aktifCountDb !== null ? aktifCountDb + aktifCountForm : null;
-    const jumlahAda    = limitJumlah !== null && limitJumlah > 0 && aktifCount !== null;
-    const jumlahSama   = jumlahAda && aktifCount === limitJumlah;
-    const jumlahLewat  = jumlahAda && aktifCount  >  limitJumlah;
-    const jumlahAman   = !jumlahAda || aktifCount  <  limitJumlah;
-    console.log('[debug-jumlah] idx='+idx, 'limitRule=', limitRule ? {jumlah: limitRule.jumlah, aktif_count: limitRule.aktif_count} : null, 'aktifCountDb='+aktifCountDb, 'aktifCountForm='+aktifCountForm, 'aktifCount='+aktifCount, 'jumlahAda='+jumlahAda, 'jumlahSama='+jumlahSama);
+    const aktifCount  = aktifCountDb !== null ? aktifCountDb + aktifCountForm : null;
+    const jumlahAda   = limitJumlah !== null && limitJumlah > 0 && aktifCount !== null;
+    const jumlahSama  = jumlahAda && aktifCount === limitJumlah;
+    const jumlahLewat = jumlahAda && aktifCount  >  limitJumlah;
+    const jumlahAman  = !jumlahAda || aktifCount  <  limitJumlah;
+    const sisaPasang  = jumlahAda ? (limitJumlah - aktifCount) : null; // bisa negatif
 
     // Tidak ada limit dikonfigurasi → "-"
     const adaLimit = limitPrice || intervalAda || kmAda || jumlahAda;
@@ -573,37 +566,35 @@ function calcKeteranganLimit(idx) {
         return;
     }
 
-    // Semua aman → "-"
-    if (biayaAman && waktuAman && kmAman && jumlahAman) {
-        resultEl.textContent = '-';
-        if (badgeEl) badgeEl.className = 'hidden';
-        if (hiddenEl) hiddenEl.value = '-';
-        return;
+    // ── Bangun kalimat: 1 baris status per dimensi, jumlah pasang + sisa pcs ─
+    const kalimat = [];
+
+    // KM — status saja, tanpa angka sisa
+    if (kmAda) {
+        if (kmSama)       kalimat.push('Sudah mencapai batas limit KM');
+        else if (kmLewat) kalimat.push('Sudah melebihi batas limit KM');
+        else              kalimat.push('Belum mencapai batas limit KM');
     }
 
-    // ── Bangun kalimat ────────────────────────────────────────
-    const parts_ket = [];
-    const belum     = [];
+    // Jangka waktu — status saja
+    if (intervalAda) {
+        if (waktuSama)       kalimat.push('Sudah mencapai batas limit jangka waktu');
+        else if (waktuLewat) kalimat.push('Sudah melebihi batas limit jangka waktu');
+        else                 kalimat.push('Belum mencapai limit jangka waktu');
+    }
 
-    if (biayaSama)       parts_ket.push('sudah mencapai batas limit biaya');
-    else if (biayaLewat) parts_ket.push('sudah melebihi limit biaya');
-    else if (limitPrice && biayaAman) belum.push('belum mencapai limit biaya');
+    // Biaya — status saja, tanpa angka sisa
+    if (limitPrice !== null) {
+        if (biayaSama)       kalimat.push('Sudah mencapai batas limit biaya');
+        else if (biayaLewat) kalimat.push('Sudah melebihi limit biaya');
+        else                 kalimat.push('Belum mencapai limit biaya');
+    }
 
-    if (waktuSama)       parts_ket.push('sudah mencapai batas limit jangka waktu');
-    else if (waktuLewat) parts_ket.push('sudah melebihi batas waktu');
-    else if (intervalAda && waktuAman) belum.push('belum mencapai limit jangka waktu');
+    // Jumlah pasang — tampilkan sisa pcs
+    if (jumlahAda) {
+        kalimat.push('Sisa batas pemasangan = ' + sisaPasang + ' pcs');
+    }
 
-    // KM — hanya disebut jika mencapai atau melebihi, TIDAK disebut jika masih aman
-    if (kmSama)       parts_ket.push('sudah mencapai batas limit KM');
-    else if (kmLewat) parts_ket.push('sudah melebihi batas limit KM');
-    // kmAman → tidak ditambahkan ke kalimat sama sekali
-
-    // Jumlah — hanya disebut jika mencapai atau melebihi, TIDAK disebut jika masih aman
-    if (jumlahSama)       parts_ket.push('sudah mencapai batas jumlah part (' + aktifCount + '/' + limitJumlah + ' pcs)');
-    else if (jumlahLewat) parts_ket.push('sudah melebihi batas jumlah part (' + aktifCount + '/' + limitJumlah + ' pcs)');
-    // jumlahAman → tidak ditambahkan sama sekali
-
-    const kalimat = parts_ket.concat(belum);
     if (kalimat.length === 0) {
         resultEl.textContent = '-';
         if (badgeEl) badgeEl.className = 'hidden';
@@ -611,11 +602,11 @@ function calcKeteranganLimit(idx) {
         return;
     }
 
-    const hasil = kalimat[0].charAt(0).toUpperCase() + kalimat[0].slice(1) + (kalimat.length > 1 ? ', ' + kalimat.slice(1).join(', ') : '');
+    const hasil = kalimat.join(', ');
     resultEl.textContent = hasil;
     if (hiddenEl) hiddenEl.value = hasil;
 
-    // ── Badge warna ───────────────────────────────────────────
+    // ── Badge warna ───────────────────────────────────────────────────────
     if (badgeEl) {
         const adaLewat = biayaLewat || waktuLewat || kmLewat || jumlahLewat;
         const adaSama  = !adaLewat && (biayaSama || waktuSama || kmSama || jumlahSama);
@@ -629,6 +620,14 @@ function calcKeteranganLimit(idx) {
             badgeEl.className = 'hidden';
         }
     }
+}
+
+/** Format angka ribuan dengan titik, bisa negatif */
+function formatAngka(val) {
+    if (val === null || val === undefined) return '0';
+    const abs  = Math.abs(Math.round(val));
+    const fmt  = abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return val < 0 ? '-' + fmt : fmt;
 }
 
 /** Hitung tanggal limit dari tgl_pasang + interval */
