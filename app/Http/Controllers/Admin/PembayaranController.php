@@ -1435,6 +1435,26 @@ class PembayaranController extends Controller
         // temp_files dikirim terpisah
         $sourceDataForClient = $sourceData;
 
+        // Normalisasi biaya/biaya_sewa ke integer agar tidak ada string concatenation di JS
+        if (!empty($sourceDataForClient['parts']) && is_array($sourceDataForClient['parts'])) {
+            foreach ($sourceDataForClient['parts'] as &$p) {
+                if (isset($p['biaya'])) $p['biaya'] = (int) $p['biaya'];
+            }
+            unset($p);
+        }
+        if (!empty($sourceDataForClient['kejadians']) && is_array($sourceDataForClient['kejadians'])) {
+            foreach ($sourceDataForClient['kejadians'] as &$k) {
+                if (isset($k['biaya'])) $k['biaya'] = (int) $k['biaya'];
+            }
+            unset($k);
+        }
+        if (!empty($sourceDataForClient['gps_items']) && is_array($sourceDataForClient['gps_items'])) {
+            foreach ($sourceDataForClient['gps_items'] as &$g) {
+                if (isset($g['biaya_sewa'])) $g['biaya_sewa'] = (int) $g['biaya_sewa'];
+            }
+            unset($g);
+        }
+
         $relatedData = [];
         
         // Load related data berdasarkan source_type
@@ -1493,8 +1513,8 @@ class PembayaranController extends Controller
             'alasan_permintaan'   => $pembayaran->alasan_permintaan,
             'keterangan'          => $pembayaran->keterangan,
             'status'              => $pembayaran->status,
-            'nominal'             => $pembayaran->nominal,
-            'nominal_display'     => $nominalDisplay,
+            'nominal'             => (int) ($pembayaran->nominal ?? 0),
+            'nominal_display'     => (int) $nominalDisplay,
             'source_type'         => $pembayaran->source_type,
             'source_type_name'    => $pembayaran->source_type_name,
             'can_edit'            => $pembayaran->can_edit,

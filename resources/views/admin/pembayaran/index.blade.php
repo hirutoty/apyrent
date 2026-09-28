@@ -1232,28 +1232,47 @@
                                                                     @endif
                                                                 </td>
                                                                 <td class="px-4 py-2 text-gray-500">
-                                                                    @php
-                                                                        $ket = $spart['keterangan_limit'] ?? $spart['keterangan'] ?? null;
-                                                                        $ketBadges = ($ket && $ket !== '-') ? array_filter(array_map('trim', explode(',', $ket))) : [];
-                                                                    @endphp
-                                                                    @if(!empty($ketBadges))
+                                                                    @if(!empty($snap))
+                                                                        @php
+                                                                            // Render per dimensi secara terurut: Biaya → Jangka Waktu → KM
+                                                                            $ketDimensi = [];
+
+                                                                            // 1. Biaya
+                                                                            if (!empty($snap['limit_biaya'])) {
+                                                                                if (!empty($snap['biaya_lewat'])) {
+                                                                                    $ketDimensi[] = ['label' => 'Melebihi limit biaya', 'color' => 'bg-red-100 text-red-700'];
+                                                                                } else {
+                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai limit biaya', 'color' => 'bg-green-100 text-green-700'];
+                                                                                }
+                                                                            }
+
+                                                                            // 2. Jangka Waktu
+                                                                            if (!empty($snap['limit_interval_label'])) {
+                                                                                if (!empty($snap['tanggal_lewat'])) {
+                                                                                    $ketDimensi[] = ['label' => 'Melebihi batas waktu', 'color' => 'bg-red-100 text-red-700'];
+                                                                                } else {
+                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai batas waktu', 'color' => 'bg-green-100 text-green-700'];
+                                                                                }
+                                                                            }
+
+                                                                            // 3. KM
+                                                                            if (!empty($snap['limit_km_target'])) {
+                                                                                if (!empty($snap['km_lewat'])) {
+                                                                                    $ketDimensi[] = ['label' => 'Melebihi limit km', 'color' => 'bg-red-100 text-red-700'];
+                                                                                } else {
+                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai limit km', 'color' => 'bg-green-100 text-green-700'];
+                                                                                }
+                                                                            }
+
+                                                                            // Jika tidak ada dimensi limit sama sekali, tampilkan "Belum mencapai limit"
+                                                                            if (empty($ketDimensi)) {
+                                                                                $ketDimensi[] = ['label' => 'Belum mencapai limit', 'color' => 'bg-green-100 text-green-700'];
+                                                                            }
+                                                                        @endphp
                                                                         <div class="flex flex-col gap-0.5">
-                                                                        @foreach($ketBadges as $badge)
-                                                                            @php
-                                                                                $bl = strtolower($badge);
-                                                                                $bc = match(true) {
-                                                                                    str_contains($bl, 'melebihi limit biaya'),
-                                                                                    str_contains($bl, 'melebihi batas waktu'),
-                                                                                    str_contains($bl, 'melebihi limit km'),
-                                                                                    str_contains($bl, 'melebihi batas limit km'),
-                                                                                    str_contains($bl, 'melebihi batas jumlah part') => 'bg-red-100 text-red-700',
-                                                                                    str_contains($bl, 'mencapai batas limit'),
-                                                                                    str_contains($bl, 'mencapai batas jumlah part')  => 'bg-yellow-100 text-yellow-700',
-                                                                                    default                                           => 'bg-green-100 text-green-700',
-                                                                                };
-                                                                            @endphp
-                                                                            <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $bc }}">{{ ucfirst($badge) }}</span>
-                                                                        @endforeach
+                                                                            @foreach($ketDimensi as $dim)
+                                                                                <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $dim['color'] }}">{{ $dim['label'] }}</span>
+                                                                            @endforeach
                                                                         </div>
                                                                     @else
                                                                         <span class="text-gray-300">—</span>

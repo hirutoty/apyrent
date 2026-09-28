@@ -1160,31 +1160,31 @@ function approvalModal() {
             const srcType = this.data?.source_type;
             // Jika belum ada keputusan sama sekali, tampilkan nominal_display (sudah dikurangi rejected sebelumnya)
             if (this.decidedCount() === 0) {
-                return this.data?.nominal_display ?? this.data?.nominal ?? 0;
+                return Number(this.data?.nominal_display ?? this.data?.nominal ?? 0);
             }
             if (srcType === 'gps' || srcType === 'gps_perpanjang') {
                 const items = this.relatedData?.gps_items || [];
                 return this.itemDecisions.reduce((sum, d, idx) => {
-                    if (d.action === 'approved') sum += (items[idx]?.biaya_sewa || 0);
+                    if (d.action === 'approved') sum += Number(items[idx]?.biaya_sewa || 0);
                     return sum;
                 }, 0);
             }
             if (srcType === 'service_part' || srcType === 'service_incident') {
                 const parts = this.sourceData?.parts || [];
                 return this.itemDecisions.reduce((sum, d, idx) => {
-                    if (d.action === 'approved') sum += (parts[idx]?.biaya || 0);
+                    if (d.action === 'approved') sum += Number(parts[idx]?.biaya || 0);
                     return sum;
                 }, 0);
             }
             if (srcType === 'service_asuransi') {
                 const kejadians = this.sourceData?.kejadians || [];
                 return this.itemDecisions.reduce((sum, d, idx) => {
-                    if (d.action === 'approved') sum += (kejadians[idx]?.biaya || 0);
+                    if (d.action === 'approved') sum += Number(kejadians[idx]?.biaya || 0);
                     return sum;
                 }, 0);
             }
             // Non per-item: tampilkan nominal_display
-            return this.data?.nominal_display ?? this.data?.nominal ?? 0;
+            return Number(this.data?.nominal_display ?? this.data?.nominal ?? 0);
         },
 
         allRejectedHaveCatatan() {
