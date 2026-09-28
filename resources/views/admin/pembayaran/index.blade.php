@@ -1245,9 +1245,11 @@
                                                                                     str_contains($bl, 'melebihi limit biaya'),
                                                                                     str_contains($bl, 'melebihi batas waktu'),
                                                                                     str_contains($bl, 'melebihi limit km'),
-                                                                                    str_contains($bl, 'melebihi batas limit km') => 'bg-red-100 text-red-700',
-                                                                                    str_contains($bl, 'mencapai batas limit')    => 'bg-yellow-100 text-yellow-700',
-                                                                                    default                                       => 'bg-green-100 text-green-700',
+                                                                                    str_contains($bl, 'melebihi batas limit km'),
+                                                                                    str_contains($bl, 'melebihi batas jumlah part') => 'bg-red-100 text-red-700',
+                                                                                    str_contains($bl, 'mencapai batas limit'),
+                                                                                    str_contains($bl, 'mencapai batas jumlah part')  => 'bg-yellow-100 text-yellow-700',
+                                                                                    default                                           => 'bg-green-100 text-green-700',
                                                                                 };
                                                                             @endphp
                                                                             <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $bc }}">{{ ucfirst($badge) }}</span>
@@ -2741,9 +2743,9 @@ function populateDetailModal(pr, activeTab) {
                     badges.forEach(function(badge) {
                         const bl = badge.toLowerCase();
                         let bc = 'bg-green-100 text-green-700';
-                        if (bl.includes('melebihi limit biaya') || bl.includes('melebihi batas waktu') || bl.includes('melebihi limit km') || bl.includes('melebihi batas limit km')) {
+                        if (bl.includes('melebihi limit biaya') || bl.includes('melebihi batas waktu') || bl.includes('melebihi limit km') || bl.includes('melebihi batas limit km') || bl.includes('melebihi batas jumlah part')) {
                             bc = 'bg-red-100 text-red-700';
-                        } else if (bl.includes('mencapai batas limit')) {
+                        } else if (bl.includes('mencapai batas limit') || bl.includes('mencapai batas jumlah part')) {
                             bc = 'bg-yellow-100 text-yellow-700';
                         }
                         html += '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ' + bc + '">' + badge.charAt(0).toUpperCase() + badge.slice(1) + '</span>';
