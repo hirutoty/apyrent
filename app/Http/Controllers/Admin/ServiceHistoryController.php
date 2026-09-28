@@ -346,29 +346,14 @@ class ServiceHistoryController extends Controller
                 $limitJ = $limitRulesJumlah[$catId] ?? null;
                 if (!$limitJ || !$limitJ->jumlah) continue;
 
-                // Hitung hanya part yang dipasang dalam periode KM aktif (anchor = limit_km - limit_km_interval).
-                // Jika limit_km_interval belum diset, hitung semua (backward compatible).
-                $anchorKm   = ($limitJ->limit_km && $limitJ->limit_km_interval)
-                    ? max(0, (int)$limitJ->limit_km - (int)$limitJ->limit_km_interval)
-                    : null;
-
-                $aktifQuery = ServicePart::where('kendaraan_id', $request->kendaraan_id)
+                $aktifCount = ServicePart::where('kendaraan_id', $request->kendaraan_id)
                     ->where('category_id', $catId)
-                    ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
-
-                if ($anchorKm !== null) {
-                    // Hanya part yang kilometer_pasang >= anchor periode aktif
-                    $aktifQuery->where(function ($q) use ($anchorKm) {
-                        $q->whereNull('kilometer_pasang')
-                          ->orWhere('kilometer_pasang', '>=', $anchorKm);
-                    });
-                }
-
-                $aktifCount = $aktifQuery->count();
+                    ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                    ->count();
 
                 if ($aktifCount >= $limitJ->jumlah) {
                     $namaKat = optional($limitJ->category)->nama ?? "Kategori #{$catId}";
-                    $partsDitolakJumlah[] = "\"{$partData['nama_part']}\" — {$namaKat} sudah {$aktifCount}/{$limitJ->jumlah} pcs (periode KM " . ($anchorKm ?? 0) . "–" . ($limitJ->limit_km ?? '∞') . ")";
+                    $partsDitolakJumlah[] = "\"{$partData['nama_part']}\" — {$namaKat} sudah {$aktifCount}/{$limitJ->jumlah} pcs";
                 }
             }
 
@@ -380,22 +365,10 @@ class ServiceHistoryController extends Controller
                     $limitJ = $limitRulesJumlah[$catId] ?? null;
                     if (!$limitJ || !$limitJ->jumlah) return true;
 
-                    $anchorKm = ($limitJ->limit_km && $limitJ->limit_km_interval)
-                        ? max(0, (int)$limitJ->limit_km - (int)$limitJ->limit_km_interval)
-                        : null;
-
-                    $q = ServicePart::where('kendaraan_id', $request->kendaraan_id)
+                    return ServicePart::where('kendaraan_id', $request->kendaraan_id)
                         ->where('category_id', $catId)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
-
-                    if ($anchorKm !== null) {
-                        $q->where(function ($q2) use ($anchorKm) {
-                            $q2->whereNull('kilometer_pasang')
-                               ->orWhere('kilometer_pasang', '>=', $anchorKm);
-                        });
-                    }
-
-                    return $q->count() < $limitJ->jumlah;
+                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                        ->count() < $limitJ->jumlah;
                 });
 
                 $pesan = implode(', ', $partsDitolakJumlah);
@@ -647,17 +620,11 @@ class ServiceHistoryController extends Controller
                     $aktifCountKet  = null;
                     $limitJumlahKet = null;
                     if ($limitRule && $limitRule->jumlah) {
-                        $anchorKmKet = ($limitRule->limit_km && $limitRule->limit_km_interval)
-                            ? max(0, (int)$limitRule->limit_km - (int)$limitRule->limit_km_interval)
-                            : null;
-                        $qKet = ServicePart::where('kendaraan_id', $request->kendaraan_id)
-                            ->where('category_id', $partData['category_id'])
-                            ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
-                        if ($anchorKmKet !== null) {
-                            $qKet->where(fn($q) => $q->whereNull('kilometer_pasang')->orWhere('kilometer_pasang', '>=', $anchorKmKet));
-                        }
                         // +1 karena part ini sendiri belum tersimpan ke DB saat keterangan digenerate
-                        $aktifCountKet  = $qKet->count() + 1;
+                        $aktifCountKet  = ServicePart::where('kendaraan_id', $request->kendaraan_id)
+                            ->where('category_id', $partData['category_id'])
+                            ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                            ->count() + 1;
                         $limitJumlahKet = (int) $limitRule->jumlah;
                     }
                     $keteranganOtomatis = $this->generateKeteranganLimit($partData, $kmInput, $limitRule, $request->tanggal_service, $partLamaKmPasang, $aktifCountKet, $limitJumlahKet);
@@ -1199,26 +1166,19 @@ class ServiceHistoryController extends Controller
         $rules = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $kendaraanId)
             ->get()
             ->map(function ($r) use ($kendaraanId) {
-                // Hitung aktifCount dalam periode aktif untuk dimensi jumlah di JS
+                // Hitung aktifCount untuk dimensi jumlah di JS
                 $aktifCount = null;
                 if ($r->jumlah) {
-                    $anchorKm = ($r->limit_km && $r->limit_km_interval)
-                        ? max(0, (int)$r->limit_km - (int)$r->limit_km_interval)
-                        : null;
-                    $q = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
+                    $aktifCount = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
                         ->where('category_id', $r->category_id)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
-                    if ($anchorKm !== null) {
-                        $q->where(fn($q2) => $q2->whereNull('kilometer_pasang')->orWhere('kilometer_pasang', '>=', $anchorKm));
-                    }
-                    $aktifCount = $q->count();
+                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                        ->count();
                 }
 
                 return [
                     'category_id'        => $r->category_id,
                     'limit_price'        => $r->limit_price,
                     'limit_km'           => $r->limit_km,
-                    'limit_km_interval'  => $r->limit_km_interval,
                     'limit_nilai'        => $r->limit_nilai,
                     'limit_satuan'       => $r->limit_satuan,
                     'jumlah'             => $r->jumlah,
@@ -1357,9 +1317,12 @@ class ServiceHistoryController extends Controller
             ->whereDate('tgl_pasang', '<=', $periodeSelesai->toDateString())
             ->sum('biaya');
 
+        // sisa_limit bisa negatif (sudah melebihi) — sengaja tidak di-clamp ke 0
+        $sisaLimit = $limitPrice - (int) $totalDalamPeriode;
+
         return [
             'total_dalam_periode' => (int) $totalDalamPeriode,
-            'sisa_limit'          => max(0, $limitPrice - (int) $totalDalamPeriode),
+            'sisa_limit'          => $sisaLimit,
             'periode_mulai'       => $periodeMulai->format('d M Y'),
             'periode_selesai'     => $periodeSelesai->format('d M Y'),
         ];
@@ -1414,7 +1377,7 @@ class ServiceHistoryController extends Controller
             'total_dalam_periode' => $result['total_dalam_periode'],
             'total_dengan_baru'   => $totalDenganBaru,
             'sisa_limit'          => $result['sisa_limit'],
-            'sisa_setelah_input'  => max(0, (int) $limitRule->limit_price - $totalDenganBaru),
+            'sisa_setelah_input'  => (int) $limitRule->limit_price - $totalDenganBaru,
             'periode_mulai'       => $result['periode_mulai'],
             'periode_selesai'     => $result['periode_selesai'],
             'is_exceeded'         => $isExceeded,
@@ -1498,19 +1461,13 @@ class ServiceHistoryController extends Controller
             ];
             $keteranganOtomatis = $this->generateKeteranganLimit(
                 $partDataForKet, $kmPasang, $limitRule, $tanggalService, $partLamaKmPasang,
-                // Hitung aktifCount untuk dimensi jumlah di perpanjangPart
                 // +1 karena part baru belum tersimpan ke DB saat keterangan digenerate
-                $limitRule && $limitRule->jumlah ? (function() use ($limitRule, $request, $categoryId) {
-                    $anchorKm = ($limitRule->limit_km && $limitRule->limit_km_interval)
-                        ? max(0, (int)$limitRule->limit_km - (int)$limitRule->limit_km_interval) : null;
-                    $q = \App\Models\ServicePart::where('kendaraan_id', $request->kendaraan_id)
+                $limitRule && $limitRule->jumlah ? (
+                    \App\Models\ServicePart::where('kendaraan_id', $request->kendaraan_id)
                         ->where('category_id', $categoryId)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
-                    if ($anchorKm !== null) {
-                        $q->where(fn($q2) => $q2->whereNull('kilometer_pasang')->orWhere('kilometer_pasang', '>=', $anchorKm));
-                    }
-                    return $q->count() + 1; // +1 untuk part baru yang belum tersimpan
-                })() : null,
+                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                        ->count() + 1
+                ) : null,
                 $limitRule && $limitRule->jumlah ? (int)$limitRule->jumlah : null
             );
 
@@ -1644,7 +1601,6 @@ class ServiceHistoryController extends Controller
         $tglPasang      = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
         $intervalNilai  = (int) ($partData['interval_nilai'] ?? 0);
         $intervalSatuan = $partData['interval_satuan'] ?? 'bulan';
-        $kmPasang       = (int) ($partData['kilometer_pasang'] ?? $kmInput);
 
         // Hitung tanggal limit (tgl_pasang + interval)
         $tglLimit   = $this->hitungTanggalLimitPart($tglPasang, $intervalNilai, $intervalSatuan);
@@ -1657,10 +1613,9 @@ class ServiceHistoryController extends Controller
         $intervalAda = $intervalNilai > 0;
 
         // ── Dimensi biaya (kumulatif dalam periode rolling) ───────────────────
-        // Hitung total biaya semua part kategori yang sama dalam periode aktif,
-        // lalu tambahkan biaya baru. Jika belum ada riwayat, pakai biaya ini saja.
-        $biayaKumulatif = $biaya;
-        $adaRiwayatBiaya = false;
+        // total biaya periode saat ini (belum termasuk biaya baru) + biaya baru
+        $biayaKumulatif  = $biaya;
+        $sisaBiaya       = $hargaLimit ? ((int)$hargaLimit - $biaya) : null;
         if ($hargaLimit && $limitRule->limit_nilai && $limitRule->kendaraan_id) {
             $kumulatifData = $this->getKumulatifBiayaKategori(
                 (int) $limitRule->kendaraan_id,
@@ -1671,8 +1626,9 @@ class ServiceHistoryController extends Controller
                 $tglPasang->toDateString()
             );
             if ($kumulatifData !== null) {
-                $biayaKumulatif  = $kumulatifData['total_dalam_periode'] + $biaya;
-                $adaRiwayatBiaya = true;
+                $biayaKumulatif = $kumulatifData['total_dalam_periode'] + $biaya;
+                // sisa_limit bisa negatif bila sudah melebihi
+                $sisaBiaya      = (int)$hargaLimit - $biayaKumulatif;
             }
         }
 
@@ -1685,93 +1641,67 @@ class ServiceHistoryController extends Controller
         $waktuSama   = $intervalAda && $tglLimit->eq($refTanggal);
         $waktuAman   = !$intervalAda || $tglLimit->gt($refTanggal);
 
-        // ── Dimensi KM (km_pasang part LAMA + limit_km = target) ────────────
-        // $kmPasangLama = kilometer_pasang dari part lama yang masih Terpasang
-        //                 di kategori + posisi yang sama (dicari dari DB sebelum memanggil fungsi ini)
-        // Jika tidak ada part lama, fallback ke km_pasang form baru
-        $kmAda    = $limitRule->limit_km && $limitRule->limit_km > 0;
+        // ── Dimensi KM — target KM absolut ───────────────────────────────────
+        $kmAda    = $kmLimit && $kmLimit > 0;
         $kmSama   = false;
         $kmLewat  = false;
         $kmAman   = true;
+        $sisaKm   = null;
         if ($kmAda) {
-            // limit_km adalah target KM absolut — langsung dibandingkan dengan kmInput
-            $targetKm = (int) $limitRule->limit_km;
-            $kmSama  = $kmInput === $targetKm;
-            $kmLewat = $kmInput  >  $targetKm;
-            $kmAman  = $kmInput  <  $targetKm;
+            $targetKm = (int) $kmLimit;
+            $sisaKm   = $targetKm - $kmInput; // bisa negatif
+            $kmSama   = $kmInput === $targetKm;
+            $kmLewat  = $kmInput  >  $targetKm;
+            $kmAman   = $kmInput  <  $targetKm;
         }
 
-        // Tidak ada satu pun limit yang dikonfigurasi → "-"
+        // ── Dimensi Jumlah ────────────────────────────────────────────────────
         $jumlahAda   = $limitJumlah !== null && $limitJumlah > 0 && $aktifCount !== null;
         $jumlahSama  = $jumlahAda && $aktifCount === $limitJumlah;
         $jumlahLewat = $jumlahAda && $aktifCount > $limitJumlah;
         $jumlahAman  = !$jumlahAda || $aktifCount < $limitJumlah;
+        $sisaPasang  = $jumlahAda ? ($limitJumlah - $aktifCount) : null; // bisa negatif
 
+        // Tidak ada satu pun limit yang dikonfigurasi → "-"
         $adaLimit = $hargaLimit || $intervalAda || $kmAda || $jumlahAda;
         if (!$adaLimit) {
             return '-';
         }
 
-        // Jika tidak ada limit yang terlampaui atau tercapai
-        if ($biayaAman && $waktuAman && $kmAman && $jumlahAman) {
-            return '-';
+        // ── Bangun keterangan: 1 baris status per dimensi, jumlah pasang + sisa pcs ─
+        $kalimat = [];
+
+        // KM — status saja, tanpa angka sisa
+        if ($kmAda) {
+            if ($kmSama)       $kalimat[] = 'Sudah mencapai batas limit KM';
+            elseif ($kmLewat)  $kalimat[] = 'Sudah melebihi batas limit KM';
+            else               $kalimat[] = 'Belum mencapai batas limit KM';
         }
 
-        // ── Bangun kalimat per dimensi ────────────────────────────────────────
-        $parts = [];
-
-        // Biaya
-        if ($biayaSama) {
-            $parts['biaya'] = 'sudah mencapai batas limit biaya';
-        } elseif ($biayaLewat) {
-            $parts['biaya'] = 'sudah melebihi limit biaya';
+        // Jangka waktu — status saja
+        if ($intervalAda) {
+            if ($waktuSama)       $kalimat[] = 'Sudah mencapai batas limit jangka waktu';
+            elseif ($waktuLewat)  $kalimat[] = 'Sudah melebihi batas limit jangka waktu';
+            else                  $kalimat[] = 'Belum mencapai limit jangka waktu';
         }
 
-        // Interval waktu
-        if ($waktuSama) {
-            $parts['waktu'] = 'sudah mencapai batas limit jangka waktu';
-        } elseif ($waktuLewat) {
-            $parts['waktu'] = 'sudah melebihi batas waktu';
+        // Biaya — status saja, tanpa angka sisa
+        if ($hargaLimit) {
+            if ($biayaSama)       $kalimat[] = 'Sudah mencapai batas limit biaya';
+            elseif ($biayaLewat)  $kalimat[] = 'Sudah melebihi limit biaya';
+            else                  $kalimat[] = 'Belum mencapai limit biaya';
         }
 
-        // KM — hanya disebut jika mencapai atau melebihi, TIDAK disebut jika masih aman
-        if ($kmSama) {
-            $parts['km'] = 'sudah mencapai batas limit KM';
-        } elseif ($kmLewat) {
-            $parts['km'] = 'sudah melebihi batas limit KM';
+        // Jumlah pasang — tampilkan sisa pcs
+        if ($jumlahAda) {
+            $kalimat[] = 'Sisa batas pemasangan = ' . $sisaPasang . ' pcs';
         }
-        // $kmAman → tidak ditambahkan ke kalimat sama sekali
-
-        // Jumlah — hanya disebut jika mencapai atau melebihi, TIDAK disebut jika masih aman
-        if ($jumlahSama) {
-            $parts['jumlah'] = "sudah mencapai batas jumlah part ({$aktifCount}/{$limitJumlah} pcs)";
-        } elseif ($jumlahLewat) {
-            $parts['jumlah'] = "sudah melebihi batas jumlah part ({$aktifCount}/{$limitJumlah} pcs)";
-        }
-        // $jumlahAman → tidak ditambahkan ke kalimat sama sekali
-
-        // Dimensi yang BELUM terlampaui — hanya biaya dan waktu, KM/jumlah tidak disebut saat aman
-        $belumParts = [];
-        if ($hargaLimit && $biayaAman && !isset($parts['biaya'])) {
-            $belumParts[] = 'belum mencapai limit biaya';
-        }
-        if ($intervalAda && $waktuAman && !isset($parts['waktu'])) {
-            $belumParts[] = 'belum mencapai limit jangka waktu';
-        }
-        // KM aman → sengaja tidak disebut
-        // Jumlah aman → sengaja tidak disebut
-
-        // Gabung: yang terlampaui dulu, lalu yang belum
-        $terlampaui = array_values($parts);
-        $kalimat    = array_merge($terlampaui, $belumParts);
 
         if (empty($kalimat)) {
             return '-';
         }
 
-        // Kapitalisasi kata pertama dan gabungkan
-        $result = ucfirst(implode(', ', $kalimat));
-        return $result;
+        return implode(', ', $kalimat);
     }
 
     /**
@@ -2523,15 +2453,11 @@ class ServiceHistoryController extends Controller
             $aktifCountPO  = null;
             $limitJumlahPO = null;
             if ($limitRulePO && $limitRulePO->jumlah) {
-                $anchorKmPO2 = ($limitRulePO->limit_km && $limitRulePO->limit_km_interval)
-                    ? max(0, (int)$limitRulePO->limit_km - (int)$limitRulePO->limit_km_interval) : null;
-                $qPO2 = ServicePart::where('kendaraan_id', $service->kendaraan_id)
+                // +1 untuk part ini sendiri yang belum tersimpan
+                $aktifCountPO  = ServicePart::where('kendaraan_id', $service->kendaraan_id)
                     ->where('category_id', $partData['category_id'])
-                    ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
-                if ($anchorKmPO2 !== null) {
-                    $qPO2->where(fn($q) => $q->whereNull('kilometer_pasang')->orWhere('kilometer_pasang', '>=', $anchorKmPO2));
-                }
-                $aktifCountPO  = $qPO2->count() + 1; // +1 untuk part ini sendiri yang belum tersimpan
+                    ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                    ->count() + 1;
                 $limitJumlahPO = (int) $limitRulePO->jumlah;
             }
             $keteranganPartOtomatis = $this->generateKeteranganLimit($partData, $kmInputPO, $limitRulePO, $service->tanggal_service, $partLamaKmPasangPO, $aktifCountPO, $limitJumlahPO);

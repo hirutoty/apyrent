@@ -441,13 +441,8 @@
                                                                         </button>
                                                                     @endif
                                                                     @if ($kmSudahLewat && $limitRule)
-                                                                        @php
-                                                                            $kmBaruPreview = $limitRule->limit_km_interval
-                                                                                ? ($limitRule->limit_km ?? 0) + $limitRule->limit_km_interval
-                                                                                : null;
-                                                                        @endphp
                                                                         <button type="button"
-                                                                            onclick="event.stopPropagation(); openModalGantiLimitKm({{ $limitRule->id }}, '{{ addslashes(optional($limitRule->category)->nama ?? '') }}', {{ $limitRule->limit_km ?? 0 }}, {{ $limitRule->limit_km_interval ?? 'null' }}, {{ $kmBaruPreview ?? 'null' }})"
+                                                                            onclick="event.stopPropagation(); openModalGantiLimitKm({{ $limitRule->id }}, '{{ addslashes(optional($limitRule->category)->nama ?? '') }}', {{ $limitRule->limit_km ?? 0 }})"
                                                                             class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-300 transition-colors">
                                                                             <i class="bi bi-speedometer2 text-[9px]"></i> Ganti Limit
                                                                         </button>
@@ -489,14 +484,9 @@
                                                                     @php
                                                                         $bl = strtolower($badge);
                                                                         $bc = match(true) {
-                                                                            str_contains($bl, 'melebihi limit biaya'),
-                                                                            str_contains($bl, 'melebihi batas waktu'),
-                                                                            str_contains($bl, 'melebihi limit km'),
-                                                                            str_contains($bl, 'melebihi batas limit km'),
-                                                                            str_contains($bl, 'melebihi batas jumlah part') => 'bg-red-100 text-red-700',
-                                                                            str_contains($bl, 'mencapai batas limit'),
-                                                                            str_contains($bl, 'mencapai batas jumlah part')  => 'bg-yellow-100 text-yellow-700',
-                                                                            default                                           => 'bg-green-100 text-green-700',
+                                                                            str_contains($bl, 'melebihi')                                                  => 'bg-red-100 text-red-700',
+                                                                            !str_contains($bl, 'belum') && str_contains($bl, 'sudah mencapai')             => 'bg-yellow-100 text-yellow-700',
+                                                                            default                                                                        => 'bg-green-100 text-green-700',
                                                                         };
                                                                     @endphp
                                                                     <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $bc }}">{{ ucfirst($badge) }}</span>
@@ -1630,30 +1620,35 @@ document.getElementById('modal-perpanjang-part').addEventListener('click', funct
             </button>
         </div>
         <div class="px-6 py-5 space-y-4">
-            {{-- Info current & target --}}
-            <div class="grid grid-cols-2 gap-3">
-                <div class="bg-gray-50 rounded-xl p-3 text-center">
-                    <p class="text-xs text-gray-400 mb-1">Limit KM Saat Ini</p>
-                    <p id="ganti-limit-km-lama" class="text-base font-bold text-gray-700">—</p>
-                </div>
-                <div class="bg-violet-50 rounded-xl p-3 text-center">
-                    <p class="text-xs text-violet-400 mb-1">Akan Digeser ke</p>
-                    <p id="ganti-limit-km-baru" class="text-base font-bold text-violet-700">—</p>
-                </div>
+            {{-- Info current KM --}}
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-400 mb-1">Limit KM Saat Ini</p>
+                <p id="ganti-limit-km-lama" class="text-base font-bold text-gray-700">—</p>
             </div>
-            <p class="text-xs text-gray-500 text-center">
-                Interval <span id="ganti-limit-interval" class="font-semibold text-gray-700"></span> km ditambahkan ke limit saat ini.
-            </p>
             <form id="form-ganti-limit-km" method="POST" action="">
                 @csrf
-                <div class="flex justify-end gap-2 mt-2">
+                {{-- Input manual KM baru --}}
+                <div class="space-y-1.5">
+                    <label class="block text-sm font-medium text-gray-700">
+                        Limit KM Baru <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <input type="number" name="limit_km_baru" id="ganti-limit-km-input"
+                            min="1" step="1" required
+                            placeholder="Masukkan target KM baru..."
+                            class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+                        <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
+                    </div>
+                    <p class="text-xs text-gray-400">Harus lebih besar dari limit KM saat ini.</p>
+                </div>
+                <div class="flex justify-end gap-2 mt-4">
                     <button type="button" onclick="closeModalGantiLimitKm()"
                         class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
                         Batal
                     </button>
                     <button type="submit"
                         class="px-5 py-2.5 text-sm font-medium text-white bg-violet-600 rounded-xl hover:bg-violet-700 transition-colors">
-                        <i class="bi bi-speedometer2 text-xs mr-1"></i> Geser Limit
+                        <i class="bi bi-speedometer2 text-xs mr-1"></i> Simpan Limit KM
                     </button>
                 </div>
             </form>
@@ -1662,25 +1657,13 @@ document.getElementById('modal-perpanjang-part').addEventListener('click', funct
 </div>
 
 <script>
-function openModalGantiLimitKm(limitId, kategoriNama, kmLama, interval, kmBaru) {
+function openModalGantiLimitKm(limitId, kategoriNama, kmLama) {
     document.getElementById('form-ganti-limit-km').action = '/admin/service-categories/limits/' + limitId + '/geser-km';
-    document.getElementById('ganti-limit-subtitle').textContent  = 'Kategori: ' + kategoriNama;
-    document.getElementById('ganti-limit-km-lama').textContent   = Number(kmLama).toLocaleString('id-ID') + ' km';
-
-    if (interval && kmBaru) {
-        document.getElementById('ganti-limit-km-baru').textContent  = Number(kmBaru).toLocaleString('id-ID') + ' km';
-        document.getElementById('ganti-limit-interval').textContent = Number(interval).toLocaleString('id-ID') + ' km';
-    } else {
-        document.getElementById('ganti-limit-km-baru').textContent  = '— (interval belum diset)';
-        document.getElementById('ganti-limit-interval').textContent = '— belum diset, edit limit rule dulu';
-    }
-
-    var submitBtn = document.querySelector('#form-ganti-limit-km button[type="submit"]');
-    if (submitBtn) {
-        submitBtn.disabled = !interval;
-        submitBtn.title    = interval ? '' : 'Set limit_km_interval di pengaturan limit kategori terlebih dahulu';
-    }
-
+    document.getElementById('ganti-limit-subtitle').textContent = 'Kategori: ' + kategoriNama;
+    document.getElementById('ganti-limit-km-lama').textContent  = Number(kmLama).toLocaleString('id-ID') + ' km';
+    // Reset input
+    var input = document.getElementById('ganti-limit-km-input');
+    if (input) { input.value = ''; input.min = kmLama + 1; }
     var el = document.getElementById('modal-ganti-limit-km');
     el.classList.remove('hidden'); el.classList.add('flex');
 }

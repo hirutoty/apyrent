@@ -1630,9 +1630,9 @@ function buildDetailContent(data) {
                     badges.forEach(function(badge) {
                         const bl = badge.toLowerCase();
                         let bc = 'bg-green-100 text-green-700';
-                        if (bl.includes('melebihi limit biaya') || bl.includes('melebihi batas waktu') || bl.includes('melebihi limit km') || bl.includes('melebihi batas limit km')) {
+                        if (bl.includes('melebihi')) {
                             bc = 'bg-red-100 text-red-700';
-                        } else if (bl.includes('mencapai batas limit')) {
+                        } else if (!bl.includes('belum') && bl.includes('sudah mencapai')) {
                             bc = 'bg-yellow-100 text-yellow-700';
                         }
                         html += '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ' + bc + '">' + badge.charAt(0).toUpperCase() + badge.slice(1) + '</span>';

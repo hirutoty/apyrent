@@ -413,9 +413,9 @@
                                             <template x-for="(badge, bi) in (part.keterangan_limit || '').split(',').map(s => s.trim()).filter(s => s && s !== '-')" :key="bi">
                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
                                                       :class="{
-                                                          'bg-red-100 text-red-700':    badge.toLowerCase().includes('melebihi limit biaya') || badge.toLowerCase().includes('melebihi batas waktu') || badge.toLowerCase().includes('melebihi batas limit km') || badge.toLowerCase().includes('melebihi limit km'),
-                                                          'bg-yellow-100 text-yellow-700': badge.toLowerCase().includes('mencapai batas limit'),
-                                                          'bg-green-100 text-green-700':  !badge.toLowerCase().includes('melebihi') && !badge.toLowerCase().includes('mencapai batas limit')
+                                                          'bg-red-100 text-red-700':      badge.toLowerCase().includes('melebihi'),
+                                                          'bg-yellow-100 text-yellow-700': !badge.toLowerCase().includes('belum') && badge.toLowerCase().includes('sudah mencapai'),
+                                                          'bg-green-100 text-green-700':  badge.toLowerCase().includes('belum') || (!badge.toLowerCase().includes('melebihi') && !badge.toLowerCase().includes('sudah mencapai'))
                                                       }">
                                                     <i class="fa-solid fa-circle-info text-[8px]"></i>
                                                     <span x-text="badge.charAt(0).toUpperCase() + badge.slice(1)"></span>
