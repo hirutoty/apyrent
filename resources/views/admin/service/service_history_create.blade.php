@@ -528,29 +528,44 @@ function calcKeteranganLimit(idx) {
     const waktuLewat = intervalAda && limMs  <  refMs;
     const waktuAman  = !intervalAda || limMs  >  refMs;
 
-    // ── Dimensi KM (km_pasang part LAMA + limit_km = target) ────────────
-    // km_pasang diambil dari part lama (Terpasang/aktif) di DB,
-    // bukan dari km_pasang form baru. Ini agar limit terdeteksi
-    // meski part baru baru saja dipasang di KM yang lebih tinggi.
+    // ── Dimensi KM — limit_km adalah target KM absolut ──────────────────
+    // limit_km langsung dipakai sebagai target, bukan dijumlah dengan km_pasang.
+    // Konsisten dengan logika PHP di generateKeteranganLimit().
     let kmSama = false, kmLewat = false, kmAman = true;
     const kmAda = limitKm !== null && limitKm > 0;
     if (kmAda) {
-        // Coba ambil km_pasang part lama dari cache
-        const posisiVal = document.querySelector('[name="parts[' + idx + '][posisi]"]')?.value || '';
-        const cacheKey  = (categoryId || '0') + '_' + posisiVal;
-        const kmPasangLama = partLamaKmCache.hasOwnProperty(cacheKey)
-            ? partLamaKmCache[cacheKey]
-            : null;
-        // Gunakan km_pasang lama jika ada, fallback ke km_pasang form baru
-        const baseKm   = (kmPasangLama !== null && kmPasangLama !== undefined) ? kmPasangLama : kmPasang;
-        const targetKm = baseKm + limitKm;
+        const targetKm = limitKm;   // absolut — bukan baseKm + limitKm
         kmSama  = kmInput === targetKm;
         kmLewat = kmInput  >  targetKm;
         kmAman  = kmInput  <  targetKm;
     }
 
+    // ── Dimensi Jumlah ─────────────────────────────────────────────────
+    const limitJumlah  = limitRule.jumlah      ? parseInt(limitRule.jumlah)      : null;
+    // aktif_count dari DB = yang sudah tersimpan sebelumnya
+    // Tambahkan jumlah row di form yang memilih kategori yang sama (belum tersimpan ke DB)
+    // agar saat user tambah part ke-2 di form, keterangan langsung muncul
+    const aktifCountDb = limitRule.aktif_count !== null && limitRule.aktif_count !== undefined
+        ? parseInt(limitRule.aktif_count) : null;
+    let aktifCountForm = 0;
+    if (limitJumlah !== null && categoryId) {
+        document.querySelectorAll('[id^="cat-select-"]').forEach(function(catEl) {
+            const mIdx = catEl.id.match(/cat-select-(\d+)/);
+            if (!mIdx) return;
+            const rowIdx = parseInt(mIdx[1]);
+            if (rowIdx === idx) return; // skip row ini sendiri
+            if (parseInt(catEl.value) === categoryId) aktifCountForm++;
+        });
+    }
+    const aktifCount   = aktifCountDb !== null ? aktifCountDb + aktifCountForm : null;
+    const jumlahAda    = limitJumlah !== null && limitJumlah > 0 && aktifCount !== null;
+    const jumlahSama   = jumlahAda && aktifCount === limitJumlah;
+    const jumlahLewat  = jumlahAda && aktifCount  >  limitJumlah;
+    const jumlahAman   = !jumlahAda || aktifCount  <  limitJumlah;
+    console.log('[debug-jumlah] idx='+idx, 'limitRule=', limitRule ? {jumlah: limitRule.jumlah, aktif_count: limitRule.aktif_count} : null, 'aktifCountDb='+aktifCountDb, 'aktifCountForm='+aktifCountForm, 'aktifCount='+aktifCount, 'jumlahAda='+jumlahAda, 'jumlahSama='+jumlahSama);
+
     // Tidak ada limit dikonfigurasi → "-"
-    const adaLimit = limitPrice || intervalAda || kmAda;
+    const adaLimit = limitPrice || intervalAda || kmAda || jumlahAda;
     if (!adaLimit) {
         resultEl.textContent = '-';
         if (badgeEl) badgeEl.className = 'hidden';
@@ -559,7 +574,7 @@ function calcKeteranganLimit(idx) {
     }
 
     // Semua aman → "-"
-    if (biayaAman && waktuAman && kmAman) {
+    if (biayaAman && waktuAman && kmAman && jumlahAman) {
         resultEl.textContent = '-';
         if (badgeEl) badgeEl.className = 'hidden';
         if (hiddenEl) hiddenEl.value = '-';
@@ -570,17 +585,23 @@ function calcKeteranganLimit(idx) {
     const parts_ket = [];
     const belum     = [];
 
-    if (biayaSama)       parts_ket.push('mencapai batas limit biaya');
+    if (biayaSama)       parts_ket.push('sudah mencapai batas limit biaya');
     else if (biayaLewat) parts_ket.push('sudah melebihi limit biaya');
     else if (limitPrice && biayaAman) belum.push('belum mencapai limit biaya');
 
-    if (waktuSama)       parts_ket.push('mencapai batas limit jangka waktu');
+    if (waktuSama)       parts_ket.push('sudah mencapai batas limit jangka waktu');
     else if (waktuLewat) parts_ket.push('sudah melebihi batas waktu');
     else if (intervalAda && waktuAman) belum.push('belum mencapai limit jangka waktu');
 
-    if (kmSama)          parts_ket.push('mencapai batas limit KM');
-    else if (kmLewat)    parts_ket.push('sudah melebihi batas limit KM');
-    else if (kmAda && kmAman) belum.push('belum mencapai limit KM');
+    // KM — hanya disebut jika mencapai atau melebihi, TIDAK disebut jika masih aman
+    if (kmSama)       parts_ket.push('sudah mencapai batas limit KM');
+    else if (kmLewat) parts_ket.push('sudah melebihi batas limit KM');
+    // kmAman → tidak ditambahkan ke kalimat sama sekali
+
+    // Jumlah — hanya disebut jika mencapai atau melebihi, TIDAK disebut jika masih aman
+    if (jumlahSama)       parts_ket.push('sudah mencapai batas jumlah part (' + aktifCount + '/' + limitJumlah + ' pcs)');
+    else if (jumlahLewat) parts_ket.push('sudah melebihi batas jumlah part (' + aktifCount + '/' + limitJumlah + ' pcs)');
+    // jumlahAman → tidak ditambahkan sama sekali
 
     const kalimat = parts_ket.concat(belum);
     if (kalimat.length === 0) {
@@ -596,8 +617,8 @@ function calcKeteranganLimit(idx) {
 
     // ── Badge warna ───────────────────────────────────────────
     if (badgeEl) {
-        const adaLewat = biayaLewat || waktuLewat || kmLewat;
-        const adaSama  = !adaLewat && (biayaSama || waktuSama || kmSama);
+        const adaLewat = biayaLewat || waktuLewat || kmLewat || jumlahLewat;
+        const adaSama  = !adaLewat && (biayaSama || waktuSama || kmSama || jumlahSama);
         if (adaLewat) {
             badgeEl.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700';
             badgeEl.innerHTML = '<i class="fa fa-circle-exclamation text-[9px]"></i> Melebihi Limit';
@@ -1122,6 +1143,8 @@ function addPartRow(data = null) {
             } else {
                 calcKeteranganLimit(idx);
             }
+            // Re-sync disabled saat posisi berubah
+            syncDisabledKategoriPosisi();
         });
     }
 
@@ -1134,6 +1157,87 @@ function addPartRow(data = null) {
             fetchPartLamaKm(kendaraanId, catSelectNew.value, posisiVal, idx);
         }
     }
+
+    // Re-sync disabled setelah row baru ditambah
+    syncDisabledKategoriPosisi();
+    // Recalc keterangan semua row agar jumlah aktif di form ikut terhitung
+    recalcAllKeterangan();
+}
+
+/**
+ * Kumpulkan semua kombinasi {category_id}_{posisi} yang sudah dipakai
+ * di row lain, lalu disable option tersebut di setiap row.
+ *
+ * Aturan: kombinasi category_id + posisi yang sama di row lain → disable.
+ * Jika posisi kosong, hanya category_id yang dijadikan kunci (bebas posisi).
+ */
+function syncDisabledKategoriPosisi() {
+    // Kumpulkan kombinasi aktif per row
+    const rows = document.querySelectorAll('[id^="part-row-"]');
+    const rowData = [];
+    rows.forEach(function(row) {
+        const m = row.id.match(/part-row-(\d+)/);
+        if (!m) return;
+        const i    = parseInt(m[1]);
+        const cat  = document.getElementById('cat-select-' + i);
+        const pos  = row.querySelector('[name="parts[' + i + '][posisi]"]');
+        rowData.push({
+            idx:      i,
+            catVal:   cat  ? (cat.value  || '') : '',
+            posVal:   pos  ? (pos.value  || '') : '',
+        });
+    });
+
+    // Untuk setiap row, disable kombinasi yang dipakai row LAIN
+    rowData.forEach(function(current) {
+        const usedByOthers = rowData
+            .filter(r => r.idx !== current.idx && r.catVal !== '')
+            .map(r => r.catVal + '||' + r.posVal);
+
+        // ── Disable options di select Kategori ────────────────────────────
+        const catSelect = document.getElementById('cat-select-' + current.idx);
+        if (catSelect) {
+            Array.from(catSelect.options).forEach(function(opt) {
+                if (!opt.value) return; // skip placeholder
+                // Cek apakah kategori ini dipakai dengan posisi yang SAMA oleh row lain
+                const conflict = rowData.some(function(r) {
+                    if (r.idx === current.idx) return false;
+                    return r.catVal === opt.value && r.posVal === current.posVal;
+                });
+                opt.disabled = conflict;
+                if (conflict) {
+                    opt.style.color      = '#9ca3af';
+                    opt.style.fontStyle  = 'italic';
+                } else {
+                    opt.style.color      = '';
+                    opt.style.fontStyle  = '';
+                }
+            });
+        }
+
+        // ── Disable options di select Posisi ──────────────────────────────
+        const posSelect = document.querySelector('[name="parts[' + current.idx + '][posisi]"]');
+        if (posSelect) {
+            Array.from(posSelect.options).forEach(function(opt) {
+                if (!opt.value) return; // skip placeholder
+                // Cek apakah posisi ini dipakai dengan kategori yang SAMA oleh row lain
+                const conflict = rowData.some(function(r) {
+                    if (r.idx === current.idx) return false;
+                    return r.posVal === opt.value && r.catVal === current.catVal && current.catVal !== '';
+                });
+                opt.disabled = conflict;
+                if (conflict) {
+                    opt.style.color      = '#9ca3af';
+                    opt.style.fontStyle  = 'italic';
+                    opt.title            = 'Kombinasi ini sudah digunakan di part lain';
+                } else {
+                    opt.style.color      = '';
+                    opt.style.fontStyle  = '';
+                    opt.title            = '';
+                }
+            });
+        }
+    });
 }
 
 // ── Bukti per-part: render daftar nama file ───────────────────
@@ -1203,6 +1307,11 @@ function removePartRow(idx) {
     if (container.children.length === 0) {
         document.getElementById('empty-parts-hint').style.display = '';
     }
+
+    // Re-sync disabled setelah row dihapus
+    syncDisabledKategoriPosisi();
+    // Recalc keterangan semua row agar jumlah aktif di form berkurang
+    recalcAllKeterangan();
 }
 
 // Auto-fill km pasang dari header KM — selalu sync karena field hidden
@@ -1226,6 +1335,10 @@ function onCategoryChange(select, idx) {
         fetchPartLamaKm(kendaraanId, select.value, posisiVal, idx);
     }
     calcKeteranganLimit(idx);
+    // Re-sync disabled saat kategori berubah
+    syncDisabledKategoriPosisi();
+    // Recalc semua row agar jumlah aktif form ikut terupdate di row lain
+    recalcAllKeterangan();
 }
 
 // ── Fetch limit rule dari server lalu auto-fill interval & hint harga ─────
@@ -1246,6 +1359,9 @@ function fetchLimitRule(kendaraanId, categoryId, idx) {
                 limit_km    : data.limit_km      ? parseInt(data.limit_km)     : null,
                 limit_nilai : parseInt(data.limit_nilai  || 12),
                 limit_satuan: data.limit_satuan || 'bulan',
+                jumlah      : data.jumlah        ? parseInt(data.jumlah)       : null,
+                aktif_count : (data.aktif_count !== null && data.aktif_count !== undefined)
+                                ? parseInt(data.aktif_count) : null,
             };
         } else {
             delete limitRulesMap[categoryId];

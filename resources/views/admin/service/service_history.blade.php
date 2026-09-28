@@ -360,11 +360,12 @@
                                                         @php
                                                             $limitKey     = $d->kendaraan_id . '_' . $part->category_id;
                                                             $limitRule    = $categoryLimitsMap[$limitKey] ?? null;
-                                                            $kmPasang     = (int) ($part->kilometer_pasang ?? 0);
                                                             $limitKm      = $limitRule ? (int) ($limitRule->limit_km ?? 0) : 0;
-                                                            $kmTarget     = $limitKm > 0 ? $kmPasang + $limitKm : null;
+                                                            // limit_km adalah nilai absolut target KM (bukan selisih),
+                                                            // sehingga $kmTarget langsung = limit_km
+                                                            $kmTarget     = $limitKm > 0 ? $limitKm : null;
                                                             $kmSekarang   = (int) ($d->kendaraan?->kilometer_sekarang ?? 0);
-                                                            $kmSudahLewat = $kmTarget && $kmSekarang >= $kmTarget;
+                                                            $kmSudahLewat = $kmTarget !== null && $kmSekarang >= $kmTarget;
                                                         @endphp
                                                         {{-- <td class="px-3 py-2 whitespace-nowrap text-xs">
                                                             @if($kmTarget)
@@ -439,12 +440,14 @@
                                                                             <i class="fa fa-rotate-right text-[9px]"></i> Ganti Part
                                                                         </button>
                                                                     @endif
-                                                                    @if ($kmSudahLewat && $limitRule && $limitRule->limit_km_interval)
+                                                                    @if ($kmSudahLewat && $limitRule)
                                                                         @php
-                                                                            $kmBaruPreview = ($limitRule->limit_km ?? 0) + $limitRule->limit_km_interval;
+                                                                            $kmBaruPreview = $limitRule->limit_km_interval
+                                                                                ? ($limitRule->limit_km ?? 0) + $limitRule->limit_km_interval
+                                                                                : null;
                                                                         @endphp
                                                                         <button type="button"
-                                                                            onclick="event.stopPropagation(); openModalGantiLimitKm({{ $limitRule->id }}, '{{ addslashes(optional($limitRule->category)->nama ?? '') }}', {{ $limitRule->limit_km ?? 0 }}, {{ $limitRule->limit_km_interval }}, {{ $kmBaruPreview }})"
+                                                                            onclick="event.stopPropagation(); openModalGantiLimitKm({{ $limitRule->id }}, '{{ addslashes(optional($limitRule->category)->nama ?? '') }}', {{ $limitRule->limit_km ?? 0 }}, {{ $limitRule->limit_km_interval ?? 'null' }}, {{ $kmBaruPreview ?? 'null' }})"
                                                                             class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-300 transition-colors">
                                                                             <i class="bi bi-speedometer2 text-[9px]"></i> Ganti Limit
                                                                         </button>
@@ -489,9 +492,11 @@
                                                                             str_contains($bl, 'melebihi limit biaya'),
                                                                             str_contains($bl, 'melebihi batas waktu'),
                                                                             str_contains($bl, 'melebihi limit km'),
-                                                                            str_contains($bl, 'melebihi batas limit km') => 'bg-red-100 text-red-700',
-                                                                            str_contains($bl, 'mencapai batas limit')    => 'bg-yellow-100 text-yellow-700',
-                                                                            default                                       => 'bg-green-100 text-green-700',
+                                                                            str_contains($bl, 'melebihi batas limit km'),
+                                                                            str_contains($bl, 'melebihi batas jumlah part') => 'bg-red-100 text-red-700',
+                                                                            str_contains($bl, 'mencapai batas limit'),
+                                                                            str_contains($bl, 'mencapai batas jumlah part')  => 'bg-yellow-100 text-yellow-700',
+                                                                            default                                           => 'bg-green-100 text-green-700',
                                                                         };
                                                                     @endphp
                                                                     <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $bc }}">{{ ucfirst($badge) }}</span>
@@ -1661,8 +1666,21 @@ function openModalGantiLimitKm(limitId, kategoriNama, kmLama, interval, kmBaru) 
     document.getElementById('form-ganti-limit-km').action = '/admin/service-categories/limits/' + limitId + '/geser-km';
     document.getElementById('ganti-limit-subtitle').textContent  = 'Kategori: ' + kategoriNama;
     document.getElementById('ganti-limit-km-lama').textContent   = Number(kmLama).toLocaleString('id-ID') + ' km';
-    document.getElementById('ganti-limit-km-baru').textContent   = Number(kmBaru).toLocaleString('id-ID') + ' km';
-    document.getElementById('ganti-limit-interval').textContent  = Number(interval).toLocaleString('id-ID');
+
+    if (interval && kmBaru) {
+        document.getElementById('ganti-limit-km-baru').textContent  = Number(kmBaru).toLocaleString('id-ID') + ' km';
+        document.getElementById('ganti-limit-interval').textContent = Number(interval).toLocaleString('id-ID') + ' km';
+    } else {
+        document.getElementById('ganti-limit-km-baru').textContent  = '— (interval belum diset)';
+        document.getElementById('ganti-limit-interval').textContent = '— belum diset, edit limit rule dulu';
+    }
+
+    var submitBtn = document.querySelector('#form-ganti-limit-km button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = !interval;
+        submitBtn.title    = interval ? '' : 'Set limit_km_interval di pengaturan limit kategori terlebih dahulu';
+    }
+
     var el = document.getElementById('modal-ganti-limit-km');
     el.classList.remove('hidden'); el.classList.add('flex');
 }

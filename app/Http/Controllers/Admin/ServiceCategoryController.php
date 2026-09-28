@@ -137,12 +137,13 @@ class ServiceCategoryController extends Controller
         $category = ServiceCategory::findOrFail($categoryId);
 
         $request->validate([
-            'kendaraan_id' => 'required|exists:kendaraan,id',
-            'limit_nilai'  => 'required|integer|min:1',
-            'limit_satuan' => 'required|in:hari,minggu,bulan,tahun',
-            'limit_km'     => 'nullable|integer|min:1|max:9999999999',
-            'limit_price'  => 'nullable|numeric|min:0',
-            'jumlah'       => 'nullable|integer|min:1|max:999',
+            'kendaraan_id'     => 'required|exists:kendaraan,id',
+            'limit_nilai'      => 'required|integer|min:1',
+            'limit_satuan'     => 'required|in:hari,minggu,bulan,tahun',
+            'limit_km'         => 'nullable|integer|min:1|max:9999999999',
+            'limit_km_interval'=> 'nullable|integer|min:1|max:9999999999',
+            'limit_price'      => 'nullable|numeric|min:0',
+            'jumlah'           => 'nullable|integer|min:1|max:999',
         ]);
 
         $exists = ServiceCategoryLimit::where('kendaraan_id', $request->kendaraan_id)
@@ -156,13 +157,14 @@ class ServiceCategoryController extends Controller
         }
 
         ServiceCategoryLimit::create([
-            'kendaraan_id' => $request->kendaraan_id,
-            'category_id'  => $categoryId,
-            'limit_nilai'  => $request->limit_nilai,
-            'limit_satuan' => $request->limit_satuan,
-            'limit_km'     => $request->limit_km ? (int)$request->limit_km : null,
-            'limit_price'  => $request->limit_price ? (int)$request->limit_price : null,
-            'jumlah'       => $request->jumlah ? (int)$request->jumlah : null,
+            'kendaraan_id'      => $request->kendaraan_id,
+            'category_id'       => $categoryId,
+            'limit_nilai'       => $request->limit_nilai,
+            'limit_satuan'      => $request->limit_satuan,
+            'limit_km'          => $request->limit_km          ? (int)$request->limit_km          : null,
+            'limit_km_interval' => $request->limit_km_interval ? (int)$request->limit_km_interval : null,
+            'limit_price'       => $request->limit_price       ? (int)$request->limit_price       : null,
+            'jumlah'            => $request->jumlah            ? (int)$request->jumlah            : null,
         ]);
 
         return back()->with('success', "Limit rule berhasil ditambahkan untuk kategori \"{$category->nama}\".");
@@ -178,19 +180,21 @@ class ServiceCategoryController extends Controller
         $limit = ServiceCategoryLimit::with('category')->findOrFail($limitId);
 
         $request->validate([
-            'limit_nilai'  => 'required|integer|min:1',
-            'limit_satuan' => 'required|in:hari,minggu,bulan,tahun',
-            'limit_km'     => 'nullable|integer|min:1|max:9999999999',
-            'limit_price'  => 'nullable|numeric|min:0',
-            'jumlah'       => 'nullable|integer|min:1|max:999',
+            'limit_nilai'       => 'required|integer|min:1',
+            'limit_satuan'      => 'required|in:hari,minggu,bulan,tahun',
+            'limit_km'          => 'nullable|integer|min:1|max:9999999999',
+            'limit_km_interval' => 'nullable|integer|min:1|max:9999999999',
+            'limit_price'       => 'nullable|numeric|min:0',
+            'jumlah'            => 'nullable|integer|min:1|max:999',
         ]);
 
         $limit->update([
-            'limit_nilai'  => $request->limit_nilai,
-            'limit_satuan' => $request->limit_satuan,
-            'limit_km'     => $request->limit_km ? (int)$request->limit_km : null,
-            'limit_price'  => $request->limit_price ? (int)$request->limit_price : null,
-            'jumlah'       => $request->jumlah ? (int)$request->jumlah : null,
+            'limit_nilai'       => $request->limit_nilai,
+            'limit_satuan'      => $request->limit_satuan,
+            'limit_km'          => $request->limit_km          ? (int)$request->limit_km          : null,
+            'limit_km_interval' => $request->limit_km_interval ? (int)$request->limit_km_interval : null,
+            'limit_price'       => $request->limit_price       ? (int)$request->limit_price       : null,
+            'jumlah'            => $request->jumlah            ? (int)$request->jumlah            : null,
         ]);
 
         return back()->with('success', "Limit rule berhasil diperbarui.");
@@ -257,6 +261,21 @@ class ServiceCategoryController extends Controller
             return response()->json(null);
         }
 
+        // Hitung aktifCount dalam periode aktif untuk dimensi jumlah di JS form
+        $aktifCount = null;
+        if ($limit->jumlah) {
+            $anchorKm = ($limit->limit_km && $limit->limit_km_interval)
+                ? max(0, (int)$limit->limit_km - (int)$limit->limit_km_interval)
+                : null;
+            $q = \App\Models\ServicePart::where('kendaraan_id', $request->kendaraan_id)
+                ->where('category_id', $request->category_id)
+                ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+            if ($anchorKm !== null) {
+                $q->where(fn($q2) => $q2->whereNull('kilometer_pasang')->orWhere('kilometer_pasang', '>=', $anchorKm));
+            }
+            $aktifCount = $q->count();
+        }
+
         return response()->json([
             'limit_nilai'           => $limit->limit_nilai,
             'limit_satuan'          => $limit->limit_satuan,
@@ -265,6 +284,7 @@ class ServiceCategoryController extends Controller
             'limit_price'           => $limit->limit_price,
             'limit_price_formatted' => $limit->limitPriceFormatted(),
             'jumlah'                => $limit->jumlah,
+            'aktif_count'           => $aktifCount,
         ]);
     }
 }

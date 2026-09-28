@@ -42,7 +42,24 @@ class RecalculateServicePartsKeteranganLimit extends Command
                 ?? $part->tgl_pasang
                 ?? now()->toDateString();
 
-            $keterangan = $this->generateKeterangan($part, $limitRule, $tanggalServis);
+            // Hitung aktifCount untuk dimensi jumlah (pakai anchor KM)
+            $aktifCountRec  = null;
+            $limitJumlahRec = null;
+            if ($limitRule && $limitRule->jumlah) {
+                $anchorKmRec = ($limitRule->limit_km && $limitRule->limit_km_interval)
+                    ? max(0, (int)$limitRule->limit_km - (int)$limitRule->limit_km_interval)
+                    : null;
+                $qRec = ServicePart::where('kendaraan_id', $part->kendaraan_id)
+                    ->where('category_id', $part->category_id)
+                    ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+                if ($anchorKmRec !== null) {
+                    $qRec->where(fn($q) => $q->whereNull('kilometer_pasang')->orWhere('kilometer_pasang', '>=', $anchorKmRec));
+                }
+                $aktifCountRec  = $qRec->count();
+                $limitJumlahRec = (int) $limitRule->jumlah;
+            }
+
+            $keterangan = $this->generateKeterangan($part, $limitRule, $tanggalServis, $aktifCountRec, $limitJumlahRec);
 
             if (!$this->option('dry-run')) {
                 $part->update(['keterangan_limit' => $keterangan]);
@@ -66,7 +83,7 @@ class RecalculateServicePartsKeteranganLimit extends Command
         return 0;
     }
 
-    private function generateKeterangan(ServicePart $part, ?ServiceCategoryLimit $limitRule, string $tanggalServis): string
+    private function generateKeterangan(ServicePart $part, ?ServiceCategoryLimit $limitRule, string $tanggalServis, ?int $aktifCount = null, ?int $limitJumlah = null): string
     {
         if (!$limitRule) {
             return '-';
@@ -124,28 +141,34 @@ class RecalculateServicePartsKeteranganLimit extends Command
         $kmSama     = $kmAda && $kmInput === $kmLimit;
         $kmAman     = !$kmAda || $kmInput < $kmLimit;
 
-        $adaLimit = $hargaLimit || $intervalAda || $kmAda;
-        if (!$adaLimit || ($biayaAman && $waktuAman && $kmAman)) {
+        $jumlahAda   = $limitJumlah !== null && $limitJumlah > 0 && $aktifCount !== null;
+        $jumlahSama  = $jumlahAda && $aktifCount === $limitJumlah;
+        $jumlahLewat = $jumlahAda && $aktifCount > $limitJumlah;
+        $jumlahAman  = !$jumlahAda || $aktifCount < $limitJumlah;
+
+        $adaLimit = $hargaLimit || $intervalAda || $kmAda || $jumlahAda;
+        if (!$adaLimit || ($biayaAman && $waktuAman && $kmAman && $jumlahAman)) {
             return '-';
         }
 
         $parts = [];
-        if ($biayaSama)  $parts['biaya'] = 'mencapai batas limit biaya';
+        if ($biayaSama)      $parts['biaya'] = 'sudah mencapai batas limit biaya';
         elseif ($biayaLewat) $parts['biaya'] = 'sudah melebihi limit biaya';
 
-        if ($waktuSama)  $parts['waktu'] = 'mencapai batas limit jangka waktu';
+        if ($waktuSama)      $parts['waktu'] = 'sudah mencapai batas limit jangka waktu';
         elseif ($waktuLewat) $parts['waktu'] = 'sudah melebihi batas waktu';
 
-        if ($kmSama)     $parts['km'] = 'mencapai batas limit KM';
+        if ($kmSama)      $parts['km'] = 'sudah mencapai batas limit KM';
         elseif ($kmLewat) $parts['km'] = 'sudah melebihi batas limit KM';
+
+        if ($jumlahSama)      $parts['jumlah'] = "sudah mencapai batas jumlah part ({$aktifCount}/{$limitJumlah} pcs)";
+        elseif ($jumlahLewat) $parts['jumlah'] = "sudah melebihi batas jumlah part ({$aktifCount}/{$limitJumlah} pcs)";
 
         $belumParts = [];
         if ($hargaLimit && $biayaAman && !isset($parts['biaya']))
             $belumParts[] = 'belum mencapai limit biaya';
         if ($intervalAda && $waktuAman && !isset($parts['waktu']))
             $belumParts[] = 'belum mencapai limit jangka waktu';
-        if ($kmAda && $kmAman && !isset($parts['km']))
-            $belumParts[] = 'belum mencapai limit KM';
 
         $kalimat = array_merge(array_values($parts), $belumParts);
         if (empty($kalimat)) return '-';
