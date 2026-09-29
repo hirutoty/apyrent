@@ -550,7 +550,8 @@ function calcKeteranganLimit(idx) {
             if (parseInt(catEl.value) === categoryId) aktifCountForm++;
         });
     }
-    const aktifCount  = aktifCountDb !== null ? aktifCountDb + aktifCountForm : null;
+    // +1 untuk baris ini sendiri (belum tersimpan ke DB), konsisten dengan PHP server-side
+    const aktifCount  = aktifCountDb !== null ? aktifCountDb + aktifCountForm + 1 : null;
     const jumlahAda   = limitJumlah !== null && limitJumlah > 0 && aktifCount !== null;
     const jumlahSama  = jumlahAda && aktifCount === limitJumlah;
     const jumlahLewat = jumlahAda && aktifCount  >  limitJumlah;
@@ -590,9 +591,11 @@ function calcKeteranganLimit(idx) {
         else                 kalimat.push('Belum mencapai limit biaya');
     }
 
-    // Jumlah pasang — tampilkan sisa pcs
+    // Jumlah pasang — status + sisa pcs
     if (jumlahAda) {
-        kalimat.push('Sisa batas pemasangan = ' + sisaPasang + ' pcs');
+        if (jumlahSama)       kalimat.push('Sudah mencapai batas pemasangan part');
+        else if (jumlahLewat) kalimat.push('Sudah melebihi batas pemasangan part');
+        else                  kalimat.push('Belum mencapai batas pemasangan part (sisa ' + sisaPasang + ' pcs)');
     }
 
     if (kalimat.length === 0) {

@@ -219,26 +219,28 @@ class ServiceCategoryController extends Controller
     public function geserLimitKm(\Illuminate\Http\Request $request, $limitId)
     {
         $request->validate([
-            'limit_km_baru' => 'required|integer|min:1|max:9999999999',
+            'limit_nilai'  => 'required|integer|min:1',
+            'limit_satuan' => 'required|in:hari,minggu,bulan,tahun',
+            'limit_km'     => 'nullable|integer|min:0|max:9999999999',
+            'limit_price'  => 'nullable|integer|min:0',
+            'jumlah'       => 'nullable|integer|min:0',
         ]);
 
         $limit = ServiceCategoryLimit::with(['category', 'kendaraan'])->findOrFail($limitId);
 
-        $kmLama = (int) ($limit->limit_km ?? 0);
-        $kmBaru = (int) $request->limit_km_baru;
-
-        if ($kmBaru <= $kmLama) {
-            return back()->with('error', "Limit KM baru ({$kmBaru} km) harus lebih besar dari limit saat ini ({$kmLama} km).");
-        }
-
-        $limit->update(['limit_km' => $kmBaru]);
+        $limit->update([
+            'limit_nilai'  => (int) $request->limit_nilai,
+            'limit_satuan' => $request->limit_satuan,
+            'limit_km'     => $request->filled('limit_km')    ? (int) $request->limit_km    : null,
+            'limit_price'  => $request->filled('limit_price') ? (int) $request->limit_price : null,
+            'jumlah'       => $request->filled('jumlah')      ? (int) $request->jumlah      : null,
+        ]);
 
         $namaKat = optional($limit->category)->nama  ?? 'kategori';
         $nopol   = optional($limit->kendaraan)->nopol ?? '';
 
         return back()->with('success',
-            "Limit KM kategori \"{$namaKat}\" ({$nopol}) berhasil diupdate ke " .
-            number_format($kmBaru, 0, ',', '.') . " km."
+            "Limit kategori \"{$namaKat}\" ({$nopol}) berhasil diupdate."
         );
     }
 

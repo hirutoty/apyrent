@@ -1692,9 +1692,11 @@ class ServiceHistoryController extends Controller
             else                  $kalimat[] = 'Belum mencapai limit biaya';
         }
 
-        // Jumlah pasang — tampilkan sisa pcs
+        // Jumlah pasang — status + sisa pcs
         if ($jumlahAda) {
-            $kalimat[] = 'Sisa batas pemasangan = ' . $sisaPasang . ' pcs';
+            if ($jumlahSama)       $kalimat[] = 'Sudah mencapai batas pemasangan part';
+            elseif ($jumlahLewat)  $kalimat[] = 'Sudah melebihi batas pemasangan part';
+            else                   $kalimat[] = 'Belum mencapai batas pemasangan part (sisa ' . $sisaPasang . ' pcs)';
         }
 
         if (empty($kalimat)) {

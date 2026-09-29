@@ -1240,7 +1240,9 @@
                                                                             // 1. Biaya
                                                                             if (!empty($snap['limit_biaya'])) {
                                                                                 if (!empty($snap['biaya_lewat'])) {
-                                                                                    $ketDimensi[] = ['label' => 'Melebihi limit biaya', 'color' => 'bg-red-100 text-red-700'];
+                                                                                    $ketDimensi[] = ['label' => 'Sudah melebihi limit biaya', 'color' => 'bg-red-100 text-red-700'];
+                                                                                } elseif (!empty($snap['biaya_sama'])) {
+                                                                                    $ketDimensi[] = ['label' => 'Sudah mencapai batas limit biaya', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                 } else {
                                                                                     $ketDimensi[] = ['label' => 'Belum mencapai limit biaya', 'color' => 'bg-green-100 text-green-700'];
                                                                                 }
@@ -1249,18 +1251,34 @@
                                                                             // 2. Jangka Waktu
                                                                             if (!empty($snap['limit_interval_label'])) {
                                                                                 if (!empty($snap['tanggal_lewat'])) {
-                                                                                    $ketDimensi[] = ['label' => 'Melebihi batas waktu', 'color' => 'bg-red-100 text-red-700'];
+                                                                                    $ketDimensi[] = ['label' => 'Sudah melebihi batas limit jangka waktu', 'color' => 'bg-red-100 text-red-700'];
+                                                                                } elseif (!empty($snap['tanggal_sama'])) {
+                                                                                    $ketDimensi[] = ['label' => 'Sudah mencapai batas limit jangka waktu', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                 } else {
-                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai batas waktu', 'color' => 'bg-green-100 text-green-700'];
+                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai limit jangka waktu', 'color' => 'bg-green-100 text-green-700'];
                                                                                 }
                                                                             }
 
                                                                             // 3. KM
                                                                             if (!empty($snap['limit_km_target'])) {
                                                                                 if (!empty($snap['km_lewat'])) {
-                                                                                    $ketDimensi[] = ['label' => 'Melebihi limit km', 'color' => 'bg-red-100 text-red-700'];
+                                                                                    $ketDimensi[] = ['label' => 'Sudah melebihi batas limit KM', 'color' => 'bg-red-100 text-red-700'];
+                                                                                } elseif (!empty($snap['km_sama'])) {
+                                                                                    $ketDimensi[] = ['label' => 'Sudah mencapai batas limit KM', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                 } else {
-                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai limit km', 'color' => 'bg-green-100 text-green-700'];
+                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai batas limit KM', 'color' => 'bg-green-100 text-green-700'];
+                                                                                }
+                                                                            }
+
+                                                                            // 4. Jumlah pasang
+                                                                            if (!empty($snap['limit_jumlah'])) {
+                                                                                if (!empty($snap['jumlah_lewat'])) {
+                                                                                    $ketDimensi[] = ['label' => 'Sudah melebihi batas pemasangan part', 'color' => 'bg-red-100 text-red-700'];
+                                                                                } elseif (!empty($snap['jumlah_sama'])) {
+                                                                                    $ketDimensi[] = ['label' => 'Sudah mencapai batas pemasangan part', 'color' => 'bg-yellow-100 text-yellow-700'];
+                                                                                } else {
+                                                                                    $sisaPasangLabel = isset($snap['sisa_pasang']) ? ' (sisa ' . $snap['sisa_pasang'] . ' pcs)' : '';
+                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai batas pemasangan part' . $sisaPasangLabel, 'color' => 'bg-green-100 text-green-700'];
                                                                                 }
                                                                             }
 

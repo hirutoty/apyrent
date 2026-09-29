@@ -396,16 +396,9 @@
                                                         </td>
                                                         <td class="px-3 py-2">
                                                             @if ($part->status === 'Limit')
-                                                                <div class="flex items-center gap-1 flex-wrap">
-                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700" title="Part melewati tanggal limit, perlu diganti">
-                                                                        <i class="fa fa-exclamation-triangle text-[9px]"></i> Limit
-                                                                    </span>
-                                                                    <button type="button"
-                                                                        onclick="event.stopPropagation(); openModalPerpanjangPart({{ $part->id }}, '{{ addslashes($part->nama_part) }}', '{{ addslashes($part->category?->nama ?? '') }}', {{ $part->category_id ?? 'null' }}, '{{ addslashes($part->posisi ?? '') }}', {{ $part->interval_nilai }}, '{{ $part->interval_satuan }}', {{ $part->biaya }}, {{ $d->kendaraan_id }}, '{{ addslashes($d->kendaraan?->merk . ' — ' . $d->kendaraan?->nopol) }}', {{ $d->kendaraan?->kilometer_sekarang ?? 0 }}, '{{ addslashes($part->part_number ?? '') }}', '{{ addslashes($part->serial_number ?? '') }}', '{{ addslashes($part->nama_rekening ?? '') }}', '{{ addslashes($part->nama_bank ?? '') }}', '{{ addslashes($part->no_rekening ?? '') }}', {{ $part->supplier_id ?? 'null' }})"
-                                                                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 transition-colors">
-                                                                        <i class="fa fa-rotate-right text-[9px]"></i> Perpanjang
-                                                                    </button>
-                                                                </div>
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700" title="Part melewati tanggal limit, perlu diganti">
+                                                                    <i class="fa fa-exclamation-triangle text-[9px]"></i> Limit
+                                                                </span>
                                                             @elseif ($part->status === 'tidak_aktif')
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-300 cursor-default" title="Disetujui keuangan, belum dipasang secara fisik">
                                                                     <i class="fa fa-pause text-[9px]"></i> Tidak Aktif
@@ -428,21 +421,13 @@
                                                                 @endif
                                                             @else
                                                                 {{-- Terpasang --}}
-                                                                @php $showPerpanjangBtn = $partIsWarning || $partIsLimitDate; @endphp
                                                                 <div class="flex items-center gap-1 flex-wrap">
                                                                     <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700 cursor-default">
                                                                         <i class="fa fa-check text-[9px]"></i> Terpasang
                                                                     </span>
-                                                                    @if ($showPerpanjangBtn)
+                                                                    @if ($limitRule)
                                                                         <button type="button"
-                                                                            onclick="event.stopPropagation(); openModalPerpanjangPart({{ $part->id }}, '{{ addslashes($part->nama_part) }}', '{{ addslashes($part->category?->nama ?? '') }}', {{ $part->category_id ?? 'null' }}, '{{ addslashes($part->posisi ?? '') }}', {{ $part->interval_nilai }}, '{{ $part->interval_satuan }}', {{ $part->biaya }}, {{ $d->kendaraan_id }}, '{{ addslashes($d->kendaraan?->merk . ' — ' . $d->kendaraan?->nopol) }}', {{ $d->kendaraan?->kilometer_sekarang ?? 0 }}, '{{ addslashes($part->part_number ?? '') }}', '{{ addslashes($part->serial_number ?? '') }}', '{{ addslashes($part->nama_rekening ?? '') }}', '{{ addslashes($part->nama_bank ?? '') }}', '{{ addslashes($part->no_rekening ?? '') }}', {{ $part->supplier_id ?? 'null' }})"
-                                                                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 transition-colors">
-                                                                            <i class="fa fa-rotate-right text-[9px]"></i> Ganti Part
-                                                                        </button>
-                                                                    @endif
-                                                                    @if ($kmSudahLewat && $limitRule)
-                                                                        <button type="button"
-                                                                            onclick="event.stopPropagation(); openModalGantiLimitKm({{ $limitRule->id }}, '{{ addslashes(optional($limitRule->category)->nama ?? '') }}', {{ $limitRule->limit_km ?? 0 }})"
+                                                                            onclick="event.stopPropagation(); openModalGantiLimit({{ $limitRule->id }}, '{{ addslashes(optional($limitRule->category)->nama ?? '') }}', {{ $limitRule->limit_km ?? 0 }}, {{ $limitRule->limit_price ?? 0 }}, {{ $limitRule->jumlah ?? 0 }}, {{ $limitRule->limit_nilai ?? 0 }}, '{{ $limitRule->limit_satuan ?? 'bulan' }}')"
                                                                             class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-300 transition-colors">
                                                                             <i class="bi bi-speedometer2 text-[9px]"></i> Ganti Limit
                                                                         </button>
@@ -1605,74 +1590,119 @@ document.getElementById('modal-perpanjang-part').addEventListener('click', funct
 });
 </script>
 
-{{-- ===================== MODAL: GANTI LIMIT KM ===================== --}}
-<div id="modal-ganti-limit-km"
+{{-- ===================== MODAL: GANTI LIMIT ===================== --}}
+<div id="modal-ganti-limit"
     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
-                <h3 class="font-bold text-gray-800">Ganti Limit KM</h3>
+                <h3 class="font-bold text-gray-800">Ganti Limit</h3>
                 <p id="ganti-limit-subtitle" class="text-xs text-gray-400 mt-0.5"></p>
             </div>
-            <button onclick="closeModalGantiLimitKm()"
+            <button onclick="closeModalGantiLimit()"
                 class="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
                 <i class="fa fa-times"></i>
             </button>
         </div>
-        <div class="px-6 py-5 space-y-4">
-            {{-- Info current KM --}}
-            <div class="bg-gray-50 rounded-xl p-3 text-center">
-                <p class="text-xs text-gray-400 mb-1">Limit KM Saat Ini</p>
-                <p id="ganti-limit-km-lama" class="text-base font-bold text-gray-700">—</p>
-            </div>
-            <form id="form-ganti-limit-km" method="POST" action="">
-                @csrf
-                {{-- Input manual KM baru --}}
-                <div class="space-y-1.5">
-                    <label class="block text-sm font-medium text-gray-700">
-                        Limit KM Baru <span class="text-red-500">*</span>
+        <form id="form-ganti-limit" method="POST" action="">
+            @csrf
+            <div class="px-6 py-5 space-y-4">
+
+                {{-- Interval Penggantian --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                        Interval Penggantian <span class="text-red-500">*</span>
                     </label>
+                    <div class="flex gap-2">
+                        <input type="number" name="limit_nilai" id="ganti-limit-nilai"
+                            min="1" step="1" required placeholder="cth: 6"
+                            class="w-24 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+                        <select name="limit_satuan" id="ganti-limit-satuan"
+                            class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+                            <option value="hari">Hari</option>
+                            <option value="minggu">Minggu</option>
+                            <option value="bulan" selected>Bulan</option>
+                            <option value="tahun">Tahun</option>
+                        </select>
+                    </div>
+                </div>
+
+                {{-- Limit KM --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Limit KM</label>
                     <div class="relative">
-                        <input type="number" name="limit_km_baru" id="ganti-limit-km-input"
-                            min="1" step="1" required
-                            placeholder="Masukkan target KM baru..."
+                        <input type="number" name="limit_km" id="ganti-limit-km-input"
+                            min="0" step="1" placeholder="kosongkan jika tidak ada"
                             class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
                         <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
                     </div>
-                    <p class="text-xs text-gray-400">Harus lebih besar dari limit KM saat ini.</p>
+                    <p class="text-xs text-gray-400 mt-1">Target KM absolut saat ini. Update manual via tombol "Ganti Limit" di service history.</p>
                 </div>
-                <div class="flex justify-end gap-2 mt-4">
-                    <button type="button" onclick="closeModalGantiLimitKm()"
-                        class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
-                        Batal
-                    </button>
-                    <button type="submit"
-                        class="px-5 py-2.5 text-sm font-medium text-white bg-violet-600 rounded-xl hover:bg-violet-700 transition-colors">
-                        <i class="bi bi-speedometer2 text-xs mr-1"></i> Simpan Limit KM
-                    </button>
+
+                {{-- Batas Harga --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Batas Harga (Limit Price)</label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">Rp</span>
+                        <input type="number" name="limit_price" id="ganti-limit-price-input"
+                            min="0" step="1" placeholder="kosongkan jika tidak ada"
+                            class="w-full border border-gray-200 rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+                    </div>
                 </div>
-            </form>
-        </div>
+
+                {{-- Jumlah Maksimal Part --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Jumlah Maksimal Part</label>
+                    <div class="relative">
+                        <input type="number" name="jumlah" id="ganti-limit-jumlah-input"
+                            min="0" step="1" placeholder="kosongkan jika tidak ada"
+                            class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+                        <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">pcs</span>
+                    </div>
+                </div>
+
+            </div>
+            <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+                <button type="button" onclick="closeModalGantiLimit()"
+                    class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                    Batal
+                </button>
+                <button type="submit"
+                    class="px-5 py-2.5 text-sm font-medium text-white bg-violet-600 rounded-xl hover:bg-violet-700 transition-colors">
+                    <i class="bi bi-speedometer2 text-xs mr-1"></i> Simpan Limit
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
 <script>
-function openModalGantiLimitKm(limitId, kategoriNama, kmLama) {
-    document.getElementById('form-ganti-limit-km').action = '/admin/service-categories/limits/' + limitId + '/geser-km';
+function openModalGantiLimit(limitId, kategoriNama, kmLama, priceLama, jumlahLama, nilaiLama, satuanLama) {
+    document.getElementById('form-ganti-limit').action = '/admin/service-categories/limits/' + limitId + '/geser-km';
     document.getElementById('ganti-limit-subtitle').textContent = 'Kategori: ' + kategoriNama;
-    document.getElementById('ganti-limit-km-lama').textContent  = Number(kmLama).toLocaleString('id-ID') + ' km';
-    // Reset input
-    var input = document.getElementById('ganti-limit-km-input');
-    if (input) { input.value = ''; input.min = kmLama + 1; }
-    var el = document.getElementById('modal-ganti-limit-km');
+
+    // Isi nilai saat ini ke input
+    var inputNilai   = document.getElementById('ganti-limit-nilai');
+    var selectSatuan = document.getElementById('ganti-limit-satuan');
+    var inputKm      = document.getElementById('ganti-limit-km-input');
+    var inputPrice   = document.getElementById('ganti-limit-price-input');
+    var inputJumlah  = document.getElementById('ganti-limit-jumlah-input');
+
+    if (inputNilai)   inputNilai.value   = nilaiLama  > 0 ? nilaiLama  : '';
+    if (selectSatuan) selectSatuan.value = satuanLama || 'bulan';
+    if (inputKm)      inputKm.value      = kmLama     > 0 ? kmLama     : '';
+    if (inputPrice)   inputPrice.value   = priceLama  > 0 ? priceLama  : '';
+    if (inputJumlah)  inputJumlah.value  = jumlahLama > 0 ? jumlahLama : '';
+
+    var el = document.getElementById('modal-ganti-limit');
     el.classList.remove('hidden'); el.classList.add('flex');
 }
-function closeModalGantiLimitKm() {
-    var el = document.getElementById('modal-ganti-limit-km');
+function closeModalGantiLimit() {
+    var el = document.getElementById('modal-ganti-limit');
     el.classList.add('hidden'); el.classList.remove('flex');
 }
-document.getElementById('modal-ganti-limit-km').addEventListener('click', function(e) {
-    if (e.target === this) closeModalGantiLimitKm();
+document.getElementById('modal-ganti-limit').addEventListener('click', function(e) {
+    if (e.target === this) closeModalGantiLimit();
 });
 </script>
 
