@@ -132,6 +132,19 @@ class PengeluaranInterceptorService
                     default  => (clone $tglPasangSnap)->addMonths($intervalNilaiSnap),
                 };
                 $kmPasangSnap = (int) ($partData['kilometer_pasang'] ?? $kmInput);
+                // ── Jumlah pasang snapshot ───────────────────────────────────────
+                $snapLimitJumlah = ($limitRule && $limitRule->jumlah) ? (int) $limitRule->jumlah : null;
+                $snapAktifCount  = null;
+                if ($snapLimitJumlah && $limitRule->kendaraan_id) {
+                    $snapAktifCount = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
+                        ->where('category_id', $limitRule->category_id)
+                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                        ->count();
+                }
+                $snapJumlahLewat = $snapLimitJumlah !== null && $snapAktifCount !== null && $snapAktifCount > $snapLimitJumlah;
+                $snapJumlahSama  = $snapLimitJumlah !== null && $snapAktifCount !== null && $snapAktifCount === $snapLimitJumlah;
+                $snapSisaPasang  = ($snapLimitJumlah !== null && $snapAktifCount !== null) ? ($snapLimitJumlah - $snapAktifCount) : null;
+
                 $partData['limit_snapshot'] = [
                     // Biaya
                     'service_biaya' => (int) ($partData['biaya'] ?? 0),
@@ -146,16 +159,31 @@ class PengeluaranInterceptorService
                     'limit_km_target' => ($limitRule && $limitRule->limit_km)
                                             ? (int) $limitRule->limit_km
                                             : null,
+                    // Jumlah pasang vs limit jumlah
+                    'limit_jumlah'   => $snapLimitJumlah,
+                    'aktif_count'    => $snapAktifCount,
+                    'sisa_pasang'    => $snapSisaPasang,
                     // Flag lewat atau tidak per dimensi (untuk pewarnaan merah)
-                    'biaya_lewat'   => $limitRule && $limitRule->limit_price
+                    'biaya_lewat'    => $limitRule && $limitRule->limit_price
                                         ? ((int) ($partData['biaya'] ?? 0) > (int) $limitRule->limit_price)
                                         : false,
-                    'tanggal_lewat' => ($intervalNilaiSnap > 0)
+                    'biaya_sama'     => $limitRule && $limitRule->limit_price
+                                        ? ((int) ($partData['biaya'] ?? 0) === (int) $limitRule->limit_price)
+                                        : false,
+                    'tanggal_lewat'  => ($intervalNilaiSnap > 0)
                                         ? $tglLimitSnap->lt(\Carbon\Carbon::parse($data['tanggal_service'] ?? now())->startOfDay())
                                         : false,
-                    'km_lewat'      => ($limitRule && $limitRule->limit_km)
+                    'tanggal_sama'   => ($intervalNilaiSnap > 0)
+                                        ? $tglLimitSnap->eq(\Carbon\Carbon::parse($data['tanggal_service'] ?? now())->startOfDay())
+                                        : false,
+                    'km_lewat'       => ($limitRule && $limitRule->limit_km)
                                         ? ($kmInput > (int) $limitRule->limit_km)
                                         : false,
+                    'km_sama'        => ($limitRule && $limitRule->limit_km)
+                                        ? ($kmInput === (int) $limitRule->limit_km)
+                                        : false,
+                    'jumlah_lewat'   => $snapJumlahLewat,
+                    'jumlah_sama'    => $snapJumlahSama,
                 ];
             }
             unset($partData);
@@ -265,8 +293,23 @@ class PengeluaranInterceptorService
         $kmLewat = $kmAda && $kmInput  >  (int)$kmLimit;
         $kmAman  = !$kmAda || $kmInput  <  (int)$kmLimit;
 
+        // ── Dimensi Jumlah pasang ─────────────────────────────────────────────
+        $limitJumlah = $limitRule->jumlah ? (int) $limitRule->jumlah : null;
+        $aktifCount  = null;
+        if ($limitJumlah && $limitRule->kendaraan_id) {
+            $aktifCount = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
+                ->where('category_id', $limitRule->category_id)
+                ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                ->count();
+        }
+        $jumlahAda   = $limitJumlah !== null && $limitJumlah > 0 && $aktifCount !== null;
+        $jumlahSama  = $jumlahAda && $aktifCount === $limitJumlah;
+        $jumlahLewat = $jumlahAda && $aktifCount  >  $limitJumlah;
+        $jumlahAman  = !$jumlahAda || $aktifCount  <  $limitJumlah;
+        $sisaPasang  = $jumlahAda ? ($limitJumlah - $aktifCount) : null; // bisa negatif
+
         // Tidak ada limit dikonfigurasi → "-"
-        $adaLimit = $hargaLimit || $intervalAda || $kmAda;
+        $adaLimit = $hargaLimit || $intervalAda || $kmAda || $jumlahAda;
         if (!$adaLimit) {
             return '-';
         }
@@ -293,6 +336,13 @@ class PengeluaranInterceptorService
             if ($biayaSama)       $kalimat[] = 'Sudah mencapai batas limit biaya';
             elseif ($biayaLewat)  $kalimat[] = 'Sudah melebihi limit biaya';
             else                  $kalimat[] = 'Belum mencapai limit biaya';
+        }
+
+        // Jumlah pasang — status + sisa pcs
+        if ($jumlahAda) {
+            if ($jumlahSama)       $kalimat[] = 'Sudah mencapai batas pemasangan part';
+            elseif ($jumlahLewat)  $kalimat[] = 'Sudah melebihi batas pemasangan part';
+            else                   $kalimat[] = 'Belum mencapai batas pemasangan part (sisa ' . $sisaPasang . ' pcs)';
         }
 
         if (empty($kalimat)) {

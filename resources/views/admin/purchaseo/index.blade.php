@@ -723,7 +723,9 @@
                                                                                 // 1. Biaya
                                                                                 if (!empty($snap['limit_biaya'])) {
                                                                                     if (!empty($snap['biaya_lewat'])) {
-                                                                                        $poDimensi[] = ['label' => 'Melebihi limit biaya', 'color' => 'bg-red-100 text-red-700'];
+                                                                                        $poDimensi[] = ['label' => 'Sudah melebihi limit biaya', 'color' => 'bg-red-100 text-red-700'];
+                                                                                    } elseif (!empty($snap['biaya_sama'])) {
+                                                                                        $poDimensi[] = ['label' => 'Sudah mencapai batas limit biaya', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                     } else {
                                                                                         $poDimensi[] = ['label' => 'Belum mencapai limit biaya', 'color' => 'bg-green-100 text-green-700'];
                                                                                     }
@@ -732,18 +734,34 @@
                                                                                 // 2. Jangka Waktu
                                                                                 if (!empty($snap['limit_interval_label'])) {
                                                                                     if (!empty($snap['tanggal_lewat'])) {
-                                                                                        $poDimensi[] = ['label' => 'Melebihi batas waktu', 'color' => 'bg-red-100 text-red-700'];
+                                                                                        $poDimensi[] = ['label' => 'Sudah melebihi batas limit jangka waktu', 'color' => 'bg-red-100 text-red-700'];
+                                                                                    } elseif (!empty($snap['tanggal_sama'])) {
+                                                                                        $poDimensi[] = ['label' => 'Sudah mencapai batas limit jangka waktu', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                     } else {
-                                                                                        $poDimensi[] = ['label' => 'Belum mencapai batas waktu', 'color' => 'bg-green-100 text-green-700'];
+                                                                                        $poDimensi[] = ['label' => 'Belum mencapai limit jangka waktu', 'color' => 'bg-green-100 text-green-700'];
                                                                                     }
                                                                                 }
 
                                                                                 // 3. KM
                                                                                 if (!empty($snap['limit_km_target'])) {
                                                                                     if (!empty($snap['km_lewat'])) {
-                                                                                        $poDimensi[] = ['label' => 'Melebihi limit km', 'color' => 'bg-red-100 text-red-700'];
+                                                                                        $poDimensi[] = ['label' => 'Sudah melebihi batas limit KM', 'color' => 'bg-red-100 text-red-700'];
+                                                                                    } elseif (!empty($snap['km_sama'])) {
+                                                                                        $poDimensi[] = ['label' => 'Sudah mencapai batas limit KM', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                     } else {
-                                                                                        $poDimensi[] = ['label' => 'Belum mencapai limit km', 'color' => 'bg-green-100 text-green-700'];
+                                                                                        $poDimensi[] = ['label' => 'Belum mencapai batas limit KM', 'color' => 'bg-green-100 text-green-700'];
+                                                                                    }
+                                                                                }
+
+                                                                                // 4. Jumlah pasang
+                                                                                if (!empty($snap['limit_jumlah'])) {
+                                                                                    if (!empty($snap['jumlah_lewat'])) {
+                                                                                        $poDimensi[] = ['label' => 'Sudah melebihi batas pemasangan part', 'color' => 'bg-red-100 text-red-700'];
+                                                                                    } elseif (!empty($snap['jumlah_sama'])) {
+                                                                                        $poDimensi[] = ['label' => 'Sudah mencapai batas pemasangan part', 'color' => 'bg-yellow-100 text-yellow-700'];
+                                                                                    } else {
+                                                                                        $sisaPasangLabel = isset($snap['sisa_pasang']) ? ' (sisa ' . $snap['sisa_pasang'] . ' pcs)' : '';
+                                                                                        $poDimensi[] = ['label' => 'Belum mencapai batas pemasangan part' . $sisaPasangLabel, 'color' => 'bg-green-100 text-green-700'];
                                                                                     }
                                                                                 }
 
