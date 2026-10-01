@@ -645,7 +645,7 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">
                                                                     <div class="grid grid-cols-2 gap-1 min-w-[180px]">
                                                                         <span class="text-blue-600">Service</span>
-                                                                        <span class="text-orange-500">Limit</span>
+                                                                        <span class="text-orange-500">Sisa Limit</span>
                                                                     </div>
                                                                 </th>
                                                                 @endif
@@ -687,12 +687,15 @@
                                                                     <td class="px-3 py-2">
                                                                         @if($snap)
                                                                         <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 min-w-[180px] text-[11px]">
+                                                                            {{-- Header kolom --}}
+                                                                            <span class="text-[10px] font-semibold text-blue-500 uppercase">Service</span>
+                                                                            <span class="text-[10px] font-semibold text-orange-400 uppercase">Sisa Limit</span>
                                                                             {{-- Biaya --}}
                                                                             <span class="{{ $snap['biaya_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
                                                                                 Rp {{ number_format($snap['service_biaya'], 0, ',', '.') }}
                                                                             </span>
-                                                                            <span class="text-gray-500">
-                                                                                {{ $snap['limit_biaya'] ? 'Rp ' . number_format($snap['limit_biaya'], 0, ',', '.') : '—' }}
+                                                                            <span class="{{ isset($snap['sisa_limit_biaya']) && $snap['sisa_limit_biaya'] < 0 ? 'text-red-500 font-semibold' : 'text-gray-500' }}">
+                                                                                {{ isset($snap['sisa_limit_biaya']) ? 'Rp ' . number_format($snap['sisa_limit_biaya'], 0, ',', '.') : ($snap['limit_biaya'] ? 'Rp ' . number_format($snap['limit_biaya'], 0, ',', '.') : '—') }}
                                                                             </span>
                                                                             {{-- Tanggal --}}
                                                                             <span class="{{ $snap['tanggal_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
@@ -705,8 +708,8 @@
                                                                             <span class="{{ $snap['km_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
                                                                                 KM {{ number_format($snap['service_km'], 0, ',', '.') }}
                                                                             </span>
-                                                                            <span class="text-gray-500">
-                                                                                {{ $snap['limit_km_target'] ? 'KM ' . number_format($snap['limit_km_target'], 0, ',', '.') : '—' }}
+                                                                            <span class="{{ isset($snap['sisa_limit_km']) && $snap['sisa_limit_km'] < 0 ? 'text-red-500 font-semibold' : 'text-gray-500' }}">
+                                                                                {{ isset($snap['sisa_limit_km']) ? 'KM ' . number_format($snap['sisa_limit_km'], 0, ',', '.') : ($snap['limit_km_target'] ? 'KM ' . number_format($snap['limit_km_target'], 0, ',', '.') : '—') }}
                                                                             </span>
                                                                         </div>
                                                                         @else
@@ -717,14 +720,20 @@
                                                                     <td class="px-3 py-2 text-gray-500">
                                                                         @if(!empty($snap))
                                                                             @php
+                                                                                // Gunakan nilai dari snapshot yang tersimpan — sudah diperbaiki via
+                                                                                // command limit:refresh-snapshot. Live recalculate dihapus karena
+                                                                                // tidak akurat (part bisa sudah masuk DB via jalur lain).
+                                                                                $snapBiayaLewatLive = $snap['biaya_lewat'] ?? false;
+                                                                                $snapBiayaSamaLive  = $snap['biaya_sama']  ?? false;
+
                                                                                 // Render per dimensi secara terurut: Biaya → Jangka Waktu → KM
                                                                                 $poDimensi = [];
 
                                                                                 // 1. Biaya
                                                                                 if (!empty($snap['limit_biaya'])) {
-                                                                                    if (!empty($snap['biaya_lewat'])) {
+                                                                                    if ($snapBiayaLewatLive) {
                                                                                         $poDimensi[] = ['label' => 'Sudah melebihi limit biaya', 'color' => 'bg-red-100 text-red-700'];
-                                                                                    } elseif (!empty($snap['biaya_sama'])) {
+                                                                                    } elseif ($snapBiayaSamaLive) {
                                                                                         $poDimensi[] = ['label' => 'Sudah mencapai batas limit biaya', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                     } else {
                                                                                         $poDimensi[] = ['label' => 'Belum mencapai limit biaya', 'color' => 'bg-green-100 text-green-700'];
@@ -1620,11 +1629,11 @@ function buildDetailContent(data) {
                 html += '<div class="mt-1.5 mb-2">'
                     // Baris header
                     + '<div class="grid grid-cols-2 gap-x-3 text-[10px] font-semibold text-gray-400 uppercase mb-0.5 px-1">'
-                    + '<span class="text-blue-500">Service</span><span class="text-orange-400">Limit</span></div>'
+                    + '<span class="text-blue-500">Service</span><span class="text-orange-400">Sisa Limit</span></div>'
                     // Biaya
                     + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1 mb-0.5">'
                     + '<span class="' + (snap.biaya_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">Rp ' + Number(snap.service_biaya || 0).toLocaleString('id-ID') + '</span>'
-                    + '<span class="text-gray-400">' + (snap.limit_biaya ? 'Rp ' + Number(snap.limit_biaya).toLocaleString('id-ID') : '—') + '</span>'
+                    + '<span class="' + (snap.sisa_limit_biaya !== undefined && snap.sisa_limit_biaya !== null && snap.sisa_limit_biaya < 0 ? 'text-red-500 font-semibold' : 'text-gray-400') + '">' + (snap.sisa_limit_biaya !== undefined && snap.sisa_limit_biaya !== null ? 'Rp ' + Number(snap.sisa_limit_biaya).toLocaleString('id-ID') : (snap.limit_biaya ? 'Rp ' + Number(snap.limit_biaya).toLocaleString('id-ID') : '—')) + '</span>'
                     + '</div>'
                     // Tanggal
                     + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1 mb-0.5">'
@@ -1634,7 +1643,7 @@ function buildDetailContent(data) {
                     // KM
                     + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1">'
                     + '<span class="' + (snap.km_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">KM ' + Number(snap.service_km || 0).toLocaleString('id-ID') + '</span>'
-                    + '<span class="text-gray-400">' + (snap.limit_km_target ? 'KM ' + Number(snap.limit_km_target).toLocaleString('id-ID') : '—') + '</span>'
+                    + '<span class="' + (snap.sisa_limit_km !== undefined && snap.sisa_limit_km !== null && snap.sisa_limit_km < 0 ? 'text-red-500 font-semibold' : 'text-gray-400') + '">' + (snap.sisa_limit_km !== undefined && snap.sisa_limit_km !== null ? 'KM ' + Number(snap.sisa_limit_km).toLocaleString('id-ID') : (snap.limit_km_target ? 'KM ' + Number(snap.limit_km_target).toLocaleString('id-ID') : '—')) + '</span>'
                     + '</div>'
                     + '</div>';
             }

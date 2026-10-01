@@ -426,9 +426,24 @@
                                                                         <i class="fa fa-check text-[9px]"></i> Terpasang
                                                                     </span>
                                                                     @if ($limitRule)
+                                                                        {{--
+                                                                            Tombol Ganti Limit: hidden by default.
+                                                                            AJAX checkLimitStatus akan show tombol ini
+                                                                            hanya jika salah satu dimensi limit sudah tercapai/terlampaui.
+                                                                            data-* digunakan sebagai fallback jika AJAX belum selesai.
+                                                                        --}}
                                                                         <button type="button"
-                                                                            onclick="event.stopPropagation(); openModalGantiLimit({{ $limitRule->id }}, '{{ addslashes(optional($limitRule->category)->nama ?? '') }}', {{ $limitRule->limit_km ?? 0 }}, {{ $limitRule->limit_price ?? 0 }}, {{ $limitRule->jumlah ?? 0 }}, {{ $limitRule->limit_nilai ?? 0 }}, '{{ $limitRule->limit_satuan ?? 'bulan' }}')"
-                                                                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-300 transition-colors">
+                                                                            id="btn-ganti-limit-{{ $part->id }}"
+                                                                            data-part-id="{{ $part->id }}"
+                                                                            data-limit-id="{{ $limitRule->id }}"
+                                                                            data-kategori="{{ addslashes(optional($limitRule->category)->nama ?? '') }}"
+                                                                            data-limit-km="{{ $limitRule->limit_km ?? 0 }}"
+                                                                            data-limit-price="{{ $limitRule->limit_price ?? 0 }}"
+                                                                            data-limit-jumlah="{{ $limitRule->jumlah ?? 0 }}"
+                                                                            data-limit-nilai="{{ $limitRule->limit_nilai ?? 0 }}"
+                                                                            data-limit-satuan="{{ $limitRule->limit_satuan ?? 'bulan' }}"
+                                                                            onclick="event.stopPropagation(); _triggerGantiLimit({{ $part->id }})"
+                                                                            class="btn-ganti-limit hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-300 transition-colors">
                                                                             <i class="bi bi-speedometer2 text-[9px]"></i> Ganti Limit
                                                                         </button>
                                                                     @endif
@@ -1251,6 +1266,101 @@ async function updateServiceHistoryCharts(filters) {
         console.error('Error updating service history charts:', error);
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AJAX: Cek status limit untuk semua part Terpasang yang punya limit rule
+// Dijalankan saat halaman selesai load — 1 request global, show/hide tombol
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Store AJAX result agar bisa dipakai saat tombol diklik
+var _limitStatusMap = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Kumpulkan semua part_id dari tombol ganti-limit
+    var buttons = document.querySelectorAll('button.btn-ganti-limit[data-part-id]');
+    if (!buttons.length) return;
+
+    var partIds = Array.from(buttons).map(function(btn) {
+        return parseInt(btn.dataset.partId);
+    }).filter(Boolean);
+
+    if (!partIds.length) return;
+
+    // Kirim 1 AJAX request
+    fetch('/admin/service-history/check-limit-status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ part_ids: partIds })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        _limitStatusMap = data;
+
+        // Per part: show/hide tombol berdasarkan ada_tercapai
+        Object.keys(data).forEach(function(partId) {
+            var info = data[partId];
+            var btn  = document.getElementById('btn-ganti-limit-' + partId);
+            if (!btn) return;
+
+            if (info.has_limit && info.ada_tercapai) {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        });
+    })
+    .catch(function(err) {
+        console.warn('checkLimitStatus gagal:', err);
+        // Fallback: sembunyikan semua tombol (tidak tampilkan jika AJAX gagal)
+    });
+});
+
+/**
+ * Dipanggil saat tombol Ganti Limit diklik.
+ * Gunakan data dari AJAX response jika ada, fallback ke data-* attribute.
+ */
+function _triggerGantiLimit(partId) {
+    var btn  = document.getElementById('btn-ganti-limit-' + partId);
+    var info = _limitStatusMap[partId];
+
+    if (info && info.has_limit) {
+        // Gunakan data lengkap dari AJAX
+        // Input pre-fill pakai sisa (sisa_km, sisa_price, sisa_jumlah)
+        // Label info di bawah input pakai nilai asli kategori (limit_km, limit_price, limit_jumlah)
+        openModalGantiLimitFromAjax({
+            limit_id:                info.limit_id,
+            kategori_nama:           info.kategori_nama,
+            // Input: nilai sisa (null → kosong)
+            input_km:                info.sisa_km,
+            input_price:             info.sisa_price,
+            input_jumlah:            info.sisa_jumlah,
+            // Label info: nilai asli dari kategori
+            limit_km:                info.limit_km,
+            limit_price:             info.limit_price,
+            limit_jumlah:            info.limit_jumlah,
+            limit_nilai:             info.limit_nilai,
+            limit_satuan:            info.limit_satuan,
+            sisa_hari_interval:      info.sisa_hari_interval,
+            tgl_awal_interval_fmt:   info.tgl_awal_interval_fmt,
+            tgl_limit_interval_fmt:  info.tgl_limit_interval_fmt,
+        });
+    } else if (btn) {
+        // Fallback: pakai data-* attribute dari Blade (tidak ada data sisa → pakai nilai asli)
+        openModalGantiLimit(
+            parseInt(btn.dataset.limitId),
+            btn.dataset.kategori || '',
+            parseInt(btn.dataset.limitKm)    || 0,
+            parseInt(btn.dataset.limitPrice) || 0,
+            parseInt(btn.dataset.limitJumlah)|| 0,
+            parseInt(btn.dataset.limitNilai) || 0,
+            btn.dataset.limitSatuan          || 'bulan'
+        );
+    }
+}
 </script>
 
 {{-- ===================== MODAL: PERPANJANG PART ===================== --}}
@@ -1592,76 +1702,136 @@ document.getElementById('modal-perpanjang-part').addEventListener('click', funct
 
 {{-- ===================== MODAL: GANTI LIMIT ===================== --}}
 <div id="modal-ganti-limit"
-    class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4">
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl mx-auto my-6">
+
+        {{-- Header --}}
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
-                <h3 class="font-bold text-gray-800">Ganti Limit</h3>
-                <p id="ganti-limit-subtitle" class="text-xs text-gray-400 mt-0.5"></p>
+                <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600 text-sm">
+                        <i class="bi bi-speedometer2"></i>
+                    </span>
+                    Ganti Limit
+                </h3>
+                <p id="ganti-limit-subtitle" class="text-xs text-gray-400 mt-0.5 ml-9"></p>
             </div>
             <button onclick="closeModalGantiLimit()"
                 class="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
                 <i class="fa fa-times"></i>
             </button>
         </div>
+
+        {{-- Info Interval (read-only display) --}}
+        <div id="gl-info-interval" class="mx-6 mt-4 hidden">
+            <div class="flex items-start gap-2 px-4 py-3 bg-violet-50 border border-violet-100 rounded-xl text-xs text-violet-800">
+                <i class="fa fa-calendar-alt mt-0.5 flex-shrink-0 text-violet-500"></i>
+                <div>
+                    <span class="font-semibold">Info Interval:</span>
+                    Dihitung dari <span id="gl-info-tgl-awal" class="font-medium">—</span>
+                    → batas: <span id="gl-info-tgl-limit" class="font-medium">—</span>
+                </div>
+            </div>
+        </div>
+
         <form id="form-ganti-limit" method="POST" action="">
             @csrf
-            <div class="px-6 py-5 space-y-4">
+            <div class="px-6 py-4 space-y-5">
 
-                {{-- Interval Penggantian --}}
+                {{-- ── Interval Penggantian ──────────────────────────────── --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                        Interval Penggantian <span class="text-red-500">*</span>
-                    </label>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-sm font-medium text-gray-700">
+                            Sisa Interval <span class="text-red-500">*</span>
+                            <span class="text-[10px] font-normal text-gray-400 ml-1">(hari tersisa dari interval)</span>
+                        </label>
+                        {{-- Tombol Reset Interval --}}
+                        <button type="button" id="gl-btn-reset-interval"
+                            onclick="gantiLimitResetInterval()"
+                            class="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200 transition-colors">
+                            <i class="fa fa-rotate-right text-[9px]"></i> Reset Interval
+                        </button>
+                    </div>
+                    {{-- Input sisa hari (readonly by default) --}}
                     <div class="flex gap-2">
-                        <input type="number" name="limit_nilai" id="ganti-limit-nilai"
-                            min="1" step="1" required placeholder="cth: 6"
-                            class="w-24 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+                        <div class="relative flex-1">
+                            <input type="number" name="limit_nilai" id="ganti-limit-nilai"
+                                min="1" step="1" required readonly
+                                placeholder="—"
+                                class="w-full border border-gray-200 rounded-xl px-3.5 pr-14 py-2.5 text-sm bg-gray-50 text-gray-600 cursor-not-allowed outline-none"
+                                style="cursor:not-allowed">
+                            <span id="gl-satuan-label" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">hari</span>
+                        </div>
                         <select name="limit_satuan" id="ganti-limit-satuan"
-                            class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+                            disabled
+                            class="w-28 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-400 cursor-not-allowed outline-none">
                             <option value="hari">Hari</option>
                             <option value="minggu">Minggu</option>
                             <option value="bulan" selected>Bulan</option>
                             <option value="tahun">Tahun</option>
                         </select>
+                        {{-- hidden input untuk satuan karena disabled tidak terkirim --}}
+                        <input type="hidden" name="limit_satuan" id="ganti-limit-satuan-hidden">
                     </div>
+                    {{-- Info statis kategori limit saat ini --}}
+                    <p id="gl-info-interval-label" class="text-xs text-gray-400 mt-1.5 hidden">
+                        <i class="fa fa-info-circle text-[10px] mr-1"></i>
+                        <span id="gl-info-interval-text"></span>
+                    </p>
+                    {{-- Pesan setelah reset --}}
+                    <p id="gl-reset-info" class="text-[10px] text-amber-600 mt-1 hidden">
+                        <i class="fa fa-triangle-exclamation text-[9px] mr-0.5"></i>
+                        Mode reset aktif — masukkan interval baru dalam satuan yang dipilih.
+                    </p>
                 </div>
 
-                {{-- Limit KM --}}
+                {{-- ── Limit KM ──────────────────────────────────────────── --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Limit KM</label>
                     <div class="relative">
                         <input type="number" name="limit_km" id="ganti-limit-km-input"
                             min="0" step="1" placeholder="kosongkan jika tidak ada"
-                            class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+                            class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-violet-400 focus:border-transparent outline-none transition">
                         <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
                     </div>
-                    <p class="text-xs text-gray-400 mt-1">Target KM absolut saat ini. Update manual via tombol "Ganti Limit" di service history.</p>
+                    <p id="gl-info-km-label" class="text-xs text-gray-400 mt-1.5 hidden">
+                        <i class="fa fa-info-circle text-[10px] mr-1"></i>
+                        <span id="gl-info-km-text"></span>
+                    </p>
                 </div>
 
-                {{-- Batas Harga --}}
+                {{-- ── Batas Harga ───────────────────────────────────────── --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Batas Harga (Limit Price)</label>
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">Rp</span>
                         <input type="number" name="limit_price" id="ganti-limit-price-input"
                             min="0" step="1" placeholder="kosongkan jika tidak ada"
-                            class="w-full border border-gray-200 rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+                            class="w-full border border-gray-200 rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:ring-2 focus:ring-violet-400 focus:border-transparent outline-none transition">
                     </div>
+                    <p id="gl-info-price-label" class="text-xs text-gray-400 mt-1.5 hidden">
+                        <i class="fa fa-info-circle text-[10px] mr-1"></i>
+                        <span id="gl-info-price-text"></span>
+                    </p>
                 </div>
 
-                {{-- Jumlah Maksimal Part --}}
+                {{-- ── Jumlah Maksimal Part ──────────────────────────────── --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Jumlah Maksimal Part</label>
                     <div class="relative">
                         <input type="number" name="jumlah" id="ganti-limit-jumlah-input"
                             min="0" step="1" placeholder="kosongkan jika tidak ada"
-                            class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+                            class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-violet-400 focus:border-transparent outline-none transition">
                         <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">pcs</span>
                     </div>
+                    <p id="gl-info-jumlah-label" class="text-xs text-gray-400 mt-1.5 hidden">
+                        <i class="fa fa-info-circle text-[10px] mr-1"></i>
+                        <span id="gl-info-jumlah-text"></span>
+                    </p>
                 </div>
 
             </div>
+
             <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
                 <button type="button" onclick="closeModalGantiLimit()"
                     class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
@@ -1677,30 +1847,207 @@ document.getElementById('modal-perpanjang-part').addEventListener('click', funct
 </div>
 
 <script>
-function openModalGantiLimit(limitId, kategoriNama, kmLama, priceLama, jumlahLama, nilaiLama, satuanLama) {
-    document.getElementById('form-ganti-limit').action = '/admin/service-categories/limits/' + limitId + '/geser-km';
-    document.getElementById('ganti-limit-subtitle').textContent = 'Kategori: ' + kategoriNama;
+// ─────────────────────────────────────────────────────────────────────────────
+// State flag: apakah mode reset interval aktif
+// ─────────────────────────────────────────────────────────────────────────────
+var _glResetMode = false;
+// Nilai asli satuan (dipakai saat restore)
+var _glSatuanAsli = 'bulan';
 
-    // Isi nilai saat ini ke input
+/**
+ * Buka modal Ganti Limit.
+ * Data lengkap dikirim dari AJAX checkLimitStatus via openModalGantiLimitFromAjax().
+ */
+function openModalGantiLimit(limitId, kategoriNama, kmLama, priceLama, jumlahLama, nilaiLama, satuanLama) {
+    // Fallback: dipanggil dari Blade langsung (sebelum AJAX) — pakai data lama
+    _openGantiLimitModal({
+        limit_id:           limitId,
+        kategori_nama:      kategoriNama,
+        limit_km:           kmLama,
+        limit_price:        priceLama,
+        limit_jumlah:       jumlahLama,
+        limit_nilai:        nilaiLama,
+        limit_satuan:       satuanLama,
+        sisa_hari_interval: null,
+        tgl_awal_interval_fmt: null,
+        tgl_limit_interval_fmt: null,
+    });
+}
+
+/**
+ * Dipanggil oleh JS setelah AJAX response — membawa data sisa lengkap.
+ */
+function openModalGantiLimitFromAjax(data) {
+    _openGantiLimitModal(data);
+}
+
+function _openGantiLimitModal(data) {
+    _glResetMode  = false;
+    _glSatuanAsli = data.limit_satuan || 'bulan';
+
+    document.getElementById('form-ganti-limit').action =
+        '/admin/service-categories/limits/' + data.limit_id + '/geser-km';
+    document.getElementById('ganti-limit-subtitle').textContent = 'Kategori: ' + (data.kategori_nama || '');
+
+    // ── Info interval banner ───────────────────────────────────────────────
+    var infoBox = document.getElementById('gl-info-interval');
+    if (data.tgl_awal_interval_fmt && data.tgl_limit_interval_fmt) {
+        document.getElementById('gl-info-tgl-awal').textContent  = data.tgl_awal_interval_fmt;
+        document.getElementById('gl-info-tgl-limit').textContent = data.tgl_limit_interval_fmt;
+        infoBox.classList.remove('hidden');
+    } else {
+        infoBox.classList.add('hidden');
+    }
+
+    // ── Input sisa hari (readonly) ─────────────────────────────────────────
     var inputNilai   = document.getElementById('ganti-limit-nilai');
     var selectSatuan = document.getElementById('ganti-limit-satuan');
-    var inputKm      = document.getElementById('ganti-limit-km-input');
-    var inputPrice   = document.getElementById('ganti-limit-price-input');
-    var inputJumlah  = document.getElementById('ganti-limit-jumlah-input');
+    var hiddenSatuan = document.getElementById('ganti-limit-satuan-hidden');
+    var satuanLabel  = document.getElementById('gl-satuan-label');
+    var resetInfo    = document.getElementById('gl-reset-info');
 
-    if (inputNilai)   inputNilai.value   = nilaiLama  > 0 ? nilaiLama  : '';
-    if (selectSatuan) selectSatuan.value = satuanLama || 'bulan';
-    if (inputKm)      inputKm.value      = kmLama     > 0 ? kmLama     : '';
-    if (inputPrice)   inputPrice.value   = priceLama  > 0 ? priceLama  : '';
-    if (inputJumlah)  inputJumlah.value  = jumlahLama > 0 ? jumlahLama : '';
+    // Sisa hari dari tanggal_limit, atau fallback ke nilai lama
+    var sisaHari = data.sisa_hari_interval;
+    if (sisaHari !== null && sisaHari !== undefined) {
+        inputNilai.value = sisaHari;
+        // Tampilkan dalam satuan "hari" karena ini adalah sisa hari absolut
+        satuanLabel.textContent = 'hari';
+        selectSatuan.value      = 'hari';
+        hiddenSatuan.value      = 'hari';
+    } else {
+        inputNilai.value       = data.limit_nilai > 0 ? data.limit_nilai : '';
+        satuanLabel.textContent = data.limit_satuan || 'bulan';
+        selectSatuan.value      = data.limit_satuan || 'bulan';
+        hiddenSatuan.value      = data.limit_satuan || 'bulan';
+    }
+
+    // Mode readonly
+    _setIntervalReadonly(true);
+    resetInfo.classList.add('hidden');
+
+    // ── KM ────────────────────────────────────────────────────────────────
+    var inputKm = document.getElementById('ganti-limit-km-input');
+    // input_km = sisa KM (dari AJAX), fallback ke limit_km jika tidak ada sisa
+    var sisaKm  = (data.input_km !== undefined && data.input_km !== null) ? data.input_km : data.limit_km;
+    inputKm.value = sisaKm > 0 ? sisaKm : '';
+    _setInfoLabel('gl-info-km-label', 'gl-info-km-text',
+        data.limit_km > 0
+            ? 'Limit KM saat ini: ' + Number(data.limit_km).toLocaleString('id-ID') + ' km'
+            : null
+    );
+
+    // ── Price ──────────────────────────────────────────────────────────────
+    var inputPrice = document.getElementById('ganti-limit-price-input');
+    // input_price = sisa budget (dari AJAX), fallback ke limit_price jika tidak ada sisa
+    var sisaPrice  = (data.input_price !== undefined && data.input_price !== null) ? data.input_price : data.limit_price;
+    inputPrice.value = sisaPrice > 0 ? sisaPrice : '';
+    _setInfoLabel('gl-info-price-label', 'gl-info-price-text',
+        data.limit_price > 0
+            ? 'Limit harga saat ini: Rp ' + Number(data.limit_price).toLocaleString('id-ID')
+            : null
+    );
+
+    // ── Jumlah ────────────────────────────────────────────────────────────
+    var inputJumlah = document.getElementById('ganti-limit-jumlah-input');
+    // input_jumlah = sisa slot (dari AJAX), fallback ke limit_jumlah jika tidak ada sisa
+    var sisaJumlah  = (data.input_jumlah !== undefined && data.input_jumlah !== null) ? data.input_jumlah : data.limit_jumlah;
+    inputJumlah.value = sisaJumlah > 0 ? sisaJumlah : '';
+    _setInfoLabel('gl-info-jumlah-label', 'gl-info-jumlah-text',
+        data.limit_jumlah > 0
+            ? 'Jumlah maks saat ini: ' + data.limit_jumlah + ' pcs'
+            : null
+    );
+
+    // ── Info interval label ────────────────────────────────────────────────
+    var satuanMap = { hari:'hari', minggu:'minggu', bulan:'bulan', tahun:'tahun' };
+    _setInfoLabel('gl-info-interval-label', 'gl-info-interval-text',
+        (data.limit_nilai > 0)
+            ? 'Interval saat ini: ' + data.limit_nilai + ' ' + (satuanMap[data.limit_satuan] || 'bulan')
+            : null
+    );
 
     var el = document.getElementById('modal-ganti-limit');
     el.classList.remove('hidden'); el.classList.add('flex');
 }
+
+/** Helper: tampilkan atau sembunyikan label info di bawah input */
+function _setInfoLabel(labelId, textId, text) {
+    var label = document.getElementById(labelId);
+    var span  = document.getElementById(textId);
+    if (!label || !span) return;
+    if (text) {
+        span.textContent = text;
+        label.classList.remove('hidden');
+    } else {
+        label.classList.add('hidden');
+    }
+}
+
+/** Helper: set readonly state untuk input interval */
+function _setIntervalReadonly(readonly) {
+    var inputNilai   = document.getElementById('ganti-limit-nilai');
+    var selectSatuan = document.getElementById('ganti-limit-satuan');
+
+    if (readonly) {
+        inputNilai.readOnly = true;
+        inputNilai.classList.add('bg-gray-50', 'text-gray-600', 'cursor-not-allowed');
+        inputNilai.classList.remove('bg-white', 'text-gray-800', 'focus:ring-2', 'focus:ring-violet-400');
+        inputNilai.style.cursor = 'not-allowed';
+        selectSatuan.disabled = true;
+        selectSatuan.classList.add('bg-gray-50', 'text-gray-400', 'cursor-not-allowed');
+    } else {
+        inputNilai.readOnly = false;
+        inputNilai.classList.remove('bg-gray-50', 'text-gray-600', 'cursor-not-allowed');
+        inputNilai.classList.add('bg-white', 'text-gray-800', 'focus:ring-2', 'focus:ring-violet-400');
+        inputNilai.style.cursor = '';
+        selectSatuan.disabled = false;
+        selectSatuan.classList.remove('bg-gray-50', 'text-gray-400', 'cursor-not-allowed');
+    }
+}
+
+/**
+ * Tombol Reset Interval — aktifkan mode edit untuk interval.
+ * Input berubah: sisa hari → kosong, satuan kembali ke satuan asli kategori, bisa diedit.
+ */
+function gantiLimitResetInterval() {
+    _glResetMode = true;
+    _setIntervalReadonly(false);
+
+    var inputNilai   = document.getElementById('ganti-limit-nilai');
+    var selectSatuan = document.getElementById('ganti-limit-satuan');
+    var hiddenSatuan = document.getElementById('ganti-limit-satuan-hidden');
+    var satuanLabel  = document.getElementById('gl-satuan-label');
+    var resetInfo    = document.getElementById('gl-reset-info');
+    var btnReset     = document.getElementById('gl-btn-reset-interval');
+
+    // Kosongkan input — user ketik interval baru
+    inputNilai.value = '';
+    inputNilai.placeholder = 'cth: 6';
+
+    // Kembalikan satuan ke satuan asli kategori
+    selectSatuan.value  = _glSatuanAsli;
+    hiddenSatuan.value  = _glSatuanAsli;
+    satuanLabel.textContent = _glSatuanAsli;
+
+    // Update hidden satuan saat select berubah
+    selectSatuan.onchange = function() {
+        hiddenSatuan.value      = this.value;
+        satuanLabel.textContent = this.value;
+    };
+
+    resetInfo.classList.remove('hidden');
+    btnReset.classList.add('opacity-50', 'cursor-not-allowed');
+    btnReset.disabled = true;
+
+    inputNilai.focus();
+}
+
 function closeModalGantiLimit() {
     var el = document.getElementById('modal-ganti-limit');
     el.classList.add('hidden'); el.classList.remove('flex');
+    _glResetMode = false;
 }
+
 document.getElementById('modal-ganti-limit').addEventListener('click', function(e) {
     if (e.target === this) closeModalGantiLimit();
 });

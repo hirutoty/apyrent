@@ -615,16 +615,16 @@ class ServiceHistoryController extends Controller
 
                     // Auto-generate keterangan, kondisi, dan status
                     // Hitung aktifCount untuk dimensi jumlah.
-                    // Part yang sedang diinput belum tersimpan ke DB, jadi tambah +1
-                    // untuk mewakili part ini sendiri agar keterangan akurat.
+                    // Part belum tersimpan ke DB saat keterangan di-generate (snapshot ke source_data),
+                    // jadi gunakan DB count apa adanya — sisa = jumlah - DB_count = kapasitas yang masih tersedia.
+                    // Keterangan ini akan di-recalculate ulang saat PO diapprove dan part benar-benar disimpan.
                     $aktifCountKet  = null;
                     $limitJumlahKet = null;
                     if ($limitRule && $limitRule->jumlah) {
-                        // +1 karena part ini sendiri belum tersimpan ke DB saat keterangan digenerate
                         $aktifCountKet  = ServicePart::where('kendaraan_id', $request->kendaraan_id)
                             ->where('category_id', $partData['category_id'])
                             ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                            ->count() + 1;
+                            ->count();
                         $limitJumlahKet = (int) $limitRule->jumlah;
                     }
                     $keteranganOtomatis = $this->generateKeteranganLimit($partData, $kmInput, $limitRule, $request->tanggal_service, $partLamaKmPasang, $aktifCountKet, $limitJumlahKet);
@@ -1156,6 +1156,184 @@ class ServiceHistoryController extends Controller
     }
 
     /**
+     * AJAX endpoint: cek apakah limit sudah tercapai/terlampaui untuk sekumpulan part sekaligus.
+     * Dipanggil saat halaman service_history load — 1 request global untuk semua part Terpasang
+     * yang punya limit rule. Return per part_id: status tiap dimensi limit + data untuk modal.
+     *
+     * POST /admin/service-history/check-limit-status
+     * Body: { part_ids: [1,2,3,...] }
+     */
+    public function checkLimitStatus(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        $partIds = $request->input('part_ids', []);
+        if (empty($partIds)) {
+            return response()->json([]);
+        }
+
+        $today = \Carbon\Carbon::today();
+
+        // Load semua part sekaligus (hindari N+1)
+        $parts = ServicePart::whereIn('id', $partIds)
+            ->with(['kendaraan', 'category'])
+            ->get()
+            ->keyBy('id');
+
+        // Load semua limit rules untuk kendaraan yang relevan
+        $kendaraanIds = $parts->pluck('kendaraan_id')->unique()->values()->toArray();
+        $limitRules   = ServiceCategoryLimit::whereIn('kendaraan_id', $kendaraanIds)
+            ->get();
+        // key: "{kendaraan_id}_{category_id}"
+        $limitMap = $limitRules->keyBy(fn($r) => $r->kendaraan_id . '_' . $r->category_id);
+
+        // Load aktif_count per (kendaraan_id, category_id)
+        $aktifCountMap = [];
+        foreach ($limitRules as $rule) {
+            if (!$rule->jumlah) continue;
+            $key = $rule->kendaraan_id . '_' . $rule->category_id;
+            $aktifCountMap[$key] = ServicePart::where('kendaraan_id', $rule->kendaraan_id)
+                ->where('category_id', $rule->category_id)
+                ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                ->count();
+        }
+
+        $result = [];
+
+        foreach ($parts as $partId => $part) {
+            $mapKey   = $part->kendaraan_id . '_' . $part->category_id;
+            $rule     = $limitMap[$mapKey] ?? null;
+            $kendaraan = $part->kendaraan;
+
+            if (!$rule) {
+                $result[$partId] = ['has_limit' => false];
+                continue;
+            }
+
+            $kmSekarang = (int) ($kendaraan?->kilometer_sekarang ?? 0);
+
+            // ── Dimensi KM ────────────────────────────────────────────────────
+            $kmTercapai = false;
+            $kmInfo     = null;
+            if ($rule->limit_km && $rule->limit_km > 0) {
+                $kmTercapai = $kmSekarang >= $rule->limit_km;
+                $sisaKm     = $rule->limit_km - $kmSekarang;
+                $kmInfo     = [
+                    'limit'      => $rule->limit_km,
+                    'sekarang'   => $kmSekarang,
+                    'sisa'       => $sisaKm,
+                    'tercapai'   => $kmTercapai,
+                ];
+            }
+
+            // ── Dimensi Waktu ─────────────────────────────────────────────────
+            $waktuTercapai = false;
+            $waktuInfo     = null;
+            if ($part->tanggal_limit) {
+                $tglLimit      = \Carbon\Carbon::parse($part->tanggal_limit)->startOfDay();
+                $waktuTercapai = $today->gte($tglLimit);
+                $sisaHari      = (int) $today->diffInDays($tglLimit, false);
+                $waktuInfo     = [
+                    'tanggal_limit'    => $part->tanggal_limit->format('Y-m-d'),
+                    'tanggal_limit_fmt' => $part->tanggal_limit->format('d M Y'),
+                    'sisa_hari'        => $sisaHari,
+                    'tercapai'         => $waktuTercapai,
+                ];
+            }
+
+            // ── Dimensi Biaya ─────────────────────────────────────────────────
+            $biayaTercapai = false;
+            $biayaInfo     = null;
+            if ($rule->limit_price && $rule->limit_price > 0 && $rule->limit_nilai) {
+                $kumulatif = $this->getKumulatifBiayaKategori(
+                    (int) $rule->kendaraan_id,
+                    (int) $rule->category_id,
+                    (int) $rule->limit_nilai,
+                    $rule->limit_satuan ?? 'bulan',
+                    (int) $rule->limit_price,
+                    $today->toDateString()
+                );
+                if ($kumulatif !== null) {
+                    $biayaTercapai = $kumulatif['total_dalam_periode'] >= $rule->limit_price;
+                    $biayaInfo     = [
+                        'limit'              => $rule->limit_price,
+                        'total_periode'      => $kumulatif['total_dalam_periode'],
+                        'sisa'               => $kumulatif['sisa_limit'],
+                        'periode_mulai'      => $kumulatif['periode_mulai'],
+                        'periode_selesai'    => $kumulatif['periode_selesai'],
+                        'tercapai'           => $biayaTercapai,
+                    ];
+                }
+            }
+
+            // ── Dimensi Jumlah ────────────────────────────────────────────────
+            $jumlahTercapai = false;
+            $jumlahInfo     = null;
+            if ($rule->jumlah && $rule->jumlah > 0) {
+                $aktifCount     = $aktifCountMap[$mapKey] ?? 0;
+                $jumlahTercapai = $aktifCount >= $rule->jumlah;
+                $jumlahInfo     = [
+                    'limit'      => $rule->jumlah,
+                    'aktif'      => $aktifCount,
+                    'sisa'       => $rule->jumlah - $aktifCount,
+                    'tercapai'   => $jumlahTercapai,
+                ];
+            }
+
+            $adaTercapai = $kmTercapai || $waktuTercapai || $biayaTercapai || $jumlahTercapai;
+
+            // ── Data interval untuk modal ─────────────────────────────────────
+            // Cari part pertama (terlama) di kategori + kendaraan yang sama → anchor tgl mulai interval
+            $partPertama = ServicePart::where('kendaraan_id', $part->kendaraan_id)
+                ->where('category_id', $part->category_id)
+                ->whereNotNull('tgl_pasang')
+                ->orderBy('tgl_pasang')
+                ->first();
+
+            $tglAwalInterval    = $partPertama?->tgl_pasang?->format('Y-m-d');
+            $tglAwalIntervalFmt = $partPertama?->tgl_pasang?->format('d M Y');
+
+            // Tanggal limit berdasarkan part pertama (atau tanggal_limit part ini)
+            $tglLimitInterval    = $part->tanggal_limit?->format('Y-m-d');
+            $tglLimitIntervalFmt = $part->tanggal_limit?->format('d M Y');
+
+            // Sisa hari dari tanggal_limit
+            $sisaHariInterval = $part->tanggal_limit
+                ? (int) $today->diffInDays(\Carbon\Carbon::parse($part->tanggal_limit)->startOfDay(), false)
+                : null;
+
+            $result[$partId] = [
+                'has_limit'          => true,
+                'ada_tercapai'       => $adaTercapai,
+                // Data per dimensi
+                'km'                 => $kmInfo,
+                'waktu'              => $waktuInfo,
+                'biaya'              => $biayaInfo,
+                'jumlah'             => $jumlahInfo,
+                // Data untuk modal
+                'limit_id'           => $rule->id,
+                'kategori_nama'      => optional($rule->category)->nama ?? '',
+                'limit_nilai'        => $rule->limit_nilai,
+                'limit_satuan'       => $rule->limit_satuan ?? 'bulan',
+                // Nilai asli dari kategori (untuk label info)
+                'limit_km'           => $rule->limit_km,
+                'limit_price'        => $rule->limit_price,
+                'limit_jumlah'       => $rule->jumlah,
+                // Nilai SISA (untuk pre-fill input form)
+                'sisa_km'            => $kmInfo    ? max(0, $kmInfo['sisa'])     : null,
+                'sisa_price'         => $biayaInfo ? max(0, $biayaInfo['sisa'])  : null,
+                'sisa_jumlah'        => $jumlahInfo ? max(0, $jumlahInfo['sisa']) : null,
+                // Info interval
+                'tgl_awal_interval'      => $tglAwalInterval,
+                'tgl_awal_interval_fmt'  => $tglAwalIntervalFmt,
+                'tgl_limit_interval'     => $tglLimitInterval,
+                'tgl_limit_interval_fmt' => $tglLimitIntervalFmt,
+                'sisa_hari_interval'     => $sisaHariInterval,
+            ];
+        }
+
+        return response()->json($result);
+    }
+
+    /**
      * AJAX endpoint: return semua ServiceCategoryLimit untuk kendaraan tertentu.
      * Dipakai oleh form service_history_create untuk kalkulasi keterangan limit otomatis di JS.
      *
@@ -1573,6 +1751,15 @@ class ServiceHistoryController extends Controller
 
     /**
      * Resolve category per part: buat category baru jika nama_category_baru diisi
+
+    /**
+     * Public wrapper untuk generateKeteranganLimit — dipanggil dari PurchaseOrderController
+     * saat recalculate keterangan setelah part tersimpan ke DB.
+     */
+    public function generateKeteranganLimitPublic(array $partData, int $kmInput, ?ServiceCategoryLimit $limitRule, ?string $tanggalServis = null, ?int $kmPasangLama = null, ?int $aktifCount = null, ?int $limitJumlah = null): string
+    {
+        return $this->generateKeteranganLimit($partData, $kmInput, $limitRule, $tanggalServis, $kmPasangLama, $aktifCount, $limitJumlah);
+    }
 
     /**
      * Generate keterangan_limit otomatis per part berdasarkan kondisi limit.

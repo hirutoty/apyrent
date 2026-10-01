@@ -106,18 +106,23 @@ class PengeluaranInterceptorService
                 // Simpan nilai keterangan_limit dari form (hidden input) sebelum ditimpa
                 $ketFromForm = trim($partData['keterangan_limit'] ?? '');
 
-                $partData['keterangan_limit'] = $this->buildKeteranganLimitForIntercept(
-                    $partData,
-                    $kmInput,
-                    $limitRule,
-                    $data['tanggal_service'] ?? null
-                );
-
-                // Jika server-side generate hasilnya '-' atau kosong,
-                // gunakan nilai dari form sebagai fallback (dari JS calcKeteranganLimit).
-                if (($partData['keterangan_limit'] === '-' || empty($partData['keterangan_limit']))
-                    && $ketFromForm && $ketFromForm !== '-') {
+                // Prioritas: gunakan nilai dari form (JS calcKeteranganLimit yang sudah benar
+                // karena pakai kumulatifBiayaCache dari AJAX real-time).
+                // Server-side hanya dipakai sebagai fallback jika form kosong atau '-'.
+                if ($ketFromForm && $ketFromForm !== '-') {
                     $partData['keterangan_limit'] = $ketFromForm;
+                } else {
+                    $partData['keterangan_limit'] = $this->buildKeteranganLimitForIntercept(
+                        $partData,
+                        $kmInput,
+                        $limitRule,
+                        $data['tanggal_service'] ?? null
+                    );
+                    // Jika server-side juga '-' atau kosong, tetap pakai nilai form sebagai last resort
+                    if (($partData['keterangan_limit'] === '-' || empty($partData['keterangan_limit']))
+                        && $ketFromForm && $ketFromForm !== '-') {
+                        $partData['keterangan_limit'] = $ketFromForm;
+                    }
                 }
 
                 // Inject limit_snapshot: nilai aktual service vs nilai limit per dimensi
@@ -145,10 +150,53 @@ class PengeluaranInterceptorService
                 $snapJumlahSama  = $snapLimitJumlah !== null && $snapAktifCount !== null && $snapAktifCount === $snapLimitJumlah;
                 $snapSisaPasang  = ($snapLimitJumlah !== null && $snapAktifCount !== null) ? ($snapLimitJumlah - $snapAktifCount) : null;
 
+                // ── Biaya kumulatif snapshot ─────────────────────────────────────
+                // Hitung kumulatif (total periode + biaya baru) untuk biaya_lewat/biaya_sama
+                // agar konsisten dengan keterangan_limit yang sudah pakai kumulatif.
+                $snapBiaya          = (int) ($partData['biaya'] ?? 0);
+                $snapBiayaKumulatif = $snapBiaya; // fallback: biaya tunggal
+                $kumulatifDataSnap  = null; // inisialisasi agar selalu terdefinisi
+                if ($limitRule && $limitRule->limit_price && $limitRule->limit_nilai && $limitRule->kendaraan_id) {
+                    $controller       = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
+                    $kumulatifDataSnap = $controller->getKumulatifBiayaKategori(
+                        (int) $limitRule->kendaraan_id,
+                        (int) $limitRule->category_id,
+                        (int) $limitRule->limit_nilai,
+                        $limitRule->limit_satuan ?? 'bulan',
+                        (int) $limitRule->limit_price,
+                        $tglPasangSnap->toDateString()
+                    );
+                    if ($kumulatifDataSnap !== null) {
+                        $snapBiayaKumulatif = $kumulatifDataSnap['total_dalam_periode'] + $snapBiaya;
+                    }
+                }
+                $snapBiayaLewat = $limitRule && $limitRule->limit_price
+                    ? ($snapBiayaKumulatif > (int) $limitRule->limit_price)
+                    : false;
+                $snapBiayaSama = $limitRule && $limitRule->limit_price
+                    ? ($snapBiayaKumulatif === (int) $limitRule->limit_price)
+                    : false;
+
+                // ── Sisa limit biaya (limit - total_yang_sudah_terpakai_di_periode) ──
+                // total_dalam_periode belum termasuk biaya baru ini (belum tersimpan)
+                // sehingga sisa = limit - total_dalam_periode
+                $snapLimitPrice = $limitRule ? ((int) ($limitRule->limit_price ?? 0) ?: null) : null;
+                $snapTotalDalamPeriode = $kumulatifDataSnap['total_dalam_periode'] ?? null;
+                $snapSisaLimitBiaya = ($snapLimitPrice !== null && $snapTotalDalamPeriode !== null)
+                    ? ($snapLimitPrice - $snapTotalDalamPeriode)
+                    : null;
+
+                // ── Sisa limit KM (target_km - km_pasang_saat_ini) ──────────────
+                $snapLimitKm = ($limitRule && $limitRule->limit_km) ? (int) $limitRule->limit_km : null;
+                $snapSisaLimitKm = ($snapLimitKm !== null)
+                    ? ($snapLimitKm - $kmPasangSnap)
+                    : null;
+
                 $partData['limit_snapshot'] = [
                     // Biaya
-                    'service_biaya' => (int) ($partData['biaya'] ?? 0),
-                    'limit_biaya'   => $limitRule ? ((int) ($limitRule->limit_price ?? 0) ?: null) : null,
+                    'service_biaya'     => $snapBiaya,
+                    'limit_biaya'       => $snapLimitPrice,
+                    'sisa_limit_biaya'  => $snapSisaLimitBiaya,
                     // Tanggal pasang vs interval limit
                     'service_tanggal'      => $tglPasangSnap->format('d M Y'),
                     'limit_interval_label' => ($intervalNilaiSnap > 0)
@@ -156,20 +204,16 @@ class PengeluaranInterceptorService
                                                 : null,
                     // KM pasang vs KM limit (murni dari rule, tanpa ditambah km_pasang)
                     'service_km'      => $kmPasangSnap,
-                    'limit_km_target' => ($limitRule && $limitRule->limit_km)
-                                            ? (int) $limitRule->limit_km
-                                            : null,
+                    'limit_km_target' => $snapLimitKm,
+                    'sisa_limit_km'   => $snapSisaLimitKm,
                     // Jumlah pasang vs limit jumlah
                     'limit_jumlah'   => $snapLimitJumlah,
                     'aktif_count'    => $snapAktifCount,
                     'sisa_pasang'    => $snapSisaPasang,
                     // Flag lewat atau tidak per dimensi (untuk pewarnaan merah)
-                    'biaya_lewat'    => $limitRule && $limitRule->limit_price
-                                        ? ((int) ($partData['biaya'] ?? 0) > (int) $limitRule->limit_price)
-                                        : false,
-                    'biaya_sama'     => $limitRule && $limitRule->limit_price
-                                        ? ((int) ($partData['biaya'] ?? 0) === (int) $limitRule->limit_price)
-                                        : false,
+                    // biaya_lewat & biaya_sama menggunakan kumulatif agar konsisten dengan keterangan_limit
+                    'biaya_lewat'    => $snapBiayaLewat,
+                    'biaya_sama'     => $snapBiayaSama,
                     'tanggal_lewat'  => ($intervalNilaiSnap > 0)
                                         ? $tglLimitSnap->lt(\Carbon\Carbon::parse($data['tanggal_service'] ?? now())->startOfDay())
                                         : false,
