@@ -400,6 +400,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
   Route::get('/service-history/pdf', [ServiceHistoryController::class, 'pdf'])
     ->name('service-history.pdf');
+  Route::post('/service-history/check-limit-status', [ServiceHistoryController::class, 'checkLimitStatus'])
+    ->name('service-history.check-limit-status');
   Route::get('/service-history/limit-rules/{kendaraan_id}', [ServiceHistoryController::class, 'getLimitRules'])
     ->name('service-history.limit-rules');
   Route::get('/service-history/part-lama-km', [ServiceHistoryController::class, 'getPartLamaKm'])

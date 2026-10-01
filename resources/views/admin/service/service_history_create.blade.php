@@ -550,8 +550,9 @@ function calcKeteranganLimit(idx) {
             if (parseInt(catEl.value) === categoryId) aktifCountForm++;
         });
     }
-    // +1 untuk baris ini sendiri (belum tersimpan ke DB), konsisten dengan PHP server-side
-    const aktifCount  = aktifCountDb !== null ? aktifCountDb + aktifCountForm + 1 : null;
+    // Tidak +1 — sisa dihitung dari jumlah yang belum terpakai (DB count = yg sudah tersimpan)
+    // Baris di form ini belum tersimpan ke DB, jadi sisa = jumlah - DB_count = kapasitas yg masih tersedia
+    const aktifCount  = aktifCountDb !== null ? aktifCountDb + aktifCountForm : null;
     const jumlahAda   = limitJumlah !== null && limitJumlah > 0 && aktifCount !== null;
     const jumlahSama  = jumlahAda && aktifCount === limitJumlah;
     const jumlahLewat = jumlahAda && aktifCount  >  limitJumlah;

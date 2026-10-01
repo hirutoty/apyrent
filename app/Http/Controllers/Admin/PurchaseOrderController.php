@@ -1412,6 +1412,55 @@ class PurchaseOrderController extends Controller
                 'approval_at'        => now(),
                 'persetujuan'        => 'Pending',
             ]);
+
+            // Recalculate keterangan_limit setelah part tersimpan ke DB.
+            // Part baru sudah ada di DB dengan status tidak_aktif, sehingga:
+            //   - aktifCount (jumlah) sudah termasuk part ini
+            //   - total biaya dalam periode sudah termasuk biaya part ini
+            // Keduanya harus di-recalculate agar keterangan akurat.
+            $categoryId = $part['category_id'] ?? null;
+            if ($categoryId) {
+                $limitRule = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $kendaraanId)
+                    ->where('category_id', $categoryId)
+                    ->first();
+
+                if ($limitRule) {
+                    $shController = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
+
+                    // ── Dimensi Jumlah ──────────────────────────────────────────────
+                    $aktifCountNow = null;
+                    $limitJumlahVal = null;
+                    if ($limitRule->jumlah) {
+                        $aktifCountNow  = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
+                            ->where('category_id', $categoryId)
+                            ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                            ->count();
+                        $limitJumlahVal = (int) $limitRule->jumlah;
+                    }
+
+                    // ── Regenerate keterangan lengkap dari DB ───────────────────────
+                    // Panggil generateKeteranganLimit dengan data terbaru dari DB.
+                    // Part sudah tersimpan → total biaya periode & aktifCount sudah include part ini.
+                    // Namun biaya di $partData adalah biaya part ini sendiri, dan
+                    // getKumulatifBiayaKategori akan menjumlahkan SEMUA part di periode (termasuk ini).
+                    // Untuk menghindari double-count, kita pass biaya = 0 sehingga
+                    // kumulatif = total DB (sudah include part ini), tanpa tambah lagi.
+                    $partDataForRecalc = array_merge($part, ['biaya' => 0]);
+                    $tglPasangRecalc   = \Carbon\Carbon::parse($part['tgl_pasang'] ?? $tanggalService);
+
+                    $keteranganBaru = $shController->generateKeteranganLimitPublic(
+                        $partDataForRecalc,
+                        $kilometer,
+                        $limitRule,
+                        $tanggalService,
+                        null,
+                        $aktifCountNow,
+                        $limitJumlahVal
+                    );
+
+                    $newPart->update(['keterangan_limit' => $keteranganBaru]);
+                }
+            }
             // Part lama (replace_part_id) TIDAK di-archive di sini.
             // Archive hanya terjadi saat user klik tombol Pasang (updatePartStatus).
             // Selama menunggu pemasangan, part lama dan baru keduanya tampil di Tabel Aktif.
