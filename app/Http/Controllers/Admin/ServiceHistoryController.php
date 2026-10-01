@@ -1249,7 +1249,8 @@ class ServiceHistoryController extends Controller
                     (int) $rule->limit_nilai,
                     $rule->limit_satuan ?? 'bulan',
                     (int) $rule->limit_price,
-                    $today->toDateString()
+                    $today->toDateString(),
+                    $rule->reset_at?->toDateString()
                 );
                 if ($kumulatif !== null) {
                     $biayaTercapai = $kumulatif['total_dalam_periode'] >= $rule->limit_price;
@@ -1260,6 +1261,17 @@ class ServiceHistoryController extends Controller
                         'periode_mulai'      => $kumulatif['periode_mulai'],
                         'periode_selesai'    => $kumulatif['periode_selesai'],
                         'tercapai'           => $biayaTercapai,
+                    ];
+                } elseif ($rule->reset_at) {
+                    // Belum ada part setelah reset → periode baru, sisa = limit penuh
+                    $biayaTercapai = false;
+                    $biayaInfo     = [
+                        'limit'              => $rule->limit_price,
+                        'total_periode'      => 0,
+                        'sisa'               => $rule->limit_price,
+                        'periode_mulai'      => $rule->reset_at->format('d M Y'),
+                        'periode_selesai'    => null,
+                        'tercapai'           => false,
                     ];
                 }
             }
@@ -1345,12 +1357,18 @@ class ServiceHistoryController extends Controller
             ->get()
             ->map(function ($r) use ($kendaraanId) {
                 // Hitung aktifCount untuk dimensi jumlah di JS
+                // Jika ada reset_at, hanya hitung part yang dipasang SETELAH reset_at
                 $aktifCount = null;
                 if ($r->jumlah) {
-                    $aktifCount = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
+                    $q = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
                         ->where('category_id', $r->category_id)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                        ->count();
+                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+
+                    if ($r->reset_at) {
+                        $q->where('created_at', '>=', $r->reset_at);
+                    }
+
+                    $aktifCount = $q->count();
                 }
 
                 return [
@@ -1361,6 +1379,7 @@ class ServiceHistoryController extends Controller
                     'limit_satuan'       => $r->limit_satuan,
                     'jumlah'             => $r->jumlah,
                     'aktif_count'        => $aktifCount,
+                    'reset_at'           => $r->reset_at?->toDateString(),
                 ];
             });
 
@@ -1432,6 +1451,7 @@ class ServiceHistoryController extends Controller
      * @param string $limitSatuan  interval satuan (hari/minggu/bulan/tahun)
      * @param int    $limitPrice   batas maksimal kumulatif
      * @param string $tglPasangBaru tanggal pasang part baru (untuk konteks periode)
+     * @param string|null $resetAt  tanggal reset limit (jika ada, dipakai sebagai anchor baru)
      * @return array|null  null = tidak ada riwayat (limit tidak diterapkan)
      */
     public function getKumulatifBiayaKategori(
@@ -1440,7 +1460,8 @@ class ServiceHistoryController extends Controller
         int $limitNilai,
         string $limitSatuan,
         int $limitPrice,
-        string $tglPasangBaru
+        string $tglPasangBaru,
+        ?string $resetAt = null
     ): ?array {
         // Cari part pertama (terlama) di kategori ini sebagai anchor awal periode
         $partPertama = ServicePart::where('kendaraan_id', $kendaraanId)
@@ -1449,13 +1470,26 @@ class ServiceHistoryController extends Controller
             ->orderBy('tgl_pasang')
             ->first();
 
-        // Belum ada riwayat → tidak ada limit diterapkan
-        if (!$partPertama) {
-            return null;
-        }
+        $tglBaru = \Carbon\Carbon::parse($tglPasangBaru)->startOfDay();
 
-        $tglBaru  = \Carbon\Carbon::parse($tglPasangBaru)->startOfDay();
-        $anchor   = \Carbon\Carbon::parse($partPertama->tgl_pasang)->startOfDay();
+        // Tentukan anchor:
+        // - Jika ada reset_at, gunakan sebagai anchor (periode baru mulai dari sini).
+        //   Jika tidak ada part sama sekali setelah reset_at, kembalikan null
+        //   agar "biaya baru" dianggap pertama di periode baru.
+        // - Jika tidak ada reset_at, pakai part pertama di DB sebagai anchor lama.
+        if ($resetAt !== null) {
+            $anchor = \Carbon\Carbon::parse($resetAt)->startOfDay();
+            // Jika tglBaru < anchor (pengajuan dibuat sebelum reset), pakai anchor = tglBaru
+            if ($tglBaru->lt($anchor)) {
+                $anchor = $tglBaru;
+            }
+        } else {
+            // Belum ada riwayat dan tidak ada reset_at → limit tidak diterapkan
+            if (!$partPertama) {
+                return null;
+            }
+            $anchor = \Carbon\Carbon::parse($partPertama->tgl_pasang)->startOfDay();
+        }
 
         // Helper closure: hitung akhir slot dari awal slot
         $hitungSelesai = function (\Carbon\Carbon $mulai) use ($limitNilai, $limitSatuan): \Carbon\Carbon {
@@ -1489,10 +1523,13 @@ class ServiceHistoryController extends Controller
         }
 
         // Sum semua biaya part di kategori ini dalam periode aktif yang ditemukan
+        // Jika ada reset_at, hanya hitung part yang di-create SETELAH reset (pakai created_at
+        // karena tgl_pasang hanya menyimpan date, tidak bisa bedakan jam yang sama)
         $totalDalamPeriode = ServicePart::where('kendaraan_id', $kendaraanId)
             ->where('category_id', $categoryId)
             ->whereDate('tgl_pasang', '>=', $periodeMulai->toDateString())
             ->whereDate('tgl_pasang', '<=', $periodeSelesai->toDateString())
+            ->when($resetAt !== null, fn($q) => $q->where('created_at', '>=', \Carbon\Carbon::parse($resetAt)))
             ->sum('biaya');
 
         // sisa_limit bisa negatif (sudah melebihi) — sengaja tidak di-clamp ke 0
@@ -1537,10 +1574,21 @@ class ServiceHistoryController extends Controller
             (int) $limitRule->limit_nilai,
             $limitRule->limit_satuan ?? 'bulan',
             (int) $limitRule->limit_price,
-            $tglPasang
+            $tglPasang,
+            $limitRule->reset_at?->toDateString()
         );
 
-        // Belum ada riwayat → limit tidak diterapkan
+        // Jika tidak ada riwayat DAN ada reset_at → periode baru, biaya = 0
+        if ($result === null && $limitRule->reset_at) {
+            $result = [
+                'total_dalam_periode' => 0,
+                'sisa_limit'          => (int) $limitRule->limit_price,
+                'periode_mulai'       => $limitRule->reset_at->format('d M Y'),
+                'periode_selesai'     => '-',
+            ];
+        }
+
+        // Belum ada riwayat dan tidak ada reset_at → limit tidak diterapkan
         if ($result === null) {
             return response()->json(['has_limit' => false]);
         }
@@ -1855,28 +1903,31 @@ class ServiceHistoryController extends Controller
             return '-';
         }
 
-        // ── Bangun keterangan: 1 baris status per dimensi, jumlah pasang + sisa pcs ─
+        // ── Bangun keterangan: 1 baris status per dimensi + sisa ────────────
         $kalimat = [];
 
-        // KM — status saja, tanpa angka sisa
+        // KM — status + sisa KM jika belum lewat
         if ($kmAda) {
             if ($kmSama)       $kalimat[] = 'Sudah mencapai batas limit KM';
             elseif ($kmLewat)  $kalimat[] = 'Sudah melebihi batas limit KM';
-            else               $kalimat[] = 'Belum mencapai batas limit KM';
+            else               $kalimat[] = 'Belum mencapai batas limit KM (sisa ' . number_format($sisaKm, 0, ',', '.') . ' km)';
         }
 
-        // Jangka waktu — status saja
+        // Jangka waktu — status + sisa waktu jika belum lewat
         if ($intervalAda) {
             if ($waktuSama)       $kalimat[] = 'Sudah mencapai batas limit jangka waktu';
             elseif ($waktuLewat)  $kalimat[] = 'Sudah melebihi batas limit jangka waktu';
-            else                  $kalimat[] = 'Belum mencapai limit jangka waktu';
+            else {
+                $sisaHari = max(0, (int) $refTanggal->diffInDays($tglLimit, false));
+                $kalimat[] = 'Belum mencapai limit jangka waktu (' . $this->formatSisaWaktu($sisaHari) . ')';
+            }
         }
 
-        // Biaya — status saja, tanpa angka sisa
+        // Biaya — status + sisa biaya jika belum lewat
         if ($hargaLimit) {
             if ($biayaSama)       $kalimat[] = 'Sudah mencapai batas limit biaya';
             elseif ($biayaLewat)  $kalimat[] = 'Sudah melebihi limit biaya';
-            else                  $kalimat[] = 'Belum mencapai limit biaya';
+            else                  $kalimat[] = 'Belum mencapai limit biaya (sisa Rp ' . number_format($sisaBiaya, 0, ',', '.') . ')';
         }
 
         // Jumlah pasang — status + sisa pcs
@@ -1891,6 +1942,37 @@ class ServiceHistoryController extends Controller
         }
 
         return implode(', ', $kalimat);
+    }
+
+    /**
+     * Format sisa hari menjadi string yang mudah dibaca.
+     * ≤ 30 hari        → "sisa X hari"
+     * ≤ 365 hari (12 bulan) → "sisa X bulan Y hari"
+     * > 365 hari       → "sisa X tahun Y bulan"
+     */
+    private function formatSisaWaktu(int $sisaHari): string
+    {
+        if ($sisaHari <= 0) return 'sisa 0 hari';
+
+        if ($sisaHari <= 30) {
+            return 'sisa ' . $sisaHari . ' hari';
+        }
+
+        if ($sisaHari <= 365) {
+            $bulan     = (int) floor($sisaHari / 30);
+            $hariSisa  = $sisaHari - ($bulan * 30);
+            $str       = 'sisa ' . $bulan . ' bulan';
+            if ($hariSisa > 0) $str .= ' ' . $hariSisa . ' hari';
+            return $str;
+        }
+
+        // > 365 hari
+        $tahun     = (int) floor($sisaHari / 365);
+        $sisaSetelahTahun = $sisaHari - ($tahun * 365);
+        $bulan     = (int) floor($sisaSetelahTahun / 30);
+        $str       = 'sisa ' . $tahun . ' tahun';
+        if ($bulan > 0) $str .= ' ' . $bulan . ' bulan';
+        return $str;
     }
 
     /**

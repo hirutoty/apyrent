@@ -141,10 +141,14 @@ class PengeluaranInterceptorService
                 $snapLimitJumlah = ($limitRule && $limitRule->jumlah) ? (int) $limitRule->jumlah : null;
                 $snapAktifCount  = null;
                 if ($snapLimitJumlah && $limitRule->kendaraan_id) {
-                    $snapAktifCount = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
+                    $qSnap = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
                         ->where('category_id', $limitRule->category_id)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                        ->count();
+                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+                    // Jika ada reset_at, hanya hitung part setelah reset
+                    if ($limitRule->reset_at) {
+                        $qSnap->where('created_at', '>=', $limitRule->reset_at);
+                    }
+                    $snapAktifCount = $qSnap->count();
                 }
                 $snapJumlahLewat = $snapLimitJumlah !== null && $snapAktifCount !== null && $snapAktifCount > $snapLimitJumlah;
                 $snapJumlahSama  = $snapLimitJumlah !== null && $snapAktifCount !== null && $snapAktifCount === $snapLimitJumlah;
@@ -164,8 +168,13 @@ class PengeluaranInterceptorService
                         (int) $limitRule->limit_nilai,
                         $limitRule->limit_satuan ?? 'bulan',
                         (int) $limitRule->limit_price,
-                        $tglPasangSnap->toDateString()
+                        $tglPasangSnap->toDateString(),
+                        $limitRule->reset_at?->toDateString()
                     );
+                    // Jika null tapi ada reset_at → periode baru, total = 0
+                    if ($kumulatifDataSnap === null && $limitRule->reset_at) {
+                        $kumulatifDataSnap = ['total_dalam_periode' => 0, 'sisa_limit' => (int) $limitRule->limit_price];
+                    }
                     if ($kumulatifDataSnap !== null) {
                         $snapBiayaKumulatif = $kumulatifDataSnap['total_dalam_periode'] + $snapBiaya;
                     }
@@ -199,6 +208,7 @@ class PengeluaranInterceptorService
                     'sisa_limit_biaya'  => $snapSisaLimitBiaya,
                     // Tanggal pasang vs interval limit
                     'service_tanggal'      => $tglPasangSnap->format('d M Y'),
+                    'tgl_limit_interval'   => ($intervalNilaiSnap > 0) ? $tglLimitSnap->format('Y-m-d') : null,
                     'limit_interval_label' => ($intervalNilaiSnap > 0)
                                                 ? $intervalNilaiSnap . ' ' . ucfirst($intervalSatuanSnap)
                                                 : null,
@@ -315,8 +325,13 @@ class PengeluaranInterceptorService
                 (int) $limitRule->limit_nilai,
                 $limitRule->limit_satuan ?? 'bulan',
                 (int) $hargaLimit,
-                $tglPasang->toDateString()
+                $tglPasang->toDateString(),
+                $limitRule->reset_at?->toDateString()
             );
+            // Jika null dan ada reset_at → periode baru, total = 0
+            if ($kumulatifData === null && $limitRule->reset_at) {
+                $kumulatifData = ['total_dalam_periode' => 0, 'sisa_limit' => (int) $hargaLimit];
+            }
             if ($kumulatifData !== null) {
                 $biayaKumulatif = $kumulatifData['total_dalam_periode'] + $biaya;
                 $sisaBiaya      = (int)$hargaLimit - $biayaKumulatif; // bisa negatif
@@ -341,10 +356,13 @@ class PengeluaranInterceptorService
         $limitJumlah = $limitRule->jumlah ? (int) $limitRule->jumlah : null;
         $aktifCount  = null;
         if ($limitJumlah && $limitRule->kendaraan_id) {
-            $aktifCount = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
+            $qAktif = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
                 ->where('category_id', $limitRule->category_id)
-                ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                ->count();
+                ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+            if ($limitRule->reset_at) {
+                $qAktif->where('created_at', '>=', $limitRule->reset_at);
+            }
+            $aktifCount = $qAktif->count();
         }
         $jumlahAda   = $limitJumlah !== null && $limitJumlah > 0 && $aktifCount !== null;
         $jumlahSama  = $jumlahAda && $aktifCount === $limitJumlah;
@@ -358,28 +376,31 @@ class PengeluaranInterceptorService
             return '-';
         }
 
-        // ── Bangun keterangan: 1 baris status per dimensi, jumlah pasang + sisa pcs ─
+        // ── Bangun keterangan: 1 baris status per dimensi + sisa ────────────
         $kalimat = [];
 
-        // KM — status saja, tanpa angka sisa
+        // KM — status + sisa KM jika belum lewat
         if ($kmAda) {
             if ($kmSama)       $kalimat[] = 'Sudah mencapai batas limit KM';
             elseif ($kmLewat)  $kalimat[] = 'Sudah melebihi batas limit KM';
-            else               $kalimat[] = 'Belum mencapai batas limit KM';
+            else               $kalimat[] = 'Belum mencapai batas limit KM (sisa ' . number_format($sisaKm, 0, ',', '.') . ' km)';
         }
 
-        // Jangka waktu — status saja
+        // Jangka waktu — status + sisa waktu jika belum lewat
         if ($intervalAda) {
             if ($waktuSama)       $kalimat[] = 'Sudah mencapai batas limit jangka waktu';
             elseif ($waktuLewat)  $kalimat[] = 'Sudah melebihi batas limit jangka waktu';
-            else                  $kalimat[] = 'Belum mencapai limit jangka waktu';
+            else {
+                $sisaHari  = max(0, (int) $refTanggal->diffInDays($tglLimit, false));
+                $kalimat[] = 'Belum mencapai limit jangka waktu (' . $this->formatSisaWaktu($sisaHari) . ')';
+            }
         }
 
-        // Biaya — status saja, tanpa angka sisa
+        // Biaya — status + sisa biaya jika belum lewat
         if ($hargaLimit) {
             if ($biayaSama)       $kalimat[] = 'Sudah mencapai batas limit biaya';
             elseif ($biayaLewat)  $kalimat[] = 'Sudah melebihi limit biaya';
-            else                  $kalimat[] = 'Belum mencapai limit biaya';
+            else                  $kalimat[] = 'Belum mencapai limit biaya (sisa Rp ' . number_format($sisaBiaya, 0, ',', '.') . ')';
         }
 
         // Jumlah pasang — status + sisa pcs
@@ -1089,5 +1110,35 @@ class PengeluaranInterceptorService
                 }
             }
         }
+    }
+
+    /**
+     * Format sisa hari menjadi string yang mudah dibaca.
+     * ≤ 30 hari         → "sisa X hari"
+     * ≤ 365 hari        → "sisa X bulan Y hari"
+     * > 365 hari        → "sisa X tahun Y bulan"
+     */
+    private function formatSisaWaktu(int $sisaHari): string
+    {
+        if ($sisaHari <= 0) return 'sisa 0 hari';
+
+        if ($sisaHari <= 30) {
+            return 'sisa ' . $sisaHari . ' hari';
+        }
+
+        if ($sisaHari <= 365) {
+            $bulan    = (int) floor($sisaHari / 30);
+            $hariSisa = $sisaHari - ($bulan * 30);
+            $str      = 'sisa ' . $bulan . ' bulan';
+            if ($hariSisa > 0) $str .= ' ' . $hariSisa . ' hari';
+            return $str;
+        }
+
+        $tahun            = (int) floor($sisaHari / 365);
+        $sisaSetelahTahun = $sisaHari - ($tahun * 365);
+        $bulan            = (int) floor($sisaSetelahTahun / 30);
+        $str              = 'sisa ' . $tahun . ' tahun';
+        if ($bulan > 0) $str .= ' ' . $bulan . ' bulan';
+        return $str;
     }
 }

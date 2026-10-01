@@ -20,6 +20,7 @@ class ServiceCategoryLimit extends Model
         'limit_km_interval',
         'limit_price',
         'jumlah',
+        'reset_at',
     ];
 
     protected $casts = [
@@ -28,6 +29,7 @@ class ServiceCategoryLimit extends Model
         'limit_km_interval'  => 'integer',
         'limit_price'        => 'integer',
         'jumlah'             => 'integer',
+        'reset_at'           => 'datetime',
     ];
 
     /*

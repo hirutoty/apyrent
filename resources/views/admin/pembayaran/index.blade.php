@@ -1157,12 +1157,7 @@
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Nama Part</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Kategori</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Kondisi</th>
-                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">
-                                                                    <div class="grid grid-cols-2 gap-1 min-w-[180px]">
-                                                                        <span class="text-blue-600">Service</span>
-                                                                        <span class="text-orange-500">Sisa Limit</span>
-                                                                    </div>
-                                                                </th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Service</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Keterangan Limit</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
@@ -1204,30 +1199,18 @@
                                                                 @php $snap = $spart['limit_snapshot'] ?? null; @endphp
                                                                 <td class="px-4 py-2">
                                                                     @if($snap)
-                                                                    <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 min-w-[180px] text-[11px]">
-                                                                        {{-- Header kolom --}}
-                                                                        <span class="text-[10px] font-semibold text-blue-500 uppercase">Service</span>
-                                                                        <span class="text-[10px] font-semibold text-orange-400 uppercase">Sisa Limit</span>
+                                                                    <div class="flex flex-col gap-y-1 text-[11px]">
                                                                         {{-- Biaya --}}
                                                                         <span class="{{ $snap['biaya_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
                                                                             Rp {{ number_format($snap['service_biaya'], 0, ',', '.') }}
-                                                                        </span>
-                                                                        <span class="{{ isset($snap['sisa_limit_biaya']) && $snap['sisa_limit_biaya'] < 0 ? 'text-red-500 font-semibold' : 'text-gray-500' }}">
-                                                                            {{ isset($snap['sisa_limit_biaya']) ? 'Rp ' . number_format($snap['sisa_limit_biaya'], 0, ',', '.') : ($snap['limit_biaya'] ? 'Rp ' . number_format($snap['limit_biaya'], 0, ',', '.') : '—') }}
                                                                         </span>
                                                                         {{-- Tanggal --}}
                                                                         <span class="{{ $snap['tanggal_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
                                                                             {{ $snap['service_tanggal'] ?? '—' }}
                                                                         </span>
-                                                                        <span class="text-gray-500">
-                                                                            {{ $snap['limit_interval_label'] ?? '—' }}
-                                                                        </span>
                                                                         {{-- KM --}}
                                                                         <span class="{{ $snap['km_lewat'] ? 'text-red-600 font-bold' : 'text-gray-700' }}">
                                                                             KM {{ number_format($snap['service_km'], 0, ',', '.') }}
-                                                                        </span>
-                                                                        <span class="{{ isset($snap['sisa_limit_km']) && $snap['sisa_limit_km'] < 0 ? 'text-red-500 font-semibold' : 'text-gray-500' }}">
-                                                                            {{ isset($snap['sisa_limit_km']) ? 'KM ' . number_format($snap['sisa_limit_km'], 0, ',', '.') : ($snap['limit_km_target'] ? 'KM ' . number_format($snap['limit_km_target'], 0, ',', '.') : '—') }}
                                                                         </span>
                                                                     </div>
                                                                     @else
@@ -1247,6 +1230,18 @@
                                                                             // Render per dimensi secara terurut: Biaya → Jangka Waktu → KM
                                                                             $ketDimensi = [];
 
+                                                                            // Helper: format sisa hari → string
+                                                                            $fmtSisaWaktu = function(int $h): string {
+                                                                                if ($h <= 0)  return 'sisa 0 hari';
+                                                                                if ($h <= 30) return 'sisa ' . $h . ' hari';
+                                                                                if ($h <= 365) {
+                                                                                    $b = (int)floor($h/30); $s = $h - $b*30;
+                                                                                    return 'sisa ' . $b . ' bulan' . ($s > 0 ? ' ' . $s . ' hari' : '');
+                                                                                }
+                                                                                $t = (int)floor($h/365); $b = (int)floor(($h - $t*365)/30);
+                                                                                return 'sisa ' . $t . ' tahun' . ($b > 0 ? ' ' . $b . ' bulan' : '');
+                                                                            };
+
                                                                             // 1. Biaya
                                                                             if (!empty($snap['limit_biaya'])) {
                                                                                 if ($ketBiayaLewatLive) {
@@ -1254,7 +1249,18 @@
                                                                                 } elseif ($ketBiayaSamaLive) {
                                                                                     $ketDimensi[] = ['label' => 'Sudah mencapai batas limit biaya', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                 } else {
-                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai limit biaya', 'color' => 'bg-green-100 text-green-700'];
+                                                                                    // Ambil sisa dari keterangan_limit jika tersedia (data baru sudah punya format sisa)
+                                                                                    $ketLimitStr    = $spart['keterangan_limit'] ?? '';
+                                                                                    $sisaBiayaLabel = '';
+                                                                                    if (preg_match('/Belum mencapai limit biaya\s*(\([^)]+\))/i', $ketLimitStr, $m)) {
+                                                                                        $sisaBiayaLabel = ' ' . $m[1];
+                                                                                    } elseif (isset($snap['sisa_limit_biaya']) && $snap['sisa_limit_biaya'] > 0) {
+                                                                                        $sisaSetelah = $snap['sisa_limit_biaya'] - (int)($snap['service_biaya'] ?? 0);
+                                                                                        if ($sisaSetelah >= 0) {
+                                                                                            $sisaBiayaLabel = ' (sisa Rp ' . number_format($sisaSetelah, 0, ',', '.') . ')';
+                                                                                        }
+                                                                                    }
+                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai limit biaya' . $sisaBiayaLabel, 'color' => 'bg-green-100 text-green-700'];
                                                                                 }
                                                                             }
 
@@ -1265,7 +1271,12 @@
                                                                                 } elseif (!empty($snap['tanggal_sama'])) {
                                                                                     $ketDimensi[] = ['label' => 'Sudah mencapai batas limit jangka waktu', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                 } else {
-                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai limit jangka waktu', 'color' => 'bg-green-100 text-green-700'];
+                                                                                    $sisaWaktuLabel = '';
+                                                                                    if (!empty($snap['tgl_limit_interval'])) {
+                                                                                        $hariSisa = (int) \Carbon\Carbon::now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($snap['tgl_limit_interval'])->startOfDay(), false);
+                                                                                        if ($hariSisa > 0) $sisaWaktuLabel = ' (' . $fmtSisaWaktu($hariSisa) . ')';
+                                                                                    }
+                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai limit jangka waktu' . $sisaWaktuLabel, 'color' => 'bg-green-100 text-green-700'];
                                                                                 }
                                                                             }
 
@@ -1276,7 +1287,8 @@
                                                                                 } elseif (!empty($snap['km_sama'])) {
                                                                                     $ketDimensi[] = ['label' => 'Sudah mencapai batas limit KM', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                 } else {
-                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai batas limit KM', 'color' => 'bg-green-100 text-green-700'];
+                                                                                    $sisaKmLabel = isset($snap['sisa_limit_km']) ? ' (sisa ' . number_format($snap['sisa_limit_km'], 0, ',', '.') . ' km)' : '';
+                                                                                    $ketDimensi[] = ['label' => 'Belum mencapai batas limit KM' . $sisaKmLabel, 'color' => 'bg-green-100 text-green-700'];
                                                                                 }
                                                                             }
 
@@ -2760,24 +2772,13 @@ function populateDetailModal(pr, activeTab) {
                 + '<span class="text-sm font-bold text-emerald-600 flex-shrink-0">Rp ' + (item.subtotal_formatted || '0') + '</span>'
                 + '</div>';
 
-            // ── Limit Snapshot (Service vs Limit grid) ──────────────
+            // ── Limit Snapshot (Service grid) ──────────────────────
             const snap = item.limit_snapshot || null;
             if (snap) {
-                html += '<div class="mt-1.5 mb-2">'
-                    + '<div class="grid grid-cols-2 gap-x-3 text-[10px] font-semibold text-gray-400 uppercase mb-0.5 px-1">'
-                    + '<span class="text-blue-500">Service</span><span class="text-orange-400">Sisa Limit</span></div>'
-                    + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1 mb-0.5">'
+                html += '<div class="mt-1.5 mb-2 flex flex-col gap-0.5 text-[11px]">'
                     + '<span class="' + (snap.biaya_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">Rp ' + Number(snap.service_biaya || 0).toLocaleString('id-ID') + '</span>'
-                    + '<span class="' + (snap.sisa_limit_biaya !== undefined && snap.sisa_limit_biaya !== null && snap.sisa_limit_biaya < 0 ? 'text-red-500 font-semibold' : 'text-gray-400') + '">' + (snap.sisa_limit_biaya !== undefined && snap.sisa_limit_biaya !== null ? 'Rp ' + Number(snap.sisa_limit_biaya).toLocaleString('id-ID') : (snap.limit_biaya ? 'Rp ' + Number(snap.limit_biaya).toLocaleString('id-ID') : '—')) + '</span>'
-                    + '</div>'
-                    + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1 mb-0.5">'
                     + '<span class="' + (snap.tanggal_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">' + (snap.service_tanggal || '—') + '</span>'
-                    + '<span class="text-gray-400">' + (snap.limit_interval_label || '—') + '</span>'
-                    + '</div>'
-                    + '<div class="grid grid-cols-2 gap-x-3 text-[11px] px-1">'
                     + '<span class="' + (snap.km_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">KM ' + Number(snap.service_km || 0).toLocaleString('id-ID') + '</span>'
-                    + '<span class="' + (snap.sisa_limit_km !== undefined && snap.sisa_limit_km !== null && snap.sisa_limit_km < 0 ? 'text-red-500 font-semibold' : 'text-gray-400') + '">' + (snap.sisa_limit_km !== undefined && snap.sisa_limit_km !== null ? 'KM ' + Number(snap.sisa_limit_km).toLocaleString('id-ID') : (snap.limit_km_target ? 'KM ' + Number(snap.limit_km_target).toLocaleString('id-ID') : '—')) + '</span>'
-                    + '</div>'
                     + '</div>';
             }
 

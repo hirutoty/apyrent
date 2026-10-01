@@ -134,6 +134,7 @@
                         <th class="px-4 py-3 text-center">Limit KM</th>
                         <th class="px-4 py-3 text-center">Jumlah</th>
                         <th class="px-4 py-3 text-right">Limit Harga</th>
+                        <th class="px-4 py-3 text-center">Terakhir Reset</th>
                         <th class="px-4 py-3 text-center w-24">Aksi</th>
                     </tr>
                 </thead>
@@ -184,6 +185,20 @@
                                     <span class="text-gray-400 text-xs italic">Tidak dibatasi</span>
                                 @endif
                             </td>
+                            {{-- KOLOM TERAKHIR RESET --}}
+                            <td class="px-4 py-3.5 text-center">
+                                @php $ruleResetAt = $rule->reset_at ?? null; @endphp
+                                @if($ruleResetAt)
+                                    <span class="inline-flex flex-col items-center gap-0.5">
+                                        <span class="text-xs font-semibold text-indigo-700">
+                                            {{ $ruleResetAt->format('d M Y') }}
+                                        </span>
+                                        <span class="text-[10px] text-gray-400">{{ $ruleResetAt->format('H:i') }}</span>
+                                    </span>
+                                @else
+                                    <span class="text-gray-300 text-xs italic">Belum pernah</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1">
                                     <button
@@ -192,6 +207,18 @@
                                         title="Edit">
                                         <i class="fa fa-pen text-xs"></i>
                                     </button>
+                                    {{-- Tombol Reset Limit: set reset_at = now() tanpa ubah nilai --}}
+                                    <form method="POST"
+                                        action="{{ route('service-categories.limits.reset', $rule->id) }}"
+                                        onsubmit="return confirm('Reset periode & hitungan jumlah limit ini mulai dari sekarang?\n\nHitungan biaya kumulatif dan jumlah part akan dimulai ulang dari hari ini.')"
+                                        class="inline">
+                                        @csrf
+                                        <button type="submit"
+                                            class="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                                            title="Reset Periode Limit">
+                                            <i class="fa fa-rotate-right text-xs"></i>
+                                        </button>
+                                    </form>
                                     <form method="POST"
                                         action="{{ route('service-categories.limits.destroy', $rule->id) }}"
                                         onsubmit="return confirm('Hapus limit rule ini?')" class="inline">
@@ -419,7 +446,7 @@
                         class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                     <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
                 </div>
-                <p class="text-xs text-gray-400 mt-1">Target KM absolut pertama. Setelah tercapai, tombol "Ganti Limit" akan muncul untuk update manual.</p>
+                <p class="text-xs text-gray-400 mt-1">Target KM absolut pertama. Setelah tercapai, tombol "Perbarui Limit" akan muncul untuk update manual.</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Batas Harga (Limit Price)</label>
@@ -492,7 +519,7 @@
                         class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                     <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
                 </div>
-                <p class="text-xs text-gray-400 mt-1">Target KM absolut saat ini. Update manual via tombol "Ganti Limit" di service history.</p>
+                <p class="text-xs text-gray-400 mt-1">Target KM absolut saat ini. Update manual via tombol "Perbarui Limit" di service history.</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Batas Harga (Limit Price)</label>
