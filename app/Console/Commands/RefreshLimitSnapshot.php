@@ -70,8 +70,10 @@ class RefreshLimitSnapshot extends Command
                         continue;
                     }
 
-                    // Skip jika sudah ada & tidak force
-                    if (!$force && array_key_exists('sisa_limit_biaya', $snap)) {
+                    // Skip jika sudah ada semua field baru & tidak force
+                    if (!$force
+                        && array_key_exists('sisa_limit_biaya', $snap)
+                        && array_key_exists('tgl_limit_interval', $snap)) {
                         continue;
                     }
 
@@ -118,8 +120,27 @@ class RefreshLimitSnapshot extends Command
                     // ── Sisa limit KM ─────────────────────────────────────
                     $sisaLimitKm = ($limitKm !== null) ? ($limitKm - $serviceKm) : null;
 
-                    $part['limit_snapshot']['sisa_limit_biaya'] = $sisaLimitBiaya;
-                    $part['limit_snapshot']['sisa_limit_km']    = $sisaLimitKm;
+                    // ── Tanggal batas interval (tgl_limit_interval) ────────
+                    // Hitung dari tgl_pasang + interval yang tersimpan di snap
+                    $tglLimitInterval = null;
+                    $intervalNilai    = (int) ($part['interval_nilai'] ?? 0);
+                    $intervalSatuan   = $part['interval_satuan'] ?? 'bulan';
+                    if ($intervalNilai > 0) {
+                        $tglPasangCarbon = \Carbon\Carbon::parse(
+                            $part['tgl_pasang'] ?? ($sourceData['tanggal_service'] ?? now()->toDateString())
+                        );
+                        $tglLimitCarbon = match ($intervalSatuan) {
+                            'hari'   => (clone $tglPasangCarbon)->addDays($intervalNilai),
+                            'minggu' => (clone $tglPasangCarbon)->addWeeks($intervalNilai),
+                            'tahun'  => (clone $tglPasangCarbon)->addYears($intervalNilai),
+                            default  => (clone $tglPasangCarbon)->addMonths($intervalNilai),
+                        };
+                        $tglLimitInterval = $tglLimitCarbon->format('Y-m-d');
+                    }
+
+                    $part['limit_snapshot']['sisa_limit_biaya']  = $sisaLimitBiaya;
+                    $part['limit_snapshot']['sisa_limit_km']     = $sisaLimitKm;
+                    $part['limit_snapshot']['tgl_limit_interval'] = $tglLimitInterval;
 
                     // Perbaiki biaya_lewat & biaya_sama berdasarkan keterangan_limit yang tersimpan.
                     // keterangan_limit adalah sumber kebenaran yang dibuat saat PO/pembayaran pertama kali disubmit.

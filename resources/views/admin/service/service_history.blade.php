@@ -286,7 +286,6 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Kondisi</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Status</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Persetujuan</th>
-                                                    <th class="text-left px-3 py-2 font-semibold">Pengeluaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Keterangan Limit</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Info Pembayaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Lampiran</th>
@@ -427,7 +426,7 @@
                                                                     </span>
                                                                     @if ($limitRule)
                                                                         {{--
-                                                                            Tombol Ganti Limit: hidden by default.
+                                                                            Tombol Perbarui Limit: hidden by default.
                                                                             AJAX checkLimitStatus akan show tombol ini
                                                                             hanya jika salah satu dimensi limit sudah tercapai/terlampaui.
                                                                             data-* digunakan sebagai fallback jika AJAX belum selesai.
@@ -444,7 +443,7 @@
                                                                             data-limit-satuan="{{ $limitRule->limit_satuan ?? 'bulan' }}"
                                                                             onclick="event.stopPropagation(); _triggerGantiLimit({{ $part->id }})"
                                                                             class="btn-ganti-limit hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-300 transition-colors">
-                                                                            <i class="bi bi-speedometer2 text-[9px]"></i> Ganti Limit
+                                                                            <i class="bi bi-speedometer2 text-[9px]"></i> Perbarui Limit
                                                                         </button>
                                                                     @endif
                                                                 </div>
@@ -460,14 +459,6 @@
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-200"><i class="fa fa-times text-[9px]"></i> Ditolak</span>
                                                             @else
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200"><i class="fa fa-clock text-[9px]"></i> Pending</span>
-                                                            @endif
-                                                        </td>
-                                                        {{-- Pengeluaran --}}
-                                                        <td class="px-3 py-2">
-                                                            @if($part->status_pengeluaran === 'overservice')
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-200" title="Biaya part melebihi batas limit harga kategori"><i class="fa fa-triangle-exclamation text-[9px]"></i> Over</span>
-                                                            @else
-                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><i class="fa fa-check text-[9px]"></i> Stabil</span>
                                                             @endif
                                                         </td>
                                                         {{-- Keterangan Limit --}}
@@ -1712,7 +1703,7 @@ document.getElementById('modal-perpanjang-part').addEventListener('click', funct
                     <span class="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600 text-sm">
                         <i class="bi bi-speedometer2"></i>
                     </span>
-                    Ganti Limit
+                    Perbarui Limit
                 </h3>
                 <p id="ganti-limit-subtitle" class="text-xs text-gray-400 mt-0.5 ml-9"></p>
             </div>

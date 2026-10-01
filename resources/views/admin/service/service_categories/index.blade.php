@@ -446,7 +446,7 @@
                         class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                     <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
                 </div>
-                <p class="text-xs text-gray-400 mt-1">Target KM absolut pertama. Setelah tercapai, tombol "Ganti Limit" akan muncul untuk update manual.</p>
+                <p class="text-xs text-gray-400 mt-1">Target KM absolut pertama. Setelah tercapai, tombol "Perbarui Limit" akan muncul untuk update manual.</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Batas Harga (Limit Price)</label>
@@ -519,7 +519,7 @@
                         class="w-full border border-gray-200 rounded-xl px-3.5 pr-12 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                     <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">km</span>
                 </div>
-                <p class="text-xs text-gray-400 mt-1">Target KM absolut saat ini. Update manual via tombol "Ganti Limit" di service history.</p>
+                <p class="text-xs text-gray-400 mt-1">Target KM absolut saat ini. Update manual via tombol "Perbarui Limit" di service history.</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Batas Harga (Limit Price)</label>

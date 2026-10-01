@@ -568,28 +568,31 @@ function calcKeteranganLimit(idx) {
         return;
     }
 
-    // ── Bangun kalimat: 1 baris status per dimensi, jumlah pasang + sisa pcs ─
+    // ── Bangun kalimat: 1 baris status per dimensi + sisa ───────────────
     const kalimat = [];
 
-    // KM — status saja, tanpa angka sisa
+    // KM — status + sisa KM jika belum lewat
     if (kmAda) {
         if (kmSama)       kalimat.push('Sudah mencapai batas limit KM');
         else if (kmLewat) kalimat.push('Sudah melebihi batas limit KM');
-        else              kalimat.push('Belum mencapai batas limit KM');
+        else              kalimat.push('Belum mencapai batas limit KM (sisa ' + formatAngka(sisaKm) + ' km)');
     }
 
-    // Jangka waktu — status saja
+    // Jangka waktu — status + sisa waktu jika belum lewat
     if (intervalAda) {
         if (waktuSama)       kalimat.push('Sudah mencapai batas limit jangka waktu');
         else if (waktuLewat) kalimat.push('Sudah melebihi batas limit jangka waktu');
-        else                 kalimat.push('Belum mencapai limit jangka waktu');
+        else {
+            const sisaHariWaktu = Math.max(0, Math.round((limMs - refMs) / (1000 * 60 * 60 * 24)));
+            kalimat.push('Belum mencapai limit jangka waktu (' + formatSisaWaktu(sisaHariWaktu) + ')');
+        }
     }
 
-    // Biaya — status saja, tanpa angka sisa
+    // Biaya — status + sisa biaya jika belum lewat
     if (limitPrice !== null) {
         if (biayaSama)       kalimat.push('Sudah mencapai batas limit biaya');
         else if (biayaLewat) kalimat.push('Sudah melebihi limit biaya');
-        else                 kalimat.push('Belum mencapai limit biaya');
+        else                 kalimat.push('Belum mencapai limit biaya (sisa Rp ' + formatAngka(sisaBiaya) + ')');
     }
 
     // Jumlah pasang — status + sisa pcs
@@ -632,6 +635,26 @@ function formatAngka(val) {
     const abs  = Math.abs(Math.round(val));
     const fmt  = abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     return val < 0 ? '-' + fmt : fmt;
+}
+
+/**
+ * Format sisa hari → string mudah dibaca.
+ * ≤ 30 hari   → "sisa X hari"
+ * ≤ 365 hari  → "sisa X bulan Y hari"
+ * > 365 hari  → "sisa X tahun Y bulan"
+ */
+function formatSisaWaktu(sisaHari) {
+    if (!sisaHari || sisaHari <= 0) return 'sisa 0 hari';
+    if (sisaHari <= 30) return 'sisa ' + sisaHari + ' hari';
+    if (sisaHari <= 365) {
+        const bulan    = Math.floor(sisaHari / 30);
+        const hariSisa = sisaHari - (bulan * 30);
+        return 'sisa ' + bulan + ' bulan' + (hariSisa > 0 ? ' ' + hariSisa + ' hari' : '');
+    }
+    const tahun            = Math.floor(sisaHari / 365);
+    const sisaSetelahTahun = sisaHari - (tahun * 365);
+    const bulan            = Math.floor(sisaSetelahTahun / 30);
+    return 'sisa ' + tahun + ' tahun' + (bulan > 0 ? ' ' + bulan + ' bulan' : '');
 }
 
 /** Hitung tanggal limit dari tgl_pasang + interval */

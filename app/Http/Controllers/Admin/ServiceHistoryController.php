@@ -1249,7 +1249,8 @@ class ServiceHistoryController extends Controller
                     (int) $rule->limit_nilai,
                     $rule->limit_satuan ?? 'bulan',
                     (int) $rule->limit_price,
-                    $today->toDateString()
+                    $today->toDateString(),
+                    $rule->reset_at?->toDateString()
                 );
                 if ($kumulatif !== null) {
                     $biayaTercapai = $kumulatif['total_dalam_periode'] >= $rule->limit_price;
@@ -1260,6 +1261,17 @@ class ServiceHistoryController extends Controller
                         'periode_mulai'      => $kumulatif['periode_mulai'],
                         'periode_selesai'    => $kumulatif['periode_selesai'],
                         'tercapai'           => $biayaTercapai,
+                    ];
+                } elseif ($rule->reset_at) {
+                    // Belum ada part setelah reset → periode baru, sisa = limit penuh
+                    $biayaTercapai = false;
+                    $biayaInfo     = [
+                        'limit'              => $rule->limit_price,
+                        'total_periode'      => 0,
+                        'sisa'               => $rule->limit_price,
+                        'periode_mulai'      => $rule->reset_at->format('d M Y'),
+                        'periode_selesai'    => null,
+                        'tercapai'           => false,
                     ];
                 }
             }
@@ -1891,28 +1903,31 @@ class ServiceHistoryController extends Controller
             return '-';
         }
 
-        // ── Bangun keterangan: 1 baris status per dimensi, jumlah pasang + sisa pcs ─
+        // ── Bangun keterangan: 1 baris status per dimensi + sisa ────────────
         $kalimat = [];
 
-        // KM — status saja, tanpa angka sisa
+        // KM — status + sisa KM jika belum lewat
         if ($kmAda) {
             if ($kmSama)       $kalimat[] = 'Sudah mencapai batas limit KM';
             elseif ($kmLewat)  $kalimat[] = 'Sudah melebihi batas limit KM';
-            else               $kalimat[] = 'Belum mencapai batas limit KM';
+            else               $kalimat[] = 'Belum mencapai batas limit KM (sisa ' . number_format($sisaKm, 0, ',', '.') . ' km)';
         }
 
-        // Jangka waktu — status saja
+        // Jangka waktu — status + sisa waktu jika belum lewat
         if ($intervalAda) {
             if ($waktuSama)       $kalimat[] = 'Sudah mencapai batas limit jangka waktu';
             elseif ($waktuLewat)  $kalimat[] = 'Sudah melebihi batas limit jangka waktu';
-            else                  $kalimat[] = 'Belum mencapai limit jangka waktu';
+            else {
+                $sisaHari = max(0, (int) $refTanggal->diffInDays($tglLimit, false));
+                $kalimat[] = 'Belum mencapai limit jangka waktu (' . $this->formatSisaWaktu($sisaHari) . ')';
+            }
         }
 
-        // Biaya — status saja, tanpa angka sisa
+        // Biaya — status + sisa biaya jika belum lewat
         if ($hargaLimit) {
             if ($biayaSama)       $kalimat[] = 'Sudah mencapai batas limit biaya';
             elseif ($biayaLewat)  $kalimat[] = 'Sudah melebihi limit biaya';
-            else                  $kalimat[] = 'Belum mencapai limit biaya';
+            else                  $kalimat[] = 'Belum mencapai limit biaya (sisa Rp ' . number_format($sisaBiaya, 0, ',', '.') . ')';
         }
 
         // Jumlah pasang — status + sisa pcs
@@ -1927,6 +1942,37 @@ class ServiceHistoryController extends Controller
         }
 
         return implode(', ', $kalimat);
+    }
+
+    /**
+     * Format sisa hari menjadi string yang mudah dibaca.
+     * ≤ 30 hari        → "sisa X hari"
+     * ≤ 365 hari (12 bulan) → "sisa X bulan Y hari"
+     * > 365 hari       → "sisa X tahun Y bulan"
+     */
+    private function formatSisaWaktu(int $sisaHari): string
+    {
+        if ($sisaHari <= 0) return 'sisa 0 hari';
+
+        if ($sisaHari <= 30) {
+            return 'sisa ' . $sisaHari . ' hari';
+        }
+
+        if ($sisaHari <= 365) {
+            $bulan     = (int) floor($sisaHari / 30);
+            $hariSisa  = $sisaHari - ($bulan * 30);
+            $str       = 'sisa ' . $bulan . ' bulan';
+            if ($hariSisa > 0) $str .= ' ' . $hariSisa . ' hari';
+            return $str;
+        }
+
+        // > 365 hari
+        $tahun     = (int) floor($sisaHari / 365);
+        $sisaSetelahTahun = $sisaHari - ($tahun * 365);
+        $bulan     = (int) floor($sisaSetelahTahun / 30);
+        $str       = 'sisa ' . $tahun . ' tahun';
+        if ($bulan > 0) $str .= ' ' . $bulan . ' bulan';
+        return $str;
     }
 
     /**
