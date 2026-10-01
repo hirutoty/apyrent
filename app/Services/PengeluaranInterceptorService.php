@@ -141,10 +141,14 @@ class PengeluaranInterceptorService
                 $snapLimitJumlah = ($limitRule && $limitRule->jumlah) ? (int) $limitRule->jumlah : null;
                 $snapAktifCount  = null;
                 if ($snapLimitJumlah && $limitRule->kendaraan_id) {
-                    $snapAktifCount = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
+                    $qSnap = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
                         ->where('category_id', $limitRule->category_id)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                        ->count();
+                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+                    // Jika ada reset_at, hanya hitung part setelah reset
+                    if ($limitRule->reset_at) {
+                        $qSnap->where('created_at', '>=', $limitRule->reset_at);
+                    }
+                    $snapAktifCount = $qSnap->count();
                 }
                 $snapJumlahLewat = $snapLimitJumlah !== null && $snapAktifCount !== null && $snapAktifCount > $snapLimitJumlah;
                 $snapJumlahSama  = $snapLimitJumlah !== null && $snapAktifCount !== null && $snapAktifCount === $snapLimitJumlah;
@@ -164,8 +168,13 @@ class PengeluaranInterceptorService
                         (int) $limitRule->limit_nilai,
                         $limitRule->limit_satuan ?? 'bulan',
                         (int) $limitRule->limit_price,
-                        $tglPasangSnap->toDateString()
+                        $tglPasangSnap->toDateString(),
+                        $limitRule->reset_at?->toDateString()
                     );
+                    // Jika null tapi ada reset_at → periode baru, total = 0
+                    if ($kumulatifDataSnap === null && $limitRule->reset_at) {
+                        $kumulatifDataSnap = ['total_dalam_periode' => 0, 'sisa_limit' => (int) $limitRule->limit_price];
+                    }
                     if ($kumulatifDataSnap !== null) {
                         $snapBiayaKumulatif = $kumulatifDataSnap['total_dalam_periode'] + $snapBiaya;
                     }
@@ -315,8 +324,13 @@ class PengeluaranInterceptorService
                 (int) $limitRule->limit_nilai,
                 $limitRule->limit_satuan ?? 'bulan',
                 (int) $hargaLimit,
-                $tglPasang->toDateString()
+                $tglPasang->toDateString(),
+                $limitRule->reset_at?->toDateString()
             );
+            // Jika null dan ada reset_at → periode baru, total = 0
+            if ($kumulatifData === null && $limitRule->reset_at) {
+                $kumulatifData = ['total_dalam_periode' => 0, 'sisa_limit' => (int) $hargaLimit];
+            }
             if ($kumulatifData !== null) {
                 $biayaKumulatif = $kumulatifData['total_dalam_periode'] + $biaya;
                 $sisaBiaya      = (int)$hargaLimit - $biayaKumulatif; // bisa negatif
@@ -341,10 +355,13 @@ class PengeluaranInterceptorService
         $limitJumlah = $limitRule->jumlah ? (int) $limitRule->jumlah : null;
         $aktifCount  = null;
         if ($limitJumlah && $limitRule->kendaraan_id) {
-            $aktifCount = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
+            $qAktif = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
                 ->where('category_id', $limitRule->category_id)
-                ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                ->count();
+                ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+            if ($limitRule->reset_at) {
+                $qAktif->where('created_at', '>=', $limitRule->reset_at);
+            }
+            $aktifCount = $qAktif->count();
         }
         $jumlahAda   = $limitJumlah !== null && $limitJumlah > 0 && $aktifCount !== null;
         $jumlahSama  = $jumlahAda && $aktifCount === $limitJumlah;

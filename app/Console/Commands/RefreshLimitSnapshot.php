@@ -99,8 +99,14 @@ class RefreshLimitSnapshot extends Command
                                 (int) $limitRule->limit_nilai,
                                 $limitRule->limit_satuan ?? 'bulan',
                                 $limitBiaya,
-                                $tglPasang
+                                $tglPasang,
+                                $limitRule->reset_at?->toDateString()
                             );
+
+                            // reset_at ada tapi belum ada part setelah reset → periode baru
+                            if ($kumulatif === null && $limitRule->reset_at) {
+                                $kumulatif = ['total_dalam_periode' => 0, 'sisa_limit' => $limitBiaya];
+                            }
 
                             if ($kumulatif !== null) {
                                 // sisa = limit - total_yang_sudah_terpakai (tidak termasuk biaya baru)

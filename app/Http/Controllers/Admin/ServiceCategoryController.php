@@ -214,6 +214,8 @@ class ServiceCategoryController extends Controller
     /*
     |--------------------------------------------------------------------------
     | GESER LIMIT KM — update limit_km ke nilai manual dari user
+    | Jika jumlah atau limit_price berubah, otomatis set reset_at = now()
+    | sehingga hitungan periode & jumlah dimulai dari tanggal ini.
     |--------------------------------------------------------------------------
     */
     public function geserLimitKm(\Illuminate\Http\Request $request, $limitId)
@@ -228,25 +230,72 @@ class ServiceCategoryController extends Controller
 
         $limit = ServiceCategoryLimit::with(['category', 'kendaraan'])->findOrFail($limitId);
 
-        $limit->update([
-            'limit_nilai'  => (int) $request->limit_nilai,
-            'limit_satuan' => $request->limit_satuan,
-            'limit_km'     => $request->filled('limit_km')    ? (int) $request->limit_km    : null,
-            'limit_price'  => $request->filled('limit_price') ? (int) $request->limit_price : null,
-            'jumlah'       => $request->filled('jumlah')      ? (int) $request->jumlah      : null,
-        ]);
+        // Deteksi apakah ada perubahan pada dimensi yang memerlukan reset periode
+        $oldJumlah     = $limit->jumlah;
+        $oldLimitPrice = $limit->limit_price;
+        $oldNilai      = $limit->limit_nilai;
+        $oldSatuan     = $limit->limit_satuan;
+
+        $newJumlah     = $request->filled('jumlah')      ? (int) $request->jumlah      : null;
+        $newLimitPrice = $request->filled('limit_price') ? (int) $request->limit_price : null;
+        $newNilai      = (int) $request->limit_nilai;
+        $newSatuan     = $request->limit_satuan;
+
+        // Reset periode jika jumlah, limit_price, atau interval berubah
+        $perluReset = ($oldJumlah !== $newJumlah)
+            || ($oldLimitPrice !== $newLimitPrice)
+            || ($oldNilai !== $newNilai)
+            || ($oldSatuan !== $newSatuan);
+
+        $updateData = [
+            'limit_nilai'  => $newNilai,
+            'limit_satuan' => $newSatuan,
+            'limit_km'     => $request->filled('limit_km') ? (int) $request->limit_km : null,
+            'limit_price'  => $newLimitPrice,
+            'jumlah'       => $newJumlah,
+        ];
+
+        if ($perluReset) {
+            $updateData['reset_at'] = now();
+        }
+
+        $limit->update($updateData);
+
+        $namaKat = optional($limit->category)->nama  ?? 'kategori';
+        $nopol   = optional($limit->kendaraan)->nopol ?? '';
+
+        $msg = "Limit kategori \"{$namaKat}\" ({$nopol}) berhasil diupdate.";
+        if ($perluReset) {
+            $msg .= " Periode & hitungan jumlah direset dari sekarang.";
+        }
+
+        return back()->with('success', $msg);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESET LIMIT — reset hanya tanggal (reset_at = now()) tanpa ubah nilai
+    | Dipakai ketika admin ingin memulai periode baru tanpa mengubah nilai limit.
+    |--------------------------------------------------------------------------
+    */
+    public function resetLimit($limitId)
+    {
+        $limit = ServiceCategoryLimit::with(['category', 'kendaraan'])->findOrFail($limitId);
+
+        $limit->update(['reset_at' => now()]);
 
         $namaKat = optional($limit->category)->nama  ?? 'kategori';
         $nopol   = optional($limit->kendaraan)->nopol ?? '';
 
         return back()->with('success',
-            "Limit kategori \"{$namaKat}\" ({$nopol}) berhasil diupdate."
+            "Limit kategori \"{$namaKat}\" ({$nopol}) berhasil direset. Periode & hitungan jumlah dimulai dari sekarang."
         );
     }
 
     /*
     |--------------------------------------------------------------------------
     | GET LIMIT FOR — Ajax: ambil limit rule untuk kendaraan + kategori
+    | Mengembalikan reset_at agar JS form bisa filter aktif_count dengan benar.
     |--------------------------------------------------------------------------
     */
     public function getLimitFor(Request $request)
@@ -265,11 +314,17 @@ class ServiceCategoryController extends Controller
         }
 
         // Hitung aktifCount dalam periode aktif untuk dimensi jumlah di JS form
+        // Jika ada reset_at, hanya hitung part yang dipasang SETELAH reset_at
         $aktifCount = null;
         if ($limit->jumlah) {
             $q = \App\Models\ServicePart::where('kendaraan_id', $request->kendaraan_id)
                 ->where('category_id', $request->category_id)
                 ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+
+            if ($limit->reset_at) {
+                $q->where('created_at', '>=', $limit->reset_at);
+            }
+
             $aktifCount = $q->count();
         }
 
@@ -281,6 +336,7 @@ class ServiceCategoryController extends Controller
             'limit_price_formatted' => $limit->limitPriceFormatted(),
             'jumlah'                => $limit->jumlah,
             'aktif_count'           => $aktifCount,
+            'reset_at'              => $limit->reset_at?->toDateString(),
         ]);
     }
 }

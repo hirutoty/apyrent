@@ -675,6 +675,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
           ->name('service-categories.limits.destroy');
       Route::post('service-categories/limits/{limitId}/geser-km', [ServiceCategoryController::class, 'geserLimitKm'])
           ->name('service-categories.limits.geser-km');
+      Route::post('service-categories/limits/{limitId}/reset', [ServiceCategoryController::class, 'resetLimit'])
+          ->name('service-categories.limits.reset');
   });
 
 
