@@ -124,6 +124,13 @@ class PurchaseOrderApprovalService
         // agar masih perlu approval di halaman Pembayaran
         $status = 'Diajukan';
 
+        // Hapus item_decisions dari source_data Pembayaran — audit trail keputusan
+        // per-item (approved/rejected) hanya relevan di PO, bukan di Pembayaran.
+        // Jika ikut tersimpan, summary card Pembayaran akan salah menghitung
+        // item "Ditolak" dari entries rejected milik PO.
+        $sourceDataForPembayaran = $approvedSourceData;
+        unset($sourceDataForPembayaran['item_decisions']);
+
         $pembayaran = Pembayaran::create([
             'no_pr'               => $noPR,
             'tanggal'             => now(),
@@ -141,7 +148,7 @@ class PurchaseOrderApprovalService
             'disetujui_oleh'      => Auth::user()->nama ?? Auth::user()->email,
             'tanggal_persetujuan' => now(),
             'source_type'         => $sourceType,
-            'source_data'         => $approvedSourceData,
+            'source_data'         => $sourceDataForPembayaran,
             'target_id'           => null,
             'can_edit'            => false,
         ]);

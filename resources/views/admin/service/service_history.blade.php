@@ -183,7 +183,7 @@
                             // Highlight: apakah row ini punya part ditolak dari pembayaran yang di-highlight?
                             $isHighlighted = $highlightPembayaran > 0
                                 && (int)$d->pembayaran_id === $highlightPembayaran
-                                && $d->parts->where('persetujuan', 'Ditolak')->count() > 0;
+                                && $d->parts->whereIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])->count() > 0;
                         @endphp
 
                         {{-- Main row --}}
@@ -460,6 +460,8 @@
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><i class="fa fa-check text-[9px]"></i> Disetujui</span>
                                                             @elseif ($part->persetujuan === 'Diajukan ke Pembayaran')
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"><i class="fa fa-paper-plane text-[9px]"></i> Diajukan ke Pembayaran</span>
+                                                            @elseif ($part->persetujuan === 'Ditolak Pembayaran')
+                                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200"><i class="fa fa-ban text-[9px]"></i> Ditolak Pembayaran</span>
                                                             @elseif ($part->persetujuan === 'Ditolak')
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-200"><i class="fa fa-times text-[9px]"></i> Ditolak</span>
                                                             @else
@@ -584,7 +586,12 @@
                                                                     </form>
                                                                 </div>
                                                             @else
-                                                                @if($part->persetujuan === 'Ditolak' && $d->pembayaran_id)
+                                                                @if($part->persetujuan === 'Ditolak Pembayaran' && $d->pembayaran_id)
+                                                                    <a href="{{ route('pembayaran.rejected-items', $d->pembayaran_id) }}"
+                                                                        class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
+                                                                        <i class="fa fa-rotate-right text-[9px]"></i> Ajukan Ulang
+                                                                    </a>
+                                                                @elseif($part->persetujuan === 'Ditolak' && $d->pembayaran_id)
                                                                     <a href="{{ route('service-history.index', ['highlight_pembayaran' => $d->pembayaran_id]) }}"
                                                                         class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
                                                                         <i class="fa fa-rotate-right text-[9px]"></i> Ajukan Ulang

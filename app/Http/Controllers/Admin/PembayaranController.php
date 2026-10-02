@@ -1258,6 +1258,75 @@ class PembayaranController extends Controller
 
             // (kilometer kendaraan diupdate saat tombol Terpasang diklik)
 
+            // ── Recalculate keterangan_limit untuk parts yang baru diaktifkan ──
+            // Setelah approve, parts berubah status tidak_aktif → aktif.
+            // aktifCount bertambah 1 per part, sehingga sisa_pasang berkurang.
+            if ($serviceHistory) {
+                $shController = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
+                $activatedParts = $serviceHistory->parts()->where('status', 'aktif')->get();
+                foreach ($activatedParts as $activatedPart) {
+                    if (!$activatedPart->category_id) continue;
+                    $limitRule = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $activatedPart->kendaraan_id)
+                        ->where('category_id', $activatedPart->category_id)
+                        ->first();
+                    if (!$limitRule || !$limitRule->jumlah) continue;
+
+                    $aktifCountNow = \App\Models\ServicePart::where('kendaraan_id', $activatedPart->kendaraan_id)
+                        ->where('category_id', $activatedPart->category_id)
+                        ->whereIn('status', ['Terpasang', 'aktif', 'tidak_aktif'])
+                        ->where(fn($q) => $q->whereNull('persetujuan')->orWhere('persetujuan', '!=', 'Ditolak Pembayaran'))
+                        ->count();
+
+                    $partArray = [
+                        'biaya'            => 0,
+                        'tgl_pasang'       => $activatedPart->tgl_pasang,
+                        'interval_nilai'   => $activatedPart->interval_nilai,
+                        'interval_satuan'  => $activatedPart->interval_satuan,
+                        'kilometer_pasang' => $activatedPart->kilometer_pasang,
+                    ];
+                    $tanggalServis = optional($serviceHistory)->tanggal_service ?? now()->toDateString();
+                    $kmInput       = (int) ($serviceHistory->kilometer ?? $activatedPart->kilometer_pasang);
+
+                    $newKet = $shController->generateKeteranganLimitPublic(
+                        $partArray, $kmInput, $limitRule, $tanggalServis,
+                        null, $aktifCountNow, (int) $limitRule->jumlah
+                    );
+                    $activatedPart->update(['keterangan_limit' => $newKet]);
+                }
+            }
+
+            // ── Catat cashflow per item ke tabel keuangans ───────────────────
+            if ($serviceHistory) {
+                $sdParts     = $pembayaran->source_data['parts'] ?? [];
+                $namaKend    = optional($pembayaran->kendaraan)->nopol ?? '-';
+                $tanggalAppr = now()->toDateString();
+                foreach ($sdParts as $idx => $part) {
+                    $biaya = (int) ($part['biaya'] ?? 0);
+                    if ($biaya <= 0) continue;
+                    $namaPart  = $part['nama_part'] ?? ('Part #' . ($idx + 1));
+                    $reference = 'PR-SVC-' . $pembayaran->no_pr . '-' . ($idx + 1);
+                    if (Keuangan::where('reference', $reference)->exists()) continue;
+
+                    $lastSaldo = (float) DB::table('keuangans')->orderBy('id', 'desc')->value('saldo') ?? 0;
+
+                    Keuangan::create([
+                        'tanggal'     => $tanggalAppr,
+                        'reference'   => $reference,
+                        'user_id'     => auth()->id(),
+                        'kategori'    => 'Service Kendaraan',
+                        'metode'      => 'Cash',
+                        'keterangan'  => 'Service Part: ' . $namaPart . ' — ' . $namaKend . ' (PR #' . $pembayaran->no_pr . ')',
+                        'pemasukan'   => 0,
+                        'pengeluaran' => $biaya,
+                        'saldo'       => $lastSaldo - $biaya,
+                        'sumber'      => 'auto',
+                    ]);
+                }
+            }
+
+            // ── Update keterangan_limit & snapshot di source_data ─────────────
+            $this->updateSourceDataKeteranganLimit($pembayaran);
+
             DB::commit();
 
             return redirect()->route('pembayaran.index')
@@ -1839,7 +1908,35 @@ class PembayaranController extends Controller
                     }
                 }
             }
-            
+
+            // Untuk service_part & service_incident: update persetujuan parts dan service_history
+            // menjadi 'Ditolak Pembayaran' agar status terlihat di halaman service history
+            if (in_array($pembayaran->source_type, ['service_part', 'service_incident'])) {
+                $sdReject    = $pembayaran->source_data ?? [];
+                $kendaraanId = $sdReject['kendaraan_id'] ?? null;
+
+                // Update service_history yang terkait pembayaran ini (via pembayaran_id)
+                \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)
+                    ->update(['persetujuan' => 'Ditolak Pembayaran']);
+
+                // Update service_parts via service_history_id
+                $sh = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
+                if ($sh) {
+                    \App\Models\ServicePart::where('service_history_id', $sh->id)
+                        ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                        ->update(['persetujuan' => 'Ditolak Pembayaran']);
+                }
+
+                // Selalu jalankan fallback via kendaraan_id — menangani kasus
+                // di mana pembayaran_id di service_history sudah tertimpa pembayaran lain
+                if ($kendaraanId) {
+                    \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
+                        ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                        ->where('status', 'tidak_aktif')
+                        ->update(['persetujuan' => 'Ditolak Pembayaran']);
+                }
+            }
+
             DB::commit();
             
             return redirect()
@@ -2197,6 +2294,85 @@ class PembayaranController extends Controller
                 $pembayaran->update(['source_data' => $sourceData]);
             }
 
+            // ── Task 3: Recalculate keterangan_limit untuk approved parts ──────
+            // Parts yang diapprove statusnya masih tidak_aktif (aktif setelah PengeluaranTransferService).
+            // Ambil service_history yang terkait via pembayaran_id, lalu recalculate.
+            if (!empty($approvedItems)) {
+                $sh = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
+                if ($sh) {
+                    $shController    = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
+                    $approvedIdxList = array_column($approvedItems, 'idx');
+                    $activatedParts  = $sh->parts()
+                        ->whereIn('status', ['aktif', 'tidak_aktif'])
+                        ->get();
+
+                    foreach ($activatedParts as $aPart) {
+                        if (!$aPart->category_id) continue;
+                        $limitRule = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $aPart->kendaraan_id)
+                            ->where('category_id', $aPart->category_id)
+                            ->first();
+                        if (!$limitRule || !$limitRule->jumlah) continue;
+
+                        $aktifCountNow = \App\Models\ServicePart::where('kendaraan_id', $aPart->kendaraan_id)
+                            ->where('category_id', $aPart->category_id)
+                            ->whereIn('status', ['Terpasang', 'aktif', 'tidak_aktif'])
+                            ->where(fn($q) => $q->whereNull('persetujuan')->orWhere('persetujuan', '!=', 'Ditolak Pembayaran'))
+                            ->count();
+
+                        $partArray = [
+                            'biaya'            => 0,
+                            'tgl_pasang'       => $aPart->tgl_pasang,
+                            'interval_nilai'   => $aPart->interval_nilai,
+                            'interval_satuan'  => $aPart->interval_satuan,
+                            'kilometer_pasang' => $aPart->kilometer_pasang,
+                        ];
+                        $kmInput = (int) ($sh->kilometer ?? $aPart->kilometer_pasang);
+
+                        $newKet = $shController->generateKeteranganLimitPublic(
+                            $partArray, $kmInput, $limitRule,
+                            $sh->tanggal_service ?? now()->toDateString(),
+                            null, $aktifCountNow, (int) $limitRule->jumlah
+                        );
+                        $aPart->update(['keterangan_limit' => $newKet]);
+                    }
+                }
+            }
+
+            // ── Task 4: Catat cashflow per item ke tabel keuangans ───────────
+            if (!empty($approvedItems)) {
+                $sdParts     = $pembayaran->source_data['parts'] ?? [];
+                $tanggalAppr = now()->toDateString();
+                foreach ($approvedItems as $approvedItem) {
+                    $idx   = (int) $approvedItem['idx'];
+                    $part  = $sdParts[$idx] ?? [];
+                    $biaya = (int) ($part['biaya'] ?? 0);
+                    if ($biaya <= 0) continue;
+
+                    $namaKendaraan = isset($pembayaran->source_data['kendaraan_id'])
+                        ? (optional(\App\Models\Kendaraan::find($pembayaran->source_data['kendaraan_id']))->nopol ?? '-')
+                        : '-';
+                    $namaPart = $part['nama_part'] ?? ('Part #' . ($idx + 1));
+
+                    $lastSaldo = (float) DB::table('keuangans')->orderBy('id', 'desc')->value('saldo') ?? 0;
+
+                    Keuangan::create([
+                        'tanggal'     => $tanggalAppr,
+                        'reference'   => 'PR-SVC-' . $pembayaran->no_pr . '-' . ($idx + 1),
+                        'user_id'     => auth()->id(),
+                        'kategori'    => 'Service Kendaraan',
+                        'metode'      => 'Cash',
+                        'keterangan'  => 'Service Part: ' . $namaPart . ' — ' . $namaKendaraan . ' (PR #' . $pembayaran->no_pr . ')',
+                        'pemasukan'   => 0,
+                        'pengeluaran' => $biaya,
+                        'saldo'       => $lastSaldo - $biaya,
+                        'sumber'      => 'auto',
+                    ]);
+                }
+            }
+
+            // ── Update keterangan_limit & snapshot di source_data ─────────────
+            $this->updateSourceDataKeteranganLimit($pembayaran);
+
             DB::commit();
 
             $msg = "Keputusan disimpan: {$approvedCount} part disetujui, {$rejectedCount} part ditolak. Status PR: {$newStatus}.";
@@ -2525,6 +2701,116 @@ class PembayaranController extends Controller
     /**
      * Sync persetujuan ke tabel sumber (pajak_kendaraans, dll) berdasarkan existing_record_id
      * Dipanggil saat reject/approve agar badge persetujuan di halaman modul ikut update.
+     */
+    /**
+     * Recalculate dan update keterangan_limit + limit_snapshot.sisa_pasang
+     * di source_data Pembayaran dan PO terkait setelah approve.
+     *
+     * Dipanggil setelah parts berubah status tidak_aktif → aktif,
+     * sehingga aktifCount sudah bertambah dan sisa_pasang berkurang.
+     */
+    public function updateSourceDataKeteranganLimit(\App\Models\Pembayaran $pembayaran): void
+    {
+        if (!in_array($pembayaran->source_type, ['service_part', 'service_incident'])) {
+            return;
+        }
+
+        $sourceData  = $pembayaran->source_data ?? [];
+        $parts       = $sourceData['parts'] ?? [];
+        $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+        if (!$kendaraanId || empty($parts)) return;
+
+        $shController = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
+        $sh = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
+        $tanggalServis = $sh?->tanggal_service ?? now()->toDateString();
+        $kmInput       = (int) ($sh?->kilometer ?? 0);
+
+        // Track berapa item per kategori yang sudah diproses dalam batch ini.
+        // Tujuannya: item ke-1 kategori A mendapat aktifCount total,
+        // item ke-2 kategori A mendapat aktifCount-1, dst.
+        // Ini memastikan keterangan_limit tiap item mencerminkan posisinya sendiri.
+        $batchCountPerCategory = [];
+
+        $changed = false;
+        foreach ($parts as $idx => $part) {
+            $categoryId = $part['category_id'] ?? null;
+            if (!$categoryId) continue;
+
+            $limitRule = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $kendaraanId)
+                ->where('category_id', $categoryId)
+                ->first();
+            if (!$limitRule || !$limitRule->jumlah) continue;
+
+            // Hitung aktifCount total dari DB (semua item batch ini sudah tersimpan).
+            // 'tidak_aktif' = disetujui keuangan tapi belum dipasang fisik — tetap harus
+            // dihitung agar sisa_pasang berkurang segera setelah approve pembayaran.
+            // 'Ditolak Pembayaran' dikecualikan: part ditolak tidak mengurangi sisa pasang.
+            $q = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
+                ->where('category_id', $categoryId)
+                ->whereIn('status', ['Terpasang', 'aktif', 'tidak_aktif'])
+                ->where(fn($q) => $q->whereNull('persetujuan')->orWhere('persetujuan', '!=', 'Ditolak Pembayaran'));
+            if ($limitRule->reset_at) {
+                $q->where('created_at', '>=', $limitRule->reset_at);
+            }
+            $aktifCountTotal = $q->count();
+
+            // Berapa item kategori ini yang belum diproses dalam batch ini (item setelah ini)
+            // Item ke-1 → kurangi (N-1) item batch berikutnya, item ke-2 → kurangi (N-2), dst.
+            $alreadyProcessed = $batchCountPerCategory[$categoryId] ?? 0;
+            $itemsAfterThis   = (count(array_filter($parts, fn($p) => ($p['category_id'] ?? null) == $categoryId)) - 1) - $alreadyProcessed;
+            $aktifCountNow    = $aktifCountTotal - max(0, $itemsAfterThis);
+            $sisaPasang       = max(0, (int) $limitRule->jumlah - $aktifCountNow);
+
+            // Increment batch counter untuk kategori ini
+            $batchCountPerCategory[$categoryId] = $alreadyProcessed + 1;
+
+            // Recalculate keterangan_limit string
+            // Biaya di-set 0 karena part sudah tersimpan di DB — getKumulatifBiayaKategori
+            // sudah include biaya ini, jadi jangan tambahkan lagi (double-count)
+            $partArray = [
+                'biaya'            => 0,
+                'tgl_pasang'       => $part['tgl_pasang'] ?? $tanggalServis,
+                'interval_nilai'   => $part['interval_nilai'] ?? 0,
+                'interval_satuan'  => $part['interval_satuan'] ?? 'bulan',
+                'kilometer_pasang' => $part['kilometer_pasang'] ?? $kmInput,
+            ];
+            $newKet = $shController->generateKeteranganLimitPublic(
+                $partArray, $kmInput, $limitRule, $tanggalServis,
+                null, $aktifCountNow, (int) $limitRule->jumlah
+            );
+
+            // Update di source_data parts
+            $parts[$idx]['keterangan_limit'] = $newKet;
+
+            // Update limit_snapshot.sisa_pasang dan jumlah flags
+            if (isset($parts[$idx]['limit_snapshot'])) {
+                $parts[$idx]['limit_snapshot']['sisa_pasang']   = $sisaPasang;
+                $parts[$idx]['limit_snapshot']['aktif_count']   = $aktifCountNow;
+                $parts[$idx]['limit_snapshot']['jumlah_sama']   = $aktifCountNow === (int) $limitRule->jumlah;
+                $parts[$idx]['limit_snapshot']['jumlah_lewat']  = $aktifCountNow > (int) $limitRule->jumlah;
+            }
+
+            $changed = true;
+        }
+
+        if (!$changed) return;
+
+        $sourceData['parts'] = $parts;
+
+        // Update di tabel pembayarans
+        $pembayaran->updateQuietly(['source_data' => $sourceData]);
+
+        // Update juga di tabel purchase_orders yang terkait (via pembayaran_id)
+        \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)
+            ->each(function ($po) use ($sourceData) {
+                $poSourceData = $po->source_data ?? [];
+                $poSourceData['parts'] = $sourceData['parts'];
+                $po->updateQuietly(['source_data' => $poSourceData]);
+            });
+    }
+
+    /**
+     * Sync persetujuan ke tabel sumber (pajak / asuransi / kir)
      */
     protected function syncPersetujuanToSource(\App\Models\Pembayaran $pembayaran, string $status): void
     {
@@ -3011,6 +3297,19 @@ class PembayaranController extends Controller
                 'disetujui_oleh'      => null,
                 'tanggal_persetujuan' => null,
             ]);
+
+            // Untuk service_part & service_incident: kembalikan persetujuan parts dan service_history
+            // ke 'Pending' agar tampil kembali sebagai antrian aktif di halaman service history
+            if (in_array($srcType, ['service_part', 'service_incident'])) {
+                \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)
+                    ->update(['persetujuan' => 'Pending']);
+
+                $sh = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
+                if ($sh) {
+                    \App\Models\ServicePart::where('service_history_id', $sh->id)
+                        ->update(['persetujuan' => 'Pending']);
+                }
+            }
 
             DB::commit();
 

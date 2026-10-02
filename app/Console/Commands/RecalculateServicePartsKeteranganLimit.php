@@ -80,10 +80,14 @@ class RecalculateServicePartsKeteranganLimit extends Command
                 $aktifCountRec  = null;
                 $limitJumlahRec = null;
                 if ($limitRule && $limitRule->jumlah) {
-                    $aktifCountRec  = ServicePart::where('kendaraan_id', $part->kendaraan_id)
+                    $qAktif = ServicePart::where('kendaraan_id', $part->kendaraan_id)
                         ->where('category_id', $part->category_id)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                        ->count();
+                        ->whereIn('status', ['Terpasang', 'aktif']);
+                    // Filter berdasarkan reset_at jika ada — hanya hitung part setelah reset
+                    if ($limitRule->reset_at) {
+                        $qAktif->where('created_at', '>=', $limitRule->reset_at);
+                    }
+                    $aktifCountRec  = $qAktif->count();
                     $limitJumlahRec = (int) $limitRule->jumlah;
                 }
 
@@ -309,7 +313,7 @@ class RecalculateServicePartsKeteranganLimit extends Command
             return 'sisa ' . $sisaHari . ' hari';
         }
 
-        if ($sisaHari <= 365) {
+        if ($sisaHari < 360) {
             $bulan    = (int) floor($sisaHari / 30);
             $hariSisa = $sisaHari - ($bulan * 30);
             $str      = 'sisa ' . $bulan . ' bulan';
@@ -317,6 +321,7 @@ class RecalculateServicePartsKeteranganLimit extends Command
             return $str;
         }
 
+        // >= 360 hari → tampilkan dalam tahun
         $tahun            = (int) floor($sisaHari / 365);
         $sisaSetelahTahun = $sisaHari - ($tahun * 365);
         $bulan            = (int) floor($sisaSetelahTahun / 30);

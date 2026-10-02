@@ -347,10 +347,9 @@ class ServiceHistoryController extends Controller
                 $limitJ = $limitRulesJumlah[$catId] ?? null;
                 if (!$limitJ || !$limitJ->jumlah) continue;
 
-                $aktifCount = ServicePart::where('kendaraan_id', $request->kendaraan_id)
-                    ->where('category_id', $catId)
-                    ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                    ->count();
+                $aktifCount = $this->hitungAktifCountJumlah(
+                    $request->kendaraan_id, $catId, $limitJ
+                );
 
                 if ($aktifCount >= $limitJ->jumlah) {
                     $namaKat = optional($limitJ->category)->nama ?? "Kategori #{$catId}";
@@ -366,10 +365,9 @@ class ServiceHistoryController extends Controller
                     $limitJ = $limitRulesJumlah[$catId] ?? null;
                     if (!$limitJ || !$limitJ->jumlah) return true;
 
-                    return ServicePart::where('kendaraan_id', $request->kendaraan_id)
-                        ->where('category_id', $catId)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                        ->count() < $limitJ->jumlah;
+                    return $this->hitungAktifCountJumlah(
+                        $request->kendaraan_id, $catId, $limitJ
+                    ) < $limitJ->jumlah;
                 });
 
                 $pesan = implode(', ', $partsDitolakJumlah);
@@ -622,10 +620,9 @@ class ServiceHistoryController extends Controller
                     $aktifCountKet  = null;
                     $limitJumlahKet = null;
                     if ($limitRule && $limitRule->jumlah) {
-                        $aktifCountKet  = ServicePart::where('kendaraan_id', $request->kendaraan_id)
-                            ->where('category_id', $partData['category_id'])
-                            ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                            ->count();
+                        $aktifCountKet  = $this->hitungAktifCountJumlah(
+                            $request->kendaraan_id, $partData['category_id'], $limitRule
+                        );
                         $limitJumlahKet = (int) $limitRule->jumlah;
                     }
                     $keteranganOtomatis = $this->generateKeteranganLimit($partData, $kmInput, $limitRule, $request->tanggal_service, $partLamaKmPasang, $aktifCountKet, $limitJumlahKet);
@@ -1191,10 +1188,9 @@ class ServiceHistoryController extends Controller
         foreach ($limitRules as $rule) {
             if (!$rule->jumlah) continue;
             $key = $rule->kendaraan_id . '_' . $rule->category_id;
-            $aktifCountMap[$key] = ServicePart::where('kendaraan_id', $rule->kendaraan_id)
-                ->where('category_id', $rule->category_id)
-                ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                ->count();
+            $aktifCountMap[$key] = $this->hitungAktifCountJumlah(
+                (int) $rule->kendaraan_id, (int) $rule->category_id, $rule
+            );
         }
 
         $result = [];
@@ -1690,10 +1686,7 @@ class ServiceHistoryController extends Controller
                 $partDataForKet, $kmPasang, $limitRule, $tanggalService, $partLamaKmPasang,
                 // +1 karena part baru belum tersimpan ke DB saat keterangan digenerate
                 $limitRule && $limitRule->jumlah ? (
-                    \App\Models\ServicePart::where('kendaraan_id', $request->kendaraan_id)
-                        ->where('category_id', $categoryId)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                        ->count() + 1
+                    $this->hitungAktifCountJumlah($request->kendaraan_id, $categoryId, $limitRule) + 1
                 ) : null,
                 $limitRule && $limitRule->jumlah ? (int)$limitRule->jumlah : null
             );
@@ -1959,7 +1952,7 @@ class ServiceHistoryController extends Controller
             return 'sisa ' . $sisaHari . ' hari';
         }
 
-        if ($sisaHari <= 365) {
+        if ($sisaHari < 360) {
             $bulan     = (int) floor($sisaHari / 30);
             $hariSisa  = $sisaHari - ($bulan * 30);
             $str       = 'sisa ' . $bulan . ' bulan';
@@ -1967,7 +1960,7 @@ class ServiceHistoryController extends Controller
             return $str;
         }
 
-        // > 365 hari
+        // >= 360 hari → tampilkan dalam tahun
         $tahun     = (int) floor($sisaHari / 365);
         $sisaSetelahTahun = $sisaHari - ($tahun * 365);
         $bulan     = (int) floor($sisaSetelahTahun / 30);
@@ -2162,6 +2155,24 @@ class ServiceHistoryController extends Controller
             'tahun'  => (clone $tglPasang)->addYears($nilai),
             default  => (clone $tglPasang)->addMonths($nilai),
         };
+    }
+
+    /**
+     * Hitung jumlah part aktif/Terpasang untuk dimensi jumlah limit.
+     * Jika limitRule punya reset_at, hanya hitung part yang dibuat SETELAH reset_at.
+     */
+    private function hitungAktifCountJumlah(int $kendaraanId, int $categoryId, ?\App\Models\ServiceCategoryLimit $limitRule = null, ?string $resetAt = null): int
+    {
+        $q = ServicePart::where('kendaraan_id', $kendaraanId)
+            ->where('category_id', $categoryId)
+            ->whereIn('status', ['Terpasang', 'aktif']);
+
+        $effectiveResetAt = $resetAt ?? $limitRule?->reset_at;
+        if ($effectiveResetAt) {
+            $q->where('created_at', '>=', $effectiveResetAt);
+        }
+
+        return $q->count();
     }
 
     /**
@@ -2726,10 +2737,7 @@ class ServiceHistoryController extends Controller
             $limitJumlahPO = null;
             if ($limitRulePO && $limitRulePO->jumlah) {
                 // +1 untuk part ini sendiri yang belum tersimpan
-                $aktifCountPO  = ServicePart::where('kendaraan_id', $service->kendaraan_id)
-                    ->where('category_id', $partData['category_id'])
-                    ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                    ->count() + 1;
+                $aktifCountPO  = $this->hitungAktifCountJumlah($service->kendaraan_id, $partData['category_id'], $limitRulePO) + 1;
                 $limitJumlahPO = (int) $limitRulePO->jumlah;
             }
             $keteranganPartOtomatis = $this->generateKeteranganLimit($partData, $kmInputPO, $limitRulePO, $service->tanggal_service, $partLamaKmPasangPO, $aktifCountPO, $limitJumlahPO);

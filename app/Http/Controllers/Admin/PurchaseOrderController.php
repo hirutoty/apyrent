@@ -1572,7 +1572,7 @@ class PurchaseOrderController extends Controller
                     if ($limitRule->jumlah) {
                         $aktifCountNow  = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
                             ->where('category_id', $categoryId)
-                            ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                            ->whereIn('status', ['Terpasang', 'aktif'])
                             ->count();
                         $limitJumlahVal = (int) $limitRule->jumlah;
                     }

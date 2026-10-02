@@ -1142,7 +1142,7 @@ class PengeluaranInterceptorService
             return 'sisa ' . $sisaHari . ' hari';
         }
 
-        if ($sisaHari <= 365) {
+        if ($sisaHari < 360) {
             $bulan    = (int) floor($sisaHari / 30);
             $hariSisa = $sisaHari - ($bulan * 30);
             $str      = 'sisa ' . $bulan . ' bulan';
@@ -1150,6 +1150,7 @@ class PengeluaranInterceptorService
             return $str;
         }
 
+        // >= 360 hari → tampilkan dalam tahun
         $tahun            = (int) floor($sisaHari / 365);
         $sisaSetelahTahun = $sisaHari - ($tahun * 365);
         $bulan            = (int) floor($sisaSetelahTahun / 30);

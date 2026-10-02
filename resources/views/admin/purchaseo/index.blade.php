@@ -731,7 +731,7 @@
                                                                                 $fmtSisaWaktu = function(int $h): string {
                                                                                     if ($h <= 0)  return 'sisa 0 hari';
                                                                                     if ($h <= 30) return 'sisa ' . $h . ' hari';
-                                                                                    if ($h <= 365) {
+                                                                                    if ($h < 360) {
                                                                                         $b = (int)floor($h/30); $s = $h - $b*30;
                                                                                         return 'sisa ' . $b . ' bulan' . ($s > 0 ? ' ' . $s . ' hari' : '');
                                                                                     }
