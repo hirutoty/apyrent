@@ -44,6 +44,12 @@ class PengeluaranInterceptorService
                 ->get()
                 ->keyBy('category_id');
 
+            // ── Akumulasi biaya per kategori dalam satu batch ────────────────────
+            // Karena part-part baru belum tersimpan ke DB saat loop berjalan,
+            // kita harus meneruskan biaya item sebelumnya (sekategori) secara manual.
+            // Key: category_id (int) → total biaya item-item sebelumnya dalam batch ini.
+            $batchBiayaPerCategory = [];
+
             foreach ($data['parts'] as &$partData) {
                 // Status — selalu Proses saat diajukan
                 $partData['status'] = 'Proses';
@@ -103,26 +109,33 @@ class PengeluaranInterceptorService
                     ? $limitRules[$categoryId]
                     : null;
 
-                // Simpan nilai keterangan_limit dari form (hidden input) sebelum ditimpa
-                $ketFromForm = trim($partData['keterangan_limit'] ?? '');
+                // Biaya dari item-item sebelumnya dalam batch ini (sekategori, belum di-DB)
+                $extraBiayaFromBatch = ($categoryId !== null)
+                    ? (int) ($batchBiayaPerCategory[(int) $categoryId] ?? 0)
+                    : 0;
 
-                // Prioritas: gunakan nilai dari form (JS calcKeteranganLimit yang sudah benar
-                // karena pakai kumulatifBiayaCache dari AJAX real-time).
-                // Server-side hanya dipakai sebagai fallback jika form kosong atau '-'.
-                if ($ketFromForm && $ketFromForm !== '-') {
+                // Server-side selalu recalculate dengan kumulatif batch yang benar.
+                // Nilai dari form (JS) dipakai HANYA sebagai fallback jika server-side gagal,
+                // karena JS mungkin tidak memperhitungkan item lain dalam batch (Task 2 memperbaikinya).
+                $partData['keterangan_limit'] = $this->buildKeteranganLimitForIntercept(
+                    $partData,
+                    $kmInput,
+                    $limitRule,
+                    $data['tanggal_service'] ?? null,
+                    $extraBiayaFromBatch
+                );
+
+                // Fallback ke nilai form jika server-side menghasilkan '-' atau kosong
+                $ketFromForm = trim($partData['keterangan_limit_from_form'] ?? $partData['keterangan_limit'] ?? '');
+                if (($partData['keterangan_limit'] === '-' || empty($partData['keterangan_limit']))
+                    && $ketFromForm && $ketFromForm !== '-') {
                     $partData['keterangan_limit'] = $ketFromForm;
-                } else {
-                    $partData['keterangan_limit'] = $this->buildKeteranganLimitForIntercept(
-                        $partData,
-                        $kmInput,
-                        $limitRule,
-                        $data['tanggal_service'] ?? null
-                    );
-                    // Jika server-side juga '-' atau kosong, tetap pakai nilai form sebagai last resort
-                    if (($partData['keterangan_limit'] === '-' || empty($partData['keterangan_limit']))
-                        && $ketFromForm && $ketFromForm !== '-') {
-                        $partData['keterangan_limit'] = $ketFromForm;
-                    }
+                }
+
+                // Akumulasikan biaya item ini ke batch counter (untuk item berikutnya sekategori)
+                if ($categoryId !== null) {
+                    $catIdInt = (int) $categoryId;
+                    $batchBiayaPerCategory[$catIdInt] = ($batchBiayaPerCategory[$catIdInt] ?? 0) + (int) ($partData['biaya'] ?? 0);
                 }
 
                 // Inject limit_snapshot: nilai aktual service vs nilai limit per dimensi
@@ -155,10 +168,10 @@ class PengeluaranInterceptorService
                 $snapSisaPasang  = ($snapLimitJumlah !== null && $snapAktifCount !== null) ? ($snapLimitJumlah - $snapAktifCount) : null;
 
                 // ── Biaya kumulatif snapshot ─────────────────────────────────────
-                // Hitung kumulatif (total periode + biaya baru) untuk biaya_lewat/biaya_sama
-                // agar konsisten dengan keterangan_limit yang sudah pakai kumulatif.
+                // Hitung kumulatif (total periode + biaya baru + biaya item sebelumnya dalam batch)
+                // untuk biaya_lewat/biaya_sama agar konsisten dengan keterangan_limit.
                 $snapBiaya          = (int) ($partData['biaya'] ?? 0);
-                $snapBiayaKumulatif = $snapBiaya; // fallback: biaya tunggal
+                $snapBiayaKumulatif = $snapBiaya + $extraBiayaFromBatch; // fallback: biaya + batch sebelumnya
                 $kumulatifDataSnap  = null; // inisialisasi agar selalu terdefinisi
                 if ($limitRule && $limitRule->limit_price && $limitRule->limit_nilai && $limitRule->kendaraan_id) {
                     $controller       = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
@@ -176,7 +189,8 @@ class PengeluaranInterceptorService
                         $kumulatifDataSnap = ['total_dalam_periode' => 0, 'sisa_limit' => (int) $limitRule->limit_price];
                     }
                     if ($kumulatifDataSnap !== null) {
-                        $snapBiayaKumulatif = $kumulatifDataSnap['total_dalam_periode'] + $snapBiaya;
+                        // total dari DB + biaya item ini + biaya item sebelumnya dalam batch
+                        $snapBiayaKumulatif = $kumulatifDataSnap['total_dalam_periode'] + $snapBiaya + $extraBiayaFromBatch;
                     }
                 }
                 $snapBiayaLewat = $limitRule && $limitRule->limit_price
@@ -186,13 +200,12 @@ class PengeluaranInterceptorService
                     ? ($snapBiayaKumulatif === (int) $limitRule->limit_price)
                     : false;
 
-                // ── Sisa limit biaya (limit - total_yang_sudah_terpakai_di_periode) ──
-                // total_dalam_periode belum termasuk biaya baru ini (belum tersimpan)
-                // sehingga sisa = limit - total_dalam_periode
+                // ── Sisa limit biaya (limit - total_periode_dari_DB - biaya_batch_sebelumnya - biaya_item_ini) ──
+                // Merefleksikan sisa limit SETELAH item ini (dan item sebelumnya dalam batch) ditambahkan.
                 $snapLimitPrice = $limitRule ? ((int) ($limitRule->limit_price ?? 0) ?: null) : null;
                 $snapTotalDalamPeriode = $kumulatifDataSnap['total_dalam_periode'] ?? null;
                 $snapSisaLimitBiaya = ($snapLimitPrice !== null && $snapTotalDalamPeriode !== null)
-                    ? ($snapLimitPrice - $snapTotalDalamPeriode)
+                    ? ($snapLimitPrice - $snapTotalDalamPeriode - $extraBiayaFromBatch - $snapBiaya)
                     : null;
 
                 // ── Sisa limit KM (target_km - km_pasang_saat_ini) ──────────────
@@ -287,9 +300,11 @@ class PengeluaranInterceptorService
      * selalu tampilkan status + angka sisa untuk semua dimensi yang dikonfigurasi.
      *
      * Catatan: dipanggil saat part BELUM tersimpan ke DB, jadi biaya kumulatif
-     * = total_dalam_periode (dari DB) + biaya baru ini.
+     * = total_dalam_periode (dari DB) + extraBiayaFromBatch (item sebelumnya di batch ini) + biaya baru ini.
+     *
+     * @param int $extraBiayaFromBatch  Total biaya item-item sebelumnya dalam batch ini (sekategori, belum di-DB)
      */
-    private function buildKeteranganLimitForIntercept(array $partData, int $kmInput, ?\App\Models\ServiceCategoryLimit $limitRule, ?string $tanggalServis = null): string
+    private function buildKeteranganLimitForIntercept(array $partData, int $kmInput, ?\App\Models\ServiceCategoryLimit $limitRule, ?string $tanggalServis = null, int $extraBiayaFromBatch = 0): string
     {
         if (!$limitRule) {
             return '-';
@@ -314,9 +329,9 @@ class PengeluaranInterceptorService
         $intervalAda = $intervalNilai > 0;
 
         // ── Biaya kumulatif per periode ──────────────────────────────────────
-        // Part belum tersimpan ke DB → tambahkan $biaya ke total periode yang ada
-        $biayaKumulatif = $biaya;
-        $sisaBiaya      = $hargaLimit ? ((int)$hargaLimit - $biaya) : null;
+        // Part belum tersimpan ke DB → tambahkan $biaya + $extraBiayaFromBatch ke total periode yang ada
+        $biayaKumulatif = $biaya + $extraBiayaFromBatch;
+        $sisaBiaya      = $hargaLimit ? ((int)$hargaLimit - $biayaKumulatif) : null;
         if ($hargaLimit && $limitRule->limit_nilai && $limitRule->kendaraan_id) {
             $controller    = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
             $kumulatifData = $controller->getKumulatifBiayaKategori(
@@ -333,7 +348,8 @@ class PengeluaranInterceptorService
                 $kumulatifData = ['total_dalam_periode' => 0, 'sisa_limit' => (int) $hargaLimit];
             }
             if ($kumulatifData !== null) {
-                $biayaKumulatif = $kumulatifData['total_dalam_periode'] + $biaya;
+                // DB total + biaya item sebelumnya dalam batch + biaya item ini
+                $biayaKumulatif = $kumulatifData['total_dalam_periode'] + $extraBiayaFromBatch + $biaya;
                 $sisaBiaya      = (int)$hargaLimit - $biayaKumulatif; // bisa negatif
             }
         }

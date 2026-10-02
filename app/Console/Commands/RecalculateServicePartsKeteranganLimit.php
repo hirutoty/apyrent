@@ -9,12 +9,22 @@ use Carbon\Carbon;
 
 class RecalculateServicePartsKeteranganLimit extends Command
 {
-    protected $signature   = 'service:recalc-keterangan-limit {--dry-run : Tampilkan saja tanpa update} {--all : Recalculate semua part, bukan hanya yang null/"-"}';
-    protected $description = 'Recalculate keterangan_limit untuk service_parts (default: hanya null/"-", --all: semua)';
+    protected $signature   = 'service:recalc-keterangan-limit
+        {--dry-run  : Tampilkan saja tanpa update}
+        {--all      : Recalculate semua part, bukan hanya yang null/"-"}
+        {--kendaraan= : Batasi ke kendaraan_id tertentu}';
+
+    protected $description = 'Recalculate keterangan_limit untuk service_parts dengan akumulasi kumulatif berurutan per kategori dalam satu service_history';
 
     public function handle(): int
     {
-        $query = ServicePart::with(['serviceHistory']);
+        $query = ServicePart::with(['serviceHistory'])
+            ->orderBy('service_history_id')
+            ->orderBy('id');
+
+        if ($kendaraanId = $this->option('kendaraan')) {
+            $query->where('kendaraan_id', (int) $kendaraanId);
+        }
 
         if (!$this->option('all')) {
             $query->where(function ($q) {
@@ -34,41 +44,72 @@ class RecalculateServicePartsKeteranganLimit extends Command
         }
 
         // Pre-load semua limit rules
-        $limitRulesMap = ServiceCategoryLimit::all()->keyBy(fn($r) => $r->kendaraan_id . '_' . $r->category_id);
+        $limitRulesMap = ServiceCategoryLimit::all()
+            ->keyBy(fn($r) => $r->kendaraan_id . '_' . $r->category_id);
+
+        // ── Group per service_history_id agar bisa proses berurutan per kategori ──
+        // Parts dalam satu service_history diproses berurutan (by id).
+        // Kita perlu tahu biaya kumulatif dari DB SEBELUM part ini, yaitu:
+        //   total_dalam_periode_dari_DB - biaya_part_ini - biaya_sibling_sebelumnya_dalam_batch
+        // Caranya: untuk setiap service_history, kita proses part per part berurutan,
+        // dan track berapa yang sudah "dialokasikan" dalam batch ini sekategori.
+        $partsByHistory = $parts->groupBy('service_history_id');
 
         $updated = 0;
         $bar     = $this->output->createProgressBar($parts->count());
         $bar->start();
 
-        foreach ($parts as $part) {
-            $mapKey    = $part->kendaraan_id . '_' . $part->category_id;
-            $limitRule = $limitRulesMap->get($mapKey);
+        foreach ($partsByHistory as $historyId => $historyParts) {
+            // Untuk setiap service_history, track biaya yang sudah dihitung per kategori
+            // Key: category_id → total biaya part-part sebelumnya dalam batch ini
+            $batchBiayaAlreadyProcessed = [];
 
-            $tanggalServis = $part->serviceHistory?->tanggal_service
-                ?? $part->tgl_pasang
-                ?? now()->toDateString();
+            foreach ($historyParts->sortBy('id') as $part) {
+                $mapKey    = $part->kendaraan_id . '_' . $part->category_id;
+                $limitRule = $limitRulesMap->get($mapKey);
 
-            // Hitung aktifCount untuk dimensi jumlah
-            $aktifCountRec  = null;
-            $limitJumlahRec = null;
-            if ($limitRule && $limitRule->jumlah) {
-                $aktifCountRec  = ServicePart::where('kendaraan_id', $part->kendaraan_id)
-                    ->where('category_id', $part->category_id)
-                    ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
-                    ->count();
-                $limitJumlahRec = (int) $limitRule->jumlah;
+                $tanggalServis = $part->serviceHistory?->tanggal_service
+                    ?? $part->tgl_pasang
+                    ?? now()->toDateString();
+
+                // Biaya dari part-part lain dalam batch ini (sekategori, sudah diproses sebelumnya)
+                $catId               = (int) ($part->category_id ?? 0);
+                $biayaBatchSebelumnya = $catId ? (int) ($batchBiayaAlreadyProcessed[$catId] ?? 0) : 0;
+
+                // Hitung aktifCount untuk dimensi jumlah
+                $aktifCountRec  = null;
+                $limitJumlahRec = null;
+                if ($limitRule && $limitRule->jumlah) {
+                    $aktifCountRec  = ServicePart::where('kendaraan_id', $part->kendaraan_id)
+                        ->where('category_id', $part->category_id)
+                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                        ->count();
+                    $limitJumlahRec = (int) $limitRule->jumlah;
+                }
+
+                $keterangan = $this->generateKeterangan(
+                    $part,
+                    $limitRule,
+                    $tanggalServis,
+                    $aktifCountRec,
+                    $limitJumlahRec,
+                    $biayaBatchSebelumnya
+                );
+
+                if (!$this->option('dry-run')) {
+                    $part->update(['keterangan_limit' => $keterangan]);
+                    $updated++;
+                } else {
+                    $this->line("\n  History #{$historyId} Part #{$part->id} [{$part->nama_part}] batchExtra={$biayaBatchSebelumnya} → {$keterangan}");
+                }
+
+                // Akumulasikan biaya part ini untuk part berikutnya sekategori dalam batch yang sama
+                if ($catId) {
+                    $batchBiayaAlreadyProcessed[$catId] = $biayaBatchSebelumnya + (int) $part->biaya;
+                }
+
+                $bar->advance();
             }
-
-            $keterangan = $this->generateKeterangan($part, $limitRule, $tanggalServis, $aktifCountRec, $limitJumlahRec);
-
-            if (!$this->option('dry-run')) {
-                $part->update(['keterangan_limit' => $keterangan]);
-                $updated++;
-            } else {
-                $this->line("\n  Part #{$part->id} [{$part->nama_part}] → {$keterangan}");
-            }
-
-            $bar->advance();
         }
 
         $bar->finish();
@@ -83,14 +124,31 @@ class RecalculateServicePartsKeteranganLimit extends Command
         return 0;
     }
 
-    private function generateKeterangan(ServicePart $part, ?ServiceCategoryLimit $limitRule, string $tanggalServis, ?int $aktifCount = null, ?int $limitJumlah = null): string
-    {
+    /**
+     * Generate keterangan_limit untuk satu part.
+     *
+     * Karena part sudah tersimpan di DB, kita query total biaya sekategori dalam periode
+     * HANYA untuk part dengan id <= part ini — sehingga sibling yang diproses sesudah ini
+     * tidak ikut terhitung. Hasilnya mencerminkan sisa limit tepat setelah item ini.
+     *
+     * @param int $biayaBatchSebelumnya  Tidak dipakai lagi (digantikan oleh query id <= part->id),
+     *                                   dipertahankan untuk kompatibilitas signature.
+     */
+    private function generateKeterangan(
+        ServicePart $part,
+        ?ServiceCategoryLimit $limitRule,
+        string $tanggalServis,
+        ?int $aktifCount = null,
+        ?int $limitJumlah = null,
+        int $biayaBatchSebelumnya = 0
+    ): string {
         if (!$limitRule) {
             return '-';
         }
 
         $biaya          = (int) $part->biaya;
         $tglPasang      = Carbon::parse($part->tgl_pasang ?? now());
+        $tglBaru        = $tglPasang->copy()->startOfDay();
         $intervalNilai  = (int) ($part->interval_nilai ?? 0);
         $intervalSatuan = $part->interval_satuan ?? 'bulan';
         $kmInput        = (int) ($part->serviceHistory?->kilometer ?? $part->kilometer_pasang);
@@ -109,36 +167,68 @@ class RecalculateServicePartsKeteranganLimit extends Command
         $intervalAda = $intervalNilai > 0;
 
         // ── Biaya kumulatif dalam periode rolling ────────────────────────────
-        // Part sudah tersimpan di DB → total_dalam_periode sudah termasuk biaya part ini sendiri
+        // Query biaya part sekategori dalam periode aktif, hanya id <= part->id,
+        // sehingga sibling yang diproses sesudah ini tidak ikut terhitung.
         $biayaKumulatif = $biaya;
         $sisaBiaya      = $hargaLimit ? ((int)$hargaLimit - $biaya) : null;
+
         if ($hargaLimit && $limitRule->limit_nilai && $limitRule->kendaraan_id) {
-            $controller    = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
-            $kumulatifData = $controller->getKumulatifBiayaKategori(
-                (int) $limitRule->kendaraan_id,
-                (int) $limitRule->category_id,
-                (int) $limitRule->limit_nilai,
-                $limitRule->limit_satuan ?? 'bulan',
-                (int) $hargaLimit,
-                $tglPasang->toDateString()
-            );
-            if ($kumulatifData !== null) {
-                // Part sudah tersimpan, jadi total_dalam_periode sudah termasuk biaya ini
-                $biayaKumulatif = $kumulatifData['total_dalam_periode'];
-                $sisaBiaya      = (int)$hargaLimit - $biayaKumulatif; // bisa negatif
+            $limitNilai  = (int) $limitRule->limit_nilai;
+            $limitSatuan = $limitRule->limit_satuan ?? 'bulan';
+            $resetAt     = $limitRule->reset_at;
+
+            // Cari anchor periode
+            $anchor = null;
+            if ($resetAt !== null) {
+                $anchor = Carbon::parse($resetAt)->startOfDay();
+                if ($tglBaru->lt($anchor)) {
+                    $anchor = $tglBaru->copy();
+                }
+            } else {
+                $partPertama = ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
+                    ->where('category_id', $limitRule->category_id)
+                    ->whereNotNull('tgl_pasang')
+                    ->orderBy('tgl_pasang')
+                    ->first();
+                $anchor = $partPertama
+                    ? Carbon::parse($partPertama->tgl_pasang)->startOfDay()
+                    : $tglBaru->copy();
             }
+
+            // Iterasi slot periode sampai tglBaru masuk
+            $periodeMulai   = $anchor->copy();
+            $periodeSelesai = $this->hitungSelesaiSlot($periodeMulai, $limitNilai, $limitSatuan);
+            $maxIter        = 500;
+            while ($tglBaru->gt($periodeSelesai) && $maxIter-- > 0) {
+                $periodeMulai   = $this->hitungSlotBerikutnya($periodeMulai, $limitNilai, $limitSatuan);
+                $periodeSelesai = $this->hitungSelesaiSlot($periodeMulai, $limitNilai, $limitSatuan);
+            }
+
+            // Sum biaya hanya untuk id <= part ini dalam periode
+            $queryBiaya = ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
+                ->where('category_id', $limitRule->category_id)
+                ->where('id', '<=', $part->id)
+                ->whereDate('tgl_pasang', '>=', $periodeMulai->toDateString())
+                ->whereDate('tgl_pasang', '<=', $periodeSelesai->toDateString());
+
+            if ($resetAt !== null) {
+                $queryBiaya->where('created_at', '>=', Carbon::parse($resetAt));
+            }
+
+            $biayaKumulatif = (int) $queryBiaya->sum('biaya');
+            $sisaBiaya      = (int) $hargaLimit - $biayaKumulatif;
         }
 
-        $biayaLewat = $hargaLimit && $biayaKumulatif > $hargaLimit;
-        $biayaSama  = $hargaLimit && $biayaKumulatif === $hargaLimit;
-        $biayaAman  = !$hargaLimit || $biayaKumulatif < $hargaLimit;
+        $biayaLewat = $hargaLimit && $biayaKumulatif > (int) $hargaLimit;
+        $biayaSama  = $hargaLimit && $biayaKumulatif === (int) $hargaLimit;
+        $biayaAman  = !$hargaLimit || $biayaKumulatif < (int) $hargaLimit;
 
         $waktuLewat = $intervalAda && $tglLimit->lt($refTanggal);
         $waktuSama  = $intervalAda && $tglLimit->eq($refTanggal);
         $waktuAman  = !$intervalAda || $tglLimit->gt($refTanggal);
 
         $kmAda   = $kmLimit && $kmLimit > 0;
-        $sisaKm  = $kmAda ? ((int)$kmLimit - $kmInput) : null; // bisa negatif
+        $sisaKm  = $kmAda ? ((int)$kmLimit - $kmInput) : null;
         $kmLewat = $kmAda && $kmInput > (int)$kmLimit;
         $kmSama  = $kmAda && $kmInput === (int)$kmLimit;
         $kmAman  = !$kmAda || $kmInput < (int)$kmLimit;
@@ -147,9 +237,8 @@ class RecalculateServicePartsKeteranganLimit extends Command
         $jumlahSama  = $jumlahAda && $aktifCount === $limitJumlah;
         $jumlahLewat = $jumlahAda && $aktifCount > $limitJumlah;
         $jumlahAman  = !$jumlahAda || $aktifCount < $limitJumlah;
-        $sisaPasang  = $jumlahAda ? ($limitJumlah - $aktifCount) : null; // bisa negatif
+        $sisaPasang  = $jumlahAda ? ($limitJumlah - $aktifCount) : null;
 
-        // Tidak ada limit dikonfigurasi → "-"
         $adaLimit = $hargaLimit || $intervalAda || $kmAda || $jumlahAda;
         if (!$adaLimit) {
             return '-';
@@ -158,14 +247,12 @@ class RecalculateServicePartsKeteranganLimit extends Command
         // ── Bangun keterangan: 1 baris status per dimensi + sisa ────────────
         $kalimat = [];
 
-        // KM — status + sisa KM jika belum lewat
         if ($kmAda) {
             if ($kmSama)       $kalimat[] = 'Sudah mencapai batas limit KM';
             elseif ($kmLewat)  $kalimat[] = 'Sudah melebihi batas limit KM';
             else               $kalimat[] = 'Belum mencapai batas limit KM (sisa ' . number_format($sisaKm, 0, ',', '.') . ' km)';
         }
 
-        // Jangka waktu — status + sisa waktu jika belum lewat
         if ($intervalAda) {
             if ($waktuSama)       $kalimat[] = 'Sudah mencapai batas limit jangka waktu';
             elseif ($waktuLewat)  $kalimat[] = 'Sudah melebihi batas limit jangka waktu';
@@ -175,14 +262,12 @@ class RecalculateServicePartsKeteranganLimit extends Command
             }
         }
 
-        // Biaya — status + sisa biaya jika belum lewat
         if ($hargaLimit) {
             if ($biayaSama)       $kalimat[] = 'Sudah mencapai batas limit biaya';
             elseif ($biayaLewat)  $kalimat[] = 'Sudah melebihi limit biaya';
             else                  $kalimat[] = 'Belum mencapai limit biaya (sisa Rp ' . number_format($sisaBiaya, 0, ',', '.') . ')';
         }
 
-        // Jumlah pasang — status + sisa pcs
         if ($jumlahAda) {
             if ($jumlahSama)       $kalimat[] = 'Sudah mencapai batas pemasangan part';
             elseif ($jumlahLewat)  $kalimat[] = 'Sudah melebihi batas pemasangan part';
@@ -194,6 +279,26 @@ class RecalculateServicePartsKeteranganLimit extends Command
         }
 
         return implode(', ', $kalimat);
+    }
+
+    private function hitungSelesaiSlot(Carbon $mulai, int $nilai, string $satuan): Carbon
+    {
+        return match ($satuan) {
+            'hari'   => (clone $mulai)->addDays($nilai)->subDay(),
+            'minggu' => (clone $mulai)->addWeeks($nilai)->subDay(),
+            'tahun'  => (clone $mulai)->addYears($nilai)->subDay(),
+            default  => (clone $mulai)->addMonths($nilai)->subDay(),
+        };
+    }
+
+    private function hitungSlotBerikutnya(Carbon $mulai, int $nilai, string $satuan): Carbon
+    {
+        return match ($satuan) {
+            'hari'   => (clone $mulai)->addDays($nilai),
+            'minggu' => (clone $mulai)->addWeeks($nilai),
+            'tahun'  => (clone $mulai)->addYears($nilai),
+            default  => (clone $mulai)->addMonths($nilai),
+        };
     }
 
     private function formatSisaWaktu(int $sisaHari): string

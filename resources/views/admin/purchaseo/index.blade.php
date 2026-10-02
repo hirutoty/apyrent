@@ -531,9 +531,15 @@
 
                                         if ($isServicePart || $isServiceIncident) {
                                             $allParts    = $sourceData['parts'] ?? [];
-                                            $partDecMap  = collect($sourceData['item_decisions'] ?? [])->keyBy('idx');
+                                            $rawDecisions = $sourceData['item_decisions'] ?? [];
 
-                                            if ($partDecMap->isNotEmpty()) {
+                                            // Deteksi apakah item_decisions menggunakan key 'idx' (PO partial lama)
+                                            // atau tidak (PO rejected-only baru yang dibuat saat partial approve)
+                                            $decHasIdx = !empty($rawDecisions) && isset($rawDecisions[0]['idx']);
+
+                                            if ($decHasIdx) {
+                                                // PO lama: item_decisions punya field 'idx', keyBy idx untuk filter
+                                                $partDecMap = collect($rawDecisions)->keyBy('idx');
                                                 if ($statusFilter === 'Disetujui') {
                                                     $parts = collect($allParts)
                                                         ->filter(fn($p, $i) => ($partDecMap[$i]['action'] ?? '') === 'approved')
@@ -545,6 +551,10 @@
                                                 } else {
                                                     $parts = $allParts;
                                                 }
+                                            } elseif (!empty($rawDecisions)) {
+                                                // PO baru (rejected-only / approved-only): semua decisions sudah terfilter,
+                                                // parts di source_data sudah hanya berisi parts yang relevan → tampilkan semua
+                                                $parts = $allParts;
                                             } else {
                                                 $parts = $allParts;
                                             }
@@ -653,6 +663,11 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
+                                                            @php
+                                                                // Akumulasi biaya per kategori dalam satu PO ini
+                                                                // untuk menghitung sisa limit kumulatif yang benar per item
+                                                                $poBatchBiayaPerCategory = [];
+                                                            @endphp
                                                             @foreach($parts as $pIdx => $part)
                                                                 @php
                                                                     $category = isset($part['category_id']) ? \App\Models\ServiceCategory::find($part['category_id']) : null;
@@ -731,14 +746,19 @@
                                                                                     } elseif ($snapBiayaSamaLive) {
                                                                                         $poDimensi[] = ['label' => 'Sudah mencapai batas limit biaya', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                     } else {
-                                                                                        // Ambil sisa dari keterangan_limit jika tersedia (data baru sudah punya format sisa)
-                                                                                        $ketLimitStr   = $part['keterangan_limit'] ?? '';
+                                                                                        // Hitung biaya item sebelumnya sekategori dalam PO ini
+                                                                                        $poCatIdBiaya     = (int) ($part['category_id'] ?? 0);
+                                                                                        $poBatchExtraBiaya = $poCatIdBiaya ? (int) ($poBatchBiayaPerCategory[$poCatIdBiaya] ?? 0) : 0;
+
                                                                                         $sisaBiayaLabel = '';
+                                                                                        // Prioritas 1: parse dari keterangan_limit yang sudah benar (data baru via Task 1)
+                                                                                        $ketLimitStr   = $part['keterangan_limit'] ?? '';
                                                                                         if (preg_match('/Belum mencapai limit biaya\s*(\([^)]+\))/i', $ketLimitStr, $m)) {
                                                                                             $sisaBiayaLabel = ' ' . $m[1];
-                                                                                        } elseif (isset($snap['sisa_limit_biaya']) && $snap['sisa_limit_biaya'] > 0) {
-                                                                                            // Fallback: sisa_limit_biaya > 0 berarti belum ada pemakaian sebelumnya
-                                                                                            $sisaSetelah = $snap['sisa_limit_biaya'] - (int)($snap['service_biaya'] ?? 0);
+                                                                                        } elseif (isset($snap['sisa_limit_biaya'])) {
+                                                                                            // Fallback: sisa_limit_biaya dari snapshot sudah = limit - DB_total - extraBatch - item_ini (Task 1)
+                                                                                            // Untuk data lama (sebelum fix), kurangi manual dengan batch extra
+                                                                                            $sisaSetelah = (int) $snap['sisa_limit_biaya'] - $poBatchExtraBiaya;
                                                                                             if ($sisaSetelah >= 0) {
                                                                                                 $sisaBiayaLabel = ' (sisa Rp ' . number_format($sisaSetelah, 0, ',', '.') . ')';
                                                                                             }
@@ -827,6 +847,13 @@
                                                                     </td>
                                                                     <td class="px-3 py-2 text-right font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($part['biaya'] ?? 0, 0, ',', '.') }}</td>
                                                                 </tr>
+                                                                @php
+                                                                    // Akumulasikan biaya item ini untuk item berikutnya sekategori
+                                                                    $poCatIdAkum = (int) ($part['category_id'] ?? 0);
+                                                                    if ($poCatIdAkum) {
+                                                                        $poBatchBiayaPerCategory[$poCatIdAkum] = ($poBatchBiayaPerCategory[$poCatIdAkum] ?? 0) + (int) ($part['biaya'] ?? 0);
+                                                                    }
+                                                                @endphp
                                                             @endforeach
                                                             <tr class="border-t-2 border-{{ $expandColor }}-200 bg-{{ $expandColor }}-50/50">
                                                                 <td colspan="{{ $isServiceIncident ? 9 : 9 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>

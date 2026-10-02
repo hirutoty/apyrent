@@ -123,14 +123,18 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
+                @php $isEditPo = ($prefill && ($prefill['source'] ?? '') === 'edit_po'); @endphp
+
                 {{-- Kendaraan --}}
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Kendaraan <span class="text-red-500">*</span>
+                        @if($isEditPo)<span class="ml-1 text-[10px] text-gray-400 font-normal"><i class="fa fa-lock text-[9px]"></i> Tidak dapat diubah</span>@endif
                     </label>
                     <select name="kendaraan_id" id="kendaraan_id" required
                         onchange="onKendaraanChange(this.value)"
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 {{ $errors->has('kendaraan_id') ? 'border-red-400' : '' }}">
+                        @if($isEditPo) disabled @endif
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 {{ $errors->has('kendaraan_id') ? 'border-red-400' : '' }} {{ $isEditPo ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : '' }}">
                         <option value="">-- Pilih Kendaraan --</option>
                         @foreach ($kendaraan as $k)
                             <option value="{{ $k->id }}"
@@ -142,10 +146,14 @@
                             </option>
                         @endforeach
                     </select>
+                    {{-- Saat disabled, value tidak dikirim oleh browser — pakai hidden input --}}
+                    @if($isEditPo)
+                        <input type="hidden" name="kendaraan_id" value="{{ $prefill['kendaraan_id'] ?? '' }}">
+                    @endif
                     @error('kendaraan_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
 
-                {{-- Tanggal Service --}}
+                {{-- Tanggal Service — BISA DIEDIT --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Tanggal Service <span class="text-red-500">*</span>
@@ -156,7 +164,7 @@
                     @error('tanggal_service')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                 </div>
 
-                {{-- Kilometer --}}
+                {{-- Kilometer — BISA DIEDIT --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">
                         Kilometer <span class="text-red-500">*</span>
@@ -174,9 +182,13 @@
 
                 {{-- Keluhan --}}
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Keluhan</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                        Keluhan
+                        @if($isEditPo)<span class="ml-1 text-[10px] text-gray-400 font-normal"><i class="fa fa-lock text-[9px]"></i> Tidak dapat diubah</span>@endif
+                    </label>
                     <textarea name="keluhan" rows="2" placeholder="Deskripsikan keluhan kendaraan..."
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none">{{ old('keluhan', $prefill['keluhan'] ?? '') }}</textarea>
+                        @if($isEditPo) readonly @endif
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none {{ $isEditPo ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : '' }}">{{ old('keluhan', $prefill['keluhan'] ?? '') }}</textarea>
                 </div>
 
                 {{-- Alasan Permintaan & Keterangan Pengadaan — hidden, auto-generate --}}
@@ -194,7 +206,8 @@
                     Part / Komponen yang Dipasang
                 </h2>
                 <button type="button" onclick="addPartRow()"
-                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                    id="btn-tambah-part"
+                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors {{ (($prefill['source'] ?? '') === 'edit_po') ? 'hidden' : '' }}">
                     <i class="fa fa-plus text-xs"></i> Tambah Part
                 </button>
             </div>
@@ -464,6 +477,45 @@ async function loadLimitRules(kendaraanId) {
 }
 
 /**
+ * Hitung total biaya item-item SEBELUM index `idx` yang punya kategori sama.
+ * Digunakan agar calcKeteranganLimit item ke-N tahu sudah ada biaya dari item ke-0..N-1.
+ */
+function getExtraBiayaFromBatchForIdx(idx, categoryId) {
+    if (!categoryId) return 0;
+    let extra = 0;
+    document.querySelectorAll('[id^="cat-select-"]').forEach(function(catEl) {
+        const m = catEl.id.match(/cat-select-(\d+)/);
+        if (!m) return;
+        const i = parseInt(m[1]);
+        if (i >= idx) return; // hanya item sebelum idx
+        if (parseInt(catEl.value) !== categoryId) return; // hanya kategori yang sama
+        const biayaEl = document.getElementById('biaya-' + i);
+        extra += biayaEl ? (parseInt(biayaEl.value) || 0) : 0;
+    });
+    return extra;
+}
+
+/**
+ * Recalculate keterangan limit semua item yang punya kategori sama dengan item `idx`.
+ * Dipanggil saat biaya atau kategori satu item berubah, supaya item lain sekategori
+ * langsung diperbarui dengan sisa limit yang sudah mengurangi biaya item ini.
+ */
+function recalcSameCategory(idx) {
+    const catSelect  = document.getElementById('cat-select-' + idx);
+    const categoryId = catSelect ? parseInt(catSelect.value) : null;
+    if (!categoryId) return;
+    document.querySelectorAll('[id^="cat-select-"]').forEach(function(catEl) {
+        const m = catEl.id.match(/cat-select-(\d+)/);
+        if (!m) return;
+        const i = parseInt(m[1]);
+        if (i === idx) return; // skip diri sendiri, sudah dihitung pemanggil
+        if (parseInt(catEl.value) === categoryId) {
+            calcKeteranganLimit(i);
+        }
+    });
+}
+
+/**
  * Hitung keterangan limit untuk satu baris part secara client-side.
  * Mirror logika generateKeteranganLimit() PHP — menampilkan status + angka sisa
  * untuk semua dimensi: KM, jangka waktu, biaya, dan jumlah pasang.
@@ -505,15 +557,22 @@ function calcKeteranganLimit(idx) {
     const limitKm     = limitRule.limit_km    ? parseInt(limitRule.limit_km)    : null;
     const intervalAda = intervalNilai > 0;
 
-    // ── Dimensi biaya (kumulatif dari server) ─────────────────────────────
-    // kumulatifBiayaCache[idx].total_dengan_baru = total periode + biaya baru ini.
-    // sisa_setelah_input dari server sudah bisa negatif.
+    // ── Dimensi biaya (kumulatif dari server + batch items sebelumnya) ───────
+    // kumulatifBiayaCache[idx].total_dengan_baru = total periode (DB) + biaya item ini.
+    // Kita tambahkan extra biaya dari item-item sebelumnya dalam form yang sekategori.
     let biayaCek  = biaya;
     let sisaBiaya = limitPrice !== null ? (limitPrice - biaya) : null;
-    const kumulatifData = kumulatifBiayaCache[idx];
+    const kumulatifData  = kumulatifBiayaCache[idx];
+    const extraBatch     = limitPrice !== null ? getExtraBiayaFromBatchForIdx(idx, categoryId) : 0;
     if (kumulatifData && kumulatifData.has_limit && limitPrice !== null) {
-        biayaCek  = kumulatifData.total_dengan_baru ?? biaya;
-        sisaBiaya = kumulatifData.sisa_setelah_input ?? (limitPrice - biayaCek);
+        // total_dengan_baru sudah mencakup: DB_total + biaya item ini
+        // tambahkan extra dari item sebelumnya di form (belum tersimpan ke DB)
+        biayaCek  = (kumulatifData.total_dengan_baru ?? biaya) + extraBatch;
+        sisaBiaya = limitPrice - biayaCek;
+    } else if (limitPrice !== null) {
+        // Belum ada data kumulatif dari server (fetch belum selesai / tanpa limit)
+        biayaCek  = biaya + extraBatch;
+        sisaBiaya = limitPrice - biayaCek;
     }
 
     const biayaSama  = limitPrice !== null && biayaCek === limitPrice;
@@ -676,6 +735,87 @@ function recalcAllKeterangan() {
         const m = el.id.match(/ket-limit-text-(\d+)/);
         if (m) calcKeteranganLimit(parseInt(m[1]));
     });
+}
+
+// ── Lock fields pada baris part saat ajukan ulang dari PO ditolak ────────
+// Field yang BOLEH diedit: Tgl Pasang, Biaya
+// Field yang TIDAK BOLEH diedit: Nama Part, Kategori, Posisi, Part Number,
+//   Serial Number, Info Pembayaran, Supplier
+function lockPartRowFields(idx) {
+    const row = document.getElementById('part-row-' + idx);
+    if (!row) return;
+
+    const readonlyClass = 'bg-gray-50 text-gray-500 cursor-not-allowed';
+    const lockBadge = '<span class="ml-1 text-[10px] text-gray-400 font-normal"><i class="fa fa-lock text-[9px]"></i></span>';
+
+    // Helper: lock input/textarea
+    function lockInput(el) {
+        if (!el) return;
+        el.readOnly = true;
+        el.classList.add(...readonlyClass.split(' '));
+    }
+    // Helper: lock select
+    function lockSelect(el) {
+        if (!el) return;
+        el.disabled = true;
+        el.classList.add(...readonlyClass.split(' '));
+        // Buat hidden input pengganti agar value tetap ter-submit
+        const hidden = document.createElement('input');
+        hidden.type  = 'hidden';
+        hidden.name  = el.name;
+        hidden.value = el.value;
+        el.parentNode.insertBefore(hidden, el.nextSibling);
+    }
+    // Helper: tambah ikon lock ke label pertama di parent div
+    function addLockToLabel(el) {
+        if (!el) return;
+        const label = el.closest('div')?.querySelector('label');
+        if (label && !label.querySelector('.fa-lock')) {
+            label.insertAdjacentHTML('beforeend', lockBadge);
+        }
+    }
+
+    // Nama Part
+    const namaPartEl = row.querySelector('[name="parts[' + idx + '][nama_part]"]');
+    lockInput(namaPartEl); addLockToLabel(namaPartEl);
+
+    // Kategori (select)
+    const catEl = row.querySelector('#cat-select-' + idx);
+    if (catEl) { lockSelect(catEl); addLockToLabel(catEl); }
+
+    // Posisi (select)
+    const posisiEl = row.querySelector('[name="parts[' + idx + '][posisi]"]');
+    if (posisiEl) { lockSelect(posisiEl); addLockToLabel(posisiEl); }
+
+    // Part Number
+    const partNoEl = row.querySelector('[name="parts[' + idx + '][part_number]"]');
+    lockInput(partNoEl); addLockToLabel(partNoEl);
+
+    // Serial Number
+    const snEl = row.querySelector('[name="parts[' + idx + '][serial_number]"]');
+    lockInput(snEl); addLockToLabel(snEl);
+
+    // Info Pembayaran: Nama Rekening, Nama Bank, No Rekening
+    ['nama_rekening', 'nama_bank', 'no_rekening'].forEach(function(field) {
+        const el = row.querySelector('[name="parts[' + idx + '][' + field + ']"]');
+        lockInput(el);
+    });
+    // Tambah lock ke label section pembayaran
+    const bankSection = row.querySelector('.border-dashed.border-blue-200');
+    if (bankSection) {
+        const bankLabel = bankSection.querySelector('p.text-blue-600');
+        if (bankLabel && !bankLabel.querySelector('.fa-lock')) {
+            bankLabel.insertAdjacentHTML('beforeend', ' <span class="text-[10px] text-gray-400 font-normal"><i class="fa fa-lock text-[9px]"></i> Tidak dapat diubah</span>');
+        }
+    }
+
+    // Supplier (select)
+    const supplierEl = row.querySelector('#supplier-select-' + idx);
+    if (supplierEl) { lockSelect(supplierEl); addLockToLabel(supplierEl); }
+
+    // Tombol hapus part — sembunyikan saat edit_po (tidak boleh hapus part)
+    const removeBtn = row.querySelector('button[onclick^="removePartRow"]');
+    if (removeBtn) removeBtn.classList.add('hidden');
 }
 
 // ── Tambah row part ──────────────────────────────────────────
@@ -1028,8 +1168,8 @@ function addPartRow(data = null) {
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
                 <input type="number" name="parts[${idx}][biaya]" id="biaya-${idx}" min="0"
                     value="${data?.biaya || 0}"
-                    onchange="recalcTotal(); calcKeteranganLimit(${idx}); fetchLimitBiayaKumulatif(${idx});"
-                    oninput="recalcTotal(); calcKeteranganLimit(${idx}); fetchLimitBiayaKumulatif(${idx});"
+                    onchange="recalcTotal(); calcKeteranganLimit(${idx}); fetchLimitBiayaKumulatif(${idx}); recalcSameCategory(${idx});"
+                    oninput="recalcTotal(); calcKeteranganLimit(${idx}); fetchLimitBiayaKumulatif(${idx}); recalcSameCategory(${idx});"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                 <p id="biaya-hint-${idx}" class="text-[10px] text-gray-400 mt-1 hidden"></p>
                 <div id="biaya-kumulatif-hint-${idx}" class="hidden mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px]"></div>
@@ -1137,6 +1277,11 @@ function addPartRow(data = null) {
     `;
 
     container.appendChild(row);
+
+    // Lock fields yang tidak boleh diedit saat ajukan ulang dari PO ditolak
+    if (IS_RESUBMIT) {
+        lockPartRowFields(idx);
+    }
 
     // Auto-fill km pasang dari header KM jika belum ada
     syncKmPasang(idx);
@@ -1363,7 +1508,7 @@ function onCategoryChange(select, idx) {
     calcKeteranganLimit(idx);
     // Re-sync disabled saat kategori berubah
     syncDisabledKategoriPosisi();
-    // Recalc semua row agar jumlah aktif form ikut terupdate di row lain
+    // Recalc semua row agar jumlah aktif form + kumulatif biaya batch ikut terupdate
     recalcAllKeterangan();
 }
 

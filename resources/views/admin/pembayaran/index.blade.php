@@ -1171,6 +1171,11 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
+                                                        @php
+                                                            // Akumulasi biaya per kategori dalam satu Pembayaran ini
+                                                            // untuk menghitung sisa limit kumulatif yang benar per item
+                                                            $pembBatchBiayaPerCategory = [];
+                                                        @endphp
                                                         @foreach($filteredParts as $spi => $spart)
                                                             @php
                                                                 $spCat   = isset($spart['category_id']) ? \App\Models\ServiceCategory::find($spart['category_id']) : null;
@@ -1249,13 +1254,19 @@
                                                                                 } elseif ($ketBiayaSamaLive) {
                                                                                     $ketDimensi[] = ['label' => 'Sudah mencapai batas limit biaya', 'color' => 'bg-yellow-100 text-yellow-700'];
                                                                                 } else {
-                                                                                    // Ambil sisa dari keterangan_limit jika tersedia (data baru sudah punya format sisa)
-                                                                                    $ketLimitStr    = $spart['keterangan_limit'] ?? '';
+                                                                                    // Hitung biaya item sebelumnya sekategori dalam Pembayaran ini
+                                                                                    $pembCatIdBiaya      = (int) ($spart['category_id'] ?? 0);
+                                                                                    $pembBatchExtraBiaya = $pembCatIdBiaya ? (int) ($pembBatchBiayaPerCategory[$pembCatIdBiaya] ?? 0) : 0;
+
                                                                                     $sisaBiayaLabel = '';
+                                                                                    // Prioritas 1: parse dari keterangan_limit yang sudah benar (data baru via Task 1)
+                                                                                    $ketLimitStr    = $spart['keterangan_limit'] ?? '';
                                                                                     if (preg_match('/Belum mencapai limit biaya\s*(\([^)]+\))/i', $ketLimitStr, $m)) {
                                                                                         $sisaBiayaLabel = ' ' . $m[1];
-                                                                                    } elseif (isset($snap['sisa_limit_biaya']) && $snap['sisa_limit_biaya'] > 0) {
-                                                                                        $sisaSetelah = $snap['sisa_limit_biaya'] - (int)($snap['service_biaya'] ?? 0);
+                                                                                    } elseif (isset($snap['sisa_limit_biaya'])) {
+                                                                                        // Fallback: sisa_limit_biaya dari snapshot (Task 1 sudah benar untuk data baru)
+                                                                                        // Untuk data lama, kurangi manual dengan batch extra
+                                                                                        $sisaSetelah = (int) $snap['sisa_limit_biaya'] - $pembBatchExtraBiaya;
                                                                                         if ($sisaSetelah >= 0) {
                                                                                             $sisaBiayaLabel = ' (sisa Rp ' . number_format($sisaSetelah, 0, ',', '.') . ')';
                                                                                         }
@@ -1386,6 +1397,13 @@
                                                                     </td>
                                                                 @endif
                                                             </tr>
+                                                            @php
+                                                                // Akumulasikan biaya item ini untuk item berikutnya sekategori dalam batch yang sama
+                                                                $pembCatIdAkum = (int) ($spart['category_id'] ?? 0);
+                                                                if ($pembCatIdAkum) {
+                                                                    $pembBatchBiayaPerCategory[$pembCatIdAkum] = ($pembBatchBiayaPerCategory[$pembCatIdAkum] ?? 0) + (int) ($spart['biaya'] ?? 0);
+                                                                }
+                                                            @endphp
                                                         @endforeach
                                                             <tr class="border-t-2 border-gray-200 bg-gray-50">
                                                                 <td colspan="{{ $spDecMap->isNotEmpty() ? 11 : 10 }}" class="px-4 py-2 text-right text-xs font-semibold text-gray-500">Total</td>
@@ -3330,5 +3348,280 @@ function _escAttr(str) {
 }
 </script>
 @endpush
+
+{{-- ── MODAL PER-ITEM APPROVAL (service_part / service_incident / GPS / service_asuransi) ── --}}
+<div id="modalPerItemApproval" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h3 class="text-base font-bold text-gray-800">Approve / Reject Items</h3>
+                <p class="text-sm text-gray-500 mt-0.5">PR: <span id="pia-no-pr" class="font-mono font-semibold text-blue-600"></span></p>
+            </div>
+            <button onclick="closePerItemApprovalModal()" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center">
+                <i class="fa fa-times text-sm"></i>
+            </button>
+        </div>
+
+        {{-- Loading --}}
+        <div id="pia-loading" class="flex items-center justify-center py-16">
+            <div class="flex flex-col items-center gap-2 text-gray-400">
+                <i class="fa fa-spinner fa-spin text-2xl"></i>
+                <p class="text-sm">Memuat data items...</p>
+            </div>
+        </div>
+
+        {{-- Content --}}
+        <form id="pia-form" method="POST" enctype="multipart/form-data" class="hidden flex-1 overflow-y-auto flex flex-col">
+            @csrf
+            <div class="px-6 pt-4 pb-2">
+                <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-xs text-blue-700 mb-3">
+                    <i class="fa fa-info-circle mr-1"></i>
+                    <span id="pia-kendaraan"></span>
+                </div>
+                <div id="pia-items-container" class="space-y-3"></div>
+            </div>
+            <div class="border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
+                <button type="button" onclick="closePerItemApprovalModal()"
+                    class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50">
+                    Batal
+                </button>
+                <button type="button" id="pia-submit-btn" onclick="submitPerItemApproval()"
+                    class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-xl py-2.5">
+                    <i class="fa fa-check"></i> Konfirmasi Keputusan
+                </button>
+            </div>
+        </form>
+
+        <div id="pia-error" class="hidden px-6 py-8 text-center text-red-500 text-sm">
+            <i class="fa fa-exclamation-triangle text-2xl mb-2 block"></i>
+            <span id="pia-error-msg"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+let _piaPembayaranId = null;
+let _piaItems = [];
+let _piaDecisions = {}; // { idx: 'approved'|'rejected' }
+
+function openApprovalModal(id) {
+    _piaPembayaranId = id;
+    _piaItems = [];
+    _piaDecisions = {};
+
+    document.getElementById('pia-no-pr').textContent = '—';
+    document.getElementById('pia-loading').classList.remove('hidden');
+    document.getElementById('pia-form').classList.add('hidden');
+    document.getElementById('pia-error').classList.add('hidden');
+    document.getElementById('pia-items-container').innerHTML = '';
+
+    const m = document.getElementById('modalPerItemApproval');
+    m.classList.remove('hidden'); m.classList.add('flex');
+
+    fetch('/admin/pembayaran/' + id + '/approval-items', {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(function(data) {
+        if (!data.success) throw new Error(data.message || 'Gagal memuat data.');
+
+        document.getElementById('pia-no-pr').textContent = data.no_pr || '—';
+        document.getElementById('pia-kendaraan').textContent = data.kendaraan || '-';
+
+        // Set form action
+        document.getElementById('pia-form').action = '/admin/pembayaran/' + id + '/approve-items';
+
+        _piaItems = data.items || [];
+        const isServicePart = ['service_part', 'service_incident'].includes(data.source_type);
+        const container = document.getElementById('pia-items-container');
+
+        _piaItems.forEach(function(item, i) {
+            const idx = item.idx;
+            _piaDecisions[idx] = 'approved'; // default: semua approved
+
+            const card = document.createElement('div');
+            card.id = 'pia-card-' + idx;
+            card.className = 'border border-green-200 rounded-xl overflow-hidden bg-green-50/20';
+
+            card.innerHTML = `
+                <input type="hidden" name="items[${i}][idx]" value="${idx}">
+                <input type="hidden" id="pia-action-${idx}" name="items[${i}][action]" value="approved">
+                <div class="flex items-center justify-between px-4 py-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm font-semibold text-gray-800">${_escH(item.nama)}</span>
+                            ${item.category ? '<span class="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-semibold">' + _escH(item.category) + '</span>' : ''}
+                        </div>
+                        <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-3">
+                            <span class="font-semibold text-emerald-600">Rp ${parseInt(item.biaya).toLocaleString('id-ID')}</span>
+                            ${item.nama_bank ? '<span>' + _escH(item.nama_bank) + ' · ' + _escH(item.no_rekening || '-') + '</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-shrink-0 ml-3">
+                        <button type="button" onclick="setPiaDecision(${idx}, 'approved')"
+                            id="pia-btn-approve-${idx}"
+                            class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white">
+                            <i class="fa fa-check text-[10px]"></i> Approve
+                        </button>
+                        <button type="button" onclick="setPiaDecision(${idx}, 'rejected')"
+                            id="pia-btn-reject-${idx}"
+                            class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 border border-gray-200">
+                            <i class="fa fa-times text-[10px]"></i> Reject
+                        </button>
+                    </div>
+                </div>
+                ${isServicePart ? `
+                {{-- Bukti bayar upload (wajib jika approved) --}}
+                <div id="pia-bukti-wrap-${idx}" class="px-4 pb-3 pt-1 border-t border-green-100 bg-green-50/40">
+                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        Bukti Pembayaran <span class="text-red-400">*</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer border border-dashed border-green-300 hover:border-green-400 bg-white rounded-lg px-3 py-2 transition-colors">
+                        <i class="fa fa-paperclip text-green-500 text-sm"></i>
+                        <span id="pia-bukti-label-${idx}" class="text-xs text-gray-500 flex-1">Klik untuk pilih file...</span>
+                        <input type="file" name="items[${i}][bukti]" id="pia-bukti-input-${idx}"
+                            accept="image/*,application/pdf" class="hidden"
+                            onchange="updatePiaBuktiLabel(${idx})">
+                    </label>
+                </div>
+                ` : ''}
+                {{-- Alasan tolak (tampil saat rejected) --}}
+                <div id="pia-reject-panel-${idx}" class="hidden px-4 pb-3 pt-1 border-t border-red-100 bg-red-50/30">
+                    <label class="block text-[10px] font-semibold text-red-500 uppercase tracking-wide mb-1.5">
+                        Alasan Penolakan <span class="text-red-400">*</span>
+                    </label>
+                    <textarea name="items[${i}][catatan]" id="pia-catatan-${idx}" rows="2"
+                        placeholder="Tulis alasan penolakan..."
+                        class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"></textarea>
+                </div>`;
+
+            container.appendChild(card);
+        });
+
+        document.getElementById('pia-loading').classList.add('hidden');
+        document.getElementById('pia-form').classList.remove('hidden');
+    })
+    .catch(function(err) {
+        document.getElementById('pia-loading').classList.add('hidden');
+        document.getElementById('pia-error-msg').textContent = err.message || 'Terjadi kesalahan.';
+        document.getElementById('pia-error').classList.remove('hidden');
+    });
+}
+
+function setPiaDecision(idx, action) {
+    _piaDecisions[idx] = action;
+    const card = document.getElementById('pia-card-' + idx);
+    const actionInput = document.getElementById('pia-action-' + idx);
+    const btnApprove = document.getElementById('pia-btn-approve-' + idx);
+    const btnReject = document.getElementById('pia-btn-reject-' + idx);
+    const buktiWrap = document.getElementById('pia-bukti-wrap-' + idx);
+    const rejectPanel = document.getElementById('pia-reject-panel-' + idx);
+
+    if (actionInput) actionInput.value = action;
+
+    if (action === 'approved') {
+        card.className = 'border border-green-200 rounded-xl overflow-hidden bg-green-50/20';
+        btnApprove.className = 'inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white';
+        btnReject.className = 'inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 border border-gray-200';
+        if (buktiWrap) buktiWrap.classList.remove('hidden');
+        if (rejectPanel) rejectPanel.classList.add('hidden');
+    } else {
+        card.className = 'border border-red-200 rounded-xl overflow-hidden bg-red-50/20';
+        btnApprove.className = 'inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-600 border border-gray-200';
+        btnReject.className = 'inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-red-600 text-white';
+        if (buktiWrap) buktiWrap.classList.add('hidden');
+        if (rejectPanel) rejectPanel.classList.remove('hidden');
+    }
+}
+
+function updatePiaBuktiLabel(idx) {
+    const input = document.getElementById('pia-bukti-input-' + idx);
+    const label = document.getElementById('pia-bukti-label-' + idx);
+    if (input && input.files.length > 0) {
+        label.textContent = '✓ ' + input.files[0].name;
+        label.classList.add('text-green-700');
+    }
+}
+
+async function submitPerItemApproval() {
+    if (!_piaPembayaranId) return;
+
+    // Validasi: approved harus ada bukti, rejected harus ada catatan
+    let valid = true;
+    for (const item of _piaItems) {
+        const idx = item.idx;
+        const action = _piaDecisions[idx];
+        if (action === 'approved') {
+            const buktiInput = document.getElementById('pia-bukti-input-' + idx);
+            if (buktiInput && buktiInput.files.length === 0) {
+                alert('Item "' + item.nama + '" disetujui tapi bukti pembayaran belum diupload.');
+                valid = false; break;
+            }
+        } else {
+            const catatanEl = document.getElementById('pia-catatan-' + idx);
+            if (catatanEl && !catatanEl.value.trim()) {
+                alert('Item "' + item.nama + '" ditolak tapi alasan penolakan belum diisi.');
+                catatanEl.focus(); valid = false; break;
+            }
+        }
+    }
+    if (!valid) return;
+
+    const btn = document.getElementById('pia-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
+
+    const form = document.getElementById('pia-form');
+    const formData = new FormData(form);
+
+    try {
+        const res = await fetch('/admin/pembayaran/' + _piaPembayaranId + '/approve-items', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+
+        // Controller merespon dengan redirect — ikuti redirect
+        if (res.redirected) {
+            window.location.href = res.url;
+            return;
+        }
+
+        // Coba parse sebagai JSON (jika ada error response)
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            const result = await res.json();
+            if (!result.success) {
+                alert(result.message || 'Terjadi kesalahan.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-check"></i> Konfirmasi Keputusan';
+                return;
+            }
+        }
+
+        // Jika response adalah HTML (redirect di-follow), reload
+        window.location.reload();
+    } catch(e) {
+        alert('Terjadi kesalahan jaringan: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-check"></i> Konfirmasi Keputusan';
+    }
+}
+
+function closePerItemApprovalModal() {
+    const m = document.getElementById('modalPerItemApproval');
+    m.classList.add('hidden'); m.classList.remove('flex');
+    _piaPembayaranId = null;
+}
+
+document.getElementById('modalPerItemApproval')?.addEventListener('click', function(e) {
+    if (e.target === this) closePerItemApprovalModal();
+});
+
+function _escH(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
 
 @endsection
