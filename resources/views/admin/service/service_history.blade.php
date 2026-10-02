@@ -180,10 +180,15 @@
                             $partCount     = $d->parts->where('status', '!=', 'Diganti')->count();
                             $partLimit     = $d->parts->where('status', 'Limit')->count();
                             $rowId         = 'parts-row-' . $d->id;
+                            // Highlight: apakah row ini punya part ditolak dari pembayaran yang di-highlight?
+                            $isHighlighted = $highlightPembayaran > 0
+                                && (int)$d->pembayaran_id === $highlightPembayaran
+                                && $d->parts->where('persetujuan', 'Ditolak')->count() > 0;
                         @endphp
 
                         {{-- Main row --}}
-                        <tr class="border-t border-gray-100 hover:bg-blue-50/30 transition-colors cursor-pointer"
+                        <tr id="{{ $isHighlighted ? 'sh-highlight-row' : '' }}"
+                            class="border-t border-gray-100 hover:bg-blue-50/30 transition-colors cursor-pointer {{ $isHighlighted ? 'ring-2 ring-amber-400 bg-amber-50/40' : '' }}"
                             onclick="togglePartsRow('{{ $rowId }}', this)">
                             <td class="px-3 py-4 text-center">
                                 <span id="chevron-{{ $d->id }}"
@@ -579,7 +584,14 @@
                                                                     </form>
                                                                 </div>
                                                             @else
-                                                                <span class="text-xs text-gray-300">—</span>
+                                                                @if($part->persetujuan === 'Ditolak' && $d->pembayaran_id)
+                                                                    <a href="{{ route('service-history.index', ['highlight_pembayaran' => $d->pembayaran_id]) }}"
+                                                                        class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
+                                                                        <i class="fa fa-rotate-right text-[9px]"></i> Ajukan Ulang
+                                                                    </a>
+                                                                @else
+                                                                    <span class="text-xs text-gray-300">—</span>
+                                                                @endif
                                                             @endif
                                                         </td>
                                                     </tr>
@@ -2042,6 +2054,35 @@ function closeModalGantiLimit() {
 document.getElementById('modal-ganti-limit').addEventListener('click', function(e) {
     if (e.target === this) closeModalGantiLimit();
 });
+
+{{-- Auto-scroll & expand row saat redirect dari pembayaran dengan highlight_pembayaran --}}
+@if($highlightPembayaran > 0)
+document.addEventListener('DOMContentLoaded', function() {
+    const hlRow = document.getElementById('sh-highlight-row');
+    if (!hlRow) return;
+
+    // Auto-expand baris (simulasi klik toggle)
+    hlRow.click();
+
+    // Scroll ke baris setelah expand
+    setTimeout(function() {
+        hlRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+});
+@endif
 </script>
+
+@if($highlightPembayaran > 0)
+<div id="sh-highlight-banner"
+    class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-amber-600 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl"
+    style="animation: slideUp 0.3s ease">
+    <i class="fa fa-rotate-right text-base"></i>
+    <span>Part ditolak dari pembayaran ditemukan — klik tombol <strong>Ajukan Ulang</strong> untuk mengajukan kembali.</span>
+    <button onclick="document.getElementById('sh-highlight-banner').remove()"
+        class="ml-2 text-white/70 hover:text-white transition-colors">
+        <i class="fa fa-times"></i>
+    </button>
+</div>
+@endif
 
 @endsection

@@ -484,6 +484,9 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get('pembayaran/{pembayaran}/rejected-items', [PembayaranController::class, 'rejectedItems'])
     ->name('pembayaran.rejected-items');
 
+  Route::get('pembayaran/{pembayaran}/approval-items', [PembayaranController::class, 'approvalItems'])
+    ->name('pembayaran.approval-items');
+
   Route::post('pembayaran/{pembayaran}/resubmit-rejected-items', [PembayaranController::class, 'resubmitRejectedItems'])
     ->name('pembayaran.resubmit-rejected-items');
 

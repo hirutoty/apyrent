@@ -99,6 +99,7 @@ class ServiceHistoryController extends Controller
             // Dipakai di view untuk badge "Melebihi Limit" tanpa N+1 query
             'categoryLimitsMap'  => ServiceCategoryLimit::all()
                 ->keyBy(fn($r) => $r->kendaraan_id . '_' . $r->category_id),
+            'highlightPembayaran' => (int) $request->input('highlight_pembayaran', 0),
         ]);
     }
 

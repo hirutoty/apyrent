@@ -2732,6 +2732,75 @@ class PembayaranController extends Controller
      * AJAX GET — kembalikan semua item yang rejected dari satu PR.
      * Digunakan untuk prefill form di modal resubmit.
      */
+    /**
+     * GET: Load semua items dari pembayaran untuk modal per-item approval
+     * Digunakan oleh modal Approve di halaman pembayaran untuk service_part/service_incident/service_asuransi
+     */
+    public function approvalItems(Pembayaran $pembayaran)
+    {
+        if (!in_array($pembayaran->status, ['Pending', 'Diajukan'])) {
+            return response()->json(['success' => false, 'message' => 'PR tidak dalam status yang dapat diproses.'], 422);
+        }
+
+        $srcType    = $pembayaran->source_data['source_type'] ?? $pembayaran->source_type;
+        $sourceData = $pembayaran->source_data ?? [];
+        $items      = [];
+
+        if (in_array($srcType, ['service_part', 'service_incident'])) {
+            $parts = $sourceData['parts'] ?? [];
+            foreach ($parts as $idx => $part) {
+                $items[] = [
+                    'idx'           => $idx,
+                    'nama'          => $part['nama_part'] ?? '-',
+                    'category'      => $part['category_nama'] ?? null,
+                    'biaya'         => (int) ($part['biaya'] ?? 0),
+                    'nama_bank'     => $part['nama_bank'] ?? null,
+                    'no_rekening'   => $part['no_rekening'] ?? null,
+                    'nama_rekening' => $part['nama_rekening'] ?? null,
+                ];
+            }
+        } elseif ($srcType === 'service_asuransi') {
+            $kejadians = $sourceData['kejadians'] ?? [];
+            foreach ($kejadians as $idx => $kej) {
+                $items[] = [
+                    'idx'   => $idx,
+                    'nama'  => $kej['nama_kejadian'] ?? '-',
+                    'biaya' => (int) ($kej['biaya'] ?? 0),
+                ];
+            }
+        } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+            $gpsItems = $sourceData['gps_items'] ?? [];
+            foreach ($gpsItems as $idx => $gItem) {
+                $gpsModel = isset($gItem['gps_id']) ? \App\Models\Gps::find($gItem['gps_id']) : null;
+                $items[] = [
+                    'idx'         => $idx,
+                    'nama'        => ($gpsModel->nama_gps ?? '-') . ' (' . ($gItem['type'] ?? '-') . ')',
+                    'biaya'       => (int) ($gItem['biaya_sewa'] ?? 0),
+                    'nama_bank'   => $gItem['nama_bank'] ?? null,
+                    'no_rekening' => $gItem['no_rekening'] ?? null,
+                    'nama_pemilik'=> $gItem['nama_pemilik'] ?? null,
+                ];
+            }
+        } else {
+            return response()->json(['success' => false, 'message' => 'Source type tidak didukung untuk per-item approval.'], 422);
+        }
+
+        // Kendaraan info
+        $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+        $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+
+        return response()->json([
+            'success'     => true,
+            'no_pr'       => $pembayaran->no_pr,
+            'source_type' => $srcType,
+            'kendaraan'   => $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-',
+            'items'       => $items,
+        ]);
+    }
+
+    /**
+     * GET: Load rejected items untuk modal resubmit
+     */
     public function rejectedItems(Pembayaran $pembayaran)
     {
         // Guard: hanya PR yang punya item rejected yang bisa diakses
@@ -2945,10 +3014,12 @@ class PembayaranController extends Controller
 
             DB::commit();
 
-            // Redirect: service_part Ditolak penuh → service history, sisanya → pembayaran.index
-            if ($srcType === 'service_part' && $statusAwal === 'Ditolak') {
+            // Redirect: service_part / service_incident → service history agar user bisa ajukan ulang part ditolak
+            // Ditolak penuh → service-history (sudah ada sebelumnya)
+            // Disetujui Sebagian → service-history juga (ada part ditolak di sana)
+            if (in_array($srcType, ['service_part', 'service_incident'])) {
                 return redirect()
-                    ->route('service-history.index')
+                    ->route('service-history.index', ['highlight_pembayaran' => $pembayaran->id])
                     ->with('success', 'Item berhasil diajukan ulang. PR ' . $pembayaran->no_pr . ' sudah kembali ke antrian approval.');
             }
 

@@ -274,14 +274,35 @@ class PengeluaranTransferService
         $draftByPembayaran = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
 
         if ($draftByPembayaran) {
-            // Draft sudah ada: aktifkan status → aktif
+            // Draft sudah ada dari approve PO.
+            // $selectedParts berisi index source_data['parts'] yang DIAPPROVE di pembayaran.
+            // Jika kosong → semua diapprove (approve full, bukan partial).
+            $isPartialApproval = !empty($selectedParts);
+
+            // ── Bangun set (nama_part + biaya) untuk parts yang diapprove ────────
+            // Digunakan untuk matching ServicePart draft dengan keputusan pembayaran.
+            $approvedSourceParts = [];
+            $rejectedSourceParts = [];
+            if ($isPartialApproval) {
+                $allSourceParts = $sourceData['parts'] ?? [];
+                foreach ($allSourceParts as $idx => $sp) {
+                    $key = trim(strtolower($sp['nama_part'] ?? '')) . '||' . ((int)($sp['biaya'] ?? 0));
+                    if (in_array($idx, $selectedParts)) {
+                        $approvedSourceParts[$key] = true;
+                    } else {
+                        $rejectedSourceParts[$key] = true;
+                    }
+                }
+            }
+
+            // ── Aktifkan ServiceHistory draft ─────────────────────────────────
             $draftByPembayaran->update([
                 'status'      => 'aktif',
                 'approval_by' => auth()->id(),
                 'approval_at' => now(),
             ]);
 
-            // Kumpulkan bukti bayar: dari approvalFiles atau fallback ke PembayaranApproval
+            // ── Kumpulkan bukti bayar dari approvalFiles atau PembayaranApproval ─
             $buktiBayarFiles = $approvalFiles['bukti'] ?? [];
             if (empty($buktiBayarFiles)) {
                 $approval = \App\Models\PembayaranApproval::where('pembayaran_id', $pembayaran->id)
@@ -303,23 +324,63 @@ class PengeluaranTransferService
                     'type'          => $f['extension'] ?? pathinfo($f['path'] ?? '', PATHINFO_EXTENSION),
                 ], $buktiBayarFiles);
 
+                // Bukti hanya untuk parts yang diapprove
                 $draftByPembayaran->parts()
                     ->whereIn('status', ['tidak_aktif', 'aktif'])
-                    ->each(function ($part) use ($buktiForPart) {
-                        $part->update(['bukti_pembayaran' => $buktiForPart]);
+                    ->each(function ($part) use ($buktiForPart, $isPartialApproval, $approvedSourceParts) {
+                        if (!$isPartialApproval) {
+                            $part->update(['bukti_pembayaran' => $buktiForPart]);
+                            return;
+                        }
+                        $key = trim(strtolower($part->nama_part ?? '')) . '||' . ((int)($part->biaya ?? 0));
+                        if (isset($approvedSourceParts[$key])) {
+                            $part->update(['bukti_pembayaran' => $buktiForPart]);
+                        }
                     });
             }
 
-            // Update persetujuan: Diajukan ke Pembayaran → Disetujui, dan status → aktif
-            $draftByPembayaran->parts()
-                ->whereIn('status', ['tidak_aktif'])
-                ->update([
-                    'status'      => 'aktif',
-                    'persetujuan' => 'Disetujui',
-                ]);
+            // ── Aktifkan hanya parts yang diapprove ───────────────────────────
+            if (!$isPartialApproval) {
+                // Approve semua → aktifkan semua
+                $draftByPembayaran->parts()
+                    ->whereIn('status', ['tidak_aktif'])
+                    ->update(['status' => 'aktif', 'persetujuan' => 'Disetujui']);
+            } else {
+                // Partial approval → aktifkan hanya yang cocok, tolak sisanya
+                $draftByPembayaran->parts()
+                    ->whereIn('status', ['tidak_aktif'])
+                    ->each(function ($part) use ($approvedSourceParts, $rejectedSourceParts) {
+                        $key = trim(strtolower($part->nama_part ?? '')) . '||' . ((int)($part->biaya ?? 0));
+                        if (isset($approvedSourceParts[$key])) {
+                            $part->update([
+                                'status'      => 'aktif',
+                                'persetujuan' => 'Disetujui',
+                            ]);
+                        } elseif (isset($rejectedSourceParts[$key])) {
+                            $part->update([
+                                'status'      => 'Ditolak',
+                                'persetujuan' => 'Ditolak',
+                            ]);
+                        }
+                    });
+
+                // ServiceHistory: kurangi total_biaya dengan nominal part yang ditolak
+                $biayaRejected = 0;
+                $allSourceParts = $sourceData['parts'] ?? [];
+                foreach ($allSourceParts as $idx => $sp) {
+                    if (!in_array($idx, $selectedParts)) {
+                        $biayaRejected += (int)($sp['biaya'] ?? 0);
+                    }
+                }
+                if ($biayaRejected > 0) {
+                    $draftByPembayaran->update([
+                        'total_biaya' => max(0, (int)$draftByPembayaran->total_biaya - $biayaRejected),
+                    ]);
+                }
+            }
+
             // Part lama (replace_part_id) TIDAK di-archive di sini.
             // Archive hanya terjadi saat user klik tombol Pasang (updatePartStatus).
-            // Selama menunggu pemasangan, part lama dan baru keduanya tampil di Tabel Aktif.
 
             return $draftByPembayaran->id;
         }
