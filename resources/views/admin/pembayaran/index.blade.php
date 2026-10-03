@@ -751,25 +751,13 @@
                                                                 default              => route('pembayaran.edit-rejected', $d->id),
                                                             };
                                                         @endphp
-                                                        @if(in_array($d->source_type, ['service_asuransi', 'service_part']))
-                                                            {{-- service_asuransi & service_part Ditolak penuh: modal inline per-item --}}
+                                                        @if(in_array($d->source_type, ['service_asuransi', 'service_part', 'service_incident']))
+                                                            {{-- service_asuransi, service_part & service_incident Ditolak penuh: modal inline per-item --}}
                                                             <button type="button"
                                                                 onclick="openResubmitRejectedModal({{ $d->id }})"
                                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
                                                                 <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
                                                             </button>
-                                                        @elseif($useInlineModal)
-                                                            @php
-                                                                $sd_ajukan = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
-                                                                $saId = $sd_ajukan['service_asuransi_id'] ?? null;
-                                                            @endphp
-                                                            @if($saId)
-                                                            <button type="button"
-                                                                onclick="openAjukanUlangSAModal({{ $saId }}, '{{ $d->no_pr }}')"
-                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
-                                                                <i class="fa fa-rotate-right text-[10px]"></i> Ajukan Ulang
-                                                            </button>
-                                                            @endif
                                                         @else
                                                         <a href="{{ $resubmitRoute }}"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">

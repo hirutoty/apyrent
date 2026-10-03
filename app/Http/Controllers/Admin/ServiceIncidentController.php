@@ -615,7 +615,8 @@ class ServiceIncidentController extends Controller
     {
         $incident = ServiceIncident::with(['kendaraan', 'parts.category', 'parts.supplier'])->findOrFail($id);
 
-        if ($incident->persetujuan !== 'Ditolak' || !$incident->pembayaran_id) {
+        $persetujuanDitolak = in_array($incident->persetujuan, ['Ditolak', 'Ditolak Pembayaran']);
+        if (!$persetujuanDitolak || !$incident->pembayaran_id) {
             return response()->json(['success' => false, 'message' => 'Record ini tidak dapat diajukan ulang.'], 422);
         }
 
@@ -677,12 +678,13 @@ class ServiceIncidentController extends Controller
     {
         $incident = ServiceIncident::findOrFail($id);
 
-        if ($incident->persetujuan !== 'Ditolak' || !$incident->pembayaran_id) {
+        $persetujuanDitolak = in_array($incident->persetujuan, ['Ditolak', 'Ditolak Pembayaran']);
+        if (!$persetujuanDitolak || !$incident->pembayaran_id) {
             return response()->json(['success' => false, 'message' => 'Record ini tidak dapat diajukan ulang.'], 422);
         }
 
         $pembayaran = \App\Models\Pembayaran::find($incident->pembayaran_id);
-        if (!$pembayaran || $pembayaran->status !== 'Ditolak') {
+        if (!$pembayaran || !in_array($pembayaran->status, ['Ditolak', 'Disetujui Sebagian'])) {
             return response()->json(['success' => false, 'message' => 'Pembayaran bukan status Ditolak.'], 422);
         }
 

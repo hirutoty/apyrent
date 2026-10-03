@@ -575,6 +575,7 @@ function removePartRow(idx) {
     const row = document.getElementById('part-row-' + idx);
     if (row) row.remove();
     recalcTotal();
+    checkDuplicateCatPos();
     const container = document.getElementById('parts-container');
     if (container.children.length === 0) {
         document.getElementById('empty-parts-hint').style.display = '';
@@ -618,6 +619,99 @@ document.getElementById('kilometer').addEventListener('input', function() {
     document.querySelectorAll('[id^="km-pasang-"]').forEach(input => {
         if (!input.dataset.userEdited) input.value = this.value;
     });
+});
+
+// ── Validasi duplikat kategori + posisi ───────────────────────────────────
+function checkDuplicateCatPos() {
+    // Kumpulkan semua kombinasi [categoryId, posisi] dari tiap row
+    const rows = document.querySelectorAll('[id^="part-row-"]');
+    const combos = [];
+    const dupeRowIds = new Set();
+
+    rows.forEach(function(row) {
+        const rowId   = row.id; // "part-row-N"
+        const idx     = rowId.replace('part-row-', '');
+        const catSel  = row.querySelector('[name$="[category_id]"]');
+        const posSel  = row.querySelector('[name$="[posisi]"]');
+
+        if (!catSel || !posSel) return;
+
+        const catVal = catSel.value;
+        const posVal = posSel.value;
+
+        // Hanya validasi jika keduanya dipilih (bukan kosong)
+        if (!catVal || !posVal) return;
+
+        const key = catVal + '||' + posVal;
+        if (combos.includes(key)) {
+            dupeRowIds.add(rowId);
+            // Tandai row sebelumnya yang punya kombinasi sama
+            rows.forEach(function(r) {
+                const rIdx    = r.id.replace('part-row-', '');
+                const rCat    = r.querySelector('[name$="[category_id]"]');
+                const rPos    = r.querySelector('[name$="[posisi]"]');
+                if (rCat && rPos && rCat.value === catVal && rPos.value === posVal && r.id !== rowId) {
+                    dupeRowIds.add(r.id);
+                }
+            });
+        } else {
+            combos.push(key);
+        }
+    });
+
+    // Update visual: tandai row yang duplikat, hapus dari yang tidak
+    rows.forEach(function(row) {
+        const isDupe = dupeRowIds.has(row.id);
+        const catSel = row.querySelector('[name$="[category_id]"]');
+        const posSel = row.querySelector('[name$="[posisi]"]');
+
+        // Tambah / hapus highlight border merah pada select kategori dan posisi
+        [catSel, posSel].forEach(function(el) {
+            if (!el) return;
+            if (isDupe) {
+                el.classList.add('border-red-400', 'ring-2', 'ring-red-100');
+                el.classList.remove('border-gray-200');
+            } else {
+                el.classList.remove('border-red-400', 'ring-2', 'ring-red-100');
+                el.classList.add('border-gray-200');
+            }
+        });
+
+        // Tampilkan / sembunyikan warning badge di bawah row
+        let warnEl = row.querySelector('.dupe-warning');
+        if (isDupe) {
+            if (!warnEl) {
+                warnEl = document.createElement('div');
+                warnEl.className = 'dupe-warning flex items-center gap-2 mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 font-medium';
+                warnEl.innerHTML = '<i class="fa fa-exclamation-triangle text-[11px]"></i> Kombinasi Kategori + Posisi ini sudah digunakan oleh part lain. Harap ubah kategori atau posisi.';
+                row.appendChild(warnEl);
+            }
+        } else {
+            if (warnEl) warnEl.remove();
+        }
+    });
+
+    // Disable / enable tombol submit
+    const submitBtn = document.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        if (dupeRowIds.size > 0) {
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            submitBtn.title = 'Ada kombinasi Kategori + Posisi yang duplikat. Harap perbaiki terlebih dahulu.';
+        } else {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            submitBtn.title = '';
+        }
+    }
+}
+
+// Pasang listener pada container — event delegation agar bisa menangkap select yang baru ditambahkan
+document.getElementById('parts-container').addEventListener('change', function(e) {
+    const name = e.target.getAttribute('name') || '';
+    if (name.includes('[category_id]') || name.includes('[posisi]')) {
+        checkDuplicateCatPos();
+    }
 });
 </script>
 

@@ -1935,6 +1935,19 @@ class PembayaranController extends Controller
                         ->where('status', 'tidak_aktif')
                         ->update(['persetujuan' => 'Ditolak Pembayaran']);
                 }
+
+                // Update service_incidents yang terkait pembayaran ini
+                if ($pembayaran->source_type === 'service_incident') {
+                    $siId = $sdReject['service_incident_id'] ?? null;
+                    if ($siId) {
+                        \App\Models\ServiceIncident::where('id', $siId)
+                            ->update(['persetujuan' => 'Ditolak Pembayaran']);
+                    }
+                    // Fallback via pembayaran_id yang tersimpan di service_incidents
+                    \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)
+                        ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran', 'Disetujui'])
+                        ->update(['persetujuan' => 'Ditolak Pembayaran']);
+                }
             }
 
             DB::commit();
@@ -3342,14 +3355,33 @@ class PembayaranController extends Controller
                     \App\Models\ServicePart::where('service_history_id', $sh->id)
                         ->update(['persetujuan' => 'Pending']);
                 }
+
+                // Untuk service_incident: kembalikan persetujuan ke 'Diajukan ke Pembayaran'
+                // agar incident muncul di halaman servis insiden (filter: != 'Pending' dan != 'Ditolak')
+                if ($srcType === 'service_incident') {
+                    $siId = ($pembayaran->source_data ?? [])['service_incident_id'] ?? null;
+                    if ($siId) {
+                        \App\Models\ServiceIncident::where('id', $siId)
+                            ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
+                    }
+                    // Fallback via pembayaran_id
+                    \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)
+                        ->whereIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
+                        ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
+                }
             }
 
             DB::commit();
 
-            // Redirect: service_part / service_incident → service history agar user bisa ajukan ulang part ditolak
-            // Ditolak penuh → service-history (sudah ada sebelumnya)
-            // Disetujui Sebagian → service-history juga (ada part ditolak di sana)
-            if (in_array($srcType, ['service_part', 'service_incident'])) {
+            // Redirect: service_incident → halaman servis insiden
+            // service_part → service history
+            if ($srcType === 'service_incident') {
+                return redirect()
+                    ->route('service-incident.index')
+                    ->with('success', 'Item berhasil diajukan ulang. PR ' . $pembayaran->no_pr . ' sudah kembali ke antrian approval.');
+            }
+
+            if ($srcType === 'service_part') {
                 return redirect()
                     ->route('service-history.index', ['highlight_pembayaran' => $pembayaran->id])
                     ->with('success', 'Item berhasil diajukan ulang. PR ' . $pembayaran->no_pr . ' sudah kembali ke antrian approval.');

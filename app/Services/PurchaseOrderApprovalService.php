@@ -308,14 +308,16 @@ class PurchaseOrderApprovalService
             // Untuk GPS: hapus record Ditolak lama, buat records Pending baru
             $newGpsRecordIds = [];
 
-            // ── SERVICE INCIDENT: reset record lama ke Pending ─────────────────
+            // ── SERVICE INCIDENT: reset record ke status menunggu approval ulang ──
             if ($sourceType === 'service_incident') {
                 $oldSourceData = $po->source_data ?? [];
                 $incidentId    = $oldSourceData['service_incident_id'] ?? null;
                 if ($incidentId) {
                     \App\Models\ServiceIncident::where('id', $incidentId)
                         ->update([
-                            'persetujuan'   => 'Pending',
+                            // Tetap 'Diajukan ke Pembayaran' agar masih tampil di halaman servis insiden
+                            // (filter index menyembunyikan 'Pending' sehingga data terlihat "hilang")
+                            'persetujuan'   => 'Diajukan ke Pembayaran',
                             'pembayaran_id' => null,
                         ]);
                     // Pastikan service_incident_id tersimpan di data baru

@@ -1026,6 +1026,11 @@ class PurchaseOrderController extends Controller
         // hanya hitungan parts yang diapprove, bukan semua parts original
         if ($po->source_type === 'service_incident') {
             $approvedSourceData['total_biaya_override'] = $nominalApproved;
+            // Pastikan service_incident_id selalu ada di source_data Pembayaran
+            // agar transferServiceIncident bisa menemukan incident yang tepat
+            if (empty($approvedSourceData['service_incident_id']) && !empty($sourceData['service_incident_id'])) {
+                $approvedSourceData['service_incident_id'] = $sourceData['service_incident_id'];
+            }
         }
 
         $pembayaran = $this->approvalService->approveWithItems($po, $approvedSourceData, $perItemBukti, $catatan, $hasRejected);
@@ -1071,10 +1076,11 @@ class PurchaseOrderController extends Controller
                     ], $rejectedParts),
                 ]);
 
-                // Untuk service_incident, hapus referensi service_incident_id agar
-                // PO baru tidak "terikat" ke ServiceIncident yang sudah diproses
+                // Untuk service_incident, hanya hapus total_biaya_override
+                // agar nominal dihitung ulang dari parts yang ditolak saja.
+                // service_incident_id tetap dipertahankan agar PO baru ini tetap
+                // terikat ke ServiceIncident yang sama saat di-approve ulang.
                 if ($po->source_type === 'service_incident') {
-                    unset($rejectedSourceData['service_incident_id']);
                     unset($rejectedSourceData['total_biaya_override']);
                 }
 
@@ -1119,7 +1125,7 @@ class PurchaseOrderController extends Controller
                 // Hapus parts lama (jika ada dari submit sebelumnya) lalu buat ulang
                 \App\Models\ServiceIncidentPart::where('service_incident_id', $incidentId)->delete();
 
-                // Buat parts dengan status tidak_aktif + persetujuan Pending
+                // Buat parts dengan status tidak_aktif + persetujuan Pending (approved parts)
                 foreach ($approvedParts as $idx => $part) {
                     $tglPasang    = \Carbon\Carbon::parse($part['tgl_pasang'] ?? $tanggalService);
                     $tglLimit     = (clone $tglPasang)->addMonths(12);
@@ -2014,6 +2020,18 @@ class PurchaseOrderController extends Controller
                         ->where('persetujuan', 'Ditolak')
                         ->update(['persetujuan' => 'Pending', 'purchase_order_id' => $po->id]);
                 }
+
+                // service_incident: hapus parts lama dan reset header
+                if ($po->source_type === 'service_incident') {
+                    $siId = $po->source_data['service_incident_id'] ?? null;
+                    if ($siId) {
+                        \App\Models\ServiceIncidentPart::where('service_incident_id', $siId)->delete();
+                        \App\Models\ServiceIncident::where('id', $siId)->update([
+                            'persetujuan'   => 'Pending',
+                            'pembayaran_id' => null,
+                        ]);
+                    }
+                }
             }
 
             return response()->json([
@@ -2154,9 +2172,13 @@ class PurchaseOrderController extends Controller
             // Update record ServiceIncident ke Pending (jika source_type = service_incident)
             $serviceIncidentId = $sourceData['service_incident_id'] ?? null;
             if ($po->source_type === 'service_incident' && $serviceIncidentId) {
+                // Hapus parts lama agar tidak duplikat saat PO diapprove ulang
+                \App\Models\ServiceIncidentPart::where('service_incident_id', $serviceIncidentId)->delete();
+
                 \App\Models\ServiceIncident::where('id', $serviceIncidentId)->update([
                     'persetujuan'       => 'Pending',
                     'total_biaya'       => $biayaTotal,
+                    'pembayaran_id'     => null,
                     'purchase_order_id' => $po->id,
                 ]);
             }

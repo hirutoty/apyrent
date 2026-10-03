@@ -430,7 +430,8 @@ class PengeluaranTransferService
         unset($partData);
 
         // ── Buat ServicePart untuk setiap part yang diproses ──────────
-        $lastPartId = null;
+        $lastPartId          = null;
+        $statusPengeluaran   = 'stabil'; // default; akan di-override jika over limit
         foreach ($parts as $idx => $partData) {
             // $idx di sini adalah index dalam filtered $parts, bukan index asli dalam $allParts
             // Jika ada selectedParts, cari index asli untuk ambil temp_files yang tepat
@@ -646,12 +647,33 @@ class PengeluaranTransferService
             ? \App\Models\ServiceIncident::find($existingIncidentId)
             : null;
 
+        // Fallback 1: cari via pembayaran_id jika tidak ditemukan via service_incident_id
+        if (!$incident) {
+            $incident = \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)->first();
+        }
+
+        // Fallback 2: cari via kendaraan_id + tanggal_service + persetujuan aktif
+        // (menangani kasus di mana pembayaran_id di incident tidak cocok dengan pembayaran ini)
+        if (!$incident && $kendaraanId) {
+            $tanggalService = $sourceData['tanggal_service'] ?? null;
+            $incident = \App\Models\ServiceIncident::where('kendaraan_id', $kendaraanId)
+                ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran', 'Ditolak Pembayaran'])
+                ->when($tanggalService, fn($q) => $q->where('tanggal_service', $tanggalService))
+                ->latest()
+                ->first();
+
+            // Jika ketemu, update pembayaran_id agar link ke pembayaran baru ini
+            if ($incident) {
+                $incident->update(['pembayaran_id' => $pembayaran->id]);
+            }
+        }
+
         if ($incident) {
             // Update existing — jangan hapus parts karena sudah dibuat saat PO approve
-            // Aktifkan incident (tidak_aktif → aktif) karena pembayaran sudah disetujui
+            // Status tetap tidak_aktif (menunggu dipasang fisik) — aktif setelah klik Terpasang
             $incident->update([
                 'total_biaya'     => $totalBiaya,
-                'status'          => 'aktif',
+                'status'          => 'tidak_aktif',
                 'status_approval' => 'approved',
                 'approval_by'     => auth()->id(),
                 'approval_at'     => now(),
@@ -659,13 +681,13 @@ class PengeluaranTransferService
                 'persetujuan'     => 'Disetujui',
             ]);
 
-            // Update bukti_bayar per part + aktifkan semua parts (tidak_aktif → aktif)
+            // Update persetujuan parts → Disetujui (status tetap tidak_aktif, menunggu dipasang fisik)
             $existingParts = $incident->parts()->orderBy('id')->get();
             foreach ($existingParts as $idx => $existingPart) {
                 $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
                 $updateData = [
                     'persetujuan' => 'Disetujui',
-                    'status'      => 'aktif',   // aktifkan saat pembayaran disetujui
+                    'status'      => 'tidak_aktif',   // tetap tidak_aktif sampai user klik Terpasang
                 ];
                 if (isset($buktiBayarMap[$originalIdx])) {
                     $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]];
