@@ -2545,6 +2545,39 @@ class PembayaranController extends Controller
                 }
             }
 
+            // ── Catat cashflow per kejadian yang disetujui ke tabel keuangans ─────
+            if (!empty($approvedItems)) {
+                $sdKejadians = $pembayaran->fresh()->source_data['kejadians'] ?? [];
+                $tanggalAppr = now()->toDateString();
+                $namaKendaraan = isset($pembayaran->source_data['kendaraan_id'])
+                    ? (optional(\App\Models\Kendaraan::find($pembayaran->source_data['kendaraan_id']))->nopol ?? '-')
+                    : '-';
+                $namaAsuransi = $pembayaran->source_data['nama_asuransi'] ?? 'Asuransi';
+
+                foreach ($approvedItems as $ai) {
+                    $idx   = (int) $ai['idx'];
+                    $kej   = $sdKejadians[$idx] ?? [];
+                    $biaya = (int) ($kej['biaya'] ?? 0);
+                    if ($biaya <= 0) continue;
+
+                    $namaKejadian = $kej['nama_kejadian'] ?? ('Kejadian #' . ($idx + 1));
+                    $lastSaldo = (float) DB::table('keuangans')->orderBy('id', 'desc')->value('saldo') ?? 0;
+
+                    Keuangan::create([
+                        'tanggal'     => $tanggalAppr,
+                        'reference'   => 'PR-SAS-' . $pembayaran->no_pr . '-' . ($idx + 1),
+                        'user_id'     => auth()->id(),
+                        'kategori'    => 'Service Asuransi',
+                        'metode'      => 'Cash',
+                        'keterangan'  => 'Service Asuransi: ' . $namaKejadian . ' — ' . $namaKendaraan . ' (' . $namaAsuransi . ') (PR #' . $pembayaran->no_pr . ')',
+                        'pemasukan'   => 0,
+                        'pengeluaran' => $biaya,
+                        'saldo'       => $lastSaldo - $biaya,
+                        'sumber'      => 'auto',
+                    ]);
+                }
+            }
+
             DB::commit();
 
             $msg = "Keputusan disimpan: {$approvedCount} kejadian disetujui, {$rejectedCount} ditolak. Status PR: {$newStatus}.";

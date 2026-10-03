@@ -743,7 +743,7 @@
                                                         @endif
                                                     @elseif($d->status === 'Ditolak' && $d->source_type && $d->can_edit)
                                                         @php
-                                                            $useInlineModal = in_array($d->source_type, ['service_asuransi', 'service_incident']);
+                                                            $useInlineModal = $d->source_type === 'service_incident';
                                                             $resubmitRoute = match($d->source_type) {
                                                                 'pajak'              => route('pajak.index', ['highlight_pembayaran' => $d->id]),
                                                                 'asuransi_kendaraan' => route('asuransi-kendaraan.index', ['highlight_pembayaran' => $d->id]),
@@ -751,7 +751,14 @@
                                                                 default              => route('pembayaran.edit-rejected', $d->id),
                                                             };
                                                         @endphp
-                                                        @if($useInlineModal)
+                                                        @if(in_array($d->source_type, ['service_asuransi', 'service_part']))
+                                                            {{-- service_asuransi & service_part Ditolak penuh: modal inline per-item --}}
+                                                            <button type="button"
+                                                                onclick="openResubmitRejectedModal({{ $d->id }})"
+                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
+                                                                <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
+                                                            </button>
+                                                        @elseif($useInlineModal)
                                                             @php
                                                                 $sd_ajukan = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
                                                                 $saId = $sd_ajukan['service_asuransi_id'] ?? null;
@@ -769,6 +776,13 @@
                                                             <i class="fa fa-edit text-[10px]"></i> Edit & Ajukan Ulang
                                                         </a>
                                                         @endif
+                                                    @elseif($d->status === 'Disetujui Sebagian' && in_array($d->source_type, ['service_part', 'service_incident', 'service_asuransi']) && $rejectedCount > 0 && $d->can_edit)
+                                                        {{-- Disetujui Sebagian: ada item yang ditolak, bisa ajukan ulang --}}
+                                                        <button type="button"
+                                                            onclick="openResubmitRejectedModal({{ $d->id }})"
+                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
+                                                            <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
+                                                        </button>
                                                     @endif
                                                 @else
                                                     {{-- Tombol Edit & Ajukan Ulang untuk item rejected (modal inline) --}}
@@ -784,8 +798,8 @@
                                                             <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
                                                         </button>
 
-                                                    {{-- Kondisi B: service_part Ditolak penuh — ganti redirect lama dengan modal --}}
-                                                    @elseif($d->status === 'Ditolak' && $d->source_type === 'service_part' && $d->can_edit)
+                                                    {{-- Kondisi B: service_part / service_asuransi Ditolak penuh — modal inline --}}
+                                                    @elseif($d->status === 'Ditolak' && in_array($d->source_type, ['service_part', 'service_asuransi']) && $d->can_edit)
                                                         <button type="button"
                                                             onclick="openResubmitRejectedModal({{ $d->id }})"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
@@ -1419,10 +1433,26 @@
                                                     {{-- Service Asuransi --}}
                                                     @elseif($d->source_type === 'service_asuransi')
                                                     @php
-                                                        $saKejadians = $sd['kejadians'] ?? [];
+                                                        $saAllKejadians = $sd['kejadians'] ?? [];
                                                         $saKeterangan = $sd['keterangan'] ?? $d->keterangan ?? null;
-                                                        $saTotal = collect($saKejadians)->sum(fn($k) => $k['biaya'] ?? 0);
                                                         $saKend  = isset($sd['kendaraan_id']) ? \App\Models\Kendaraan::find($sd['kendaraan_id']) : null;
+                                                        $saDecMap = collect($sd['item_decisions'] ?? [])->keyBy('idx');
+
+                                                        // Filter kejadian berdasarkan tab aktif — identik dengan pola service_part
+                                                        // PENTING: jangan pakai ->values() agar original index dipertahankan
+                                                        // sehingga lookup $saDecMap[$i] tetap akurat
+                                                        if ($saDecMap->isNotEmpty()) {
+                                                            if (in_array($tab ?? '', ['Disetujui'])) {
+                                                                $saKejadians = collect($saAllKejadians)->filter(fn($k, $i) => ($saDecMap[$i]['action'] ?? '') === 'approved')->all();
+                                                            } elseif (in_array($tab ?? '', ['Ditolak'])) {
+                                                                $saKejadians = collect($saAllKejadians)->filter(fn($k, $i) => ($saDecMap[$i]['action'] ?? '') !== 'approved' && $saDecMap->has($i))->all();
+                                                            } else {
+                                                                $saKejadians = $saAllKejadians;
+                                                            }
+                                                        } else {
+                                                            $saKejadians = $saAllKejadians;
+                                                        }
+                                                        $saTotal = collect($saKejadians)->sum(fn($k) => $k['biaya'] ?? 0);
                                                     @endphp
                                                     <div class="px-4 py-3">
                                                         {{-- Info header --}}
@@ -1450,7 +1480,7 @@
                                                         {{-- Lampiran dari temp_files --}}
                                                         @php
                                                             $saLampiran = [];
-                                                            foreach (($saKejadians) as $kjIdx => $kj) {
+                                                            foreach (($saAllKejadians) as $kjIdx => $kj) {
                                                                 foreach (($kj['lampiran'] ?? []) as $lf) {
                                                                     $saLampiran[] = array_merge($lf, ['_label' => $kj['nama_kejadian'] ?? '#'.($kjIdx+1)]);
                                                                 }
@@ -1510,9 +1540,6 @@
 
                                                         {{-- Tabel kejadian --}}
                                                         @if(!empty($saKejadians))
-                                                        @php
-                                                            $saDecMap = collect($sd['item_decisions'] ?? [])->keyBy('idx');
-                                                        @endphp
                                                         <div class="rounded-xl border border-blue-100 overflow-hidden">
                                                             <table class="w-full text-xs">
                                                                 <thead>
@@ -1528,10 +1555,11 @@
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
+                                                                    @php $saKjCounter = 0; @endphp
                                                                     @foreach($saKejadians as $saKjIdx => $saKj)
-                                                                    @php $saKjDec = $saDecMap[$saKjIdx] ?? null; @endphp
+                                                                    @php $saKjDec = $saDecMap[$saKjIdx] ?? null; $saKjCounter++; @endphp
                                                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
-                                                                        <td class="px-3 py-2 text-gray-400">{{ $saKjIdx + 1 }}</td>
+                                                                        <td class="px-3 py-2 text-gray-400">{{ $saKjCounter }}</td>
                                                                         <td class="px-3 py-2 font-semibold text-gray-800">{{ $saKj['nama_kejadian'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2 text-center">
                                                                             @php $saKjLamp = $saKj['lampiran'] ?? []; @endphp
@@ -1557,7 +1585,7 @@
                                                                                 <span class="text-gray-300">—</span>
                                                                             @endif
                                                                         </td>
-                                                                        <td class="px-3 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($saKj['biaya'] ?? 0, 0, ',', '.') }}</td>
+                                                                        <td class="px-3 py-2 text-right font-bold {{ ($saKjDec && ($saKjDec['action'] ?? '') === 'rejected') ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($saKj['biaya'] ?? 0, 0, ',', '.') }}</td>
                                                                         @if($saDecMap->isNotEmpty())
                                                                             {{-- Kolom Bukti Bayar --}}
                                                                             <td class="px-3 py-2 text-center">
@@ -1611,7 +1639,7 @@
                                                                     @endforeach
                                                                     <tr class="border-t-2 border-blue-200 bg-blue-50/50">
                                                                         <td colspan="{{ $saDecMap->isNotEmpty() ? 5 : 3 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
-                                                                        <td class="px-3 py-2 text-right text-sm font-bold text-emerald-600">Rp {{ number_format($saTotal, 0, ',', '.') }}</td>
+                                                                        <td class="px-3 py-2 text-right text-sm font-bold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($saTotal, 0, ',', '.') }}</td>
                                                                     </tr>
                                                                 </tbody>
                                                             </table>
