@@ -1325,6 +1325,9 @@ class PurchaseOrderController extends Controller
             $rejectedPO = \App\Models\PurchaseOrder::create([
                 'tanggal_po'          => $po->tanggal_po,
                 'vendor'              => $po->vendor,
+                'pemohon'             => $po->pemohon ?? ($sourceData['pemohon'] ?? null),
+                'departemen'          => $po->departemen ?? ($sourceData['departemen'] ?? null),
+                'keterangan'          => $po->keterangan ?? ($sourceData['keterangan'] ?? null),
                 'total_barang'        => count($rejectedKejadians),
                 'total_harga'         => $nominalRejected,
                 'status_po'           => $po->status_po ?? 'Open',
@@ -1572,7 +1575,7 @@ class PurchaseOrderController extends Controller
                     if ($limitRule->jumlah) {
                         $aktifCountNow  = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
                             ->where('category_id', $categoryId)
-                            ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif'])
+                            ->whereIn('status', ['Terpasang', 'aktif'])
                             ->count();
                         $limitJumlahVal = (int) $limitRule->jumlah;
                     }
@@ -2086,15 +2089,35 @@ class PurchaseOrderController extends Controller
                 ];
             }, $kejadians, array_keys($kejadians));
 
-            $newSourceData = array_merge($sourceData, [
-                'kejadians'       => $newKejadians,
-                'tanggal_service' => $request->input('tanggal_service', $sourceData['tanggal_service'] ?? null),
-                'periode_mulai'   => $request->input('periode_mulai',   $sourceData['periode_mulai']   ?? null),
-                'periode_selesai' => $request->input('periode_selesai', $sourceData['periode_selesai'] ?? null),
-                'kilometer'       => $request->input('kilometer',       $sourceData['kilometer']       ?? null),
-                'nama_asuransi'   => $request->input('nama_asuransi',   $sourceData['nama_asuransi']   ?? null),
-                'temp_files'      => $tempFiles,
-            ]);
+            // Untuk service_incident: remap kejadians[] → parts[] agar struktur source_data tetap konsisten
+            if ($po->source_type === 'service_incident') {
+                $originalParts = $sourceData['parts'] ?? [];
+                $remappedParts = array_map(function ($kej, $idx) use ($originalParts) {
+                    $orig = $originalParts[$idx] ?? [];
+                    return array_merge($orig, [
+                        'nama_part' => $kej['nama_kejadian'] ?? ($orig['nama_part'] ?? '-'),
+                        'biaya'     => (int)($kej['biaya'] ?? 0),
+                        'lampiran'  => $kej['lampiran'] ?? ($orig['lampiran'] ?? []),
+                    ]);
+                }, $newKejadians, array_keys($newKejadians));
+
+                $newSourceData = array_merge($sourceData, [
+                    'parts'           => $remappedParts,
+                    'tanggal_service' => $request->input('tanggal_service', $sourceData['tanggal_service'] ?? null),
+                    'kilometer'       => $request->input('kilometer',       $sourceData['kilometer']       ?? null),
+                    'temp_files'      => $tempFiles,
+                ]);
+            } else {
+                $newSourceData = array_merge($sourceData, [
+                    'kejadians'       => $newKejadians,
+                    'tanggal_service' => $request->input('tanggal_service', $sourceData['tanggal_service'] ?? null),
+                    'periode_mulai'   => $request->input('periode_mulai',   $sourceData['periode_mulai']   ?? null),
+                    'periode_selesai' => $request->input('periode_selesai', $sourceData['periode_selesai'] ?? null),
+                    'kilometer'       => $request->input('kilometer',       $sourceData['kilometer']       ?? null),
+                    'nama_asuransi'   => $request->input('nama_asuransi',   $sourceData['nama_asuransi']   ?? null),
+                    'temp_files'      => $tempFiles,
+                ]);
+            }
 
             $po->update([
                 'source_data'         => $newSourceData,

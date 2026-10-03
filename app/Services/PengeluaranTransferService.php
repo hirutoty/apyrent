@@ -358,8 +358,8 @@ class PengeluaranTransferService
                             ]);
                         } elseif (isset($rejectedSourceParts[$key])) {
                             $part->update([
-                                'status'      => 'Ditolak',
-                                'persetujuan' => 'Ditolak',
+                                'status'      => 'tidak_aktif',
+                                'persetujuan' => 'Ditolak Pembayaran',
                             ]);
                         }
                     });
@@ -439,6 +439,19 @@ class PengeluaranTransferService
             $tglPasang  = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
             $biaya      = (int)($partData['biaya'] ?? 0);
             $categoryId = $partData['category_id'] ?? null;
+
+            // ── Hitung interval & tanggal limit per part ──────────────────────
+            $intervalNilai  = (int)($partData['interval_nilai'] ?? 0);
+            $intervalSatuan = $partData['interval_satuan'] ?? 'bulan';
+            if ($intervalNilai > 0) {
+                $tanggalLimit = match ($intervalSatuan) {
+                    'hari'  => $tglPasang->copy()->addDays($intervalNilai),
+                    'tahun' => $tglPasang->copy()->addYears($intervalNilai),
+                    default => $tglPasang->copy()->addMonths($intervalNilai),
+                };
+            } else {
+                $tanggalLimit = $tglPasang->copy()->addYears(99);
+            }
 
             // Copy bukti files dari temp storage ke final storage
             $buktiFiles = [];

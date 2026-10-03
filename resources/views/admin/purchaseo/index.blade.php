@@ -561,7 +561,32 @@
 
                                             $totalItems = collect($parts)->sum(fn($p) => $p['biaya'] ?? 0);
                                         } elseif ($isServiceAsuransi) {
-                                            $asuransiKejadians = $sourceData['kejadians'] ?? [];
+                                            $allKejadians     = $sourceData['kejadians'] ?? [];
+                                            $rawKejDecisions  = $sourceData['item_decisions'] ?? [];
+                                            $kejDecHasIdx     = !empty($rawKejDecisions) && isset($rawKejDecisions[0]['idx']);
+
+                                            if ($kejDecHasIdx) {
+                                                // PO induk (partial): filter berdasarkan item_decisions
+                                                $kejDecMap = collect($rawKejDecisions)->keyBy('idx');
+                                                if ($statusFilter === 'Disetujui') {
+                                                    $asuransiKejadians = collect($allKejadians)
+                                                        ->filter(fn($k, $i) => ($kejDecMap[$i]['action'] ?? '') === 'approved')
+                                                        ->values()->all();
+                                                } elseif ($statusFilter === 'Ditolak') {
+                                                    $asuransiKejadians = collect($allKejadians)
+                                                        ->filter(fn($k, $i) => ($kejDecMap[$i]['action'] ?? '') !== 'approved' && $kejDecMap->has($i))
+                                                        ->values()->all();
+                                                } else {
+                                                    $asuransiKejadians = $allKejadians;
+                                                }
+                                            } elseif (!empty($rawKejDecisions)) {
+                                                // PO baru (rejected-only): semua kejadian sudah terfilter
+                                                $asuransiKejadians = $allKejadians;
+                                                $kejDecMap = collect([]);
+                                            } else {
+                                                $asuransiKejadians = $allKejadians;
+                                                $kejDecMap = collect([]);
+                                            }
                                             $totalItems = collect($asuransiKejadians)->sum(fn($k) => $k['biaya'] ?? 0);
                                         } else {
                                             $tanggalBayar = $sourceData['tanggal_bayar'] ?? null;
@@ -731,7 +756,7 @@
                                                                                 $fmtSisaWaktu = function(int $h): string {
                                                                                     if ($h <= 0)  return 'sisa 0 hari';
                                                                                     if ($h <= 30) return 'sisa ' . $h . ' hari';
-                                                                                    if ($h <= 365) {
+                                                                                    if ($h < 360) {
                                                                                         $b = (int)floor($h/30); $s = $h - $b*30;
                                                                                         return 'sisa ' . $b . ' bulan' . ($s > 0 ? ' ' . $s . ' hari' : '');
                                                                                     }
@@ -915,16 +940,47 @@
                                                             <tr class="bg-blue-50 border-b border-blue-100">
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
+                                                                <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
                                                             @foreach($asuransiKejadians as $kjIdx => $kj)
-                                                                <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
+                                                                @php
+                                                                    // Cari decision untuk baris ini (pakai original idx jika ada, else kjIdx)
+                                                                    $kjDecAction = null;
+                                                                    $kjDecCatatan = null;
+                                                                    if (!empty($rawKejDecisions)) {
+                                                                        $kjDecEntry = $kejDecHasIdx
+                                                                            ? ($kejDecMap[$kjIdx] ?? null)
+                                                                            : ($rawKejDecisions[$kjIdx] ?? null);
+                                                                        $kjDecAction  = $kjDecEntry['action'] ?? null;
+                                                                        $kjDecCatatan = $kjDecEntry['catatan'] ?? null;
+                                                                    }
+                                                                    $kjRowBg = match($kjDecAction) {
+                                                                        'approved' => 'bg-emerald-50/60',
+                                                                        'rejected' => 'bg-red-50/60',
+                                                                        default    => 'odd:bg-white even:bg-gray-50/40',
+                                                                    };
+                                                                @endphp
+                                                                <tr class="border-t border-gray-50 {{ $kjRowBg }}">
                                                                     <td class="px-3 py-2 text-gray-400">{{ $kjIdx + 1 }}</td>
-                                                                    <td class="px-3 py-2 font-semibold text-gray-800">{{ $kj['nama_kejadian'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 font-semibold text-gray-800">
+                                                                        {{ $kj['nama_kejadian'] ?? '-' }}
+                                                                        @if($kjDecCatatan)
+                                                                            <span class="block text-[10px] font-normal text-red-500 mt-0.5">{{ $kjDecCatatan }}</span>
+                                                                        @endif
+                                                                    </td>
                                                                     <td class="px-3 py-2 text-center">
+                                                                        @if($kjDecAction === 'approved')
+                                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>
+                                                                        @elseif($kjDecAction === 'rejected')
+                                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>
+                                                                        @else
+                                                                            <span class="text-gray-300 text-[10px]">—</span>
+                                                                        @endif
+                                                                    </td>
                                                                         @php $kjLampiran = $kj['lampiran'] ?? []; @endphp
                                                                         @if(!empty($kjLampiran))
                                                                             <div class="flex flex-col gap-0.5 items-center">
@@ -949,12 +1005,12 @@
                                                                             <span class="text-gray-300 text-[10px]">—</span>
                                                                         @endif
                                                                     </td>
-                                                                    <td class="px-3 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($kj['biaya'] ?? 0, 0, ',', '.') }}</td>
+                                                                    <td class="px-3 py-2 text-right font-bold {{ $kjDecAction === 'rejected' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($kj['biaya'] ?? 0, 0, ',', '.') }}</td>
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-blue-200 bg-blue-50/50">
-                                                                <td colspan="3" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
-                                                                <td class="px-3 py-2 text-right text-sm font-bold text-emerald-600">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
+                                                                <td colspan="4" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
                                                     </table>
@@ -2497,6 +2553,7 @@ document.getElementById('resubmitSimpleModal')?.addEventListener('click', functi
 
 // ── RESUBMIT SERVICE ASURANSI MODAL ───────────────────────────────────────
 let _rsaPoId = null;
+let _rsaIsServiceIncident = false;
 
 function openResubmitServiceAsuransiModal(poId, poNumber) {
     _rsaPoId = poId;
@@ -2536,8 +2593,22 @@ function renderRsaForm(data) {
         catatanEl.classList.add('hidden');
     }
 
-    // Set form action
+    // Set title dan form action berdasarkan source_type
+    const isServiceIncident = data.source_type === 'service_incident';
+    _rsaIsServiceIncident = isServiceIncident;
+    document.getElementById('rsaModalTitle').textContent = isServiceIncident
+        ? 'Ajukan Ulang — Service Incident'
+        : 'Ajukan Ulang — Service Asuransi';
+    // Kedua tipe pakai endpoint yang sama; controller menangani remap parts vs kejadians
     document.getElementById('rsaForm').action = '/admin/purchase-order/' + _rsaPoId + '/resubmit-service-asuransi';
+
+    // Update label Daftar Kejadian / Tambah Kejadian
+    const labelEl = document.getElementById('rsaDaftarLabel');
+    const tambahEl = document.getElementById('rsaTambahLabel');
+    const totalLabelEl = document.getElementById('rsaTotalBiayaLabel');
+    if (labelEl) labelEl.textContent = isServiceIncident ? 'Daftar Part' : 'Daftar Kejadian';
+    if (tambahEl) tambahEl.textContent = isServiceIncident ? 'Tambah Part' : 'Tambah Kejadian';
+    if (totalLabelEl) totalLabelEl.textContent = isServiceIncident ? 'Total Biaya (auto-sum dari part):' : 'Total Biaya (auto-sum dari kejadian):';
 
     // Hidden fields
     document.getElementById('rsa_kendaraan_id').value   = data.kendaraan_id   || '';
@@ -2596,7 +2667,7 @@ function renderRsaKejadian(container, idx, kej) {
     div.innerHTML = `
         ${hiddenLampiranInputs}
         <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-gray-600">Kejadian #${idx + 1}</span>
+            <span class="text-xs font-bold text-gray-600">${_rsaIsServiceIncident ? 'Part' : 'Kejadian'} #${idx + 1}</span>
             <button type="button" onclick="removeRsaKejadian(${idx})"
                 class="w-6 h-6 rounded-lg bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center text-xs">
                 <i class="fa fa-times"></i>
@@ -2604,10 +2675,10 @@ function renderRsaKejadian(container, idx, kej) {
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Kejadian <span class="text-red-400">*</span></label>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">${_rsaIsServiceIncident ? 'Nama Part' : 'Nama Kejadian'} <span class="text-red-400">*</span></label>
                 <input type="text" name="kejadians[${idx}][nama_kejadian]" required
                     value="${(kej.nama_kejadian || '').replace(/"/g, '&quot;')}"
-                    placeholder="cth: Ganti Kaca Depan"
+                    placeholder="${_rsaIsServiceIncident ? 'cth: Kampas Rem' : 'cth: Ganti Kaca Depan'}"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
             </div>
             <div>
@@ -2872,7 +2943,7 @@ async function approveStnk(poId, poNumber) {
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
             <div>
-                <h3 class="text-base font-bold text-gray-800">Ajukan Ulang — Service Asuransi</h3>
+                <h3 id="rsaModalTitle" class="text-base font-bold text-gray-800">Ajukan Ulang — Service Asuransi</h3>
                 <p class="text-sm text-gray-500 mt-0.5">PO: <span id="rsaPoNumber" class="font-mono font-semibold text-amber-600"></span></p>
             </div>
             <button onclick="closeResubmitServiceAsuransiModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100">
@@ -2909,17 +2980,17 @@ async function approveStnk(poId, poNumber) {
 
                 {{-- Total biaya auto-sum --}}
                 <div class="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs text-gray-600">
-                    Total Biaya (auto-sum dari kejadian):
+                    <span id="rsaTotalBiayaLabel">Total Biaya (auto-sum dari kejadian):</span>
                     <span id="rsaTotalBiaya" class="font-bold text-blue-700 ml-1">Rp 0</span>
                 </div>
 
                 {{-- Kejadian container --}}
                 <div>
                     <div class="flex items-center justify-between mb-2">
-                        <label class="text-xs font-semibold text-gray-600">Daftar Kejadian</label>
-                        <button type="button" onclick="addRsaKejadian()"
+                        <label id="rsaDaftarLabel" class="text-xs font-semibold text-gray-600">Daftar Kejadian</label>
+                        <button type="button" id="rsaTambahBtn" onclick="addRsaKejadian()"
                             class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                            <i class="fa fa-plus text-xs"></i> Tambah Kejadian
+                            <i class="fa fa-plus text-xs"></i> <span id="rsaTambahLabel">Tambah Kejadian</span>
                         </button>
                     </div>
                     <div id="rsaKejadianContainer" class="space-y-3"></div>

@@ -34,8 +34,8 @@ class KendaraanSeeder extends Seeder
         for ($i = 1; $i <= 50; $i++) {
             $merk = $merks[($i - 1) % count($merks)];
             $tahun = rand(2015, 2024);
-            $kmSekarang = rand(5000, 120000);
-            $kmTerakhirService = max(0, $kmSekarang - rand(1000, 8000));
+            $kmSekarang = str_contains(strtolower($merk), 'gran max') ? 0 : rand(5000, 120000);
+            $kmTerakhirService = str_contains(strtolower($merk), 'gran max') ? 0 : max(0, $kmSekarang - rand(1000, 8000));
 
             // Distribusi created_at merata di Jan-Des 2026
             $month = (($i - 1) % 12) + 1; // 1-12

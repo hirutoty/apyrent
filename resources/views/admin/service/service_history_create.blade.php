@@ -699,13 +699,13 @@ function formatAngka(val) {
 /**
  * Format sisa hari → string mudah dibaca.
  * ≤ 30 hari   → "sisa X hari"
- * ≤ 365 hari  → "sisa X bulan Y hari"
- * > 365 hari  → "sisa X tahun Y bulan"
+ * < 360 hari  → "sisa X bulan Y hari"
+ * ≥ 360 hari  → "sisa X tahun Y bulan"
  */
 function formatSisaWaktu(sisaHari) {
     if (!sisaHari || sisaHari <= 0) return 'sisa 0 hari';
     if (sisaHari <= 30) return 'sisa ' + sisaHari + ' hari';
-    if (sisaHari <= 365) {
+    if (sisaHari < 360) {
         const bulan    = Math.floor(sisaHari / 30);
         const hariSisa = sisaHari - (bulan * 30);
         return 'sisa ' + bulan + ' bulan' + (hariSisa > 0 ? ' ' + hariSisa + ' hari' : '');

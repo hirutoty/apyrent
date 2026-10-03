@@ -319,7 +319,7 @@ class ServiceCategoryController extends Controller
         if ($limit->jumlah) {
             $q = \App\Models\ServicePart::where('kendaraan_id', $request->kendaraan_id)
                 ->where('category_id', $request->category_id)
-                ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+                ->whereIn('status', ['Terpasang', 'aktif']);
 
             if ($limit->reset_at) {
                 $q->where('created_at', '>=', $limit->reset_at);
