@@ -50,11 +50,14 @@ class ServiceIncidentController extends Controller
         $categories = ServiceCategory::orderBy('nama')->get();
 
         $totalService = $data->total();
-        $totalBiaya   = ServiceIncident::whereNotNull('persetujuan')
-            ->where('persetujuan', '!=', 'Pending')
-            ->when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(tanggal_service,'%Y-%m') = ?", [$bulan]))
-            ->when($kendaraanId, fn($q) => $q->where('kendaraan_id', $kendaraanId))
-            ->sum('total_biaya');
+        // Hitung totalBiaya dari sum parts (bukan dari kolom total_biaya yang bisa stale)
+        $totalBiaya   = \App\Models\ServiceIncidentPart::whereHas('serviceIncident', function ($q) use ($bulan, $kendaraanId) {
+                $q->whereNotNull('persetujuan')
+                  ->where('persetujuan', '!=', 'Pending')
+                  ->when($bulan, fn($q2) => $q2->whereRaw("DATE_FORMAT(tanggal_service,'%Y-%m') = ?", [$bulan]))
+                  ->when($kendaraanId, fn($q2) => $q2->where('kendaraan_id', $kendaraanId));
+            })
+            ->sum('biaya');
         $totalProses  = $data->where('status', 'proses')->count();
         $totalSelesai = $data->where('status', 'selesai')->count();
 
@@ -165,42 +168,25 @@ class ServiceIncidentController extends Controller
         $sourceData['pemohon']    = $_siUser->name ?? $_siUser->email;
         $sourceData['departemen'] = $deptMap[$_siUser->role ?? ''] ?? $_siUser->departemen ?? '-';
 
-        // ── Buat record ServiceIncident dengan status Pending ──────────────
-        $serviceIncident = ServiceIncident::create([
-            'kendaraan_id'    => $request->kendaraan_id,
-            'keluhan'         => $request->keluhan,
-            'keterangan'      => $keterangan,
-            'kilometer'       => $request->kilometer,
-            'total_biaya'     => $totalBiaya,
-            'status'          => 'tidak_aktif',
-            'tanggal_service' => $request->tanggal_service,
-            'persetujuan'     => 'Pending',
-        ]);
-
-        // ── Simpan ke PurchaseOrder via interceptor ────────────────────────
+        // ── Simpan ke PurchaseOrder (record ServiceIncident dibuat saat PO disetujui) ──
         $interceptor = app(PengeluaranInterceptorService::class);
 
         $po = PurchaseOrder::create([
-            'tanggal_po'              => now()->toDateString(),
-            'vendor'                  => $merk . ' ' . $nopol,
-            'pemohon'                 => $sourceData['pemohon'] ?? null,
-            'departemen'              => $sourceData['departemen'] ?? null,
-            'total_barang'            => count($partsForPO),
-            'total_harga'             => $totalBiaya,
-            'status_po'               => 'Pending',
-            'catatan'                 => $request->keluhan,
-            'keterangan'              => $keterangan,
-            'source_type'             => 'service_incident',
-            'source_data'             => array_merge($sourceData, [
-                'service_incident_id' => $serviceIncident->id,
-            ]),
-            'status'                  => 'Pending',
-            'can_edit'                => false,
-            'terakhir_diajukan'       => now(),
+            'tanggal_po'        => now()->toDateString(),
+            'vendor'            => $merk . ' ' . $nopol,
+            'pemohon'           => $sourceData['pemohon'] ?? null,
+            'departemen'        => $sourceData['departemen'] ?? null,
+            'total_barang'      => count($partsForPO),
+            'total_harga'       => $totalBiaya,
+            'status_po'         => 'Pending',
+            'catatan'           => $request->keluhan,
+            'keterangan'        => $keterangan,
+            'source_type'       => 'service_incident',
+            'source_data'       => $sourceData,   // tanpa service_incident_id — belum ada record
+            'status'            => 'Pending',
+            'can_edit'          => false,
+            'terakhir_diajukan' => now(),
         ]);
-
-        // Link PO ke record incident
-        $serviceIncident->update(['purchase_order_id' => $po->id]);
 
         // ── Upload temporary files (bukti per-part + attachments) ──────────
         $uploadedFiles = $interceptor->uploadTemporaryFiles($request, $po->id, 'purchase_order');
@@ -537,27 +523,14 @@ class ServiceIncidentController extends Controller
             'keterangan'           => $keterangan,
             'total_biaya_override' => $totalBiaya,
             'parts'                => $partsForPO,
-            'service_incident_id'  => $incidentId, // preserve agar tidak kehilangan link
+            // Tidak ada service_incident_id — record lama sudah tidak ada,
+            // record baru akan dibuat ulang saat PO disetujui
         ];
 
         $approvalService = app(\App\Services\PurchaseOrderApprovalService::class);
 
         try {
             $po = $approvalService->resubmit($po, $newData, $request);
-
-            // Update juga record ServiceIncident header agar data terbaru tersimpan
-            if ($incidentId) {
-                ServiceIncident::where('id', $incidentId)->update([
-                    'kendaraan_id'    => $request->kendaraan_id,
-                    'keluhan'         => $request->keluhan,
-                    'kilometer'       => $request->kilometer,
-                    'total_biaya'     => $totalBiaya,
-                    'tanggal_service' => $request->tanggal_service,
-                    'keterangan'      => $keterangan,
-                    'persetujuan'     => 'Pending',
-                    'pembayaran_id'   => null,
-                ]);
-            }
 
             // Upload bukti per-part ke temp storage (sama seperti store())
             $interceptor   = app(PengeluaranInterceptorService::class);
@@ -687,7 +660,6 @@ class ServiceIncidentController extends Controller
         if (!$pembayaran || !in_array($pembayaran->status, ['Ditolak', 'Disetujui Sebagian'])) {
             return response()->json(['success' => false, 'message' => 'Pembayaran bukan status Ditolak.'], 422);
         }
-
         $request->validate([
             'parts'                    => 'nullable|array',
             'parts.*.nama_part'        => 'nullable|string|max:255',
@@ -733,7 +705,7 @@ class ServiceIncidentController extends Controller
                 'terakhir_diajukan' => now(),
             ]);
 
-            // Reset ServiceIncident ke Pending agar kelihatan sedang diproses lagi
+            // Reset ServiceIncident ke Diajukan ke Pembayaran agar terlihat sedang diproses lagi
             $incident->update([
                 'persetujuan' => 'Diajukan ke Pembayaran',
                 'total_biaya' => $nominalBaru,

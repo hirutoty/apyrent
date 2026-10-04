@@ -187,7 +187,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap">
-                                <span class="text-sm font-semibold text-gray-800">Rp {{ number_format($d->total_biaya, 0, ',', '.') }}</span>
+                                <span class="text-sm font-semibold text-gray-800">Rp {{ number_format($d->parts->sum('biaya'), 0, ',', '.') }}</span>
                             </td>
                             <td class="px-4 py-4" onclick="event.stopPropagation()">
                                 <div class="flex items-center justify-center gap-1.5">

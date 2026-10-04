@@ -657,7 +657,7 @@ class PengeluaranTransferService
         if (!$incident && $kendaraanId) {
             $tanggalService = $sourceData['tanggal_service'] ?? null;
             $incident = \App\Models\ServiceIncident::where('kendaraan_id', $kendaraanId)
-                ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran', 'Ditolak Pembayaran'])
+                ->whereIn('persetujuan', ['Diajukan ke Pembayaran', 'Ditolak Pembayaran'])
                 ->when($tanggalService, fn($q) => $q->where('tanggal_service', $tanggalService))
                 ->latest()
                 ->first();
@@ -669,10 +669,8 @@ class PengeluaranTransferService
         }
 
         if ($incident) {
-            // Update existing — jangan hapus parts karena sudah dibuat saat PO approve
-            // Status tetap tidak_aktif (menunggu dipasang fisik) — aktif setelah klik Terpasang
+            // Update status dan approval incident
             $incident->update([
-                'total_biaya'     => $totalBiaya,
                 'status'          => 'tidak_aktif',
                 'status_approval' => 'approved',
                 'approval_by'     => auth()->id(),
@@ -681,13 +679,20 @@ class PengeluaranTransferService
                 'persetujuan'     => 'Disetujui',
             ]);
 
-            // Update persetujuan parts → Disetujui (status tetap tidak_aktif, menunggu dipasang fisik)
-            $existingParts = $incident->parts()->orderBy('id')->get();
-            foreach ($existingParts as $idx => $existingPart) {
+            // Hanya update parts dengan persetujuan 'Diajukan ke Pembayaran' dari PO terkait.
+            // Parts dari PO lain yang belum diapprove tidak disentuh.
+            $poTerkait = \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)->first();
+            $pendingPartsQuery = $incident->parts()->where('persetujuan', 'Diajukan ke Pembayaran');
+            if ($poTerkait) {
+                $pendingPartsQuery->where('purchase_order_id', $poTerkait->id);
+            }
+            $pendingParts = $pendingPartsQuery->orderBy('id')->get();
+
+            foreach ($pendingParts as $idx => $existingPart) {
                 $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
                 $updateData = [
                     'persetujuan' => 'Disetujui',
-                    'status'      => 'tidak_aktif',   // tetap tidak_aktif sampai user klik Terpasang
+                    'status'      => 'aktif', // aktif setelah diapprove pembayaran
                 ];
                 if (isset($buktiBayarMap[$originalIdx])) {
                     $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]];
@@ -695,23 +700,27 @@ class PengeluaranTransferService
                 $existingPart->update($updateData);
             }
 
-            // Catat cashflow per part
+            // Hitung total_biaya SETELAH parts diupdate ke Disetujui.
+            // Ini memastikan total_biaya = sum SEMUA parts Disetujui dari DB,
+            // terhindar dari double-count atau nilai lama yang tersisa.
+            $totalBiayaFinal = $incident->parts()
+                ->where('persetujuan', 'Disetujui')
+                ->sum('biaya');
+            $incident->update(['total_biaya' => (int) $totalBiayaFinal]);
+
+            // Catat cashflow per part yang baru disetujui saja
             $kendaraanForFinance = $kendaraan;
-            foreach ($parts as $idx => $partData) {
-                $biaya       = (int)($partData['biaya'] ?? 0);
-                $categoryId  = $partData['category_id'] ?? null;
+            foreach ($pendingParts as $idx => $existingPart) {
+                $biaya         = (int)($existingPart->biaya ?? 0);
+                $categoryId    = $existingPart->category_id ?? null;
                 $categoryModel = $categoryId ? \App\Models\ServiceCategory::find($categoryId) : null;
-                $namaKategori   = $categoryModel->nama ?? $partData['nama_part'] ?? '-';
+                $namaKategori   = $categoryModel->nama ?? $existingPart->nama_part ?? '-';
                 $nopolKendaraan = $kendaraanForFinance->nopol ?? '-';
                 $merkKendaraan  = $kendaraanForFinance->merk  ?? '-';
 
-                // Cari part yang sudah ada untuk dapatkan ID-nya
-                $existingPartForFinance = $existingParts[$idx] ?? null;
-                $partId = $existingPartForFinance?->id ?? 0;
-
-                $this->createKeuanganRecord('INC', $partId, $biaya,
+                $this->createKeuanganRecord('INC', $existingPart->id, $biaya,
                     'Service Incident: ' . $namaKategori . ' - ' . $merkKendaraan . ' ' . $nopolKendaraan);
-                $this->createBukubesarRecord('INC', $partId, $biaya,
+                $this->createBukubesarRecord('INC', $existingPart->id, $biaya,
                     'Beban Service Incident: ' . $namaKategori . ' - ' . $merkKendaraan . ' ' . $nopolKendaraan,
                     'Auto-posting: Service incident ' . $namaKategori . ' ' . $nopolKendaraan . ' via pembayaran #' . $pembayaran->id);
             }
@@ -844,20 +853,20 @@ class PengeluaranTransferService
             }
 
             // Cari GPS record yang terkait item ini via pembayaran_id + gps_id + type
-            // Record sudah dibuat saat store() dengan persetujuan='Pending' atau 'Diajukan ke Pembayaran'
+            // Record dibuat saat PO disetujui dengan persetujuan='Diajukan ke Pembayaran'
             $existing = GpsKendaraan::where('kendaraan_id', $kendaraanId)
                 ->where('gps_id', $item['gps_id'] ?? null)
                 ->where('type', $item['type'] ?? null)
                 ->where('pembayaran_id', $pembayaran->id)
-                ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                ->where('persetujuan', 'Diajukan ke Pembayaran')
                 ->first();
 
-            // Fallback: cari by kendaraan_id tanpa pembayaran_id (alur PO lama sebelum pembayaran_id terisi)
+            // Fallback: cari by kendaraan_id tanpa filter pembayaran_id
             if (!$existing) {
                 $existing = GpsKendaraan::where('kendaraan_id', $kendaraanId)
                     ->where('gps_id', $item['gps_id'] ?? null)
                     ->where('type', $item['type'] ?? null)
-                    ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                    ->where('persetujuan', 'Diajukan ke Pembayaran')
                     ->first();
             }
 
@@ -987,13 +996,13 @@ class PengeluaranTransferService
             $item    = $allGpsItems[$idx] ?? null;
             if (!$item) continue;
 
-            // Cara 1: langsung via gps_record_ids (paling akurat)
+            // Cara 1: langsung via gps_record_ids
             $recordId = $recordIds[$idx] ?? null;
             $existing = null;
 
             if ($recordId) {
                 $existing = GpsKendaraan::where('id', $recordId)
-                    ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                    ->where('persetujuan', 'Diajukan ke Pembayaran')
                     ->first();
             }
 
@@ -1002,7 +1011,7 @@ class PengeluaranTransferService
                 $existing = GpsKendaraan::where('pembayaran_id', $pembayaran->id)
                     ->where('gps_id', $item['gps_id'] ?? null)
                     ->where('type', $item['type'] ?? null)
-                    ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                    ->where('persetujuan', 'Diajukan ke Pembayaran')
                     ->first();
             }
 
@@ -1011,13 +1020,13 @@ class PengeluaranTransferService
                 $existing = GpsKendaraan::where('kendaraan_id', $kendaraanId)
                     ->where('gps_id', $item['gps_id'] ?? null)
                     ->where('type', $item['type'] ?? null)
-                    ->whereIn('persetujuan', ['Pending', 'Diajukan ke Pembayaran'])
+                    ->where('persetujuan', 'Diajukan ke Pembayaran')
                     ->first();
             }
 
             if ($existing) {
                 $existing->update([
-                    'persetujuan' => 'Ditolak',
+                    'persetujuan' => 'Ditolak Pembayaran',
                     'keterangan'  => $entry['catatan'] ?: ($existing->keterangan ?? null),
                 ]);
             } else {
@@ -1626,9 +1635,16 @@ class PengeluaranTransferService
         $firstBukti = $approvalFiles['bukti'][0] ?? null;
         $bukti = is_array($firstBukti) && isset($firstBukti['path']) ? $firstBukti : null;
 
-        // Cek apakah record ServiceAsuransi sudah ada (dibuat saat store() dengan persetujuan=Pending)
+        // Cek apakah record ServiceAsuransi sudah ada (dibuat saat PO disetujui via updateLinkedRecord)
         $saId = $sourceData['service_asuransi_id'] ?? null;
         $serviceAsuransi = $saId ? ServiceAsuransi::find($saId) : null;
+
+        // Fallback: cari via pembayaran_id
+        if (!$serviceAsuransi) {
+            $serviceAsuransi = ServiceAsuransi::where('pembayaran_id', $pembayaran->id)
+                ->where('persetujuan', 'Diajukan ke Pembayaran')
+                ->first();
+        }
 
         // Hitung total biaya dari kejadian yang disetujui saja
         $allKejadians    = $sourceData['kejadians'] ?? [];
@@ -1638,7 +1654,7 @@ class PengeluaranTransferService
         $biayaApproved   = collect($kejadianToApply)->sum(fn($k) => (int) ($k['biaya'] ?? 0));
 
         if ($serviceAsuransi) {
-            // Update record yang sudah ada
+            // Update record yang sudah ada (dibuat saat PO disetujui)
             $updateData = [
                 'persetujuan'   => 'Disetujui',
                 'status'        => 'bermasalah',
@@ -1650,7 +1666,7 @@ class PengeluaranTransferService
             }
             $serviceAsuransi->update($updateData);
 
-            // Hapus kejadian lama, ganti dengan yang disetujui saja
+            // Hapus kejadian lama (dibuat saat PO approve), ganti dengan yang disetujui saja
             $serviceAsuransi->kejadians()->delete();
         } else {
             // Buat record baru (fallback untuk data lama)

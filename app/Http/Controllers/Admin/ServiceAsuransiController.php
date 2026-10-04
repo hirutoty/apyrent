@@ -20,7 +20,7 @@ class ServiceAsuransiController extends Controller
             ->whereNotNull('persetujuan')
             ->where('persetujuan', '!=', 'Pending')
             ->where(function ($q) {
-                $q->where('persetujuan', '!=', 'Ditolak')
+                $q->whereNotIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
                   ->orWhereNotNull('pembayaran_id'); // Ditolak di Pembayaran → tampilkan
             })
             ->latest();
@@ -105,26 +105,12 @@ class ServiceAsuransiController extends Controller
             // ── Step 2: Save ke Purchase Order ──────────────────────────────
             $po = $interceptor->saveToPurchaseOrder($interceptedData, 'service_asuransi');
 
-            // ── Step 3: Buat record service_asuransi dengan status Pending ──
+            // ── Step 3: Hitung total biaya (tidak buat record dulu) ─────────
+            // Record service_asuransi dibuat saat PO disetujui via updateLinkedRecord()
             $biayaTotal = 0;
             foreach (($request->kejadians ?? []) as $kej) {
                 $biayaTotal += (int) ($kej['biaya'] ?? 0);
             }
-
-            $serviceAsuransi = ServiceAsuransi::create([
-                'kendaraan_id'      => $request->kendaraan_id,
-                'nama_asuransi'     => $request->nama_asuransi,
-                'jenis_asuransi_id' => $request->jenis_asuransi_id ?: null,
-                'tanggal_service'   => $request->tanggal_service,
-                'periode_mulai'     => $request->periode_mulai,
-                'periode_selesai'   => $request->periode_selesai,
-                'kilometer'         => $request->kilometer,
-                'biaya'             => $biayaTotal,
-                'keterangan'        => $keterangan,
-                'status'            => 'tidak_aktif',
-                'persetujuan'       => 'Pending',
-                'purchase_order_id' => $po->id,
-            ]);
 
             // ── Step 4: Upload lampiran per-kejadian ke temp storage ─────────
             $kejadians     = $request->input('kejadians', []);
@@ -157,10 +143,10 @@ class ServiceAsuransiController extends Controller
             }
 
             // ── Step 5: Update source_data PO ────────────────────────────────
+            // Tidak ada service_asuransi_id — record dibuat saat PO disetujui
             $sourceData = $po->source_data;
-            $sourceData['kejadians']             = $kejadiansMeta;
-            $sourceData['service_asuransi_id']   = $serviceAsuransi->id;
-            $sourceData['keterangan']            = $keterangan;
+            $sourceData['kejadians']  = $kejadiansMeta;
+            $sourceData['keterangan'] = $keterangan;
             $po->update(['source_data' => $sourceData]);
 
             return redirect()
@@ -283,8 +269,8 @@ class ServiceAsuransiController extends Controller
     {
         $data = ServiceAsuransi::with(['kendaraan', 'jenisAsuransi', 'kejadians'])->findOrFail($id);
 
-        // Harus status Ditolak dan punya pembayaran
-        if ($data->persetujuan !== 'Ditolak' || !$data->pembayaran_id) {
+        // Harus status Ditolak/Ditolak Pembayaran dan punya pembayaran
+        if (!in_array($data->persetujuan, ['Ditolak', 'Ditolak Pembayaran']) || !$data->pembayaran_id) {
             return response()->json(['success' => false, 'message' => 'Record ini tidak dapat diajukan ulang.'], 422);
         }
 
@@ -383,7 +369,7 @@ class ServiceAsuransiController extends Controller
     {
         $data = ServiceAsuransi::with('kejadians')->findOrFail($id);
 
-        if ($data->persetujuan !== 'Ditolak' || !$data->pembayaran_id) {
+        if (!in_array($data->persetujuan, ['Ditolak', 'Ditolak Pembayaran']) || !$data->pembayaran_id) {
             return response()->json(['success' => false, 'message' => 'Record ini tidak dapat diajukan ulang.'], 422);
         }
 

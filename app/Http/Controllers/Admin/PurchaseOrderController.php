@@ -823,13 +823,8 @@ class PurchaseOrderController extends Controller
                 'can_edit'            => true,
             ]);
 
-            // Hapus semua record GPS Pending terkait PO ini
-            $recordIds = $sourceData['gps_record_ids'] ?? [];
-            if (!empty($recordIds)) {
-                \App\Models\GpsKendaraan::whereIn('id', $recordIds)
-                    ->where('persetujuan', 'Pending')
-                    ->delete();
-            }
+            // Dengan alur baru, record GPS belum ada saat PO Pending — tidak ada yang perlu dihapus.
+            // Record baru hanya dibuat saat PO disetujui (updateLinkedRecord).
 
             \DB::commit();
             return response()->json([
@@ -884,16 +879,9 @@ class PurchaseOrderController extends Controller
         );
 
         if ($hasRejected && !empty($rejectedGpsItems)) {
-            // Update status GPS record yang ditolak ke 'Ditolak'
-            $allRecordIds = $sourceData['gps_record_ids'] ?? [];
-            foreach ($rejectedIdx as $idx) {
-                $recordId = $allRecordIds[$idx] ?? null;
-                if ($recordId) {
-                    \App\Models\GpsKendaraan::where('id', $recordId)
-                        ->where('persetujuan', 'Pending')
-                        ->update(['persetujuan' => 'Ditolak']);
-                }
-            }
+            // Dengan alur baru, record GPS belum ada saat PO masih dalam proses approve.
+            // Record dibuat oleh updateLinkedRecord() hanya untuk item yang disetujui.
+            // Item yang ditolak di PO tidak pernah punya record → tidak ada yang perlu di-update.
 
             // Buat PO baru berisi hanya GPS items yang ditolak agar muncul di tab Ditolak
             $nominalRejected = collect($rejectedGpsItems)->sum(fn($i) => $i['biaya_sewa'] ?? 0);
@@ -1115,17 +1103,18 @@ class PurchaseOrderController extends Controller
                 $kendaraanId = $incident?->kendaraan_id ?? ($sourceData['kendaraan_id'] ?? null);
                 $tanggalService = $sourceData['tanggal_service'] ?? now()->toDateString();
 
-                // Update header incident
+                // Tambahkan nominal approved ke total_biaya incident yang sudah ada
+                // (jangan ganti — bisa ada parts dari PO sebelumnya yang sudah approved)
+                // CATATAN: total_biaya akan dihitung ulang secara akurat di transferServiceIncident
+                // berdasarkan sum parts yang sudah Disetujui. Update di sini hanya untuk
+                // menyimpan pembayaran_id dan persetujuan.
                 \App\Models\ServiceIncident::where('id', $incidentId)->update([
                     'persetujuan'   => 'Diajukan ke Pembayaran',
                     'pembayaran_id' => $pembayaran->id,
-                    'total_biaya'   => $nominalApproved,
                 ]);
 
-                // Hapus parts lama (jika ada dari submit sebelumnya) lalu buat ulang
-                \App\Models\ServiceIncidentPart::where('service_incident_id', $incidentId)->delete();
-
-                // Buat parts dengan status tidak_aktif + persetujuan Pending (approved parts)
+                // JANGAN hapus parts lama — parts dari PO sebelumnya yang sudah approved
+                // harus tetap ada. Cukup tambahkan parts baru dari PO ini saja.
                 foreach ($approvedParts as $idx => $part) {
                     $tglPasang    = \Carbon\Carbon::parse($part['tgl_pasang'] ?? $tanggalService);
                     $tglLimit     = (clone $tglPasang)->addMonths(12);
@@ -1168,6 +1157,7 @@ class PurchaseOrderController extends Controller
 
                     \App\Models\ServiceIncidentPart::create([
                         'service_incident_id' => $incidentId,
+                        'purchase_order_id'   => $po->id,
                         'kendaraan_id'        => $kendaraanId,
                         'category_id'         => $part['category_id'] ?? null,
                         'supplier_id'         => !empty($part['supplier_id']) ? (int)$part['supplier_id'] : null,
@@ -1187,7 +1177,7 @@ class PurchaseOrderController extends Controller
                         'nama_rekening'       => $part['nama_rekening'] ?? null,
                         'nama_bank'           => $part['nama_bank'] ?? null,
                         'no_rekening'         => $part['no_rekening'] ?? null,
-                        'persetujuan'         => 'Pending',
+                        'persetujuan'         => 'Diajukan ke Pembayaran',
                     ]);
                 }
             }
@@ -1227,11 +1217,11 @@ class PurchaseOrderController extends Controller
                 'can_edit'            => true,
             ]);
 
-            // Update record service_asuransi ke Ditolak
+            // Update record service_asuransi ke Ditolak Pembayaran
             if ($serviceAsuransiId) {
                 \App\Models\ServiceAsuransi::where('id', $serviceAsuransiId)
-                    ->where('persetujuan', 'Pending')
-                    ->update(['persetujuan' => 'Ditolak']);
+                    ->where('persetujuan', 'Diajukan ke Pembayaran')
+                    ->update(['persetujuan' => 'Ditolak Pembayaran']);
             }
 
             \DB::commit();
@@ -2016,19 +2006,34 @@ class PurchaseOrderController extends Controller
             if (in_array($po->source_type, ['service_asuransi', 'service_incident'])) {
                 $serviceAsuransiId = $po->source_data['service_asuransi_id'] ?? null;
                 if ($serviceAsuransiId) {
+                    // Dengan alur baru: record sudah ada dengan 'Ditolak Pembayaran', reset ke 'Diajukan ke Pembayaran'
                     \App\Models\ServiceAsuransi::where('id', $serviceAsuransiId)
-                        ->where('persetujuan', 'Ditolak')
-                        ->update(['persetujuan' => 'Pending', 'purchase_order_id' => $po->id]);
+                        ->whereIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
+                        ->update(['persetujuan' => 'Diajukan ke Pembayaran', 'purchase_order_id' => $po->id]);
                 }
 
                 // service_incident: hapus parts lama dan reset header
                 if ($po->source_type === 'service_incident') {
                     $siId = $po->source_data['service_incident_id'] ?? null;
                     if ($siId) {
-                        \App\Models\ServiceIncidentPart::where('service_incident_id', $siId)->delete();
+                        // Hapus hanya parts yang terkait PO yang ditolak ini (via purchase_order_id).
+                        // Parts dari PO sebelumnya yang sudah approved TIDAK dihapus.
+                        $deletedCount = \App\Models\ServiceIncidentPart::where('service_incident_id', $siId)
+                            ->where('purchase_order_id', $po->id)
+                            ->delete();
+
+                        // Fallback untuk data lama tanpa purchase_order_id
+                        if ($deletedCount === 0) {
+                            \App\Models\ServiceIncidentPart::where('service_incident_id', $siId)
+                                ->where('persetujuan', 'Diajukan ke Pembayaran')
+                                ->whereNull('purchase_order_id')
+                                ->delete();
+                        }
+
+                        // Reset incident header ke Diajukan ke Pembayaran
                         \App\Models\ServiceIncident::where('id', $siId)->update([
-                            'persetujuan'   => 'Pending',
-                            'pembayaran_id' => null,
+                            'persetujuan'       => 'Diajukan ke Pembayaran',
+                            'purchase_order_id' => $po->id,
                         ]);
                     }
                 }
@@ -2149,11 +2154,11 @@ class PurchaseOrderController extends Controller
                 'terakhir_diajukan'   => now(),
             ]);
 
-            // Update record ServiceAsuransi ke Pending
+            // Update record ServiceAsuransi ke Diajukan ke Pembayaran (reset setelah resubmit)
             $serviceAsuransiId = $sourceData['service_asuransi_id'] ?? null;
             if ($serviceAsuransiId) {
                 \App\Models\ServiceAsuransi::where('id', $serviceAsuransiId)->update([
-                    'persetujuan'       => 'Pending',
+                    'persetujuan'       => 'Diajukan ke Pembayaran',
                     'biaya'             => $biayaTotal,
                     'purchase_order_id' => $po->id,
                 ]);
@@ -2169,16 +2174,31 @@ class PurchaseOrderController extends Controller
                 }
             }
 
-            // Update record ServiceIncident ke Pending (jika source_type = service_incident)
+            // Update record ServiceIncident ke Diajukan ke Pembayaran (reset setelah resubmit)
             $serviceIncidentId = $sourceData['service_incident_id'] ?? null;
             if ($po->source_type === 'service_incident' && $serviceIncidentId) {
-                // Hapus parts lama agar tidak duplikat saat PO diapprove ulang
-                \App\Models\ServiceIncidentPart::where('service_incident_id', $serviceIncidentId)->delete();
+                // Hapus hanya parts yang terkait PO yang ditolak ini (via purchase_order_id).
+                $deletedCount = \App\Models\ServiceIncidentPart::where('service_incident_id', $serviceIncidentId)
+                    ->where('purchase_order_id', $po->id)
+                    ->delete();
 
+                // Fallback untuk data lama yang belum punya purchase_order_id
+                if ($deletedCount === 0) {
+                    \App\Models\ServiceIncidentPart::where('service_incident_id', $serviceIncidentId)
+                        ->where('persetujuan', 'Diajukan ke Pembayaran')
+                        ->whereNull('purchase_order_id')
+                        ->delete();
+                }
+
+                // Update persetujuan dan purchase_order_id saja.
+                // JANGAN reset pembayaran_id ke null — jika incident sudah punya
+                // pembayaran_id dari Pembayaran yang sudah diapprove sebelumnya,
+                // nilai tersebut harus dipertahankan agar:
+                //   1. transferServiceIncident bisa menemukan incident via Fallback 1
+                //   2. total_biaya tidak ikut di-reset (sudah di-fix sebelumnya)
+                // JANGAN timpa total_biaya — akumulasi dilakukan saat PO ini diapprove.
                 \App\Models\ServiceIncident::where('id', $serviceIncidentId)->update([
-                    'persetujuan'       => 'Pending',
-                    'total_biaya'       => $biayaTotal,
-                    'pembayaran_id'     => null,
+                    'persetujuan'       => 'Diajukan ke Pembayaran',
                     'purchase_order_id' => $po->id,
                 ]);
             }

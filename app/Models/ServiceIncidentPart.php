@@ -14,6 +14,7 @@ class ServiceIncidentPart extends Model
 
     protected $fillable = [
         'service_incident_id',
+        'purchase_order_id',
         'kendaraan_id',
         'category_id',
         'nama_part',

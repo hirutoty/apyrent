@@ -305,111 +305,32 @@ class PurchaseOrderApprovalService
             // Extract total items
             $totalItems = $this->extractTotalItemsFromData($sourceType, $newData);
 
-            // Untuk GPS: hapus record Ditolak lama, buat records Pending baru
-            $newGpsRecordIds = [];
-
-            // ── SERVICE INCIDENT: reset record ke status menunggu approval ulang ──
+            // ── SERVICE INCIDENT: tidak perlu hapus/buat ulang record ──────────
+            // Dengan alur baru, record ServiceIncident sudah ada sejak PO sebelumnya disetujui.
+            // Saat resubmit, PurchaseOrderController sudah handle reset parts + header di resubmitServiceAsuransi/incident.
+            // Di sini cukup pastikan service_incident_id tersimpan di data baru jika ada.
             if ($sourceType === 'service_incident') {
                 $oldSourceData = $po->source_data ?? [];
                 $incidentId    = $oldSourceData['service_incident_id'] ?? null;
                 if ($incidentId) {
-                    \App\Models\ServiceIncident::where('id', $incidentId)
-                        ->update([
-                            // Tetap 'Diajukan ke Pembayaran' agar masih tampil di halaman servis insiden
-                            // (filter index menyembunyikan 'Pending' sehingga data terlihat "hilang")
-                            'persetujuan'   => 'Diajukan ke Pembayaran',
-                            'pembayaran_id' => null,
-                        ]);
-                    // Pastikan service_incident_id tersimpan di data baru
                     $newData['service_incident_id'] = $incidentId;
                 }
             }
 
-            if ($sourceType === 'gps') {
-                $oldSourceData = $po->source_data ?? [];
-                $oldRecordIds  = $oldSourceData['gps_record_ids'] ?? [];
-
-                // Untuk GPS: ambil lampiran lama SEBELUM hapus record, lalu hapus record Ditolak
-                $oldAttachmentsByIdx = [];
-                foreach ($oldRecordIds as $idx => $oldId) {
-                    $oldAttachmentsByIdx[$idx] = \App\Models\Attachment::where('relation_type', 'gps')
-                        ->where('relation_id', $oldId)
-                        ->get();
-                }
-
-                // Hapus GPS records lama yang Ditolak terkait PO ini
-                if (!empty($oldRecordIds)) {
-                    \App\Models\GpsKendaraan::whereIn('id', $oldRecordIds)
-                        ->where('persetujuan', 'Ditolak')
-                        ->delete();
-                }
-
-                // Buat GPS records baru dengan status Pending
-                // Lampiran lama dipindahkan ke record baru (bukan dihapus)
-                $gpsItems    = $newData['gps_items'] ?? [];
-                $kendaraanId = $newData['kendaraan_id'] ?? $oldSourceData['kendaraan_id'] ?? null;
-                $tanggalBayar = $newData['tanggal_bayar'] ?? null;
-                $tanggalHabis = $newData['tanggal_habis'] ?? null;
-                $durasiBulan  = ($tanggalBayar && $tanggalHabis)
-                    ? max((int) \Carbon\Carbon::parse($tanggalBayar)->diffInMonths(\Carbon\Carbon::parse($tanggalHabis)), 1)
-                    : 12;
-
+            // ── GPS: tidak perlu hapus/buat ulang record ────────────────────────
+            // Dengan alur baru, record GPS dibuat saat PO disetujui (updateLinkedRecord).
+            // Saat resubmit PO yang Ditolak (sebelum ada Pembayaran), belum ada record GPS.
+            // Cukup upload lampiran baru ke temp storage, record dibuat ulang saat PO approve berikutnya.
+            if ($sourceType === 'gps' && $request->hasAny(['gps_items'])) {
+                $gpsItems = $newData['gps_items'] ?? [];
                 foreach ($gpsItems as $itemIdx => $item) {
-                    // Ambil lampiran lama yang sudah dikumpulkan sebelum record dihapus
-                    $oldAttachments = $oldAttachmentsByIdx[$itemIdx] ?? collect();
-
-                    $gpsRecord = \App\Models\GpsKendaraan::create([
-                        'pembayaran_id' => null,
-                        'kendaraan_id'  => $kendaraanId,
-                        'gps_id'        => $item['gps_id'] ?? null,
-                        'type'          => $item['type'] ?? null,
-                        'status_gps'    => 'nonaktif',
-                        'tanggal_pasang'=> $tanggalBayar,
-                        'tanggal_habis' => $tanggalHabis,
-                        'tanggal_bayar' => $tanggalBayar,
-                        'biaya_sewa'    => (int) ($item['biaya_sewa'] ?? 0),
-                        'durasi_bulan'  => $durasiBulan,
-                        'status_sewa'   => 'tidak_aktif',
-                        'bukti_bayar'   => null,
-                        'keterangan'    => $newData['keterangan'] ?? null,
-                        'nama_bank'     => $item['nama_bank'] ?? null,
-                        'no_rekening'   => $item['no_rekening'] ?? null,
-                        'nama_pemilik'  => $item['nama_pemilik'] ?? null,
-                        'persetujuan'   => 'Pending',
-                    ]);
-                    $newGpsRecordIds[] = $gpsRecord->id;
-
-                    // Pindahkan lampiran lama ke record baru (update relation_id)
-                    if ($oldAttachments->isNotEmpty()) {
-                        \App\Models\Attachment::whereIn('id', $oldAttachments->pluck('id'))
-                            ->update(['relation_id' => $gpsRecord->id]);
-                    }
-
-                    // Simpan lampiran baru yang diupload saat resubmit (ditambahkan, bukan mengganti)
                     if ($request->hasFile("gps_items.{$itemIdx}.lampiran")) {
-                        $lampiranDir = public_path('gps/attachments');
-                        if (!file_exists($lampiranDir)) mkdir($lampiranDir, 0777, true);
-
-                        foreach ($request->file("gps_items.{$itemIdx}.lampiran") as $lampiranFile) {
-                            if (!$lampiranFile->isValid()) continue;
-                            $origName = $lampiranFile->getClientOriginalName();
-                            $ext      = $lampiranFile->getClientOriginalExtension();
-                            $fileSize = $lampiranFile->getSize();
-                            $filename = time() . '_' . uniqid() . '.' . $ext;
-                            $lampiranFile->move($lampiranDir, $filename);
-                            \App\Models\Attachment::create([
-                                'relation_type' => 'gps',
-                                'relation_id'   => $gpsRecord->id,
-                                'file_name'     => $origName,
-                                'file_path'     => 'gps/attachments/' . $filename,
-                                'file_type'     => $ext,
-                                'file_size'     => $fileSize,
-                            ]);
-                        }
+                        // Lampiran baru diunggah ke temp_files — sudah ditangani oleh uploadTemporaryFiles() di atas
+                        // Tidak perlu buat record GPS di sini
                     }
                 }
-
-                $newData['gps_record_ids'] = $newGpsRecordIds;
+                // Hapus gps_record_ids lama dari source_data karena record sudah tidak ada
+                unset($newData['gps_record_ids']);
             }
 
             // Update PO dengan data baru
@@ -598,46 +519,102 @@ class PurchaseOrderApprovalService
 
         // ── GPS ────────────────────────────────────────────────────────────────
         if (in_array($sourceType, ['gps', 'gps_perpanjang'])) {
-            // Saat approveWithItems: $overrideSourceData berisi hanya item yang disetujui
-            $approvedItems = $overrideSourceData !== null
-                ? ($overrideSourceData['gps_items'] ?? [])
+            // Alur baru: tidak ada record GPS sebelum PO disetujui.
+            // Buat record baru di sini dengan persetujuan = 'Diajukan ke Pembayaran'.
+            // Untuk gps_perpanjang: record existing sudah ada, cukup update persetujuan-nya.
+
+            $allGpsItems = $sourceType === 'gps'
+                ? ($overrideSourceData['gps_items'] ?? $sourceData['gps_items'] ?? [])
                 : ($sourceData['gps_items'] ?? []);
 
-            $allGpsItems = $sourceData['gps_items'] ?? [];
-            $recordIds   = $sourceData['gps_record_ids'] ?? [];
-            $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+            $kendaraanId  = $sourceData['kendaraan_id'] ?? null;
+            $tanggalBayar = $sourceData['tanggal_bayar'] ?? now()->toDateString();
+            $tanggalHabis = $sourceData['tanggal_habis'] ?? now()->addYear()->toDateString();
+            $keterangan   = $sourceData['keterangan'] ?? null;
 
-            if (!empty($recordIds)) {
-                // Kumpulkan gps_id+type dari approved items untuk filter
-                $approvedKeys = array_map(
-                    fn($i) => ($i['gps_id'] ?? '') . '_' . ($i['type'] ?? ''),
-                    $approvedItems
-                );
+            $durasiBulan = max(
+                (int) \Carbon\Carbon::parse($tanggalBayar)->diffInMonths(\Carbon\Carbon::parse($tanggalHabis)),
+                1
+            );
 
+            if ($sourceType === 'gps') {
+                // Tambah baru: buat record GpsKendaraan per item
+                $newRecordIds = [];
                 foreach ($allGpsItems as $idx => $item) {
-                    $key      = ($item['gps_id'] ?? '') . '_' . ($item['type'] ?? '');
-                    $recordId = $recordIds[$idx] ?? null;
-                    // Jika tidak ada override (approve() full), update semua; jika ada override, filter
-                    if ($recordId && ($overrideSourceData === null || in_array($key, $approvedKeys))) {
-                        \App\Models\GpsKendaraan::where('id', $recordId)
-                            ->where('persetujuan', 'Pending')
+                    // Skip item yang tidak ada di overrideSourceData (partial approve)
+                    if ($overrideSourceData !== null) {
+                        $approvedKeys = array_map(
+                            fn($i) => ($i['gps_id'] ?? '') . '_' . ($i['type'] ?? ''),
+                            $overrideSourceData['gps_items'] ?? []
+                        );
+                        $itemKey = ($item['gps_id'] ?? '') . '_' . ($item['type'] ?? '');
+                        if (!in_array($itemKey, $approvedKeys)) continue;
+                    }
+
+                    $gpsRecord = \App\Models\GpsKendaraan::create([
+                        'pembayaran_id'  => $pembayaran->id,
+                        'kendaraan_id'   => $kendaraanId,
+                        'gps_id'         => $item['gps_id'] ?? null,
+                        'type'           => $item['type'] ?? null,
+                        'status_gps'     => 'nonaktif',
+                        'tanggal_pasang' => $tanggalBayar,
+                        'tanggal_habis'  => $tanggalHabis,
+                        'tanggal_bayar'  => $tanggalBayar,
+                        'tanggal_buat'   => $tanggalBayar,
+                        'biaya_sewa'     => (int) ($item['biaya_sewa'] ?? 0),
+                        'durasi_bulan'   => $durasiBulan,
+                        'status_sewa'    => 'tidak_aktif',
+                        'bukti_bayar'    => null,
+                        'keterangan'     => $keterangan,
+                        'nama_bank'      => $item['nama_bank'] ?? null,
+                        'no_rekening'    => $item['no_rekening'] ?? null,
+                        'nama_pemilik'   => $item['nama_pemilik'] ?? null,
+                        'persetujuan'    => 'Diajukan ke Pembayaran',
+                    ]);
+                    $newRecordIds[] = $gpsRecord->id;
+
+                    // Pindahkan lampiran dari temp_files ke attachments (relation_id = record baru)
+                    $tempFiles    = $sourceData['temp_files'] ?? [];
+                    $itemLampiran = $tempFiles['gps_items'][$idx]['lampiran'] ?? [];
+                    $lampiranDir  = public_path('gps/attachments');
+                    if (!file_exists($lampiranDir)) mkdir($lampiranDir, 0777, true);
+
+                    foreach ($itemLampiran as $tf) {
+                        $storagePath = $tf['path'] ?? null;
+                        if (!$storagePath) continue;
+                        $srcFullPath = storage_path('app/public/' . $storagePath);
+                        if (!file_exists($srcFullPath)) continue;
+
+                        $ext      = $tf['extension'] ?? pathinfo($storagePath, PATHINFO_EXTENSION);
+                        $filename = time() . '_' . uniqid() . '.' . $ext;
+                        copy($srcFullPath, $lampiranDir . '/' . $filename);
+
+                        \App\Models\Attachment::create([
+                            'relation_type' => 'gps',
+                            'relation_id'   => $gpsRecord->id,
+                            'file_name'     => $tf['original_name'] ?? basename($storagePath),
+                            'file_path'     => 'gps/attachments/' . $filename,
+                            'file_type'     => $ext,
+                            'file_size'     => $tf['size'] ?? null,
+                        ]);
+                    }
+                }
+
+                // Simpan record IDs ke source_data PO untuk lookup saat transfer
+                $updatedSource                  = $po->source_data;
+                $updatedSource['gps_record_ids'] = $newRecordIds;
+                $po->update(['source_data' => $updatedSource]);
+
+            } else {
+                // gps_perpanjang: record existing sudah ada, update persetujuan saja
+                foreach ($allGpsItems as $item) {
+                    if (!empty($item['gps_kendaraan_id'])) {
+                        \App\Models\GpsKendaraan::where('id', $item['gps_kendaraan_id'])
                             ->update([
                                 'persetujuan'   => 'Diajukan ke Pembayaran',
                                 'pembayaran_id' => $pembayaran->id,
                             ]);
                     }
-                }
-            } elseif ($kendaraanId && !empty($approvedItems)) {
-                // Fallback: cari by kendaraan_id + gps_id + type
-                foreach ($approvedItems as $item) {
-                    \App\Models\GpsKendaraan::where('kendaraan_id', $kendaraanId)
-                        ->where('gps_id', $item['gps_id'] ?? null)
-                        ->where('type', $item['type'] ?? null)
-                        ->where('persetujuan', 'Pending')
-                        ->update([
-                            'persetujuan'   => 'Diajukan ke Pembayaran',
-                            'pembayaran_id' => $pembayaran->id,
-                        ]);
                 }
             }
             return;
@@ -687,14 +664,149 @@ class PurchaseOrderApprovalService
 
         // ── SERVICE INCIDENT ──────────────────────────────────────────────────
         if ($sourceType === 'service_incident') {
-            $incidentId = $sourceData['service_incident_id'] ?? null;
-            if ($incidentId) {
-                \App\Models\ServiceIncident::where('id', $incidentId)
-                    ->update([
-                        'persetujuan'   => 'Diajukan ke Pembayaran',
-                        'pembayaran_id' => $pembayaran->id,
-                    ]);
+            // Alur baru: tidak ada record ServiceIncident sebelum PO disetujui.
+            // Buat record ServiceIncident + ServiceIncidentPart baru di sini.
+            $kendaraanId    = $sourceData['kendaraan_id'] ?? null;
+            $tanggalService = $sourceData['tanggal_service'] ?? now()->toDateString();
+            $kilometer      = $sourceData['kilometer'] ?? 0;
+            $keluhan        = $sourceData['keluhan'] ?? null;
+            $keterangan     = $sourceData['keterangan'] ?? null;
+            $parts          = $sourceData['parts'] ?? [];
+
+            // Filter parts jika ada partial approve (overrideSourceData)
+            if ($overrideSourceData !== null) {
+                $approvedPartKeys = array_map(
+                    fn($p) => strtolower(trim($p['nama_part'] ?? '')) . '||' . ((int)($p['biaya'] ?? 0)),
+                    $overrideSourceData['parts'] ?? []
+                );
+                $parts = array_values(array_filter($parts, function ($p) use ($approvedPartKeys) {
+                    $key = strtolower(trim($p['nama_part'] ?? '')) . '||' . ((int)($p['biaya'] ?? 0));
+                    return in_array($key, $approvedPartKeys);
+                }));
             }
+
+            $totalBiaya = collect($parts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
+
+            // Resolve kategori inline
+            foreach ($parts as &$partData) {
+                if (!empty($partData['nama_category_baru'])) {
+                    $cat = \App\Models\ServiceCategory::firstOrCreate(
+                        ['nama' => trim($partData['nama_category_baru'])]
+                    );
+                    $partData['category_id'] = $cat->id;
+                }
+            }
+            unset($partData);
+
+            // Buat ServiceIncident header
+            $incident = \App\Models\ServiceIncident::create([
+                'kendaraan_id'    => $kendaraanId,
+                'keluhan'         => $keluhan,
+                'keterangan'      => $keterangan,
+                'kilometer'       => $kilometer,
+                'total_biaya'     => $totalBiaya,
+                'status'          => 'tidak_aktif',
+                'tanggal_service' => $tanggalService,
+                'status_approval' => 'pending',
+                'pembayaran_id'   => $pembayaran->id,
+                'purchase_order_id' => $po->id,
+                'persetujuan'     => 'Diajukan ke Pembayaran',
+            ]);
+
+            // Buat ServiceIncidentPart per item yang disetujui
+            foreach ($parts as $idx => $partData) {
+                \App\Models\ServiceIncidentPart::create([
+                    'service_incident_id' => $incident->id,
+                    'kendaraan_id'        => $kendaraanId,
+                    'category_id'         => $partData['category_id'] ?? null,
+                    'nama_part'           => $partData['nama_part'] ?? '',
+                    'part_number'         => $partData['part_number'] ?? null,
+                    'serial_number'       => $partData['serial_number'] ?? null,
+                    'posisi'              => $partData['posisi'] ?? null,
+                    'tgl_pasang'          => $partData['tgl_pasang'] ?? $tanggalService,
+                    'kilometer_pasang'    => $partData['kilometer_pasang'] ?? $kilometer,
+                    'kondisi'             => $partData['kondisi'] ?? 'Perlu Ganti',
+                    'status'              => 'tidak_aktif',
+                    'biaya'               => (int)($partData['biaya'] ?? 0),
+                    'supplier_id'         => $partData['supplier_id'] ?? null,
+                    'nama_bank'           => $partData['nama_bank'] ?? null,
+                    'no_rekening'         => $partData['no_rekening'] ?? null,
+                    'nama_rekening'       => $partData['nama_rekening'] ?? null,
+                    'persetujuan'         => 'Diajukan ke Pembayaran',
+                    'purchase_order_id'   => $po->id,
+                ]);
+            }
+
+            // Simpan service_incident_id ke source_data PO agar transferServiceIncident bisa lookup
+            $updatedSource = $po->source_data;
+            $updatedSource['service_incident_id'] = $incident->id;
+            $po->update(['source_data' => $updatedSource]);
+
+            // Pindahkan lampiran dari temp storage ke attachments
+            $tempAttachments = ($sourceData['temp_files'] ?? [])['attachments'] ?? [];
+            $attDir = public_path('service-incident/attachments');
+            if (!file_exists($attDir)) mkdir($attDir, 0777, true);
+            foreach ($tempAttachments as $tf) {
+                if (empty($tf['path'])) continue;
+                $srcPath = storage_path('app/public/' . $tf['path']);
+                if (!file_exists($srcPath)) continue;
+                $ext      = $tf['extension'] ?? pathinfo($tf['path'], PATHINFO_EXTENSION);
+                $filename = time() . '_' . uniqid() . '.' . $ext;
+                copy($srcPath, $attDir . '/' . $filename);
+                \App\Models\Attachment::create([
+                    'relation_type' => 'service_incident',
+                    'relation_id'   => $incident->id,
+                    'file_name'     => $tf['original_name'] ?? basename($tf['path']),
+                    'file_path'     => 'service-incident/attachments/' . $filename,
+                    'file_type'     => $ext,
+                    'file_size'     => $tf['size'] ?? null,
+                ]);
+            }
+
+            return;
+        }
+
+        // ── SERVICE ASURANSI ──────────────────────────────────────────────────
+        if ($sourceType === 'service_asuransi') {
+            // Alur baru: buat ServiceAsuransi + ServiceAsuransiKejadian saat PO disetujui.
+            $kendaraanId    = $sourceData['kendaraan_id'] ?? null;
+            $kejadians      = $overrideSourceData['kejadians'] ?? $sourceData['kejadians'] ?? [];
+            $namaAsuransi   = $sourceData['nama_asuransi'] ?? null;
+            $keterangan     = $sourceData['keterangan'] ?? null;
+
+            $totalBiaya = collect($kejadians)->sum(fn($k) => (int)($k['biaya'] ?? 0));
+
+            $serviceAsuransi = \App\Models\ServiceAsuransi::create([
+                'kendaraan_id'      => $kendaraanId,
+                'nama_asuransi'     => $namaAsuransi,
+                'jenis_asuransi_id' => $sourceData['jenis_asuransi_id'] ?? null,
+                'tanggal_service'   => $sourceData['tanggal_service'] ?? now()->toDateString(),
+                'periode_mulai'     => $sourceData['periode_mulai'] ?? null,
+                'periode_selesai'   => $sourceData['periode_selesai'] ?? null,
+                'kilometer'         => $sourceData['kilometer'] ?? 0,
+                'biaya'             => $totalBiaya,
+                'keterangan'        => $keterangan,
+                'status'            => 'tidak_aktif',
+                'pembayaran_id'     => $pembayaran->id,
+                'purchase_order_id' => $po->id,
+                'persetujuan'       => 'Diajukan ke Pembayaran',
+            ]);
+
+            // Buat kejadian per item (lampiran masih di temp storage — dipindah saat transfer)
+            foreach ($kejadians as $idx => $kej) {
+                \App\Models\ServiceAsuransiKejadian::create([
+                    'service_asuransi_id' => $serviceAsuransi->id,
+                    'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
+                    'biaya'               => (int)($kej['biaya'] ?? 0),
+                    'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
+                ]);
+            }
+
+            // Simpan service_asuransi_id ke source_data PO agar transferServiceAsuransi bisa lookup
+            $updatedSource = $po->source_data;
+            $updatedSource['service_asuransi_id'] = $serviceAsuransi->id;
+            $po->update(['source_data' => $updatedSource]);
+
             return;
         }
 
