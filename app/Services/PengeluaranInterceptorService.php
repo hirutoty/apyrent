@@ -616,7 +616,7 @@ class PengeluaranInterceptorService
             $pembayaran = Pembayaran::findOrFail($pembayaranId);
             
             // Validation: Only rejected pengeluaran can be resubmitted
-            if (!in_array($pembayaran->status, ['Ditolak', 'Disetujui Sebagian'])) {
+            if ($pembayaran->status !== 'Ditolak' && !($pembayaran->status === 'Disetujui' && !empty(collect($pembayaran->source_data['item_decisions'] ?? [])->where('action', 'rejected')->all()))) {
                 throw new \Exception('Hanya pengajuan yang ditolak yang dapat diajukan ulang.');
             }
             

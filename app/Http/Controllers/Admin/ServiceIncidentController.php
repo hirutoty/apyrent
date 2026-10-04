@@ -657,7 +657,7 @@ class ServiceIncidentController extends Controller
         }
 
         $pembayaran = \App\Models\Pembayaran::find($incident->pembayaran_id);
-        if (!$pembayaran || !in_array($pembayaran->status, ['Ditolak', 'Disetujui Sebagian'])) {
+        if (!$pembayaran || !(in_array($pembayaran->status, ['Ditolak']) || ($pembayaran->status === 'Disetujui' && !empty(collect($pembayaran->source_data['item_decisions'] ?? [])->where('action', 'rejected')->all())))) {
             return response()->json(['success' => false, 'message' => 'Pembayaran bukan status Ditolak.'], 422);
         }
         $request->validate([

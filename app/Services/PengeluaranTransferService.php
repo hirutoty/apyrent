@@ -679,10 +679,10 @@ class PengeluaranTransferService
                 'persetujuan'     => 'Disetujui',
             ]);
 
-            // Hanya update parts dengan persetujuan 'Diajukan ke Pembayaran' dari PO terkait.
+            // Hanya update parts dengan persetujuan 'Pending' dari PO terkait.
             // Parts dari PO lain yang belum diapprove tidak disentuh.
             $poTerkait = \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)->first();
-            $pendingPartsQuery = $incident->parts()->where('persetujuan', 'Diajukan ke Pembayaran');
+            $pendingPartsQuery = $incident->parts()->where('persetujuan', 'Pending');
             if ($poTerkait) {
                 $pendingPartsQuery->where('purchase_order_id', $poTerkait->id);
             }

@@ -11,7 +11,7 @@ class RecalculatePembayaranLimitSnapshot extends Command
     protected $signature = 'pembayaran:recalc-limit-snapshot
         {--dry-run   : Tampilkan saja pembayaran yang akan diproses tanpa update}
         {--id=       : Batasi ke pembayaran_id tertentu}
-        {--status=   : Filter status (default: Disetujui,Disetujui Sebagian)}';
+        {--status=   : Filter status (default: Disetujui)}';
 
     protected $description = 'Recalculate keterangan_limit & sisa_pasang di source_data Pembayaran service lama setelah fix query aktifCount';
 
@@ -24,7 +24,7 @@ class RecalculatePembayaranLimitSnapshot extends Command
         // Default: semua yang sudah diproses (disetujui penuh atau sebagian)
         $statuses = $statusOpt
             ? array_map('trim', explode(',', $statusOpt))
-            : ['Disetujui', 'Disetujui Sebagian'];
+            : ['Disetujui'];
 
         $query = Pembayaran::whereIn('source_type', ['service_part', 'service_incident'])
             ->whereIn('status', $statuses)

@@ -219,7 +219,7 @@ class ServiceHistoryController extends Controller
         // ── Ajukan Ulang dari Pembayaran yang Ditolak ──────────────────────────
         if ($request->filled('edit_pembayaran')) {
             $pembayaran = \App\Models\Pembayaran::find($request->edit_pembayaran);
-            if ($pembayaran && in_array($pembayaran->status, ['Ditolak', 'Disetujui Sebagian']) && $pembayaran->source_type === 'service_part') {
+            if ($pembayaran && (in_array($pembayaran->status, ['Ditolak']) || ($pembayaran->status === 'Disetujui' && !empty(collect($pembayaran->source_data['item_decisions'] ?? [])->where('action', 'rejected')->all()))) && $pembayaran->source_type === 'service_part') {
                 $sourceData    = $pembayaran->source_data ?? [];
                 $kendaraanId   = $sourceData['kendaraan_id'] ?? null;
                 $kendaraanPmb  = $kendaraanId ? Kendaraan::find($kendaraanId) : null;

@@ -360,9 +360,9 @@
                                                         <tr class="bg-slate-100 text-gray-500">
                                                             <th class="text-left px-3 py-2 font-semibold w-8">No</th>
                                                             <th class="text-left px-3 py-2 font-semibold">Nama Kejadian</th>
-                                                            <th class="text-right px-3 py-2 font-semibold">Biaya</th>
-                                                            <th class="text-left px-3 py-2 font-semibold">Lampiran</th>
-                                                            <th class="text-left px-3 py-2 font-semibold">Bukti Bayar</th>
+                                                            <th class="text-right px-3 py-2 font-semibold w-32">Biaya</th>
+                                                            <th class="text-left px-3 py-2 font-semibold min-w-[180px]">Lampiran</th>
+                                                            <th class="text-left px-3 py-2 font-semibold min-w-[180px]">Bukti Bayar</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -382,7 +382,7 @@
                                                                             : (json_decode($kej->getRawOriginal('lampiran') ?? '[]', true) ?? []);
                                                                     @endphp
                                                                     @if(!empty($kejLamp))
-                                                                        <div class="flex flex-wrap gap-1">
+                                                                        <div class="flex flex-col gap-1 max-w-[200px]">
                                                                             @foreach($kejLamp as $lamp)
                                                                                 @php
                                                                                     $lPath  = $lamp['path'] ?? '';
@@ -395,16 +395,16 @@
                                                                                 @endphp
                                                                                 @if($lUrl)
                                                                                     <a href="{{ $lUrl }}" target="_blank"
-                                                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200"
+                                                                                        class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors"
                                                                                         title="{{ $lName }}">
-                                                                                        <i class="fa {{ $lIsImg ? 'fa-image' : ($lExt === 'pdf' ? 'fa-file-pdf' : 'fa-file') }} text-[9px]"></i>
-                                                                                        {{ Str::limit($lName, 20) }}
+                                                                                        <i class="fa {{ $lIsImg ? 'fa-image' : ($lExt === 'pdf' ? 'fa-file-pdf' : 'fa-file') }} text-[9px] flex-shrink-0"></i>
+                                                                                        <span class="truncate">{{ Str::limit($lName, 18) }}</span>
                                                                                     </a>
                                                                                 @endif
                                                                             @endforeach
                                                                         </div>
                                                                     @else
-                                                                        <span class="text-gray-300">—</span>
+                                                                        <span class="text-gray-300 text-xs">—</span>
                                                                     @endif
                                                                 </td>
 
@@ -416,7 +416,7 @@
                                                                             : (json_decode($kej->getRawOriginal('bukti_bayar') ?? '[]', true) ?? []);
                                                                     @endphp
                                                                     @if(!empty($kejBukti))
-                                                                        <div class="flex flex-wrap gap-1">
+                                                                        <div class="flex flex-col gap-1 max-w-[200px]">
                                                                             @foreach($kejBukti as $bk)
                                                                                 @php
                                                                                     $bkPath  = $bk['path'] ?? '';
@@ -427,16 +427,16 @@
                                                                                 @endphp
                                                                                 @if($bkUrl)
                                                                                     <a href="{{ $bkUrl }}" target="_blank"
-                                                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                                                                                        class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
                                                                                         title="{{ $bkName }}">
-                                                                                        <i class="fa {{ $bkIsImg ? 'fa-image' : ($bkExt === 'pdf' ? 'fa-file-pdf' : 'fa-paperclip') }} text-[9px]"></i>
-                                                                                        {{ Str::limit($bkName, 20) }}
+                                                                                        <i class="fa {{ $bkIsImg ? 'fa-image' : ($bkExt === 'pdf' ? 'fa-file-pdf' : 'fa-paperclip') }} text-[9px] flex-shrink-0"></i>
+                                                                                        <span class="truncate">{{ Str::limit($bkName, 18) }}</span>
                                                                                     </a>
                                                                                 @endif
                                                                             @endforeach
                                                                         </div>
                                                                     @else
-                                                                        <span class="text-gray-300">—</span>
+                                                                        <span class="text-gray-300 text-xs">—</span>
                                                                     @endif
                                                                 </td>
                                                             </tr>

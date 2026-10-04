@@ -732,7 +732,7 @@ class PurchaseOrderApprovalService
                     'nama_bank'           => $partData['nama_bank'] ?? null,
                     'no_rekening'         => $partData['no_rekening'] ?? null,
                     'nama_rekening'       => $partData['nama_rekening'] ?? null,
-                    'persetujuan'         => 'Diajukan ke Pembayaran',
+                    'persetujuan'         => 'Pending', // Part baru dibuat, pending approval di Pembayaran
                     'purchase_order_id'   => $po->id,
                 ]);
             }

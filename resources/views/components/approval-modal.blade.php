@@ -324,7 +324,7 @@
                             <span x-text="rejectedCount() + ' ditolak'"></span>
                         </span>
                         <span class="ml-auto text-gray-400 italic" x-show="approvedCount() > 0 && rejectedCount() > 0">
-                            PR akan berstatus "Disetujui Sebagian"
+                            Item ditolak akan tersimpan di tab Ditolak
                         </span>
                     </div>
                 </div>
@@ -515,7 +515,7 @@
                             <span x-text="rejectedCount() + ' ditolak'"></span>
                         </span>
                         <span class="ml-auto text-gray-400 italic" x-show="approvedCount() > 0 && rejectedCount() > 0">
-                            PR akan berstatus "Disetujui Sebagian"
+                            Item ditolak akan tersimpan di tab Ditolak
                         </span>
                     </div>
 
@@ -747,7 +747,7 @@
                             <span x-text="rejectedCount() + ' ditolak'"></span>
                         </span>
                         <span class="ml-auto text-gray-400 italic" x-show="approvedCount() > 0 && rejectedCount() > 0">
-                            PR akan berstatus "Disetujui Sebagian"
+                            Item ditolak akan tersimpan di tab Ditolak
                         </span>
                     </div>
                 </div>
