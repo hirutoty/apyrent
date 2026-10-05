@@ -187,7 +187,34 @@ class ServiceHistoryController extends Controller
                 $sourceData    = $po->source_data ?? [];
                 $kendaraanId   = $sourceData['kendaraan_id'] ?? null;
                 $kendaraanPO   = $kendaraanId ? Kendaraan::find($kendaraanId) : null;
-                $firstPart     = ($sourceData['parts'] ?? [])[0] ?? null;
+                $allPartsRaw   = $sourceData['parts'] ?? [];
+                $itemDecisions = $sourceData['item_decisions'] ?? [];
+
+                // Bangun map: idx → action ('approved'|'rejected') dari item_decisions
+                $decMap = collect($itemDecisions)->keyBy('idx');
+
+                // Filter: hanya tampilkan part yang BELUM diapprove.
+                // - PO ditolak sepenuhnya (status = Ditolak): semua part ditampilkan (tidak ada item_decisions)
+                // - PO partial (status = Disetujui + ada rejected): hanya part dengan action != 'approved' yang ditampilkan
+                $filteredParts = [];
+                $filteredTempFiles = ['parts' => []];
+                $tempFilesRaw  = $sourceData['temp_files'] ?? [];
+
+                foreach ($allPartsRaw as $idx => $part) {
+                    $decision = ($decMap->get((string)$idx) ?? $decMap->get($idx))['action'] ?? null;
+                    if ($decision === 'approved') {
+                        // Part ini sudah diapprove — skip, jangan tampilkan di form ajukan ulang
+                        continue;
+                    }
+                    // Pertahankan index file lama yang sesuai
+                    $filteredParts[] = $part;
+                    $oldBukti = $tempFilesRaw['parts'][$idx]['bukti'] ?? [];
+                    if (!empty($oldBukti)) {
+                        $filteredTempFiles['parts'][count($filteredParts) - 1]['bukti'] = $oldBukti;
+                    }
+                }
+
+                $firstPart = $filteredParts[0] ?? null;
                 $prefill = [
                     'source'          => 'edit_po',
                     'edit_po_id'      => $po->id,
@@ -210,8 +237,10 @@ class ServiceHistoryController extends Controller
                         'biaya'           => $firstPart['biaya'] ?? 0,
                         'kondisi'         => $firstPart['kondisi'] ?? 'Baik',
                     ] : null,
-                    'all_parts'       => $sourceData['parts'] ?? [],
-                    'temp_files'      => $sourceData['temp_files'] ?? [],
+                    'all_parts'       => $filteredParts,
+                    'temp_files'      => $filteredTempFiles,
+                    // Info untuk ditampilkan ke user berapa part yang sudah diapprove dan dilewati
+                    'approved_count'  => count($allPartsRaw) - count($filteredParts),
                 ];
             }
         }
@@ -219,7 +248,7 @@ class ServiceHistoryController extends Controller
         // ── Ajukan Ulang dari Pembayaran yang Ditolak ──────────────────────────
         if ($request->filled('edit_pembayaran')) {
             $pembayaran = \App\Models\Pembayaran::find($request->edit_pembayaran);
-            if ($pembayaran && in_array($pembayaran->status, ['Ditolak', 'Disetujui Sebagian']) && $pembayaran->source_type === 'service_part') {
+            if ($pembayaran && (in_array($pembayaran->status, ['Ditolak']) || ($pembayaran->status === 'Disetujui' && !empty(collect($pembayaran->source_data['item_decisions'] ?? [])->where('action', 'rejected')->all()))) && $pembayaran->source_type === 'service_part') {
                 $sourceData    = $pembayaran->source_data ?? [];
                 $kendaraanId   = $sourceData['kendaraan_id'] ?? null;
                 $kendaraanPmb  = $kendaraanId ? Kendaraan::find($kendaraanId) : null;
@@ -1359,7 +1388,9 @@ class ServiceHistoryController extends Controller
                 if ($r->jumlah) {
                     $q = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
                         ->where('category_id', $r->category_id)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+                        ->whereIn('status', ['Terpasang', 'Limit'])
+                        ->where(fn($q2) => $q2->whereNull('persetujuan')
+                                              ->orWhereNotIn('persetujuan', ['Ditolak Pembayaran']));
 
                     if ($r->reset_at) {
                         $q->where('created_at', '>=', $r->reset_at);
@@ -1519,14 +1550,30 @@ class ServiceHistoryController extends Controller
             $periodeSelesai = $hitungSelesai($periodeMulai);
         }
 
-        // Sum semua biaya part di kategori ini dalam periode aktif yang ditemukan
+        // Sum semua biaya part di kategori ini dalam periode aktif yang ditemukan.
         // Jika ada reset_at, hanya hitung part yang di-create SETELAH reset (pakai created_at
-        // karena tgl_pasang hanya menyimpan date, tidak bisa bedakan jam yang sama)
+        // karena tgl_pasang hanya menyimpan date, tidak bisa bedakan jam yang sama).
+        //
+        // Filter status: hanya hitung part yang sudah "confirmed" secara finansial:
+        //   - Terpasang / Limit / aktif  → sudah terpasang atau pembayaran disetujui
+        //   - tidak_aktif (selain 'Ditolak Pembayaran') → PO sudah approve, pembayaran pending
+        //   - EXCLUDE: Proses, Diganti, tidak_aktif dengan persetujuan 'Ditolak Pembayaran'
+        // Ini mencegah biaya dari pengajuan yang ditolak terhitung dua kali saat ajukan ulang.
         $totalDalamPeriode = ServicePart::where('kendaraan_id', $kendaraanId)
             ->where('category_id', $categoryId)
             ->whereDate('tgl_pasang', '>=', $periodeMulai->toDateString())
             ->whereDate('tgl_pasang', '<=', $periodeSelesai->toDateString())
             ->when($resetAt !== null, fn($q) => $q->where('created_at', '>=', \Carbon\Carbon::parse($resetAt)))
+            ->where(function ($q) {
+                // Part yang sudah final (terpasang/aktif/limit) selalu dihitung
+                $q->whereIn('status', ['Terpasang', 'aktif', 'Limit'])
+                  // Part tidak_aktif dihitung KECUALI yang pembayarannya sudah ditolak
+                  ->orWhere(function ($q2) {
+                      $q2->where('status', 'tidak_aktif')
+                         ->where(fn($q3) => $q3->whereNull('persetujuan')
+                                               ->orWhereNotIn('persetujuan', ['Ditolak Pembayaran']));
+                  });
+            })
             ->sum('biaya');
 
         // sisa_limit bisa negatif (sudah melebihi) — sengaja tidak di-clamp ke 0
@@ -2077,6 +2124,61 @@ class ServiceHistoryController extends Controller
                         'kilometer_sekarang'       => $sh->kilometer ?? $sh->kendaraan->kilometer_sekarang,
                         'tanggal_terakhir_service' => \Carbon\Carbon::parse($sh->tanggal_service)->toDateString(),
                     ]);
+                }
+
+                // ── Recalculate keterangan_limit langsung di part ini ─────────
+                // Setelah status → Terpasang, aktifCount sudah +1.
+                // Update keterangan_limit di kolom agar service_history view langsung akurat.
+                if ($request->status === 'Terpasang' && $part->category_id) {
+                    try {
+                        $limitRule = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $part->kendaraan_id)
+                            ->where('category_id', $part->category_id)
+                            ->first();
+                        if ($limitRule && $limitRule->jumlah) {
+                            $aktifCountNow = \App\Models\ServicePart::where('kendaraan_id', $part->kendaraan_id)
+                                ->where('category_id', $part->category_id)
+                                ->whereIn('status', ['Terpasang', 'Limit'])
+                                ->where(fn($q) => $q->whereNull('persetujuan')->orWhere('persetujuan', '!=', 'Ditolak Pembayaran'))
+                                ->count();
+
+                            $partArray = [
+                                'biaya'            => 0,
+                                'tgl_pasang'       => $part->tgl_pasang,
+                                'interval_nilai'   => $part->interval_nilai,
+                                'interval_satuan'  => $part->interval_satuan,
+                                'kilometer_pasang' => $part->kilometer_pasang,
+                            ];
+                            $tanggalServis = $sh?->tanggal_service ?? now()->toDateString();
+                            $kmInput       = (int) ($sh?->kilometer ?? $part->kilometer_pasang ?? 0);
+
+                            $newKet = $this->generateKeteranganLimit(
+                                $partArray, $kmInput, $limitRule,
+                                $tanggalServis, null, $aktifCountNow, (int) $limitRule->jumlah
+                            );
+                            $part->updateQuietly(['keterangan_limit' => $newKet]);
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning("Recalculate keterangan_limit gagal part #{$part->id}: " . $e->getMessage());
+                    }
+                }
+
+                // ── Update sisa_pasang di Pembayaran & PO terkait ────────────
+                // Dipanggil hanya saat part ditandai Terpasang, agar aktifCount
+                // yang baru (sudah include part ini) langsung terefleksi di
+                // limit_snapshot.sisa_pasang pada source_data Pembayaran & PO.
+                if ($request->status === 'Terpasang' && $sh->pembayaran_id) {
+                    try {
+                        $pembayaran = \App\Models\Pembayaran::find($sh->pembayaran_id);
+                        if ($pembayaran) {
+                            app(\App\Http\Controllers\Admin\PembayaranController::class)
+                                ->updateSourceDataKeteranganLimit($pembayaran);
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning(
+                            "updateSourceDataKeteranganLimit gagal saat part #{$part->id} ditandai Terpasang: "
+                            . $e->getMessage()
+                        );
+                    }
                 }
             }
         });

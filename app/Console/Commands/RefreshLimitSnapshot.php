@@ -168,7 +168,7 @@ class RefreshLimitSnapshot extends Command
                     } elseif ($sisaLimitBiaya !== null) {
                         // Tidak ada keterangan_limit → hitung dari sisa
                         $biayaPart  = (int) ($snap['service_biaya'] ?? 0);
-                        $sudahApprove = in_array($record->status ?? '', ['Disetujui', 'Disetujui Sebagian', 'Ditolak']);
+                        $sudahApprove = in_array($record->status ?? '', ['Disetujui', 'Ditolak']);
                         if ($sudahApprove) {
                             // Part sudah di DB: sisa sudah dipotong biaya ini
                             $part['limit_snapshot']['biaya_lewat'] = $sisaLimitBiaya < 0;

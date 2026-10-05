@@ -75,6 +75,12 @@
                 @if(!empty($prefill['catatan_tolak']))
                     <p class="text-xs text-red-700 mt-0.5">Catatan penolakan: <strong>{{ $prefill['catatan_tolak'] }}</strong></p>
                 @endif
+                @if(!empty($prefill['approved_count']) && $prefill['approved_count'] > 0)
+                    <p class="text-xs text-green-700 mt-1.5 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+                        <i class="fa fa-check-circle text-green-500 mr-1"></i>
+                        <strong>{{ $prefill['approved_count'] }} part</strong> sudah disetujui sebelumnya dan tidak perlu diajukan ulang — hanya part yang ditolak yang ditampilkan di bawah.
+                    </p>
+                @endif
                 <p class="text-xs text-red-600 mt-1">Perbarui data yang diperlukan lalu ajukan kembali.</p>
             </div>
         </div>
@@ -605,12 +611,12 @@ function calcKeteranganLimit(idx) {
         document.querySelectorAll('[id^="cat-select-"]').forEach(function(catEl) {
             const mIdx = catEl.id.match(/cat-select-(\d+)/);
             if (!mIdx) return;
-            if (parseInt(mIdx[1]) === idx) return; // skip baris ini sendiri
+            // Hitung SEMUA baris di form (termasuk baris ini sendiri) yang sama kategorinya.
+            // aktifCountDb hanya hitung yg sudah Terpasang di DB, sehingga
+            // baris-baris di form ini (belum tersimpan) harus semua dihitung di sini.
             if (parseInt(catEl.value) === categoryId) aktifCountForm++;
         });
     }
-    // Tidak +1 — sisa dihitung dari jumlah yang belum terpakai (DB count = yg sudah tersimpan)
-    // Baris di form ini belum tersimpan ke DB, jadi sisa = jumlah - DB_count = kapasitas yg masih tersedia
     const aktifCount  = aktifCountDb !== null ? aktifCountDb + aktifCountForm : null;
     const jumlahAda   = limitJumlah !== null && limitJumlah > 0 && aktifCount !== null;
     const jumlahSama  = jumlahAda && aktifCount === limitJumlah;
@@ -1705,13 +1711,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     interval_satuan:  part.interval_satuan  || 'bulan',
                     biaya:            part.biaya            || 0,
                     kondisi:          part.kondisi          || '',
-                    keterangan_limit: part.keterangan_limit || part.keterangan || '',
+                    // Sengaja tidak prefill keterangan_limit dari snapshot lama —
+                    // akan dihitung ulang dari DB terkini via fetchLimitBiayaKumulatif() di bawah.
+                    keterangan_limit: '',
                     nama_bank:        part.nama_bank        || '',
                     no_rekening:      part.no_rekening      || '',
                     nama_rekening:    part.nama_rekening     || '',
                     old_files:        oldBukti,
                 });
             });
+            // Setelah semua row ditambahkan, fetch kumulatif biaya terbaru dari DB
+            // agar keterangan ditampilkan berdasarkan kondisi terkini (bukan snapshot lama).
+            // fetchLimitBiayaKumulatif() bersifat async — dipanggil setelah microtask queue kosong.
+            setTimeout(function() {
+                document.querySelectorAll('[id^="biaya-kumulatif-hint-"]').forEach(function(el) {
+                    const m = el.id.match(/biaya-kumulatif-hint-(\d+)/);
+                    if (m) fetchLimitBiayaKumulatif(parseInt(m[1]));
+                });
+            }, 0);
         @elseif(($prefill['source'] ?? '') === 'edit_pembayaran' && !empty($prefill['all_parts']))
             {{-- Ajukan ulang dari Pembayaran ditolak: render semua parts --}}
             const allParts  = @json($prefill['all_parts']);
@@ -1730,13 +1747,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     interval_satuan:  part.interval_satuan  || 'bulan',
                     biaya:            part.biaya            || 0,
                     kondisi:          part.kondisi          || '',
-                    keterangan_limit: part.keterangan_limit || part.keterangan || '',
+                    // Sengaja tidak prefill keterangan_limit dari snapshot lama —
+                    // akan dihitung ulang dari DB terkini via fetchLimitBiayaKumulatif() di bawah.
+                    keterangan_limit: '',
                     nama_bank:        part.nama_bank        || '',
                     no_rekening:      part.no_rekening      || '',
                     nama_rekening:    part.nama_rekening     || '',
                     old_files:        oldBukti,
                 });
             });
+            // Setelah semua row ditambahkan, fetch kumulatif biaya terbaru dari DB
+            // agar keterangan ditampilkan berdasarkan kondisi terkini (bukan snapshot lama).
+            setTimeout(function() {
+                document.querySelectorAll('[id^="biaya-kumulatif-hint-"]').forEach(function(el) {
+                    const m = el.id.match(/biaya-kumulatif-hint-(\d+)/);
+                    if (m) fetchLimitBiayaKumulatif(parseInt(m[1]));
+                });
+            }, 0);
         @else
             {{-- Tambah row pre-filled tunggal (reminder / part) --}}
             addPartRow({

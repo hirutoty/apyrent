@@ -27,7 +27,6 @@
                     'Ditolak'            => 'bg-red-100 text-red-700 border-red-200',
                     'Diajukan'           => 'bg-indigo-100 text-indigo-700 border-indigo-200',
                     'Pending'            => 'bg-yellow-100 text-yellow-700 border-yellow-200',
-                    'Disetujui Sebagian' => 'bg-teal-100 text-teal-700 border-teal-200',
                     default              => 'bg-gray-100 text-gray-600 border-gray-200',
                 };
                 $statusIcon = match($pembayaran->status) {
@@ -35,7 +34,6 @@
                     'Ditolak'            => 'fa-times-circle',
                     'Diajukan'           => 'fa-paper-plane',
                     'Pending'            => 'fa-clock',
-                    'Disetujui Sebagian' => 'fa-check',
                     default              => 'fa-circle',
                 };
             @endphp
@@ -476,7 +474,6 @@
                             $approvalIcon  = $isApproved ? 'fa-check-circle text-green-500' : ($isRejected ? 'fa-times-circle text-red-500' : 'fa-info-circle text-blue-500');
                             $approvalLabel = match($approval->action) {
                                 'approved'         => 'Disetujui',
-                                'approved_partial' => 'Disetujui Sebagian',
                                 'rejected'         => 'Ditolak',
                                 'submitted'        => 'Diajukan',
                                 default            => ucfirst($approval->action),

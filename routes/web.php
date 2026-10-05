@@ -174,6 +174,17 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get('/supplier/pdf', [SupplierController::class, 'pdf'])
     ->name('supplier.export.pdf');
   
+  // API untuk list master data (dipakai modal resubmit service incident)
+  Route::get('/api/service-categories', function () {
+      $categories = \App\Models\ServiceCategory::select('id', 'nama')->orderBy('nama')->get();
+      return response()->json(['categories' => $categories]);
+  })->name('api.service-categories');
+
+  Route::get('/api/suppliers', function () {
+      $suppliers = \App\Models\Supplier::select('id', 'nama_supplier')->orderBy('nama_supplier')->get();
+      return response()->json(['suppliers' => $suppliers]);
+  })->name('api.suppliers');
+
   // API untuk create supplier via AJAX
   Route::post('/supplier/api/store', [SupplierController::class, 'storeApi'])
     ->name('supplier.api.store');

@@ -112,6 +112,11 @@ class PurchaseOrder extends Model
      */
     public function isRejected(): bool
     {
-        return $this->status === 'Ditolak';
+        if ($this->status === 'Ditolak') return true;
+        // Partial approval: status Disetujui tapi ada item_decisions dengan action=rejected
+        $sd = is_array($this->source_data) ? $this->source_data : (json_decode($this->source_data ?? '{}', true) ?? []);
+        return $this->status === 'Disetujui'
+            && !empty(array_filter($sd['item_decisions'] ?? [], fn($d) => ($d['action'] ?? '') === 'rejected'));
     }
+
 }

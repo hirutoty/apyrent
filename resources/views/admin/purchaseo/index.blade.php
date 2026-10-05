@@ -387,33 +387,76 @@
                                                 $_poGpsI  = $po->source_data['gps_items'] ?? [];
                                                 $_poParts = $po->source_data['parts'] ?? [];
                                                 $_poKejad = $po->source_data['kejadians'] ?? [];
-                                                if (!empty($_poDec)) {
-                                                    // Ada keputusan per item — tampilkan sesuai status
-                                                    $_poItemCount = collect($_poDec)
-                                                        ->filter(fn($_d) => ($statusFilter === 'Ditolak')
-                                                            ? ($_d['action'] ?? '') !== 'approved'
-                                                            : ($_d['action'] ?? '') === 'approved')
-                                                        ->count();
-                                                } elseif (!empty($_poGpsI)) {
-                                                    $_poItemCount = count($_poGpsI);
-                                                } elseif ($po->source_type === 'service_asuransi' && !empty($_poKejad)) {
-                                                    $_poItemCount = count($_poKejad);
-                                                } elseif (in_array($po->source_type, ['service_part','service_incident']) && !empty($_poParts)) {
-                                                    $_poItemCount = count($_poParts);
+                                                
+                                                // Hitung badge per-item untuk source_type yang support per-item approval
+                                                $supportedPerItemTypes = ['service_asuransi', 'service_part', 'service_incident', 'gps', 'gps_perpanjang'];
+                                                $_showBadge = in_array($po->source_type, $supportedPerItemTypes);
+                                                
+                                                if ($_showBadge) {
+                                                    // Tentukan total items berdasarkan source_type
+                                                    if (!empty($_poGpsI)) {
+                                                        $_poTotalItems = count($_poGpsI);
+                                                    } elseif ($po->source_type === 'service_asuransi' && !empty($_poKejad)) {
+                                                        $_poTotalItems = count($_poKejad);
+                                                    } elseif (in_array($po->source_type, ['service_part','service_incident']) && !empty($_poParts)) {
+                                                        $_poTotalItems = count($_poParts);
+                                                    } else {
+                                                        $_poTotalItems = 0;
+                                                    }
+                                                    
+                                                    // Hitung approved dan rejected dari item_decisions
+                                                    $_poDecColl = collect($_poDec)->keyBy('idx');
+                                                    $_poApproved = $_poDecColl->where('action', 'approved')->count();
+                                                    $_poRejected = $_poDecColl->where('action', 'rejected')->count();
+                                                    $_poPending  = $_poTotalItems - $_poApproved - $_poRejected;
+                                                    
+                                                    // Badge stats
+                                                    $_poBadgeStats = [
+                                                        'approved' => $_poApproved,
+                                                        'rejected' => $_poRejected,
+                                                        'pending'  => $_poPending
+                                                    ];
                                                 } else {
+                                                    $_poBadgeStats = null;
                                                     $_poItemCount = $po->total_barang ?? 0;
                                                 }
                                             @endphp
-                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
-                                                <i class="fa fa-boxes text-blue-400 text-[10px]"></i>
-                                                {{ number_format($_poItemCount) }} item
-                                            </span>
+                                            
+                                            @if($_showBadge && $_poBadgeStats)
+                                                {{-- Badge per-item untuk source_type yang support --}}
+                                                <div class="flex flex-col gap-1 items-center">
+                                                    @if($_poBadgeStats['approved'] > 0)
+                                                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                                                            <i class="fa fa-check text-[8px]"></i> {{ $_poBadgeStats['approved'] }}
+                                                        </span>
+                                                    @endif
+                                                    @if($_poBadgeStats['pending'] > 0)
+                                                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                                                            <i class="fa fa-clock text-[8px]"></i> {{ $_poBadgeStats['pending'] }}
+                                                        </span>
+                                                    @endif
+                                                    @if($_poBadgeStats['rejected'] > 0)
+                                                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                                                            <i class="fa fa-times text-[8px]"></i> {{ $_poBadgeStats['rejected'] }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            @else
+                                                {{-- Fallback: item count biasa --}}
+                                                <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
+                                                    <i class="fa fa-boxes text-blue-400 text-[10px]"></i>
+                                                    {{ number_format($_poItemCount) }} item
+                                                </span>
+                                            @endif
                                         </td>
                                         <td class="px-4 py-3 text-xs font-semibold text-gray-800 text-right">
                                             @php
                                                 $_poDec2  = $po->source_data['item_decisions'] ?? [];
                                                 $_poGpsI2 = $po->source_data['gps_items'] ?? [];
+                                                $_poParts2 = $po->source_data['parts'] ?? [];
+                                                $_poKejad2 = $po->source_data['kejadians'] ?? [];
                                                 if (!empty($_poDec2) && !empty($_poGpsI2)) {
+                                                    // GPS with item_decisions
                                                     $_poNomAppr = collect($_poGpsI2)
                                                         ->filter(fn($g, $i) => ($_poDec2[$i]['action'] ?? '') === 'approved')
                                                         ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
@@ -421,6 +464,26 @@
                                                         ->filter(fn($g, $i) => ($_poDec2[$i]['action'] ?? '') !== 'approved')
                                                         ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
                                                     $_poNomShow = $statusFilter === 'Ditolak' ? $_poNomRej : $_poNomAppr;
+                                                } elseif (!empty($_poDec2) && !empty($_poParts2)) {
+                                                    // Service Part/Incident with item_decisions
+                                                    $_decColl2  = collect($_poDec2)->keyBy('idx');
+                                                    $_poNomAppr = collect($_poParts2)
+                                                        ->filter(fn($p, $i) => ($_decColl2[$i]['action'] ?? '') === 'approved')
+                                                        ->sum(fn($p) => $p['biaya'] ?? 0);
+                                                    $_poNomRej  = collect($_poParts2)
+                                                        ->filter(fn($p, $i) => ($_decColl2[$i]['action'] ?? '') !== 'approved' && $_decColl2->has($i))
+                                                        ->sum(fn($p) => $p['biaya'] ?? 0);
+                                                    $_poNomShow = $statusFilter === 'Ditolak' ? $_poNomRej : $_poNomAppr;
+                                                } elseif (!empty($_poDec2) && !empty($_poKejad2)) {
+                                                    // Service Asuransi with item_decisions
+                                                    $_decKejColl = collect($_poDec2)->keyBy('idx');
+                                                    $_poNomAppr  = collect($_poKejad2)
+                                                        ->filter(fn($k, $i) => ($_decKejColl[$i]['action'] ?? '') === 'approved')
+                                                        ->sum(fn($k) => $k['biaya'] ?? 0);
+                                                    $_poNomRej   = collect($_poKejad2)
+                                                        ->filter(fn($k, $i) => ($_decKejColl[$i]['action'] ?? '') !== 'approved' && $_decKejColl->has($i))
+                                                        ->sum(fn($k) => $k['biaya'] ?? 0);
+                                                    $_poNomShow  = $statusFilter === 'Ditolak' ? $_poNomRej : $_poNomAppr;
                                                 } else {
                                                     $_poNomShow = $po->total_harga ?? 0;
                                                 }
@@ -431,15 +494,23 @@
                                         </td>
                                         <td class="px-4 py-3 text-xs text-gray-500">{{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}</td>
                                         <td class="px-4 py-3">
-                                            @if($po->status === 'Pending')
+                                            @php
+                                                $_poDecForBadge = $po->source_data['item_decisions'] ?? [];
+                                                $_hasRejectedDec = collect($_poDecForBadge)->where('action','rejected')->isNotEmpty();
+                                                // PO Disetujui di tab Ditolak = ada item rejected → tampilkan badge "Ditolak"
+                                                $_badgeStatus = ($po->status === 'Disetujui' && $_hasRejectedDec && $statusFilter === 'Ditolak')
+                                                    ? 'Ditolak'
+                                                    : $po->status;
+                                            @endphp
+                                            @if($_badgeStatus === 'Pending')
                                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-700">
                                                     <i class="fa fa-clock text-[8px]"></i> Pending
                                                 </span>
-                                            @elseif($po->status === 'Disetujui')
+                                            @elseif($_badgeStatus === 'Disetujui')
                                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-700">
                                                     <i class="fa fa-check text-[8px]"></i> Disetujui
                                                 </span>
-                                            @elseif($po->status === 'Ditolak')
+                                            @elseif($_badgeStatus === 'Ditolak')
                                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-700">
                                                     <i class="fa fa-times text-[8px]"></i> Ditolak
                                                 </span>
@@ -451,7 +522,8 @@
                                                     class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                                                     <i class="fa fa-eye text-xs"></i> Detail
                                                 </button>
-                                                @if($po->status === 'Pending' && auth()->user()->role === 'superadmin')
+                                                @php $hasDecisions = !empty($po->source_data['item_decisions'] ?? []); @endphp
+                                                @if($po->status === 'Pending' && auth()->user()->role === 'superadmin' && !$hasDecisions)
                                                     @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident', 'service_asuransi']))
                                                         {{-- GPS / Service Part / Service Incident / Service Asuransi: per-item approval modal --}}
                                                         <button onclick="openApproveModal({{ $po->id }}, '{{ $po->po_id }}')"
@@ -483,7 +555,12 @@
                                                         </button>
                                                     @endif
                                                 @endif
-                                                @if($po->status === 'Ditolak' && ($po->can_edit || in_array($po->source_type, ['service_part', 'service_asuransi', 'service_incident'])))
+                                                @php
+                                                    $_hasRejectedItems = collect($po->source_data['item_decisions'] ?? [])->where('action', 'rejected')->isNotEmpty();
+                                                    $_showUlang = ($po->status === 'Ditolak' && ($po->can_edit || in_array($po->source_type, ['service_part', 'service_asuransi', 'service_incident', 'gps', 'gps_perpanjang'])))
+                                                        || ($po->status === 'Disetujui' && $_hasRejectedItems && $statusFilter === 'Ditolak');
+                                                @endphp
+                                                @if($_showUlang)
                                                     @if(in_array($po->source_type, ['gps', 'gps_perpanjang']))
                                                         <button onclick="openResubmitModal({{ $po->id }}, '{{ $po->po_id }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
@@ -543,13 +620,17 @@
                                                 if ($statusFilter === 'Disetujui') {
                                                     $parts = collect($allParts)
                                                         ->filter(fn($p, $i) => ($partDecMap[$i]['action'] ?? '') === 'approved')
+                                                        ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
                                                         ->values()->all();
                                                 } elseif ($statusFilter === 'Ditolak') {
                                                     $parts = collect($allParts)
                                                         ->filter(fn($p, $i) => ($partDecMap[$i]['action'] ?? '') !== 'approved' && $partDecMap->has($i))
+                                                        ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
                                                         ->values()->all();
                                                 } else {
-                                                    $parts = $allParts;
+                                                    $parts = collect($allParts)
+                                                        ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                        ->values()->all();
                                                 }
                                             } elseif (!empty($rawDecisions)) {
                                                 // PO baru (rejected-only / approved-only): semua decisions sudah terfilter,
@@ -571,20 +652,28 @@
                                                 if ($statusFilter === 'Disetujui') {
                                                     $asuransiKejadians = collect($allKejadians)
                                                         ->filter(fn($k, $i) => ($kejDecMap[$i]['action'] ?? '') === 'approved')
+                                                        ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
                                                         ->values()->all();
                                                 } elseif ($statusFilter === 'Ditolak') {
                                                     $asuransiKejadians = collect($allKejadians)
                                                         ->filter(fn($k, $i) => ($kejDecMap[$i]['action'] ?? '') !== 'approved' && $kejDecMap->has($i))
+                                                        ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
                                                         ->values()->all();
                                                 } else {
-                                                    $asuransiKejadians = $allKejadians;
+                                                    $asuransiKejadians = collect($allKejadians)
+                                                        ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
+                                                        ->values()->all();
                                                 }
                                             } elseif (!empty($rawKejDecisions)) {
                                                 // PO baru (rejected-only): semua kejadian sudah terfilter
-                                                $asuransiKejadians = $allKejadians;
+                                                $asuransiKejadians = collect($allKejadians)
+                                                    ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
+                                                    ->values()->all();
                                                 $kejDecMap = collect([]);
                                             } else {
-                                                $asuransiKejadians = $allKejadians;
+                                                $asuransiKejadians = collect($allKejadians)
+                                                    ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
+                                                    ->values()->all();
                                                 $kejDecMap = collect([]);
                                             }
                                             $totalItems = collect($asuransiKejadians)->sum(fn($k) => $k['biaya'] ?? 0);
@@ -948,12 +1037,13 @@
                                                         <tbody>
                                                             @foreach($asuransiKejadians as $kjIdx => $kj)
                                                                 @php
-                                                                    // Cari decision untuk baris ini (pakai original idx jika ada, else kjIdx)
+                                                                    // Cari decision — gunakan _orig_idx jika ada (set saat filter)
                                                                     $kjDecAction = null;
                                                                     $kjDecCatatan = null;
                                                                     if (!empty($rawKejDecisions)) {
+                                                                        $kjOrigIdx  = $kj['_orig_idx'] ?? $kjIdx;
                                                                         $kjDecEntry = $kejDecHasIdx
-                                                                            ? ($kejDecMap[$kjIdx] ?? null)
+                                                                            ? ($kejDecMap[$kjOrigIdx] ?? null)
                                                                             : ($rawKejDecisions[$kjIdx] ?? null);
                                                                         $kjDecAction  = $kjDecEntry['action'] ?? null;
                                                                         $kjDecCatatan = $kjDecEntry['catatan'] ?? null;
@@ -981,6 +1071,7 @@
                                                                             <span class="text-gray-300 text-[10px]">—</span>
                                                                         @endif
                                                                     </td>
+                                                                    <td class="px-3 py-2 text-center">
                                                                         @php $kjLampiran = $kj['lampiran'] ?? []; @endphp
                                                                         @if(!empty($kjLampiran))
                                                                             <div class="flex flex-col gap-0.5 items-center">
@@ -1579,6 +1670,9 @@ async function updatePoCharts(filters) {
 }
 
 // ── DETAIL MODAL ──────────────────────────────────────────────
+// statusFilter dikirim dari Blade ke JS
+const _currentStatusFilter = '{{ $statusFilter }}';
+
 function viewDetail(poId) {
     const modal = document.getElementById('detailModal');
     const content = document.getElementById('detailContent');
@@ -1587,7 +1681,7 @@ function viewDetail(poId) {
     document.getElementById('po_d_jenis').textContent = '';
     content.innerHTML = '<div class="flex items-center justify-center py-12"><i class="fa fa-spinner fa-spin text-2xl text-gray-400"></i></div>';
 
-    fetch('/admin/purchase-order/' + poId + '/detail')
+    fetch('/admin/purchase-order/' + poId + '/detail?tab=' + _currentStatusFilter)
         .then(r => r.json())
         .then(data => {
             if (data.success) {
@@ -1642,6 +1736,15 @@ function buildDetailContent(data) {
     // ── 2. Info Kendaraan & Service ───────────────────────────
     const k = details.kendaraan || {};
     const kLabel = (k.nopol && k.nopol !== '-') ? (k.nopol + ' — ' + (k.merk || '')) : null;
+
+    // Helper: format date string YYYY-MM-DD → "04 Oct 2026"
+    function fmtDate(str) {
+        if (!str || str === '-') return str;
+        const d = new Date(str);
+        if (isNaN(d.getTime())) return str;
+        return d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+    }
+
     if (kLabel || details.tanggal_service || details.tanggal_bayar) {
         const isService   = ['service_part','service_incident','service_asuransi'].includes(details.type);
         const accentColor = details.type === 'service_asuransi' ? 'blue' : (isService ? 'orange' : 'green');
@@ -1650,9 +1753,9 @@ function buildDetailContent(data) {
             + '<i class="fa fa-car mr-1"></i> Kendaraan & Service</p>'
             + '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">';
         if (kLabel)                 html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kendaraan</p><p class="font-semibold text-gray-800">' + kLabel + '</p></div>';
-        if (details.tanggal_service)html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Service</p><p class="text-gray-700">' + details.tanggal_service + '</p></div>';
-        if (details.tanggal_bayar)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + details.tanggal_bayar + '</p></div>';
-        if (details.tanggal_habis)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + details.tanggal_habis + '</p></div>';
+        if (details.tanggal_service)html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Service</p><p class="text-gray-700">' + fmtDate(details.tanggal_service) + '</p></div>';
+        if (details.tanggal_bayar)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + fmtDate(details.tanggal_bayar) + '</p></div>';
+        if (details.tanggal_habis)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + fmtDate(details.tanggal_habis) + '</p></div>';
         if (details.kilometer && details.kilometer !== '-') html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kilometer</p><p class="text-gray-700">' + details.kilometer + ' km</p></div>';
         if (details.keluhan && details.keluhan !== '-')    html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keluhan</p><p class="text-gray-700">' + details.keluhan + '</p></div>';
         if (details.nama_asuransi && details.nama_asuransi !== '-') html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Asuransi</p><p class="text-gray-700">' + details.nama_asuransi + '</p></div>';
@@ -1675,11 +1778,14 @@ function buildDetailContent(data) {
     // ── 4. Items / Parts ──────────────────────────────────────
     const items = details.items || [];
     if (items.length > 0) {
-        const totalHarga = Number(po.total_harga || 0);
+        // Hitung total dari items yang ditampilkan (sudah terfilter per tab)
+        const totalFiltered = items.reduce((sum, item) => sum + Number(item.biaya || item.biaya_sewa || 0), 0);
+        const isRejectedTab = _currentStatusFilter === 'Ditolak';
+        const totalColor = isRejectedTab ? 'text-red-500' : 'text-emerald-600';
         html += '<div class="border border-gray-100 rounded-xl overflow-hidden">'
             + '<div class="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">'
             + '<p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detail Items (' + items.length + ')</p>'
-            + '<p class="text-sm font-bold text-emerald-600">Total: Rp ' + totalHarga.toLocaleString('id-ID') + '</p>'
+            + '<p class="text-sm font-bold ' + totalColor + '">Total: Rp ' + totalFiltered.toLocaleString('id-ID') + '</p>'
             + '</div>';
 
         items.forEach(function(item, idx) {
@@ -1713,10 +1819,18 @@ function buildDetailContent(data) {
                 html += '<span class="text-[10px] text-gray-400">· ' + item.kondisi + '</span>';
             }
             html += '</div>';
+            // Badge status item (approved/rejected) — hanya tampil jika ada item_decisions
+            if (item.action) {
+                const badgeHtml = item.action === 'approved'
+                    ? '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>'
+                    : '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
+                html += '<div class="mb-1.5">' + badgeHtml;
+                if (item.catatan_penolakan) html += '<span class="ml-2 text-[10px] text-red-500">' + item.catatan_penolakan + '</span>';
+                html += '</div>';
+            }
 
             // Keterangan limit (teks singkat — sekarang diganti blok limit_snapshot di bawah)
-            html += '</div>'
-                + '<span class="text-sm font-bold text-emerald-600 flex-shrink-0">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span>'
+            html += '<span class="text-sm font-bold ' + (isRejectedTab ? 'text-red-500' : 'text-emerald-600') + ' flex-shrink-0">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span>'
                 + '</div>';
 
             // ── Limit Snapshot (Service grid) ──────────────────────
@@ -1784,7 +1898,7 @@ function buildDetailContent(data) {
         });
 
         html += '<div class="border-t-2 border-gray-200 bg-gray-50 px-4 py-2.5 flex justify-end">'
-            + '<span class="text-sm font-bold text-emerald-600">Rp ' + Number(po.total_harga || 0).toLocaleString('id-ID') + '</span>'
+            + '<span class="text-sm font-bold ' + totalColor + '">Rp ' + totalFiltered.toLocaleString('id-ID') + '</span>'
             + '</div></div>';
 
     } else if (details.type === 'asuransi_kendaraan' || details.type === 'pajak' || details.type === 'kir') {
@@ -1844,7 +1958,8 @@ function buildDetailContent(data) {
 
     // ── 5. Info Approval ──────────────────────────────────────
     if (po.disetujui_oleh || po.tanggal_persetujuan || po.catatan_approval) {
-        const isApproved  = po.status === 'Disetujui';
+        // Jika di tab Ditolak dan PO status Disetujui (partial), tunjukkan "Ditolak"
+        const isApproved  = po.status === 'Disetujui' && _currentStatusFilter !== 'Ditolak';
         const apColor     = isApproved ? 'green' : 'red';
         const apIcon      = isApproved ? 'fa-check-circle' : 'fa-times-circle';
         const apLabel     = isApproved ? 'Disetujui' : 'Ditolak';
@@ -1898,6 +2013,9 @@ function renderApproveItems(data) {
     const isServicePart     = details.type === 'service_part';
     const isServiceIncident = details.type === 'service_incident';
     const isServiceAsuransi = details.type === 'service_asuransi';
+
+    // Index item yang sudah locked approved (dari partial approval sebelumnya) — tidak bisa diubah lagi
+    const lockedApprovedIdx = (details.locked_approved_idx || []).map(Number);
 
     // ── Header info kendaraan ─────────────────────────────────
     if (isServicePart || isServiceIncident) {
@@ -1996,15 +2114,32 @@ function renderApproveItems(data) {
 
         const card = document.createElement('div');
         card.id = 'approve-item-card-' + idx;
-        card.className = 'border border-red-200 rounded-xl overflow-hidden transition-all bg-red-50/10';
+
+        // Cek apakah item ini sudah locked approved dari partial approval sebelumnya
+        const isLocked = lockedApprovedIdx.includes(idx);
+
+        if (isLocked) {
+            // Item locked: tampil hijau terkunci, checkbox disabled, tidak bisa diubah
+            approveItemDecisions[idx].action = 'approved'; // paksa approved
+            card.className = 'border border-green-300 rounded-xl overflow-hidden transition-all bg-green-50/30 opacity-80';
+        } else {
+            card.className = 'border border-red-200 rounded-xl overflow-hidden transition-all bg-red-50/10';
+        }
 
         const row = document.createElement('div');
         row.className = 'flex items-start gap-3 px-4 py-3';
-        row.innerHTML = '<div class="flex-shrink-0 pt-0.5"><input type="checkbox" id="item-chk-' + idx + '" class="w-4 h-4 rounded text-green-600 cursor-pointer"></div>'
-            + '<div class="flex-1 min-w-0"><label for="item-chk-' + idx + '" class="cursor-pointer">'
+
+        const lockBadgeHtml = isLocked
+            ? '<span class="ml-1 text-[9px] font-semibold text-green-600 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full"><i class="fa fa-lock text-[8px]"></i> Sudah Disetujui</span>'
+            : '';
+
+        row.innerHTML = '<div class="flex-shrink-0 pt-0.5"><input type="checkbox" id="item-chk-' + idx + '" class="w-4 h-4 rounded text-green-600 cursor-pointer"'
+            + (isLocked ? ' checked disabled title="Item ini sudah disetujui sebelumnya dan tidak dapat diubah"' : '') + '></div>'
+            + '<div class="flex-1 min-w-0"><label for="item-chk-' + idx + '" class="' + (isLocked ? 'cursor-default' : 'cursor-pointer') + '">'
             + '<div class="flex items-center gap-2 flex-wrap">'
             + '<span class="text-xs text-gray-400">#' + (idx+1) + '</span>'
             + '<span class="font-semibold text-gray-800 text-sm">' + itemTitle + '</span>'
+            + lockBadgeHtml
             + (itemSubtitle && !isServiceAsuransi ? itemSubtitle : '')
             + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(itemNominal) + '</span>'
             + '</div>'
@@ -2012,19 +2147,26 @@ function renderApproveItems(data) {
             + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
             + (isServicePart && (item.keterangan_limit || item.keterangan) && (item.keterangan_limit || item.keterangan) !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + (item.keterangan_limit || item.keterangan) + '</p>' : '')
             + '</label></div>'
-            + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
+            + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center">'
+            + (isLocked
+                ? '<span class="text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-check text-[8px]"></i> Disetujui</span>'
+                : '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>')
+            + '</div>';
 
         card.appendChild(row);
 
         const rejectPanel = document.createElement('div');
         rejectPanel.id = 'reject-item-panel-' + idx;
-        rejectPanel.className = 'px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/20';
+        rejectPanel.className = 'px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/20' + (isLocked ? ' hidden' : '');
         rejectPanel.innerHTML = '<label class="text-[11px] font-semibold text-red-500 mb-1.5 block">Alasan Penolakan <span class="font-normal text-red-400">(opsional)</span></label>'
-            + '<textarea id="reject-catatan-' + idx + '" rows="2" placeholder="Tulis alasan penolakan item ini..." class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"></textarea>';
+            + '<textarea id="reject-catatan-' + idx + '" rows="2" placeholder="Tulis alasan penolakan item ini..." class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"' + (isLocked ? ' disabled' : '') + '></textarea>';
         card.appendChild(rejectPanel);
 
         const chk = row.querySelector('input[type=checkbox]');
-        chk.addEventListener('change', function() { toggleApproveItem(idx, this.checked); });
+        // Item locked tidak perlu event listener — sudah fixed ke approved
+        if (!isLocked) {
+            chk.addEventListener('change', function() { toggleApproveItem(idx, this.checked); });
+        }
         list.appendChild(card);
     });
     updateApproveSummary();
@@ -2554,6 +2696,8 @@ document.getElementById('resubmitSimpleModal')?.addEventListener('click', functi
 // ── RESUBMIT SERVICE ASURANSI MODAL ───────────────────────────────────────
 let _rsaPoId = null;
 let _rsaIsServiceIncident = false;
+let _rsaCategories = [];
+let _rsaSuppliers  = [];
 
 function openResubmitServiceAsuransiModal(poId, poNumber) {
     _rsaPoId = poId;
@@ -2564,14 +2708,30 @@ function openResubmitServiceAsuransiModal(poId, poNumber) {
     document.getElementById('modalResubmitServiceAsuransi').classList.add('flex');
 
     const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
-    fetch('/admin/purchase-order/' + poId + '/resubmit', {
-        method: 'POST',
-        headers: { 'X-CSRF-TOKEN': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({}),
-    })
-    .then(r => r.json())
-    .then(function(data) {
+
+    Promise.all([
+        fetch('/admin/purchase-order/' + poId + '/resubmit', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({}),
+        }).then(function(r) { return r.json(); }),
+        fetch('/admin/api/service-categories', {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+        }).then(function(r) { return r.json(); }).catch(function() { return { categories: [] }; }),
+        fetch('/admin/api/suppliers', {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+        }).then(function(r) { return r.json(); }).catch(function() { return { suppliers: [] }; }),
+    ])
+    .then(function(results) {
+        const data     = results[0];
+        const catData  = results[1];
+        const suppData = results[2];
+
         if (!data.success) throw new Error(data.message || 'Gagal memuat data');
+
+        _rsaCategories = catData.categories  || [];
+        _rsaSuppliers  = suppData.suppliers  || [];
+
         renderRsaForm(data);
         document.getElementById('rsaLoading').classList.add('hidden');
         document.getElementById('rsaBody').classList.remove('hidden');
@@ -2664,6 +2824,228 @@ function renderRsaKejadian(container, idx, kej) {
             }).join('') + '</div>';
     }
 
+    // Build HTML based on _rsaIsServiceIncident
+    let fieldsHtml = '';
+    
+    if (_rsaIsServiceIncident) {
+        // ── Service Incident: Full fields ──────────────────────────────────
+
+        // Build options Kategori
+        const catOptions = _rsaCategories.map(function(c) {
+            const sel = (kej.category_id && String(kej.category_id) === String(c.id)) ? ' selected' : '';
+            return '<option value="' + c.id + '"' + sel + '>' + c.nama + '</option>';
+        }).join('');
+
+        // Build options Supplier
+        const suppOptions = _rsaSuppliers.map(function(s) {
+            const sel = (kej.supplier_id && String(kej.supplier_id) === String(s.id)) ? ' selected' : '';
+            return '<option value="' + s.id + '"' + sel + '>' + s.nama_supplier + '</option>';
+        }).join('');
+
+        // Posisi yang dipilih
+        const posisiVal = (kej.posisi || '').replace(/"/g, '&quot;');
+        const _posisiGroups = {
+            'Eksterior Depan':      ['Bumper Depan','Kap Mesin','Lampu Depan Kiri','Lampu Depan Kanan','Spion Kiri','Spion Kanan'],
+            'Eksterior Samping':    ['Pintu Depan Kiri','Pintu Depan Kanan','Pintu Belakang Kiri','Pintu Belakang Kanan','Fender Depan Kiri','Fender Depan Kanan'],
+            'Eksterior Belakang':   ['Bumper Belakang','Bagasi','Lampu Belakang Kiri','Lampu Belakang Kanan'],
+            'Kaca':                 ['Kaca Depan','Kaca Belakang','Kaca Pintu Depan Kiri','Kaca Pintu Depan Kanan','Kaca Pintu Belakang Kiri','Kaca Pintu Belakang Kanan'],
+            'Mesin':                ['Mesin','Radiator','Aki/Battery','Filter Udara','Filter Oli'],
+            'Ban & Velg':           ['Ban Depan Kiri','Ban Depan Kanan','Ban Belakang Kiri','Ban Belakang Kanan'],
+            'Kaki-kaki & Suspensi': ['Shock Absorber Depan Kiri','Shock Absorber Depan Kanan','Shock Absorber Belakang Kiri','Shock Absorber Belakang Kanan'],
+            'Rem':                  ['Brake Pad Depan','Brake Pad Belakang','Disc Brake Depan Kiri','Disc Brake Depan Kanan'],
+            'AC & Interior':        ['Kompresor AC','Evaporator AC','Dashboard','Jok Depan Kiri','Jok Depan Kanan','Jok Belakang'],
+            'Lain-lain':            ['Umum','Keseluruhan'],
+        };
+        const _allPosisiValues = Object.values(_posisiGroups).flat();
+        const posisiIsCustom   = posisiVal && !_allPosisiValues.includes(kej.posisi || '');
+        // Jika nilai lama tidak ada di daftar, tambahkan sebagai opsi pertama supaya tetap terpilih
+        let posisiOptions = posisiIsCustom
+            ? '<option value="' + posisiVal + '" selected>' + posisiVal + ' (sebelumnya)</option>'
+            : '';
+        posisiOptions += Object.entries(_posisiGroups).map(function([group, items]) {
+            const opts = items.map(function(p) {
+                const sel = (!posisiIsCustom && posisiVal === p) ? ' selected' : '';
+                return '<option value="' + p + '"' + sel + '>' + p + '</option>';
+            }).join('');
+            return '<optgroup label="' + group + '">' + opts + '</optgroup>';
+        }).join('');
+
+        // Kondisi
+        const kondisiOptions = ['Baik','Rusak','Perlu Ganti'].map(function(k) {
+            const sel = (kej.kondisi === k) ? ' selected' : '';
+            return '<option value="' + k + '"' + sel + '>' + k + '</option>';
+        }).join('');
+
+        // Default tgl_pasang dari PO jika part tidak punya
+        const rsaTanggalService = document.getElementById('rsa_tanggal_service')?.value || '';
+        const rsaKilometer      = document.getElementById('rsa_kilometer')?.value || '';
+        const tglPasang    = kej.tgl_pasang    || rsaTanggalService || '';
+        const kmPasang     = kej.kilometer_pasang !== undefined ? kej.kilometer_pasang : (rsaKilometer || '');
+
+        fieldsHtml = `
+            <!-- Row 1: Nama Part + Kategori -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Part <span class="text-red-400">*</span></label>
+                    <input type="text" name="kejadians[${idx}][nama_kejadian]" required
+                        value="${(kej.nama_kejadian || kej.nama_part || '').replace(/"/g, '&quot;')}"
+                        placeholder="cth: Kampas Rem, Ban Depan..."
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Kategori</label>
+                    <select name="kejadians[${idx}][category_id]"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                        <option value="">— Pilih Kategori —</option>
+                        ${catOptions}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Row 2: Posisi + Part Number + Serial Number -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Posisi</label>
+                    <select name="kejadians[${idx}][posisi]"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                        <option value="">— Pilih Posisi —</option>
+                        ${posisiOptions}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Part Number</label>
+                    <input type="text" name="kejadians[${idx}][part_number]"
+                        value="${(kej.part_number || '').replace(/"/g, '&quot;')}"
+                        placeholder="No. part (opsional)"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Serial Number</label>
+                    <input type="text" name="kejadians[${idx}][serial_number]"
+                        value="${(kej.serial_number || '').replace(/"/g, '&quot;')}"
+                        placeholder="SN part (opsional)"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+            </div>
+
+            <!-- Row 3: Tgl Pasang + KM Pasang + Kondisi -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Tgl Pasang <span class="text-red-400">*</span></label>
+                    <input type="date" name="kejadians[${idx}][tgl_pasang]" required
+                        value="${tglPasang}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">KM Pasang</label>
+                    <input type="number" name="kejadians[${idx}][kilometer_pasang]" min="0"
+                        value="${kmPasang}"
+                        placeholder="0"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Kondisi</label>
+                    <select name="kejadians[${idx}][kondisi]"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                        ${kondisiOptions}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Row 4: Biaya + Supplier -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp) <span class="text-red-400">*</span></label>
+                    <input type="number" name="kejadians[${idx}][biaya]" min="0" required
+                        value="${kej.biaya || 0}"
+                        onchange="updateRsaTotalBiaya()" oninput="updateRsaTotalBiaya()"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Supplier / Bengkel (opsional)</label>
+                    <div class="flex gap-2">
+                        <select name="kejadians[${idx}][supplier_id]"
+                            class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                            <option value="">— Pilih Supplier/Bengkel —</option>
+                            ${suppOptions}
+                        </select>
+                        <button type="button"
+                            onclick="alert('Feature tambah supplier inline belum tersedia')"
+                            class="shrink-0 px-2 py-1 text-xs font-semibold bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            + Baru
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Pembayaran -->
+            <div>
+                <p class="text-xs font-semibold text-gray-500 mb-2">Info Pembayaran</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Rekening</label>
+                        <input type="text" name="kejadians[${idx}][nama_rekening]"
+                            value="${(kej.nama_rekening || '').replace(/"/g, '&quot;')}"
+                            placeholder="cth: Budi Santoso"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Bank</label>
+                        <input type="text" name="kejadians[${idx}][nama_bank]"
+                            value="${(kej.nama_bank || '').replace(/"/g, '&quot;')}"
+                            placeholder="cth: BCA, Mandiri..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1 block">No. Rekening</label>
+                        <input type="text" name="kejadians[${idx}][no_rekening]"
+                            value="${(kej.no_rekening || '').replace(/"/g, '&quot;')}"
+                            placeholder="cth: 1234567890"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keterangan -->
+            <div>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Keterangan</label>
+                <textarea name="kejadians[${idx}][keterangan]" rows="2"
+                    placeholder="Keterangan tambahan (opsional)"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">${(kej.keterangan || '')}</textarea>
+            </div>
+
+            <!-- Lampiran baru -->
+            <div>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Lampiran Baru <span class="text-gray-400 font-normal">(opsional — foto kerusakan, nota bengkel, dll)</span></label>
+                <input type="file" name="kejadians[${idx}][lampiran][]"
+                    id="rsa-lampiran-input-${idx}"
+                    multiple accept="image/*,.pdf"
+                    onchange="updateRsaLampiranList(${idx}, this)"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer">
+                <div id="rsa-lampiran-list-${idx}" class="mt-1 space-y-1"></div>
+            </div>
+        `;
+    } else {
+        // Service Asuransi: Simple fields
+        fieldsHtml = `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Kejadian <span class="text-red-400">*</span></label>
+                    <input type="text" name="kejadians[${idx}][nama_kejadian]" required
+                        value="${(kej.nama_kejadian || '').replace(/"/g, '&quot;')}"
+                        placeholder="cth: Ganti Kaca Depan"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp) <span class="text-red-400">*</span></label>
+                    <input type="number" name="kejadians[${idx}][biaya]" min="0" value="${kej.biaya || 0}" required
+                        onchange="updateRsaTotalBiaya()" oninput="updateRsaTotalBiaya()"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+            </div>
+        `;
+    }
+
     div.innerHTML = `
         ${hiddenLampiranInputs}
         <div class="flex items-center justify-between">
@@ -2673,24 +3055,10 @@ function renderRsaKejadian(container, idx, kej) {
                 <i class="fa fa-times"></i>
             </button>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">${_rsaIsServiceIncident ? 'Nama Part' : 'Nama Kejadian'} <span class="text-red-400">*</span></label>
-                <input type="text" name="kejadians[${idx}][nama_kejadian]" required
-                    value="${(kej.nama_kejadian || '').replace(/"/g, '&quot;')}"
-                    placeholder="${_rsaIsServiceIncident ? 'cth: Kampas Rem' : 'cth: Ganti Kaca Depan'}"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
-                <input type="number" name="kejadians[${idx}][biaya]" min="0" value="${kej.biaya || 0}"
-                    onchange="updateRsaTotalBiaya()" oninput="updateRsaTotalBiaya()"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
-            </div>
-        </div>
+        ${fieldsHtml}
         ${lampiranLama.length ? `
         <div>
-            <label class="text-xs font-semibold text-gray-500 mb-1 block">Lampiran</label>
+            <label class="text-xs font-semibold text-gray-500 mb-1 block">Lampiran Existing</label>
             ${lampiranLamaHtml}
         </div>` : ''}
     `;

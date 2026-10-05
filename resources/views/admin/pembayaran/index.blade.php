@@ -307,7 +307,7 @@
                                 } elseif ($_pr->status === 'Diajukan') {
                                     $grpDiajukan     += $cnt;
                                     $nominalDiajukan += $_prNom;
-                                } elseif (in_array($_pr->status, ['Disetujui','Disetujui Sebagian'])) {
+                                } elseif ($_pr->status === 'Disetujui') {
                                     $grpApproved     += $cnt;
                                     $nominalApproved += $_prNom;
                                 } elseif ($_pr->status === 'Ditolak') {
@@ -325,7 +325,7 @@
                             } elseif ($_pr->status === 'Diajukan') {
                                 $grpDiajukan     += $cnt;
                                 $nominalDiajukan += $_prNom;
-                            } elseif (in_array($_pr->status, ['Disetujui','Disetujui Sebagian'])) {
+                            } elseif ($_pr->status === 'Disetujui') {
                                 $grpApproved     += $cnt;
                                 $nominalApproved += $_prNom;
                             } elseif ($_pr->status === 'Ditolak') {
@@ -341,7 +341,7 @@
                             } elseif ($_pr->status === 'Diajukan') {
                                 $grpDiajukan++;
                                 $nominalDiajukan += $_prNom;
-                            } elseif (in_array($_pr->status, ['Disetujui','Disetujui Sebagian'])) {
+                            } elseif ($_pr->status === 'Disetujui') {
                                 $grpApproved++;
                                 $nominalApproved += $_prNom;
                             } elseif ($_pr->status === 'Ditolak') {
@@ -418,6 +418,7 @@
                                         $approvedCount = $_decColl->where('action','approved')->count();
                                         $rejectedCount = $_decColl->where('action','rejected')->count();
                                         $totalDecCount = $approvedCount + $rejectedCount;
+                                        $_prHasRejected = $rejectedCount > 0;
 
                                         // Status color
                                         $statusColor = match($d->status) {
@@ -425,9 +426,6 @@
                                             'Ditolak'            => 'bg-red-100 text-red-700',
                                             'Diajukan'           => 'bg-indigo-100 text-indigo-600',
                                             'Pending'            => 'bg-yellow-100 text-yellow-600',
-                                            'Disetujui Sebagian' => $tab === 'Ditolak'
-                                                                        ? 'bg-red-100 text-red-700'
-                                                                        : 'bg-teal-100 text-teal-700',
                                             default              => 'bg-gray-100 text-gray-500',
                                         };
                                         $statusIcon = match($d->status) {
@@ -435,22 +433,9 @@
                                             'Ditolak'            => 'fa-times-circle',
                                             'Diajukan'           => 'fa-paper-plane',
                                             'Pending'            => 'fa-clock',
-                                            'Disetujui Sebagian' => $tab === 'Ditolak' ? 'fa-times-circle' : 'fa-adjust',
                                             default              => 'fa-circle',
                                         };
-                                        // Label: "Sebagian Ditolak (approved/total)" jika ada partial
-                                        if ($d->status === 'Disetujui Sebagian' && $totalDecCount > 0) {
-                                            if ($tab === 'Ditolak') {
-                                                $statusLabel = 'Sebagian Ditolak (' . $rejectedCount . '/' . $totalDecCount . ')';
-                                            } else {
-                                                $statusLabel = 'Sebagian Ditolak (' . $approvedCount . '/' . $totalDecCount . ')';
-                                            }
-                                        } else {
-                                            $statusLabel = match($d->status) {
-                                                'Disetujui Sebagian' => $tab === 'Ditolak' ? 'Ditolak' : 'Disetujui',
-                                                default              => $d->status ?? '-',
-                                            };
-                                        }
+                                        $statusLabel = $d->status ?? '-';
 
                                         $rowUid = 'r'.$gIdx.'i'.$di;
                                         $_sd_items = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
@@ -561,10 +546,32 @@
                                             @endif
                                         </td>
                                         <td class="px-3 py-3">
-                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
-                                                <i class="fa fa-boxes text-blue-400 text-[10px]"></i>
-                                                {{ $itemCount }} item{{ $itemCount > 1 ? 's' : '' }}
-                                            </span>
+                                            @if(!empty($d->badge_stats))
+                                                {{-- Task 2: Render badge per-item untuk source_type yang support per-item decision --}}
+                                                <div class="flex flex-col gap-1">
+                                                    @if($d->badge_stats['approved'] > 0)
+                                                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                                                            <i class="fa fa-check text-[8px]"></i> {{ $d->badge_stats['approved'] }}
+                                                        </span>
+                                                    @endif
+                                                    @if($d->badge_stats['pending'] > 0)
+                                                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                                                            <i class="fa fa-clock text-[8px]"></i> {{ $d->badge_stats['pending'] }}
+                                                        </span>
+                                                    @endif
+                                                    @if($d->badge_stats['rejected'] > 0)
+                                                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                                                            <i class="fa fa-times text-[8px]"></i> {{ $d->badge_stats['rejected'] }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            @else
+                                                {{-- Fallback: tampilkan item count biasa --}}
+                                                <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
+                                                    <i class="fa fa-boxes text-blue-400 text-[10px]"></i>
+                                                    {{ $itemCount }} item{{ $itemCount > 1 ? 's' : '' }}
+                                                </span>
+                                            @endif
                                         </td>
                                         <td class="px-3 py-3 text-right">
                                             @php
@@ -751,33 +758,21 @@
                                                                 default              => route('pembayaran.edit-rejected', $d->id),
                                                             };
                                                         @endphp
-                                                        @if(in_array($d->source_type, ['service_asuransi', 'service_part']))
-                                                            {{-- service_asuransi & service_part Ditolak penuh: modal inline per-item --}}
+                                                        @if(in_array($d->source_type, ['service_asuransi', 'service_part', 'service_incident']))
+                                                            {{-- service_asuransi, service_part & service_incident Ditolak penuh: modal inline per-item --}}
                                                             <button type="button"
                                                                 onclick="openResubmitRejectedModal({{ $d->id }})"
                                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
                                                                 <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
                                                             </button>
-                                                        @elseif($useInlineModal)
-                                                            @php
-                                                                $sd_ajukan = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
-                                                                $saId = $sd_ajukan['service_asuransi_id'] ?? null;
-                                                            @endphp
-                                                            @if($saId)
-                                                            <button type="button"
-                                                                onclick="openAjukanUlangSAModal({{ $saId }}, '{{ $d->no_pr }}')"
-                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
-                                                                <i class="fa fa-rotate-right text-[10px]"></i> Ajukan Ulang
-                                                            </button>
-                                                            @endif
                                                         @else
                                                         <a href="{{ $resubmitRoute }}"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
                                                             <i class="fa fa-edit text-[10px]"></i> Edit & Ajukan Ulang
                                                         </a>
                                                         @endif
-                                                    @elseif($d->status === 'Disetujui Sebagian' && in_array($d->source_type, ['service_part', 'service_incident', 'service_asuransi']) && $rejectedCount > 0 && $d->can_edit)
-                                                        {{-- Disetujui Sebagian: ada item yang ditolak, bisa ajukan ulang --}}
+                                                    @elseif($tab === 'Ditolak' && $d->status === 'Disetujui' && $_prHasRejected && $d->can_edit && in_array($d->source_type, ['service_part','service_incident','service_asuransi','gps','gps_perpanjang']))
+                                                        {{-- PR Disetujui tapi ada item yang ditolak (muncul di tab Ditolak): bisa ajukan ulang --}}
                                                         <button type="button"
                                                             onclick="openResubmitRejectedModal({{ $d->id }})"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
@@ -790,8 +785,8 @@
                                                         $_resubmitSupported = in_array($d->source_type, ['service_part', 'service_incident', 'service_asuransi']);
                                                     @endphp
 
-                                                    {{-- Kondisi A: Disetujui Sebagian — semua source_type yang support --}}
-                                                    @if($d->status === 'Disetujui Sebagian' && $_resubmitSupported && $rejectedCount > 0 && $d->can_edit)
+                                                    {{-- Kondisi A: PR Disetujui dengan item rejected (muncul di tab Ditolak) — bisa ajukan ulang --}}
+                                                    @if($tab === 'Ditolak' && $d->status === 'Disetujui' && $_prHasRejected && $d->can_edit && in_array($d->source_type, ['service_part','service_incident','service_asuransi','gps','gps_perpanjang']))
                                                         <button type="button"
                                                             onclick="openResubmitRejectedModal({{ $d->id }})"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
@@ -807,7 +802,7 @@
                                                         </button>
 
                                                     @else
-                                                        @if(!in_array($d->status, ['Diajukan','Disetujui','Disetujui Sebagian']))
+                                                        @if(!in_array($d->status, ['Diajukan','Disetujui']))
                                                             <a href="{{ route('pembayaran.edit', $d->id) }}"
                                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 transition-colors">
                                                                 <i class="fa fa-edit text-[10px]"></i> Edit
@@ -2269,9 +2264,10 @@
 
 {{-- ============================================================
      MODAL: EDIT & AJUKAN ULANG ITEM DITOLAK
-     Digunakan untuk: service_part (Ditolak/Disetujui Sebagian),
-                      service_incident (Disetujui Sebagian),
-                      service_asuransi (Disetujui Sebagian)
+     Digunakan untuk: service_part (Ditolak / Disetujui+rejected),
+                      service_incident (Disetujui+rejected),
+                      service_asuransi (Disetujui+rejected),
+                      gps / gps_perpanjang (Disetujui+rejected)
 ============================================================ --}}
 <div id="resubmitRejectedModal"
      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -3200,9 +3196,10 @@ document.getElementById('modalAjukanUlangSA')?.addEventListener('click', functio
 });
 
 // ── RESUBMIT REJECTED ITEMS MODAL ────────────────────────────
-// Digunakan untuk: service_part (Ditolak/Disetujui Sebagian),
-//                 service_incident (Disetujui Sebagian),
-//                 service_asuransi (Disetujui Sebagian)
+// Digunakan untuk: service_part (Ditolak / Disetujui+rejected),
+//                 service_incident (Disetujui+rejected),
+//                 service_asuransi (Disetujui+rejected),
+//                 gps / gps_perpanjang (Disetujui+rejected)
 
 let _rrmPembayaranId = null;
 
