@@ -611,12 +611,12 @@ function calcKeteranganLimit(idx) {
         document.querySelectorAll('[id^="cat-select-"]').forEach(function(catEl) {
             const mIdx = catEl.id.match(/cat-select-(\d+)/);
             if (!mIdx) return;
-            if (parseInt(mIdx[1]) === idx) return; // skip baris ini sendiri
+            // Hitung SEMUA baris di form (termasuk baris ini sendiri) yang sama kategorinya.
+            // aktifCountDb hanya hitung yg sudah Terpasang di DB, sehingga
+            // baris-baris di form ini (belum tersimpan) harus semua dihitung di sini.
             if (parseInt(catEl.value) === categoryId) aktifCountForm++;
         });
     }
-    // Tidak +1 — sisa dihitung dari jumlah yang belum terpakai (DB count = yg sudah tersimpan)
-    // Baris di form ini belum tersimpan ke DB, jadi sisa = jumlah - DB_count = kapasitas yg masih tersedia
     const aktifCount  = aktifCountDb !== null ? aktifCountDb + aktifCountForm : null;
     const jumlahAda   = limitJumlah !== null && limitJumlah > 0 && aktifCount !== null;
     const jumlahSama  = jumlahAda && aktifCount === limitJumlah;

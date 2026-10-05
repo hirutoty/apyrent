@@ -156,14 +156,9 @@ class PengeluaranInterceptorService
                 if ($snapLimitJumlah && $limitRule->kendaraan_id) {
                     $qSnap = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
                         ->where('category_id', $limitRule->category_id)
-                        ->where(function ($qs) {
-                            $qs->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
-                               ->orWhere(function ($qs2) {
-                                   $qs2->where('status', 'tidak_aktif')
-                                       ->where(fn($qs3) => $qs3->whereNull('persetujuan')
-                                                               ->orWhereNotIn('persetujuan', ['Ditolak Pembayaran']));
-                               });
-                        });
+                        ->whereIn('status', ['Terpasang', 'Limit'])
+                        ->where(fn($qs) => $qs->whereNull('persetujuan')
+                                              ->orWhereNotIn('persetujuan', ['Ditolak Pembayaran']));
                     // Jika ada reset_at, hanya hitung part setelah reset
                     if ($limitRule->reset_at) {
                         $qSnap->where('created_at', '>=', $limitRule->reset_at);

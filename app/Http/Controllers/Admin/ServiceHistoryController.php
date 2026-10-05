@@ -1388,14 +1388,9 @@ class ServiceHistoryController extends Controller
                 if ($r->jumlah) {
                     $q = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
                         ->where('category_id', $r->category_id)
-                        ->where(function ($q2) {
-                            $q2->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
-                               ->orWhere(function ($q3) {
-                                   $q3->where('status', 'tidak_aktif')
-                                      ->where(fn($q4) => $q4->whereNull('persetujuan')
-                                                             ->orWhereNotIn('persetujuan', ['Ditolak Pembayaran']));
-                               });
-                        });
+                        ->whereIn('status', ['Terpasang', 'Limit'])
+                        ->where(fn($q2) => $q2->whereNull('persetujuan')
+                                              ->orWhereNotIn('persetujuan', ['Ditolak Pembayaran']));
 
                     if ($r->reset_at) {
                         $q->where('created_at', '>=', $r->reset_at);
@@ -2129,6 +2124,61 @@ class ServiceHistoryController extends Controller
                         'kilometer_sekarang'       => $sh->kilometer ?? $sh->kendaraan->kilometer_sekarang,
                         'tanggal_terakhir_service' => \Carbon\Carbon::parse($sh->tanggal_service)->toDateString(),
                     ]);
+                }
+
+                // ── Recalculate keterangan_limit langsung di part ini ─────────
+                // Setelah status → Terpasang, aktifCount sudah +1.
+                // Update keterangan_limit di kolom agar service_history view langsung akurat.
+                if ($request->status === 'Terpasang' && $part->category_id) {
+                    try {
+                        $limitRule = \App\Models\ServiceCategoryLimit::where('kendaraan_id', $part->kendaraan_id)
+                            ->where('category_id', $part->category_id)
+                            ->first();
+                        if ($limitRule && $limitRule->jumlah) {
+                            $aktifCountNow = \App\Models\ServicePart::where('kendaraan_id', $part->kendaraan_id)
+                                ->where('category_id', $part->category_id)
+                                ->whereIn('status', ['Terpasang', 'Limit'])
+                                ->where(fn($q) => $q->whereNull('persetujuan')->orWhere('persetujuan', '!=', 'Ditolak Pembayaran'))
+                                ->count();
+
+                            $partArray = [
+                                'biaya'            => 0,
+                                'tgl_pasang'       => $part->tgl_pasang,
+                                'interval_nilai'   => $part->interval_nilai,
+                                'interval_satuan'  => $part->interval_satuan,
+                                'kilometer_pasang' => $part->kilometer_pasang,
+                            ];
+                            $tanggalServis = $sh?->tanggal_service ?? now()->toDateString();
+                            $kmInput       = (int) ($sh?->kilometer ?? $part->kilometer_pasang ?? 0);
+
+                            $newKet = $this->generateKeteranganLimit(
+                                $partArray, $kmInput, $limitRule,
+                                $tanggalServis, null, $aktifCountNow, (int) $limitRule->jumlah
+                            );
+                            $part->updateQuietly(['keterangan_limit' => $newKet]);
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning("Recalculate keterangan_limit gagal part #{$part->id}: " . $e->getMessage());
+                    }
+                }
+
+                // ── Update sisa_pasang di Pembayaran & PO terkait ────────────
+                // Dipanggil hanya saat part ditandai Terpasang, agar aktifCount
+                // yang baru (sudah include part ini) langsung terefleksi di
+                // limit_snapshot.sisa_pasang pada source_data Pembayaran & PO.
+                if ($request->status === 'Terpasang' && $sh->pembayaran_id) {
+                    try {
+                        $pembayaran = \App\Models\Pembayaran::find($sh->pembayaran_id);
+                        if ($pembayaran) {
+                            app(\App\Http\Controllers\Admin\PembayaranController::class)
+                                ->updateSourceDataKeteranganLimit($pembayaran);
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning(
+                            "updateSourceDataKeteranganLimit gagal saat part #{$part->id} ditandai Terpasang: "
+                            . $e->getMessage()
+                        );
+                    }
                 }
             }
         });

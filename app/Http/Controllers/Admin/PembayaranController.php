@@ -118,6 +118,8 @@ class PembayaranController extends Controller
                 $processedIndices = array_column($itemDecisions->values()->toArray(), 'idx');
                 foreach ($itemList as $itemIdx => $itemData) {
                     if (!in_array((int)$itemIdx, array_map('intval', $processedIndices))) {
+                        // Partial approval: PR sudah Disetujui tapi item ini belum diputuskan
+                        // → tetap hitung sebagai pending agar tidak hilang dari tampilan
                         $pendingCount++;
                     }
                 }
@@ -217,6 +219,11 @@ class PembayaranController extends Controller
                         } elseif ($_status === 'Diajukan') {
                             $totalItemDiajukan++;
                             $nominalDiajukan += $_iNom;
+                        } elseif ($_status === 'Disetujui') {
+                            // Partial approval: PR sudah Disetujui tapi masih ada item
+                            // yang belum diputuskan → tetap hitung sebagai pending
+                            $totalItemPending++;
+                            $nominalPending += $_iNom;
                         }
                     }
                 }
@@ -1327,7 +1334,8 @@ class PembayaranController extends Controller
 
             // ── Recalculate keterangan_limit untuk parts yang baru diaktifkan ──
             // Setelah approve, parts berubah status tidak_aktif → aktif.
-            // aktifCount bertambah 1 per part, sehingga sisa_pasang berkurang.
+            // keterangan_limit diupdate tapi aktifCount hanya hitung Terpasang (sudah dipasang fisik).
+            // aktif & tidak_aktif = sudah disetujui keuangan tapi belum dipasang → TIDAK dihitung.
             if ($serviceHistory) {
                 $shController = app(\App\Http\Controllers\Admin\ServiceHistoryController::class);
                 $activatedParts = $serviceHistory->parts()->where('status', 'aktif')->get();
@@ -1340,7 +1348,7 @@ class PembayaranController extends Controller
 
                     $aktifCountNow = \App\Models\ServicePart::where('kendaraan_id', $activatedPart->kendaraan_id)
                         ->where('category_id', $activatedPart->category_id)
-                        ->whereIn('status', ['Terpasang', 'aktif', 'tidak_aktif'])
+                        ->whereIn('status', ['Terpasang'])
                         ->where(fn($q) => $q->whereNull('persetujuan')->orWhere('persetujuan', '!=', 'Ditolak Pembayaran'))
                         ->count();
 
@@ -2376,7 +2384,7 @@ class PembayaranController extends Controller
 
             // ── Task 3: Recalculate keterangan_limit untuk approved parts ──────
             // Parts yang diapprove statusnya masih tidak_aktif (aktif setelah PengeluaranTransferService).
-            // Ambil service_history yang terkait via pembayaran_id, lalu recalculate.
+            // aktifCount hanya hitung Terpasang — aktif & tidak_aktif belum dipasang fisik.
             if (!empty($approvedItems)) {
                 $sh = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
                 if ($sh) {
@@ -2395,7 +2403,7 @@ class PembayaranController extends Controller
 
                         $aktifCountNow = \App\Models\ServicePart::where('kendaraan_id', $aPart->kendaraan_id)
                             ->where('category_id', $aPart->category_id)
-                            ->whereIn('status', ['Terpasang', 'aktif', 'tidak_aktif'])
+                            ->whereIn('status', ['Terpasang'])
                             ->where(fn($q) => $q->whereNull('persetujuan')->orWhere('persetujuan', '!=', 'Ditolak Pembayaran'))
                             ->count();
 
@@ -2853,28 +2861,24 @@ class PembayaranController extends Controller
                 ->first();
             if (!$limitRule || !$limitRule->jumlah) continue;
 
-            // Hitung aktifCount total dari DB (semua item batch ini sudah tersimpan).
-            // 'tidak_aktif' = disetujui keuangan tapi belum dipasang fisik — tetap harus
-            // dihitung agar sisa_pasang berkurang segera setelah approve pembayaran.
+            // Hitung aktifCount total dari DB — hanya yang sudah benar-benar terpasang fisik.
+            // 'aktif' & 'tidak_aktif' = sudah disetujui keuangan tapi belum dipasang → TIDAK dihitung.
+            // sisa_pasang baru berkurang saat user klik tombol Terpasang (status → Terpasang).
             // 'Ditolak Pembayaran' dikecualikan: part ditolak tidak mengurangi sisa pasang.
             $q = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
                 ->where('category_id', $categoryId)
-                ->whereIn('status', ['Terpasang', 'aktif', 'tidak_aktif'])
+                ->whereIn('status', ['Terpasang'])
                 ->where(fn($q) => $q->whereNull('persetujuan')->orWhere('persetujuan', '!=', 'Ditolak Pembayaran'));
             if ($limitRule->reset_at) {
                 $q->where('created_at', '>=', $limitRule->reset_at);
             }
             $aktifCountTotal = $q->count();
 
-            // Berapa item kategori ini yang belum diproses dalam batch ini (item setelah ini)
-            // Item ke-1 → kurangi (N-1) item batch berikutnya, item ke-2 → kurangi (N-2), dst.
-            $alreadyProcessed = $batchCountPerCategory[$categoryId] ?? 0;
-            $itemsAfterThis   = (count(array_filter($parts, fn($p) => ($p['category_id'] ?? null) == $categoryId)) - 1) - $alreadyProcessed;
-            $aktifCountNow    = $aktifCountTotal - max(0, $itemsAfterThis);
-            $sisaPasang       = max(0, (int) $limitRule->jumlah - $aktifCountNow);
-
-            // Increment batch counter untuk kategori ini
-            $batchCountPerCategory[$categoryId] = $alreadyProcessed + 1;
+            // aktifCountTotal = semua part kategori ini yang sudah Terpasang fisik.
+            // Tidak perlu batch offset — semua part baru masih tidak_aktif/aktif,
+            // belum masuk hitungan. sisa_pasang = limitJumlah - aktifCountTotal.
+            $aktifCountNow = $aktifCountTotal;
+            $sisaPasang    = max(0, (int) $limitRule->jumlah - $aktifCountNow);
 
             // Recalculate keterangan_limit string
             // Biaya di-set 0 karena part sudah tersimpan di DB — getKumulatifBiayaKategori
