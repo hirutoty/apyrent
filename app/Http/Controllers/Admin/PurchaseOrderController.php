@@ -550,15 +550,16 @@ class PurchaseOrderController extends Controller
         }
 
         return [
-            'type'           => 'service_part',
-            'kendaraan'      => [
+            'type'                => 'service_part',
+            'kendaraan'           => [
                 'nopol' => $kendaraan ? $kendaraan->nopol : '-',
                 'merk'  => $kendaraan ? $kendaraan->merk  : '-',
             ],
-            'tanggal_service' => $sourceData['tanggal_service'] ?? '-',
-            'kilometer'       => $sourceData['kilometer'] ?? '-',
-            'keluhan'         => $sourceData['keluhan'] ?? '-',
-            'items'           => $items,
+            'tanggal_service'     => $sourceData['tanggal_service'] ?? '-',
+            'kilometer'           => $sourceData['kilometer'] ?? '-',
+            'keluhan'             => $sourceData['keluhan'] ?? '-',
+            'locked_approved_idx' => $sourceData['locked_approved_idx'] ?? [],
+            'items'               => $items,
         ];
     }
 
@@ -728,9 +729,17 @@ class PurchaseOrderController extends Controller
         $approvedIdx = [];
         $rejectedIdx = [];
 
+        // ── Guard: item yang sudah di-lock approved (dari partial approval sebelumnya)
+        // tidak boleh diubah. Paksa tetap approved meskipun form mengirim nilai lain.
+        $lockedApprovedIdx = collect($sourceData['locked_approved_idx'] ?? [])->map('intval')->toArray();
+
         // Validasi: item yang ditolak wajib ada catatannya
         foreach ($items as $idx => $decision) {
             $action = $decision['action'] ?? null;
+            // Override: item locked tidak bisa ditolak
+            if (in_array((int)$idx, $lockedApprovedIdx)) {
+                $action = 'approved';
+            }
             if ($action === 'rejected' && empty(trim($decision['catatan'] ?? ''))) {
                 return response()->json([
                     'success' => false,
@@ -1022,6 +1031,7 @@ class PurchaseOrderController extends Controller
             'catatan_approval'    => $catatan,
             'total_harga'         => $nominalApproved,
             'total_barang'        => count($approvedParts),
+            'can_edit'            => true, // part yang ditolak dapat diajukan ulang
             'source_data'         => array_merge($sourceData, [
                 'parts'          => $parts, // keep ALL parts
                 'item_decisions' => array_values($allPartDecisions),

@@ -156,7 +156,14 @@ class PengeluaranInterceptorService
                 if ($snapLimitJumlah && $limitRule->kendaraan_id) {
                     $qSnap = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
                         ->where('category_id', $limitRule->category_id)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+                        ->where(function ($qs) {
+                            $qs->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
+                               ->orWhere(function ($qs2) {
+                                   $qs2->where('status', 'tidak_aktif')
+                                       ->where(fn($qs3) => $qs3->whereNull('persetujuan')
+                                                               ->orWhereNotIn('persetujuan', ['Ditolak Pembayaran']));
+                               });
+                        });
                     // Jika ada reset_at, hanya hitung part setelah reset
                     if ($limitRule->reset_at) {
                         $qSnap->where('created_at', '>=', $limitRule->reset_at);
@@ -374,7 +381,14 @@ class PengeluaranInterceptorService
         if ($limitJumlah && $limitRule->kendaraan_id) {
             $qAktif = \App\Models\ServicePart::where('kendaraan_id', $limitRule->kendaraan_id)
                 ->where('category_id', $limitRule->category_id)
-                ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+                ->where(function ($qa) {
+                    $qa->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
+                       ->orWhere(function ($qa2) {
+                           $qa2->where('status', 'tidak_aktif')
+                               ->where(fn($qa3) => $qa3->whereNull('persetujuan')
+                                                       ->orWhereNotIn('persetujuan', ['Ditolak Pembayaran']));
+                       });
+                });
             if ($limitRule->reset_at) {
                 $qAktif->where('created_at', '>=', $limitRule->reset_at);
             }
@@ -679,12 +693,16 @@ class PengeluaranInterceptorService
         try {
             $po = \App\Models\PurchaseOrder::findOrFail($poId);
             
-            // Validation: Only rejected PO can be resubmitted
-            if ($po->status !== 'Ditolak') {
+            // Validation: Only rejected PO can be resubmitted.
+            // Termasuk partial approval: status 'Disetujui' tapi ada item_decisions dengan action=rejected.
+            if (!$po->isRejected()) {
                 throw new \Exception('Hanya Purchase Order yang ditolak yang dapat diajukan ulang.');
             }
-            
-            if (!$po->can_edit) {
+
+            // can_edit wajib true, KECUALI untuk partial approval (status Disetujui + ada rejected items).
+            // Data lama mungkin belum memiliki can_edit=true saat partial approval terjadi.
+            $isPartialApproval = $po->status === 'Disetujui';
+            if (!$isPartialApproval && !$po->can_edit) {
                 throw new \Exception('Purchase Order ini tidak dapat diedit.');
             }
             
@@ -705,11 +723,62 @@ class PengeluaranInterceptorService
 
             // Extract vendor and total items
             $vendor = $interceptedData['source_data']['vendor'] ?? 'Vendor ' . ucfirst(str_replace('_', ' ', $sourceType));
-            $totalItems = $this->extractTotalItems($sourceType, $interceptedData['source_data']);
-            
+
+            // ── Partial approval: gabungkan parts lama (approved) dengan parts baru (resubmit) ──
+            // Saat PO partial (status=Disetujui + ada rejected), form hanya mengirim
+            // part yang ditolak. Kita perlu mempertahankan part yang sudah approved di source_data.
+            $oldSourceData   = is_array($po->source_data) ? $po->source_data : [];
+            $oldItemDecisions = $oldSourceData['item_decisions'] ?? [];
+            $newSourceData   = $interceptedData['source_data'];
+
+            if (!empty($oldItemDecisions)) {
+                // Bangun map index → decision dari item_decisions lama
+                $oldDecMap = collect($oldItemDecisions)->keyBy('idx');
+
+                // Parts lama di PO (sebelum filter approved)
+                $oldAllParts = $oldSourceData['parts'] ?? [];
+
+                // Parts baru dari form (hanya yang ditolak, sudah di-filter controller)
+                $newParts = $newSourceData['parts'] ?? [];
+
+                // Index part yang rejected di PO lama
+                $rejectedIdx = collect($oldItemDecisions)
+                    ->where('action', 'rejected')
+                    ->pluck('idx')
+                    ->values()
+                    ->toArray();
+
+                // Index part yang sudah approved — akan di-lock agar tidak bisa diapprove ulang
+                $approvedIdx = collect($oldItemDecisions)
+                    ->where('action', 'approved')
+                    ->pluck('idx')
+                    ->values()
+                    ->toArray();
+
+                // Gabung: mulai dari semua parts lama, replace yang rejected dengan versi baru dari form
+                $mergedParts = $oldAllParts; // copy semua (approved + rejected lama)
+                $newPartCursor = 0;
+                foreach ($rejectedIdx as $oldIdx) {
+                    if (isset($newParts[$newPartCursor])) {
+                        $mergedParts[$oldIdx] = $newParts[$newPartCursor];
+                        $newPartCursor++;
+                    }
+                }
+
+                $newSourceData['parts'] = array_values($mergedParts);
+
+                // Simpan daftar index yang sudah locked approved agar approveItems() bisa guard-nya.
+                // item_decisions di-reset supaya approver bisa putuskan ulang HANYA untuk part baru.
+                // Part approved tetap terlindungi via locked_approved_idx.
+                $newSourceData['locked_approved_idx'] = array_values($approvedIdx);
+                unset($newSourceData['item_decisions']);
+            }
+
+            $totalItems = $this->extractTotalItems($sourceType, $newSourceData);
+
             // Update PO
             $po->update([
-                'source_data' => array_merge($interceptedData['source_data'], ['temp_files' => $mergedTempFiles]),
+                'source_data' => array_merge($newSourceData, ['temp_files' => $mergedTempFiles]),
                 'vendor' => $vendor,
                 'total_barang' => $totalItems,
                 'total_harga' => (int) $interceptedData['nominal'],
