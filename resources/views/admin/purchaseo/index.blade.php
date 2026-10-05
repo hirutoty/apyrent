@@ -2014,6 +2014,9 @@ function renderApproveItems(data) {
     const isServiceIncident = details.type === 'service_incident';
     const isServiceAsuransi = details.type === 'service_asuransi';
 
+    // Index item yang sudah locked approved (dari partial approval sebelumnya) — tidak bisa diubah lagi
+    const lockedApprovedIdx = (details.locked_approved_idx || []).map(Number);
+
     // ── Header info kendaraan ─────────────────────────────────
     if (isServicePart || isServiceIncident) {
         document.getElementById('approveKendaraanInfo').innerHTML =
@@ -2111,15 +2114,32 @@ function renderApproveItems(data) {
 
         const card = document.createElement('div');
         card.id = 'approve-item-card-' + idx;
-        card.className = 'border border-red-200 rounded-xl overflow-hidden transition-all bg-red-50/10';
+
+        // Cek apakah item ini sudah locked approved dari partial approval sebelumnya
+        const isLocked = lockedApprovedIdx.includes(idx);
+
+        if (isLocked) {
+            // Item locked: tampil hijau terkunci, checkbox disabled, tidak bisa diubah
+            approveItemDecisions[idx].action = 'approved'; // paksa approved
+            card.className = 'border border-green-300 rounded-xl overflow-hidden transition-all bg-green-50/30 opacity-80';
+        } else {
+            card.className = 'border border-red-200 rounded-xl overflow-hidden transition-all bg-red-50/10';
+        }
 
         const row = document.createElement('div');
         row.className = 'flex items-start gap-3 px-4 py-3';
-        row.innerHTML = '<div class="flex-shrink-0 pt-0.5"><input type="checkbox" id="item-chk-' + idx + '" class="w-4 h-4 rounded text-green-600 cursor-pointer"></div>'
-            + '<div class="flex-1 min-w-0"><label for="item-chk-' + idx + '" class="cursor-pointer">'
+
+        const lockBadgeHtml = isLocked
+            ? '<span class="ml-1 text-[9px] font-semibold text-green-600 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full"><i class="fa fa-lock text-[8px]"></i> Sudah Disetujui</span>'
+            : '';
+
+        row.innerHTML = '<div class="flex-shrink-0 pt-0.5"><input type="checkbox" id="item-chk-' + idx + '" class="w-4 h-4 rounded text-green-600 cursor-pointer"'
+            + (isLocked ? ' checked disabled title="Item ini sudah disetujui sebelumnya dan tidak dapat diubah"' : '') + '></div>'
+            + '<div class="flex-1 min-w-0"><label for="item-chk-' + idx + '" class="' + (isLocked ? 'cursor-default' : 'cursor-pointer') + '">'
             + '<div class="flex items-center gap-2 flex-wrap">'
             + '<span class="text-xs text-gray-400">#' + (idx+1) + '</span>'
             + '<span class="font-semibold text-gray-800 text-sm">' + itemTitle + '</span>'
+            + lockBadgeHtml
             + (itemSubtitle && !isServiceAsuransi ? itemSubtitle : '')
             + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(itemNominal) + '</span>'
             + '</div>'
@@ -2127,19 +2147,26 @@ function renderApproveItems(data) {
             + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
             + (isServicePart && (item.keterangan_limit || item.keterangan) && (item.keterangan_limit || item.keterangan) !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + (item.keterangan_limit || item.keterangan) + '</p>' : '')
             + '</label></div>'
-            + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
+            + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center">'
+            + (isLocked
+                ? '<span class="text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-check text-[8px]"></i> Disetujui</span>'
+                : '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>')
+            + '</div>';
 
         card.appendChild(row);
 
         const rejectPanel = document.createElement('div');
         rejectPanel.id = 'reject-item-panel-' + idx;
-        rejectPanel.className = 'px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/20';
+        rejectPanel.className = 'px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/20' + (isLocked ? ' hidden' : '');
         rejectPanel.innerHTML = '<label class="text-[11px] font-semibold text-red-500 mb-1.5 block">Alasan Penolakan <span class="font-normal text-red-400">(opsional)</span></label>'
-            + '<textarea id="reject-catatan-' + idx + '" rows="2" placeholder="Tulis alasan penolakan item ini..." class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"></textarea>';
+            + '<textarea id="reject-catatan-' + idx + '" rows="2" placeholder="Tulis alasan penolakan item ini..." class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"' + (isLocked ? ' disabled' : '') + '></textarea>';
         card.appendChild(rejectPanel);
 
         const chk = row.querySelector('input[type=checkbox]');
-        chk.addEventListener('change', function() { toggleApproveItem(idx, this.checked); });
+        // Item locked tidak perlu event listener — sudah fixed ke approved
+        if (!isLocked) {
+            chk.addEventListener('change', function() { toggleApproveItem(idx, this.checked); });
+        }
         list.appendChild(card);
     });
     updateApproveSummary();

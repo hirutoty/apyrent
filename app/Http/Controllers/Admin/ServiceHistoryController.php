@@ -187,7 +187,34 @@ class ServiceHistoryController extends Controller
                 $sourceData    = $po->source_data ?? [];
                 $kendaraanId   = $sourceData['kendaraan_id'] ?? null;
                 $kendaraanPO   = $kendaraanId ? Kendaraan::find($kendaraanId) : null;
-                $firstPart     = ($sourceData['parts'] ?? [])[0] ?? null;
+                $allPartsRaw   = $sourceData['parts'] ?? [];
+                $itemDecisions = $sourceData['item_decisions'] ?? [];
+
+                // Bangun map: idx → action ('approved'|'rejected') dari item_decisions
+                $decMap = collect($itemDecisions)->keyBy('idx');
+
+                // Filter: hanya tampilkan part yang BELUM diapprove.
+                // - PO ditolak sepenuhnya (status = Ditolak): semua part ditampilkan (tidak ada item_decisions)
+                // - PO partial (status = Disetujui + ada rejected): hanya part dengan action != 'approved' yang ditampilkan
+                $filteredParts = [];
+                $filteredTempFiles = ['parts' => []];
+                $tempFilesRaw  = $sourceData['temp_files'] ?? [];
+
+                foreach ($allPartsRaw as $idx => $part) {
+                    $decision = ($decMap->get((string)$idx) ?? $decMap->get($idx))['action'] ?? null;
+                    if ($decision === 'approved') {
+                        // Part ini sudah diapprove — skip, jangan tampilkan di form ajukan ulang
+                        continue;
+                    }
+                    // Pertahankan index file lama yang sesuai
+                    $filteredParts[] = $part;
+                    $oldBukti = $tempFilesRaw['parts'][$idx]['bukti'] ?? [];
+                    if (!empty($oldBukti)) {
+                        $filteredTempFiles['parts'][count($filteredParts) - 1]['bukti'] = $oldBukti;
+                    }
+                }
+
+                $firstPart = $filteredParts[0] ?? null;
                 $prefill = [
                     'source'          => 'edit_po',
                     'edit_po_id'      => $po->id,
@@ -210,8 +237,10 @@ class ServiceHistoryController extends Controller
                         'biaya'           => $firstPart['biaya'] ?? 0,
                         'kondisi'         => $firstPart['kondisi'] ?? 'Baik',
                     ] : null,
-                    'all_parts'       => $sourceData['parts'] ?? [],
-                    'temp_files'      => $sourceData['temp_files'] ?? [],
+                    'all_parts'       => $filteredParts,
+                    'temp_files'      => $filteredTempFiles,
+                    // Info untuk ditampilkan ke user berapa part yang sudah diapprove dan dilewati
+                    'approved_count'  => count($allPartsRaw) - count($filteredParts),
                 ];
             }
         }
@@ -1359,7 +1388,14 @@ class ServiceHistoryController extends Controller
                 if ($r->jumlah) {
                     $q = \App\Models\ServicePart::where('kendaraan_id', $kendaraanId)
                         ->where('category_id', $r->category_id)
-                        ->whereIn('status', ['Terpasang', 'Limit', 'tidak_aktif', 'aktif']);
+                        ->where(function ($q2) {
+                            $q2->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
+                               ->orWhere(function ($q3) {
+                                   $q3->where('status', 'tidak_aktif')
+                                      ->where(fn($q4) => $q4->whereNull('persetujuan')
+                                                             ->orWhereNotIn('persetujuan', ['Ditolak Pembayaran']));
+                               });
+                        });
 
                     if ($r->reset_at) {
                         $q->where('created_at', '>=', $r->reset_at);
@@ -1519,14 +1555,30 @@ class ServiceHistoryController extends Controller
             $periodeSelesai = $hitungSelesai($periodeMulai);
         }
 
-        // Sum semua biaya part di kategori ini dalam periode aktif yang ditemukan
+        // Sum semua biaya part di kategori ini dalam periode aktif yang ditemukan.
         // Jika ada reset_at, hanya hitung part yang di-create SETELAH reset (pakai created_at
-        // karena tgl_pasang hanya menyimpan date, tidak bisa bedakan jam yang sama)
+        // karena tgl_pasang hanya menyimpan date, tidak bisa bedakan jam yang sama).
+        //
+        // Filter status: hanya hitung part yang sudah "confirmed" secara finansial:
+        //   - Terpasang / Limit / aktif  → sudah terpasang atau pembayaran disetujui
+        //   - tidak_aktif (selain 'Ditolak Pembayaran') → PO sudah approve, pembayaran pending
+        //   - EXCLUDE: Proses, Diganti, tidak_aktif dengan persetujuan 'Ditolak Pembayaran'
+        // Ini mencegah biaya dari pengajuan yang ditolak terhitung dua kali saat ajukan ulang.
         $totalDalamPeriode = ServicePart::where('kendaraan_id', $kendaraanId)
             ->where('category_id', $categoryId)
             ->whereDate('tgl_pasang', '>=', $periodeMulai->toDateString())
             ->whereDate('tgl_pasang', '<=', $periodeSelesai->toDateString())
             ->when($resetAt !== null, fn($q) => $q->where('created_at', '>=', \Carbon\Carbon::parse($resetAt)))
+            ->where(function ($q) {
+                // Part yang sudah final (terpasang/aktif/limit) selalu dihitung
+                $q->whereIn('status', ['Terpasang', 'aktif', 'Limit'])
+                  // Part tidak_aktif dihitung KECUALI yang pembayarannya sudah ditolak
+                  ->orWhere(function ($q2) {
+                      $q2->where('status', 'tidak_aktif')
+                         ->where(fn($q3) => $q3->whereNull('persetujuan')
+                                               ->orWhereNotIn('persetujuan', ['Ditolak Pembayaran']));
+                  });
+            })
             ->sum('biaya');
 
         // sisa_limit bisa negatif (sudah melebihi) — sengaja tidak di-clamp ke 0
