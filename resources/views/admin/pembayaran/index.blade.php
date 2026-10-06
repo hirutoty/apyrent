@@ -447,14 +447,14 @@
                                         if (!empty($_gpsItemsAll)) {
                                             // GPS: hitung dari gps_items actual sesuai tab
                                             if (!empty($_dec)) {
-                                                $_decMapCount = collect($_dec)->keyBy('idx');
+                                                $_decMapCount = collect($_dec)->keyBy(fn($dec) => (int)($dec['idx'] ?? -1));
                                                 if (in_array($tab ?? '', ['Disetujui'])) {
                                                     $itemCount = collect($_gpsItemsAll)
-                                                        ->filter(fn($g, $i) => ($_decMapCount[$i]['action'] ?? '') === 'approved')
+                                                        ->filter(fn($g, $i) => ($_decMapCount[(int)$i]['action'] ?? '') === 'approved')
                                                         ->count();
                                                 } elseif (in_array($tab ?? '', ['Ditolak'])) {
                                                     $itemCount = collect($_gpsItemsAll)
-                                                        ->filter(fn($g, $i) => ($_decMapCount[$i]['action'] ?? '') !== 'approved' && $_decMapCount->has($i))
+                                                        ->filter(fn($g, $i) => ($_decMapCount[(int)$i]['action'] ?? '') !== 'approved' && $_decMapCount->has((int)$i))
                                                         ->count();
                                                 } else {
                                                     $itemCount = count($_gpsItemsAll);
@@ -465,14 +465,14 @@
                                         } elseif (in_array($d->source_type, ['service_part', 'service_incident']) && !empty($_sdParts)) {
                                             // Service part/incident: filter per tab jika ada item_decisions
                                             if (!empty($_dec)) {
-                                                $_decMapCount = collect($_dec)->keyBy('idx');
+                                                $_decMapCount = collect($_dec)->keyBy(fn($dec) => (int)($dec['idx'] ?? -1));
                                                 if (in_array($tab ?? '', ['Disetujui'])) {
                                                     $itemCount = collect($_sdParts)
-                                                        ->filter(fn($p, $i) => ($_decMapCount[$i]['action'] ?? '') === 'approved')
+                                                        ->filter(fn($p, $i) => ($_decMapCount[(int)$i]['action'] ?? '') === 'approved')
                                                         ->count();
                                                 } elseif (in_array($tab ?? '', ['Ditolak'])) {
                                                     $itemCount = collect($_sdParts)
-                                                        ->filter(fn($p, $i) => ($_decMapCount[$i]['action'] ?? '') === 'rejected')
+                                                        ->filter(fn($p, $i) => ($_decMapCount[(int)$i]['action'] ?? '') === 'rejected')
                                                         ->count();
                                                 } else {
                                                     $itemCount = count($_sdParts);
@@ -483,14 +483,19 @@
                                         } elseif ($d->source_type === 'service_asuransi' && !empty($_sdKejad)) {
                                             // Service asuransi: filter per tab jika ada item_decisions
                                             if (!empty($_dec)) {
-                                                $_decMapCount = collect($_dec)->keyBy('idx');
+                                                $_decMapCount = collect($_dec)->keyBy(fn($dec) => (int)($dec['idx'] ?? -1));
                                                 if (in_array($tab ?? '', ['Disetujui'])) {
                                                     $itemCount = collect($_sdKejad)
-                                                        ->filter(fn($k, $i) => ($_decMapCount[$i]['action'] ?? '') === 'approved')
+                                                        ->filter(fn($k, $i) => ($_decMapCount[(int)$i]['action'] ?? '') === 'approved')
                                                         ->count();
                                                 } elseif (in_array($tab ?? '', ['Ditolak'])) {
                                                     $itemCount = collect($_sdKejad)
-                                                        ->filter(fn($k, $i) => ($_decMapCount[$i]['action'] ?? '') === 'rejected')
+                                                        ->filter(fn($k, $i) => ($_decMapCount[(int)$i]['action'] ?? '') === 'rejected')
+                                                        ->count();
+                                                } elseif (in_array($tab ?? '', ['Diajukan'])) {
+                                                    // Tab Diajukan PR partial: hanya item yang belum diputuskan (pending)
+                                                    $itemCount = collect($_sdKejad)
+                                                        ->filter(fn($k, $i) => !$_decMapCount->has((int)$i))
                                                         ->count();
                                                 } else {
                                                     $itemCount = count($_sdKejad);
@@ -576,7 +581,8 @@
                                         <td class="px-3 py-3 text-right">
                                             @php
                                                 $_sd       = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
-                                                $_decMap   = collect($_sd['item_decisions'] ?? [])->keyBy('idx');
+                                                // PENTING: gunakan integer key agar filter index array konsisten
+                                                $_decMap   = collect($_sd['item_decisions'] ?? [])->keyBy(fn($dec) => (int)($dec['idx'] ?? -1));
                                                 $_srcType  = $d->source_type ?? '';
 
                                                 // Helper: hitung total item berdasarkan source_type
@@ -627,10 +633,10 @@
                                                     if (!$_decMap->isEmpty() && in_array($_srcType, ['gps', 'gps_perpanjang'])) {
                                                         // GPS dengan item_decisions: filter per approved/rejected
                                                         $_nomApprRow = collect($_sd['gps_items'] ?? [])
-                                                            ->filter(fn($g, $i) => ($_decMap[$i]['action'] ?? '') === 'approved')
+                                                            ->filter(fn($g, $i) => ($_decMap[(int)$i]['action'] ?? '') === 'approved')
                                                             ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
                                                         $_nomRejRow  = collect($_sd['gps_items'] ?? [])
-                                                            ->filter(fn($g, $i) => ($_decMap[$i]['action'] ?? '') !== 'approved' && $_decMap->has($i))
+                                                            ->filter(fn($g, $i) => ($_decMap[(int)$i]['action'] ?? '') !== 'approved' && $_decMap->has((int)$i))
                                                             ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
                                                         if (in_array($tab ?? '', ['Ditolak'])) {
                                                             $_rowNominal = $_nomRejRow;
@@ -647,10 +653,13 @@
                                                         // service_part / service_incident / service_asuransi: filter per item_decisions
                                                         if (!$_decMap->isEmpty() && in_array($_srcType, ['service_part', 'service_incident'])) {
                                                             $_nomApprRow = collect($_sd['parts'] ?? [])
-                                                                ->filter(fn($p, $i) => ($_decMap[$i]['action'] ?? '') === 'approved')
+                                                                ->filter(fn($p, $i) => ($_decMap[(int)$i]['action'] ?? '') === 'approved')
                                                                 ->sum(fn($p) => $p['biaya'] ?? 0);
                                                             $_nomRejRow = collect($_sd['parts'] ?? [])
-                                                                ->filter(fn($p, $i) => ($_decMap[$i]['action'] ?? '') === 'rejected')
+                                                                ->filter(fn($p, $i) => ($_decMap[(int)$i]['action'] ?? '') === 'rejected')
+                                                                ->sum(fn($p) => $p['biaya'] ?? 0);
+                                                            $_nomPendRow = collect($_sd['parts'] ?? [])
+                                                                ->filter(fn($p, $i) => !$_decMap->has((int)$i))
                                                                 ->sum(fn($p) => $p['biaya'] ?? 0);
                                                             if (in_array($tab ?? '', ['Ditolak'])) {
                                                                 $_rowNominal = $_nomRejRow ?: ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0));
@@ -661,15 +670,23 @@
                                                             }
                                                         } elseif (!$_decMap->isEmpty() && $_srcType === 'service_asuransi') {
                                                             $_nomApprRow = collect($_sd['kejadians'] ?? [])
-                                                                ->filter(fn($k, $i) => ($_decMap[$i]['action'] ?? '') === 'approved')
+                                                                ->filter(fn($k, $i) => ($_decMap[(int)$i]['action'] ?? '') === 'approved')
                                                                 ->sum(fn($k) => $k['biaya'] ?? 0);
                                                             $_nomRejRow = collect($_sd['kejadians'] ?? [])
-                                                                ->filter(fn($k, $i) => ($_decMap[$i]['action'] ?? '') === 'rejected')
+                                                                ->filter(fn($k, $i) => ($_decMap[(int)$i]['action'] ?? '') === 'rejected')
+                                                                ->sum(fn($k) => $k['biaya'] ?? 0);
+                                                            // Item pending = belum ada entry di item_decisions
+                                                            $_nomPendRow = collect($_sd['kejadians'] ?? [])
+                                                                ->filter(fn($k, $i) => !$_decMap->has((int)$i))
                                                                 ->sum(fn($k) => $k['biaya'] ?? 0);
                                                             if (in_array($tab ?? '', ['Ditolak'])) {
                                                                 $_rowNominal = $_nomRejRow ?: ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0));
                                                             } elseif (in_array($tab ?? '', ['Disetujui'])) {
+                                                                // Tab Disetujui: hanya harga item yang sudah approved
                                                                 $_rowNominal = $_nomApprRow ?: ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0));
+                                                            } elseif (in_array($tab ?? '', ['Diajukan']) && $d->status === 'Diajukan' && $_nomPendRow > 0) {
+                                                                // Tab Diajukan (PR partial): hanya harga item yang belum diputuskan
+                                                                $_rowNominal = $_nomPendRow;
                                                             } else {
                                                                 $_rowNominal = ($_nomApprRow + $_nomRejRow) > 0 ? ($_nomApprRow + $_nomRejRow) : ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->nominal ?? 0));
                                                             }
@@ -699,7 +716,14 @@
                                                 </button>
 
                                                 @if($role === 'superadmin')
-                                                    @if(in_array($d->status, ['Pending', 'Diajukan']))
+                                                    @php
+                                                        // PR partial muncul di 2 tab. Di tab Disetujui, tombol Approve/Reject
+                                                        // tidak ditampilkan karena tab itu menampilkan item yang sudah approved.
+                                                        // Tombol Approve hanya relevan di tab Diajukan/Pending/semua.
+                                                        $_showApproveBtn = in_array($d->status, ['Pending', 'Diajukan'])
+                                                            && !in_array($tab ?? '', ['Disetujui', 'Ditolak']);
+                                                    @endphp
+                                                    @if($_showApproveBtn)
                                                         @if($d->source_type)
                                                             @if(in_array($d->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident', 'service_asuransi']))
                                                                 {{-- GPS/Service Part/Service Asuransi: pakai approval modal dengan per-item approve/reject --}}
@@ -1012,17 +1036,17 @@
                                                     @elseif(in_array($d->source_type, ['gps', 'gps_perpanjang']))
                                                     @php
                                                         $gpsItems    = $sd['gps_items'] ?? [];
-                                                        $itemDecMap  = collect($sd['item_decisions'] ?? [])->keyBy('idx');
+                                                        $itemDecMap  = collect($sd['item_decisions'] ?? [])->keyBy(fn($dec) => (int)($dec['idx'] ?? -1));
                                                         // Filter item sesuai tab: approved → tampil di Disetujui, rejected → Ditolak
                                                         // Jika belum ada keputusan, tampilkan semua
                                                         if ($itemDecMap->isNotEmpty()) {
                                                             if (in_array($tab ?? '', ['Disetujui'])) {
                                                                 $filteredGpsItems = collect($gpsItems)
-                                                                    ->filter(fn($g, $i) => ($itemDecMap[$i]['action'] ?? '') === 'approved')
+                                                                    ->filter(fn($g, $i) => ($itemDecMap[(int)$i]['action'] ?? '') === 'approved')
                                                                     ->all();
                                                             } elseif (in_array($tab ?? '', ['Ditolak'])) {
                                                                 $filteredGpsItems = collect($gpsItems)
-                                                                    ->filter(fn($g, $i) => ($itemDecMap[$i]['action'] ?? '') !== 'approved' && $itemDecMap->has($i))
+                                                                    ->filter(fn($g, $i) => ($itemDecMap[(int)$i]['action'] ?? '') !== 'approved' && $itemDecMap->has((int)$i))
                                                                     ->all();
                                                             } else {
                                                                 $filteredGpsItems = $gpsItems; // semua (tab Semua/lainnya)
@@ -1129,12 +1153,12 @@
                                                     @php
                                                         $spKendaraan = isset($sd['kendaraan_id']) ? \App\Models\Kendaraan::find($sd['kendaraan_id']) : null;
                                                         $spParts    = $sd['parts'] ?? [];
-                                                        $spDecMap   = collect($sd['item_decisions'] ?? [])->keyBy('idx');
+                                                        $spDecMap   = collect($sd['item_decisions'] ?? [])->keyBy(fn($dec) => (int)($dec['idx'] ?? -1));
                                                         if ($spDecMap->isNotEmpty()) {
                                                             if (in_array($tab ?? '', ['Disetujui'])) {
-                                                                $filteredParts = collect($spParts)->filter(fn($p, $i) => ($spDecMap[$i]['action'] ?? '') === 'approved')->values()->all();
+                                                                $filteredParts = collect($spParts)->filter(fn($p, $i) => ($spDecMap[(int)$i]['action'] ?? '') === 'approved')->values()->all();
                                                             } elseif (in_array($tab ?? '', ['Ditolak'])) {
-                                                                $filteredParts = collect($spParts)->filter(fn($p, $i) => ($spDecMap[$i]['action'] ?? '') !== 'approved' && $spDecMap->has($i))->values()->all();
+                                                                $filteredParts = collect($spParts)->filter(fn($p, $i) => ($spDecMap[(int)$i]['action'] ?? '') !== 'approved' && $spDecMap->has((int)$i))->values()->all();
                                                             } else {
                                                                 $filteredParts = $spParts;
                                                             }
@@ -1431,16 +1455,19 @@
                                                         $saAllKejadians = $sd['kejadians'] ?? [];
                                                         $saKeterangan = $sd['keterangan'] ?? $d->keterangan ?? null;
                                                         $saKend  = isset($sd['kendaraan_id']) ? \App\Models\Kendaraan::find($sd['kendaraan_id']) : null;
-                                                        $saDecMap = collect($sd['item_decisions'] ?? [])->keyBy('idx');
+                                                        $saDecMap = collect($sd['item_decisions'] ?? [])->keyBy(fn($dec) => (int)($dec['idx'] ?? -1));
 
                                                         // Filter kejadian berdasarkan tab aktif — identik dengan pola service_part
                                                         // PENTING: jangan pakai ->values() agar original index dipertahankan
                                                         // sehingga lookup $saDecMap[$i] tetap akurat
                                                         if ($saDecMap->isNotEmpty()) {
                                                             if (in_array($tab ?? '', ['Disetujui'])) {
-                                                                $saKejadians = collect($saAllKejadians)->filter(fn($k, $i) => ($saDecMap[$i]['action'] ?? '') === 'approved')->all();
+                                                                $saKejadians = collect($saAllKejadians)->filter(fn($k, $i) => ($saDecMap[(int)$i]['action'] ?? '') === 'approved')->all();
                                                             } elseif (in_array($tab ?? '', ['Ditolak'])) {
-                                                                $saKejadians = collect($saAllKejadians)->filter(fn($k, $i) => ($saDecMap[$i]['action'] ?? '') !== 'approved' && $saDecMap->has($i))->all();
+                                                                $saKejadians = collect($saAllKejadians)->filter(fn($k, $i) => ($saDecMap[(int)$i]['action'] ?? '') !== 'approved' && $saDecMap->has((int)$i))->all();
+                                                            } elseif (in_array($tab ?? '', ['Diajukan'])) {
+                                                                // Tab Diajukan PR partial: hanya kejadian yang belum diputuskan
+                                                                $saKejadians = collect($saAllKejadians)->filter(fn($k, $i) => !$saDecMap->has((int)$i))->all();
                                                             } else {
                                                                 $saKejadians = $saAllKejadians;
                                                             }
@@ -3279,7 +3306,7 @@ function openResubmitRejectedModal(pembayaranId) {
                     <div>
                         <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
                         <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
-                            min="0" step="1000" required
+                            min="0" required
                             class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
                     </div>`;
 

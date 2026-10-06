@@ -6,7 +6,7 @@
 
     @php
         $jumlahService = $data->count();
-        $totalBiaya = $data->sum(fn($d) => $d->kejadians->sum('biaya'));
+        $totalBiaya = $data->sum(fn($d) => $d->kejadians->where('status', '!=', 'ditolak')->sum('biaya'));
         $jumlahBermasalah = $data->where('status', 'bermasalah')->count();
         $jumlahSelesai    = $data->where('status', 'selesai')->count();
         $jumlahTidakAktif = $data->where('status', 'tidak_aktif')->count();
@@ -65,7 +65,7 @@
         />
 
         {{-- SUMMARY CARDS --}}
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-4">
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
                     <i class="fa fa-shield-halved text-blue-500 text-xl"></i>
@@ -91,6 +91,16 @@
                 <div>
                     <p class="text-xs text-gray-500 font-medium">Selesai</p>
                     <p class="text-2xl font-bold text-green-600">{{ $jumlahSelesai }}</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+                    <i class="fa fa-ban text-orange-500 text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 font-medium">Ditolak (PO)</p>
+                    <p class="text-2xl font-bold text-orange-600">{{ $jumlahDitolak }}</p>
+                    <p class="text-xs text-orange-400 font-medium mt-0.5">Rp {{ number_format($biayaDitolak, 0, ',', '.') }}</p>
                 </div>
             </div>
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
@@ -177,11 +187,17 @@
                         </tr>
                     </thead>
                     <tbody id="serviceTableBody">
-                        @forelse($data as $d)
-                            @php
-                                $kejadianCount = $d->kejadians->count();
-                                $totalKejadian = $d->kejadians->sum('biaya');
-                            @endphp
+                    @forelse($data as $d)
+                        @php
+                            $kejadianCount    = $d->kejadians->count();
+                            $kejadianDisetujui = $d->kejadians->where('status', 'disetujui')->count();
+                            $kejadianDitolak   = $d->kejadians->where('status', 'ditolak')->count();
+                            $isPartial         = $kejadianDisetujui > 0 && $kejadianDitolak > 0;
+                            // Biaya hanya dari yang disetujui (jika ada keputusan); fallback ke semua
+                            $totalKejadian = ($kejadianDisetujui > 0 || $kejadianDitolak > 0)
+                                ? $d->kejadians->where('status', 'disetujui')->sum('biaya')
+                                : $d->kejadians->sum('biaya');
+                        @endphp
                             <tr class="border-t border-gray-100 odd:bg-white even:bg-gray-50 hover:bg-blue-50/40 transition-colors duration-100 cursor-pointer"
                                 onclick="toggleKejadianRow('kejadian-row-{{ $d->id }}', this)">
 
@@ -257,8 +273,11 @@
                                     {{-- BIAYA --}}
                                     <td class="px-5 py-4 whitespace-nowrap">
                                         <span class="text-sm font-semibold text-gray-800">
-                                            Rp {{ number_format($d->kejadians->sum('biaya'), 0, ',', '.') }}
+                                            Rp {{ number_format($totalKejadian, 0, ',', '.') }}
                                         </span>
+                                        @if($isPartial)
+                                            <p class="text-[10px] text-gray-400 mt-0.5">dari {{ $kejadianDisetujui }} kejadian</p>
+                                        @endif
                                     </td>
 
                                     {{-- STATUS --}}
@@ -286,7 +305,17 @@
                                     {{-- PERSETUJUAN --}}
                                     <td class="px-5 py-4 whitespace-nowrap">
                                         @php $prst = $d->persetujuan ?? null; @endphp
-                                        @if($prst === 'Disetujui')
+                                        @if($isPartial)
+                                            {{-- Partial: ada kejadian disetujui DAN ditolak --}}
+                                            <div class="flex flex-col gap-1">
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                                                    <i class="fa fa-circle-half-stroke text-[10px]"></i> Partial
+                                                </span>
+                                                <span class="text-[10px] text-gray-400">
+                                                    {{ $kejadianDisetujui }}✓ {{ $kejadianDitolak }}✗
+                                                </span>
+                                            </div>
+                                        @elseif($prst === 'Disetujui')
                                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                                                 <i class="fa fa-check-circle text-[10px]"></i> Disetujui
                                             </span>
@@ -367,10 +396,38 @@
                                                     </thead>
                                                     <tbody>
                                                         @foreach($d->kejadians as $i => $kej)
-                                                            <tr class="border-t border-slate-100 {{ $loop->even ? 'bg-white' : 'bg-slate-50' }}">
+                                                            @php
+                                                                $kejStatus      = $kej->status ?? 'diajukan';
+                                                                $isKejDitolak   = $kejStatus === 'ditolak';
+                                                                $isKejDisetujui = $kejStatus === 'disetujui';
+                                                                $rowBg = $isKejDitolak
+                                                                    ? 'bg-red-50/60'
+                                                                    : ($loop->even ? 'bg-white' : 'bg-slate-50');
+                                                            @endphp
+                                                            <tr class="border-t border-slate-100 {{ $rowBg }}">
                                                                 <td class="px-3 py-2 text-gray-400">{{ $i + 1 }}</td>
-                                                                <td class="px-3 py-2 font-medium text-gray-800">{{ $kej->nama_kejadian }}</td>
-                                                                <td class="px-3 py-2 text-right font-semibold text-gray-700">
+
+                                                                {{-- Nama kejadian + badge status + catatan --}}
+                                                                <td class="px-3 py-2">
+                                                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                                                        <span class="font-medium text-gray-800">{{ $kej->nama_kejadian }}</span>
+                                                                        @if($isKejDitolak)
+                                                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-600 border border-red-200">
+                                                                                <i class="fa fa-times text-[8px]"></i> Ditolak
+                                                                            </span>
+                                                                        @elseif($isKejDisetujui)
+                                                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 border border-green-200">
+                                                                                <i class="fa fa-check text-[8px]"></i> Disetujui
+                                                                            </span>
+                                                                        @endif
+                                                                    </div>
+                                                                    @if($isKejDitolak && $kej->catatan_penolakan)
+                                                                        <p class="text-[10px] text-red-500 mt-0.5 italic">{{ $kej->catatan_penolakan }}</p>
+                                                                    @endif
+                                                                </td>
+
+                                                                {{-- Biaya: coret jika ditolak --}}
+                                                                <td class="px-3 py-2 text-right font-semibold {{ $isKejDitolak ? 'text-red-400 line-through' : 'text-gray-700' }}">
                                                                     Rp {{ number_format($kej->biaya, 0, ',', '.') }}
                                                                 </td>
 
@@ -408,35 +465,41 @@
                                                                     @endif
                                                                 </td>
 
-                                                                {{-- Bukti Bayar (file dari approval) --}}
+                                                                {{-- Bukti Bayar: tampilkan file jika ada; label "Ditolak" jika ditolak; "—" jika belum --}}
                                                                 <td class="px-3 py-2">
-                                                                    @php
-                                                                        $kejBukti = is_array($kej->bukti_bayar)
-                                                                            ? $kej->bukti_bayar
-                                                                            : (json_decode($kej->getRawOriginal('bukti_bayar') ?? '[]', true) ?? []);
-                                                                    @endphp
-                                                                    @if(!empty($kejBukti))
-                                                                        <div class="flex flex-col gap-1 max-w-[200px]">
-                                                                            @foreach($kejBukti as $bk)
-                                                                                @php
-                                                                                    $bkPath  = $bk['path'] ?? '';
-                                                                                    $bkName  = $bk['original_name'] ?? $bk['name'] ?? basename($bkPath);
-                                                                                    $bkExt   = strtolower($bk['extension'] ?? pathinfo($bkPath, PATHINFO_EXTENSION));
-                                                                                    $bkIsImg = in_array($bkExt, ['jpg','jpeg','png','webp','gif']);
-                                                                                    $bkUrl   = $bkPath ? asset($bkPath) : null;
-                                                                                @endphp
-                                                                                @if($bkUrl)
-                                                                                    <a href="{{ $bkUrl }}" target="_blank"
-                                                                                        class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
-                                                                                        title="{{ $bkName }}">
-                                                                                        <i class="fa {{ $bkIsImg ? 'fa-image' : ($bkExt === 'pdf' ? 'fa-file-pdf' : 'fa-paperclip') }} text-[9px] flex-shrink-0"></i>
-                                                                                        <span class="truncate">{{ Str::limit($bkName, 18) }}</span>
-                                                                                    </a>
-                                                                                @endif
-                                                                            @endforeach
-                                                                        </div>
+                                                                    @if($isKejDitolak)
+                                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-500 border border-red-200">
+                                                                            <i class="fa fa-ban text-[9px]"></i> Tidak dibayar
+                                                                        </span>
                                                                     @else
-                                                                        <span class="text-gray-300 text-xs">—</span>
+                                                                        @php
+                                                                            $kejBukti = is_array($kej->bukti_bayar)
+                                                                                ? $kej->bukti_bayar
+                                                                                : (json_decode($kej->getRawOriginal('bukti_bayar') ?? '[]', true) ?? []);
+                                                                        @endphp
+                                                                        @if(!empty($kejBukti))
+                                                                            <div class="flex flex-col gap-1 max-w-[200px]">
+                                                                                @foreach($kejBukti as $bk)
+                                                                                    @php
+                                                                                        $bkPath  = $bk['path'] ?? '';
+                                                                                        $bkName  = $bk['original_name'] ?? $bk['name'] ?? basename($bkPath);
+                                                                                        $bkExt   = strtolower($bk['extension'] ?? pathinfo($bkPath, PATHINFO_EXTENSION));
+                                                                                        $bkIsImg = in_array($bkExt, ['jpg','jpeg','png','webp','gif']);
+                                                                                        $bkUrl   = $bkPath ? asset($bkPath) : null;
+                                                                                    @endphp
+                                                                                    @if($bkUrl)
+                                                                                        <a href="{{ $bkUrl }}" target="_blank"
+                                                                                            class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                                                                                            title="{{ $bkName }}">
+                                                                                            <i class="fa {{ $bkIsImg ? 'fa-image' : ($bkExt === 'pdf' ? 'fa-file-pdf' : 'fa-paperclip') }} text-[9px] flex-shrink-0"></i>
+                                                                                            <span class="truncate">{{ Str::limit($bkName, 18) }}</span>
+                                                                                        </a>
+                                                                                    @endif
+                                                                                @endforeach
+                                                                            </div>
+                                                                        @else
+                                                                            <span class="text-gray-300 text-xs">—</span>
+                                                                        @endif
                                                                     @endif
                                                                 </td>
                                                             </tr>
@@ -446,7 +509,12 @@
                                                         <tr class="bg-slate-100 border-t border-slate-200">
                                                             <td colspan="2" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total:</td>
                                                             <td class="px-3 py-2 text-right text-xs font-bold text-gray-800">
-                                                                Rp {{ number_format($d->kejadians->sum('biaya'), 0, ',', '.') }}
+                                                                Rp {{ number_format($d->kejadians->where('status', '!=', 'ditolak')->sum('biaya'), 0, ',', '.') }}
+                                                                @if($kejadianDitolak > 0)
+                                                                    <p class="text-[10px] font-normal text-red-400 mt-0.5">
+                                                                        {{ $kejadianDitolak }} ditolak (Rp {{ number_format($d->kejadians->where('status','ditolak')->sum('biaya'), 0,',','.') }})
+                                                                    </p>
+                                                                @endif
                                                             </td>
                                                             <td colspan="2"></td>
                                                         </tr>
@@ -508,7 +576,7 @@
                 </button>
             </div>
 
-            <form id="form" method="POST" enctype="multipart/form-data"
+            <form id="form" method="POST" enctype="multipart/form-data" novalidate
                 class="px-6 py-5 space-y-4 overflow-y-auto max-h-[80vh]">
                 @csrf
 

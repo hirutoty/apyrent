@@ -41,11 +41,19 @@ class ServiceAsuransiController extends Controller
 
         $data = $query->paginate(15)->withQueryString();
 
+        // Hitung jumlah & total nominal pengajuan yang ditolak di level PO
+        $poDitolak     = PurchaseOrder::where('source_type', 'service_asuransi')
+            ->where('status', 'Ditolak')
+            ->selectRaw('COUNT(*) as jumlah, COALESCE(SUM(total_harga), 0) as total')
+            ->first();
+        $jumlahDitolak = $poDitolak->jumlah ?? 0;
+        $biayaDitolak  = $poDitolak->total  ?? 0;
+
         $kendaraan     = Kendaraan::orderBy('merk')->get();
         $asuransi      = Asuransi::orderBy('nama_asuransi')->get();
         $jenisAsuransi = JenisAsuransi::orderBy('nama_jenis')->get();
 
-        return view('admin.service.service_asuransi', compact('data', 'kendaraan', 'asuransi', 'jenisAsuransi'));
+        return view('admin.service.service_asuransi', compact('data', 'kendaraan', 'asuransi', 'jenisAsuransi', 'jumlahDitolak', 'biayaDitolak'));
     }
 
     /**
@@ -408,9 +416,8 @@ class ServiceAsuransiController extends Controller
                 }
             }
 
-            // Update source_data pembayaran
+            // ── Bangun $newKejadians dari request (item yang diresubmit) ──────
             $newKejadians = array_map(function ($kej, $idx) use ($tempFiles) {
-                // Lampiran lama dikirim dari form sebagai hidden inputs
                 $lampiranLama = array_values(array_filter(
                     array_map(function ($lf) {
                         $path = $lf['path'] ?? '';
@@ -423,7 +430,6 @@ class ServiceAsuransiController extends Controller
                         ];
                     }, $kej['lampiran_lama'] ?? [])
                 ));
-                // Gabungkan lampiran lama + file baru yang di-upload
                 $newLampiran = $tempFiles['kejadians'][$idx] ?? [];
                 return [
                     'nama_kejadian' => $kej['nama_kejadian'] ?? '',
@@ -432,15 +438,57 @@ class ServiceAsuransiController extends Controller
                 ];
             }, $kejadians, array_keys($kejadians));
 
+            // ── Gabungkan kejadian approved lama + kejadian yang diresubmit ──────
+            // Kejadian yang sudah approved tetap dipertahankan di source_data Pembayaran
+            // dengan index aslinya, sehingga approvalItems() dapat mem-filter dengan tepat.
+            $oldAllKejadians   = $sourceData['kejadians'] ?? [];
+            $approvedDecisionsPembayaran = collect($sourceData['item_decisions'] ?? [])
+                ->where('action', 'approved')
+                ->keyBy('idx');
+
+            // Bangun source_data.kejadians yang lengkap:
+            //   - Index approved: pakai data lama (sudah punya bukti_bayar_admin dsb)
+            //   - Index yang diresubmit: pakai $newKejadians
+            $mergedKejadians = $oldAllKejadians; // mulai dari semua kejadian lama
+            // Tentukan index apa saja yang diresubmit (berurutan dari request)
+            $resubmitIdxMap = []; // request idx → original source_data idx
+            $resubmitCount  = 0;
+            foreach ($oldAllKejadians as $origIdx => $oldKej) {
+                if (!$approvedDecisionsPembayaran->has($origIdx)) {
+                    // Bukan approved → ini yang diresubmit; ambil dari newKejadians urutan ke-N
+                    if (isset($newKejadians[$resubmitCount])) {
+                        $mergedKejadians[$origIdx] = $newKejadians[$resubmitCount];
+                        $resubmitIdxMap[$origIdx]  = $resubmitCount;
+                    }
+                    $resubmitCount++;
+                }
+                // Yang approved → biarkan index lama tetap ada di $mergedKejadians
+            }
+
+            // item_decisions: pertahankan yang approved, hapus yang rejected
+            // (item rejected sekarang diresubmit → tidak ada entry di item_decisions lagi)
+            $preservedItemDecisions = array_values(
+                collect($sourceData['item_decisions'] ?? [])
+                    ->where('action', 'approved')
+                    ->all()
+            );
+
             $newSourceData = array_merge($sourceData, [
-                'kejadians' => $newKejadians,
-                'temp_files'=> $tempFiles,
+                'kejadians'      => $mergedKejadians,
+                'item_decisions' => $preservedItemDecisions,
+                'temp_files'     => $tempFiles,
             ]);
+
+            // Hitung biaya total: approved lama + yang baru diresubmit
+            $biayaApprovedLama = collect($mergedKejadians)
+                ->filter(fn($kej, $idx) => $approvedDecisionsPembayaran->has($idx))
+                ->sum(fn($kej) => (int)($kej['biaya'] ?? 0));
+            $nominalTotal = $biayaApprovedLama + $biayaTotal;
 
             // Reset pembayaran ke Diajukan
             $pembayaran->update([
                 'source_data'       => $newSourceData,
-                'nominal'           => $biayaTotal,
+                'nominal'           => $nominalTotal,
                 'status'            => 'Diajukan',
                 'can_edit'          => false,
                 'catatan'           => null,
@@ -449,18 +497,35 @@ class ServiceAsuransiController extends Controller
 
             // Reset service_asuransi ke Diajukan ke Pembayaran
             $data->update([
-                'biaya'        => $biayaTotal,
+                'biaya'        => $nominalTotal,
                 'persetujuan'  => 'Diajukan ke Pembayaran',
             ]);
 
-            // Update kejadian
-            \App\Models\ServiceAsuransiKejadian::where('service_asuransi_id', $id)->delete();
+            // ── Sync PO terkait ─────────────────────────────────────────────
+            $po = \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)->first();
+            if ($po) {
+                $poSourceData                   = $po->source_data ?? [];
+                $poSourceData['kejadians']       = array_values($mergedKejadians);
+                $poSourceData['item_decisions']  = $preservedItemDecisions;
+                $po->update([
+                    'source_data' => $poSourceData,
+                    'total_harga' => $nominalTotal,
+                    'can_edit'    => false,
+                ]);
+            }
+
+            // Update kejadian di tabel — JANGAN hapus yang sudah disetujui
+            // Hanya hapus yang status = 'ditolak' atau 'diajukan' (yang diresubmit)
+            \App\Models\ServiceAsuransiKejadian::where('service_asuransi_id', $id)
+                ->whereIn('status', ['ditolak', 'diajukan'])
+                ->delete();
             foreach ($newKejadians as $kej) {
                 \App\Models\ServiceAsuransiKejadian::create([
                     'service_asuransi_id' => $id,
                     'nama_kejadian'       => $kej['nama_kejadian'],
                     'biaya'               => (int)($kej['biaya'] ?? 0),
                     'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
+                    'status'              => 'diajukan',
                 ]);
             }
 

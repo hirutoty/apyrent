@@ -1666,8 +1666,10 @@ class PengeluaranTransferService
             }
             $serviceAsuransi->update($updateData);
 
-            // Hapus kejadian lama (dibuat saat PO approve), ganti dengan yang disetujui saja
-            $serviceAsuransi->kejadians()->delete();
+            // JANGAN hapus kejadian yang sudah ada — hanya update statusnya.
+            // Kejadian yang disetujui → status=disetujui + bukti_bayar terisi.
+            // Kejadian yang ditolak   → status=ditolak + catatan_penolakan terisi.
+            // Ini menjaga agar partial rejection tidak menghilangkan data dari tabel.
         } else {
             // Buat record baru (fallback untuk data lama)
             $serviceAsuransi = ServiceAsuransi::create([
@@ -1687,65 +1689,99 @@ class PengeluaranTransferService
             ]);
         }
 
-        // Buat ServiceAsuransiKejadian hanya untuk yang disetujui, dengan bukti per kejadian
-        // $selectedItems berisi index asli dari allKejadians
-        $selectedIndices = !empty($selectedItems) ? $selectedItems : array_keys($allKejadians);
+        // ── Bangun set index yang approved vs rejected ──────────────────────
         $kendaraan       = Kendaraan::find($sourceData['kendaraan_id'] ?? null);
         $nopol           = $kendaraan->nopol ?? '-';
         $merk            = $kendaraan->merk  ?? '-';
 
-        foreach ($selectedIndices as $origIdx) {
-            $kej = $allKejadians[$origIdx] ?? null;
-            if (!$kej) continue;
+        $selectedIndices = !empty($selectedItems) ? $selectedItems : array_keys($allKejadians);
+        $rejectedIndices = array_values(array_diff(array_keys($allKejadians), $selectedIndices));
 
-            // Bukti bayar per kejadian disimpan di kejadian[origIdx]['bukti_bayar_admin']
-            $buktiPerKejadian = !empty($kej['bukti_bayar_admin']) ? $kej['bukti_bayar_admin'] : null;
+        // Ambil catatan penolakan dari item_decisions yang tersimpan di source_data
+        $itemDecisions = collect($sourceData['item_decisions'] ?? [])->keyBy('idx');
 
-            $lampiranFinal = [];
-            foreach ($kej['lampiran'] ?? [] as $tf) {
-                if (empty($tf['path'])) continue;
-                try {
-                    $finalPath = $this->copyFileToPublic(
-                        $tf['path'],
-                        'service-asuransi-kejadian/' . $serviceAsuransi->id,
-                        $pembayaran->id
-                    );
-                    $lampiranFinal[] = [
-                        'path'          => $finalPath,
-                        'original_name' => $tf['original_name'] ?? basename($tf['path']),
-                        'extension'     => $tf['extension'] ?? pathinfo($finalPath, PATHINFO_EXTENSION),
-                    ];
-                } catch (\Exception $e) {
-                    \Log::warning("Gagal copy lampiran kejadian service asuransi: " . $e->getMessage());
+        // ── Proses setiap kejadian: approved → upsert disetujui, rejected → upsert ditolak ──
+        foreach ($allKejadians as $origIdx => $kej) {
+            $isApproved = in_array($origIdx, $selectedIndices);
+            $isRejected = in_array($origIdx, $rejectedIndices);
+
+            // Cari record kejadian yang sudah ada (dari PO approval sebelumnya)
+            $existingKej = $serviceAsuransi->kejadians()
+                ->where(function ($q) use ($kej) {
+                    $q->where('nama_kejadian', $kej['nama_kejadian'] ?? '')
+                      ->where('biaya', (int)($kej['biaya'] ?? 0));
+                })
+                ->first();
+
+            if ($isRejected) {
+                // ── Kejadian ditolak: simpan/update dengan status=ditolak ──────
+                $catatanTolak = $itemDecisions->get($origIdx)['catatan'] ?? null;
+
+                if ($existingKej) {
+                    $existingKej->update([
+                        'status'             => 'ditolak',
+                        'catatan_penolakan'  => $catatanTolak,
+                        'bukti_bayar'        => null,
+                    ]);
+                } else {
+                    // Buat baru jika belum ada (misal: PO tidak buat kejadian duluan)
+                    $lampiranFinal = $this->copyKejadianLampiran($kej, $serviceAsuransi->id, $pembayaran->id);
+                    \App\Models\ServiceAsuransiKejadian::create([
+                        'service_asuransi_id' => $serviceAsuransi->id,
+                        'nama_kejadian'        => $kej['nama_kejadian'] ?? '-',
+                        'biaya'                => (int)($kej['biaya'] ?? 0),
+                        'lampiran'             => !empty($lampiranFinal) ? $lampiranFinal : null,
+                        'bukti_bayar'          => null,
+                        'status'               => 'ditolak',
+                        'catatan_penolakan'    => $catatanTolak,
+                    ]);
                 }
+                // Kejadian ditolak → TIDAK catat cashflow
+                continue;
             }
 
-            \App\Models\ServiceAsuransiKejadian::create([
-                'service_asuransi_id' => $serviceAsuransi->id,
-                'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
-                'biaya'               => (int) ($kej['biaya'] ?? 0),
-                'lampiran'            => !empty($lampiranFinal) ? $lampiranFinal : null,
-                'bukti_bayar'         => $buktiPerKejadian ? [$buktiPerKejadian] : null,
-            ]);
+            if ($isApproved) {
+                // ── Kejadian disetujui: simpan/update dengan status=disetujui + bukti ──
+                $buktiPerKejadian = !empty($kej['bukti_bayar_admin']) ? $kej['bukti_bayar_admin'] : null;
 
-            // ── Catat cashflow per kejadian ───────────────────────────
-            $biayaKej     = (int) ($kej['biaya'] ?? 0);
-            $namaKejadian = $kej['nama_kejadian'] ?? '-';
+                if ($existingKej) {
+                    $existingKej->update([
+                        'status'            => 'disetujui',
+                        'catatan_penolakan' => null,
+                        'bukti_bayar'       => $buktiPerKejadian ? [$buktiPerKejadian] : $existingKej->bukti_bayar,
+                    ]);
+                } else {
+                    $lampiranFinal = $this->copyKejadianLampiran($kej, $serviceAsuransi->id, $pembayaran->id);
+                    \App\Models\ServiceAsuransiKejadian::create([
+                        'service_asuransi_id' => $serviceAsuransi->id,
+                        'nama_kejadian'        => $kej['nama_kejadian'] ?? '-',
+                        'biaya'                => (int)($kej['biaya'] ?? 0),
+                        'lampiran'             => !empty($lampiranFinal) ? $lampiranFinal : null,
+                        'bukti_bayar'          => $buktiPerKejadian ? [$buktiPerKejadian] : null,
+                        'status'               => 'disetujui',
+                        'catatan_penolakan'    => null,
+                    ]);
+                }
 
-            $this->createKeuanganRecord(
-                'SA',
-                $serviceAsuransi->id,
-                $biayaKej,
-                'Service Asuransi: ' . $namaKejadian . ' - ' . $merk . ' ' . $nopol
-            );
+                // ── Catat cashflow per kejadian yang disetujui ──────────────
+                $biayaKej     = (int)($kej['biaya'] ?? 0);
+                $namaKejadian = $kej['nama_kejadian'] ?? '-';
 
-            $this->createBukubesarRecord(
-                'SA',
-                $serviceAsuransi->id,
-                $biayaKej,
-                'Beban Service Asuransi: ' . $namaKejadian . ' - ' . $merk . ' ' . $nopol,
-                'Auto-posting: Service asuransi ' . $namaKejadian . ' ' . $nopol . ' via PR #' . $pembayaran->no_pr
-            );
+                $this->createKeuanganRecord(
+                    'SA',
+                    $serviceAsuransi->id,
+                    $biayaKej,
+                    'Service Asuransi: ' . $namaKejadian . ' - ' . $merk . ' ' . $nopol
+                );
+
+                $this->createBukubesarRecord(
+                    'SA',
+                    $serviceAsuransi->id,
+                    $biayaKej,
+                    'Beban Service Asuransi: ' . $namaKejadian . ' - ' . $merk . ' ' . $nopol,
+                    'Auto-posting: Service asuransi ' . $namaKejadian . ' ' . $nopol . ' via PR #' . $pembayaran->no_pr
+                );
+            }
         }
 
         // Copy attachments tambahan (jika ada dari approval)
@@ -1914,6 +1950,33 @@ class PengeluaranTransferService
             'saldo'       => $lastSaldo - $amount,
             'sumber'      => 'auto',
         ]);
+    }
+
+    /**
+     * Copy lampiran array dari satu kejadian ke final storage.
+     * Digunakan oleh transferServiceAsuransi() agar DRY.
+     */
+    protected function copyKejadianLampiran(array $kej, int $serviceAsuransiId, int $pembayaranId): array
+    {
+        $lampiranFinal = [];
+        foreach ($kej['lampiran'] ?? [] as $tf) {
+            if (empty($tf['path'])) continue;
+            try {
+                $finalPath = $this->copyFileToPublic(
+                    $tf['path'],
+                    'service-asuransi-kejadian/' . $serviceAsuransiId,
+                    $pembayaranId
+                );
+                $lampiranFinal[] = [
+                    'path'          => $finalPath,
+                    'original_name' => $tf['original_name'] ?? basename($tf['path']),
+                    'extension'     => $tf['extension'] ?? pathinfo($finalPath, PATHINFO_EXTENSION),
+                ];
+            } catch (\Exception $e) {
+                \Log::warning("Gagal copy lampiran kejadian service asuransi: " . $e->getMessage());
+            }
+        }
+        return $lampiranFinal;
     }
 
     /**

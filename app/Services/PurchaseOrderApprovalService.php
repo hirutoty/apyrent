@@ -768,14 +768,44 @@ class PurchaseOrderApprovalService
 
         // ── SERVICE ASURANSI ──────────────────────────────────────────────────
         if ($sourceType === 'service_asuransi') {
-            // Alur baru: buat ServiceAsuransi + ServiceAsuransiKejadian saat PO disetujui.
-            $kendaraanId    = $sourceData['kendaraan_id'] ?? null;
-            $kejadians      = $overrideSourceData['kejadians'] ?? $sourceData['kejadians'] ?? [];
-            $namaAsuransi   = $sourceData['nama_asuransi'] ?? null;
-            $keterangan     = $sourceData['keterangan'] ?? null;
+            $kendaraanId  = $sourceData['kendaraan_id'] ?? null;
+            $kejadians    = $overrideSourceData['kejadians'] ?? $sourceData['kejadians'] ?? [];
+            $namaAsuransi = $sourceData['nama_asuransi'] ?? null;
+            $keterangan   = $sourceData['keterangan'] ?? null;
+            $totalBiaya   = collect($kejadians)->sum(fn($k) => (int)($k['biaya'] ?? 0));
 
-            $totalBiaya = collect($kejadians)->sum(fn($k) => (int)($k['biaya'] ?? 0));
+            // ── Guard: jika service_asuransi_id sudah ada di source_data PO,
+            // ini adalah partial approval kedua (resubmit). Cukup tambah kejadian baru
+            // ke record yang sudah ada — jangan buat record baru.
+            $existingId = $sourceData['service_asuransi_id'] ?? null;
 
+            if ($existingId) {
+                $existing = \App\Models\ServiceAsuransi::find($existingId);
+                if ($existing) {
+                    // Akumulasi biaya (locked + baru)
+                    $biayaBaru = $existing->biaya + $totalBiaya;
+                    $existing->update([
+                        'biaya'         => $biayaBaru,
+                        'pembayaran_id' => $pembayaran->id, // update ke pembayaran terbaru
+                        'persetujuan'   => 'Diajukan ke Pembayaran',
+                    ]);
+
+                    // Tambahkan HANYA kejadian baru (jangan hapus yang sudah ada)
+                    foreach ($kejadians as $kej) {
+                        \App\Models\ServiceAsuransiKejadian::create([
+                            'service_asuransi_id' => $existing->id,
+                            'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
+                            'biaya'               => (int)($kej['biaya'] ?? 0),
+                            'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
+                        ]);
+                    }
+
+                    // Tidak perlu update source_data PO — service_asuransi_id sudah benar
+                    return;
+                }
+            }
+
+            // ── Tidak ada record sebelumnya: buat baru (alur pertama kali) ──
             $serviceAsuransi = \App\Models\ServiceAsuransi::create([
                 'kendaraan_id'      => $kendaraanId,
                 'nama_asuransi'     => $namaAsuransi,
@@ -792,7 +822,6 @@ class PurchaseOrderApprovalService
                 'persetujuan'       => 'Diajukan ke Pembayaran',
             ]);
 
-            // Buat kejadian per item (lampiran masih di temp storage — dipindah saat transfer)
             foreach ($kejadians as $idx => $kej) {
                 \App\Models\ServiceAsuransiKejadian::create([
                     'service_asuransi_id' => $serviceAsuransi->id,
@@ -802,7 +831,7 @@ class PurchaseOrderApprovalService
                 ]);
             }
 
-            // Simpan service_asuransi_id ke source_data PO agar transferServiceAsuransi bisa lookup
+            // Simpan service_asuransi_id ke source_data PO agar approval berikutnya bisa lookup
             $updatedSource = $po->source_data;
             $updatedSource['service_asuransi_id'] = $serviceAsuransi->id;
             $po->update(['source_data' => $updatedSource]);
