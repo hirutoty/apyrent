@@ -226,12 +226,28 @@ class GpsKendaraanController extends Controller
             // Check if this is a resubmit (from rejected PO)
             if ($isResubmit) {
                 $poId = $request->input('edit_purchase_order');
+                $po   = \App\Models\PurchaseOrder::findOrFail($poId);
+
+                // Partial GPS resubmit: PO Disetujui dengan item rejected,
+                // atau PO Pending dengan locked_approved_idx (resubmit kedua kali)
+                $poSourceData      = $po->source_data ?? [];
+                $lockedApprovedIdx = $poSourceData['locked_approved_idx'] ?? [];
+                $oldDecisions      = $poSourceData['item_decisions'] ?? [];
+                $isPartialGps      = $po->status === 'Disetujui'
+                    || ($po->status === 'Pending' && !empty($lockedApprovedIdx))
+                    || (!empty($oldDecisions) && collect($oldDecisions)->contains(fn($d) => ($d['action'] ?? '') === 'approved'));
+
+                if ($isPartialGps) {
+                    // Partial: panggil resubmitGpsPartial — hanya update item rejected, locked tetap aman
+                    $poController = app(\App\Http\Controllers\Admin\PurchaseOrderController::class);
+                    return $poController->resubmitGpsPartial($request, $poId);
+                }
+
+                // Full reject: pakai alur lama (reset seluruh PO)
                 $approvalService = app(\App\Services\PurchaseOrderApprovalService::class);
-                $po = \App\Models\PurchaseOrder::findOrFail($poId);
-                
                 // Resubmit: hapus record lama Ditolak, buat record Pending baru, set PO → Pending
                 $po = $approvalService->resubmit($po, $request->all(), $request);
-                
+
                 return redirect()
                     ->route('purchase-order.index', ['status' => 'Pending'])
                     ->with('success', 'GPS berhasil diajukan ulang. Menunggu approval Superadmin.');

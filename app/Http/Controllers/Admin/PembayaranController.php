@@ -184,6 +184,9 @@ class PembayaranController extends Controller
         if ($role === 'superadmin' && $deptFilter) {
             $baseQuery->where('departemen', $deptFilter);
         }
+        if ($sourceFilter) {
+            $baseQuery->where('source_type', $sourceFilter);
+        }
         if ($bulan) {
             [$y, $m] = explode('-', $bulan);
             $baseQuery->whereYear('tanggal', $y)->whereMonth('tanggal', $m);
@@ -251,8 +254,9 @@ class PembayaranController extends Controller
                 }
             } elseif (!empty($_itemList)) {
                 // Belum ada item_decisions → seluruh item ikut status PR
+                // Gunakan nominal (bukan nominal_original) karena Pembayaran hanya berisi approved items
                 $cnt    = count($_itemList);
-                $_prNom = (int)($_pr->nominal_original ?? $_pr->nominal ?? 0);
+                $_prNom = (int)($_pr->nominal ?? 0);
                 if ($_status === 'Pending') {
                     $totalItemPending  += $cnt;
                     $nominalPending    += $_prNom;
@@ -268,7 +272,7 @@ class PembayaranController extends Controller
                 }
             } else {
                 // Fallback: 1 PR = 1 item (pajak, asuransi, kir, stnk, belanja biasa)
-                $_prNom = (int)($_pr->nominal_original ?? $_pr->nominal ?? 0);
+                $_prNom = (int)($_pr->nominal ?? 0);
                 if ($_status === 'Pending') {
                     $totalItemPending++;
                     $nominalPending += $_prNom;
@@ -291,10 +295,8 @@ class PembayaranController extends Controller
         $totalPending   = $totalItemPending;
         $totalDiajukan  = $totalItemDiajukan;
 
-        // Nominal total — pakai nominal_original (total sebelum partial approval) jika ada,
-        // fallback ke nominal untuk record lama atau yang tidak partial
-        $totalNominal = (clone $baseQuery)->get(['nominal', 'nominal_original'])
-            ->sum(fn($p) => $p->nominal_original ?? $p->nominal ?? 0);
+        // Total nominal = sum semua status agar konsisten dengan breakdown per status
+        $totalNominal = $nominalDiajukan + $nominalPending + $nominalDisetujui + $nominalDitolak;
 
         // Source types untuk dropdown filter
         $sourceTypes = Pembayaran::selectRaw('source_type, count(*) as total')
@@ -1327,6 +1329,12 @@ class PembayaranController extends Controller
 
             // Aktivasi service_history yang sudah ada — hanya update status, tidak create baru
             $existingDraft = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
+            if (!$existingDraft && $pembayaran->kendaraan_id) {
+                $existingDraft = \App\Models\ServiceHistory::where('kendaraan_id', $pembayaran->kendaraan_id)
+                    ->whereIn('status', ['tidak_aktif', 'aktif'])
+                    ->latest()
+                    ->first();
+            }
 
             $serviceHistory = null;
             if ($existingDraft) {
@@ -1611,10 +1619,38 @@ class PembayaranController extends Controller
             unset($p);
         }
         if (!empty($sourceDataForClient['kejadians']) && is_array($sourceDataForClient['kejadians'])) {
-            foreach ($sourceDataForClient['kejadians'] as &$k) {
-                if (isset($k['biaya'])) $k['biaya'] = (int) $k['biaya'];
+            // ── Filter: keluarkan kejadian yang sudah diputuskan (approved/rejected) ──
+            // Modal approval hanya boleh menampilkan kejadian yang BELUM diputuskan.
+            // Kumpulkan idx yang sudah ada di item_decisions (semua action, bukan hanya approved)
+            $decidedIdxForModal = collect($sourceData['item_decisions'] ?? [])
+                ->unique('idx')
+                ->pluck('idx')
+                ->map('intval')
+                ->flip()
+                ->all();
+
+            // Fallback DB: kejadian yang sudah 'disetujui' di tabel service_asuransi_kejadians
+            $dbApprovedNames = [];
+            $saIdForModal = $sourceData['service_asuransi_id'] ?? null;
+            if ($saIdForModal) {
+                $dbApprovedNames = \App\Models\ServiceAsuransiKejadian::where('service_asuransi_id', $saIdForModal)
+                    ->where('status', 'disetujui')
+                    ->pluck('nama_kejadian')
+                    ->flip()
+                    ->all();
             }
-            unset($k);
+
+            $filteredKejadians = [];
+            foreach ($sourceDataForClient['kejadians'] as $idx => $k) {
+                // Skip jika sudah ada keputusan di item_decisions
+                if (isset($decidedIdxForModal[(int)$idx])) continue;
+                // Skip jika sudah 'disetujui' di DB (safety net data lama)
+                if (isset($dbApprovedNames[$k['nama_kejadian'] ?? ''])) continue;
+                if (isset($k['biaya'])) $k['biaya'] = (int) $k['biaya'];
+                $k['_original_idx'] = (int) $idx; // simpan index asli agar frontend bisa kirim ke backend
+                $filteredKejadians[] = $k; // re-index ke 0,1,... agar JS x-for berjalan benar
+            }
+            $sourceDataForClient['kejadians'] = $filteredKejadians;
         }
         if (!empty($sourceDataForClient['gps_items']) && is_array($sourceDataForClient['gps_items'])) {
             foreach ($sourceDataForClient['gps_items'] as &$g) {
@@ -1658,14 +1694,10 @@ class PembayaranController extends Controller
                     return $sum;
                 }, 0);
             } elseif ($srcType === 'service_asuransi') {
-                $kejadians = $sourceData['kejadians'] ?? [];
-                $nominalDisplay = collect($kejadians)->reduce(function ($sum, $kej, $idx) use ($existingDecisions) {
-                    $dec = $existingDecisions->get((int)$idx);
-                    if (!$dec || ($dec['action'] ?? '') !== 'rejected') {
-                        $sum += (int) ($kej['biaya'] ?? 0);
-                    }
-                    return $sum;
-                }, 0);
+                // Nominal = hanya kejadian yang BELUM diputuskan (pending)
+                // Gunakan $sourceDataForClient['kejadians'] yang sudah difilter di atas
+                $nominalDisplay = collect($sourceDataForClient['kejadians'] ?? [])
+                    ->sum(fn($kej) => (int) ($kej['biaya'] ?? 0));
             }
         }
         
@@ -2103,7 +2135,36 @@ class PembayaranController extends Controller
             }
         }
 
+        // ── Guard: block item yang sudah approved sebelumnya ────────────────
+        // Ketika PR adalah partial (ada item_decisions dengan action=approved),
+        // item-item tersebut tidak boleh diproses ulang — hanya item yang belum
+        // diputuskan (tidak ada di item_decisions) yang boleh masuk ke form approval.
+        $alreadyApprovedIndices = collect($pembayaran->source_data['item_decisions'] ?? [])
+            ->where('action', 'approved')
+            ->pluck('idx')
+            ->map('intval')
+            ->flip(); // flip agar isset($map[$idx]) = O(1)
+
+        if ($alreadyApprovedIndices->isNotEmpty()) {
+            // Filter: buang items yang sudah approved dari $items
+            $filteredItems = [];
+            foreach ($items as $idx => $item) {
+                if ($alreadyApprovedIndices->has((int) $idx)) {
+                    // Item ini sudah approved sebelumnya — abaikan, jangan proses ulang
+                    continue;
+                }
+                $filteredItems[$idx] = $item;
+            }
+
+            if (empty($filteredItems)) {
+                return back()->with('error', 'Semua item sudah disetujui sebelumnya. Tidak ada item baru untuk diproses.');
+            }
+
+            $items = $filteredItems;
+        }
+
         // Pastikan setiap item approved punya bukti pembayaran
+        // (cek dilakukan setelah guard agar item yang sudah approved sebelumnya tidak divalidasi ulang)
         foreach ($items as $idx => $item) {
             if ($item['action'] === 'approved' && !$request->hasFile("items.{$idx}.bukti")) {
                 return response()->json([
@@ -2112,8 +2173,6 @@ class PembayaranController extends Controller
                 ], 422);
             }
         }
-
-        // Route based on source_type
         $sourceType = $pembayaran->source_type;
         
         if (in_array($sourceType, ['gps', 'gps_perpanjang'])) {
@@ -2228,7 +2287,31 @@ class PembayaranController extends Controller
             ]);
 
             // Simpan keputusan per item ke source_data untuk ditampilkan di UI
+            // PENTING: Gabungkan dengan keputusan lama yang approved agar tidak hilang
+            $existingDecisions = collect($pembayaran->source_data['item_decisions'] ?? [])
+                ->where('action', 'approved')
+                ->keyBy(fn($d) => (int)($d['idx'] ?? -1));
+            
             $itemDecisions = [];
+            
+            // Collect idx yang ada di form saat ini (decision baru)
+            // PENTING: Pastikan type konsisten (int) untuk comparison
+            $currentItemsIdx = array_map(function($key) {
+                return (int)$key;
+            }, array_keys($items));
+            
+            // Masukkan keputusan lama yang approved HANYA untuk idx yang TIDAK ada di form saat ini
+            foreach ($existingDecisions as $existingIdx => $existingDec) {
+                // Strict comparison untuk memastikan tidak ada false positive
+                if (in_array((int)$existingIdx, $currentItemsIdx, true)) {
+                    continue; // Skip, akan diambil dari decision baru
+                }
+                $itemDecisions[] = array_merge($existingDec, [
+                    'idx' => (int) $existingIdx,
+                ]);
+            }
+            
+            // Tambahkan keputusan baru dari form saat ini
             foreach ($items as $idx => $decision) {
                 $gpsItem  = $sourceGpsItems[(int) $idx] ?? [];
                 $gpsModel = isset($gpsItem['gps_id']) ? \App\Models\Gps::find($gpsItem['gps_id']) : null;
@@ -2351,7 +2434,35 @@ class PembayaranController extends Controller
             $sourceParts     = $pembayaran->source_data['parts'] ?? [];
             $nominalApproved = 0;
             $nominalRejected = 0;
+            
+            // PENTING: Gabungkan dengan keputusan lama yang approved agar tidak hilang
+            $existingDecisions = collect($pembayaran->source_data['item_decisions'] ?? [])
+                ->where('action', 'approved')
+                ->keyBy(fn($d) => (int)($d['idx'] ?? -1));
+            
             $itemDecisions   = [];
+            
+            // Collect idx yang ada di form saat ini (decision baru)
+            // PENTING: Pastikan type konsisten (int) untuk comparison
+            $currentItemsIdx = array_map(function($key) {
+                return (int)$key;
+            }, array_keys($items));
+            
+            // Masukkan keputusan lama yang approved HANYA untuk idx yang TIDAK ada di form saat ini
+            foreach ($existingDecisions as $existingIdx => $existingDec) {
+                // Strict comparison untuk memastikan tidak ada false positive
+                if (in_array((int)$existingIdx, $currentItemsIdx, true)) {
+                    continue; // Skip, akan diambil dari decision baru
+                }
+                $part  = $sourceParts[(int) $existingIdx] ?? [];
+                $biaya = (int) ($part['biaya'] ?? 0);
+                $nominalApproved += $biaya;
+                $itemDecisions[] = array_merge($existingDec, [
+                    'idx' => (int) $existingIdx,
+                ]);
+            }
+            
+            // Tambahkan keputusan baru dari form saat ini
             foreach ($items as $idx => $decision) {
                 $part    = $sourceParts[(int) $idx] ?? [];
                 $biaya   = (int) ($part['biaya'] ?? 0);
@@ -2566,13 +2677,26 @@ class PembayaranController extends Controller
             $nominalApproved = 0;
             $nominalRejected = 0;
             $itemDecisions   = [];
+            
+            // Collect idx yang ada di form saat ini (decision baru)
+            // PENTING: Pastikan type konsisten (int) untuk comparison
+            $currentItemsIdx = array_map(function($key) {
+                return (int)$key;
+            }, array_keys($items));
 
-            // Masukkan keputusan lama yang approved terlebih dahulu
+            // Masukkan keputusan lama yang approved HANYA untuk idx yang TIDAK ada di form saat ini
             foreach ($existingDecisions as $existingIdx => $existingDec) {
+                // Strict comparison untuk memastikan tidak ada false positive
+                if (in_array((int)$existingIdx, $currentItemsIdx, true)) {
+                    continue; // Skip, akan diambil dari decision baru
+                }
                 $kej   = $sourceKejadians[(int) $existingIdx] ?? [];
                 $biaya = (int) ($kej['biaya'] ?? 0);
                 $nominalApproved += $biaya;
-                $itemDecisions[] = $existingDec; // pakai data lama as-is (termasuk bukti)
+                // PENTING: Pastikan idx tersimpan dengan benar di structure
+                $itemDecisions[] = array_merge($existingDec, [
+                    'idx' => (int) $existingIdx, // Force idx dari key collection
+                ]);
             }
 
             // Tambahkan keputusan baru dari form saat ini
@@ -3171,15 +3295,28 @@ class PembayaranController extends Controller
         $sourceData = $pembayaran->source_data ?? [];
         $items      = [];
 
-        // ── Kumpulkan index item yang sudah approved di item_decisions ──────
-        // Item-item ini TIDAK perlu muncul lagi di modal approval karena sudah
-        // pernah disetujui sebelumnya (partial approval siklus sebelumnya).
-        $alreadyApprovedIdx = collect($sourceData['item_decisions'] ?? [])
-            ->where('action', 'approved')
+        // ── Kumpulkan index item yang sudah approved DAN ditolak di item_decisions ──────
+        // Item-item ini TIDAK perlu muncul lagi di modal approval:
+        // - Approved: sudah disetujui, tidak perlu approval lagi
+        // - Rejected: sudah ditolak, harus lewat flow resubmit (bukan approval biasa)
+        // PENTING: Gunakan unique('idx') untuk menghindari duplikat idx dari merge logic
+        $alreadyDecidedIdx = collect($sourceData['item_decisions'] ?? [])
+            ->unique('idx') // Pastikan idx hanya muncul sekali (karena merge bisa bikin duplikat)
             ->pluck('idx')
             ->map('intval')
             ->flip() // jadikan key untuk O(1) lookup
             ->all();
+        
+        // Debug logging
+        \Log::debug('approvalItems filtering', [
+            'pembayaran_id' => $pembayaran->id,
+            'no_pr' => $pembayaran->no_pr,
+            'source_type' => $srcType,
+            'item_decisions_count' => count($sourceData['item_decisions'] ?? []),
+            'item_decisions' => $sourceData['item_decisions'] ?? [],
+            'alreadyDecidedIdx' => $alreadyDecidedIdx,
+            'total_source_items' => count($sourceData['kejadians'] ?? $sourceData['parts'] ?? $sourceData['gps_items'] ?? []),
+        ]);
 
         // ── Fallback: cek juga dari bukti_bayar_admin per kejadian ──────────
         // Untuk data lama yang item_decisions-nya belum tersimpan dengan benar,
@@ -3187,7 +3324,7 @@ class PembayaranController extends Controller
         if ($srcType === 'service_asuransi') {
             foreach ($sourceData['kejadians'] ?? [] as $idx => $kej) {
                 if (!empty($kej['bukti_bayar_admin'])) {
-                    $alreadyApprovedIdx[(int)$idx] = (int)$idx;
+                    $alreadyDecidedIdx[(int)$idx] = (int)$idx;
                 }
             }
         }
@@ -3195,8 +3332,8 @@ class PembayaranController extends Controller
         if (in_array($srcType, ['service_part', 'service_incident'])) {
             $parts = $sourceData['parts'] ?? [];
             foreach ($parts as $idx => $part) {
-                // Lewati item yang sudah approved sebelumnya
-                if (isset($alreadyApprovedIdx[(int)$idx])) continue;
+                // Lewati item yang sudah diputuskan (approved/rejected) sebelumnya
+                if (isset($alreadyDecidedIdx[(int)$idx])) continue;
                 $items[] = [
                     'idx'           => $idx,
                     'nama'          => $part['nama_part'] ?? '-',
@@ -3209,9 +3346,31 @@ class PembayaranController extends Controller
             }
         } elseif ($srcType === 'service_asuransi') {
             $kejadians = $sourceData['kejadians'] ?? [];
+
+            // Fallback DB: ambil status per-kejadian dari tabel service_asuransi_kejadians
+            // Ini menangkap kasus di mana item_decisions belum tersimpan dengan benar
+            // (data lama / race condition), tapi kejadian di DB sudah berstatus 'disetujui'.
+            $dbKejadianStatuses = [];
+            $saId = $sourceData['service_asuransi_id'] ?? null;
+            if ($saId) {
+                \App\Models\ServiceAsuransiKejadian::where('service_asuransi_id', $saId)
+                    ->get(['id', 'nama_kejadian', 'status'])
+                    ->each(function ($dbKej) use (&$dbKejadianStatuses) {
+                        $dbKejadianStatuses[$dbKej->nama_kejadian] = $dbKej->status;
+                    });
+            }
+
             foreach ($kejadians as $idx => $kej) {
-                // Lewati kejadian yang sudah approved sebelumnya
-                if (isset($alreadyApprovedIdx[(int)$idx])) continue;
+                // Lewati kejadian yang sudah diputuskan (approved/rejected) di item_decisions
+                if (isset($alreadyDecidedIdx[(int)$idx])) continue;
+
+                // Fallback: lewati juga kejadian yang sudah 'disetujui' di DB
+                // Ini safety net untuk data lama atau jika item_decisions tidak sinkron
+                $namaKejadian = $kej['nama_kejadian'] ?? null;
+                if ($namaKejadian && ($dbKejadianStatuses[$namaKejadian] ?? null) === 'disetujui') {
+                    continue;
+                }
+
                 $items[] = [
                     'idx'   => $idx,
                     'nama'  => $kej['nama_kejadian'] ?? '-',
@@ -3221,8 +3380,8 @@ class PembayaranController extends Controller
         } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
             $gpsItems = $sourceData['gps_items'] ?? [];
             foreach ($gpsItems as $idx => $gItem) {
-                // Lewati item GPS yang sudah approved sebelumnya
-                if (isset($alreadyApprovedIdx[(int)$idx])) continue;
+                // Lewati item GPS yang sudah diputuskan (approved/rejected) sebelumnya
+                if (isset($alreadyDecidedIdx[(int)$idx])) continue;
                 $gpsModel = isset($gItem['gps_id']) ? \App\Models\Gps::find($gItem['gps_id']) : null;
                 $items[] = [
                     'idx'         => $idx,
@@ -3240,6 +3399,13 @@ class PembayaranController extends Controller
         // Kendaraan info
         $kendaraanId = $sourceData['kendaraan_id'] ?? null;
         $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+
+        // Debug logging - hasil filtering
+        \Log::debug('approvalItems result', [
+            'pembayaran_id' => $pembayaran->id,
+            'filtered_items_count' => count($items),
+            'filtered_items_idx' => array_column($items, 'idx'),
+        ]);
 
         return response()->json([
             'success'     => true,

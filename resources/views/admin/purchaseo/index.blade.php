@@ -1848,8 +1848,15 @@ function buildDetailContent(data) {
     const items = details.items || [];
     if (items.length > 0) {
         // Hitung total dari items yang ditampilkan (sudah terfilter per tab)
-        const totalFiltered = items.reduce((sum, item) => sum + Number(item.biaya || item.biaya_sewa || 0), 0);
-        const isRejectedTab = _currentStatusFilter === 'Ditolak';
+        // Untuk tab 'semua': hitung hanya item approved/locked (bukan rejected) agar tidak double count
+        const isRejectedTab  = _currentStatusFilter === 'Ditolak';
+        const isApprovedTab  = _currentStatusFilter === 'Disetujui';
+        const isSemua        = _currentStatusFilter === 'semua' || _currentStatusFilter === 'Pending';
+        const totalFiltered  = items.reduce((sum, item) => {
+            // Jika tab semua dan ada item_decisions: hanya sum approved items
+            if (isSemua && item.action === 'rejected') return sum;
+            return sum + Number(item.biaya || item.biaya_sewa || 0);
+        }, 0);
         const totalColor = isRejectedTab ? 'text-red-500' : 'text-emerald-600';
         html += '<div class="border border-gray-100 rounded-xl overflow-hidden">'
             + '<div class="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">'
@@ -1870,7 +1877,7 @@ function buildDetailContent(data) {
 
             html += '<div class="px-4 py-3' + (idx > 0 ? ' border-t border-gray-100' : '') + '">'
                 // Row atas: nama + harga
-                + '<div class="flex items-start justify-between gap-2 mb-2">'
+                + '<div class="flex items-start justify-between gap-2 mb-1.5">'
                 + '<div class="flex-1 min-w-0">'
                 + '<div class="flex items-center gap-1.5 flex-wrap">';
 
@@ -1888,36 +1895,49 @@ function buildDetailContent(data) {
                 html += '<span class="text-[10px] text-gray-400">· ' + item.kondisi + '</span>';
             }
             html += '</div>';
+
             // Badge status item (approved/rejected) — hanya tampil jika ada item_decisions
             if (item.action) {
                 const badgeHtml = item.action === 'approved'
                     ? '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>'
                     : '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
-                html += '<div class="mb-1.5">' + badgeHtml;
-                if (item.catatan_penolakan) html += '<span class="ml-2 text-[10px] text-red-500">' + item.catatan_penolakan + '</span>';
+                html += '<div class="mt-1">' + badgeHtml;
+                if (item.catatan_penolakan) html += '<span class="ml-2 text-[10px] text-red-500 italic">' + item.catatan_penolakan + '</span>';
                 html += '</div>';
             }
+            html += '</div>';
 
-            // Keterangan limit (teks singkat — sekarang diganti blok limit_snapshot di bawah)
-            html += '<span class="text-sm font-bold ' + (isRejectedTab ? 'text-red-500' : 'text-emerald-600') + ' flex-shrink-0">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span>'
+            // Biaya di kanan
+            html += '<span class="text-sm font-bold flex-shrink-0 ' + (item.action === 'rejected' ? 'text-red-500' : (isRejectedTab ? 'text-red-500' : 'text-emerald-600')) + '">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span>'
                 + '</div>';
 
             // ── Limit Snapshot (Service grid) ──────────────────────
             const snap = item.limit_snapshot || null;
-            if (snap) {
-                html += '<div class="mt-1.5 mb-2 flex flex-col gap-0.5 text-[11px]">'
-                    // Biaya
-                    + '<span class="' + (snap.biaya_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">Rp ' + Number(snap.service_biaya || 0).toLocaleString('id-ID') + '</span>'
-                    // Tanggal
-                    + '<span class="' + (snap.tanggal_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">' + (snap.service_tanggal || '—') + '</span>'
-                    // KM
-                    + '<span class="' + (snap.km_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">KM ' + Number(snap.service_km || 0).toLocaleString('id-ID') + '</span>'
+            if (snap && isServicePart) {
+                html += '<div class="mt-1 mb-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 grid grid-cols-3 gap-2 text-[10px]">';
+                // Biaya
+                html += '<div>'
+                    + '<p class="text-gray-400 uppercase mb-0.5">Biaya</p>'
+                    + '<p class="font-semibold ' + (snap.biaya_lewat ? 'text-red-600' : 'text-gray-700') + '">Rp ' + Number(snap.service_biaya || 0).toLocaleString('id-ID') + '</p>'
                     + '</div>';
+                // Tanggal
+                if (snap.service_tanggal) {
+                    html += '<div>'
+                        + '<p class="text-gray-400 uppercase mb-0.5">Tgl Pasang</p>'
+                        + '<p class="font-semibold ' + (snap.tanggal_lewat ? 'text-red-600' : 'text-gray-700') + '">' + fmtDate(snap.service_tanggal) + '</p>'
+                        + '</div>';
+                }
+                // KM
+                html += '<div>'
+                    + '<p class="text-gray-400 uppercase mb-0.5">KM Pasang</p>'
+                    + '<p class="font-semibold ' + (snap.km_lewat ? 'text-red-600' : 'text-gray-700') + '">' + Number(snap.service_km || 0).toLocaleString('id-ID') + '</p>'
+                    + '</div>';
+                html += '</div>';
             }
 
             // ── Keterangan Limit badges ──────────────────────────────
             const ketLimitStr = item.keterangan_limit || item.keterangan || null;
-            if (ketLimitStr && ketLimitStr !== '-') {
+            if (ketLimitStr && ketLimitStr !== '-' && isServicePart) {
                 const badges = ketLimitStr.split(',').map(s => s.trim()).filter(Boolean);
                 if (badges.length > 0) {
                     html += '<div class="flex flex-wrap gap-1 mb-2">';
@@ -2027,11 +2047,21 @@ function buildDetailContent(data) {
 
     // ── 5. Info Approval ──────────────────────────────────────
     if (po.disetujui_oleh || po.tanggal_persetujuan || po.catatan_approval) {
-        // Jika di tab Ditolak dan PO status Disetujui (partial), tunjukkan "Ditolak"
-        const isApproved  = po.status === 'Disetujui' && _currentStatusFilter !== 'Ditolak';
-        const apColor     = isApproved ? 'green' : 'red';
-        const apIcon      = isApproved ? 'fa-check-circle' : 'fa-times-circle';
-        const apLabel     = isApproved ? 'Disetujui' : 'Ditolak';
+        // Tentukan label approval berdasarkan status PO dan tab aktif
+        const isPartialPO    = po.status === 'Disetujui' && _currentStatusFilter === 'Ditolak';
+        const isFullRejected = po.status === 'Ditolak';
+        const isApproved     = po.status === 'Disetujui' && _currentStatusFilter !== 'Ditolak';
+
+        let apColor, apIcon, apLabel;
+        if (isPartialPO) {
+            // PO partial: sebagian disetujui, sebagian ditolak
+            apColor = 'orange'; apIcon = 'fa-exclamation-circle'; apLabel = 'Partial — Ada Item Ditolak';
+        } else if (isFullRejected) {
+            apColor = 'red'; apIcon = 'fa-times-circle'; apLabel = 'Ditolak';
+        } else {
+            apColor = 'green'; apIcon = 'fa-check-circle'; apLabel = 'Disetujui';
+        }
+
         html += '<div class="bg-' + apColor + '-50 border border-' + apColor + '-200 rounded-xl px-4 py-3">'
             + '<p class="text-[10px] font-semibold text-' + apColor + '-600 uppercase tracking-wide mb-2">'
             + '<i class="fa ' + apIcon + ' mr-1"></i> Info Approval — ' + apLabel + '</p>'

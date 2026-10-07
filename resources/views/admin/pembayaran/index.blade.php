@@ -2759,7 +2759,14 @@ function populateDetailModal(pr, activeTab) {
         if (activeTab === 'Ditolak') {
             return items.filter(function(it) { return it.status_item === 'rejected'; });
         }
-        return items; // semua/pending/diajukan → tampilkan semua
+        if (activeTab === 'Diajukan' || activeTab === 'Pending') {
+            // PR partial (ada item_decisions) yang muncul di tab Diajukan/Pending:
+            // hanya tampilkan item yang BELUM diputuskan (status_item null/undefined).
+            // Item yang sudah approved tidak boleh muncul di sini karena PR-nya masih
+            // berstatus Diajukan (menunggu keputusan untuk item-item pending).
+            return items.filter(function(it) { return it.status_item === null || it.status_item === undefined; });
+        }
+        return items; // tab 'semua' atau nilai lain → tampilkan semua
     }
 
     let html = '';

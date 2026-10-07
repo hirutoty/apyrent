@@ -105,17 +105,10 @@ class PurchaseOrderController extends Controller
         $nominalPending  = (clone $statsQuery)->where('status', 'Pending')->sum('total_harga');
         $nominalApproved = (clone $statsQuery)->where('status', 'Disetujui')->sum('total_harga');
 
-        // PO Disetujui yang punya nominal_approved_locked (partial selesai semua):
-        // total_harga hanya berisi syul terakhir, tambahkan locked nominal agar summary benar
-        $nominalApprovedLockedExtra = (clone $statsQuery)
-            ->where('status', 'Disetujui')
-            ->whereRaw("JSON_LENGTH(JSON_EXTRACT(source_data, '$.locked_approved_idx')) > 0")
-            ->whereRaw("JSON_EXTRACT(source_data, '$.nominal_approved_locked') IS NOT NULL")
-            ->selectRaw("SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_approved_locked')) AS DECIMAL(15,2))) as total")
-            ->value('total') ?? 0;
-
         // PO Pending dengan locked_approved_idx (partial sedang resubmit):
-        // bagian yang sudah di-approve tetap harus dihitung di Disetujui
+        // bagian yang sudah di-approve tetap harus dihitung di Disetujui.
+        // CATATAN: untuk PO status Disetujui, total_harga sudah = nominal approved items saja,
+        // sehingga TIDAK perlu tambahkan nominal_approved_locked lagi (double count).
         $nominalApprovedFromPending = (clone $statsQuery)
             ->where('status', 'Pending')
             ->whereRaw("JSON_LENGTH(JSON_EXTRACT(source_data, '$.locked_approved_idx')) > 0")
@@ -123,7 +116,7 @@ class PurchaseOrderController extends Controller
             ->selectRaw("SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_approved_locked')) AS DECIMAL(15,2))) as total")
             ->value('total') ?? 0;
 
-        $nominalApproved += $nominalApprovedLockedExtra + $nominalApprovedFromPending;
+        $nominalApproved += $nominalApprovedFromPending;
 
         // PO full rejected: pakai total_harga
         $nominalRejectedFull = (clone $statsQuery)->where('status', 'Ditolak')->sum('total_harga');
@@ -553,22 +546,51 @@ class PurchaseOrderController extends Controller
         $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
 
         // Filter parts berdasarkan tab jika ada item_decisions
-        $itemDecisions = $sourceData['item_decisions'] ?? [];
+        $itemDecisions     = $sourceData['item_decisions'] ?? [];
+        $lockedApprovedIdx = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
         $decMap = collect($itemDecisions)->keyBy('idx');
         if ($decMap->isNotEmpty()) {
             if ($tab === 'Disetujui') {
+                // Tampilkan: part yang approved di item_decisions PLUS part yang locked dari partial sebelumnya
                 $parts = collect($allParts)
-                    ->filter(fn($p, $i) => ($decMap[$i]['action'] ?? '') === 'approved')
+                    ->filter(fn($p, $i) =>
+                        ($decMap[$i]['action'] ?? '') === 'approved'
+                        || in_array($i, $lockedApprovedIdx)
+                    )
                     ->all();
             } elseif ($tab === 'Ditolak') {
                 $parts = collect($allParts)
                     ->filter(fn($p, $i) => ($decMap[$i]['action'] ?? '') === 'rejected')
                     ->all();
             } else {
-                $parts = $allParts;
+                // Tab "semua" atau "Pending": tampilkan hanya yang belum diputuskan (exclude approved & rejected)
+                // Ini mencegah locked items muncul di tab Pending saat PO partial resubmit
+                $parts = collect($allParts)
+                    ->filter(fn($p, $i) => 
+                        !in_array($i, $lockedApprovedIdx) && 
+                        !isset($decMap[$i])
+                    )
+                    ->all();
             }
         } else {
-            $parts = $allParts;
+            // decMap kosong: jika tab Disetujui dan ada locked items, tampilkan hanya yang locked
+            if ($tab === 'Disetujui' && !empty($lockedApprovedIdx)) {
+                $parts = collect($allParts)
+                    ->filter(fn($p, $i) => in_array($i, $lockedApprovedIdx))
+                    ->all();
+            } elseif ($tab === 'Ditolak' && !empty($lockedApprovedIdx)) {
+                // Tab Ditolak + ada locked: tampilkan yang bukan locked (sedang pending resubmit)
+                $parts = collect($allParts)
+                    ->filter(fn($p, $i) => !in_array($i, $lockedApprovedIdx))
+                    ->all();
+            } elseif ($tab === 'Pending' && !empty($lockedApprovedIdx)) {
+                // Tab Pending + ada locked: exclude locked items, show only pending items
+                $parts = collect($allParts)
+                    ->filter(fn($p, $i) => !in_array($i, $lockedApprovedIdx))
+                    ->all();
+            } else {
+                $parts = $allParts;
+            }
         }
 
         // Ambil lampiran per-part dari temp_files yang disimpan saat upload
@@ -640,12 +662,17 @@ class PurchaseOrderController extends Controller
         $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
 
         // Filter gps_items berdasarkan tab jika ada item_decisions
-        $itemDecisions = $sourceData['item_decisions'] ?? [];
+        $itemDecisions     = $sourceData['item_decisions'] ?? [];
+        $lockedApprovedIdx = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
         $decMap = collect($itemDecisions)->keyBy('idx');
         if ($decMap->isNotEmpty()) {
             if ($tab === 'Disetujui') {
+                // Tampilkan: item yang approved di item_decisions PLUS item yang locked dari partial sebelumnya
                 $gpsItems = collect($allGpsItems)
-                    ->filter(fn($g, $i) => ($decMap[$i]['action'] ?? '') === 'approved')
+                    ->filter(fn($g, $i) =>
+                        ($decMap[$i]['action'] ?? '') === 'approved'
+                        || in_array($i, $lockedApprovedIdx)
+                    )
                     ->all();
             } elseif ($tab === 'Ditolak') {
                 $gpsItems = collect($allGpsItems)
@@ -655,7 +682,23 @@ class PurchaseOrderController extends Controller
                 $gpsItems = $allGpsItems;
             }
         } else {
-            $gpsItems = $allGpsItems;
+            // decMap kosong: jika tab Disetujui dan ada locked items, tampilkan hanya yang locked
+            if ($tab === 'Disetujui' && !empty($lockedApprovedIdx)) {
+                $gpsItems = collect($allGpsItems)
+                    ->filter(fn($g, $i) => in_array($i, $lockedApprovedIdx))
+                    ->all();
+            } elseif ($tab === 'Ditolak') {
+                // Tidak ada item_decisions tapi tab Ditolak: tampilkan item yang bukan locked
+                if (!empty($lockedApprovedIdx)) {
+                    $gpsItems = collect($allGpsItems)
+                        ->filter(fn($g, $i) => !in_array($i, $lockedApprovedIdx))
+                        ->all();
+                } else {
+                    $gpsItems = $allGpsItems;
+                }
+            } else {
+                $gpsItems = $allGpsItems;
+            }
         }
 
         $items = [];
@@ -697,10 +740,11 @@ class PurchaseOrderController extends Controller
                 'nopol' => $kendaraan ? $kendaraan->nopol : '-',
                 'merk'  => $kendaraan ? $kendaraan->merk  : '-',
             ],
-            'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '-',
-            'tanggal_habis' => $sourceData['tanggal_habis'] ?? '-',
-            'keterangan'    => $sourceData['keterangan'] ?? '-',
-            'items'         => $items,
+            'tanggal_bayar'       => $sourceData['tanggal_bayar'] ?? '-',
+            'tanggal_habis'       => $sourceData['tanggal_habis'] ?? '-',
+            'keterangan'          => $sourceData['keterangan'] ?? '-',
+            'locked_approved_idx' => $sourceData['locked_approved_idx'] ?? [],
+            'items'               => $items,
         ];
     }
 
@@ -802,10 +846,14 @@ class PurchaseOrderController extends Controller
         // Validasi: item yang ditolak wajib ada catatannya
         foreach ($items as $idx => $decision) {
             $action = $decision['action'] ?? null;
-            // Override: item locked tidak bisa ditolak
+            
+            // ── GUARD STRENGTHENED: Skip locked items completely ──
+            // Item yang sudah locked tidak boleh diproses ulang dalam approval cycle baru.
+            // Locked items akan tetap approved di handler masing-masing source_type.
             if (in_array((int)$idx, $lockedApprovedIdx)) {
-                $action = 'approved';
+                continue; // Skip locked items - jangan masukkan ke $approvedIdx/$rejectedIdx
             }
+            
             if ($action === 'rejected' && empty(trim($decision['catatan'] ?? ''))) {
                 return response()->json([
                     'success' => false,
@@ -816,6 +864,9 @@ class PurchaseOrderController extends Controller
             if ($action === 'rejected') $rejectedIdx[] = (int) $idx;
         }
 
+        // Note: $approvedIdx dan $rejectedIdx hanya berisi item yang BARU diputuskan,
+        // tidak termasuk locked items. Handler akan merge dengan locked_approved_idx untuk
+        // mendapatkan total items yang approved.
         if (empty($approvedIdx) && empty($rejectedIdx)) {
             return response()->json(['success' => false, 'message' => 'Tidak ada keputusan yang diberikan.'], 422);
         }
@@ -995,9 +1046,21 @@ class PurchaseOrderController extends Controller
         // Ada item yang diapprove → proses hanya approved items
         // Keep ALL gps_items in source_data (approved + rejected).
         // item_decisions tracks which items are approved/rejected.
-        $nominalApproved = collect($gpsItems)
-            ->filter(fn($item, $idx) => in_array($idx, $approvedIdx), ARRAY_FILTER_USE_BOTH)
+
+        // Build approved & rejected GPS item subsets
+        $approvedGpsItems = array_values(
+            array_filter($gpsItems, fn($item, $idx) => in_array($idx, $approvedIdx), ARRAY_FILTER_USE_BOTH)
+        );
+
+        $nominalApproved = collect($approvedGpsItems)->sum(fn($i) => $i['biaya_sewa'] ?? 0);
+
+        // Nominal rejected items
+        $nominalRejected = collect($gpsItems)
+            ->filter(fn($item, $idx) => in_array($idx, $rejectedIdx), ARRAY_FILTER_USE_BOTH)
             ->sum(fn($i) => $i['biaya_sewa'] ?? 0);
+
+        // Nominal approved yang sudah locked dari partial sebelumnya (jika ada)
+        $nominalApprovedLockedPrev = (int)($sourceData['nominal_approved_locked'] ?? 0);
 
         // Build item_decisions for ALL items
         $allGpsItemNames = [];
@@ -1012,16 +1075,24 @@ class PurchaseOrderController extends Controller
             ];
         }
 
+        // locked_approved_idx: gabung dari sebelumnya (jika ada resubmit berulang) + yang baru diapprove
+        $prevLockedIdx    = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
+        $newLockedIdx     = array_unique(array_merge($prevLockedIdx, $approvedIdx));
+
         $po->update([
             'status'              => 'Disetujui',
             'disetujui_oleh'      => auth()->id(),
             'tanggal_persetujuan' => now(),
             'catatan_approval'    => $catatan,
-            'total_harga'         => $nominalApproved,
+            'total_harga'         => $nominalApprovedLockedPrev + $nominalApproved, // akumulasi semua approved
             'total_barang'        => count($approvedGpsItems),
+            'can_edit'            => $hasRejected, // dapat diajukan ulang jika ada yang ditolak
             'source_data'         => array_merge($sourceData, [
-                'gps_items'      => $gpsItems, // keep ALL items
-                'item_decisions' => array_values($allGpsItemNames),
+                'gps_items'               => $gpsItems, // keep ALL items
+                'item_decisions'          => array_values($allGpsItemNames),
+                'locked_approved_idx'     => array_values($newLockedIdx),
+                'nominal_approved_locked' => $nominalApprovedLockedPrev + $nominalApproved,
+                'nominal_rejected'        => $nominalRejected,
             ]),
         ]);
 
@@ -1051,6 +1122,10 @@ class PurchaseOrderController extends Controller
     private function approveItemsServicePart($po, $sourceData, $items, $approvedIdx, $rejectedIdx, $perItemBukti, $catatan, $hasApproved, $hasRejected)
     {
         $parts = $sourceData['parts'] ?? [];
+        
+        // ── Index yang sudah locked approved dari partial sebelumnya — tidak boleh diproses ulang ──
+        // Pattern copied from approveItemsServiceAsuransi untuk consistency
+        $lockedApprovedIdx = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
 
         // Jika semua ditolak → reject PO
         if (!$hasApproved) {
@@ -1070,17 +1145,31 @@ class PurchaseOrderController extends Controller
             ]);
         }
 
-        // Ada part yang diapprove → proses hanya approved parts
+        // ── Ada part yang diapprove → ambil hanya approved ──
+        // Exclude locked_approved_idx — item tersebut sudah diproses di Pembayaran sebelumnya
+        // Pattern copied from approveItemsServiceAsuransi (line 1342-1343)
+        $approvedIdx = array_values(array_filter($approvedIdx, fn($i) => !in_array($i, $lockedApprovedIdx)));
+        $rejectedIdx = array_values(array_filter($rejectedIdx, fn($i) => !in_array($i, $lockedApprovedIdx)));
+        
         $approvedParts = array_values(
             array_filter($parts, fn($part, $idx) => in_array($idx, $approvedIdx), ARRAY_FILTER_USE_BOTH)
         );
 
         $nominalApproved = collect($approvedParts)->sum(fn($p) => $p['biaya'] ?? 0);
 
-        // Build item_decisions for ALL parts (approved + rejected)
+        // Hitung rejected parts dan nominalnya
+        $rejectedParts = array_values(
+            array_filter($parts, fn($part, $idx) => in_array($idx, $rejectedIdx), ARRAY_FILTER_USE_BOTH)
+        );
+        $nominalRejected = collect($rejectedParts)->sum(fn($p) => $p['biaya'] ?? 0);
+
+        // ── Build item_decisions for non-locked parts only ──
+        // Item locked sudah selesai di Pembayaran sebelumnya — tidak perlu keputusan baru
+        // Pattern copied from approveItemsServiceAsuransi (line 1353-1362)
         $allPartDecisions = [];
         foreach ($parts as $idx => $part) {
-            $allPartDecisions[$idx] = [
+            if (in_array($idx, $lockedApprovedIdx)) continue; // skip locked
+            $allPartDecisions[] = [
                 'idx'       => $idx,
                 'nama_part' => $part['nama_part'] ?? '-',
                 'category'  => $part['category_nama'] ?? '-',
@@ -1089,18 +1178,30 @@ class PurchaseOrderController extends Controller
             ];
         }
 
+        // Ambil nominal_approved_locked dari partial sebelumnya (jika ada)
+        $nominalApprovedLockedPrev = (int)($sourceData['nominal_approved_locked'] ?? 0);
+
+        // locked_approved_idx: gabung dari sebelumnya + yang baru diapprove
+        // Pattern copied from approveItemsServiceAsuransi (line 1369-1370)
+        $prevLockedIdx = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
+        $newLockedIdx  = array_unique(array_merge($prevLockedIdx, $approvedIdx));
+
         // Keep ALL parts in source_data. item_decisions tracks which are approved/rejected.
+        // Pattern copied from approveItemsServiceAsuransi (line 1372-1385)
         $po->update([
             'status'              => 'Disetujui',
             'disetujui_oleh'      => auth()->id(),
             'tanggal_persetujuan' => now(),
             'catatan_approval'    => $catatan,
-            'total_harga'         => $nominalApproved,
+            'total_harga'         => $nominalApprovedLockedPrev + $nominalApproved, // akumulasi semua approved
             'total_barang'        => count($approvedParts),
-            'can_edit'            => true, // part yang ditolak dapat diajukan ulang
+            'can_edit'            => $hasRejected, // dapat diajukan ulang jika ada yang ditolak
             'source_data'         => array_merge($sourceData, [
-                'parts'          => $parts, // keep ALL parts
-                'item_decisions' => array_values($allPartDecisions),
+                'parts'                   => $parts, // keep ALL parts
+                'item_decisions'          => $allPartDecisions,
+                'locked_approved_idx'     => array_values($newLockedIdx),
+                'nominal_approved_locked' => $nominalApprovedLockedPrev + $nominalApproved,
+                'nominal_rejected'        => $nominalRejected,
             ]),
         ]);
 
@@ -1298,18 +1399,24 @@ class PurchaseOrderController extends Controller
         // Ambil nominal_approved_locked dari partial sebelumnya (jika ada)
         $nominalApprovedLockedPrev = (int)($sourceData['nominal_approved_locked'] ?? 0);
 
+        // locked_approved_idx: gabung dari sebelumnya + yang baru diapprove
+        $prevLockedIdxSA = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
+        $newLockedIdxSA  = array_unique(array_merge($prevLockedIdxSA, $approvedIdx));
+
         $po->update([
             'status'              => 'Disetujui',
             'disetujui_oleh'      => auth()->id(),
             'tanggal_persetujuan' => now(),
             'catatan_approval'    => $catatan,
-            'total_harga'         => $nominalApproved,
+            'total_harga'         => $nominalApprovedLockedPrev + $nominalApproved, // akumulasi semua approved
             'total_barang'        => count($approvedKejadians),
+            'can_edit'            => $hasRejected, // dapat diajukan ulang jika ada yang ditolak
             'source_data'         => array_merge($sourceData, [
-                'kejadians'              => $kejadians, // keep ALL kejadians
-                'item_decisions'         => $allDecisions,
-                'nominal_rejected'       => $nominalRejected,       // untuk summary card & chart
-                'nominal_approved_locked' => $nominalApprovedLockedPrev, // pertahankan dari resubmit partial
+                'kejadians'               => $kejadians, // keep ALL kejadians
+                'item_decisions'          => $allDecisions,
+                'locked_approved_idx'     => array_values($newLockedIdxSA),
+                'nominal_rejected'        => $nominalRejected,
+                'nominal_approved_locked' => $nominalApprovedLockedPrev + $nominalApproved,
             ]),
         ]);
 
@@ -1768,9 +1875,29 @@ class PurchaseOrderController extends Controller
 
             // GPS: return data ke modal form
             $sourceData  = $po->source_data ?? [];
-            $gpsItems    = $sourceData['gps_items'] ?? [];
+            $allGpsItems = $sourceData['gps_items'] ?? [];
             $kendaraanId = $sourceData['kendaraan_id'] ?? null;
             $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+
+            // Partial GPS: hanya kirim item yang rejected ke form, item locked tidak diubah
+            $itemDecisions    = $sourceData['item_decisions'] ?? [];
+            $lockedApprovedIdx = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
+            $decMap = collect($itemDecisions)->keyBy('idx');
+
+            if ($decMap->isNotEmpty()) {
+                // Partial rejection: hanya GPS items dengan action = rejected
+                $gpsItems = collect($allGpsItems)
+                    ->filter(fn($item, $i) => ($decMap[$i]['action'] ?? '') === 'rejected')
+                    ->all();
+            } elseif (!empty($lockedApprovedIdx)) {
+                // PO sudah Pending dengan locked (resubmit kedua kali): semua yang bukan locked = rejected
+                $gpsItems = collect($allGpsItems)
+                    ->filter(fn($item, $i) => !in_array($i, $lockedApprovedIdx))
+                    ->all();
+            } else {
+                // PO ditolak penuh: semua items diajukan ulang
+                $gpsItems = $allGpsItems;
+            }
 
             // Enrich items dengan nama GPS dan lampiran existing
             $recordIds     = $sourceData['gps_record_ids'] ?? [];
@@ -1791,7 +1918,8 @@ class PurchaseOrderController extends Controller
                     }
                 }
                 return array_merge($item, [
-                    'nama_gps' => $gps ? $gps->nama_gps : '-',
+                    'idx'               => $idx, // kirim original index agar partial resubmit bisa remap
+                    'nama_gps'          => $gps ? $gps->nama_gps : '-',
                     'lampiran_existing' => $lampiran,
                 ]);
             }, $gpsItems, array_keys($gpsItems));
@@ -2171,8 +2299,12 @@ class PurchaseOrderController extends Controller
                 || ($po->status === 'Pending' && !empty($sourceData['locked_approved_idx'] ?? []));
 
             if ($isPartial) {
-                // ── PARTIAL: update kejadians di PO (merge approved + resubmitted) ──
-                $allKejadians  = $sourceData['kejadians'] ?? [];
+                // ── PARTIAL: update kejadians/parts di PO (merge approved + resubmitted) ──
+                // service_incident pakai 'parts', service_asuransi pakai 'kejadians'
+                $isIncident    = ($po->source_type === 'service_incident');
+                $allKejadians  = $isIncident
+                    ? ($sourceData['parts'] ?? [])
+                    : ($sourceData['kejadians'] ?? []);
                 $oldDecisions  = $sourceData['item_decisions'] ?? [];
 
                 // Pisahkan index yang approved (locked) dan yang ditolak (akan diajukan ulang)
@@ -2202,41 +2334,64 @@ class PurchaseOrderController extends Controller
                         ->all();
                 }
 
-                // Ganti kejadian yang ditolak dengan versi baru dari form
+                // Ganti kejadian/part yang ditolak dengan versi baru dari form
                 foreach ($newKejadians as $newIdx => $newKej) {
                     $origIdx = $rejectedIdx[$newIdx] ?? null;
                     if ($origIdx !== null && isset($allKejadians[$origIdx])) {
-                        $allKejadians[$origIdx] = array_merge($allKejadians[$origIdx], [
-                            'nama_kejadian' => $newKej['nama_kejadian'],
-                            'biaya'         => $newKej['biaya'],
-                            'lampiran'      => $newKej['lampiran'] ?? $allKejadians[$origIdx]['lampiran'] ?? [],
-                        ]);
+                        if ($isIncident) {
+                            // service_incident: merge ke format part
+                            $allKejadians[$origIdx] = array_merge($allKejadians[$origIdx], [
+                                'nama_part' => $newKej['nama_kejadian'] ?? ($allKejadians[$origIdx]['nama_part'] ?? '-'),
+                                'biaya'     => $newKej['biaya'],
+                                'lampiran'  => $newKej['lampiran'] ?? $allKejadians[$origIdx]['lampiran'] ?? [],
+                            ]);
+                        } else {
+                            $allKejadians[$origIdx] = array_merge($allKejadians[$origIdx], [
+                                'nama_kejadian' => $newKej['nama_kejadian'],
+                                'biaya'         => $newKej['biaya'],
+                                'lampiran'      => $newKej['lampiran'] ?? $allKejadians[$origIdx]['lampiran'] ?? [],
+                            ]);
+                        }
                     }
                 }
 
                 // total_harga PO = hanya yang diajukan ulang (ditolak), bukan semua kejadian
                 // Kejadian locked (approved) sudah punya Pembayaran sendiri — tidak boleh dihitung ulang
+                $biayaKey      = $isIncident ? 'biaya' : 'biaya';
                 $totalHargaNew = collect($rejectedIdx)
-                    ->sum(fn($origIdx) => (int)($allKejadians[$origIdx]['biaya'] ?? 0));
+                    ->sum(fn($origIdx) => (int)($allKejadians[$origIdx][$biayaKey] ?? 0));
 
                 // Hitung nominal yang sudah locked (approved sebelumnya) agar bisa ditambahkan
                 // ke $nominalApproved di summary card PO meskipun PO sudah kembali ke Pending
                 $nominalApprovedLocked = collect($lockedApprovedIdx)
-                    ->sum(fn($origIdx) => (int)($allKejadians[$origIdx]['biaya'] ?? 0));
+                    ->sum(fn($origIdx) => (int)($allKejadians[$origIdx][$biayaKey] ?? 0));
 
+                // Build updatedSourceData — simpan ke key yang benar sesuai source_type
+                // Preserve item_decisions untuk locked items, hapus hanya untuk rejected items
+                $preservedDecisions = collect($sourceData['item_decisions'] ?? [])
+                    ->filter(fn($dec) => in_array($dec['idx'], $lockedApprovedIdx))
+                    ->values()
+                    ->all();
+                    
                 $updatedSourceData = array_merge($sourceData, [
-                    'kejadians'              => $allKejadians,
-                    'item_decisions'         => [],                    // Clear decisions — akan di-approve ulang
-                    'locked_approved_idx'    => $lockedApprovedIdx,    // Item approved tidak boleh diubah lagi
+                    'item_decisions'          => $preservedDecisions,    // Keep locked decisions, clear rejected only
+                    'locked_approved_idx'     => $lockedApprovedIdx,     // Item approved tidak boleh diubah lagi
                     'nominal_approved_locked' => $nominalApprovedLocked, // Untuk summary card Disetujui
-                    'nominal_rejected'       => 0,                     // Reset nominal_rejected saat resubmit
-                    'temp_files'             => $tempFiles,
+                    'nominal_rejected'        => 0,                      // Reset nominal_rejected saat resubmit
+                    'temp_files'              => $tempFiles,
                 ]);
+                if ($isIncident) {
+                    $updatedSourceData['parts']     = $allKejadians;
+                } else {
+                    $updatedSourceData['kejadians'] = $allKejadians;
+                }
 
-                // Reset PO ke Pending — hanya kejadian yang ditolak yang perlu di-approve ulang
+                // Reset PO ke Pending — hanya kejadian yang ditolak yang perlu di-approve ulang.
+                // total_harga PO = nilai resubmit (ditolak) + nilai yang sudah locked/approved
+                // sebelumnya. Ini memastikan kolom total_harga PO mencerminkan seluruh nilai.
                 $po->update([
                     'source_data'         => $updatedSourceData,
-                    'total_harga'         => $totalHargaNew,
+                    'total_harga'         => $totalHargaNew + $nominalApprovedLocked,
                     'total_barang'        => count($rejectedIdx), // hanya item yang diajukan ulang
                     'status'              => 'Pending',
                     'catatan_approval'    => null,
@@ -2323,6 +2478,127 @@ class PurchaseOrderController extends Controller
 
         } catch (\Exception $e) {
             \Log::error('Error resubmitServiceAsuransi PO #' . $id . ': ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Resubmit GPS Partial — terima data GPS items yang rejected dari form GPS,
+     * pertahankan item yang sudah locked/approved, reset hanya item yang diajukan ulang ke Pending.
+     * Dipanggil oleh GpsKendaraanController saat PO GPS partial.
+     */
+    public function resubmitGpsPartial(Request $request, $id)
+    {
+        $po = PurchaseOrder::findOrFail($id);
+
+        if (!$po->isRejected()) {
+            return response()->json(['success' => false, 'message' => 'Hanya PO yang ditolak yang dapat diajukan ulang.'], 422);
+        }
+
+        try {
+            $sourceData    = $po->source_data ?? [];
+            $allGpsItems   = $sourceData['gps_items'] ?? [];
+            $oldDecisions  = $sourceData['item_decisions'] ?? [];
+            $tempFiles     = $sourceData['temp_files'] ?? [];
+
+            // Pisahkan index locked (approved) vs yang ditolak (perlu resubmit)
+            if (!empty($sourceData['locked_approved_idx'] ?? []) && empty($oldDecisions)) {
+                // PO sudah Pending dengan locked (resubmit kedua kali)
+                $lockedApprovedIdx = array_map('intval', $sourceData['locked_approved_idx']);
+                $rejectedIdx = collect(array_keys($allGpsItems))
+                    ->map('intval')
+                    ->filter(fn($i) => !in_array($i, $lockedApprovedIdx))
+                    ->values()->all();
+            } else {
+                $lockedApprovedIdx = collect($oldDecisions)
+                    ->filter(fn($d) => ($d['action'] ?? '') === 'approved')
+                    ->pluck('idx')->map('intval')->values()->all();
+                $rejectedIdx = collect($oldDecisions)
+                    ->filter(fn($d) => ($d['action'] ?? '') === 'rejected')
+                    ->pluck('idx')->map('intval')->values()->all();
+            }
+
+            // Ambil data GPS items baru dari request (hanya rejected items yang dikirim)
+            $newGpsItems = $request->input('gps_items', []);
+
+            // Upload lampiran baru ke temp storage
+            foreach ($newGpsItems as $formIdx => $item) {
+                $fileKey = "gps_items.{$formIdx}.lampiran";
+                if ($request->hasFile($fileKey)) {
+                    $files = $request->file($fileKey);
+                    if (!is_array($files)) $files = [$files];
+                    foreach ($files as $li => $file) {
+                        if (!$file->isValid()) continue;
+                        $origIdx = $item['original_idx'] ?? $rejectedIdx[$formIdx] ?? $formIdx;
+                        $storedName = time() . "_{$origIdx}_{$li}_" . $file->getClientOriginalName();
+                        $tempDir    = "purchase_order/temp/{$po->id}/gps/{$origIdx}";
+                        $path       = $file->storeAs($tempDir, $storedName, 'public');
+                        $tempFiles['gps'][$origIdx][] = [
+                            'path'          => $path,
+                            'original_name' => $file->getClientOriginalName(),
+                            'size'          => $file->getSize(),
+                            'extension'     => $file->getClientOriginalExtension(),
+                        ];
+                    }
+                }
+            }
+
+            // Update hanya GPS items yang rejected dengan data baru dari form
+            foreach ($newGpsItems as $formIdx => $newItem) {
+                $origIdx = isset($newItem['original_idx'])
+                    ? (int)$newItem['original_idx']
+                    : ($rejectedIdx[$formIdx] ?? null);
+
+                if ($origIdx !== null && isset($allGpsItems[$origIdx])) {
+                    $allGpsItems[$origIdx] = array_merge($allGpsItems[$origIdx], [
+                        'biaya_sewa'   => (int)($newItem['biaya_sewa'] ?? $allGpsItems[$origIdx]['biaya_sewa'] ?? 0),
+                        'nama_bank'    => $newItem['nama_bank']    ?? $allGpsItems[$origIdx]['nama_bank']    ?? null,
+                        'no_rekening'  => $newItem['no_rekening']  ?? $allGpsItems[$origIdx]['no_rekening']  ?? null,
+                        'nama_pemilik' => $newItem['nama_pemilik'] ?? $allGpsItems[$origIdx]['nama_pemilik'] ?? null,
+                    ]);
+                }
+            }
+
+            // total_harga PO = hanya yang diajukan ulang (rejected items)
+            $totalHargaNew = collect($rejectedIdx)
+                ->sum(fn($origIdx) => (int)($allGpsItems[$origIdx]['biaya_sewa'] ?? 0));
+
+            // Nominal locked (untuk summary card Disetujui)
+            $nominalApprovedLocked = collect($lockedApprovedIdx)
+                ->sum(fn($origIdx) => (int)($allGpsItems[$origIdx]['biaya_sewa'] ?? 0));
+
+            $updatedSourceData = array_merge($sourceData, [
+                'gps_items'               => $allGpsItems,
+                'item_decisions'          => [],             // Clear — akan di-approve ulang
+                'locked_approved_idx'     => array_values($lockedApprovedIdx),
+                'nominal_approved_locked' => $nominalApprovedLocked,
+                'nominal_rejected'        => 0,              // Reset saat resubmit
+                'temp_files'              => $tempFiles,
+                'tanggal_bayar'           => $request->input('tanggal_bayar', $sourceData['tanggal_bayar'] ?? null),
+                'tanggal_habis'           => $request->input('tanggal_habis', $sourceData['tanggal_habis'] ?? null),
+                'keterangan'              => $request->input('keterangan',    $sourceData['keterangan']    ?? null),
+            ]);
+
+            $po->update([
+                'source_data'         => $updatedSourceData,
+                'total_harga'         => $totalHargaNew,
+                'total_barang'        => count($rejectedIdx),
+                'status'              => 'Pending',
+                'catatan_approval'    => null,
+                'disetujui_oleh'      => null,
+                'tanggal_persetujuan' => null,
+                'can_edit'            => false,
+                'terakhir_diajukan'   => now(),
+            ]);
+
+            return response()->json([
+                'success'  => true,
+                'message'  => 'GPS berhasil diajukan ulang. Item yang sudah disetujui tetap terkunci.',
+                'redirect' => route('purchase-order.index', ['status' => 'Pending']),
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error resubmitGpsPartial PO #' . $id . ': ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }

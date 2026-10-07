@@ -797,6 +797,7 @@ class PurchaseOrderApprovalService
                             'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
                             'biaya'               => (int)($kej['biaya'] ?? 0),
                             'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
+                            'status'              => 'diajukan',
                         ]);
                     }
 
@@ -828,6 +829,7 @@ class PurchaseOrderApprovalService
                     'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
                     'biaya'               => (int)($kej['biaya'] ?? 0),
                     'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
+                    'status'              => 'diajukan',
                 ]);
             }
 

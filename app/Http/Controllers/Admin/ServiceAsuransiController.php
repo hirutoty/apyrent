@@ -195,6 +195,11 @@ class ServiceAsuransiController extends Controller
         $kendaraan  = Kendaraan::findOrFail($request->kendaraan_id);
         $keterangan = 'servis asuransi-' . $kendaraan->nopol;
 
+        // CATATAN: field 'biaya' TIDAK diupdate di sini.
+        // Biaya (total biaya kejadian) hanya diperbarui secara otomatis saat keuangan
+        // approve pembayaran — via transferServiceAsuransi() yang menjumlahkan dari
+        // tabel service_asuransi_kejadians. Mengedit langsung di sini akan melewati
+        // alur approval dan menyebabkan inkonsistensi data.
         $data->update([
             'kendaraan_id'      => $request->kendaraan_id,
             'nama_asuransi'     => $request->nama_asuransi ?: null,
@@ -203,7 +208,6 @@ class ServiceAsuransiController extends Controller
             'periode_mulai'     => $request->periode_mulai,
             'periode_selesai'   => $request->periode_selesai,
             'kilometer'         => $request->kilometer,
-            'biaya'             => $request->biaya,
             'keterangan'        => $keterangan,
             'bukti'             => !empty($buktiList)      ? $buktiList      : null,
             'attachment'        => !empty($attachmentList) ? $attachmentList : null,
@@ -467,11 +471,11 @@ class ServiceAsuransiController extends Controller
 
             // item_decisions: pertahankan yang approved, hapus yang rejected
             // (item rejected sekarang diresubmit → tidak ada entry di item_decisions lagi)
-            $preservedItemDecisions = array_values(
-                collect($sourceData['item_decisions'] ?? [])
-                    ->where('action', 'approved')
-                    ->all()
-            );
+            // PENTING: Jangan gunakan array_values() agar idx asli tetap dipertahankan
+            $preservedItemDecisions = collect($sourceData['item_decisions'] ?? [])
+                ->where('action', 'approved')
+                ->values() // reindex ke 0,1,2... tapi pertahankan struktur field 'idx'
+                ->all();
 
             $newSourceData = array_merge($sourceData, [
                 'kejadians'      => $mergedKejadians,
@@ -565,8 +569,34 @@ class ServiceAsuransiController extends Controller
                     ->where('status', 'bermasalah')
                     ->exists();
 
+                $kendaraanUpdate = [];
+
                 if (!$masihBermasalah) {
-                    $data->kendaraan->update(['status_kendaraan' => 'tersedia']);
+                    $kendaraanUpdate['status_kendaraan'] = 'tersedia';
+                }
+
+                // Update kilometer & tanggal terakhir service dari data service asuransi.
+                // Gunakan pola yang sama dengan service history dan pembayaran:
+                // - kilometer_sekarang hanya diupdate jika nilai baru lebih besar
+                // - km_terakhir_service dan tanggal_terakhir_service selalu diupdate
+                $kmBaru = (int) ($data->kilometer ?? 0);
+                if ($kmBaru > 0 && $kmBaru > (int) ($data->kendaraan->kilometer_sekarang ?? 0)) {
+                    $kendaraanUpdate['kilometer_sekarang']  = $kmBaru;
+                    $kendaraanUpdate['km_terakhir_service'] = $kmBaru;
+                }
+
+                if (!empty($data->tanggal_service)) {
+                    $tglExisting = $data->kendaraan->tanggal_terakhir_service
+                        ? \Carbon\Carbon::parse($data->kendaraan->tanggal_terakhir_service)
+                        : null;
+                    $tglBaru = \Carbon\Carbon::parse($data->tanggal_service);
+                    if (!$tglExisting || $tglBaru->gte($tglExisting)) {
+                        $kendaraanUpdate['tanggal_terakhir_service'] = $data->tanggal_service;
+                    }
+                }
+
+                if (!empty($kendaraanUpdate)) {
+                    $data->kendaraan->update($kendaraanUpdate);
                 }
             } else {
                 $data->kendaraan->update(['status_kendaraan' => 'bermasalah']);

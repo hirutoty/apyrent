@@ -601,7 +601,7 @@
                                     <div class="flex-shrink-0 mt-0.5">
                                         <span x-show="!itemDecisions[idx]?.action"
                                               class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                                            <i class="fa-solid fa-circle text-[6px]"></i> Pending
+                                            <i class="fa-solid fa-circle text-[6px]"></i> Diajukan
                                         </span>
                                         <span x-show="itemDecisions[idx]?.action === 'approved'"
                                               class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
@@ -1224,10 +1224,20 @@ function approvalModal() {
 
             this.itemDecisions.forEach((decision, idx) => {
                 if (decision.action === null) return;
-                formData.append(`items[${idx}][action]`,  decision.action);
-                formData.append(`items[${idx}][catatan]`, decision.catatan || '');
+                // Untuk service_asuransi: gunakan _original_idx agar backend bisa
+                // mapping keputusan ke kejadian yang benar di source_data asli.
+                // Ini penting setelah filtering yang me-reindex array kejadians.
+                let formIdx = idx;
+                if (this.data?.source_type === 'service_asuransi') {
+                    const kej = (this.sourceData?.kejadians || [])[idx];
+                    if (kej?._original_idx !== undefined && kej?._original_idx !== null) {
+                        formIdx = kej._original_idx;
+                    }
+                }
+                formData.append(`items[${formIdx}][action]`,  decision.action);
+                formData.append(`items[${formIdx}][catatan]`, decision.catatan || '');
                 if (decision.buktiFile) {
-                    formData.append(`items[${idx}][bukti]`, decision.buktiFile);
+                    formData.append(`items[${formIdx}][bukti]`, decision.buktiFile);
                 }
             });
 

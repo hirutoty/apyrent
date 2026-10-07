@@ -6,7 +6,9 @@
 
     @php
         $jumlahService = $data->count();
-        $totalBiaya = $data->sum(fn($d) => $d->kejadians->where('status', '!=', 'ditolak')->sum('biaya'));
+        // Total Biaya: HANYA dari kejadian yang sudah disetujui (dibayar)
+        // Kejadian pending/diajukan TIDAK dihitung
+        $totalBiaya = $data->sum(fn($d) => $d->kejadians->where('status', 'disetujui')->sum('biaya'));
         $jumlahBermasalah = $data->where('status', 'bermasalah')->count();
         $jumlahSelesai    = $data->where('status', 'selesai')->count();
         $jumlahTidakAktif = $data->where('status', 'tidak_aktif')->count();
@@ -189,14 +191,20 @@
                     <tbody id="serviceTableBody">
                     @forelse($data as $d)
                         @php
-                            $kejadianCount    = $d->kejadians->count();
                             $kejadianDisetujui = $d->kejadians->where('status', 'disetujui')->count();
                             $kejadianDitolak   = $d->kejadians->where('status', 'ditolak')->count();
+                            $kejadianDiajukan  = $d->kejadians->whereIn('status', ['diajukan', null])->count();
+                            // Tampilkan semua kejadian (disetujui, ditolak, diajukan)
+                            $kejadianCount     = $kejadianDisetujui + $kejadianDitolak + $kejadianDiajukan;
                             $isPartial         = $kejadianDisetujui > 0 && $kejadianDitolak > 0;
-                            // Biaya hanya dari yang disetujui (jika ada keputusan); fallback ke semua
-                            $totalKejadian = ($kejadianDisetujui > 0 || $kejadianDitolak > 0)
-                                ? $d->kejadians->where('status', 'disetujui')->sum('biaya')
-                                : $d->kejadians->sum('biaya');
+                            $hasPending        = $kejadianDiajukan > 0;
+                            
+                            // PENTING: Total biaya HANYA dari yang sudah disetujui (dibayar)
+                            // Kejadian pending/diajukan TIDAK dihitung ke total
+                            $totalKejadian = $d->kejadians->where('status', 'disetujui')->sum('biaya');
+                            
+                            // Nominal pending (untuk ditampilkan terpisah, bukan dijumlahkan ke total)
+                            $nominalPending = $d->kejadians->whereIn('status', ['diajukan', null])->sum('biaya');
                         @endphp
                             <tr class="border-t border-gray-100 odd:bg-white even:bg-gray-50 hover:bg-blue-50/40 transition-colors duration-100 cursor-pointer"
                                 onclick="toggleKejadianRow('kejadian-row-{{ $d->id }}', this)">
@@ -272,11 +280,38 @@
 
                                     {{-- BIAYA --}}
                                     <td class="px-5 py-4 whitespace-nowrap">
-                                        <span class="text-sm font-semibold text-gray-800">
-                                            Rp {{ number_format($totalKejadian, 0, ',', '.') }}
-                                        </span>
-                                        @if($isPartial)
-                                            <p class="text-[10px] text-gray-400 mt-0.5">dari {{ $kejadianDisetujui }} kejadian</p>
+                                        @if($hasPending && $totalKejadian > 0)
+                                            {{-- Ada yang sudah dibayar DAN ada yang pending --}}
+                                            <div class="flex flex-col gap-0.5">
+                                                <div>
+                                                    <span class="text-xs text-gray-400">Total dibayar:</span>
+                                                    <span class="text-sm font-semibold text-green-600 block">
+                                                        Rp {{ number_format($totalKejadian, 0, ',', '.') }}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span class="text-xs text-amber-500">Pending:</span>
+                                                    <span class="text-xs font-medium text-amber-600">
+                                                        Rp {{ number_format($nominalPending, 0, ',', '.') }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        @elseif($hasPending)
+                                            {{-- Hanya ada pending, belum ada yang dibayar --}}
+                                            <div class="flex flex-col gap-0.5">
+                                                <span class="text-xs text-amber-500">Pending:</span>
+                                                <span class="text-sm font-semibold text-amber-600">
+                                                    Rp {{ number_format($nominalPending, 0, ',', '.') }}
+                                                </span>
+                                            </div>
+                                        @else
+                                            {{-- Hanya tampilkan total yang sudah dibayar --}}
+                                            <span class="text-sm font-semibold text-gray-800">
+                                                Rp {{ number_format($totalKejadian, 0, ',', '.') }}
+                                            </span>
+                                            @if($isPartial)
+                                                <p class="text-[10px] text-gray-400 mt-0.5">dari {{ $kejadianDisetujui }} kejadian</p>
+                                            @endif
                                         @endif
                                     </td>
 
@@ -320,9 +355,16 @@
                                                 <i class="fa fa-check-circle text-[10px]"></i> Disetujui
                                             </span>
                                         @elseif($prst === 'Diajukan ke Pembayaran')
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                                                <i class="fa fa-paper-plane text-[10px]"></i> Di Pembayaran
-                                            </span>
+                                            <div class="flex flex-col gap-1">
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                                                    <i class="fa fa-paper-plane text-[10px]"></i> Di Pembayaran
+                                                </span>
+                                                @if($hasPending)
+                                                    <span class="text-[10px] text-amber-600">
+                                                        {{ $kejadianDiajukan }} item pending
+                                                    </span>
+                                                @endif
+                                            </div>
                                         @elseif($prst === 'Ditolak')
                                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
                                                 <i class="fa fa-times-circle text-[10px]"></i> Ditolak
@@ -400,9 +442,14 @@
                                                                 $kejStatus      = $kej->status ?? 'diajukan';
                                                                 $isKejDitolak   = $kejStatus === 'ditolak';
                                                                 $isKejDisetujui = $kejStatus === 'disetujui';
+                                                                $isKejDiajukan  = in_array($kejStatus, ['diajukan', null]);
+                                                                
+                                                                // Row background: merah untuk ditolak, amber untuk diajukan (pending), putih/abu untuk yang lain
                                                                 $rowBg = $isKejDitolak
                                                                     ? 'bg-red-50/60'
-                                                                    : ($loop->even ? 'bg-white' : 'bg-slate-50');
+                                                                    : ($isKejDiajukan 
+                                                                        ? 'bg-amber-50/70' 
+                                                                        : ($loop->even ? 'bg-white' : 'bg-slate-50'));
                                                             @endphp
                                                             <tr class="border-t border-slate-100 {{ $rowBg }}">
                                                                 <td class="px-3 py-2 text-gray-400">{{ $i + 1 }}</td>
@@ -419,6 +466,10 @@
                                                                             <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 border border-green-200">
                                                                                 <i class="fa fa-check text-[8px]"></i> Disetujui
                                                                             </span>
+                                                                        @elseif($isKejDiajukan)
+                                                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-300">
+                                                                                <i class="fa fa-clock text-[8px]"></i> Diajukan
+                                                                            </span>
                                                                         @endif
                                                                     </div>
                                                                     @if($isKejDitolak && $kej->catatan_penolakan)
@@ -426,8 +477,8 @@
                                                                     @endif
                                                                 </td>
 
-                                                                {{-- Biaya: coret jika ditolak --}}
-                                                                <td class="px-3 py-2 text-right font-semibold {{ $isKejDitolak ? 'text-red-400 line-through' : 'text-gray-700' }}">
+                                                                {{-- Biaya: coret jika ditolak, highlight amber jika diajukan --}}
+                                                                <td class="px-3 py-2 text-right font-semibold {{ $isKejDitolak ? 'text-red-400 line-through' : ($isKejDiajukan ? 'text-amber-600' : 'text-gray-700') }}">
                                                                     Rp {{ number_format($kej->biaya, 0, ',', '.') }}
                                                                 </td>
 
@@ -509,7 +560,14 @@
                                                         <tr class="bg-slate-100 border-t border-slate-200">
                                                             <td colspan="2" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total:</td>
                                                             <td class="px-3 py-2 text-right text-xs font-bold text-gray-800">
-                                                                Rp {{ number_format($d->kejadians->where('status', '!=', 'ditolak')->sum('biaya'), 0, ',', '.') }}
+                                                                @php
+                                                                    // Konsisten dengan logika header: kalau sudah ada keputusan (disetujui/ditolak),
+                                                                    // total hanya dari yang disetujui. Kalau semua masih 'diajukan'/null, sum semua.
+                                                                    $tfootTotal = ($kejadianDisetujui > 0 || $kejadianDitolak > 0)
+                                                                        ? $d->kejadians->where('status', 'disetujui')->sum('biaya')
+                                                                        : $d->kejadians->sum('biaya');
+                                                                @endphp
+                                                                Rp {{ number_format($tfootTotal, 0, ',', '.') }}
                                                                 @if($kejadianDitolak > 0)
                                                                     <p class="text-[10px] font-normal text-red-400 mt-0.5">
                                                                         {{ $kejadianDitolak }} ditolak (Rp {{ number_format($d->kejadians->where('status','ditolak')->sum('biaya'), 0,',','.') }})
