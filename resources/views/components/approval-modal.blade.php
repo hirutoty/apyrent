@@ -1227,11 +1227,18 @@ function approvalModal() {
                 // Untuk service_asuransi: gunakan _original_idx agar backend bisa
                 // mapping keputusan ke kejadian yang benar di source_data asli.
                 // Ini penting setelah filtering yang me-reindex array kejadians.
+                // Sama berlaku untuk service_incident dan service_part setelah filtering parts.
                 let formIdx = idx;
                 if (this.data?.source_type === 'service_asuransi') {
                     const kej = (this.sourceData?.kejadians || [])[idx];
                     if (kej?._original_idx !== undefined && kej?._original_idx !== null) {
                         formIdx = kej._original_idx;
+                    }
+                } else if (this.data?.source_type === 'service_incident' || this.data?.source_type === 'service_part') {
+                    // parts juga di-filter dan di-reindex setelah approved items dihapus
+                    const part = (this.sourceData?.parts || [])[idx];
+                    if (part?._original_idx !== undefined && part?._original_idx !== null) {
+                        formIdx = part._original_idx;
                     }
                 }
                 formData.append(`items[${formIdx}][action]`,  decision.action);

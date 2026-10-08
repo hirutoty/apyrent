@@ -148,14 +148,21 @@ class PembayaranController extends Controller
             if ($item->status === 'Diajukan' && !$itemDecisions->isEmpty()) {
                 if ($tab === 'Disetujui') {
                     // Di tab Disetujui: hanya tampilkan item approved
+                    // Item pending (sudah di-resubmit) TIDAK ditampilkan di sini
                     $pendingCount  = 0;
                     $rejectedCount = 0;
                 } elseif ($tab === 'Diajukan') {
-                    // Di tab Diajukan: hanya tampilkan item pending (belum diputuskan)
+                    // Di tab Diajukan: hanya tampilkan item pending (belum diputuskan / sudah di-resubmit)
+                    // Item approved lama tidak ditampilkan di tab ini
                     $approvedCount = 0;
                     $rejectedCount = 0;
                 }
             }
+
+            // ── Tambahan: PR status Disetujui + ada item pending (resubmit) ──
+            // Setelah resubmit partial, PR status bisa = Diajukan dengan item_decisions
+            // berisi hanya approved lama. pendingCount menghitung item yang tidak ada di decisions.
+            // Badge per tab sudah benar dari blok di atas.
 
             // Attach badge_stats ke item
             $item->badge_stats = [
@@ -1613,10 +1620,51 @@ class PembayaranController extends Controller
 
         // Normalisasi biaya/biaya_sewa ke integer agar tidak ada string concatenation di JS
         if (!empty($sourceDataForClient['parts']) && is_array($sourceDataForClient['parts'])) {
-            foreach ($sourceDataForClient['parts'] as &$p) {
-                if (isset($p['biaya'])) $p['biaya'] = (int) $p['biaya'];
+            // ── Filter: keluarkan parts yang sudah diputuskan (approved) untuk service_incident ──
+            // Modal approval hanya boleh menampilkan parts yang BELUM diputuskan.
+            if (in_array($pembayaran->source_type, ['service_part', 'service_incident'])) {
+                $decidedPartsIdx = collect($sourceData['item_decisions'] ?? [])
+                    ->unique('idx')
+                    ->pluck('idx')
+                    ->map('intval')
+                    ->flip()
+                    ->all();
+
+                // Fallback DB untuk service_incident: skip parts yang sudah Disetujui di DB
+                $dbApprovedPartNames = [];
+                if ($pembayaran->source_type === 'service_incident') {
+                    $siIdForModal = $sourceData['service_incident_id'] ?? null;
+                    if (!$siIdForModal) {
+                        $siForModal = \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)->first();
+                        $siIdForModal = $siForModal?->id;
+                    }
+                    if ($siIdForModal) {
+                        $dbApprovedPartNames = \App\Models\ServiceIncidentPart::where('service_incident_id', $siIdForModal)
+                            ->where('persetujuan', 'Disetujui')
+                            ->pluck('nama_part')
+                            ->flip()
+                            ->all();
+                    }
+                }
+
+                $filteredParts = [];
+                foreach ($sourceDataForClient['parts'] as $idx => $p) {
+                    // Skip jika sudah ada keputusan approved di item_decisions
+                    if (isset($decidedPartsIdx[(int)$idx])) continue;
+                    // Fallback DB: skip jika sudah Disetujui di tabel
+                    $namaPart = $p['nama_part'] ?? '';
+                    if ($namaPart && isset($dbApprovedPartNames[$namaPart])) continue;
+                    if (isset($p['biaya'])) $p['biaya'] = (int) $p['biaya'];
+                    $p['_original_idx'] = (int) $idx; // simpan index asli agar backend bisa pakai
+                    $filteredParts[] = $p;
+                }
+                $sourceDataForClient['parts'] = $filteredParts;
+            } else {
+                foreach ($sourceDataForClient['parts'] as &$p) {
+                    if (isset($p['biaya'])) $p['biaya'] = (int) $p['biaya'];
+                }
+                unset($p);
             }
-            unset($p);
         }
         if (!empty($sourceDataForClient['kejadians']) && is_array($sourceDataForClient['kejadians'])) {
             // ── Filter: keluarkan kejadian yang sudah diputuskan (approved/rejected) ──
@@ -3318,12 +3366,18 @@ class PembayaranController extends Controller
             'total_source_items' => count($sourceData['kejadians'] ?? $sourceData['parts'] ?? $sourceData['gps_items'] ?? []),
         ]);
 
-        // ── Fallback: cek juga dari bukti_bayar_admin per kejadian ──────────
+        // ── Fallback: cek juga dari bukti_bayar_admin per item ─────────────
         // Untuk data lama yang item_decisions-nya belum tersimpan dengan benar,
         // item yang sudah punya bukti_bayar_admin = sudah pernah diapprove.
         if ($srcType === 'service_asuransi') {
             foreach ($sourceData['kejadians'] ?? [] as $idx => $kej) {
                 if (!empty($kej['bukti_bayar_admin'])) {
+                    $alreadyDecidedIdx[(int)$idx] = (int)$idx;
+                }
+            }
+        } elseif (in_array($srcType, ['service_part', 'service_incident'])) {
+            foreach ($sourceData['parts'] ?? [] as $idx => $part) {
+                if (!empty($part['bukti_bayar_admin'])) {
                     $alreadyDecidedIdx[(int)$idx] = (int)$idx;
                 }
             }
@@ -3467,7 +3521,7 @@ class PembayaranController extends Controller
         foreach ($rejectedDecisions as $decision) {
             $idx = (int) ($decision['idx'] ?? 0);
 
-            if (in_array($srcType, ['service_part', 'service_incident'])) {
+            if ($srcType === 'service_part') {
                 $part = $sourceData['parts'][$idx] ?? [];
                 $items[] = [
                     'idx'           => $idx,
@@ -3478,6 +3532,17 @@ class PembayaranController extends Controller
                     'nama_rekening' => $part['nama_rekening'] ?? '',
                     'supplier_id'   => $part['supplier_id'] ?? null,
                     'keterangan'    => $part['keterangan'] ?? '',
+                    'catatan_tolak' => $decision['catatan'] ?? '',
+                ];
+            } elseif ($srcType === 'service_incident') {
+                $part = $sourceData['parts'][$idx] ?? [];
+                $items[] = [
+                    'idx'           => $idx,
+                    'nama'          => $part['nama_part'] ?? '-',
+                    'biaya'         => (int) ($part['biaya'] ?? 0),
+                    'nama_bank'     => $part['nama_bank'] ?? '',
+                    'no_rekening'   => $part['no_rekening'] ?? '',
+                    'nama_rekening' => $part['nama_rekening'] ?? '',
                     'catatan_tolak' => $decision['catatan'] ?? '',
                 ];
             } elseif ($srcType === 'service_asuransi') {
@@ -3533,12 +3598,16 @@ class PembayaranController extends Controller
             'items.*.biaya' => 'required|integer|min:0',
         ];
 
-        if (in_array($srcType, ['service_part', 'service_incident'])) {
+        if ($srcType === 'service_part') {
             $rules['items.*.nama_bank']     = 'nullable|string|max:100';
             $rules['items.*.no_rekening']   = 'nullable|string|max:50';
             $rules['items.*.nama_rekening'] = 'nullable|string|max:150';
             $rules['items.*.supplier_id']   = 'nullable|integer|exists:supplier,id';
             $rules['items.*.keterangan']    = 'nullable|string|max:500';
+        } elseif ($srcType === 'service_incident') {
+            $rules['items.*.nama_bank']     = 'nullable|string|max:100';
+            $rules['items.*.no_rekening']   = 'nullable|string|max:50';
+            $rules['items.*.nama_rekening'] = 'nullable|string|max:150';
         } elseif ($srcType === 'service_asuransi') {
             $rules['items.*.keterangan'] = 'nullable|string|max:500';
         }
@@ -3565,7 +3634,7 @@ class PembayaranController extends Controller
             foreach ($request->items as $item) {
                 $idx = (int) $item['idx'];
 
-                if (in_array($srcType, ['service_part', 'service_incident'])) {
+                if ($srcType === 'service_part') {
                     if (isset($sourceData['parts'][$idx])) {
                         $sourceData['parts'][$idx]['biaya']         = (int) $item['biaya'];
                         $sourceData['parts'][$idx]['nama_bank']     = $item['nama_bank'] ?? $sourceData['parts'][$idx]['nama_bank'] ?? null;
@@ -3573,6 +3642,16 @@ class PembayaranController extends Controller
                         $sourceData['parts'][$idx]['nama_rekening'] = $item['nama_rekening'] ?? $sourceData['parts'][$idx]['nama_rekening'] ?? null;
                         $sourceData['parts'][$idx]['supplier_id']   = $item['supplier_id'] ?? $sourceData['parts'][$idx]['supplier_id'] ?? null;
                         $sourceData['parts'][$idx]['keterangan']    = $item['keterangan'] ?? $sourceData['parts'][$idx]['keterangan'] ?? null;
+                        // Hapus flag rejection lama
+                        unset($sourceData['parts'][$idx]['status_approval']);
+                        unset($sourceData['parts'][$idx]['catatan_penolakan']);
+                    }
+                } elseif ($srcType === 'service_incident') {
+                    if (isset($sourceData['parts'][$idx])) {
+                        $sourceData['parts'][$idx]['biaya']         = (int) $item['biaya'];
+                        $sourceData['parts'][$idx]['nama_bank']     = $item['nama_bank'] ?? $sourceData['parts'][$idx]['nama_bank'] ?? null;
+                        $sourceData['parts'][$idx]['no_rekening']   = $item['no_rekening'] ?? $sourceData['parts'][$idx]['no_rekening'] ?? null;
+                        $sourceData['parts'][$idx]['nama_rekening'] = $item['nama_rekening'] ?? $sourceData['parts'][$idx]['nama_rekening'] ?? null;
                         // Hapus flag rejection lama
                         unset($sourceData['parts'][$idx]['status_approval']);
                         unset($sourceData['parts'][$idx]['catatan_penolakan']);
@@ -3643,19 +3722,44 @@ class PembayaranController extends Controller
                 $poSourceData = $po->source_data ?? [];
 
                 // Update bagian source_data PO sesuai source_type
+                // PENTING: jangan replace parts/kejadians, merge data terbaru ke parts existing
+                // agar count total items tetap benar (tidak hilang parts yang approved)
                 if (in_array($srcType, ['service_part', 'service_incident'])) {
-                    $poSourceData['parts'] = $sourceData['parts'];
+                    // Ambil parts dari PO yang existing (mungkin sudah ada locked)
+                    $existingPoParts = $poSourceData['parts'] ?? [];
+                    // Merge: update parts yang diresubmit + tetap simpan approved yang tidak diresubmit
+                    foreach ($sourceData['parts'] as $idx => $part) {
+                        $existingPoParts[$idx] = $part;
+                    }
+                    $poSourceData['parts'] = $existingPoParts;
                 } elseif ($srcType === 'service_asuransi') {
-                    $poSourceData['kejadians'] = $sourceData['kejadians'];
+                    // Sama untuk service_asuransi kejadians
+                    $existingPoKej = $poSourceData['kejadians'] ?? [];
+                    foreach ($sourceData['kejadians'] as $idx => $kej) {
+                        $existingPoKej[$idx] = $kej;
+                    }
+                    $poSourceData['kejadians'] = $existingPoKej;
                 }
 
                 // Reset item_decisions PO agar item yang diresubmit muncul kembali sebagai pending
-                $poSourceData['item_decisions'] = $sourceData['item_decisions'];
+                $poSourceData['item_decisions']   = $sourceData['item_decisions'];
+                $poSourceData['nominal_approved'] = $nominalApproved;
+                $poSourceData['nominal_rejected'] = 0;
+
+                // Update nominal_approved_locked agar view PO bisa hitung nominal header dengan benar
+                // nominal_approved_locked = biaya item yang sudah approved dan tidak ikut resubmit
+                $poSourceData['nominal_approved_locked'] = $nominalApproved;
+
+                // Update locked_approved_idx = idx yang ada di item_decisions (approved lama)
+                $poSourceData['locked_approved_idx'] = array_values(
+                    array_column($sourceData['item_decisions'], 'idx')
+                );
 
                 $po->update([
                     'source_data' => $poSourceData,
                     'total_harga' => $nominalBaru,
                     'can_edit'    => false,
+                    // Tidak ubah status PO — hanya update nominal dan source_data
                 ]);
             }
 
@@ -3695,7 +3799,63 @@ class PembayaranController extends Controller
                     }
                 }
 
-            } elseif (in_array($srcType, ['service_part', 'service_incident'])) {
+            } elseif ($srcType === 'service_incident') {
+                // Sync ke service_incidents + service_incident_parts (mirip pola service_asuransi)
+                $siId = $sourceData['service_incident_id'] ?? null;
+                if (!$siId) {
+                    // Fallback: cari via pembayaran_id
+                    $si = \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)->first();
+                    $siId = $si?->id;
+                }
+                if ($siId) {
+                    // Reset persetujuan incident ke Diajukan ke Pembayaran
+                    \App\Models\ServiceIncident::where('id', $siId)
+                        ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
+
+                    // Fallback: pastikan semua incident terkait ikut direset
+                    \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)
+                        ->whereIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
+                        ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
+
+                    // Update biaya + bank per part yang diresubmit di service_incident_parts
+                    foreach ($request->items as $item) {
+                        $idx      = (int) $item['idx'];
+                        // Ambil data terbaru dari source_data yang sudah diupdate di atas
+                        $part     = $sourceData['parts'][$idx] ?? [];
+                        $namaPart = $part['nama_part'] ?? null;
+                        \Log::info("resubmit service_incident part update", [
+                            'siId'         => $siId,
+                            'idx'          => $idx,
+                            'nama_part'    => $namaPart,
+                            'biaya_baru'   => (int) $item['biaya'],
+                            'nama_bank'    => $item['nama_bank'] ?? null,
+                            'no_rekening'  => $item['no_rekening'] ?? null,
+                        ]);
+                        if ($namaPart) {
+                            $affected = \App\Models\ServiceIncidentPart::where('service_incident_id', $siId)
+                                ->where('nama_part', $namaPart)
+                                // Tidak filter persetujuan agar bisa menangkap semua status
+                                // (Ditolak Pembayaran, Diajukan ke Pembayaran, Pending)
+                                ->update([
+                                    'biaya'         => (int) $item['biaya'],
+                                    'nama_bank'     => $item['nama_bank']     ?? $part['nama_bank']     ?? null,
+                                    'no_rekening'   => $item['no_rekening']   ?? $part['no_rekening']   ?? null,
+                                    'nama_rekening' => $item['nama_rekening'] ?? $part['nama_rekening'] ?? null,
+                                    'persetujuan'   => 'Diajukan ke Pembayaran',
+                                ]);
+                            \Log::info("resubmit service_incident part affected rows: " . $affected);
+                        }
+                    }
+
+                    // Recalculate total_biaya incident dari parts yang aktif
+                    $totalBiayaBaru = \App\Models\ServiceIncidentPart::where('service_incident_id', $siId)
+                        ->whereNotIn('persetujuan', ['Ditolak Pembayaran'])
+                        ->sum('biaya');
+                    \App\Models\ServiceIncident::where('id', $siId)
+                        ->update(['total_biaya' => $totalBiayaBaru]);
+                }
+
+            } elseif ($srcType === 'service_part') {
                 // Reset persetujuan service_history & parts agar muncul kembali di antrian
                 \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)
                     ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
@@ -3724,30 +3884,12 @@ class PembayaranController extends Controller
                         ->sum('biaya');
                     $sh->update(['total_biaya' => $totalBiayaBaru]);
                 }
-
-                // Khusus service_incident: reset persetujuan incident
-                if ($srcType === 'service_incident') {
-                    $siId = ($pembayaran->source_data ?? [])['service_incident_id'] ?? null;
-                    if ($siId) {
-                        \App\Models\ServiceIncident::where('id', $siId)
-                            ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
-                    }
-                    \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)
-                        ->whereIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
-                        ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
-                }
             }
 
             DB::commit();
 
-            // Redirect: service_incident → halaman servis insiden
+            // Redirect: service_incident → pembayaran.index (samakan SA)
             // service_part → service history
-            if ($srcType === 'service_incident') {
-                return redirect()
-                    ->route('service-incident.index')
-                    ->with('success', 'Item berhasil diajukan ulang. Item yang ditolak pada PR ' . $pembayaran->no_pr . ' sudah kembali ke antrian approval.');
-            }
-
             if ($srcType === 'service_part') {
                 return redirect()
                     ->route('service-history.index', ['highlight_pembayaran' => $pembayaran->id])

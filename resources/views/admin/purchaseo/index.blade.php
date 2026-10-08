@@ -225,6 +225,10 @@
                         $_sd    = $_po->source_data ?? [];
                         $_gpsI  = $_sd['gps_items'] ?? [];
                         $_dec   = $_sd['item_decisions'] ?? [];
+                        $_parts = $_sd['parts'] ?? [];
+                        $_kejad = $_sd['kejadians'] ?? [];
+                        $_locked = array_map('intval', $_sd['locked_approved_idx'] ?? []);
+
                         if (!empty($_gpsI)) {
                             if (!empty($_dec)) {
                                 // Sudah ada keputusan per item
@@ -261,8 +265,53 @@
                                     $nominalRejected += $_poNom;
                                 }
                             }
+                        } elseif (!empty($_parts) && in_array($_po->source_type, ['service_part', 'service_incident'])) {
+                            // service_part / service_incident: hitung per-part
+                            $_decMap = collect($_dec)->keyBy(fn($d) => (int)($d['idx'] ?? -1));
+                            foreach ($_parts as $_pi => $_part) {
+                                $_iNom = (int)($_part['biaya'] ?? 0);
+                                if ($_decMap->has((int)$_pi) && ($_decMap[(int)$_pi]['action'] ?? '') === 'approved') {
+                                    $grpApproved++;
+                                    $nominalApproved += $_iNom;
+                                } elseif ($_decMap->has((int)$_pi) && ($_decMap[(int)$_pi]['action'] ?? '') === 'rejected') {
+                                    $grpRejected++;
+                                    $nominalRejected += $_iNom;
+                                } elseif (in_array((int)$_pi, $_locked)) {
+                                    // Item locked (approved dari partial sebelumnya, tidak ada di decisions lagi)
+                                    $grpApproved++;
+                                    $nominalApproved += $_iNom;
+                                } elseif ($_po->status === 'Disetujui') {
+                                    $grpApproved++;
+                                    $nominalApproved += $_iNom;
+                                } else {
+                                    $grpPending++;
+                                    $nominalPending += $_iNom;
+                                }
+                            }
+                        } elseif (!empty($_kejad) && $_po->source_type === 'service_asuransi') {
+                            // service_asuransi: hitung per-kejadian
+                            $_decMap = collect($_dec)->keyBy(fn($d) => (int)($d['idx'] ?? -1));
+                            foreach ($_kejad as $_ki => $_kej) {
+                                $_iNom = (int)($_kej['biaya'] ?? 0);
+                                if ($_decMap->has((int)$_ki) && ($_decMap[(int)$_ki]['action'] ?? '') === 'approved') {
+                                    $grpApproved++;
+                                    $nominalApproved += $_iNom;
+                                } elseif ($_decMap->has((int)$_ki) && ($_decMap[(int)$_ki]['action'] ?? '') === 'rejected') {
+                                    $grpRejected++;
+                                    $nominalRejected += $_iNom;
+                                } elseif (in_array((int)$_ki, $_locked)) {
+                                    $grpApproved++;
+                                    $nominalApproved += $_iNom;
+                                } elseif ($_po->status === 'Disetujui') {
+                                    $grpApproved++;
+                                    $nominalApproved += $_iNom;
+                                } else {
+                                    $grpPending++;
+                                    $nominalPending += $_iNom;
+                                }
+                            }
                         } else {
-                            // Non-GPS: 1 PO = 1 item
+                            // Non-GPS / fallback: 1 PO = 1 item
                             $_poNom = (int)($_po->total_harga ?? 0);
                             if ($_po->status === 'Pending') {
                                 $grpPending++;
@@ -409,17 +458,51 @@
                                                     $_poApproved = $_poDecColl->where('action', 'approved')->count();
                                                     $_poRejected = $_poDecColl->where('action', 'rejected')->count();
 
-                                                    // Tambahkan locked_approved_idx ke count approved
-                                                    // (item yang sudah diapprove di partial sebelumnya, tidak ada di item_decisions)
-                                                    $_poLockedIdx = $po->source_data['locked_approved_idx'] ?? [];
-                                                    $_poApproved += count($_poLockedIdx);
+                                                    // Tambahkan locked_approved_idx yang TIDAK ada di item_decisions.
+                                                    $_poLockedIdx   = $po->source_data['locked_approved_idx'] ?? [];
+                                                    $_decIdxSet     = $_poDecColl->keys()->map('intval')->all();
+                                                    $_lockedNotInDec = array_filter(
+                                                        array_map('intval', $_poLockedIdx),
+                                                        fn($i) => !in_array($i, $_decIdxSet)
+                                                    );
+                                                    $_poApproved += count($_lockedNotInDec);
+
+                                                    // PO Disetujui tanpa item_decisions dan tanpa locked = full approve
+                                                    // Semua items dianggap approved
+                                                    if ($po->status === 'Disetujui' && $_poApproved === 0 && empty($_poDec) && empty($_poLockedIdx)) {
+                                                        $_poApproved = $_poTotalItems;
+                                                    }
+                                                    
+                                                    // Fix untuk data legacy: PO Disetujui dengan item_decisions tapi tidak ada rejected
+                                                    // dan total approved + locked < total items → assume sisanya juga approved
+                                                    if ($po->status === 'Disetujui' && $_poRejected === 0 && ($_poApproved < $_poTotalItems)) {
+                                                        $_poApproved = $_poTotalItems;
+                                                    }
 
                                                     // Untuk PO Pending yang muncul di tab Disetujui (partial resubmit):
                                                     // hanya tampilkan item locked (yang sudah diapprove sebelumnya)
                                                     if ($statusFilter === 'Disetujui' && $po->status === 'Pending' && !empty($_poLockedIdx)) {
+                                                        // Tab Disetujui: hanya item locked yang relevan
                                                         $_poBadgeApproved = count($_poLockedIdx);
                                                         $_poBadgePending  = 0;
                                                         $_poBadgeRejected = 0;
+                                                    } elseif ($statusFilter === 'Disetujui') {
+                                                        // Tab Disetujui normal: hanya tampilkan item approved (locked + decisions approved)
+                                                        $_poBadgeApproved = $_poApproved;
+                                                        $_poBadgePending  = 0;
+                                                        $_poBadgeRejected = 0;
+                                                    } elseif ($statusFilter === 'Pending' && !empty($_poLockedIdx)) {
+                                                        // Tab Pending: hanya tampilkan item yang belum diapprove (pending)
+                                                        // Sembunyikan badge approved agar tidak membingungkan
+                                                        $_pendingCount    = $_poTotalItems - count($_poLockedIdx) - $_poRejected;
+                                                        $_poBadgeApproved = 0;
+                                                        $_poBadgePending  = max(0, $_pendingCount);
+                                                        $_poBadgeRejected = 0;
+                                                    } elseif ($statusFilter === 'Ditolak') {
+                                                        // Tab Ditolak: hanya tampilkan item rejected saja
+                                                        $_poBadgeApproved = 0;
+                                                        $_poBadgePending  = 0;
+                                                        $_poBadgeRejected = $_poRejected;
                                                     } else {
                                                         $_poBadgeApproved = $_poApproved;
                                                         $_poBadgePending  = $_poTotalItems - $_poApproved - $_poRejected;
@@ -484,47 +567,121 @@
                                                     $_poNomShow = $statusFilter === 'Ditolak' ? $_poNomRej : $_poNomAppr;
                                                 } elseif (!empty($_poDec2) && !empty($_poParts2)) {
                                                     // Service Part/Incident with item_decisions
-                                                    $_decColl2  = collect($_poDec2)->keyBy('idx');
-                                                    $_poNomAppr = collect($_poParts2)
-                                                        ->filter(fn($p, $i) => ($_decColl2[$i]['action'] ?? '') === 'approved')
+                                                    $_decColl2   = collect($_poDec2)->keyBy('idx');
+                                                    $_lockedIdx2 = array_map('intval', $po->source_data['locked_approved_idx'] ?? []);
+                                                    
+                                                    // Hitung approved: dari decisions + locked yang tidak ada di decisions
+                                                    // IMPORTANT: Gunakan parts actual untuk mendapat biaya terbaru (setelah resubmit)
+                                                    $_poNomAppr  = collect($_poParts2)
+                                                        ->filter(fn($p, $i) =>
+                                                            ($_decColl2[$i]['action'] ?? '') === 'approved'
+                                                            || (in_array($i, $_lockedIdx2) && !$_decColl2->has($i))
+                                                        )
                                                         ->sum(fn($p) => $p['biaya'] ?? 0);
-                                                    $_poNomRej  = collect($_poParts2)
+                                                    
+                                                    $_poNomRej   = collect($_poParts2)
                                                         ->filter(fn($p, $i) => ($_decColl2[$i]['action'] ?? '') !== 'approved' && $_decColl2->has($i))
                                                         ->sum(fn($p) => $p['biaya'] ?? 0);
-                                                    $_poNomShow = $statusFilter === 'Ditolak' ? $_poNomRej : $_poNomAppr;
+                                                    
+                                                    // Hitung pending: parts yang tidak ada di decisions (belum diputuskan)
+                                                    $_poNomPend = collect($_poParts2)
+                                                        ->filter(fn($p, $i) => !$_decColl2->has($i) && !in_array($i, $_lockedIdx2))
+                                                        ->sum(fn($p) => $p['biaya'] ?? 0);
+
+                                                    // PO Pending yang muncul di tab Disetujui (partial resubmit):
+                                                    // hanya tampilkan nominal locked (yang sudah diapprove sebelumnya)
+                                                    if ($statusFilter === 'Disetujui' && $po->status === 'Pending' && !empty($_lockedIdx2)) {
+                                                        // Hitung dari parts actual yang locked, bukan dari nominal_approved_locked
+                                                        $_poNomShow = collect($_poParts2)
+                                                            ->filter(fn($p, $i) => in_array($i, $_lockedIdx2))
+                                                            ->sum(fn($p) => $p['biaya'] ?? 0);
+                                                    } elseif ($statusFilter === 'Disetujui' && $po->status === 'Disetujui' && $_poNomRej === 0) {
+                                                        // PO Fully Disetujui tanpa rejected: sum SEMUA parts (include yang tidak ada di decisions karena bug lama)
+                                                        $_poNomShow = collect($_poParts2)->sum(fn($p) => $p['biaya'] ?? 0);
+                                                    } elseif ($statusFilter === 'Pending' && $po->status === 'Pending' && !empty($_lockedIdx2)) {
+                                                        // Tab Pending untuk PO resubmit: hanya tampilkan nominal pending (exclude locked)
+                                                        $_poNomShow = $_poNomPend;
+                                                    } elseif ($statusFilter === 'Ditolak') {
+                                                        $_poNomShow = $_poNomRej;
+                                                    } elseif ($statusFilter === 'semua') {
+                                                        // Tab Semua: approved (locked + decisions) + pending + rejected
+                                                        $_poNomShow = $_poNomAppr + $_poNomPend + $_poNomRej;
+                                                    } else {
+                                                        $_poNomShow = $_poNomAppr;
+                                                    }
                                                 } elseif (!empty($_poDec2) && !empty($_poKejad2)) {
                                                     // Service Asuransi with item_decisions
                                                     $_decKejColl  = collect($_poDec2)->keyBy('idx');
                                                     $_lockedIdx2  = array_map('intval', $po->source_data['locked_approved_idx'] ?? []);
+                                                    
+                                                    // Hitung approved: dari decisions + locked yang tidak ada di decisions
                                                     $_poNomAppr   = collect($_poKejad2)
                                                         ->filter(fn($k, $i) =>
                                                             ($_decKejColl[$i]['action'] ?? '') === 'approved'
-                                                            || in_array($i, $_lockedIdx2)
+                                                            || (in_array($i, $_lockedIdx2) && !$_decKejColl->has($i))
                                                         )
                                                         ->sum(fn($k) => $k['biaya'] ?? 0);
                                                     $_poNomRej   = collect($_poKejad2)
                                                         ->filter(fn($k, $i) => ($_decKejColl[$i]['action'] ?? '') !== 'approved' && $_decKejColl->has($i))
                                                         ->sum(fn($k) => $k['biaya'] ?? 0);
+                                                    
+                                                    // Hitung pending: kejadian yang tidak ada di decisions
+                                                    $_poNomPendKej = collect($_poKejad2)
+                                                        ->filter(fn($k, $i) => !$_decKejColl->has($i) && !in_array($i, $_lockedIdx2))
+                                                        ->sum(fn($k) => $k['biaya'] ?? 0);
 
                                                     // PO Pending yang muncul di tab Disetujui (partial resubmit):
                                                     // hanya tampilkan nominal locked (yang sudah diapprove sebelumnya)
                                                     if ($statusFilter === 'Disetujui' && $po->status === 'Pending' && !empty($_lockedIdx2)) {
-                                                        $_poNomShow = (int)($po->source_data['nominal_approved_locked'] ?? 0);
+                                                        // Hitung dari kejadian actual yang locked
+                                                        $_poNomShow = collect($_poKejad2)
+                                                            ->filter(fn($k, $i) => in_array($i, $_lockedIdx2))
+                                                            ->sum(fn($k) => $k['biaya'] ?? 0);
+                                                    } elseif ($statusFilter === 'Pending' && $po->status === 'Pending' && !empty($_lockedIdx2)) {
+                                                        // Tab Pending untuk PO resubmit: hanya tampilkan nominal pending
+                                                        $_poNomShow = $_poNomPendKej;
                                                     } elseif ($statusFilter === 'Ditolak') {
                                                         $_poNomShow = $_poNomRej;
+                                                    } elseif ($statusFilter === 'semua') {
+                                                        // Tab Semua: approved + pending + rejected
+                                                        $_poNomShow = $_poNomAppr + $_poNomPendKej + $_poNomRej;
                                                     } else {
                                                         $_poNomShow = $_poNomAppr;
                                                     }
                                                 } elseif (!empty($_poKejad2) && !empty($po->source_data['locked_approved_idx'] ?? [])) {
-                                                    // PO Pending setelah resubmit partial: item_decisions kosong tapi locked_approved_idx ada
+                                                    // Service Asuransi — PO Pending setelah resubmit partial:
+                                                    // item_decisions kosong tapi locked_approved_idx ada
                                                     $_lockedIdx2 = array_map('intval', $po->source_data['locked_approved_idx']);
                                                     if ($statusFilter === 'Disetujui') {
-                                                        // Tab Disetujui: tampilkan nominal locked saja
-                                                        $_poNomShow = (int)($po->source_data['nominal_approved_locked'] ?? 0);
+                                                        // Hitung dari kejadian actual yang locked
+                                                        $_poNomShow = collect($_poKejad2)
+                                                            ->filter(fn($k, $i) => in_array($i, $_lockedIdx2))
+                                                            ->sum(fn($k) => $k['biaya'] ?? 0);
                                                     } else {
-                                                        // Tab Pending: tampilkan nominal pending (total_harga sudah = nominal pending)
-                                                        $_poNomShow = $po->total_harga ?? 0;
+                                                        // Tab Pending/Semua: hitung kejadian yang tidak locked
+                                                        $_poNomShow = collect($_poKejad2)
+                                                            ->filter(fn($k, $i) => !in_array($i, $_lockedIdx2))
+                                                            ->sum(fn($k) => $k['biaya'] ?? 0);
                                                     }
+                                                } elseif (!empty($_poParts2) && !empty($po->source_data['locked_approved_idx'] ?? [])) {
+                                                    // Service Incident/Part — PO Pending setelah resubmit partial:
+                                                    // item_decisions kosong tapi locked_approved_idx ada
+                                                    $_lockedIdx2 = array_map('intval', $po->source_data['locked_approved_idx']);
+                                                    if ($statusFilter === 'Disetujui') {
+                                                        // Tab Disetujui: hanya nominal item yang locked (hitung dari parts actual)
+                                                        $_poNomShow = collect($_poParts2)
+                                                            ->filter(fn($p, $i) => in_array($i, $_lockedIdx2))
+                                                            ->sum(fn($p) => $p['biaya'] ?? 0);
+                                                    } else {
+                                                        // Tab Pending/Semua: hitung parts yang tidak locked
+                                                        $_poNomShow = collect($_poParts2)
+                                                            ->filter(fn($p, $i) => !in_array($i, $_lockedIdx2))
+                                                            ->sum(fn($p) => $p['biaya'] ?? 0);
+                                                    }
+                                                } elseif (in_array($po->source_type, ['service_part','service_incident']) && $po->status === 'Disetujui' && !empty($_poParts2)) {
+                                                    // Service Incident/Part — PO Disetujui tanpa item_decisions (approve pertama kali):
+                                                    // Jumlahkan semua parts karena semua dianggap approved
+                                                    $_poNomShow = collect($_poParts2)->sum(fn($p) => $p['biaya'] ?? 0);
                                                 } else {
                                                     $_poNomShow = $po->total_harga ?? 0;
                                                 }
@@ -536,12 +693,19 @@
                                         <td class="px-4 py-3 text-xs text-gray-500">{{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}</td>
                                         <td class="px-4 py-3">
                                             @php
-                                                $_poDecForBadge = $po->source_data['item_decisions'] ?? [];
+                                                $_poDecForBadge  = $po->source_data['item_decisions'] ?? [];
                                                 $_hasRejectedDec = collect($_poDecForBadge)->where('action','rejected')->isNotEmpty();
-                                                // PO Disetujui di tab Ditolak = ada item rejected → tampilkan badge "Ditolak"
-                                                $_badgeStatus = ($po->status === 'Disetujui' && $_hasRejectedDec && $statusFilter === 'Ditolak')
-                                                    ? 'Ditolak'
-                                                    : $po->status;
+                                                $_hasLockedIdx   = !empty($po->source_data['locked_approved_idx'] ?? []);
+
+                                                // PO Disetujui di tab Ditolak = ada item rejected → tampilkan "Ditolak"
+                                                // PO Pending di tab Disetujui = ada locked_approved_idx → tampilkan "Disetujui"
+                                                if ($po->status === 'Disetujui' && $_hasRejectedDec && $statusFilter === 'Ditolak') {
+                                                    $_badgeStatus = 'Ditolak';
+                                                } elseif ($po->status === 'Pending' && $_hasLockedIdx && $statusFilter === 'Disetujui') {
+                                                    $_badgeStatus = 'Disetujui';
+                                                } else {
+                                                    $_badgeStatus = $po->status;
+                                                }
                                             @endphp
                                             @if($_badgeStatus === 'Pending')
                                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-700">
@@ -563,8 +727,18 @@
                                                     class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                                                     <i class="fa fa-eye text-xs"></i> Detail
                                                 </button>
-                                                @php $hasDecisions = !empty($po->source_data['item_decisions'] ?? []); @endphp
-                                                @if($po->status === 'Pending' && auth()->user()->role === 'superadmin' && !$hasDecisions)
+                                                @php
+                                                    // $hasDecisions: true hanya jika ada keputusan yang BUKAN dari item locked.
+                                                    // Item locked (locked_approved_idx) tidak dihitung sebagai keputusan aktif —
+                                                    // mereka sudah selesai di Pembayaran sebelumnya dan tidak boleh di-approve ulang.
+                                                    // Ini memastikan tombol Approve muncul di Tab Pending setelah partial resubmit,
+                                                    // meski item_decisions lama masih ada (data legacy sebelum fix).
+                                                    $_lockedIdx     = array_map('intval', $po->source_data['locked_approved_idx'] ?? []);
+                                                    $_activeDec     = collect($po->source_data['item_decisions'] ?? [])
+                                                        ->filter(fn($d) => !in_array((int)($d['idx'] ?? -1), $_lockedIdx));
+                                                    $hasDecisions   = $_activeDec->isNotEmpty();
+                                                @endphp
+                                                @if($po->status === 'Pending' && auth()->user()->role === 'superadmin' && !$hasDecisions && $statusFilter !== 'Disetujui')
                                                     @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident', 'service_asuransi']))
                                                         {{-- GPS / Service Part / Service Incident / Service Asuransi: per-item approval modal --}}
                                                         <button onclick="openApproveModal({{ $po->id }}, '{{ $po->po_id }}')"
@@ -656,16 +830,50 @@
                                             $decHasIdx = !empty($rawDecisions) && isset($rawDecisions[0]['idx']);
 
                                             if ($decHasIdx) {
-                                                // PO lama: item_decisions punya field 'idx', keyBy idx untuk filter
+                                                // PO induk (partial approve): item_decisions punya field 'idx'
                                                 $partDecMap = collect($rawDecisions)->keyBy('idx');
+                                                $lockedPartIdx = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
                                                 if ($statusFilter === 'Disetujui') {
-                                                    $parts = collect($allParts)
-                                                        ->filter(fn($p, $i) => ($partDecMap[$i]['action'] ?? '') === 'approved')
-                                                        ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
-                                                        ->values()->all();
+                                                    // Tab Disetujui:
+                                                    // - PO sudah Disetujui: tampilkan semua parts (termasuk yang di-resubmit)
+                                                    // - PO masih Pending (partial): hanya yang approved/locked
+                                                    if ($po->status === 'Disetujui') {
+                                                        $parts = collect($allParts)
+                                                            ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                            ->values()->all();
+                                                    } else {
+                                                        $parts = collect($allParts)
+                                                            ->filter(fn($p, $i) =>
+                                                                ($partDecMap[$i]['action'] ?? '') === 'approved'
+                                                                || in_array($i, $lockedPartIdx)
+                                                            )
+                                                            ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                            ->values()->all();
+                                                    }
                                                 } elseif ($statusFilter === 'Ditolak') {
                                                     $parts = collect($allParts)
                                                         ->filter(fn($p, $i) => ($partDecMap[$i]['action'] ?? '') !== 'approved' && $partDecMap->has($i))
+                                                        ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                        ->values()->all();
+                                                } else {
+                                                    $parts = collect($allParts)
+                                                        ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                        ->values()->all();
+                                                }
+                                            } elseif (!empty($sourceData['locked_approved_idx'] ?? [])) {
+                                                // PO Pending setelah resubmit partial: item_decisions dikosongkan,
+                                                // locked_approved_idx menandai item yang sudah approved sebelumnya.
+                                                $lockedPartIdx = array_map('intval', $sourceData['locked_approved_idx']);
+                                                if ($statusFilter === 'Disetujui') {
+                                                    // Tab Disetujui: hanya tampilkan item yang locked/approved
+                                                    $parts = collect($allParts)
+                                                        ->filter(fn($p, $i) => in_array($i, $lockedPartIdx))
+                                                        ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                        ->values()->all();
+                                                } elseif ($statusFilter === 'Pending') {
+                                                    // Tab Pending: hanya tampilkan item yang BELUM locked (sedang pending)
+                                                    $parts = collect($allParts)
+                                                        ->filter(fn($p, $i) => !in_array($i, $lockedPartIdx))
                                                         ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
                                                         ->values()->all();
                                                 } else {
@@ -692,14 +900,21 @@
                                                 // PO induk (partial): filter berdasarkan item_decisions
                                                 $kejDecMap = collect($rawKejDecisions)->keyBy('idx');
                                                 if ($statusFilter === 'Disetujui') {
-                                                    // Tampilkan item_decisions approved + locked_approved_idx
-                                                    $asuransiKejadians = collect($allKejadians)
-                                                        ->filter(fn($k, $i) =>
-                                                            ($kejDecMap[$i]['action'] ?? '') === 'approved'
-                                                            || in_array($i, $lockedIdx)
-                                                        )
-                                                        ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
-                                                        ->values()->all();
+                                                    // PO sudah Disetujui: tampilkan semua kejadian (approved + pending resubmit)
+                                                    // PO masih Pending: hanya yang approved/locked
+                                                    if ($po->status === 'Disetujui') {
+                                                        $asuransiKejadians = collect($allKejadians)
+                                                            ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
+                                                            ->values()->all();
+                                                    } else {
+                                                        $asuransiKejadians = collect($allKejadians)
+                                                            ->filter(fn($k, $i) =>
+                                                                ($kejDecMap[$i]['action'] ?? '') === 'approved'
+                                                                || in_array($i, $lockedIdx)
+                                                            )
+                                                            ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
+                                                            ->values()->all();
+                                                    }
                                                 } elseif ($statusFilter === 'Ditolak') {
                                                     $asuransiKejadians = collect($allKejadians)
                                                         ->filter(fn($k, $i) => ($kejDecMap[$i]['action'] ?? '') !== 'approved' && $kejDecMap->has($i))
@@ -830,7 +1045,9 @@
                                                                 @if(!$isServiceIncident)
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Service</th>
                                                                 @endif
+                                                                @if(!$isServiceIncident)
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Keterangan Limit</th>
+                                                                @endif
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Atas Nama</th>
@@ -2331,23 +2548,35 @@ function allApprovedHaveBukti() {
     return allOk;
 }
 async function submitApproveItems() {
-    const approved = approveItemDecisions.filter(d => d.action === 'approved');
+    // Filter hanya item yang sudah diputuskan (action tidak null)
+    const decided = approveItemDecisions.filter(d => d.action !== null);
+    const approved = decided.filter(d => d.action === 'approved');
+    const rejected = decided.filter(d => d.action === 'rejected');
+    
     if (approved.length === 0) { alert('Pilih minimal 1 item yang ingin disetujui.'); return; }
-    const total = approveItemDecisions.length, rejected = total - approved.length;
-    if (!confirm('Approve ' + approved.length + ' item' + (rejected > 0 ? ', tolak ' + rejected + ' item?' : '?'))) return;
+    
+    const total = decided.length;
+    if (!confirm('Approve ' + approved.length + ' item' + (rejected.length > 0 ? ', tolak ' + rejected.length + ' item?' : '?'))) return;
+    
     const btn = document.getElementById('approveSubmitBtn');
     btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
     const formData = new FormData();
     const token = document.querySelector('meta[name="csrf-token"]');
     formData.append('_token', token ? token.content : '');
     formData.append('catatan', document.getElementById('approveCatatan').value);
+    
+    // Kirim hanya item yang sudah diputuskan (approved atau rejected)
     approveItemDecisions.forEach(function(d, idx) {
-        const action = d.action === 'approved' ? 'approved' : 'rejected';
+        // Skip item yang tidak ada actionnya (null)
+        if (d.action === null) return;
+        
+        const action = d.action; // 'approved' atau 'rejected'
         const catatan = action === 'rejected' ? ((document.getElementById('reject-catatan-' + idx) || {}).value || '') : '';
         formData.append('items[' + idx + '][action]', action);
         formData.append('items[' + idx + '][catatan]', catatan);
         if (action === 'approved' && d.buktiFile) formData.append('items[' + idx + '][bukti]', d.buktiFile);
     });
+    
     try {
         const res = await fetch('/admin/purchase-order/' + currentApprovePoId + '/approve-items', { method: 'POST', body: formData });
         const result = await res.json();
@@ -2858,8 +3087,10 @@ function renderRsaForm(data) {
     document.getElementById('rsaModalTitle').textContent = isServiceIncident
         ? 'Ajukan Ulang — Service Incident'
         : 'Ajukan Ulang — Service Asuransi';
-    // Kedua tipe pakai endpoint yang sama; controller menangani remap parts vs kejadians
-    document.getElementById('rsaForm').action = '/admin/purchase-order/' + _rsaPoId + '/resubmit-service-asuransi';
+    // Masing-masing tipe pakai endpoint tersendiri
+    document.getElementById('rsaForm').action = isServiceIncident
+        ? '/admin/purchase-order/' + _rsaPoId + '/resubmit-service-incident'
+        : '/admin/purchase-order/' + _rsaPoId + '/resubmit-service-asuransi';
 
     // Update label Daftar Kejadian / Tambah Kejadian
     const labelEl = document.getElementById('rsaDaftarLabel');
@@ -3216,7 +3447,7 @@ async function submitResubmitServiceAsuransi() {
     formData.append('_token', token);
 
     try {
-        const res    = await fetch('/admin/purchase-order/' + _rsaPoId + '/resubmit-service-asuransi', { method: 'POST', body: formData });
+        const res    = await fetch(form.action, { method: 'POST', body: formData });
         const result = await res.json();
         if (result.success) {
             closeResubmitServiceAsuransiModal();

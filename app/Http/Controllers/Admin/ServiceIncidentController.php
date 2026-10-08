@@ -329,19 +329,78 @@ class ServiceIncidentController extends Controller
             return back()->with('error', 'Hanya part dengan status Aktif yang bisa diubah ke Diganti.');
         }
 
-        $part->update([
-            'status'      => 'Diganti',
-            'replaced_at' => now(),
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($part) {
+            $now = now();
 
-        // Recalculate header status incident
-        $incident = ServiceIncident::with('parts')->find($part->service_incident_id);
-        if ($incident) {
-            $adaAktif = $incident->parts->contains(fn($p) => $p->status === 'aktif');
-            $incident->update(['status' => $adaAktif ? 'aktif' : 'selesai']);
-        }
+            // ── 1. Archive part lama di service_parts (match by nama+posisi+category) ──
+            \App\Models\ServicePart::where('kendaraan_id', $part->kendaraan_id)
+                ->whereRaw('LOWER(TRIM(nama_part)) = ?', [strtolower(trim($part->nama_part ?? ''))])
+                ->where('category_id', $part->category_id)
+                ->where(function ($q) use ($part) {
+                    $posisi = trim($part->posisi ?? '');
+                    if ($posisi !== '') {
+                        $q->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisi)]);
+                    } else {
+                        $q->where(fn($q2) => $q2->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+                    }
+                })
+                ->whereIn('status', ['Terpasang', 'Limit'])
+                ->where('id', '!=', $part->id)
+                ->update([
+                    'status'              => 'Diganti',
+                    'replaced_at'         => $now,
+                    'replaced_by_part_id' => $part->id,
+                ]);
 
-        return back()->with('success', 'Part "' . $part->nama_part . '" berhasil diubah ke status Diganti.');
+            // ── 2. Update status part incident → Diganti ──────────────────────────
+            $part->update([
+                'status'      => 'Diganti',
+                'replaced_at' => $now,
+            ]);
+
+            // ── 3. Recalculate header status incident ─────────────────────────────
+            $incident = ServiceIncident::with('parts')->find($part->service_incident_id);
+            if ($incident) {
+                $adaAktif = $incident->parts->contains(fn($p) => $p->status === 'aktif');
+                $incident->update(['status' => $adaAktif ? 'aktif' : 'selesai']);
+
+                // ── 4. Update kendaraan data ───────────────────────────────────────
+                $kendaraan = $incident->kendaraan;
+                if ($kendaraan) {
+                    $updateKendaraan = [
+                        'km_terakhir_service'      => $incident->kilometer ?? $kendaraan->km_terakhir_service,
+                        'kilometer_sekarang'       => $incident->kilometer ?? $kendaraan->kilometer_sekarang,
+                        'tanggal_terakhir_service' => \Carbon\Carbon::parse($incident->tanggal_service)->toDateString(),
+                    ];
+
+                    // Jika semua part sudah Diganti/selesai, set kendaraan tersedia
+                    if (!$adaAktif) {
+                        $updateKendaraan['status_kendaraan'] = 'tersedia';
+                    }
+
+                    $kendaraan->update($updateKendaraan);
+
+                    // ── 5. Auto-close reminder aktif untuk part yang diganti ──────
+                    // Close reminder yang terkait dengan part lama yang di-archive
+                    \App\Models\ReminderService::where('kendaraan_id', $kendaraan->id)
+                        ->whereIn('status', ['aktif', 'jatuh_tempo'])
+                        ->whereHas('servicePart', function($q) use ($part) {
+                            $q->whereRaw('LOWER(TRIM(nama_part)) = ?', [strtolower(trim($part->nama_part ?? ''))])
+                              ->where('category_id', $part->category_id);
+                            
+                            $posisi = trim($part->posisi ?? '');
+                            if ($posisi !== '') {
+                                $q->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisi)]);
+                            } else {
+                                $q->where(fn($q2) => $q2->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+                            }
+                        })
+                        ->update(['status' => 'selesai']);
+                }
+            }
+        });
+
+        return back()->with('success', 'Part "' . $part->nama_part . '" berhasil diubah ke status Diganti. Data kendaraan telah diperbarui.');
     }
 
     // =========================================================================

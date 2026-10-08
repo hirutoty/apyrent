@@ -3369,7 +3369,13 @@ class ChartDataController extends Controller
                 'autoDaily'    => true,
                 'valueColumns' => [
                     'total_harga',
-                    ['where' => ['status' => 'Pending'],   'column' => 'total_harga', 'aggregation' => 'sum', 'label' => 'Pending'],
+                    // Pending: kurangi nominal_approved_locked agar bagian yang sudah di-approve
+                    // tidak ikut dihitung sebagai pending (kasus partial resubmit)
+                    [
+                        'where' => ['status' => 'Pending'],
+                        'expr'  => "total_harga - COALESCE(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_approved_locked')) AS DECIMAL(15,2)), 0)",
+                        'column' => 'total_harga', 'aggregation' => 'sum', 'label' => 'Pending',
+                    ],
                     // Disetujui: total_harga (approved) + nominal_approved_locked dari PO Pending yang punya locked items
                     [
                         'where' => [

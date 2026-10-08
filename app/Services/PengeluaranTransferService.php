@@ -708,32 +708,69 @@ class PengeluaranTransferService
             }
             $pendingParts = $pendingPartsQuery->orderBy('id')->get();
 
-            // Bangun map nama_part -> biaya dari source_data (parts yang diapprove)
-            // untuk mengupdate harga terbaru yang mungkin diedit di form pembayaran sebelum approve
-            $sourcePartsForBiaya = !empty($approvedIndices)
-                ? array_intersect_key($allParts, array_flip($approvedIndices))
-                : $allParts;
-            $sourcePartsBiayaMap = [];
-            foreach ($sourcePartsForBiaya as $sp) {
-                $key = trim(strtolower($sp['nama_part'] ?? ''));
-                $sourcePartsBiayaMap[$key] = (int)($sp['biaya'] ?? 0);
-            }
+            // ── Jika tidak ada pending parts, insert baru dari source_data ──
+            // Ini menangani kasus pertama kali approve PO (parts belum ada di DB)
+            if ($pendingParts->isEmpty() && !empty($parts)) {
+                foreach ($parts as $idx => $partData) {
+                    $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
+                    $buktiPayload = isset($buktiBayarMap[$originalIdx])
+                        ? [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]]
+                        : null;
 
-            foreach ($pendingParts as $idx => $existingPart) {
-                $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
-                $updateData = [
-                    'persetujuan' => 'Disetujui',
-                    'status'      => 'aktif', // aktif setelah diapprove pembayaran
-                ];
-                // Update biaya dari source_data (harga yang sudah diedit di form pembayaran)
-                $namaKey = trim(strtolower($existingPart->nama_part ?? ''));
-                if (isset($sourcePartsBiayaMap[$namaKey])) {
-                    $updateData['biaya'] = $sourcePartsBiayaMap[$namaKey];
+                    \App\Models\ServiceIncidentPart::create([
+                        'service_incident_id' => $incident->id,
+                        'purchase_order_id'   => $poTerkait?->id,
+                        'nama_part'           => $partData['nama_part'] ?? null,
+                        'category_id'         => $partData['category_id'] ?? null,
+                        'kondisi'             => $partData['kondisi'] ?? 'Baik',
+                        'supplier_id'         => $partData['supplier_id'] ?? null,
+                        'nama_bank'           => $partData['nama_bank'] ?? null,
+                        'no_rekening'         => $partData['no_rekening'] ?? null,
+                        'nama_rekening'       => $partData['nama_rekening'] ?? null,
+                        'biaya'               => (int)($partData['biaya'] ?? 0),
+                        'persetujuan'         => 'Disetujui',
+                        'status'              => 'aktif',
+                        'bukti_bayar'         => $buktiPayload,
+                        'lampiran'            => $partData['lampiran'] ?? null,
+                    ]);
                 }
-                if (isset($buktiBayarMap[$originalIdx])) {
-                    $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]];
+
+                // Refresh pendingParts agar cashflow logic bisa berjalan
+                $pendingParts = $incident->parts()
+                    ->where('persetujuan', 'Disetujui')
+                    ->whereNotNull('purchase_order_id')
+                    ->where('purchase_order_id', $poTerkait?->id)
+                    ->orderBy('id')
+                    ->get();
+            } else {
+                // ── Update parts yang sudah ada ──
+                // Bangun map nama_part -> biaya dari source_data (parts yang diapprove)
+                // untuk mengupdate harga terbaru yang mungkin diedit di form pembayaran sebelum approve
+                $sourcePartsForBiaya = !empty($approvedIndices)
+                    ? array_intersect_key($allParts, array_flip($approvedIndices))
+                    : $allParts;
+                $sourcePartsBiayaMap = [];
+                foreach ($sourcePartsForBiaya as $sp) {
+                    $key = trim(strtolower($sp['nama_part'] ?? ''));
+                    $sourcePartsBiayaMap[$key] = (int)($sp['biaya'] ?? 0);
                 }
-                $existingPart->update($updateData);
+
+                foreach ($pendingParts as $idx => $existingPart) {
+                    $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
+                    $updateData = [
+                        'persetujuan' => 'Disetujui',
+                        'status'      => 'aktif', // aktif setelah diapprove pembayaran
+                    ];
+                    // Update biaya dari source_data (harga yang sudah diedit di form pembayaran)
+                    $namaKey = trim(strtolower($existingPart->nama_part ?? ''));
+                    if (isset($sourcePartsBiayaMap[$namaKey])) {
+                        $updateData['biaya'] = $sourcePartsBiayaMap[$namaKey];
+                    }
+                    if (isset($buktiBayarMap[$originalIdx])) {
+                        $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]];
+                    }
+                    $existingPart->update($updateData);
+                }
             }
 
             // Hitung total_biaya SETELAH parts diupdate ke Disetujui.
@@ -762,6 +799,7 @@ class PengeluaranTransferService
                     'Beban Service Incident: ' . $namaKategori . ' - ' . $merkKendaraan . ' ' . $nopolKendaraan,
                     'Auto-posting: Service incident ' . $namaKategori . ' ' . $nopolKendaraan . ' via pembayaran #' . $pembayaran->id);
             });
+        } else {
             // Fallback: buat baru jika tidak ada existing (seharusnya tidak terjadi)
             $incident = \App\Models\ServiceIncident::create([
                 'kendaraan_id'    => $kendaraanId,

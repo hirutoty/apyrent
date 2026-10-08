@@ -420,22 +420,34 @@
                                         $totalDecCount = $approvedCount + $rejectedCount;
                                         $_prHasRejected = $rejectedCount > 0;
 
-                                        // Status color
-                                        $statusColor = match($d->status) {
-                                            'Disetujui'          => 'bg-green-100 text-green-700',
-                                            'Ditolak'            => 'bg-red-100 text-red-700',
-                                            'Diajukan'           => 'bg-indigo-100 text-indigo-600',
-                                            'Pending'            => 'bg-yellow-100 text-yellow-600',
-                                            default              => 'bg-gray-100 text-gray-500',
+                                        // Status per tab — PR partial muncul di beberapa tab:
+                                        // tampilkan status yang sesuai tab aktif, bukan selalu status PR
+                                        $statusForDisplay = $d->status ?? '-';
+                                        if (!empty($_decRaw)) {
+                                            // PR partial: tentukan status badge berdasarkan tab aktif
+                                            if (in_array($tab ?? '', ['Disetujui'])) {
+                                                $statusForDisplay = 'Disetujui';
+                                            } elseif (in_array($tab ?? '', ['Ditolak'])) {
+                                                $statusForDisplay = 'Ditolak';
+                                            } elseif (in_array($tab ?? '', ['Diajukan', 'Pending'])) {
+                                                $statusForDisplay = $d->status ?? 'Diajukan';
+                                            }
+                                        }
+                                        $statusColor = match($statusForDisplay) {
+                                            'Disetujui' => 'bg-green-100 text-green-700',
+                                            'Ditolak'   => 'bg-red-100 text-red-700',
+                                            'Diajukan'  => 'bg-indigo-100 text-indigo-600',
+                                            'Pending'   => 'bg-yellow-100 text-yellow-600',
+                                            default     => 'bg-gray-100 text-gray-500',
                                         };
-                                        $statusIcon = match($d->status) {
-                                            'Disetujui'          => 'fa-check-circle',
-                                            'Ditolak'            => 'fa-times-circle',
-                                            'Diajukan'           => 'fa-paper-plane',
-                                            'Pending'            => 'fa-clock',
-                                            default              => 'fa-circle',
+                                        $statusIcon = match($statusForDisplay) {
+                                            'Disetujui' => 'fa-check-circle',
+                                            'Ditolak'   => 'fa-times-circle',
+                                            'Diajukan'  => 'fa-paper-plane',
+                                            'Pending'   => 'fa-clock',
+                                            default     => 'fa-circle',
                                         };
-                                        $statusLabel = $d->status ?? '-';
+                                        $statusLabel = $statusForDisplay;
 
                                         $rowUid = 'r'.$gIdx.'i'.$di;
                                         $_sd_items = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
@@ -665,6 +677,9 @@
                                                                 $_rowNominal = $_nomRejRow ?: ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0));
                                                             } elseif (in_array($tab ?? '', ['Disetujui'])) {
                                                                 $_rowNominal = $_nomApprRow ?: ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->total_nominal ?? 0));
+                                                            } elseif (in_array($tab ?? '', ['Diajukan']) && $d->status === 'Diajukan' && $_nomPendRow > 0) {
+                                                                // Tab Diajukan (PR partial resubmit): hanya harga item yang belum diputuskan (pending)
+                                                                $_rowNominal = $_nomPendRow;
                                                             } else {
                                                                 $_rowNominal = ($_nomApprRow + $_nomRejRow) > 0 ? ($_nomApprRow + $_nomRejRow) : ($_itemsTotal > 0 ? $_itemsTotal : (int)($d->nominal ?? 0));
                                                             }
@@ -1672,10 +1687,27 @@
                                                     {{-- Service Incident --}}
                                                     @elseif($d->source_type === 'service_incident')
                                                     @php
-                                                        $siParts      = $sd['parts'] ?? [];
+                                                        $siAllParts   = $sd['parts'] ?? [];
                                                         $siKeterangan = $sd['keterangan'] ?? $d->keterangan ?? null;
-                                                        $siTotal      = collect($siParts)->sum(fn($p) => $p['biaya'] ?? 0);
                                                         $siKend       = isset($sd['kendaraan_id']) ? \App\Models\Kendaraan::find($sd['kendaraan_id']) : null;
+                                                        $siDecMap     = collect($sd['item_decisions'] ?? [])->keyBy(fn($dec) => (int)($dec['idx'] ?? -1));
+
+                                                        // Filter parts per tab aktif (sama dengan service_part)
+                                                        if ($siDecMap->isNotEmpty()) {
+                                                            if (in_array($tab ?? '', ['Disetujui'])) {
+                                                                $siParts = collect($siAllParts)->filter(fn($p, $i) => ($siDecMap[(int)$i]['action'] ?? '') === 'approved')->all();
+                                                            } elseif (in_array($tab ?? '', ['Ditolak'])) {
+                                                                $siParts = collect($siAllParts)->filter(fn($p, $i) => ($siDecMap[(int)$i]['action'] ?? '') === 'rejected')->all();
+                                                            } elseif (in_array($tab ?? '', ['Diajukan', 'Pending'])) {
+                                                                // Hanya item yang belum diputuskan (pending / resubmit)
+                                                                $siParts = collect($siAllParts)->filter(fn($p, $i) => !$siDecMap->has((int)$i))->all();
+                                                            } else {
+                                                                $siParts = $siAllParts;
+                                                            }
+                                                        } else {
+                                                            $siParts = $siAllParts;
+                                                        }
+                                                        $siTotal = collect($siParts)->sum(fn($p) => $p['biaya'] ?? 0);
                                                     @endphp
                                                     <div class="px-4 py-3">
                                                         {{-- Info header --}}
@@ -1714,6 +1746,9 @@
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bukti</th>
                                                                         <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
+                                                                        @if($siDecMap->isNotEmpty())
+                                                                            <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status</th>
+                                                                        @endif
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -1726,6 +1761,7 @@
                                                                         $siPartBukti = isset($siPart['bukti_bayar_admin']) && $siPart['bukti_bayar_admin']
                                                                             ? (is_array($siPart['bukti_bayar_admin']) ? $siPart['bukti_bayar_admin'] : [$siPart['bukti_bayar_admin']])
                                                                             : [];
+                                                                        $siPartDec = $siDecMap->get((int)$siPIdx);
                                                                     @endphp
                                                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                         <td class="px-3 py-2 text-gray-400">{{ $siPIdx + 1 }}</td>
@@ -1795,10 +1831,27 @@
                                                                         <td class="px-3 py-2 text-right font-bold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                             Rp {{ number_format($siPart['biaya'] ?? 0, 0, ',', '.') }}
                                                                         </td>
+                                                                        @if($siDecMap->isNotEmpty())
+                                                                            <td class="px-3 py-2 text-center">
+                                                                                @if($siPartDec && ($siPartDec['action'] ?? '') === 'approved')
+                                                                                    <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                                                                                        <i class="fa fa-check text-[8px]"></i> Disetujui
+                                                                                    </span>
+                                                                                @elseif($siPartDec && ($siPartDec['action'] ?? '') === 'rejected')
+                                                                                    <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                                                                                        <i class="fa fa-times text-[8px]"></i> Ditolak
+                                                                                    </span>
+                                                                                @else
+                                                                                    <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                                                                                        <i class="fa fa-clock text-[8px]"></i> Diajukan
+                                                                                    </span>
+                                                                                @endif
+                                                                            </td>
+                                                                        @endif
                                                                     </tr>
                                                                     @endforeach
                                                                     <tr class="border-t-2 border-red-200 bg-red-50/50">
-                                                                        <td colspan="7" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                        <td colspan="{{ $siDecMap->isNotEmpty() ? 8 : 7 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                         <td class="px-3 py-2 text-right text-sm font-bold {{ in_array($tab ?? '', ['Ditolak']) ? 'text-red-500' : 'text-emerald-600' }}">
                                                                             Rp {{ number_format($siTotal, 0, ',', '.') }}
                                                                         </td>
@@ -3277,7 +3330,9 @@ function openResubmitRejectedModal(pembayaranId) {
         // Render items
         const container = document.getElementById('rrm-items-container');
         const srcType   = data.source_type;
-        const isServicePart = ['service_part', 'service_incident'].includes(srcType);
+        const isServicePart     = srcType === 'service_part';
+        const isServiceIncident = srcType === 'service_incident';
+        const hasBank           = isServicePart || isServiceIncident;
 
         data.items.forEach(function(item, i) {
             const div = document.createElement('div');
@@ -3307,36 +3362,43 @@ function openResubmitRejectedModal(pembayaranId) {
             // Hidden idx
             headerHtml += `<input type="hidden" name="items[${i}][idx]" value="${item.idx}">`;
 
-            // Biaya
-            headerHtml += `
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
-                        <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
-                            min="0" required
-                            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
-                    </div>`;
-
+            // Biaya — service_part juga tampilkan supplier di kolom kanan
             if (isServicePart) {
-                // Supplier dropdown
+                // Supplier dropdown di kolom kanan biaya
                 let supplierOptions = '<option value="">— Pilih Supplier —</option>';
                 (window.__rrmSuppliers || []).forEach(function(s) {
                     const sel = s.id == item.supplier_id ? 'selected' : '';
                     supplierOptions += `<option value="${s.id}" ${sel}>${_escHtml(s.nama)}</option>`;
                 });
                 headerHtml += `
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
+                        <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
+                            min="0" required
+                            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
+                    </div>
                     <div>
                         <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Supplier</label>
                         <select name="items[${i}][supplier_id]"
                             class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
                             ${supplierOptions}
                         </select>
-                    </div>`;
+                    </div>
+                </div>`;
+            } else {
+                // service_incident / service_asuransi — biaya saja (full width)
+                headerHtml += `
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
+                    <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
+                        min="0" required
+                        class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
+                </div>`;
             }
-            headerHtml += `</div>`; // end biaya row
 
-            if (isServicePart) {
-                // Bank / Rekening
+            // Bank / Rekening — service_part dan service_incident
+            if (hasBank) {
                 headerHtml += `
                     <div class="grid grid-cols-3 gap-3">
                         <div>
@@ -3360,13 +3422,15 @@ function openResubmitRejectedModal(pembayaranId) {
                     </div>`;
             }
 
-            // Keterangan
-            headerHtml += `
+            // Keterangan — hanya untuk service_part (service_incident & service_asuransi tidak)
+            if (isServicePart) {
+                headerHtml += `
                 <div>
                     <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Keterangan</label>
                     <textarea name="items[${i}][keterangan]" rows="2" maxlength="500"
                         class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 resize-none">${_escHtml(item.keterangan || '')}</textarea>
                 </div>`;
+            }
 
             headerHtml += `</div>`; // end grid
             div.innerHTML = headerHtml;
