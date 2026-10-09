@@ -2079,17 +2079,6 @@ document.addEventListener('DOMContentLoaded', function() {
 @endif
 </script>
 
-@if($highlightPembayaran > 0)
-<div id="sh-highlight-banner"
-    class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-amber-600 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl"
-    style="animation: slideUp 0.3s ease">
-    <i class="fa fa-rotate-right text-base"></i>
-    <span>Part ditolak dari pembayaran ditemukan — klik tombol <strong>Ajukan Ulang</strong> untuk mengajukan kembali.</span>
-    <button onclick="document.getElementById('sh-highlight-banner').remove()"
-        class="ml-2 text-white/70 hover:text-white transition-colors">
-        <i class="fa fa-times"></i>
-    </button>
-</div>
-@endif
+
 
 @endsection

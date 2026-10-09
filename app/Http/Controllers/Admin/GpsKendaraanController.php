@@ -570,8 +570,7 @@ class GpsKendaraanController extends Controller
 
             \Illuminate\Support\Facades\DB::commit();
 
-            return redirect()
-                ->route('gps-kendaraan.index')
+            return redirect('/admin/pembayaran?tab=Diajukan&sort=terbaru')
                 ->with('success', 'GPS berhasil diajukan ulang ke pembayaran. Menunggu approval Superadmin.');
 
         } catch (\Exception $e) {
@@ -658,8 +657,7 @@ class GpsKendaraanController extends Controller
 
             \Illuminate\Support\Facades\DB::commit();
 
-            return redirect()
-                ->route('gps-kendaraan.index')
+            return redirect('/admin/pembayaran?tab=Diajukan&sort=terbaru')
                 ->with('success', 'Perpanjangan GPS berhasil diajukan ulang. Menunggu approval Superadmin.');
 
         } catch (\Exception $e) {

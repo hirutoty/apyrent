@@ -131,29 +131,77 @@ class PurchaseOrderApprovalService
         $sourceDataForPembayaran = $approvedSourceData;
         unset($sourceDataForPembayaran['item_decisions']);
 
-        $pembayaran = Pembayaran::create([
-            'no_pr'               => $noPR,
-            'tanggal'             => now(),
-            'departemen'          => $departemen,
-            'tipe_pembayaran'     => 'service',
-            'pemohon'             => $pemohon,
-            'alasan_permintaan'   => $alasanPermintaan,
-            'nominal'             => $nominal,
-            'nominal_original'    => $nominalOriginal,
-            'nama_bank'           => $namaBank,
-            'no_rekening'         => $noRekening,
-            'nama_pemilik'        => $namaPemilik,
-            'keterangan'          => $catatan ?: ($approvedSourceData['keterangan'] ?? null),
-            'status'              => $status,
-            'disetujui_oleh'      => Auth::user()->nama ?? Auth::user()->email,
-            'tanggal_persetujuan' => now(),
-            'source_type'         => $sourceType,
-            'source_data'         => $sourceDataForPembayaran,
-            'target_id'           => null,
-            'can_edit'            => false,
-        ]);
+        // ── Jika PO sudah punya Pembayaran (resubmit partial round ke-2+), UPDATE PR lama ──
+        // Berlaku untuk service_part dan service_incident — source type yang mendukung
+        // multi-round partial approval. Source type lain (GPS, pajak, asuransi, KIR, STNK)
+        // selalu buat Pembayaran baru karena tidak punya skenario reuse PR.
+        $existingPembayaran = null;
+        if (
+            in_array($sourceType, ['service_part', 'service_incident'])
+            && !empty($po->pembayaran_id)
+        ) {
+            $existingPembayaran = Pembayaran::find($po->pembayaran_id);
+        }
 
-        $po->update(['pembayaran_id' => $pembayaran->id]);
+        if ($existingPembayaran) {
+            // ── UPDATE Pembayaran lama ──────────────────────────────────────
+            // Merge parts baru yang approved ke dalam source_data yang sudah ada.
+            // Parts lama (yang sudah approved sebelumnya) tetap dipertahankan.
+            $existingSourceData = $existingPembayaran->source_data ?? [];
+
+            // Gabungkan parts: pakai index original dari approvedSourceData agar
+            // tidak ada duplikat dan index tetap konsisten dengan PO.
+            $existingParts = $existingSourceData['parts'] ?? [];
+            foreach ($approvedSourceData['parts'] ?? [] as $idx => $part) {
+                // Hapus flag rejection lama jika ada
+                unset($part['status_approval'], $part['catatan_penolakan']);
+                $existingParts[$idx] = $part;
+            }
+
+            $existingSourceData['parts'] = $existingParts;
+
+            // Nominal: akumulasi dari semua parts yang ada di PR (approved lama + approved baru)
+            $nominalAkumulasi = collect($existingParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
+
+            $existingPembayaran->update([
+                'source_data'         => $existingSourceData,
+                'nominal'             => $nominalAkumulasi,
+                'nominal_original'    => $nominalOriginal,
+                'status'              => 'Diajukan',
+                'can_edit'            => false,
+                'catatan'             => null,
+                'terakhir_diajukan'   => now(),
+            ]);
+
+            $pembayaran = $existingPembayaran;
+            // pembayaran_id PO tidak perlu diupdate — sudah menunjuk ke PR yang sama
+
+        } else {
+            // ── CREATE Pembayaran baru (first approval atau source type non-partial) ──
+            $pembayaran = Pembayaran::create([
+                'no_pr'               => $noPR,
+                'tanggal'             => now(),
+                'departemen'          => $departemen,
+                'tipe_pembayaran'     => 'service',
+                'pemohon'             => $pemohon,
+                'alasan_permintaan'   => $alasanPermintaan,
+                'nominal'             => $nominal,
+                'nominal_original'    => $nominalOriginal,
+                'nama_bank'           => $namaBank,
+                'no_rekening'         => $noRekening,
+                'nama_pemilik'        => $namaPemilik,
+                'keterangan'          => $catatan ?: ($approvedSourceData['keterangan'] ?? null),
+                'status'              => $status,
+                'disetujui_oleh'      => Auth::user()->nama ?? Auth::user()->email,
+                'tanggal_persetujuan' => now(),
+                'source_type'         => $sourceType,
+                'source_data'         => $sourceDataForPembayaran,
+                'target_id'           => null,
+                'can_edit'            => false,
+            ]);
+
+            $po->update(['pembayaran_id' => $pembayaran->id]);
+        }
 
         // Update linked records (GPS / pajak / asuransi_kendaraan / kir)
         // For GPS via approveWithItems, pass approvedSourceData so only approved items are updated

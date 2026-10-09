@@ -454,8 +454,30 @@ class PengeluaranTransferService
         $statusPengeluaran   = 'stabil'; // default; akan di-override jika over limit
         foreach ($parts as $idx => $partData) {
             // $idx di sini adalah index dalam filtered $parts, bukan index asli dalam $allParts
-            // Jika ada selectedParts, cari index asli untuk ambil temp_files yang tepat
-            $originalIdx = !empty($selectedParts) ? array_search($partData, $allParts) : $idx;
+            // Cari index asli di allParts berdasarkan nama_part + biaya (lebih reliable dari array_search)
+            // agar lookup temp_files['parts'][originalIdx] tetap benar meski parts di-reindex.
+            $originalIdx = $idx; // default: gunakan idx apa adanya
+            if (!empty($selectedParts) || count($parts) !== count($allParts)) {
+                // Coba match berdasarkan nama_part + biaya
+                $namaPart = strtolower(trim($partData['nama_part'] ?? ''));
+                $biayaPart = (int)($partData['biaya'] ?? 0);
+                foreach ($allParts as $aIdx => $aPart) {
+                    if (strtolower(trim($aPart['nama_part'] ?? '')) === $namaPart
+                        && (int)($aPart['biaya'] ?? 0) === $biayaPart) {
+                        $originalIdx = $aIdx;
+                        break;
+                    }
+                }
+                // Fallback: cari di temp_files keys — pilih key yang filenya exist
+                if (!isset(($sourceData['temp_files']['parts'] ?? [])[$originalIdx])) {
+                    foreach (array_keys($sourceData['temp_files']['parts'] ?? []) as $tfIdx) {
+                        if (!in_array($tfIdx, array_map('intval', $selectedParts ?: []))) {
+                            $originalIdx = $tfIdx;
+                            break;
+                        }
+                    }
+                }
+            }
 
             $tglPasang  = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
             $biaya      = (int)($partData['biaya'] ?? 0);
@@ -1970,24 +1992,31 @@ class PengeluaranTransferService
      */
     protected function copyFileToPublic(string $storagePath, string $publicFolder, int $pembayaranId): string
     {
-        // Full path di storage
+        // Resolve source — coba storage dulu, fallback ke public
         $sourceFullPath = storage_path('app/public/' . $storagePath);
-        
+        if (!file_exists($sourceFullPath)) {
+            $sourceFullPath = public_path($storagePath);
+        }
+
+        // Jika file tidak ditemukan di manapun, skip & log — jangan throw exception
+        if (!file_exists($sourceFullPath)) {
+            \Log::warning("copyFileToPublic: file not found, skipping. path={$storagePath}");
+            return $storagePath; // kembalikan path asli agar data tidak hilang
+        }
+
         // Generate nama file baru dengan prefix pembayaran
         $filename = 'pembayaran_' . $pembayaranId . '_' . time() . '_' . basename($storagePath);
-        
+
         // Target path di public
         $targetFolder = public_path($publicFolder);
         if (!file_exists($targetFolder)) {
             File::makeDirectory($targetFolder, 0777, true);
         }
-        
+
         $targetFullPath = $targetFolder . '/' . $filename;
-        
-        // Copy file
+
         File::copy($sourceFullPath, $targetFullPath);
-        
-        // Return relative path
+
         return $publicFolder . '/' . $filename;
     }
 

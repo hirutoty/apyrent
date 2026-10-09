@@ -3493,7 +3493,7 @@ class PembayaranController extends Controller
             ], 403);
         }
 
-        $supportedTypes = ['service_part', 'service_incident', 'service_asuransi'];
+        $supportedTypes = ['service_part', 'service_incident', 'service_asuransi', 'gps', 'gps_perpanjang'];
         if (!in_array($pembayaran->source_type, $supportedTypes)) {
             return response()->json([
                 'success' => false,
@@ -3507,6 +3507,13 @@ class PembayaranController extends Controller
         // Ambil hanya item yang action = 'rejected'
         $rejectedDecisions = collect($sourceData['item_decisions'] ?? [])
             ->filter(fn($d) => ($d['action'] ?? '') === 'rejected');
+
+        // GPS full-rejected: item_decisions kosong tapi semua gps_items dianggap ditolak
+        // Bangun synthetic decisions dari semua gps_items
+        if ($rejectedDecisions->isEmpty() && in_array($pembayaran->source_type, ['gps', 'gps_perpanjang'])) {
+            $rejectedDecisions = collect($sourceData['gps_items'] ?? [])
+                ->map(fn($item, $idx) => ['idx' => $idx, 'action' => 'rejected', 'catatan' => null]);
+        }
 
         if ($rejectedDecisions->isEmpty()) {
             return response()->json([
@@ -3553,6 +3560,18 @@ class PembayaranController extends Controller
                     'biaya'         => (int) ($kej['biaya'] ?? 0),
                     'keterangan'    => $kej['keterangan'] ?? '',
                     'catatan_tolak' => $decision['catatan'] ?? '',
+                ];
+            } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                $gpsItem = $sourceData['gps_items'][$idx] ?? [];
+                $gps     = isset($gpsItem['gps_id']) ? \App\Models\Gps::find($gpsItem['gps_id']) : null;
+                $items[] = [
+                    'idx'          => $idx,
+                    'nama'         => ($gps?->nama_gps ?? '-') . ($gpsItem['type'] ? ' — ' . $gpsItem['type'] : ''),
+                    'biaya'        => (int) ($gpsItem['biaya_sewa'] ?? 0),
+                    'nama_bank'    => $gpsItem['nama_bank'] ?? '',
+                    'no_rekening'  => $gpsItem['no_rekening'] ?? '',
+                    'nama_pemilik' => $gpsItem['nama_pemilik'] ?? '',
+                    'catatan_tolak'=> $decision['catatan'] ?? '',
                 ];
             }
         }
@@ -3610,6 +3629,10 @@ class PembayaranController extends Controller
             $rules['items.*.nama_rekening'] = 'nullable|string|max:150';
         } elseif ($srcType === 'service_asuransi') {
             $rules['items.*.keterangan'] = 'nullable|string|max:500';
+        } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+            $rules['items.*.nama_bank']    = 'nullable|string|max:100';
+            $rules['items.*.no_rekening']  = 'nullable|string|max:50';
+            $rules['items.*.nama_pemilik'] = 'nullable|string|max:150';
         }
 
         $request->validate($rules);
@@ -3645,6 +3668,10 @@ class PembayaranController extends Controller
                         // Hapus flag rejection lama
                         unset($sourceData['parts'][$idx]['status_approval']);
                         unset($sourceData['parts'][$idx]['catatan_penolakan']);
+                        // Sync limit_snapshot.service_biaya agar tampilan kolom Service vs Limit di PO konsisten
+                        if (isset($sourceData['parts'][$idx]['limit_snapshot'])) {
+                            $sourceData['parts'][$idx]['limit_snapshot']['service_biaya'] = (int) $item['biaya'];
+                        }
                     }
                 } elseif ($srcType === 'service_incident') {
                     if (isset($sourceData['parts'][$idx])) {
@@ -3655,11 +3682,22 @@ class PembayaranController extends Controller
                         // Hapus flag rejection lama
                         unset($sourceData['parts'][$idx]['status_approval']);
                         unset($sourceData['parts'][$idx]['catatan_penolakan']);
+                        // Sync limit_snapshot.service_biaya
+                        if (isset($sourceData['parts'][$idx]['limit_snapshot'])) {
+                            $sourceData['parts'][$idx]['limit_snapshot']['service_biaya'] = (int) $item['biaya'];
+                        }
                     }
                 } elseif ($srcType === 'service_asuransi') {
                     if (isset($sourceData['kejadians'][$idx])) {
                         $sourceData['kejadians'][$idx]['biaya']      = (int) $item['biaya'];
                         $sourceData['kejadians'][$idx]['keterangan'] = $item['keterangan'] ?? $sourceData['kejadians'][$idx]['keterangan'] ?? null;
+                    }
+                } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                    if (isset($sourceData['gps_items'][$idx])) {
+                        $sourceData['gps_items'][$idx]['biaya_sewa']   = (int) $item['biaya'];
+                        $sourceData['gps_items'][$idx]['nama_bank']    = $item['nama_bank']    ?? $sourceData['gps_items'][$idx]['nama_bank']    ?? null;
+                        $sourceData['gps_items'][$idx]['no_rekening']  = $item['no_rekening']  ?? $sourceData['gps_items'][$idx]['no_rekening']  ?? null;
+                        $sourceData['gps_items'][$idx]['nama_pemilik'] = $item['nama_pemilik'] ?? $sourceData['gps_items'][$idx]['nama_pemilik'] ?? null;
                     }
                 }
 
@@ -3696,6 +3734,14 @@ class PembayaranController extends Controller
                         $nominalApproved += (int) ($kej['biaya'] ?? 0);
                     } elseif (in_array((int)$idx, $resubmittedIndices)) {
                         $nominalResubmit += (int) ($kej['biaya'] ?? 0);
+                    }
+                }
+            } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                foreach ($sourceData['gps_items'] ?? [] as $idx => $gpsItem) {
+                    if (isset($approvedIdxMap[(int)$idx])) {
+                        $nominalApproved += (int) ($gpsItem['biaya_sewa'] ?? 0);
+                    } elseif (in_array((int)$idx, $resubmittedIndices)) {
+                        $nominalResubmit += (int) ($gpsItem['biaya_sewa'] ?? 0);
                     }
                 }
             }
@@ -3739,12 +3785,22 @@ class PembayaranController extends Controller
                         $existingPoKej[$idx] = $kej;
                     }
                     $poSourceData['kejadians'] = $existingPoKej;
+                } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                    // Merge gps_items: update item yang diresubmit, pertahankan yang approved
+                    $existingPoGps = $poSourceData['gps_items'] ?? [];
+                    foreach ($sourceData['gps_items'] as $idx => $gpsItem) {
+                        $existingPoGps[$idx] = $gpsItem;
+                    }
+                    $poSourceData['gps_items'] = $existingPoGps;
                 }
 
                 // Reset item_decisions PO agar item yang diresubmit muncul kembali sebagai pending
                 $poSourceData['item_decisions']   = $sourceData['item_decisions'];
                 $poSourceData['nominal_approved'] = $nominalApproved;
-                $poSourceData['nominal_rejected'] = 0;
+                // Pertahankan nominal_rejected yang sudah tersimpan dari proses approval PO.
+                // Nilainya di-set oleh approveItemsServicePart/approveItemsServiceAsuransi.
+                // Jangan di-reset ke 0 — summary card "Ditolak" membaca nilai ini.
+                // $poSourceData['nominal_rejected'] tetap dari nilai existing ($poSourceData).
 
                 // Update nominal_approved_locked agar view PO bisa hitung nominal header dengan benar
                 // nominal_approved_locked = biaya item yang sudah approved dan tidak ikut resubmit
@@ -3883,6 +3939,24 @@ class PembayaranController extends Controller
                         ->whereNotIn('persetujuan', ['Ditolak Pembayaran'])
                         ->sum('biaya');
                     $sh->update(['total_biaya' => $totalBiayaBaru]);
+                }
+            } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                // Update record GpsKendaraan yang diresubmit: biaya_sewa + bank info
+                $gpsRecordIds = $sourceData['gps_record_ids'] ?? [];
+                foreach ($request->items as $item) {
+                    $idx      = (int) $item['idx'];
+                    $gpsItem  = $sourceData['gps_items'][$idx] ?? [];
+                    $recordId = $gpsRecordIds[$idx] ?? null;
+                    if ($recordId) {
+                        \App\Models\GpsKendaraan::where('id', $recordId)
+                            ->update([
+                                'biaya_sewa'   => (int) $item['biaya'],
+                                'nama_bank'    => $item['nama_bank']    ?? $gpsItem['nama_bank']    ?? null,
+                                'no_rekening'  => $item['no_rekening']  ?? $gpsItem['no_rekening']  ?? null,
+                                'nama_pemilik' => $item['nama_pemilik'] ?? $gpsItem['nama_pemilik'] ?? null,
+                                'persetujuan'  => 'Diajukan ke Pembayaran',
+                            ]);
+                    }
                 }
             }
 

@@ -232,22 +232,35 @@
                         if (!empty($_gpsI)) {
                             if (!empty($_dec)) {
                                 // Sudah ada keputusan per item
-                                foreach ($_dec as $_dIdx => $_d) {
-                                    $_iNom = (int)(($_gpsI[(int)($_d['idx'] ?? $_dIdx)]['biaya_sewa'] ?? 0));
-                                    if (($_d['action'] ?? '') === 'approved') {
+                                $_decColl = collect($_dec)->keyBy(fn($d) => (int)($d['idx'] ?? -1));
+                                foreach ($_gpsI as $_gi => $_gitem) {
+                                    $_iNom = (int)($_gitem['biaya_sewa'] ?? 0);
+                                    if ($_decColl->has((int)$_gi) && ($_decColl[(int)$_gi]['action'] ?? '') === 'approved') {
+                                        $grpApproved++;
+                                        $nominalApproved += $_iNom;
+                                    } elseif ($_decColl->has((int)$_gi) && ($_decColl[(int)$_gi]['action'] ?? '') === 'rejected') {
+                                        $grpRejected++;
+                                        $nominalRejected += $_iNom;
+                                    } elseif (in_array((int)$_gi, $_locked)) {
+                                        // Item locked (approved dari partial sebelumnya, tidak ada di decisions lagi)
                                         $grpApproved++;
                                         $nominalApproved += $_iNom;
                                     } else {
-                                        $grpRejected++;
-                                        $nominalRejected += $_iNom;
+                                        // Sisa yang belum diproses → Pending
+                                        $grpPending++;
+                                        $nominalPending += $_iNom;
                                     }
                                 }
-                                // Sisa yang belum diproses → Pending
-                                $processedIdx = array_column($_dec, 'idx');
+                            } elseif (!empty($_locked)) {
+                                // PO Pending dengan locked (resubmit kedua kali) — item_decisions kosong
                                 foreach ($_gpsI as $_gi => $_gitem) {
-                                    if (!in_array($_gi, $processedIdx)) {
+                                    $_iNom = (int)($_gitem['biaya_sewa'] ?? 0);
+                                    if (in_array((int)$_gi, $_locked)) {
+                                        $grpApproved++;
+                                        $nominalApproved += $_iNom;
+                                    } else {
                                         $grpPending++;
-                                        $nominalPending += (int)($_gitem['biaya_sewa'] ?? 0);
+                                        $nominalPending += $_iNom;
                                     }
                                 }
                             } else {
@@ -384,17 +397,49 @@
                                         $allGpsItems  = $sourceData['gps_items'] ?? [];
                                         $poDecMap     = collect($sourceData['item_decisions'] ?? [])->keyBy('idx');
 
-                                        // Filter GPS items sesuai tab — untuk data lama yang item_decisions-nya ada
-                                        // Data baru sudah tersimpan terfilter di source_data
+                                        // Filter GPS items sesuai tab
+                                        $lockedApprovedIdx = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
                                         if ($poDecMap->isNotEmpty()) {
                                             if ($statusFilter === 'Disetujui') {
+                                                // Tab Disetujui: tampilkan item approved + locked
                                                 $gpsItems = collect($allGpsItems)
-                                                    ->filter(fn($g, $i) => ($poDecMap[$i]['action'] ?? '') === 'approved')
+                                                    ->filter(fn($g, $i) =>
+                                                        ($poDecMap[$i]['action'] ?? '') === 'approved'
+                                                        || in_array($i, $lockedApprovedIdx)
+                                                    )
                                                     ->values()->all();
                                             } elseif ($statusFilter === 'Ditolak') {
+                                                // Tab Ditolak: hanya yang rejected
                                                 $gpsItems = collect($allGpsItems)
-                                                    ->filter(fn($g, $i) => ($poDecMap[$i]['action'] ?? '') !== 'approved' && $poDecMap->has($i))
+                                                    ->filter(fn($g, $i) => ($poDecMap[$i]['action'] ?? '') === 'rejected' && $poDecMap->has($i))
                                                     ->values()->all();
+                                            } elseif ($statusFilter === 'Pending') {
+                                                // Tab Pending: exclude locked & approved
+                                                $gpsItems = collect($allGpsItems)
+                                                    ->filter(fn($g, $i) =>
+                                                        !in_array($i, $lockedApprovedIdx)
+                                                        && ($poDecMap[$i]['action'] ?? '') !== 'approved'
+                                                    )
+                                                    ->values()->all();
+                                            } else {
+                                                // Tab Semua: tampilkan semua
+                                                $gpsItems = $allGpsItems;
+                                            }
+                                        } elseif (!empty($lockedApprovedIdx)) {
+                                            // Tidak ada item_decisions tapi ada locked (PO Pending resubmit kedua)
+                                            if ($statusFilter === 'Disetujui') {
+                                                // Tab Disetujui: hanya yang locked
+                                                $gpsItems = collect($allGpsItems)
+                                                    ->filter(fn($g, $i) => in_array($i, $lockedApprovedIdx))
+                                                    ->values()->all();
+                                            } elseif ($statusFilter === 'Pending') {
+                                                // Tab Pending: yang tidak locked
+                                                $gpsItems = collect($allGpsItems)
+                                                    ->filter(fn($g, $i) => !in_array($i, $lockedApprovedIdx))
+                                                    ->values()->all();
+                                            } elseif ($statusFilter === 'Ditolak') {
+                                                // Tab Ditolak: kosong (tidak ada rejected)
+                                                $gpsItems = [];
                                             } else {
                                                 $gpsItems = $allGpsItems;
                                             }
@@ -558,13 +603,61 @@
                                                 $_poKejad2 = $po->source_data['kejadians'] ?? [];
                                                 if (!empty($_poDec2) && !empty($_poGpsI2)) {
                                                     // GPS with item_decisions
-                                                    $_poNomAppr = collect($_poGpsI2)
-                                                        ->filter(fn($g, $i) => ($_poDec2[$i]['action'] ?? '') === 'approved')
+                                                    $_decColl2   = collect($_poDec2)->keyBy('idx');
+                                                    $_lockedIdx2 = array_map('intval', $po->source_data['locked_approved_idx'] ?? []);
+                                                    
+                                                    // Hitung approved: dari decisions + locked yang tidak ada di decisions
+                                                    $_poNomAppr  = collect($_poGpsI2)
+                                                        ->filter(fn($g, $i) =>
+                                                            ($_decColl2[$i]['action'] ?? '') === 'approved'
+                                                            || (in_array($i, $_lockedIdx2) && !$_decColl2->has($i))
+                                                        )
                                                         ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
-                                                    $_poNomRej  = collect($_poGpsI2)
-                                                        ->filter(fn($g, $i) => ($_poDec2[$i]['action'] ?? '') !== 'approved')
+                                                    
+                                                    $_poNomRej   = collect($_poGpsI2)
+                                                        ->filter(fn($g, $i) => ($_decColl2[$i]['action'] ?? '') === 'rejected' && $_decColl2->has($i))
                                                         ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
-                                                    $_poNomShow = $statusFilter === 'Ditolak' ? $_poNomRej : $_poNomAppr;
+                                                    
+                                                    // Hitung pending: GPS yang tidak ada di decisions (belum diputuskan)
+                                                    $_poNomPend = collect($_poGpsI2)
+                                                        ->filter(fn($g, $i) => !$_decColl2->has($i) && !in_array($i, $_lockedIdx2))
+                                                        ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+
+                                                    // PO Pending yang muncul di tab Disetujui (partial resubmit):
+                                                    // hanya tampilkan nominal locked (yang sudah diapprove sebelumnya)
+                                                    if ($statusFilter === 'Disetujui' && $po->status === 'Pending' && !empty($_lockedIdx2)) {
+                                                        $_poNomShow = collect($_poGpsI2)
+                                                            ->filter(fn($g, $i) => in_array($i, $_lockedIdx2))
+                                                            ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                    } elseif ($statusFilter === 'Disetujui' && $po->status === 'Disetujui' && $_poNomRej === 0) {
+                                                        // PO Fully Disetujui tanpa rejected: sum SEMUA GPS
+                                                        $_poNomShow = collect($_poGpsI2)->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                    } elseif ($statusFilter === 'Pending' && $po->status === 'Pending' && !empty($_lockedIdx2)) {
+                                                        // Tab Pending untuk PO resubmit: hanya tampilkan nominal pending (exclude locked)
+                                                        $_poNomShow = $_poNomPend;
+                                                    } elseif ($statusFilter === 'Ditolak') {
+                                                        $_poNomShow = $_poNomRej;
+                                                    } elseif ($statusFilter === 'semua') {
+                                                        // Tab Semua: approved + pending + rejected
+                                                        $_poNomShow = $_poNomAppr + $_poNomPend + $_poNomRej;
+                                                    } else {
+                                                        $_poNomShow = $_poNomAppr;
+                                                    }
+                                                } elseif (!empty($_poGpsI2) && !empty($po->source_data['locked_approved_idx'] ?? [])) {
+                                                    // GPS — PO Pending setelah resubmit partial:
+                                                    // item_decisions kosong tapi locked_approved_idx ada
+                                                    $_lockedIdx2 = array_map('intval', $po->source_data['locked_approved_idx']);
+                                                    if ($statusFilter === 'Disetujui') {
+                                                        // Tab Disetujui: hanya nominal GPS yang locked
+                                                        $_poNomShow = collect($_poGpsI2)
+                                                            ->filter(fn($g, $i) => in_array($i, $_lockedIdx2))
+                                                            ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                    } else {
+                                                        // Tab Pending/Semua: hitung GPS yang tidak locked
+                                                        $_poNomShow = collect($_poGpsI2)
+                                                            ->filter(fn($g, $i) => !in_array($i, $_lockedIdx2))
+                                                            ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                    }
                                                 } elseif (!empty($_poDec2) && !empty($_poParts2)) {
                                                     // Service Part/Incident with item_decisions
                                                     $_decColl2   = collect($_poDec2)->keyBy('idx');
@@ -682,6 +775,10 @@
                                                     // Service Incident/Part — PO Disetujui tanpa item_decisions (approve pertama kali):
                                                     // Jumlahkan semua parts karena semua dianggap approved
                                                     $_poNomShow = collect($_poParts2)->sum(fn($p) => $p['biaya'] ?? 0);
+                                                } elseif (in_array($po->source_type, ['gps', 'gps_perpanjang']) && $po->status === 'Disetujui' && !empty($_poGpsI2)) {
+                                                    // GPS — PO Disetujui tanpa item_decisions (approve pertama kali):
+                                                    // Jumlahkan semua GPS items karena semua dianggap approved
+                                                    $_poNomShow = collect($_poGpsI2)->sum(fn($g) => $g['biaya_sewa'] ?? 0);
                                                 } else {
                                                     $_poNomShow = $po->total_harga ?? 0;
                                                 }
@@ -743,7 +840,7 @@
                                                         {{-- GPS / Service Part / Service Incident / Service Asuransi: per-item approval modal --}}
                                                         <button onclick="openApproveModal({{ $po->id }}, '{{ $po->po_id }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors">
-                                                            <i class="fa fa-check text-xs"></i> Approve
+                                                            <i class="fa fa-check text-xs"></i> Aksi
                                                         </button>
                                                     @elseif($po->source_type === 'stnk')
                                                         {{-- STNK: langsung confirm tanpa modal --}}
@@ -759,10 +856,7 @@
                                                         </button>
                                                     @endif
                                                     @if(in_array($po->source_type, ['gps', 'gps_perpanjang', 'service_part', 'service_incident', 'service_asuransi']))
-                                                        <button onclick="openRejectModal({{ $po->id }}, '{{ $po->po_id }}')"
-                                                            class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
-                                                            <i class="fa fa-times text-xs"></i> Reject
-                                                        </button>
+                                                        {{-- Reject handled inline in approveModal --}}
                                                     @else
                                                         <button onclick="openRejectSimpleModal({{ $po->id }}, '{{ $po->po_id }}', '{{ $po->source_type }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
@@ -835,9 +929,21 @@
                                                 $lockedPartIdx = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
                                                 if ($statusFilter === 'Disetujui') {
                                                     // Tab Disetujui:
-                                                    // - PO sudah Disetujui: tampilkan semua parts (termasuk yang di-resubmit)
+                                                    // - PO sudah Disetujui dengan ada rejected: filter hanya approved + locked
+                                                    // - PO sudah Disetujui tanpa rejected (fully approved): tampilkan semua
                                                     // - PO masih Pending (partial): hanya yang approved/locked
-                                                    if ($po->status === 'Disetujui') {
+                                                    $hasRejectedInDec = $partDecMap->where('action', 'rejected')->isNotEmpty();
+                                                    if ($po->status === 'Disetujui' && $hasRejectedInDec) {
+                                                        // Ada item yang ditolak — filter ketat: hanya approved + locked
+                                                        $parts = collect($allParts)
+                                                            ->filter(fn($p, $i) =>
+                                                                ($partDecMap[$i]['action'] ?? '') === 'approved'
+                                                                || in_array($i, $lockedPartIdx)
+                                                            )
+                                                            ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                            ->values()->all();
+                                                    } elseif ($po->status === 'Disetujui') {
+                                                        // Fully approved (tidak ada rejected) — tampilkan semua
                                                         $parts = collect($allParts)
                                                             ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
                                                             ->values()->all();
@@ -900,9 +1006,22 @@
                                                 // PO induk (partial): filter berdasarkan item_decisions
                                                 $kejDecMap = collect($rawKejDecisions)->keyBy('idx');
                                                 if ($statusFilter === 'Disetujui') {
-                                                    // PO sudah Disetujui: tampilkan semua kejadian (approved + pending resubmit)
-                                                    // PO masih Pending: hanya yang approved/locked
-                                                    if ($po->status === 'Disetujui') {
+                                                    // Tab Disetujui:
+                                                    // - PO sudah Disetujui dengan ada rejected: filter hanya approved + locked
+                                                    // - PO sudah Disetujui tanpa rejected (fully approved): tampilkan semua
+                                                    // - PO masih Pending: hanya yang approved/locked
+                                                    $hasRejectedInKejDec = $kejDecMap->where('action', 'rejected')->isNotEmpty();
+                                                    if ($po->status === 'Disetujui' && $hasRejectedInKejDec) {
+                                                        // Ada kejadian yang ditolak — filter ketat: hanya approved + locked
+                                                        $asuransiKejadians = collect($allKejadians)
+                                                            ->filter(fn($k, $i) =>
+                                                                ($kejDecMap[$i]['action'] ?? '') === 'approved'
+                                                                || in_array($i, $lockedIdx)
+                                                            )
+                                                            ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
+                                                            ->values()->all();
+                                                    } elseif ($po->status === 'Disetujui') {
+                                                        // Fully approved — tampilkan semua
                                                         $asuransiKejadians = collect($allKejadians)
                                                             ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
                                                             ->values()->all();
@@ -1601,9 +1720,6 @@
             <div id="approveKendaraanInfo" class="px-6 pt-4 pb-2"></div>
             <div class="px-6 pb-2">
                 <div class="flex items-center justify-between mb-2">
-                    <p id="approveItemListLabel" class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        <i class="fa fa-list-ul mr-1 text-green-500"></i> Item GPS — Centang yang ingin disetujui
-                    </p>
                     <div class="flex gap-2">
                         <button type="button" onclick="approveSelectAll(true)"
                             class="text-[11px] text-green-600 font-medium px-2 py-0.5 bg-green-50 rounded-md border border-green-200 hover:bg-green-100">
@@ -1636,68 +1752,6 @@
             <button type="button" id="approveSubmitBtn" onclick="submitApproveItems()"
                 class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-xl py-2.5 transition-colors">
                 <i class="fa fa-check"></i> Konfirmasi Approval
-            </button>
-        </div>
-    </div>
-</div>
-
-{{-- MODAL REJECT (per-item) --}}
-<div id="rejectModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-            <div>
-                <h3 class="text-lg font-bold text-gray-800">Tolak Purchase Order</h3>
-                <p class="text-sm text-gray-500 mt-0.5">No PO: <span id="rejectPoId" class="font-mono font-semibold text-red-600"></span></p>
-            </div>
-            <button onclick="closeRejectModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100">
-                <i class="fa fa-times"></i>
-            </button>
-        </div>
-        <div id="rejectModalLoading" class="flex items-center justify-center py-16">
-            <div class="flex flex-col items-center gap-2 text-gray-400">
-                <i class="fa fa-spinner fa-spin text-2xl"></i>
-                <p class="text-sm">Memuat data item...</p>
-            </div>
-        </div>
-        <div id="rejectModalContent" class="hidden flex-1 overflow-y-auto">
-            <div id="rejectKendaraanInfo" class="px-6 pt-4 pb-2"></div>
-            <div class="px-6 pb-2">
-                <div class="flex items-center justify-between mb-2">
-                    <p id="rejectItemListLabel" class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        <i class="fa fa-list-ul mr-1 text-red-500"></i> Item — Centang yang ingin ditolak
-                    </p>
-                    <div class="flex gap-2">
-                        <button type="button" onclick="rejectSelectAll(true)"
-                            class="text-[11px] text-red-600 font-medium px-2 py-0.5 bg-red-50 rounded-md border border-red-200 hover:bg-red-100">
-                            Tolak Semua
-                        </button>
-                        <button type="button" onclick="rejectSelectAll(false)"
-                            class="text-[11px] text-gray-500 font-medium px-2 py-0.5 bg-gray-50 rounded-md border border-gray-200 hover:bg-gray-100">
-                            Hapus Pilihan
-                        </button>
-                    </div>
-                </div>
-                <div id="rejectItemList" class="space-y-2"></div>
-            </div>
-            <div class="px-6 pb-4 pt-2">
-                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                    Catatan Umum <span class="text-gray-400 font-normal">(opsional)</span>
-                </label>
-                <textarea id="rejectCatatan" rows="2" placeholder="Catatan umum untuk penolakan ini..."
-                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400"></textarea>
-            </div>
-            <div id="rejectSummary" class="mx-6 mb-4 px-4 py-3 bg-red-50 rounded-xl border border-red-200 text-xs text-red-700 hidden">
-                <span id="rejectSummaryText"></span>
-            </div>
-        </div>
-        <div id="rejectModalFooter" class="hidden border-t border-gray-100 px-6 py-4 flex gap-2 flex-shrink-0">
-            <button type="button" onclick="closeRejectModal()"
-                class="flex-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors">
-                Batal
-            </button>
-            <button type="button" id="rejectSubmitBtn" onclick="submitRejectItems()"
-                class="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl py-2.5 transition-colors">
-                <i class="fa fa-times"></i> Konfirmasi Penolakan
             </button>
         </div>
     </div>
@@ -2300,7 +2354,7 @@ function closeDetailModal() {
 }
 
 // ── APPROVE MODAL ─────────────────────────────────────────────
-let currentApprovePoId = null, approveItemDecisions = [];
+let currentApprovePoId = null, approveItemDecisions = [], approveLockedIdx = [];
 function openApproveModal(poId, poNumber) {
     currentApprovePoId = poId;
     document.getElementById('approvePoId').textContent = poNumber;
@@ -2324,14 +2378,17 @@ function openApproveModal(poId, poNumber) {
 }
 function renderApproveItems(data) {
     const details = data.details, items = details.items || [];
-    approveItemDecisions = items.map(function() { return { action: null, buktiFile: null }; });
+    const lockedApprovedIdx = (details.locked_approved_idx || []).map(Number);
+    approveLockedIdx = lockedApprovedIdx;
+
+    // Filter out locked items — they are hidden from the modal entirely
+    // approveItemDecisions is indexed by ORIGINAL item index
+    approveItemDecisions = items.map(function() { return { action: null, catatan: '' }; });
+
     const k = details.kendaraan || {};
     const isServicePart     = details.type === 'service_part';
     const isServiceIncident = details.type === 'service_incident';
     const isServiceAsuransi = details.type === 'service_asuransi';
-
-    // Index item yang sudah locked approved (dari partial approval sebelumnya) — tidak bisa diubah lagi
-    const lockedApprovedIdx = (details.locked_approved_idx || []).map(Number);
 
     // ── Header info kendaraan ─────────────────────────────────
     if (isServicePart || isServiceIncident) {
@@ -2353,11 +2410,7 @@ function renderApproveItems(data) {
             + '</div>'
             + '<div class="flex gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">'
             + '<span>Tgl Service: <b class="text-gray-600">' + (details.tanggal_service || '-') + '</b></span>'
-            + '<span>KM: <b class="text-gray-600">' + (details.kilometer || '-') + '</b></span>'
             + '</div></div></div>';
-        // Update label list
-        const lbl = document.getElementById('approveItemListLabel');
-        if (lbl) lbl.innerHTML = '<i class="fa fa-list-ul mr-1 text-blue-500"></i> Kejadian — Centang yang ingin disetujui';
     } else {
         document.getElementById('approveKendaraanInfo').innerHTML =
             '<div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3"><i class="fa fa-car text-green-600"></i>'
@@ -2369,23 +2422,30 @@ function renderApproveItems(data) {
 
     const list = document.getElementById('approveItemList');
     list.innerHTML = '';
+
+    // Update item count label
+    const visibleCount = items.filter(function(_, idx) { return !lockedApprovedIdx.includes(idx); }).length;
+    const labelEl = document.querySelector('#approveModal .text-xs.font-semibold.text-gray-500');
+
     items.forEach(function(item, idx) {
-        // ── Item title, subtitle, nominal ──────────────────────
-        let itemTitle, itemSubtitle, itemNominal, bankInfo = '';
+        // Skip locked items — hidden from modal entirely
+        if (lockedApprovedIdx.includes(idx)) {
+            approveItemDecisions[idx].action = 'approved'; // mark as approved silently
+            return;
+        }
+
+        let itemTitle, itemSubtitle = '', itemNominal, bankInfo = '';
 
         if (isServiceAsuransi) {
-            // Kejadian asuransi: tampilkan nama kejadian + lampiran
-            itemTitle    = item.nama_kejadian || '-';
-            itemSubtitle = '';
-            itemNominal  = item.biaya || 0;
-
-            // Tampilkan lampiran per kejadian
+            itemTitle   = item.nama_kejadian || '-';
+            itemNominal = item.biaya || 0;
+            // Lampiran per kejadian
             const lamps = item.lampiran || [];
             if (lamps.length > 0) {
                 const lampHtml = lamps.map(function(lf) {
-                    const ext    = (lf.file_type || '').toLowerCase();
-                    const isImg  = ['jpg','jpeg','png','webp','gif'].includes(ext);
-                    const icon   = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                    const ext   = (lf.file_type || '').toLowerCase();
+                    const isImg = ['jpg','jpeg','png','webp','gif'].includes(ext);
+                    const icon  = isImg ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
                     return '<a href="' + lf.file_path + '" target="_blank" class="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:underline max-w-[150px] truncate">'
                         + '<i class="fa ' + icon + ' text-[9px]"></i><span class="truncate">' + (lf.file_name || 'file') + '</span></a>';
                 }).join('');
@@ -2393,366 +2453,272 @@ function renderApproveItems(data) {
             }
         } else if (isServicePart || isServiceIncident) {
             itemTitle    = item.nama_part || '-';
-            itemSubtitle = [
+            itemNominal  = item.biaya || 0;
+            const badgeParts = [
                 item.category_nama ? '<span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">' + item.category_nama + '</span>' : '',
                 item.part_number && item.part_number !== '-' ? '<span class="font-mono text-gray-400 text-[10px]">' + item.part_number + '</span>' : '',
-                item.kondisi && item.kondisi !== '-' ? '<span class="text-gray-400 text-[10px]">Kondisi: ' + item.kondisi + '</span>' : '',
-                item.posisi && item.posisi !== '-'   ? '<span class="text-gray-400 text-[10px]">Posisi: ' + item.posisi + '</span>' : '',
+                item.kondisi && item.kondisi !== '-' ? '<span class="text-gray-400 text-[10px]">· ' + item.kondisi + '</span>' : '',
             ].filter(Boolean).join(' ');
-            itemNominal  = item.biaya || 0;
+            itemSubtitle = badgeParts ? '<div class="flex flex-wrap items-center gap-1 mt-0.5">' + badgeParts + '</div>' : '';
             const bankName = item.nama_bank || '-';
             const bankRek  = item.no_rekening || '-';
             const bankAn   = item.nama_pemilik || item.nama_rekening || '-';
-            bankInfo = [
+            const bankParts = [
                 bankName !== '-' ? '<span><i class="fa fa-building text-[9px]"></i> ' + bankName + '</span>' : '',
                 bankRek  !== '-' ? '<span class="font-mono">' + bankRek + '</span>' : '',
                 bankAn   !== '-' ? '<span>a/n ' + bankAn + '</span>' : '',
-            ].filter(Boolean).join(' ');
+            ].filter(Boolean);
+            bankInfo = bankParts.join(' ');
         } else {
             // GPS
+            itemTitle   = item.gps_name || '-';
+            itemNominal = item.biaya_sewa || 0;
             const bankName = item.nama_bank || '-';
             const bankRek  = item.no_rekening || '-';
             const bankAn   = item.nama_pemilik || item.nama_rekening || '-';
-            bankInfo = [
+            const bankParts = [
                 bankName !== '-' ? '<span><i class="fa fa-building text-[9px]"></i> ' + bankName + '</span>' : '',
                 bankRek  !== '-' ? '<span class="font-mono">' + bankRek + '</span>' : '',
                 bankAn   !== '-' ? '<span>a/n ' + bankAn + '</span>' : '',
-            ].filter(Boolean).join(' ');
-            itemTitle    = item.gps_name || '-';
+            ].filter(Boolean);
+            bankInfo = bankParts.join(' ');
             itemSubtitle = '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + (item.type || '-') + '</span>';
-            itemNominal  = item.biaya_sewa || 0;
         }
 
-        // ── Warna aksen per type ───────────────────────────────
         const accentColor = isServiceAsuransi ? 'blue'
             : (isServicePart || isServiceIncident) ? 'orange'
             : 'green';
 
         const card = document.createElement('div');
         card.id = 'approve-item-card-' + idx;
+        card.className = 'border border-gray-200 rounded-xl overflow-hidden transition-all bg-white';
 
-        // Cek apakah item ini sudah locked approved dari partial approval sebelumnya
-        const isLocked = lockedApprovedIdx.includes(idx);
-
-        if (isLocked) {
-            // Item locked: tampil hijau terkunci, checkbox disabled, tidak bisa diubah
-            approveItemDecisions[idx].action = 'approved'; // paksa approved
-            card.className = 'border border-green-300 rounded-xl overflow-hidden transition-all bg-green-50/30 opacity-80';
-        } else {
-            card.className = 'border border-red-200 rounded-xl overflow-hidden transition-all bg-red-50/10';
-        }
-
-        const row = document.createElement('div');
-        row.className = 'flex items-start gap-3 px-4 py-3';
-
-        const lockBadgeHtml = isLocked
-            ? '<span class="ml-1 text-[9px] font-semibold text-green-600 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full"><i class="fa fa-lock text-[8px]"></i> Sudah Disetujui</span>'
-            : '';
-
-        row.innerHTML = '<div class="flex-shrink-0 pt-0.5"><input type="checkbox" id="item-chk-' + idx + '" class="w-4 h-4 rounded text-green-600 cursor-pointer"'
-            + (isLocked ? ' checked disabled title="Item ini sudah disetujui sebelumnya dan tidak dapat diubah"' : '') + '></div>'
-            + '<div class="flex-1 min-w-0"><label for="item-chk-' + idx + '" class="' + (isLocked ? 'cursor-default' : 'cursor-pointer') + '">'
+        card.innerHTML =
+            // Main row
+            '<div class="flex items-start gap-3 px-4 py-3">'
+            + '<div class="flex-shrink-0 mt-0.5" id="approve-item-status-' + idx + '">'
+            + '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">'
+            + '<i class="fa fa-circle text-[6px]"></i> Pending</span>'
+            + '</div>'
+            + '<div class="flex-1 min-w-0">'
             + '<div class="flex items-center gap-2 flex-wrap">'
-            + '<span class="text-xs text-gray-400">#' + (idx+1) + '</span>'
+            + '<span class="text-xs text-gray-400">#' + (idx + 1) + '</span>'
             + '<span class="font-semibold text-gray-800 text-sm">' + itemTitle + '</span>'
-            + lockBadgeHtml
-            + (itemSubtitle && !isServiceAsuransi ? itemSubtitle : '')
             + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(itemNominal) + '</span>'
             + '</div>'
-            + (isServiceAsuransi && itemSubtitle ? itemSubtitle : '')
+            + (itemSubtitle ? itemSubtitle : '')
             + (bankInfo ? '<div class="mt-1 flex flex-wrap gap-x-3 text-[11px] text-gray-400">' + bankInfo + '</div>' : '')
             + (isServicePart && (item.keterangan_limit || item.keterangan) && (item.keterangan_limit || item.keterangan) !== '-' ? '<p class="mt-1 text-[10px] text-gray-400 italic">' + (item.keterangan_limit || item.keterangan) + '</p>' : '')
-            + '</label></div>'
-            + '<div id="approve-item-badge-' + idx + '" class="flex-shrink-0 self-center">'
-            + (isLocked
-                ? '<span class="text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-check text-[8px]"></i> Disetujui</span>'
-                : '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>')
+            + '</div>'
+            // Tombol Approve & Reject inline
+            + '<div class="flex items-center gap-2 flex-shrink-0">'
+            + '<button type="button" id="approve-btn-' + idx + '" onclick="setPoItemAction(' + idx + ', \'approved\')"'
+            + ' class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white text-green-600 border-green-300 hover:bg-green-50">'
+            + '<i class="fa fa-check text-[10px]"></i> Approve</button>'
+            + '<button type="button" id="reject-btn-' + idx + '" onclick="setPoItemAction(' + idx + ', \'rejected\')"'
+            + ' class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white text-red-500 border-red-300 hover:bg-red-50">'
+            + '<i class="fa fa-times text-[10px]"></i> Reject</button>'
+            + '</div>'
+            + '</div>'
+            // Reject reason panel (hidden by default)
+            + '<div id="reject-item-panel-' + idx + '" class="hidden px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/20">'
+            + '<label class="text-[11px] font-semibold text-red-500 mb-1.5 block">Alasan Penolakan <span class="font-normal text-red-400">(opsional)</span></label>'
+            + '<textarea id="reject-catatan-' + idx + '" rows="2" placeholder="Tulis alasan penolakan item ini..." class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"></textarea>'
             + '</div>';
 
-        card.appendChild(row);
-
-        const rejectPanel = document.createElement('div');
-        rejectPanel.id = 'reject-item-panel-' + idx;
-        rejectPanel.className = 'px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/20' + (isLocked ? ' hidden' : '');
-        rejectPanel.innerHTML = '<label class="text-[11px] font-semibold text-red-500 mb-1.5 block">Alasan Penolakan <span class="font-normal text-red-400">(opsional)</span></label>'
-            + '<textarea id="reject-catatan-' + idx + '" rows="2" placeholder="Tulis alasan penolakan item ini..." class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"' + (isLocked ? ' disabled' : '') + '></textarea>';
-        card.appendChild(rejectPanel);
-
-        const chk = row.querySelector('input[type=checkbox]');
-        // Item locked tidak perlu event listener — sudah fixed ke approved
-        if (!isLocked) {
-            chk.addEventListener('change', function() { toggleApproveItem(idx, this.checked); });
-        }
         list.appendChild(card);
     });
+
     updateApproveSummary();
 }
-function toggleApproveItem(idx, checked) {
-    approveItemDecisions[idx].action = checked ? 'approved' : null;
+function setPoItemAction(idx, action) {
+    if (!approveItemDecisions[idx]) return;
+
+    // Toggle: click same action again = reset to null
+    const current = approveItemDecisions[idx].action;
+    approveItemDecisions[idx].action = (current === action) ? null : action;
+    const newAction = approveItemDecisions[idx].action;
+
     const card        = document.getElementById('approve-item-card-' + idx);
+    const statusBadge = document.getElementById('approve-item-status-' + idx);
     const rejectPanel = document.getElementById('reject-item-panel-' + idx);
-    const badge       = document.getElementById('approve-item-badge-' + idx);
-    if (checked) {
-        card.className = 'border border-green-300 rounded-xl overflow-hidden transition-all bg-green-50/20';
+    const approveBtn  = document.getElementById('approve-btn-' + idx);
+    const rejectBtn   = document.getElementById('reject-btn-' + idx);
+
+    if (newAction === 'approved') {
+        card.className = 'border border-green-300 rounded-xl overflow-hidden transition-all bg-green-50/30';
+        statusBadge.innerHTML = '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-circle-check text-[10px]"></i> Approved</span>';
+        approveBtn.className  = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-green-600 text-white border-green-600 shadow-sm';
+        rejectBtn.className   = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white text-red-500 border-red-300 hover:bg-red-50';
         rejectPanel.classList.add('hidden');
-        badge.innerHTML = '<span class="text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-check text-[8px]"></i> Disetujui</span>';
-    } else {
-        card.className = 'border border-red-200 rounded-xl overflow-hidden transition-all bg-red-50/10';
+    } else if (newAction === 'rejected') {
+        card.className = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/30';
+        statusBadge.innerHTML = '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-circle-xmark text-[10px]"></i> Rejected</span>';
+        approveBtn.className  = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white text-green-600 border-green-300 hover:bg-green-50';
+        rejectBtn.className   = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-red-600 text-white border-red-600 shadow-sm';
         rejectPanel.classList.remove('hidden');
-        badge.innerHTML = '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
+    } else {
+        // null — reset to pending
+        card.className = 'border border-gray-200 rounded-xl overflow-hidden transition-all bg-white';
+        statusBadge.innerHTML = '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500"><i class="fa fa-circle text-[6px]"></i> Pending</span>';
+        approveBtn.className  = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white text-green-600 border-green-300 hover:bg-green-50';
+        rejectBtn.className   = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white text-red-500 border-red-300 hover:bg-red-50';
+        rejectPanel.classList.add('hidden');
     }
+
     updateApproveSummary();
 }
 function approveSelectAll(select) {
     approveItemDecisions.forEach(function(d, idx) {
-        const chk = document.getElementById('item-chk-' + idx);
-        if (chk) { chk.checked = select; toggleApproveItem(idx, select); }
-    });
-}
-function handleApproveBuktiFile(event, idx) {
-    const file = event.target.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert('File terlalu besar. Max 5MB.'); event.target.value = ''; return; }
-    approveItemDecisions[idx].buktiFile = file;
-    document.getElementById('approve-bukti-label-' + idx).textContent = '✓ ' + file.name;
-    // Sembunyikan warning saat file sudah dipilih
-    const warn = document.getElementById('approve-bukti-warn-' + idx);
-    if (warn) { warn.classList.add('hidden'); }
-    const wrap = document.getElementById('approve-bukti-label-wrap-' + idx);
-    if (wrap) { wrap.className = 'flex items-center gap-2 px-3 py-2 border border-dashed border-green-400 bg-green-50 rounded-lg cursor-pointer'; }
-}
-function updateApproveSummary() {
-    const approved = approveItemDecisions.filter(d => d.action === 'approved').length;
-    const total = approveItemDecisions.length;
-    const summary = document.getElementById('approveSummary');
-    const text = document.getElementById('approveSummaryText');
-    if (total > 0) {
-        summary.classList.remove('hidden');
-        const rejected = total - approved;
-        text.innerHTML = '<i class="fa fa-check-circle text-green-500 mr-1"></i><b>' + approved + '</b> item disetujui'
-            + (rejected > 0 ? ', <i class="fa fa-times-circle text-red-400 ml-2 mr-1"></i><b>' + rejected + '</b> item akan ditolak' : '');
-    }
-}
-function allApprovedHaveBukti() {
-    let allOk = true;
-    approveItemDecisions.forEach(function(d, idx) {
-        if (d.action !== 'approved') return;
-        const warn = document.getElementById('approve-bukti-warn-' + idx);
-        const wrap = document.getElementById('approve-bukti-label-wrap-' + idx);
-        if (!d.buktiFile) {
-            allOk = false;
-            if (warn) warn.classList.remove('hidden');
-            if (wrap) wrap.className = 'flex items-center gap-2 px-3 py-2 border border-dashed border-red-400 bg-red-50/30 rounded-lg cursor-pointer';
+        // Skip locked items (not rendered in modal)
+        if (approveLockedIdx.includes(idx)) return;
+        if (select) {
+            setPoItemAction_silent(idx, 'approved');
+        } else {
+            setPoItemAction_silent(idx, null);
         }
     });
-    return allOk;
+    // Update all visuals after bulk operation
+    approveItemDecisions.forEach(function(d, idx) {
+        if (approveLockedIdx.includes(idx)) return;
+        _updateItemVisual(idx, d.action);
+    });
+    updateApproveSummary();
+}
+
+// Internal: set action without triggering individual visual update (used by bulk ops)
+function setPoItemAction_silent(idx, action) {
+    if (!approveItemDecisions[idx]) return;
+    approveItemDecisions[idx].action = action;
+}
+
+// Internal: update visual state of a single item card
+function _updateItemVisual(idx, action) {
+    const card        = document.getElementById('approve-item-card-' + idx);
+    const statusBadge = document.getElementById('approve-item-status-' + idx);
+    const rejectPanel = document.getElementById('reject-item-panel-' + idx);
+    const approveBtn  = document.getElementById('approve-btn-' + idx);
+    const rejectBtn   = document.getElementById('reject-btn-' + idx);
+    if (!card) return;
+
+    if (action === 'approved') {
+        card.className = 'border border-green-300 rounded-xl overflow-hidden transition-all bg-green-50/30';
+        statusBadge.innerHTML = '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-circle-check text-[10px]"></i> Approved</span>';
+        approveBtn.className  = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-green-600 text-white border-green-600 shadow-sm';
+        rejectBtn.className   = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white text-red-500 border-red-300 hover:bg-red-50';
+        rejectPanel.classList.add('hidden');
+    } else if (action === 'rejected') {
+        card.className = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/30';
+        statusBadge.innerHTML = '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-circle-xmark text-[10px]"></i> Rejected</span>';
+        approveBtn.className  = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white text-green-600 border-green-300 hover:bg-green-50';
+        rejectBtn.className   = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-red-600 text-white border-red-600 shadow-sm';
+        rejectPanel.classList.remove('hidden');
+    } else {
+        card.className = 'border border-gray-200 rounded-xl overflow-hidden transition-all bg-white';
+        statusBadge.innerHTML = '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500"><i class="fa fa-circle text-[6px]"></i> Pending</span>';
+        approveBtn.className  = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white text-green-600 border-green-300 hover:bg-green-50';
+        rejectBtn.className   = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white text-red-500 border-red-300 hover:bg-red-50';
+        rejectPanel.classList.add('hidden');
+    }
+}
+function updateApproveSummary() {
+    // Count only non-locked items
+    const nonLocked = approveItemDecisions.filter(function(d, idx) {
+        return !approveLockedIdx.includes(idx);
+    });
+    const approved = nonLocked.filter(function(d) { return d.action === 'approved'; }).length;
+    const rejected = nonLocked.filter(function(d) { return d.action === 'rejected'; }).length;
+    const pending  = nonLocked.filter(function(d) { return d.action === null; }).length;
+    const total    = nonLocked.length;
+
+    const summary = document.getElementById('approveSummary');
+    const text    = document.getElementById('approveSummaryText');
+    if (total > 0 && (approved > 0 || rejected > 0)) {
+        summary.classList.remove('hidden');
+        let parts = [];
+        if (approved > 0) parts.push('<i class="fa fa-circle-check text-green-500 mr-1"></i><b>' + approved + '</b> disetujui');
+        if (rejected > 0) parts.push('<i class="fa fa-circle-xmark text-red-400 mr-1"></i><b>' + rejected + '</b> ditolak');
+        if (pending  > 0) parts.push('<i class="fa fa-circle text-gray-400 mr-1"></i><b>' + pending  + '</b> pending');
+        text.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+    } else {
+        summary.classList.add('hidden');
+    }
 }
 async function submitApproveItems() {
-    // Filter hanya item yang sudah diputuskan (action tidak null)
-    const decided = approveItemDecisions.filter(d => d.action !== null);
-    const approved = decided.filter(d => d.action === 'approved');
-    const rejected = decided.filter(d => d.action === 'rejected');
-    
-    if (approved.length === 0) { alert('Pilih minimal 1 item yang ingin disetujui.'); return; }
-    
-    const total = decided.length;
-    if (!confirm('Approve ' + approved.length + ' item' + (rejected.length > 0 ? ', tolak ' + rejected.length + ' item?' : '?'))) return;
-    
+    const lockedIdxSet = new Set(approveLockedIdx);
+
+    // Collect decisions for non-locked items that have been decided
+    const decided = approveItemDecisions.filter(function(d, idx) {
+        return !lockedIdxSet.has(idx) && d.action !== null;
+    });
+    const approved = decided.filter(function(d) { return d.action === 'approved'; });
+    const rejected = decided.filter(function(d) { return d.action === 'rejected'; });
+
+    // Must have at least 1 decided item
+    if (decided.length === 0) {
+        alert('Pilih minimal 1 item — klik tombol Approve atau Reject pada item yang ingin diputuskan.');
+        return;
+    }
+
+    // Validate: all rejected items must have a catatan (optional but encouraged — warn only)
+    // Actually per requirements catatan is optional, so no blocking validation needed
+
+    // Build confirm message
+    let confirmMsg = '';
+    const pendingCount = approveItemDecisions.filter(function(d, idx) {
+        return !lockedIdxSet.has(idx) && d.action === null;
+    }).length;
+    if (approved.length > 0 && rejected.length > 0) {
+        confirmMsg = 'Approve ' + approved.length + ' item, tolak ' + rejected.length + ' item';
+    } else if (approved.length > 0) {
+        confirmMsg = 'Approve ' + approved.length + ' item';
+    } else {
+        confirmMsg = 'Tolak ' + rejected.length + ' item';
+    }
+    if (pendingCount > 0) {
+        confirmMsg += ' (' + pendingCount + ' item belum diputuskan, akan dilewati)';
+    }
+    if (!confirm(confirmMsg + '?')) return;
+
     const btn = document.getElementById('approveSubmitBtn');
-    btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
+
     const formData = new FormData();
     const token = document.querySelector('meta[name="csrf-token"]');
     formData.append('_token', token ? token.content : '');
     formData.append('catatan', document.getElementById('approveCatatan').value);
-    
-    // Kirim hanya item yang sudah diputuskan (approved atau rejected)
+
+    // Only send decided (non-null, non-locked) items
     approveItemDecisions.forEach(function(d, idx) {
-        // Skip item yang tidak ada actionnya (null)
+        if (lockedIdxSet.has(idx)) return;
         if (d.action === null) return;
-        
-        const action = d.action; // 'approved' atau 'rejected'
-        const catatan = action === 'rejected' ? ((document.getElementById('reject-catatan-' + idx) || {}).value || '') : '';
-        formData.append('items[' + idx + '][action]', action);
+        const catatan = d.action === 'rejected'
+            ? ((document.getElementById('reject-catatan-' + idx) || {}).value || '')
+            : '';
+        formData.append('items[' + idx + '][action]',  d.action);
         formData.append('items[' + idx + '][catatan]', catatan);
-        if (action === 'approved' && d.buktiFile) formData.append('items[' + idx + '][bukti]', d.buktiFile);
     });
-    
+
     try {
-        const res = await fetch('/admin/purchase-order/' + currentApprovePoId + '/approve-items', { method: 'POST', body: formData });
+        const res    = await fetch('/admin/purchase-order/' + currentApprovePoId + '/approve-items', { method: 'POST', body: formData });
         const result = await res.json();
-        if (result.success) { window.location.href = result.redirect || window.location.href; }
-        else { alert(result.message || 'Terjadi kesalahan.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Konfirmasi Approval'; }
-    } catch (e) { alert('Terjadi kesalahan jaringan.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Konfirmasi Approval'; }
+        if (result.success) {
+            window.location.href = result.redirect || window.location.href;
+        } else {
+            alert(result.message || 'Terjadi kesalahan.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-check"></i> Konfirmasi Approval';
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan jaringan.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-check"></i> Konfirmasi Approval';
+    }
 }
 function closeApproveModal() {
     document.getElementById('approveModal').classList.add('hidden'); document.getElementById('approveModal').classList.remove('flex');
     document.getElementById('approveCatatan').value = ''; currentApprovePoId = null; approveItemDecisions = [];
-}
-
-// ── REJECT MODAL (per-item) ───────────────────────────────────
-let currentRejectPoId = null, rejectItemDecisions = [];
-function openRejectModal(poId, poNumber) {
-    currentRejectPoId = poId;
-    document.getElementById('rejectPoId').textContent = poNumber;
-    document.getElementById('rejectModalLoading').classList.remove('hidden');
-    document.getElementById('rejectModalContent').classList.add('hidden');
-    document.getElementById('rejectModalFooter').classList.add('hidden');
-    document.getElementById('rejectModal').classList.remove('hidden');
-    document.getElementById('rejectModal').classList.add('flex');
-    fetch('/admin/purchase-order/' + poId + '/detail')
-        .then(r => r.json())
-        .then(function(data) {
-            if (!data.success) throw new Error(data.message || 'Gagal memuat data');
-            renderRejectItems(data);
-            document.getElementById('rejectModalLoading').classList.add('hidden');
-            document.getElementById('rejectModalContent').classList.remove('hidden');
-            document.getElementById('rejectModalFooter').classList.remove('hidden');
-        })
-        .catch(function(err) {
-            document.getElementById('rejectModalLoading').innerHTML = '<div class="text-center text-red-500 py-8"><p class="text-sm">' + err.message + '</p></div>';
-        });
-}
-function renderRejectItems(data) {
-    const details = data.details, items = details.items || [];
-    rejectItemDecisions = items.map(function() { return { action: 'rejected', catatan: '' }; });
-    const k = details.kendaraan || {};
-    const isServicePart     = details.type === 'service_part';
-    const isServiceIncident = details.type === 'service_incident';
-    const isServiceAsuransi = details.type === 'service_asuransi';
-
-    let headerBg = 'bg-red-50 border-red-200';
-    let headerIcon = 'fa-car text-red-500';
-    document.getElementById('rejectKendaraanInfo').innerHTML =
-        '<div class="' + headerBg + ' border rounded-xl px-4 py-3 mb-3 flex items-center gap-3"><i class="fa ' + headerIcon + '"></i>'
-        + '<div class="text-sm"><span class="font-bold text-gray-800">' + (k.nopol || '-') + '</span>'
-        + '<span class="text-gray-500 ml-2">' + (k.merk || '') + '</span></div></div>';
-
-    // Update label
-    const rejectLabel = document.getElementById('rejectItemListLabel');
-    if (rejectLabel) {
-        let labelText = 'Item GPS — Centang yang ingin ditolak';
-        if (isServicePart)     labelText = 'Part — Centang yang ingin ditolak';
-        if (isServiceIncident) labelText = 'Part Incident — Centang yang ingin ditolak';
-        if (isServiceAsuransi) labelText = 'Kejadian — Centang yang ingin ditolak';
-        rejectLabel.innerHTML = '<i class="fa fa-list-ul mr-1 text-red-500"></i> ' + labelText;
-    }
-
-    const list = document.getElementById('rejectItemList');
-    list.innerHTML = '';
-    items.forEach(function(item, idx) {
-        const card = document.createElement('div');
-        card.id = 'reject-item-card-' + idx;
-        card.className = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/20';
-        const row = document.createElement('div');
-        row.className = 'flex items-start gap-3 px-4 py-3';
-
-        let itemName, itemBadge, itemBiaya;
-        if (isServiceAsuransi) {
-            itemName  = item.nama_kejadian || '-';
-            itemBadge = '<span class="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">Kejadian</span>';
-            itemBiaya = item.biaya || 0;
-        } else if (isServicePart || isServiceIncident) {
-            itemName  = item.nama_part     || '-';
-            itemBadge = item.category_nama ? '<span class="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-semibold">' + item.category_nama + '</span>' : '-';
-            itemBiaya = item.biaya         ||  0;
-        } else {
-            // GPS
-            itemName  = item.gps_name  || '-';
-            itemBadge = (item.type || '-');
-            itemBiaya = item.biaya_sewa ||  0;
-        }
-
-        const badgeHtml = (isServicePart || isServiceIncident)
-            ? itemBadge
-            : (isServiceAsuransi
-                ? itemBadge
-                : '<span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">' + itemBadge + '</span>');
-
-        row.innerHTML = '<div class="flex-shrink-0 pt-0.5"><input type="checkbox" id="reject-chk-' + idx + '" checked class="w-4 h-4 rounded text-red-600 cursor-pointer"></div>'
-            + '<div class="flex-1 min-w-0"><label for="reject-chk-' + idx + '" class="cursor-pointer"><div class="flex items-center gap-2 flex-wrap">'
-            + '<span class="text-xs text-gray-400">#' + (idx+1) + '</span>'
-            + '<span class="font-semibold text-gray-800 text-sm">' + itemName + '</span>'
-            + badgeHtml
-            + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(itemBiaya) + '</span>'
-            + '</div></label></div>'
-            + '<div id="reject-item-badge-' + idx + '" class="flex-shrink-0 self-center"><span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span></div>';
-        card.appendChild(row);
-
-        const reasonPanel = document.createElement('div');
-        reasonPanel.id = 'reject-reason-panel-' + idx;
-        reasonPanel.className = 'px-4 pb-3 pt-2 border-t border-red-100 bg-red-50/30';
-        reasonPanel.innerHTML = '<label class="text-[11px] font-semibold text-red-500 mb-1.5 block">Alasan Penolakan <span class="text-red-400 font-normal">(wajib)</span></label>'
-            + '<textarea id="reject-reason-' + idx + '" rows="2" placeholder="Tulis alasan penolakan item ini..." class="w-full text-xs px-3 py-2 border border-red-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-100 bg-white" oninput="rejectItemDecisions[' + idx + '].catatan = this.value; updateRejectSummary()"></textarea>';
-        card.appendChild(reasonPanel);
-
-        const chk = row.querySelector('input[type=checkbox]');
-        chk.addEventListener('change', function() { toggleRejectItem(idx, this.checked); });
-        list.appendChild(card);
-    });
-    updateRejectSummary();
-}
-function toggleRejectItem(idx, checked) {
-    rejectItemDecisions[idx].action = checked ? 'rejected' : 'skip';
-    const card = document.getElementById('reject-item-card-' + idx);
-    const reasonPanel = document.getElementById('reject-reason-panel-' + idx);
-    const badge = document.getElementById('reject-item-badge-' + idx);
-    if (checked) {
-        card.className = 'border border-red-300 rounded-xl overflow-hidden transition-all bg-red-50/20';
-        reasonPanel.classList.remove('hidden');
-        badge.innerHTML = '<span class="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
-    } else {
-        card.className = 'border border-gray-200 rounded-xl overflow-hidden transition-all bg-gray-50/10';
-        reasonPanel.classList.add('hidden');
-        badge.innerHTML = '<span class="text-[10px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full"><i class="fa fa-minus text-[8px]"></i> Dilewati</span>';
-    }
-    updateRejectSummary();
-}
-function rejectSelectAll(select) {
-    rejectItemDecisions.forEach(function(d, idx) {
-        const chk = document.getElementById('reject-chk-' + idx);
-        if (chk) { chk.checked = select; toggleRejectItem(idx, select); }
-    });
-}
-function updateRejectSummary() {
-    const rejected = rejectItemDecisions.filter(d => d.action === 'rejected').length;
-    const total = rejectItemDecisions.length;
-    const summary = document.getElementById('rejectSummary');
-    const text = document.getElementById('rejectSummaryText');
-    summary.classList.remove('hidden');
-    text.innerHTML = '<i class="fa fa-times-circle text-red-500 mr-1"></i><b>' + rejected + '</b> item akan ditolak'
-        + (total - rejected > 0 ? ' &nbsp;·&nbsp; <b>' + (total - rejected) + '</b> item dilewati' : '');
-}
-async function submitRejectItems() {
-    const toReject = rejectItemDecisions.filter(d => d.action === 'rejected');
-    if (toReject.length === 0) { alert('Pilih minimal 1 item yang ingin ditolak.'); return; }
-    for (let idx = 0; idx < rejectItemDecisions.length; idx++) {
-        if (rejectItemDecisions[idx].action !== 'rejected') continue;
-        const val = ((document.getElementById('reject-reason-' + idx) || {}).value || '').trim();
-        if (!val) { alert('Item #' + (idx + 1) + ': Alasan penolakan wajib diisi.'); document.getElementById('reject-reason-' + idx).focus(); return; }
-        rejectItemDecisions[idx].catatan = val;
-    }
-    if (!confirm('Tolak ' + toReject.length + ' item' + (rejectItemDecisions.length - toReject.length > 0 ? ', ' + (rejectItemDecisions.length - toReject.length) + ' item dilewati?' : '?'))) return;
-    const btn = document.getElementById('rejectSubmitBtn');
-    btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
-    const formData = new FormData();
-    const token = document.querySelector('meta[name="csrf-token"]');
-    formData.append('_token', token ? token.content : '');
-    formData.append('catatan', document.getElementById('rejectCatatan').value);
-    rejectItemDecisions.forEach(function(d, idx) {
-        const action = d.action === 'rejected' ? 'rejected' : 'approved';
-        formData.append('items[' + idx + '][action]', action);
-        formData.append('items[' + idx + '][catatan]', d.action === 'rejected' ? (d.catatan || '') : '');
-    });
-    try {
-        const res = await fetch('/admin/purchase-order/' + currentRejectPoId + '/approve-items', { method: 'POST', body: formData });
-        const result = await res.json();
-        if (result.success) { window.location.href = result.redirect || window.location.href; }
-        else { alert(result.message || 'Terjadi kesalahan.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-times"></i> Konfirmasi Penolakan'; }
-    } catch (e) { alert('Terjadi kesalahan jaringan.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-times"></i> Konfirmasi Penolakan'; }
-}
-function closeRejectModal() {
-    document.getElementById('rejectModal').classList.add('hidden'); document.getElementById('rejectModal').classList.remove('flex');
-    document.getElementById('rejectCatatan').value = ''; currentRejectPoId = null; rejectItemDecisions = [];
 }
 
 // ── RESUBMIT MODAL ────────────────────────────────────────────
@@ -2821,7 +2787,6 @@ function closeResubmitModal() {
 // ── BACKDROP CLICK ────────────────────────────────────────────
 document.getElementById('detailModal')?.addEventListener('click',   function(e) { if (e.target === this) closeDetailModal(); });
 document.getElementById('approveModal')?.addEventListener('click',  function(e) { if (e.target === this) closeApproveModal(); });
-document.getElementById('rejectModal')?.addEventListener('click',   function(e) { if (e.target === this) closeRejectModal(); });
 document.getElementById('resubmitModal')?.addEventListener('click', function(e) { if (e.target === this) closeResubmitModal(); });
 
 function formatNumber(n) { return Number(n).toLocaleString('id-ID'); }

@@ -745,12 +745,12 @@
                                                                 <button type="button"
                                                                     onclick="openApprovalModal({{ $d->id }})"
                                                                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors">
-                                                                    <i class="fa fa-check text-[10px]"></i> Approve
+                                                                    <i class="fa fa-check text-[10px]"></i> Aksi
                                                                 </button>
                                                                 <button type="button"
                                                                     onclick="openRejectModal({{ $d->id }})"
-                                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors">
-                                                                    <i class="fa fa-times text-[10px]"></i> Reject
+                                                                    class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors">
+                                                                    <i class="fa fa-times text-[10px]"></i> Reject kontoo
                                                                 </button>
                                                             @else
                                                                 <button type="button"
@@ -797,8 +797,8 @@
                                                                 default              => route('pembayaran.edit-rejected', $d->id),
                                                             };
                                                         @endphp
-                                                        @if(in_array($d->source_type, ['service_asuransi', 'service_part', 'service_incident']))
-                                                            {{-- service_asuransi, service_part & service_incident Ditolak penuh: modal inline per-item --}}
+                                                        @if(in_array($d->source_type, ['service_asuransi', 'service_part', 'service_incident', 'gps', 'gps_perpanjang']))
+                                                            {{-- service_asuransi, service_part, service_incident, gps Ditolak penuh: modal inline per-item --}}
                                                             <button type="button"
                                                                 onclick="openResubmitRejectedModal({{ $d->id }})"
                                                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
@@ -832,8 +832,8 @@
                                                             <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
                                                         </button>
 
-                                                    {{-- Kondisi B: service_part / service_asuransi Ditolak penuh — modal inline --}}
-                                                    @elseif($d->status === 'Ditolak' && in_array($d->source_type, ['service_part', 'service_asuransi']) && $d->can_edit)
+                                                    {{-- Kondisi B: service_part / service_asuransi / gps Ditolak penuh — modal inline --}}
+                                                    @elseif($d->status === 'Ditolak' && in_array($d->source_type, ['service_part', 'service_asuransi', 'gps', 'gps_perpanjang']) && $d->can_edit)
                                                         <button type="button"
                                                             onclick="openResubmitRejectedModal({{ $d->id }})"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
@@ -3332,7 +3332,8 @@ function openResubmitRejectedModal(pembayaranId) {
         const srcType   = data.source_type;
         const isServicePart     = srcType === 'service_part';
         const isServiceIncident = srcType === 'service_incident';
-        const hasBank           = isServicePart || isServiceIncident;
+        const isGps             = srcType === 'gps' || srcType === 'gps_perpanjang';
+        const hasBank           = isServicePart || isServiceIncident || isGps;
 
         data.items.forEach(function(item, i) {
             const div = document.createElement('div');
@@ -3397,8 +3398,11 @@ function openResubmitRejectedModal(pembayaranId) {
                 </div>`;
             }
 
-            // Bank / Rekening — service_part dan service_incident
+            // Bank / Rekening — service_part, service_incident, dan gps
             if (hasBank) {
+                // GPS pakai field nama_pemilik; service_part/incident pakai nama_rekening
+                const atasNamaField = isGps ? 'nama_pemilik' : 'nama_rekening';
+                const atasNamaValue = isGps ? (item.nama_pemilik || '') : (item.nama_rekening || '');
                 headerHtml += `
                     <div class="grid grid-cols-3 gap-3">
                         <div>
@@ -3415,7 +3419,7 @@ function openResubmitRejectedModal(pembayaranId) {
                         </div>
                         <div>
                             <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Atas Nama</label>
-                            <input type="text" name="items[${i}][nama_rekening]" value="${_escAttr(item.nama_rekening || '')}"
+                            <input type="text" name="items[${i}][${atasNamaField}]" value="${_escAttr(atasNamaValue)}"
                                 maxlength="150"
                                 class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
                         </div>

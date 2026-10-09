@@ -3389,7 +3389,7 @@ class ChartDataController extends Controller
                         'where' => [
                             '__raw' => "(status = 'Ditolak' OR (status = 'Disetujui' AND JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL))",
                         ],
-                        'expr'   => "CASE WHEN status = 'Ditolak' THEN total_harga ELSE CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)) END",
+                        'expr'   => "CASE WHEN status = 'Ditolak' THEN total_harga ELSE IFNULL(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)), 0) END",
                         'column' => 'total_harga', 'aggregation' => 'sum', 'label' => 'Ditolak',
                     ],
                 ],
@@ -3459,7 +3459,7 @@ class ChartDataController extends Controller
                     'where'  => [
                         '__raw' => "(status = 'Ditolak' OR (status = 'Disetujui' AND JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL))",
                     ],
-                    'expr'   => "SUM(CASE WHEN status = 'Ditolak' THEN total_harga ELSE CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)) END)",
+                    'expr'   => "SUM(CASE WHEN status = 'Ditolak' THEN total_harga ELSE IFNULL(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)), 0) END)",
                     'format' => 'currency',
                     'color'  => '#ef4444',
                     'iconBg' => '#fee2e2',
