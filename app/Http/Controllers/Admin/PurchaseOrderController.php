@@ -691,7 +691,15 @@ class PurchaseOrderController extends Controller
                     ->filter(fn($g, $i) => ($decMap[$i]['action'] ?? '') === 'rejected')
                     ->all();
             } else {
-                $gpsItems = $allGpsItems;
+                // Tab semua/Pending: exclude item yang locked (sudah approved) DAN yang sudah
+                // ada keputusan di item_decisions — hanya tampilkan yang belum diputuskan.
+                // Ini mencegah item approved lama muncul di tab Pending.
+                $gpsItems = collect($allGpsItems)
+                    ->filter(fn($g, $i) =>
+                        !in_array($i, $lockedApprovedIdx)
+                        && !$decMap->has($i)
+                    )
+                    ->all();
             }
         } else {
             // decMap kosong: jika tab Disetujui dan ada locked items, tampilkan hanya yang locked
@@ -699,8 +707,8 @@ class PurchaseOrderController extends Controller
                 $gpsItems = collect($allGpsItems)
                     ->filter(fn($g, $i) => in_array($i, $lockedApprovedIdx))
                     ->all();
-            } elseif ($tab === 'Pending' && !empty($lockedApprovedIdx)) {
-                // Tab Pending untuk PO resubmit: tampilkan item yang tidak locked (belum diapprove)
+            } elseif (in_array($tab, ['Pending', 'semua']) && !empty($lockedApprovedIdx)) {
+                // Tab Pending/semua untuk PO resubmit: tampilkan item yang tidak locked (belum diapprove)
                 $gpsItems = collect($allGpsItems)
                     ->filter(fn($g, $i) => !in_array($i, $lockedApprovedIdx))
                     ->all();
@@ -735,6 +743,7 @@ class PurchaseOrderController extends Controller
             }
 
             $items[] = [
+                '_original_idx' => (int) $idx, // index asli di gps_items — dipakai JS saat submit approve
                 'gps_name'    => $gps ? $gps->nama_gps : '-',
                 'type'        => $item['type'] ?? '-',
                 'biaya_sewa'  => $item['biaya_sewa'] ?? 0,

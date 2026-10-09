@@ -643,19 +643,26 @@
                                                     }
                                                 } else {
                                                     if (!$_decMap->isEmpty() && in_array($_srcType, ['gps', 'gps_perpanjang'])) {
-                                                        // GPS dengan item_decisions: filter per approved/rejected
+                                                        // GPS dengan item_decisions: filter per approved/rejected/pending
                                                         $_nomApprRow = collect($_sd['gps_items'] ?? [])
                                                             ->filter(fn($g, $i) => ($_decMap[(int)$i]['action'] ?? '') === 'approved')
                                                             ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
                                                         $_nomRejRow  = collect($_sd['gps_items'] ?? [])
                                                             ->filter(fn($g, $i) => ($_decMap[(int)$i]['action'] ?? '') !== 'approved' && $_decMap->has((int)$i))
                                                             ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                        // Item pending = belum ada entry di item_decisions
+                                                        $_nomPendRow = collect($_sd['gps_items'] ?? [])
+                                                            ->filter(fn($g, $i) => !$_decMap->has((int)$i))
+                                                            ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
                                                         if (in_array($tab ?? '', ['Ditolak'])) {
                                                             $_rowNominal = $_nomRejRow;
                                                         } elseif (in_array($tab ?? '', ['Disetujui'])) {
                                                             $_rowNominal = $_nomApprRow;
+                                                        } elseif (in_array($tab ?? '', ['Diajukan', 'Pending']) && $_nomPendRow > 0) {
+                                                            // Tab Diajukan/Pending (PR partial GPS resubmit): hanya harga item pending
+                                                            $_rowNominal = $_nomPendRow;
                                                         } else {
-                                                            $_rowNominal = $_nomApprRow + $_nomRejRow;
+                                                            $_rowNominal = $_nomApprRow + $_nomRejRow + $_nomPendRow;
                                                         }
                                                         // Fallback: item_decisions mungkin tidak punya key 'idx' (data lama)
                                                         if ($_rowNominal == 0) {
@@ -1064,7 +1071,11 @@
                                                                     ->filter(fn($g, $i) => ($itemDecMap[(int)$i]['action'] ?? '') !== 'approved' && $itemDecMap->has((int)$i))
                                                                     ->all();
                                                             } else {
-                                                                $filteredGpsItems = $gpsItems; // semua (tab Semua/lainnya)
+                                                                // Tab Diajukan/Pending: hanya tampilkan item yang BELUM diputuskan
+                                                                // Item yang sudah approved di item_decisions tidak boleh muncul di sini
+                                                                $filteredGpsItems = collect($gpsItems)
+                                                                    ->filter(fn($g, $i) => ($itemDecMap[(int)$i]['action'] ?? '') !== 'approved')
+                                                                    ->all();
                                                             }
                                                         } else {
                                                             $filteredGpsItems = $gpsItems;

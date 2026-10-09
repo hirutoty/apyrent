@@ -1835,22 +1835,35 @@ class PembayaranController extends Controller
                     // Handle multi-item GPS (gps_items array)
                     if (!empty($sourceData['gps_items'])) {
                         $tempFiles = $sourceData['temp_files'] ?? [];
-                        $data['gps_items'] = collect($sourceData['gps_items'])->map(function ($item, $idx) use ($tempFiles) {
-                            $gpsModel    = \App\Models\Gps::find($item['gps_id'] ?? null);
-                            $buktiBayar  = $tempFiles['gps_items'][$idx]['bukti_bayar'] ?? null;
-                            $lampiranArr = $tempFiles['gps_items'][$idx]['lampiran'] ?? [];
-                            return [
-                                'gps_id'       => $item['gps_id'] ?? null,
-                                'nama_gps'     => $gpsModel->nama_gps ?? '-',
-                                'type'         => $item['type'] ?? '-',
-                                'biaya_sewa'   => $item['biaya_sewa'] ?? 0,
-                                'nama_bank'    => $item['nama_bank'] ?? null,
-                                'no_rekening'  => $item['no_rekening'] ?? null,
-                                'nama_pemilik' => $item['nama_pemilik'] ?? null,
-                                'bukti_bayar'  => $buktiBayar,
-                                'lampiran'     => $lampiranArr,
-                            ];
-                        })->values()->toArray();
+
+                        // Filter out items that are already approved in item_decisions —
+                        // these should not appear in the approval modal again.
+                        $approvedIdx = collect($sourceData['item_decisions'] ?? [])
+                            ->where('action', 'approved')
+                            ->pluck('idx')
+                            ->map('intval')
+                            ->flip()
+                            ->all();
+
+                        $data['gps_items'] = collect($sourceData['gps_items'])
+                            ->filter(fn($item, $idx) => !isset($approvedIdx[(int)$idx]))
+                            ->map(function ($item, $idx) use ($tempFiles) {
+                                $gpsModel    = \App\Models\Gps::find($item['gps_id'] ?? null);
+                                $buktiBayar  = $tempFiles['gps_items'][$idx]['bukti_bayar'] ?? null;
+                                $lampiranArr = $tempFiles['gps_items'][$idx]['lampiran'] ?? [];
+                                return [
+                                    '_original_idx' => (int) $idx, // index asli di gps_items — dipakai JS saat submit
+                                    'gps_id'       => $item['gps_id'] ?? null,
+                                    'nama_gps'     => $gpsModel->nama_gps ?? '-',
+                                    'type'         => $item['type'] ?? '-',
+                                    'biaya_sewa'   => $item['biaya_sewa'] ?? 0,
+                                    'nama_bank'    => $item['nama_bank'] ?? null,
+                                    'no_rekening'  => $item['no_rekening'] ?? null,
+                                    'nama_pemilik' => $item['nama_pemilik'] ?? null,
+                                    'bukti_bayar'  => $buktiBayar,
+                                    'lampiran'     => $lampiranArr,
+                                ];
+                            })->values()->toArray();
                     } else {
                         $data['gps'] = \App\Models\Gps::find($sourceData['gps_id'] ?? null);
                     }
@@ -1868,12 +1881,23 @@ class PembayaranController extends Controller
                     $tempFiles = $sourceData['temp_files'] ?? [];
                     $gpsItems  = $sourceData['gps_items'] ?? [];
 
+                    // Filter out items that are already approved in item_decisions
+                    $approvedIdxPerpanjang = collect($sourceData['item_decisions'] ?? [])
+                        ->where('action', 'approved')
+                        ->pluck('idx')
+                        ->map('intval')
+                        ->flip()
+                        ->all();
+
                     if (!empty($gpsItems)) {
-                        $data['gps_items'] = collect($gpsItems)->map(function ($item, $idx) use ($tempFiles) {
+                        $data['gps_items'] = collect($gpsItems)
+                            ->filter(fn($item, $idx) => !isset($approvedIdxPerpanjang[(int)$idx]))
+                            ->map(function ($item, $idx) use ($tempFiles) {
                             $gpsModel    = \App\Models\Gps::find($item['gps_id'] ?? null);
                             $buktiBayar  = $tempFiles['gps_items'][$idx]['bukti_bayar'] ?? null;
                             $lampiranArr = $tempFiles['gps_items'][$idx]['lampiran'] ?? [];
                             return [
+                                '_original_idx'    => (int) $idx, // index asli — dipakai JS saat submit
                                 'gps_id'           => $item['gps_id'] ?? null,
                                 'gps_kendaraan_id' => $item['gps_kendaraan_id'] ?? null,
                                 'nama_gps'         => $gpsModel->nama_gps ?? '-',
@@ -3942,20 +3966,66 @@ class PembayaranController extends Controller
                 }
             } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
                 // Update record GpsKendaraan yang diresubmit: biaya_sewa + bank info
+                // Strategi lookup (3 tingkat):
+                //   1. gps_record_ids[idx]         → tersedia untuk source_type='gps' (buat baru)
+                //   2. gps_items[idx][gps_kendaraan_id] → tersedia untuk source_type='gps_perpanjang'
+                //   3. pembayaran_id + gps_id + type → fallback universal
                 $gpsRecordIds = $sourceData['gps_record_ids'] ?? [];
+                $kendaraanId  = $sourceData['kendaraan_id'] ?? null;
+
                 foreach ($request->items as $item) {
                     $idx      = (int) $item['idx'];
                     $gpsItem  = $sourceData['gps_items'][$idx] ?? [];
+                    $updateData = [
+                        'biaya_sewa'   => (int) $item['biaya'],
+                        'nama_bank'    => $item['nama_bank']    ?? $gpsItem['nama_bank']    ?? null,
+                        'no_rekening'  => $item['no_rekening']  ?? $gpsItem['no_rekening']  ?? null,
+                        'nama_pemilik' => $item['nama_pemilik'] ?? $gpsItem['nama_pemilik'] ?? null,
+                        'persetujuan'  => 'Diajukan ke Pembayaran',
+                    ];
+
+                    $updated = false;
+
+                    // Cara 1: gps_record_ids (source_type='gps' alur baru)
                     $recordId = $gpsRecordIds[$idx] ?? null;
                     if ($recordId) {
-                        \App\Models\GpsKendaraan::where('id', $recordId)
-                            ->update([
-                                'biaya_sewa'   => (int) $item['biaya'],
-                                'nama_bank'    => $item['nama_bank']    ?? $gpsItem['nama_bank']    ?? null,
-                                'no_rekening'  => $item['no_rekening']  ?? $gpsItem['no_rekening']  ?? null,
-                                'nama_pemilik' => $item['nama_pemilik'] ?? $gpsItem['nama_pemilik'] ?? null,
-                                'persetujuan'  => 'Diajukan ke Pembayaran',
-                            ]);
+                        $rows = \App\Models\GpsKendaraan::where('id', $recordId)->update($updateData);
+                        if ($rows > 0) {
+                            $updated = true;
+                        }
+                    }
+
+                    // Cara 2: gps_kendaraan_id per item (source_type='gps_perpanjang')
+                    if (!$updated && !empty($gpsItem['gps_kendaraan_id'])) {
+                        $rows = \App\Models\GpsKendaraan::where('id', (int) $gpsItem['gps_kendaraan_id'])
+                            ->update($updateData);
+                        if ($rows > 0) {
+                            $updated = true;
+                        }
+                    }
+
+                    // Cara 3: fallback via pembayaran_id + gps_id + type
+                    if (!$updated && !empty($gpsItem['gps_id'])) {
+                        $existing = \App\Models\GpsKendaraan::where('pembayaran_id', $pembayaran->id)
+                            ->where('gps_id', $gpsItem['gps_id'])
+                            ->where('type', $gpsItem['type'] ?? null)
+                            ->whereIn('persetujuan', ['Ditolak Pembayaran', 'Ditolak', 'Diajukan ke Pembayaran'])
+                            ->first();
+
+                        // Fallback lebih luas: cari via kendaraan_id + gps_id + type
+                        if (!$existing && $kendaraanId) {
+                            $existing = \App\Models\GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                                ->where('gps_id', $gpsItem['gps_id'])
+                                ->where('type', $gpsItem['type'] ?? null)
+                                ->whereIn('persetujuan', ['Ditolak Pembayaran', 'Ditolak', 'Diajukan ke Pembayaran'])
+                                ->first();
+                        }
+
+                        if ($existing) {
+                            $existing->update($updateData);
+                        } else {
+                            \Log::warning("resubmitRejectedItems GPS: record tidak ditemukan untuk pembayaran #{$pembayaran->id} idx:{$idx} gps_id:{$gpsItem['gps_id']} type:{$gpsItem['type']}");
+                        }
                     }
                 }
             }

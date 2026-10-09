@@ -1158,16 +1158,22 @@ function approvalModal() {
         // Hitung total nominal hanya dari item yang di-approve
         approvedNominal() {
             const srcType = this.data?.source_type;
-            // Jika belum ada keputusan sama sekali, tampilkan nominal_display (sudah dikurangi rejected sebelumnya)
-            if (this.decidedCount() === 0) {
-                return Number(this.data?.nominal_display ?? this.data?.nominal ?? 0);
-            }
+            // Untuk GPS: hitung dari gps_items yang sudah terfilter (approved items sudah dibuang di server)
+            // Jika belum ada keputusan, sum semua item yang tampil (pending items saja)
             if (srcType === 'gps' || srcType === 'gps_perpanjang') {
                 const items = this.relatedData?.gps_items || [];
+                if (this.decidedCount() === 0) {
+                    // Belum ada keputusan → sum semua item yang tampil (sudah exclude approved)
+                    return items.reduce((sum, item) => sum + Number(item?.biaya_sewa || 0), 0);
+                }
                 return this.itemDecisions.reduce((sum, d, idx) => {
                     if (d.action === 'approved') sum += Number(items[idx]?.biaya_sewa || 0);
                     return sum;
                 }, 0);
+            }
+            // Jika belum ada keputusan sama sekali, tampilkan nominal_display (sudah dikurangi rejected sebelumnya)
+            if (this.decidedCount() === 0) {
+                return Number(this.data?.nominal_display ?? this.data?.nominal ?? 0);
             }
             if (srcType === 'service_part' || srcType === 'service_incident') {
                 const parts = this.sourceData?.parts || [];
@@ -1224,12 +1230,19 @@ function approvalModal() {
 
             this.itemDecisions.forEach((decision, idx) => {
                 if (decision.action === null) return;
+                // Untuk GPS: gunakan _original_idx agar backend bisa mapping keputusan
+                // ke item yang benar di source_data asli (setelah approved items dibuang).
                 // Untuk service_asuransi: gunakan _original_idx agar backend bisa
                 // mapping keputusan ke kejadian yang benar di source_data asli.
                 // Ini penting setelah filtering yang me-reindex array kejadians.
                 // Sama berlaku untuk service_incident dan service_part setelah filtering parts.
                 let formIdx = idx;
-                if (this.data?.source_type === 'service_asuransi') {
+                if (this.data?.source_type === 'gps' || this.data?.source_type === 'gps_perpanjang') {
+                    const gpsItem = (this.relatedData?.gps_items || [])[idx];
+                    if (gpsItem?._original_idx !== undefined && gpsItem?._original_idx !== null) {
+                        formIdx = gpsItem._original_idx;
+                    }
+                } else if (this.data?.source_type === 'service_asuransi') {
                     const kej = (this.sourceData?.kejadians || [])[idx];
                     if (kej?._original_idx !== undefined && kej?._original_idx !== null) {
                         formIdx = kej._original_idx;

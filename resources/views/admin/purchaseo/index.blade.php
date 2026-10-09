@@ -401,17 +401,20 @@
                                         $lockedApprovedIdx = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
                                         if ($poDecMap->isNotEmpty()) {
                                             if ($statusFilter === 'Disetujui') {
-                                                // Tab Disetujui: tampilkan item approved + locked
+                                                // Tab Disetujui: tampilkan approved + locked + item tanpa keputusan (pending/resubmit)
+                                                // Exclude hanya yang rejected
                                                 $gpsItems = collect($allGpsItems)
                                                     ->filter(fn($g, $i) =>
-                                                        ($poDecMap[$i]['action'] ?? '') === 'approved'
-                                                        || in_array($i, $lockedApprovedIdx)
+                                                        ($poDecMap[$i]['action'] ?? '') !== 'rejected'
+                                                        || !$poDecMap->has($i)
                                                     )
+                                                    ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
                                                     ->values()->all();
                                             } elseif ($statusFilter === 'Ditolak') {
                                                 // Tab Ditolak: hanya yang rejected
                                                 $gpsItems = collect($allGpsItems)
                                                     ->filter(fn($g, $i) => ($poDecMap[$i]['action'] ?? '') === 'rejected' && $poDecMap->has($i))
+                                                    ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
                                                     ->values()->all();
                                             } elseif ($statusFilter === 'Pending') {
                                                 // Tab Pending: exclude locked & approved
@@ -420,10 +423,13 @@
                                                         !in_array($i, $lockedApprovedIdx)
                                                         && ($poDecMap[$i]['action'] ?? '') !== 'approved'
                                                     )
+                                                    ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
                                                     ->values()->all();
                                             } else {
-                                                // Tab Semua: tampilkan semua
-                                                $gpsItems = $allGpsItems;
+                                                // Tab Semua: tampilkan semua dengan _orig_idx
+                                                $gpsItems = collect($allGpsItems)
+                                                    ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
+                                                    ->values()->all();
                                             }
                                         } elseif (!empty($lockedApprovedIdx)) {
                                             // Tidak ada item_decisions tapi ada locked (PO Pending resubmit kedua)
@@ -431,20 +437,26 @@
                                                 // Tab Disetujui: hanya yang locked
                                                 $gpsItems = collect($allGpsItems)
                                                     ->filter(fn($g, $i) => in_array($i, $lockedApprovedIdx))
+                                                    ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
                                                     ->values()->all();
                                             } elseif ($statusFilter === 'Pending') {
                                                 // Tab Pending: yang tidak locked
                                                 $gpsItems = collect($allGpsItems)
                                                     ->filter(fn($g, $i) => !in_array($i, $lockedApprovedIdx))
+                                                    ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
                                                     ->values()->all();
                                             } elseif ($statusFilter === 'Ditolak') {
                                                 // Tab Ditolak: kosong (tidak ada rejected)
                                                 $gpsItems = [];
                                             } else {
-                                                $gpsItems = $allGpsItems;
+                                                $gpsItems = collect($allGpsItems)
+                                                    ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
+                                                    ->values()->all();
                                             }
                                         } else {
-                                            $gpsItems = $allGpsItems;
+                                            $gpsItems = collect($allGpsItems)
+                                                ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
+                                                ->values()->all();
                                         }
 
                                         $hasItems = !empty($allGpsItems) || (in_array($po->source_type, ['service_part', 'service_incident']) && !empty($sourceData['parts'])) || ($po->source_type === 'service_asuransi' && !empty($sourceData['kejadians'])) || in_array($po->source_type, ['pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'kir', 'kir_perpanjang', 'stnk']);
@@ -1547,12 +1559,19 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya Sewa</th>
+                                                                <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
                                                             @foreach($gpsItems as $giIdx => $gItem)
                                                                 @php
-                                                                    $gpsModel = isset($gItem['gps_id']) ? \App\Models\Gps::find($gItem['gps_id']) : null;
+                                                                    $gpsModel  = isset($gItem['gps_id']) ? \App\Models\Gps::find($gItem['gps_id']) : null;
+                                                                    // Gunakan _orig_idx untuk lookup lampiran dari temp_files
+                                                                    $gpsOrigIdx = $gItem['_orig_idx'] ?? $giIdx;
+                                                                    // Tentukan status item berdasarkan item_decisions
+                                                                    $gpsItemAction = $poDecMap->has($gpsOrigIdx)
+                                                                        ? ($poDecMap[$gpsOrigIdx]['action'] ?? null)
+                                                                        : (in_array($gpsOrigIdx, $lockedApprovedIdx) ? 'approved' : null);
                                                                 @endphp
                                                                 <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                     <td class="px-3 py-2 text-gray-400">{{ $giIdx + 1 }}</td>
@@ -1566,7 +1585,7 @@
                                                                     <td class="px-3 py-2 font-mono text-gray-600">{{ $gItem['no_rekening'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-center">
                                                                         @php
-                                                                            $gpsLampiran = $sourceData['temp_files']['gps_items'][$giIdx]['lampiran'] ?? [];
+                                                                            $gpsLampiran = $sourceData['temp_files']['gps_items'][$gpsOrigIdx]['lampiran'] ?? [];
                                                                         @endphp
                                                                         @if(!empty($gpsLampiran))
                                                                             <div class="flex flex-col gap-0.5">
@@ -1585,11 +1604,23 @@
                                                                             <span class="text-gray-300 text-[10px]">—</span>
                                                                         @endif
                                                                     </td>
-                                                                    <td class="px-3 py-2 text-right font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($gItem['biaya_sewa'] ?? 0, 0, ',', '.') }}</td>
+                                                                    <td class="px-3 py-2 text-right font-bold {{ $gpsItemAction === 'rejected' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($gItem['biaya_sewa'] ?? 0, 0, ',', '.') }}</td>
+                                                                    <td class="px-3 py-2 text-center">
+                                                                        @if($gpsItemAction === 'rejected')
+                                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
+                                                                                <i class="fa fa-times text-[8px]"></i> Ditolak
+                                                                            </span>
+                                                                        @else
+                                                                            {{-- Disetujui di PO — termasuk item yang sedang resubmit di Pembayaran --}}
+                                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">
+                                                                                <i class="fa fa-check text-[8px]"></i> Disetujui
+                                                                            </span>
+                                                                        @endif
+                                                                    </td>
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-green-200 bg-green-50/50">
-                                                                <td colspan="7" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="8" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -2381,8 +2412,9 @@ function renderApproveItems(data) {
     const lockedApprovedIdx = (details.locked_approved_idx || []).map(Number);
     approveLockedIdx = lockedApprovedIdx;
 
-    // Filter out locked items — they are hidden from the modal entirely
-    // approveItemDecisions is indexed by ORIGINAL item index
+    // Items yang dikembalikan server sudah terfilter (locked items tidak ada).
+    // approveItemDecisions diindeks berdasarkan posisi array items (0,1,2...).
+    // _original_idx per item dipakai saat submit agar server bisa lookup $gpsItems[$origIdx].
     approveItemDecisions = items.map(function() { return { action: null, catatan: '' }; });
 
     const k = details.kendaraan || {};
@@ -2424,15 +2456,14 @@ function renderApproveItems(data) {
     list.innerHTML = '';
 
     // Update item count label
-    const visibleCount = items.filter(function(_, idx) { return !lockedApprovedIdx.includes(idx); }).length;
+    const visibleCount = items.length;
     const labelEl = document.querySelector('#approveModal .text-xs.font-semibold.text-gray-500');
 
     items.forEach(function(item, idx) {
-        // Skip locked items — hidden from modal entirely
-        if (lockedApprovedIdx.includes(idx)) {
-            approveItemDecisions[idx].action = 'approved'; // mark as approved silently
-            return;
-        }
+        // Server sudah exclude locked items — tidak ada skip check di sini.
+        // Simpan _original_idx agar submit bisa menggunakan index yang benar ke $gpsItems.
+        const originalIdx = item._original_idx !== undefined ? item._original_idx : idx;
+        approveItemDecisions[idx]._original_idx = originalIdx;
 
         let itemTitle, itemSubtitle = '', itemNominal, bankInfo = '';
 
@@ -2569,9 +2600,8 @@ function setPoItemAction(idx, action) {
     updateApproveSummary();
 }
 function approveSelectAll(select) {
+    // Semua items di approveItemDecisions sudah non-locked — tidak perlu skip check
     approveItemDecisions.forEach(function(d, idx) {
-        // Skip locked items (not rendered in modal)
-        if (approveLockedIdx.includes(idx)) return;
         if (select) {
             setPoItemAction_silent(idx, 'approved');
         } else {
@@ -2580,7 +2610,6 @@ function approveSelectAll(select) {
     });
     // Update all visuals after bulk operation
     approveItemDecisions.forEach(function(d, idx) {
-        if (approveLockedIdx.includes(idx)) return;
         _updateItemVisual(idx, d.action);
     });
     updateApproveSummary();
@@ -2622,14 +2651,11 @@ function _updateItemVisual(idx, action) {
     }
 }
 function updateApproveSummary() {
-    // Count only non-locked items
-    const nonLocked = approveItemDecisions.filter(function(d, idx) {
-        return !approveLockedIdx.includes(idx);
-    });
-    const approved = nonLocked.filter(function(d) { return d.action === 'approved'; }).length;
-    const rejected = nonLocked.filter(function(d) { return d.action === 'rejected'; }).length;
-    const pending  = nonLocked.filter(function(d) { return d.action === null; }).length;
-    const total    = nonLocked.length;
+    // Semua items di approveItemDecisions sudah non-locked (server sudah filter)
+    const approved = approveItemDecisions.filter(function(d) { return d.action === 'approved'; }).length;
+    const rejected = approveItemDecisions.filter(function(d) { return d.action === 'rejected'; }).length;
+    const pending  = approveItemDecisions.filter(function(d) { return d.action === null; }).length;
+    const total    = approveItemDecisions.length;
 
     const summary = document.getElementById('approveSummary');
     const text    = document.getElementById('approveSummaryText');
@@ -2645,12 +2671,8 @@ function updateApproveSummary() {
     }
 }
 async function submitApproveItems() {
-    const lockedIdxSet = new Set(approveLockedIdx);
-
-    // Collect decisions for non-locked items that have been decided
-    const decided = approveItemDecisions.filter(function(d, idx) {
-        return !lockedIdxSet.has(idx) && d.action !== null;
-    });
+    // Semua items di approveItemDecisions sudah non-locked (server sudah filter)
+    const decided = approveItemDecisions.filter(function(d) { return d.action !== null; });
     const approved = decided.filter(function(d) { return d.action === 'approved'; });
     const rejected = decided.filter(function(d) { return d.action === 'rejected'; });
 
@@ -2660,14 +2682,9 @@ async function submitApproveItems() {
         return;
     }
 
-    // Validate: all rejected items must have a catatan (optional but encouraged — warn only)
-    // Actually per requirements catatan is optional, so no blocking validation needed
-
     // Build confirm message
     let confirmMsg = '';
-    const pendingCount = approveItemDecisions.filter(function(d, idx) {
-        return !lockedIdxSet.has(idx) && d.action === null;
-    }).length;
+    const pendingCount = approveItemDecisions.filter(function(d) { return d.action === null; }).length;
     if (approved.length > 0 && rejected.length > 0) {
         confirmMsg = 'Approve ' + approved.length + ' item, tolak ' + rejected.length + ' item';
     } else if (approved.length > 0) {
@@ -2689,15 +2706,16 @@ async function submitApproveItems() {
     formData.append('_token', token ? token.content : '');
     formData.append('catatan', document.getElementById('approveCatatan').value);
 
-    // Only send decided (non-null, non-locked) items
-    approveItemDecisions.forEach(function(d, idx) {
-        if (lockedIdxSet.has(idx)) return;
-        if (d.action === null) return;
+    // Kirim keputusan menggunakan _original_idx sebagai key agar server bisa lookup
+    // $gpsItems[$origIdx] dengan benar (bukan posisi array setelah filter)
+    approveItemDecisions.forEach(function(d, arrayIdx) {
+        if (d.action === null) return; // skip undecided
+        const origIdx = d._original_idx !== undefined ? d._original_idx : arrayIdx;
         const catatan = d.action === 'rejected'
-            ? ((document.getElementById('reject-catatan-' + idx) || {}).value || '')
+            ? ((document.getElementById('reject-catatan-' + arrayIdx) || {}).value || '')
             : '';
-        formData.append('items[' + idx + '][action]',  d.action);
-        formData.append('items[' + idx + '][catatan]', catatan);
+        formData.append('items[' + origIdx + '][action]',  d.action);
+        formData.append('items[' + origIdx + '][catatan]', catatan);
     });
 
     try {
