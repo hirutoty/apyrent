@@ -771,17 +771,49 @@ class PengeluaranInterceptorService
 
             $totalItems = $this->extractTotalItems($sourceType, $newSourceData);
 
+            // ── Partial approval: hitung nominal & barang hanya dari parts yang diajukan ulang ──
+            // Jika ada locked_approved_idx, nominal = hanya rejected parts (yang baru disubmit),
+            // bukan total semua parts (merged). Item locked sudah punya Pembayaran sendiri.
+            $hasLocked = !empty($newSourceData['locked_approved_idx'] ?? []);
+            if ($hasLocked) {
+                $newParts = $newSourceData['parts'] ?? [];
+                $lockedIdx = array_map('intval', $newSourceData['locked_approved_idx']);
+                $rejectedOnlyParts = collect($newParts)
+                    ->filter(fn($p, $i) => !in_array($i, $lockedIdx))
+                    ->values();
+
+                $nominalResubmit = $rejectedOnlyParts->sum(fn($p) => (int)($p['biaya'] ?? 0));
+                $totalItemsResubmit = $rejectedOnlyParts->count();
+
+                // Simpan nominal_approved_locked dari PO sebelumnya agar summary card tetap benar
+                $nominalApprovedLockedPrev = (int)($oldSourceData['nominal_approved_locked'] ?? 0);
+                if ($nominalApprovedLockedPrev === 0) {
+                    // Hitung dari locked parts jika belum tersimpan
+                    $nominalApprovedLockedPrev = collect($newParts)
+                        ->filter(fn($p, $i) => in_array($i, $lockedIdx))
+                        ->sum(fn($p) => (int)($p['biaya'] ?? 0));
+                }
+                $newSourceData['nominal_approved_locked'] = $nominalApprovedLockedPrev;
+                $newSourceData['nominal_rejected']        = 0; // reset saat resubmit
+            } else {
+                $nominalResubmit        = (int) $interceptedData['nominal'];
+                $totalItemsResubmit     = $totalItems;
+            }
+
             // Update PO
             $po->update([
-                'source_data' => array_merge($newSourceData, ['temp_files' => $mergedTempFiles]),
-                'vendor' => $vendor,
-                'total_barang' => $totalItems,
-                'total_harga' => (int) $interceptedData['nominal'],
-                'catatan' => $interceptedData['informasi'] ?? $interceptedData['source_data']['keterangan'] ?? null,
-                'keterangan' => $interceptedData['source_data']['keterangan'] ?? null,
-                'status' => 'Pending',
-                'can_edit' => false,
-                'terakhir_diajukan' => now(),
+                'source_data'         => array_merge($newSourceData, ['temp_files' => $mergedTempFiles]),
+                'vendor'              => $vendor,
+                'total_barang'        => $totalItemsResubmit,
+                'total_harga'         => $nominalResubmit, // hanya rejected parts; chart summary card tambahkan nominal_approved_locked terpisah
+                'catatan'             => $interceptedData['informasi'] ?? $interceptedData['source_data']['keterangan'] ?? null,
+                'keterangan'          => $interceptedData['source_data']['keterangan'] ?? null,
+                'status'              => 'Pending',
+                'catatan_approval'    => null,
+                'disetujui_oleh'      => null,
+                'tanggal_persetujuan' => null,
+                'can_edit'            => false,
+                'terakhir_diajukan'   => now(),
             ]);
             
             DB::commit();

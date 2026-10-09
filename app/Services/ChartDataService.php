@@ -145,7 +145,10 @@ class ChartDataService
     {
         $q = clone $baseQuery;
         foreach ($whereConditions as $col => $val) {
-            if (is_array($val)) {
+            if ($col === '__raw') {
+                // Support raw SQL: ['where' => ['__raw' => 'SQL expression']]
+                $q->whereRaw($val);
+            } elseif (is_array($val)) {
                 $q->whereIn($col, $val);
             } else {
                 $q->where($col, $val);
@@ -192,9 +195,14 @@ class ChartDataService
         }
 
         if (isset($column['where'])) {
+            $q   = $this->applyColumnWhere(clone $periodQuery, $column['where']);
+            // Jika ada expr (CASE WHEN ...), gunakan selectRaw
+            if (isset($column['expr'])) {
+                $expr = $column['expr'];
+                return (float)$q->selectRaw("SUM($expr) as _val")->value('_val') ?? 0;
+            }
             $col = $column['column'] ?? 'id';
             $agg = $column['aggregation'] ?? 'sum';
-            $q   = $this->applyColumnWhere(clone $periodQuery, $column['where']);
             return $agg === 'count' ? (float)$q->count() : (float)$q->sum($col);
         }
 
@@ -972,10 +980,23 @@ class ChartDataService
                 ->count();
         }
 
-        // Handle raw expression sum: type='sum_expr', expr='col1 * col2'
+        // Handle raw expression sum: type='sum_expr', expr='SUM(...)' — optionally with where filter
         if ($type === 'sum_expr' && isset($config['expr'])) {
             $expr = $config['expr'];
-            return (float)$query->selectRaw("SUM($expr) as _val")->value('_val');
+            $q = clone $query;
+            // Apply where filter jika ada (support __raw dan key-value biasa)
+            if (isset($config['where'])) {
+                foreach ($config['where'] as $key => $value) {
+                    if ($key === '__raw') {
+                        $q->whereRaw($value);
+                    } elseif (is_array($value)) {
+                        $q->whereIn($key, $value);
+                    } else {
+                        $q->where($key, $value);
+                    }
+                }
+            }
+            return (float)$q->selectRaw("$expr as _val")->value('_val') ?? 0;
         }
 
         // Handle custom saldo calculation for Keuangan
@@ -996,7 +1017,13 @@ class ChartDataService
         // Handle sum with where condition
         if ($type === 'sum_where' && isset($config['where'])) {
             foreach ($config['where'] as $key => $value) {
-                $query->where($key, $value);
+                if ($key === '__raw') {
+                    $query->whereRaw($value);
+                } elseif (is_array($value)) {
+                    $query->whereIn($key, $value);
+                } else {
+                    $query->where($key, $value);
+                }
             }
             return $query->sum($column);
         }

@@ -391,9 +391,9 @@
                                                         <td class="px-3 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
                                                             Rp {{ number_format($part->biaya, 0, ',', '.') }}
                                                         </td>
-                                                        {{-- AKSI: tombol Diganti hanya untuk parts aktif --}}
+                                                        {{-- AKSI: tombol Diganti hanya untuk parts aktif + sudah disetujui --}}
                                                         <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
-                                                            @if($part->status === 'aktif')
+                                                            @if($part->status === 'aktif' && $part->persetujuan === 'Disetujui')
                                                                 <form action="{{ route('service-incident-parts.diganti', $part->id) }}" method="POST"
                                                                     onsubmit="return confirm('Ubah status part &quot;{{ addslashes($part->nama_part) }}&quot; menjadi Diganti?')"
                                                                     class="inline">

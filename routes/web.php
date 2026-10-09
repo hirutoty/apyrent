@@ -955,6 +955,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       Route::post('/{id}/resubmit-modal', [PurchaseOrderController::class, 'resubmitModal'])->name('resubmit-modal');
       Route::post('/{id}/resubmit-update', [PurchaseOrderController::class, 'resubmitUpdate'])->name('resubmit-update');
       Route::post('/{id}/resubmit-service-asuransi', [PurchaseOrderController::class, 'resubmitServiceAsuransi'])->name('resubmit-service-asuransi');
+      Route::post('/{id}/resubmit-service-incident', [PurchaseOrderController::class, 'resubmitServiceIncident'])->name('resubmit-service-incident');
+      Route::post('/{id}/resubmit-gps-partial', [PurchaseOrderController::class, 'resubmitGpsPartial'])->name('resubmit-gps-partial');
       Route::put('/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('update');
       Route::delete('/{purchaseOrder}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
   });

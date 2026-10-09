@@ -113,10 +113,22 @@ class PurchaseOrder extends Model
     public function isRejected(): bool
     {
         if ($this->status === 'Ditolak') return true;
-        // Partial approval: status Disetujui tapi ada item_decisions dengan action=rejected
+
         $sd = is_array($this->source_data) ? $this->source_data : (json_decode($this->source_data ?? '{}', true) ?? []);
-        return $this->status === 'Disetujui'
-            && !empty(array_filter($sd['item_decisions'] ?? [], fn($d) => ($d['action'] ?? '') === 'rejected'));
+
+        // Partial approval: status Disetujui tapi ada item_decisions dengan action=rejected
+        if ($this->status === 'Disetujui'
+            && !empty(array_filter($sd['item_decisions'] ?? [], fn($d) => ($d['action'] ?? '') === 'rejected'))) {
+            return true;
+        }
+
+        // PO Pending setelah resubmit partial: item_decisions sudah dikosongkan tapi
+        // locked_approved_idx masih ada → masih ada item yang perlu diajukan ulang
+        if ($this->status === 'Pending' && !empty($sd['locked_approved_idx'] ?? [])) {
+            return true;
+        }
+
+        return false;
     }
 
 }

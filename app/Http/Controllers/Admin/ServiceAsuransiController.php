@@ -41,11 +41,19 @@ class ServiceAsuransiController extends Controller
 
         $data = $query->paginate(15)->withQueryString();
 
+        // Hitung jumlah & total nominal pengajuan yang ditolak di level PO
+        $poDitolak     = PurchaseOrder::where('source_type', 'service_asuransi')
+            ->where('status', 'Ditolak')
+            ->selectRaw('COUNT(*) as jumlah, COALESCE(SUM(total_harga), 0) as total')
+            ->first();
+        $jumlahDitolak = $poDitolak->jumlah ?? 0;
+        $biayaDitolak  = $poDitolak->total  ?? 0;
+
         $kendaraan     = Kendaraan::orderBy('merk')->get();
         $asuransi      = Asuransi::orderBy('nama_asuransi')->get();
         $jenisAsuransi = JenisAsuransi::orderBy('nama_jenis')->get();
 
-        return view('admin.service.service_asuransi', compact('data', 'kendaraan', 'asuransi', 'jenisAsuransi'));
+        return view('admin.service.service_asuransi', compact('data', 'kendaraan', 'asuransi', 'jenisAsuransi', 'jumlahDitolak', 'biayaDitolak'));
     }
 
     /**
@@ -187,6 +195,11 @@ class ServiceAsuransiController extends Controller
         $kendaraan  = Kendaraan::findOrFail($request->kendaraan_id);
         $keterangan = 'servis asuransi-' . $kendaraan->nopol;
 
+        // CATATAN: field 'biaya' TIDAK diupdate di sini.
+        // Biaya (total biaya kejadian) hanya diperbarui secara otomatis saat keuangan
+        // approve pembayaran — via transferServiceAsuransi() yang menjumlahkan dari
+        // tabel service_asuransi_kejadians. Mengedit langsung di sini akan melewati
+        // alur approval dan menyebabkan inkonsistensi data.
         $data->update([
             'kendaraan_id'      => $request->kendaraan_id,
             'nama_asuransi'     => $request->nama_asuransi ?: null,
@@ -195,7 +208,6 @@ class ServiceAsuransiController extends Controller
             'periode_mulai'     => $request->periode_mulai,
             'periode_selesai'   => $request->periode_selesai,
             'kilometer'         => $request->kilometer,
-            'biaya'             => $request->biaya,
             'keterangan'        => $keterangan,
             'bukti'             => !empty($buktiList)      ? $buktiList      : null,
             'attachment'        => !empty($attachmentList) ? $attachmentList : null,
@@ -408,9 +420,8 @@ class ServiceAsuransiController extends Controller
                 }
             }
 
-            // Update source_data pembayaran
+            // ── Bangun $newKejadians dari request (item yang diresubmit) ──────
             $newKejadians = array_map(function ($kej, $idx) use ($tempFiles) {
-                // Lampiran lama dikirim dari form sebagai hidden inputs
                 $lampiranLama = array_values(array_filter(
                     array_map(function ($lf) {
                         $path = $lf['path'] ?? '';
@@ -423,7 +434,6 @@ class ServiceAsuransiController extends Controller
                         ];
                     }, $kej['lampiran_lama'] ?? [])
                 ));
-                // Gabungkan lampiran lama + file baru yang di-upload
                 $newLampiran = $tempFiles['kejadians'][$idx] ?? [];
                 return [
                     'nama_kejadian' => $kej['nama_kejadian'] ?? '',
@@ -432,15 +442,57 @@ class ServiceAsuransiController extends Controller
                 ];
             }, $kejadians, array_keys($kejadians));
 
+            // ── Gabungkan kejadian approved lama + kejadian yang diresubmit ──────
+            // Kejadian yang sudah approved tetap dipertahankan di source_data Pembayaran
+            // dengan index aslinya, sehingga approvalItems() dapat mem-filter dengan tepat.
+            $oldAllKejadians   = $sourceData['kejadians'] ?? [];
+            $approvedDecisionsPembayaran = collect($sourceData['item_decisions'] ?? [])
+                ->where('action', 'approved')
+                ->keyBy('idx');
+
+            // Bangun source_data.kejadians yang lengkap:
+            //   - Index approved: pakai data lama (sudah punya bukti_bayar_admin dsb)
+            //   - Index yang diresubmit: pakai $newKejadians
+            $mergedKejadians = $oldAllKejadians; // mulai dari semua kejadian lama
+            // Tentukan index apa saja yang diresubmit (berurutan dari request)
+            $resubmitIdxMap = []; // request idx → original source_data idx
+            $resubmitCount  = 0;
+            foreach ($oldAllKejadians as $origIdx => $oldKej) {
+                if (!$approvedDecisionsPembayaran->has($origIdx)) {
+                    // Bukan approved → ini yang diresubmit; ambil dari newKejadians urutan ke-N
+                    if (isset($newKejadians[$resubmitCount])) {
+                        $mergedKejadians[$origIdx] = $newKejadians[$resubmitCount];
+                        $resubmitIdxMap[$origIdx]  = $resubmitCount;
+                    }
+                    $resubmitCount++;
+                }
+                // Yang approved → biarkan index lama tetap ada di $mergedKejadians
+            }
+
+            // item_decisions: pertahankan yang approved, hapus yang rejected
+            // (item rejected sekarang diresubmit → tidak ada entry di item_decisions lagi)
+            // PENTING: Jangan gunakan array_values() agar idx asli tetap dipertahankan
+            $preservedItemDecisions = collect($sourceData['item_decisions'] ?? [])
+                ->where('action', 'approved')
+                ->values() // reindex ke 0,1,2... tapi pertahankan struktur field 'idx'
+                ->all();
+
             $newSourceData = array_merge($sourceData, [
-                'kejadians' => $newKejadians,
-                'temp_files'=> $tempFiles,
+                'kejadians'      => $mergedKejadians,
+                'item_decisions' => $preservedItemDecisions,
+                'temp_files'     => $tempFiles,
             ]);
+
+            // Hitung biaya total: approved lama + yang baru diresubmit
+            $biayaApprovedLama = collect($mergedKejadians)
+                ->filter(fn($kej, $idx) => $approvedDecisionsPembayaran->has($idx))
+                ->sum(fn($kej) => (int)($kej['biaya'] ?? 0));
+            $nominalTotal = $biayaApprovedLama + $biayaTotal;
 
             // Reset pembayaran ke Diajukan
             $pembayaran->update([
                 'source_data'       => $newSourceData,
-                'nominal'           => $biayaTotal,
+                'nominal'           => $nominalTotal,
                 'status'            => 'Diajukan',
                 'can_edit'          => false,
                 'catatan'           => null,
@@ -449,18 +501,35 @@ class ServiceAsuransiController extends Controller
 
             // Reset service_asuransi ke Diajukan ke Pembayaran
             $data->update([
-                'biaya'        => $biayaTotal,
+                'biaya'        => $nominalTotal,
                 'persetujuan'  => 'Diajukan ke Pembayaran',
             ]);
 
-            // Update kejadian
-            \App\Models\ServiceAsuransiKejadian::where('service_asuransi_id', $id)->delete();
+            // ── Sync PO terkait ─────────────────────────────────────────────
+            $po = \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)->first();
+            if ($po) {
+                $poSourceData                   = $po->source_data ?? [];
+                $poSourceData['kejadians']       = array_values($mergedKejadians);
+                $poSourceData['item_decisions']  = $preservedItemDecisions;
+                $po->update([
+                    'source_data' => $poSourceData,
+                    'total_harga' => $nominalTotal,
+                    'can_edit'    => false,
+                ]);
+            }
+
+            // Update kejadian di tabel — JANGAN hapus yang sudah disetujui
+            // Hanya hapus yang status = 'ditolak' atau 'diajukan' (yang diresubmit)
+            \App\Models\ServiceAsuransiKejadian::where('service_asuransi_id', $id)
+                ->whereIn('status', ['ditolak', 'diajukan'])
+                ->delete();
             foreach ($newKejadians as $kej) {
                 \App\Models\ServiceAsuransiKejadian::create([
                     'service_asuransi_id' => $id,
                     'nama_kejadian'       => $kej['nama_kejadian'],
                     'biaya'               => (int)($kej['biaya'] ?? 0),
                     'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
+                    'status'              => 'diajukan',
                 ]);
             }
 
@@ -500,8 +569,34 @@ class ServiceAsuransiController extends Controller
                     ->where('status', 'bermasalah')
                     ->exists();
 
+                $kendaraanUpdate = [];
+
                 if (!$masihBermasalah) {
-                    $data->kendaraan->update(['status_kendaraan' => 'tersedia']);
+                    $kendaraanUpdate['status_kendaraan'] = 'tersedia';
+                }
+
+                // Update kilometer & tanggal terakhir service dari data service asuransi.
+                // Gunakan pola yang sama dengan service history dan pembayaran:
+                // - kilometer_sekarang hanya diupdate jika nilai baru lebih besar
+                // - km_terakhir_service dan tanggal_terakhir_service selalu diupdate
+                $kmBaru = (int) ($data->kilometer ?? 0);
+                if ($kmBaru > 0 && $kmBaru > (int) ($data->kendaraan->kilometer_sekarang ?? 0)) {
+                    $kendaraanUpdate['kilometer_sekarang']  = $kmBaru;
+                    $kendaraanUpdate['km_terakhir_service'] = $kmBaru;
+                }
+
+                if (!empty($data->tanggal_service)) {
+                    $tglExisting = $data->kendaraan->tanggal_terakhir_service
+                        ? \Carbon\Carbon::parse($data->kendaraan->tanggal_terakhir_service)
+                        : null;
+                    $tglBaru = \Carbon\Carbon::parse($data->tanggal_service);
+                    if (!$tglExisting || $tglBaru->gte($tglExisting)) {
+                        $kendaraanUpdate['tanggal_terakhir_service'] = $data->tanggal_service;
+                    }
+                }
+
+                if (!empty($kendaraanUpdate)) {
+                    $data->kendaraan->update($kendaraanUpdate);
                 }
             } else {
                 $data->kendaraan->update(['status_kendaraan' => 'bermasalah']);

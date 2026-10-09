@@ -3369,9 +3369,29 @@ class ChartDataController extends Controller
                 'autoDaily'    => true,
                 'valueColumns' => [
                     'total_harga',
-                    ['where' => ['status' => 'Pending'],   'column' => 'total_harga', 'aggregation' => 'sum', 'label' => 'Pending'],
-                    ['where' => ['status' => 'Disetujui'], 'column' => 'total_harga', 'aggregation' => 'sum', 'label' => 'Disetujui'],
-                    ['where' => ['status' => 'Ditolak'],   'column' => 'total_harga', 'aggregation' => 'sum', 'label' => 'Ditolak'],
+                    // Pending: kurangi nominal_approved_locked agar bagian yang sudah di-approve
+                    // tidak ikut dihitung sebagai pending (kasus partial resubmit)
+                    [
+                        'where' => ['status' => 'Pending'],
+                        'expr'  => "total_harga - COALESCE(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_approved_locked')) AS DECIMAL(15,2)), 0)",
+                        'column' => 'total_harga', 'aggregation' => 'sum', 'label' => 'Pending',
+                    ],
+                    // Disetujui: total_harga (approved) + nominal_approved_locked dari PO Pending yang punya locked items
+                    [
+                        'where' => [
+                            '__raw' => "(status = 'Disetujui' OR (status = 'Pending' AND JSON_LENGTH(JSON_EXTRACT(source_data, '$.locked_approved_idx')) > 0))",
+                        ],
+                        'expr'   => "CASE WHEN status = 'Disetujui' THEN total_harga ELSE CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_approved_locked')) AS DECIMAL(15,2)) END",
+                        'column' => 'total_harga', 'aggregation' => 'sum', 'label' => 'Disetujui',
+                    ],
+                    // Ditolak: full reject pakai total_harga, partial reject pakai nominal_rejected dari JSON
+                    [
+                        'where' => [
+                            '__raw' => "(status = 'Ditolak' OR (status = 'Disetujui' AND JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL))",
+                        ],
+                        'expr'   => "CASE WHEN status = 'Ditolak' THEN total_harga ELSE IFNULL(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)), 0) END",
+                        'column' => 'total_harga', 'aggregation' => 'sum', 'label' => 'Ditolak',
+                    ],
                 ],
                 'aggregation' => 'sum',
                 'dateColumn'  => 'tanggal_po',
@@ -3411,9 +3431,12 @@ class ChartDataController extends Controller
                 ],
                 [
                     'label'  => 'Nominal Disetujui',
-                    'type'   => 'sum_where',
+                    'type'   => 'sum_expr',
                     'column' => 'total_harga',
-                    'where'  => ['status' => 'Disetujui'],
+                    'where'  => [
+                        '__raw' => "(status = 'Disetujui' OR (status = 'Pending' AND JSON_LENGTH(JSON_EXTRACT(source_data, '$.locked_approved_idx')) > 0))",
+                    ],
+                    'expr'   => "SUM(CASE WHEN status = 'Disetujui' THEN total_harga ELSE CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_approved_locked')) AS DECIMAL(15,2)) END)",
                     'format' => 'currency',
                     'color'  => '#10b981',
                     'iconBg' => '#d1fae5',
@@ -3431,9 +3454,12 @@ class ChartDataController extends Controller
                 ],
                 [
                     'label'  => 'Nominal Ditolak',
-                    'type'   => 'sum_where',
+                    'type'   => 'sum_expr',
                     'column' => 'total_harga',
-                    'where'  => ['status' => 'Ditolak'],
+                    'where'  => [
+                        '__raw' => "(status = 'Ditolak' OR (status = 'Disetujui' AND JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL))",
+                    ],
+                    'expr'   => "SUM(CASE WHEN status = 'Ditolak' THEN total_harga ELSE IFNULL(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)), 0) END)",
                     'format' => 'currency',
                     'color'  => '#ef4444',
                     'iconBg' => '#fee2e2',

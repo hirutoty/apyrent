@@ -131,29 +131,77 @@ class PurchaseOrderApprovalService
         $sourceDataForPembayaran = $approvedSourceData;
         unset($sourceDataForPembayaran['item_decisions']);
 
-        $pembayaran = Pembayaran::create([
-            'no_pr'               => $noPR,
-            'tanggal'             => now(),
-            'departemen'          => $departemen,
-            'tipe_pembayaran'     => 'service',
-            'pemohon'             => $pemohon,
-            'alasan_permintaan'   => $alasanPermintaan,
-            'nominal'             => $nominal,
-            'nominal_original'    => $nominalOriginal,
-            'nama_bank'           => $namaBank,
-            'no_rekening'         => $noRekening,
-            'nama_pemilik'        => $namaPemilik,
-            'keterangan'          => $catatan ?: ($approvedSourceData['keterangan'] ?? null),
-            'status'              => $status,
-            'disetujui_oleh'      => Auth::user()->nama ?? Auth::user()->email,
-            'tanggal_persetujuan' => now(),
-            'source_type'         => $sourceType,
-            'source_data'         => $sourceDataForPembayaran,
-            'target_id'           => null,
-            'can_edit'            => false,
-        ]);
+        // ── Jika PO sudah punya Pembayaran (resubmit partial round ke-2+), UPDATE PR lama ──
+        // Berlaku untuk service_part dan service_incident — source type yang mendukung
+        // multi-round partial approval. Source type lain (GPS, pajak, asuransi, KIR, STNK)
+        // selalu buat Pembayaran baru karena tidak punya skenario reuse PR.
+        $existingPembayaran = null;
+        if (
+            in_array($sourceType, ['service_part', 'service_incident'])
+            && !empty($po->pembayaran_id)
+        ) {
+            $existingPembayaran = Pembayaran::find($po->pembayaran_id);
+        }
 
-        $po->update(['pembayaran_id' => $pembayaran->id]);
+        if ($existingPembayaran) {
+            // ── UPDATE Pembayaran lama ──────────────────────────────────────
+            // Merge parts baru yang approved ke dalam source_data yang sudah ada.
+            // Parts lama (yang sudah approved sebelumnya) tetap dipertahankan.
+            $existingSourceData = $existingPembayaran->source_data ?? [];
+
+            // Gabungkan parts: pakai index original dari approvedSourceData agar
+            // tidak ada duplikat dan index tetap konsisten dengan PO.
+            $existingParts = $existingSourceData['parts'] ?? [];
+            foreach ($approvedSourceData['parts'] ?? [] as $idx => $part) {
+                // Hapus flag rejection lama jika ada
+                unset($part['status_approval'], $part['catatan_penolakan']);
+                $existingParts[$idx] = $part;
+            }
+
+            $existingSourceData['parts'] = $existingParts;
+
+            // Nominal: akumulasi dari semua parts yang ada di PR (approved lama + approved baru)
+            $nominalAkumulasi = collect($existingParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
+
+            $existingPembayaran->update([
+                'source_data'         => $existingSourceData,
+                'nominal'             => $nominalAkumulasi,
+                'nominal_original'    => $nominalOriginal,
+                'status'              => 'Diajukan',
+                'can_edit'            => false,
+                'catatan'             => null,
+                'terakhir_diajukan'   => now(),
+            ]);
+
+            $pembayaran = $existingPembayaran;
+            // pembayaran_id PO tidak perlu diupdate — sudah menunjuk ke PR yang sama
+
+        } else {
+            // ── CREATE Pembayaran baru (first approval atau source type non-partial) ──
+            $pembayaran = Pembayaran::create([
+                'no_pr'               => $noPR,
+                'tanggal'             => now(),
+                'departemen'          => $departemen,
+                'tipe_pembayaran'     => 'service',
+                'pemohon'             => $pemohon,
+                'alasan_permintaan'   => $alasanPermintaan,
+                'nominal'             => $nominal,
+                'nominal_original'    => $nominalOriginal,
+                'nama_bank'           => $namaBank,
+                'no_rekening'         => $noRekening,
+                'nama_pemilik'        => $namaPemilik,
+                'keterangan'          => $catatan ?: ($approvedSourceData['keterangan'] ?? null),
+                'status'              => $status,
+                'disetujui_oleh'      => Auth::user()->nama ?? Auth::user()->email,
+                'tanggal_persetujuan' => now(),
+                'source_type'         => $sourceType,
+                'source_data'         => $sourceDataForPembayaran,
+                'target_id'           => null,
+                'can_edit'            => false,
+            ]);
+
+            $po->update(['pembayaran_id' => $pembayaran->id]);
+        }
 
         // Update linked records (GPS / pajak / asuransi_kendaraan / kir)
         // For GPS via approveWithItems, pass approvedSourceData so only approved items are updated
@@ -664,8 +712,6 @@ class PurchaseOrderApprovalService
 
         // ── SERVICE INCIDENT ──────────────────────────────────────────────────
         if ($sourceType === 'service_incident') {
-            // Alur baru: tidak ada record ServiceIncident sebelum PO disetujui.
-            // Buat record ServiceIncident + ServiceIncidentPart baru di sini.
             $kendaraanId    = $sourceData['kendaraan_id'] ?? null;
             $tanggalService = $sourceData['tanggal_service'] ?? now()->toDateString();
             $kilometer      = $sourceData['kilometer'] ?? 0;
@@ -698,7 +744,52 @@ class PurchaseOrderApprovalService
             }
             unset($partData);
 
-            // Buat ServiceIncident header
+            // ── Guard: jika service_incident_id sudah ada di source_data PO,
+            // ini adalah partial approval berikutnya (resubmit di-approve).
+            // Cukup tambah parts baru ke record yang sudah ada — jangan buat record baru.
+            $existingIncidentId = $sourceData['service_incident_id'] ?? null;
+
+            if ($existingIncidentId) {
+                $existingIncident = \App\Models\ServiceIncident::find($existingIncidentId);
+                if ($existingIncident) {
+                    // Akumulasi total_biaya (locked + baru)
+                    $biayaBaru = $existingIncident->total_biaya + $totalBiaya;
+                    $existingIncident->update([
+                        'total_biaya'     => $biayaBaru,
+                        'pembayaran_id'   => $pembayaran->id,
+                        'purchase_order_id' => $po->id,
+                        'persetujuan'     => 'Diajukan ke Pembayaran',
+                    ]);
+
+                    // Tambahkan HANYA parts baru (jangan hapus yang sudah ada)
+                    foreach ($parts as $idx => $partData) {
+                        \App\Models\ServiceIncidentPart::create([
+                            'service_incident_id' => $existingIncident->id,
+                            'kendaraan_id'        => $kendaraanId,
+                            'category_id'         => $partData['category_id'] ?? null,
+                            'nama_part'           => $partData['nama_part'] ?? '',
+                            'part_number'         => $partData['part_number'] ?? null,
+                            'serial_number'       => $partData['serial_number'] ?? null,
+                            'posisi'              => $partData['posisi'] ?? null,
+                            'tgl_pasang'          => $partData['tgl_pasang'] ?? $tanggalService,
+                            'kilometer_pasang'    => $partData['kilometer_pasang'] ?? $kilometer,
+                            'kondisi'             => $partData['kondisi'] ?? 'Perlu Ganti',
+                            'status'              => 'tidak_aktif',
+                            'biaya'               => (int)($partData['biaya'] ?? 0),
+                            'supplier_id'         => $partData['supplier_id'] ?? null,
+                            'nama_bank'           => $partData['nama_bank'] ?? null,
+                            'no_rekening'         => $partData['no_rekening'] ?? null,
+                            'nama_rekening'       => $partData['nama_rekening'] ?? null,
+                            'persetujuan'         => 'Pending',
+                            'purchase_order_id'   => $po->id,
+                        ]);
+                    }
+
+                    return;
+                }
+            }
+
+            // ── Tidak ada record sebelumnya: buat baru (alur pertama kali) ──
             $incident = \App\Models\ServiceIncident::create([
                 'kendaraan_id'    => $kendaraanId,
                 'keluhan'         => $keluhan,
@@ -768,14 +859,45 @@ class PurchaseOrderApprovalService
 
         // ── SERVICE ASURANSI ──────────────────────────────────────────────────
         if ($sourceType === 'service_asuransi') {
-            // Alur baru: buat ServiceAsuransi + ServiceAsuransiKejadian saat PO disetujui.
-            $kendaraanId    = $sourceData['kendaraan_id'] ?? null;
-            $kejadians      = $overrideSourceData['kejadians'] ?? $sourceData['kejadians'] ?? [];
-            $namaAsuransi   = $sourceData['nama_asuransi'] ?? null;
-            $keterangan     = $sourceData['keterangan'] ?? null;
+            $kendaraanId  = $sourceData['kendaraan_id'] ?? null;
+            $kejadians    = $overrideSourceData['kejadians'] ?? $sourceData['kejadians'] ?? [];
+            $namaAsuransi = $sourceData['nama_asuransi'] ?? null;
+            $keterangan   = $sourceData['keterangan'] ?? null;
+            $totalBiaya   = collect($kejadians)->sum(fn($k) => (int)($k['biaya'] ?? 0));
 
-            $totalBiaya = collect($kejadians)->sum(fn($k) => (int)($k['biaya'] ?? 0));
+            // ── Guard: jika service_asuransi_id sudah ada di source_data PO,
+            // ini adalah partial approval kedua (resubmit). Cukup tambah kejadian baru
+            // ke record yang sudah ada — jangan buat record baru.
+            $existingId = $sourceData['service_asuransi_id'] ?? null;
 
+            if ($existingId) {
+                $existing = \App\Models\ServiceAsuransi::find($existingId);
+                if ($existing) {
+                    // Akumulasi biaya (locked + baru)
+                    $biayaBaru = $existing->biaya + $totalBiaya;
+                    $existing->update([
+                        'biaya'         => $biayaBaru,
+                        'pembayaran_id' => $pembayaran->id, // update ke pembayaran terbaru
+                        'persetujuan'   => 'Diajukan ke Pembayaran',
+                    ]);
+
+                    // Tambahkan HANYA kejadian baru (jangan hapus yang sudah ada)
+                    foreach ($kejadians as $kej) {
+                        \App\Models\ServiceAsuransiKejadian::create([
+                            'service_asuransi_id' => $existing->id,
+                            'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
+                            'biaya'               => (int)($kej['biaya'] ?? 0),
+                            'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
+                            'status'              => 'diajukan',
+                        ]);
+                    }
+
+                    // Tidak perlu update source_data PO — service_asuransi_id sudah benar
+                    return;
+                }
+            }
+
+            // ── Tidak ada record sebelumnya: buat baru (alur pertama kali) ──
             $serviceAsuransi = \App\Models\ServiceAsuransi::create([
                 'kendaraan_id'      => $kendaraanId,
                 'nama_asuransi'     => $namaAsuransi,
@@ -792,17 +914,17 @@ class PurchaseOrderApprovalService
                 'persetujuan'       => 'Diajukan ke Pembayaran',
             ]);
 
-            // Buat kejadian per item (lampiran masih di temp storage — dipindah saat transfer)
             foreach ($kejadians as $idx => $kej) {
                 \App\Models\ServiceAsuransiKejadian::create([
                     'service_asuransi_id' => $serviceAsuransi->id,
                     'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
                     'biaya'               => (int)($kej['biaya'] ?? 0),
                     'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
+                    'status'              => 'diajukan',
                 ]);
             }
 
-            // Simpan service_asuransi_id ke source_data PO agar transferServiceAsuransi bisa lookup
+            // Simpan service_asuransi_id ke source_data PO agar approval berikutnya bisa lookup
             $updatedSource = $po->source_data;
             $updatedSource['service_asuransi_id'] = $serviceAsuransi->id;
             $po->update(['source_data' => $updatedSource]);

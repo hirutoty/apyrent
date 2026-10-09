@@ -341,21 +341,48 @@ class PengeluaranTransferService
 
             // ── Aktifkan hanya parts yang diapprove ───────────────────────────
             if (!$isPartialApproval) {
-                // Approve semua → aktifkan semua
+                // Approve semua → aktifkan semua + update biaya dari source_data
+                // Bangun map nama_part -> biaya dari source_data untuk update harga terbaru
+                $sourcePartBiayaMap = [];
+                foreach (($sourceData['parts'] ?? []) as $spIdx => $sp) {
+                    $key = trim(strtolower($sp['nama_part'] ?? '')) . '||' . $spIdx;
+                    $sourcePartBiayaMap[trim(strtolower($sp['nama_part'] ?? ''))] = (int)($sp['biaya'] ?? 0);
+                }
+
                 $draftByPembayaran->parts()
                     ->whereIn('status', ['tidak_aktif'])
-                    ->update(['status' => 'aktif', 'persetujuan' => 'Disetujui']);
+                    ->each(function ($part) use ($sourcePartBiayaMap) {
+                        $updateData = ['status' => 'aktif', 'persetujuan' => 'Disetujui'];
+                        // Update biaya dari source_data (harga yang sudah diedit di form pembayaran)
+                        $namaKey = trim(strtolower($part->nama_part ?? ''));
+                        if (isset($sourcePartBiayaMap[$namaKey])) {
+                            $updateData['biaya'] = $sourcePartBiayaMap[$namaKey];
+                        }
+                        $part->update($updateData);
+                    });
             } else {
                 // Partial approval → aktifkan hanya yang cocok, tolak sisanya
+                // Bangun map key->biaya dari source_data untuk index yang diapprove
+                $approvedSourcePartsWithBiaya = [];
+                $allSourceParts = $sourceData['parts'] ?? [];
+                foreach ($allSourceParts as $spIdx => $sp) {
+                    if (in_array($spIdx, $selectedParts)) {
+                        $key = trim(strtolower($sp['nama_part'] ?? '')) . '||' . ((int)($sp['biaya'] ?? 0));
+                        $approvedSourcePartsWithBiaya[$key] = (int)($sp['biaya'] ?? 0);
+                    }
+                }
+
                 $draftByPembayaran->parts()
                     ->whereIn('status', ['tidak_aktif'])
-                    ->each(function ($part) use ($approvedSourceParts, $rejectedSourceParts) {
+                    ->each(function ($part) use ($approvedSourceParts, $rejectedSourceParts, $approvedSourcePartsWithBiaya) {
                         $key = trim(strtolower($part->nama_part ?? '')) . '||' . ((int)($part->biaya ?? 0));
                         if (isset($approvedSourceParts[$key])) {
-                            $part->update([
-                                'status'      => 'aktif',
-                                'persetujuan' => 'Disetujui',
-                            ]);
+                            $updateData = ['status' => 'aktif', 'persetujuan' => 'Disetujui'];
+                            // Update biaya dari source_data (harga terbaru yang diapprove)
+                            if (isset($approvedSourcePartsWithBiaya[$key])) {
+                                $updateData['biaya'] = $approvedSourcePartsWithBiaya[$key];
+                            }
+                            $part->update($updateData);
                         } elseif (isset($rejectedSourceParts[$key])) {
                             $part->update([
                                 'status'      => 'tidak_aktif',
@@ -364,19 +391,12 @@ class PengeluaranTransferService
                         }
                     });
 
-                // ServiceHistory: kurangi total_biaya dengan nominal part yang ditolak
-                $biayaRejected = 0;
-                $allSourceParts = $sourceData['parts'] ?? [];
-                foreach ($allSourceParts as $idx => $sp) {
-                    if (!in_array($idx, $selectedParts)) {
-                        $biayaRejected += (int)($sp['biaya'] ?? 0);
-                    }
-                }
-                if ($biayaRejected > 0) {
-                    $draftByPembayaran->update([
-                        'total_biaya' => max(0, (int)$draftByPembayaran->total_biaya - $biayaRejected),
-                    ]);
-                }
+                // ServiceHistory: recalculate total_biaya dari DB setelah parts diupdate
+                // (ini menangani perubahan biaya dari form pembayaran sebelum approve)
+                $totalBiayaApproved = $draftByPembayaran->parts()
+                    ->where('persetujuan', 'Disetujui')
+                    ->sum('biaya');
+                $draftByPembayaran->update(['total_biaya' => (int)$totalBiayaApproved]);
             }
 
             // Part lama (replace_part_id) TIDAK di-archive di sini.
@@ -434,8 +454,30 @@ class PengeluaranTransferService
         $statusPengeluaran   = 'stabil'; // default; akan di-override jika over limit
         foreach ($parts as $idx => $partData) {
             // $idx di sini adalah index dalam filtered $parts, bukan index asli dalam $allParts
-            // Jika ada selectedParts, cari index asli untuk ambil temp_files yang tepat
-            $originalIdx = !empty($selectedParts) ? array_search($partData, $allParts) : $idx;
+            // Cari index asli di allParts berdasarkan nama_part + biaya (lebih reliable dari array_search)
+            // agar lookup temp_files['parts'][originalIdx] tetap benar meski parts di-reindex.
+            $originalIdx = $idx; // default: gunakan idx apa adanya
+            if (!empty($selectedParts) || count($parts) !== count($allParts)) {
+                // Coba match berdasarkan nama_part + biaya
+                $namaPart = strtolower(trim($partData['nama_part'] ?? ''));
+                $biayaPart = (int)($partData['biaya'] ?? 0);
+                foreach ($allParts as $aIdx => $aPart) {
+                    if (strtolower(trim($aPart['nama_part'] ?? '')) === $namaPart
+                        && (int)($aPart['biaya'] ?? 0) === $biayaPart) {
+                        $originalIdx = $aIdx;
+                        break;
+                    }
+                }
+                // Fallback: cari di temp_files keys — pilih key yang filenya exist
+                if (!isset(($sourceData['temp_files']['parts'] ?? [])[$originalIdx])) {
+                    foreach (array_keys($sourceData['temp_files']['parts'] ?? []) as $tfIdx) {
+                        if (!in_array($tfIdx, array_map('intval', $selectedParts ?: []))) {
+                            $originalIdx = $tfIdx;
+                            break;
+                        }
+                    }
+                }
+            }
 
             $tglPasang  = \Carbon\Carbon::parse($partData['tgl_pasang'] ?? now());
             $biaya      = (int)($partData['biaya'] ?? 0);
@@ -688,16 +730,69 @@ class PengeluaranTransferService
             }
             $pendingParts = $pendingPartsQuery->orderBy('id')->get();
 
-            foreach ($pendingParts as $idx => $existingPart) {
-                $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
-                $updateData = [
-                    'persetujuan' => 'Disetujui',
-                    'status'      => 'aktif', // aktif setelah diapprove pembayaran
-                ];
-                if (isset($buktiBayarMap[$originalIdx])) {
-                    $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]];
+            // ── Jika tidak ada pending parts, insert baru dari source_data ──
+            // Ini menangani kasus pertama kali approve PO (parts belum ada di DB)
+            if ($pendingParts->isEmpty() && !empty($parts)) {
+                foreach ($parts as $idx => $partData) {
+                    $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
+                    $buktiPayload = isset($buktiBayarMap[$originalIdx])
+                        ? [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]]
+                        : null;
+
+                    \App\Models\ServiceIncidentPart::create([
+                        'service_incident_id' => $incident->id,
+                        'purchase_order_id'   => $poTerkait?->id,
+                        'nama_part'           => $partData['nama_part'] ?? null,
+                        'category_id'         => $partData['category_id'] ?? null,
+                        'kondisi'             => $partData['kondisi'] ?? 'Baik',
+                        'supplier_id'         => $partData['supplier_id'] ?? null,
+                        'nama_bank'           => $partData['nama_bank'] ?? null,
+                        'no_rekening'         => $partData['no_rekening'] ?? null,
+                        'nama_rekening'       => $partData['nama_rekening'] ?? null,
+                        'biaya'               => (int)($partData['biaya'] ?? 0),
+                        'persetujuan'         => 'Disetujui',
+                        'status'              => 'aktif',
+                        'bukti_bayar'         => $buktiPayload,
+                        'lampiran'            => $partData['lampiran'] ?? null,
+                    ]);
                 }
-                $existingPart->update($updateData);
+
+                // Refresh pendingParts agar cashflow logic bisa berjalan
+                $pendingParts = $incident->parts()
+                    ->where('persetujuan', 'Disetujui')
+                    ->whereNotNull('purchase_order_id')
+                    ->where('purchase_order_id', $poTerkait?->id)
+                    ->orderBy('id')
+                    ->get();
+            } else {
+                // ── Update parts yang sudah ada ──
+                // Bangun map nama_part -> biaya dari source_data (parts yang diapprove)
+                // untuk mengupdate harga terbaru yang mungkin diedit di form pembayaran sebelum approve
+                $sourcePartsForBiaya = !empty($approvedIndices)
+                    ? array_intersect_key($allParts, array_flip($approvedIndices))
+                    : $allParts;
+                $sourcePartsBiayaMap = [];
+                foreach ($sourcePartsForBiaya as $sp) {
+                    $key = trim(strtolower($sp['nama_part'] ?? ''));
+                    $sourcePartsBiayaMap[$key] = (int)($sp['biaya'] ?? 0);
+                }
+
+                foreach ($pendingParts as $idx => $existingPart) {
+                    $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
+                    $updateData = [
+                        'persetujuan' => 'Disetujui',
+                        'status'      => 'aktif', // aktif setelah diapprove pembayaran
+                    ];
+                    // Update biaya dari source_data (harga yang sudah diedit di form pembayaran)
+                    $namaKey = trim(strtolower($existingPart->nama_part ?? ''));
+                    if (isset($sourcePartsBiayaMap[$namaKey])) {
+                        $updateData['biaya'] = $sourcePartsBiayaMap[$namaKey];
+                    }
+                    if (isset($buktiBayarMap[$originalIdx])) {
+                        $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]];
+                    }
+                    $existingPart->update($updateData);
+                }
             }
 
             // Hitung total_biaya SETELAH parts diupdate ke Disetujui.
@@ -709,8 +804,10 @@ class PengeluaranTransferService
             $incident->update(['total_biaya' => (int) $totalBiayaFinal]);
 
             // Catat cashflow per part yang baru disetujui saja
+            // (refresh dari DB agar biaya yang baru dipakai)
             $kendaraanForFinance = $kendaraan;
-            foreach ($pendingParts as $idx => $existingPart) {
+            $pendingParts->each(function ($existingPart) use ($kendaraanForFinance, $pembayaran) {
+                $existingPart->refresh(); // ambil biaya terbaru dari DB
                 $biaya         = (int)($existingPart->biaya ?? 0);
                 $categoryId    = $existingPart->category_id ?? null;
                 $categoryModel = $categoryId ? \App\Models\ServiceCategory::find($categoryId) : null;
@@ -723,7 +820,7 @@ class PengeluaranTransferService
                 $this->createBukubesarRecord('INC', $existingPart->id, $biaya,
                     'Beban Service Incident: ' . $namaKategori . ' - ' . $merkKendaraan . ' ' . $nopolKendaraan,
                     'Auto-posting: Service incident ' . $namaKategori . ' ' . $nopolKendaraan . ' via pembayaran #' . $pembayaran->id);
-            }
+            });
         } else {
             // Fallback: buat baru jika tidak ada existing (seharusnya tidak terjadi)
             $incident = \App\Models\ServiceIncident::create([
@@ -1666,8 +1763,10 @@ class PengeluaranTransferService
             }
             $serviceAsuransi->update($updateData);
 
-            // Hapus kejadian lama (dibuat saat PO approve), ganti dengan yang disetujui saja
-            $serviceAsuransi->kejadians()->delete();
+            // JANGAN hapus kejadian yang sudah ada — hanya update statusnya.
+            // Kejadian yang disetujui → status=disetujui + bukti_bayar terisi.
+            // Kejadian yang ditolak   → status=ditolak + catatan_penolakan terisi.
+            // Ini menjaga agar partial rejection tidak menghilangkan data dari tabel.
         } else {
             // Buat record baru (fallback untuk data lama)
             $serviceAsuransi = ServiceAsuransi::create([
@@ -1687,66 +1786,119 @@ class PengeluaranTransferService
             ]);
         }
 
-        // Buat ServiceAsuransiKejadian hanya untuk yang disetujui, dengan bukti per kejadian
-        // $selectedItems berisi index asli dari allKejadians
-        $selectedIndices = !empty($selectedItems) ? $selectedItems : array_keys($allKejadians);
+        // ── Bangun set index yang approved vs rejected ──────────────────────
         $kendaraan       = Kendaraan::find($sourceData['kendaraan_id'] ?? null);
         $nopol           = $kendaraan->nopol ?? '-';
         $merk            = $kendaraan->merk  ?? '-';
 
-        foreach ($selectedIndices as $origIdx) {
-            $kej = $allKejadians[$origIdx] ?? null;
-            if (!$kej) continue;
+        $selectedIndices = !empty($selectedItems) ? $selectedItems : array_keys($allKejadians);
+        // Exclude dari rejected: item yang sudah punya status 'disetujui' di DB.
+        // Ini penting pada siklus approval kedua (resubmit): Item A sudah approved
+        // sebelumnya dan tidak ada di selectedItems saat ini, tapi tidak boleh di-reject.
+        $alreadyApprovedInDb = $serviceAsuransi
+            ? $serviceAsuransi->kejadians()->where('status', 'disetujui')->pluck('nama_kejadian')->all()
+            : [];
+        $rejectedIndices = array_values(array_filter(
+            array_diff(array_keys($allKejadians), $selectedIndices),
+            fn($i) => !in_array($allKejadians[$i]['nama_kejadian'] ?? '__NONE__', $alreadyApprovedInDb, true)
+        ));
 
-            // Bukti bayar per kejadian disimpan di kejadian[origIdx]['bukti_bayar_admin']
-            $buktiPerKejadian = !empty($kej['bukti_bayar_admin']) ? $kej['bukti_bayar_admin'] : null;
+        // Ambil catatan penolakan dari item_decisions yang tersimpan di source_data
+        $itemDecisions = collect($sourceData['item_decisions'] ?? [])->keyBy('idx');
 
-            $lampiranFinal = [];
-            foreach ($kej['lampiran'] ?? [] as $tf) {
-                if (empty($tf['path'])) continue;
-                try {
-                    $finalPath = $this->copyFileToPublic(
-                        $tf['path'],
-                        'service-asuransi-kejadian/' . $serviceAsuransi->id,
-                        $pembayaran->id
-                    );
-                    $lampiranFinal[] = [
-                        'path'          => $finalPath,
-                        'original_name' => $tf['original_name'] ?? basename($tf['path']),
-                        'extension'     => $tf['extension'] ?? pathinfo($finalPath, PATHINFO_EXTENSION),
-                    ];
-                } catch (\Exception $e) {
-                    \Log::warning("Gagal copy lampiran kejadian service asuransi: " . $e->getMessage());
+        // ── Proses setiap kejadian: approved → upsert disetujui, rejected → upsert ditolak ──
+        foreach ($allKejadians as $origIdx => $kej) {
+            $isApproved = in_array($origIdx, $selectedIndices);
+            $isRejected = in_array($origIdx, $rejectedIndices);
+
+            // Cari record kejadian yang sudah ada (dari PO approval sebelumnya)
+            $existingKej = $serviceAsuransi->kejadians()
+                ->where(function ($q) use ($kej) {
+                    $q->where('nama_kejadian', $kej['nama_kejadian'] ?? '')
+                      ->where('biaya', (int)($kej['biaya'] ?? 0));
+                })
+                ->first();
+
+            if ($isRejected) {
+                // ── Kejadian ditolak: simpan/update dengan status=ditolak ──────
+                $catatanTolak = $itemDecisions->get($origIdx)['catatan'] ?? null;
+
+                if ($existingKej) {
+                    $existingKej->update([
+                        'status'             => 'ditolak',
+                        'catatan_penolakan'  => $catatanTolak,
+                        'bukti_bayar'        => null,
+                    ]);
+                } else {
+                    // Buat baru jika belum ada (misal: PO tidak buat kejadian duluan)
+                    $lampiranFinal = $this->copyKejadianLampiran($kej, $serviceAsuransi->id, $pembayaran->id);
+                    \App\Models\ServiceAsuransiKejadian::create([
+                        'service_asuransi_id' => $serviceAsuransi->id,
+                        'nama_kejadian'        => $kej['nama_kejadian'] ?? '-',
+                        'biaya'                => (int)($kej['biaya'] ?? 0),
+                        'lampiran'             => !empty($lampiranFinal) ? $lampiranFinal : null,
+                        'bukti_bayar'          => null,
+                        'status'               => 'ditolak',
+                        'catatan_penolakan'    => $catatanTolak,
+                    ]);
                 }
+                // Kejadian ditolak → TIDAK catat cashflow
+                continue;
             }
 
-            \App\Models\ServiceAsuransiKejadian::create([
-                'service_asuransi_id' => $serviceAsuransi->id,
-                'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
-                'biaya'               => (int) ($kej['biaya'] ?? 0),
-                'lampiran'            => !empty($lampiranFinal) ? $lampiranFinal : null,
-                'bukti_bayar'         => $buktiPerKejadian ? [$buktiPerKejadian] : null,
-            ]);
+            if ($isApproved) {
+                // ── Kejadian disetujui: simpan/update dengan status=disetujui + bukti ──
+                $buktiPerKejadian = !empty($kej['bukti_bayar_admin']) ? $kej['bukti_bayar_admin'] : null;
+                // Biaya dari source_data (mungkin sudah diedit di form pembayaran sebelum approve)
+                $biayaTerbaru = (int)($kej['biaya'] ?? 0);
 
-            // ── Catat cashflow per kejadian ───────────────────────────
-            $biayaKej     = (int) ($kej['biaya'] ?? 0);
-            $namaKejadian = $kej['nama_kejadian'] ?? '-';
+                if ($existingKej) {
+                    $existingKej->update([
+                        'biaya'             => $biayaTerbaru, // update ke harga terbaru yang diapprove
+                        'status'            => 'disetujui',
+                        'catatan_penolakan' => null,
+                        'bukti_bayar'       => $buktiPerKejadian ? [$buktiPerKejadian] : $existingKej->bukti_bayar,
+                    ]);
+                } else {
+                    $lampiranFinal = $this->copyKejadianLampiran($kej, $serviceAsuransi->id, $pembayaran->id);
+                    \App\Models\ServiceAsuransiKejadian::create([
+                        'service_asuransi_id' => $serviceAsuransi->id,
+                        'nama_kejadian'        => $kej['nama_kejadian'] ?? '-',
+                        'biaya'                => $biayaTerbaru,
+                        'lampiran'             => !empty($lampiranFinal) ? $lampiranFinal : null,
+                        'bukti_bayar'          => $buktiPerKejadian ? [$buktiPerKejadian] : null,
+                        'status'               => 'disetujui',
+                        'catatan_penolakan'    => null,
+                    ]);
+                }
 
-            $this->createKeuanganRecord(
-                'SA',
-                $serviceAsuransi->id,
-                $biayaKej,
-                'Service Asuransi: ' . $namaKejadian . ' - ' . $merk . ' ' . $nopol
-            );
+                // ── Catat cashflow per kejadian yang disetujui ──────────────
+                $biayaKej     = $biayaTerbaru;
+                $namaKejadian = $kej['nama_kejadian'] ?? '-';
 
-            $this->createBukubesarRecord(
-                'SA',
-                $serviceAsuransi->id,
-                $biayaKej,
-                'Beban Service Asuransi: ' . $namaKejadian . ' - ' . $merk . ' ' . $nopol,
-                'Auto-posting: Service asuransi ' . $namaKejadian . ' ' . $nopol . ' via PR #' . $pembayaran->no_pr
-            );
+                $this->createKeuanganRecord(
+                    'SA',
+                    $serviceAsuransi->id,
+                    $biayaKej,
+                    'Service Asuransi: ' . $namaKejadian . ' - ' . $merk . ' ' . $nopol
+                );
+
+                $this->createBukubesarRecord(
+                    'SA',
+                    $serviceAsuransi->id,
+                    $biayaKej,
+                    'Beban Service Asuransi: ' . $namaKejadian . ' - ' . $merk . ' ' . $nopol,
+                    'Auto-posting: Service asuransi ' . $namaKejadian . ' ' . $nopol . ' via PR #' . $pembayaran->no_pr
+                );
+            }
         }
+
+        // ── Update total biaya service_asuransi dari DB setelah semua kejadian diproses ──
+        // Ini memastikan biaya = sum SEMUA kejadian 'disetujui' dari DB (harga terbaru)
+        $totalBiayaFinal = $serviceAsuransi->kejadians()
+            ->where('status', 'disetujui')
+            ->sum('biaya');
+        $serviceAsuransi->update(['biaya' => (int) $totalBiayaFinal]);
 
         // Copy attachments tambahan (jika ada dari approval)
         $this->copyAttachmentsToFinalStorage(
@@ -1840,24 +1992,31 @@ class PengeluaranTransferService
      */
     protected function copyFileToPublic(string $storagePath, string $publicFolder, int $pembayaranId): string
     {
-        // Full path di storage
+        // Resolve source — coba storage dulu, fallback ke public
         $sourceFullPath = storage_path('app/public/' . $storagePath);
-        
+        if (!file_exists($sourceFullPath)) {
+            $sourceFullPath = public_path($storagePath);
+        }
+
+        // Jika file tidak ditemukan di manapun, skip & log — jangan throw exception
+        if (!file_exists($sourceFullPath)) {
+            \Log::warning("copyFileToPublic: file not found, skipping. path={$storagePath}");
+            return $storagePath; // kembalikan path asli agar data tidak hilang
+        }
+
         // Generate nama file baru dengan prefix pembayaran
         $filename = 'pembayaran_' . $pembayaranId . '_' . time() . '_' . basename($storagePath);
-        
+
         // Target path di public
         $targetFolder = public_path($publicFolder);
         if (!file_exists($targetFolder)) {
             File::makeDirectory($targetFolder, 0777, true);
         }
-        
+
         $targetFullPath = $targetFolder . '/' . $filename;
-        
-        // Copy file
+
         File::copy($sourceFullPath, $targetFullPath);
-        
-        // Return relative path
+
         return $publicFolder . '/' . $filename;
     }
 
@@ -1914,6 +2073,33 @@ class PengeluaranTransferService
             'saldo'       => $lastSaldo - $amount,
             'sumber'      => 'auto',
         ]);
+    }
+
+    /**
+     * Copy lampiran array dari satu kejadian ke final storage.
+     * Digunakan oleh transferServiceAsuransi() agar DRY.
+     */
+    protected function copyKejadianLampiran(array $kej, int $serviceAsuransiId, int $pembayaranId): array
+    {
+        $lampiranFinal = [];
+        foreach ($kej['lampiran'] ?? [] as $tf) {
+            if (empty($tf['path'])) continue;
+            try {
+                $finalPath = $this->copyFileToPublic(
+                    $tf['path'],
+                    'service-asuransi-kejadian/' . $serviceAsuransiId,
+                    $pembayaranId
+                );
+                $lampiranFinal[] = [
+                    'path'          => $finalPath,
+                    'original_name' => $tf['original_name'] ?? basename($tf['path']),
+                    'extension'     => $tf['extension'] ?? pathinfo($finalPath, PATHINFO_EXTENSION),
+                ];
+            } catch (\Exception $e) {
+                \Log::warning("Gagal copy lampiran kejadian service asuransi: " . $e->getMessage());
+            }
+        }
+        return $lampiranFinal;
     }
 
     /**

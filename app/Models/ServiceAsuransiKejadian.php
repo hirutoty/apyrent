@@ -17,12 +17,14 @@ class ServiceAsuransiKejadian extends Model
         'biaya',
         'lampiran',
         'bukti_bayar',
+        'status',
+        'catatan_penolakan',
     ];
 
     protected $casts = [
-        'biaya'      => 'integer',
-        'lampiran'   => 'array',
-        'bukti_bayar'=> 'array',
+        'biaya'       => 'integer',
+        'lampiran'    => 'array',
+        'bukti_bayar' => 'array',
     ];
 
     public function serviceAsuransi()

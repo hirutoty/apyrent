@@ -433,8 +433,7 @@ class ServiceHistoryController extends Controller
                         $kendaraanForKm->update(['kilometer_sekarang' => (int)$request->kilometer]);
                     }
 
-                return redirect()
-                    ->route('service-history.index')
+                return redirect('/admin/purchase-order?status=Pending')
                     ->with('success', 'Pengajuan service part berhasil diajukan ulang. Menunggu approval di Purchase Order.');
                 }
 
@@ -450,8 +449,7 @@ class ServiceHistoryController extends Controller
                         $kendaraanForKm->update(['kilometer_sekarang' => (int)$request->kilometer]);
                     }
 
-                    return redirect()
-                        ->route('service-history.index')
+                    return redirect('/admin/pembayaran?tab=Diajukan&sort=terbaru')
                         ->with('success', 'Pengajuan service part berhasil diajukan ulang. Menunggu approval.');
                 }
                 
